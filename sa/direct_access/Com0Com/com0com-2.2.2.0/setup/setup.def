@@ -1,5 +1,0 @@
-LIBRARY  SETUP
-
-EXPORTS
-   MainA
-   RunDllA
