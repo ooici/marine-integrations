@@ -1,0 +1,18 @@
+===========================================================
+Ocean Observatories Initiative Cyberinfrastructure (OOI CI)
+Integrated Observatory Network (ION)
+
+coi-servives - ION COI services
+
+(C) UC Regents, 2010-2012
+===========================================================
+
+This is the repository that containes implemention for all marine integrations
+including drivers and transforms.
+
+Marine integration packages are inteded to be developed and released 
+independantly of other ION releases.  
+
+To develop drivers you must install ION and the Instrument Development Kit.  
+
+
