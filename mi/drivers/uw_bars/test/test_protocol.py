@@ -4,10 +4,10 @@ __author__ = "Carlos Rueda"
 __license__ = 'Apache 2.0'
 
 
-from ion.services.mi.drivers.uw_bars.test.pyon_test import PyonBarsTestCase
+from mi.drivers.uw_bars.test.pyon_test import PyonBarsTestCase
 """
-from ion.services.mi.drivers.uw_bars.protocol import BarsInstrumentProtocol
-from ion.services.mi.drivers.uw_bars.protocol import BarsProtocolState
+from mi.drivers.uw_bars.protocol import BarsInstrumentProtocol
+from mi.drivers.uw_bars.protocol import BarsProtocolState
 """
 import time
 

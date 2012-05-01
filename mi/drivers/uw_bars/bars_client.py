@@ -6,7 +6,7 @@ __license__ = 'Apache 2.0'
 """
 BarsClient allows direct iteraction with the instrument via a socket.
 A demo program can be run as follows:
-    $ bin/python ion/services/mi/drivers/uw_bars/bars_client.py \
+    $ bin/python mi/drivers/uw_bars/bars_client.py \
            --host 10.180.80.172 --port 2001 --outfile output.txt
 """
 
@@ -17,7 +17,7 @@ import re
 import time
 from threading import Thread
 
-import ion.services.mi.mi_logger
+import mi.mi_logger
 import logging
 log = logging.getLogger('mi_logger')
 

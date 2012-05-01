@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 '''
-@file ion/services/mi/drivers/test/test_satlantic_par.py
+@file mi/drivers/test/test_satlantic_par.py
 @author Steve Foley
-@test ion.services.mi.drivers.satlantic_par
+@test mi.drivers.satlantic_par
 Unit test suite to test Satlantic PAR sensor
 '''
 
@@ -14,23 +14,23 @@ from mock import Mock, call, DEFAULT
 from pyon.util.unit_test import PyonTestCase
 from nose.plugins.attrib import attr
 """
-from ion.services.mi.common import InstErrorCode
-#import ion.services.mi.drivers.satlantic_par.satlantic_par
-from ion.services.mi.data_decorator import ChecksumDecorator
-from ion.services.mi.drivers.satlantic_par.satlantic_par import SatlanticPARInstrumentProtocol
-from ion.services.mi.drivers.satlantic_par.satlantic_par import Parameter
-from ion.services.mi.drivers.satlantic_par.satlantic_par import Command
-from ion.services.mi.drivers.satlantic_par.satlantic_par import Event
-from ion.services.mi.drivers.satlantic_par.satlantic_par import SatlanticChecksumDecorator
-from ion.services.mi.exceptions import InstrumentProtocolException
-from ion.services.mi.exceptions import InstrumentTimeoutException
-from ion.services.mi.exceptions import InstrumentDataException
+from mi.common import InstErrorCode
+#import mi.drivers.satlantic_par.satlantic_par
+from mi.data_decorator import ChecksumDecorator
+from mi.drivers.satlantic_par.satlantic_par import SatlanticPARInstrumentProtocol
+from mi.drivers.satlantic_par.satlantic_par import Parameter
+from mi.drivers.satlantic_par.satlantic_par import Command
+from mi.drivers.satlantic_par.satlantic_par import Event
+from mi.drivers.satlantic_par.satlantic_par import SatlanticChecksumDecorator
+from mi.exceptions import InstrumentProtocolException
+from mi.exceptions import InstrumentTimeoutException
+from mi.exceptions import InstrumentDataException
 """
 
 mi_logger = logging.getLogger('mi_logger')
 
 # Make tests verbose and provide stdout
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_satlantic_par.py
+# bin/nosetests -s -v mi/drivers/test/test_satlantic_par.py
 # Test device is at 10.180.80.173, port 2001
 
 @attr('UNIT', group='mi')

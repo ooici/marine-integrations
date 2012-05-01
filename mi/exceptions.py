@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.exceptions Exception classes for MI work
-@file ion/services/mi/exceptions.py
+@package mi.exceptions Exception classes for MI work
+@file mi/exceptions.py
 @author Edward Hunter
 @brief Common exceptions used in the MI work. Specific ones can be subclassed
 in the driver code.

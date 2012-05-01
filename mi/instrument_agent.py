@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.instrument_agent Instrument resource agent
-@file ion/services/mi/instrument_agent.py
+@package mi.instrument_agent Instrument resource agent
+@file mi/instrument_agent.py
 @author Edward Hunter
 @brief Resource agent derived class providing an instrument agent as a resource.
 This resource fronts instruments and instrument drivers one-to-one in ION.
@@ -42,24 +42,24 @@ import socket
 import os
 
 # ION service imports.
-from ion.services.mi.instrument_fsm import InstrumentFSM
-from ion.services.mi.common import BaseEnum
-from ion.services.mi.zmq_driver_client import ZmqDriverClient
-from ion.services.mi.zmq_driver_process import ZmqDriverProcess
+from mi.instrument_fsm import InstrumentFSM
+from mi.common import BaseEnum
+from mi.zmq_driver_client import ZmqDriverClient
+from mi.zmq_driver_process import ZmqDriverProcess
 from ion.services.sa.direct_access.direct_access_server import DirectAccessServer, DirectAccessTypes
 
 # MI imports.
-from ion.services.mi.exceptions import ConnectionError
-from ion.services.mi.exceptions import InstrumentException
-from ion.services.mi.exceptions import NotImplementedError
-from ion.services.mi.exceptions import ParameterError
-from ion.services.mi.exceptions import ProtocolError
-from ion.services.mi.exceptions import SampleError
-from ion.services.mi.exceptions import StateError
-from ion.services.mi.exceptions import TimeoutError
-from ion.services.mi.exceptions import UnknownCommandError
-from ion.services.mi.instrument_driver import DriverConnectionState
-from ion.services.mi.instrument_driver import DriverProtocolState
+from mi.exceptions import ConnectionError
+from mi.exceptions import InstrumentException
+from mi.exceptions import NotImplementedError
+from mi.exceptions import ParameterError
+from mi.exceptions import ProtocolError
+from mi.exceptions import SampleError
+from mi.exceptions import StateError
+from mi.exceptions import TimeoutError
+from mi.exceptions import UnknownCommandError
+from mi.instrument_driver import DriverConnectionState
+from mi.instrument_driver import DriverProtocolState
 
 
 class InstrumentAgentState(BaseEnum):

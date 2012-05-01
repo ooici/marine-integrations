@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.uwash_bars U. Washington TRHPH BARS driver
+@package mi.drivers.uwash_bars U. Washington TRHPH BARS driver
 module
-@file ion/services/mi/drivers/uwash_bars.py
+@file mi/drivers/uwash_bars.py
 @author Carlos Rueda
 @brief Instrument driver classes to support interaction with the U. Washington
  TRHPH BARS sensor .
@@ -12,19 +12,19 @@ module
 __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
 
-from ion.services.mi.common import BaseEnum
-from ion.services.mi.instrument_protocol import \
+from mi.common import BaseEnum
+from mi.instrument_protocol import \
     CommandResponseInstrumentProtocol
-from ion.services.mi.drivers.uw_bars.common import BarsChannel
-from ion.services.mi.drivers.uw_bars.common import BarsParameter
+from mi.drivers.uw_bars.common import BarsChannel
+from mi.drivers.uw_bars.common import BarsParameter
 
-import ion.services.mi.drivers.uw_bars.bars as bars
+import mi.drivers.uw_bars.bars as bars
 
-#from ion.services.mi.common import InstErrorCode
-from ion.services.mi.instrument_fsm import InstrumentFSM
+#from mi.common import InstErrorCode
+from mi.instrument_fsm import InstrumentFSM
 
-#from ion.services.mi.exceptions import InstrumentProtocolException
-#from ion.services.mi.exceptions import InstrumentTimeoutException
+#from mi.exceptions import InstrumentProtocolException
+#from mi.exceptions import InstrumentTimeoutException
 
 import time
 import sys
@@ -32,7 +32,7 @@ import os
 import re
 
 
-import ion.services.mi.mi_logger
+import mi.mi_logger
 import logging
 log = logging.getLogger('mi_logger')
 

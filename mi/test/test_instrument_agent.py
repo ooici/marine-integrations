@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.test.test_instrument_agent
-@file ion/services/mi/test_instrument_agent.py
+@package mi.test.test_instrument_agent
+@file mi/test_instrument_agent.py
 @author Edward Hunter
 @brief Test cases for R2 instrument agent.
 """
@@ -43,14 +43,14 @@ from pyon.public import CFG
 from pyon.event.event import EventSubscriber
 
 # MI imports.
-from ion.services.mi.logger_process import EthernetDeviceLogger
-from ion.services.mi.instrument_agent import InstrumentAgentState
-from ion.services.mi.drivers.sbe37_driver import SBE37Parameter
+from mi.logger_process import EthernetDeviceLogger
+from mi.instrument_agent import InstrumentAgentState
+from mi.drivers.sbe37_driver import SBE37Parameter
 
-# bin/nosetests -s -v ion/services/mi/test/test_instrument_agent.py:TestInstrumentAgent.test_initialize
-# bin/nosetests -s -v ion/services/mi/test/test_instrument_agent.py:TestInstrumentAgent.test_states
-# bin/nosetests -s -v ion/services/mi/test/test_instrument_agent.py:TestInstrumentAgent.test_observatory
-# bin/nosetests -s -v ion/services/mi/test/test_instrument_agent.py:TestInstrumentAgent.test_autosample
+# bin/nosetests -s -v mi/test/test_instrument_agent.py:TestInstrumentAgent.test_initialize
+# bin/nosetests -s -v mi/test/test_instrument_agent.py:TestInstrumentAgent.test_states
+# bin/nosetests -s -v mi/test/test_instrument_agent.py:TestInstrumentAgent.test_observatory
+# bin/nosetests -s -v mi/test/test_instrument_agent.py:TestInstrumentAgent.test_autosample
 
 # Device ethernet address and port
 #DEV_ADDR = '67.58.49.220' 
@@ -65,9 +65,9 @@ DELIM = ['<<','>>']
 
 # Driver config.
 # DVR_CONFIG['comms_config']['port'] is set by the setup.
-from ion.services.mi.drivers.sbe37_driver import PACKET_CONFIG
+from mi.drivers.sbe37_driver import PACKET_CONFIG
 DVR_CONFIG = {
-    'dvr_mod' : 'ion.services.mi.drivers.sbe37_driver',
+    'dvr_mod' : 'mi.drivers.sbe37_driver',
     'dvr_cls' : 'SBE37Driver',
     'comms_config' : {
         'addr' : 'localhost'
@@ -77,7 +77,7 @@ DVR_CONFIG = {
 # Agent parameters.
 IA_RESOURCE_ID = '123xyz'
 IA_NAME = 'Agent007'
-IA_MOD = 'ion.services.mi.instrument_agent'
+IA_MOD = 'mi.instrument_agent'
 IA_CLS = 'InstrumentAgent'
 
 # Used to validate param config retrieved from driver.

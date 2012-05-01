@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.instrument_driver Instrument driver structures
-@file ion/services/mi/instrument_driver.py
+@package mi.instrument_driver Instrument driver structures
+@file mi/instrument_driver.py
 @author Edward Hunter
 @brief Instrument driver classes that provide structure towards interaction
 with individual instruments in the system.
@@ -11,9 +11,9 @@ with individual instruments in the system.
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
-from ion.services.mi.common import BaseEnum
-from ion.services.mi.exceptions import NotImplementedError 
-from ion.services.mi.exceptions import InstrumentException
+from mi.common import BaseEnum
+from mi.exceptions import NotImplementedError 
+from mi.exceptions import InstrumentException
 import time
 
 class DriverProtocolState(BaseEnum):

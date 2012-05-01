@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.test.test_sbe37_driver
-@file ion/services/mi/test_sbe37_driver.py
+@package mi.test.test_sbe37_driver
+@file mi/test_sbe37_driver.py
 @author Edward Hunter
 @brief Test cases for SBE37Driver
 """
@@ -28,42 +28,42 @@ from nose.plugins.attrib import attr
 
 # Pyon and ION imports
 from pyon.util.unit_test import PyonTestCase
-from ion.services.mi.zmq_driver_client import ZmqDriverClient
-from ion.services.mi.zmq_driver_process import ZmqDriverProcess
-from ion.services.mi.drivers.sbe37_driver import SBE37Driver
-from ion.services.mi.drivers.sbe37_driver import SBE37ProtocolState
-from ion.services.mi.drivers.sbe37_driver import SBE37Parameter
-from ion.services.mi.instrument_driver import DriverAsyncEvent
-from ion.services.mi.instrument_driver import DriverConnectionState
-from ion.services.mi.logger_process import EthernetDeviceLogger
-from ion.services.mi.exceptions import InstrumentException
-from ion.services.mi.exceptions import NotImplementedError
-from ion.services.mi.exceptions import TimeoutError
-from ion.services.mi.exceptions import ProtocolError
-from ion.services.mi.exceptions import ParameterError
-from ion.services.mi.exceptions import SampleError
-from ion.services.mi.exceptions import StateError
-from ion.services.mi.exceptions import UnknownCommandError
+from mi.zmq_driver_client import ZmqDriverClient
+from mi.zmq_driver_process import ZmqDriverProcess
+from mi.drivers.sbe37_driver import SBE37Driver
+from mi.drivers.sbe37_driver import SBE37ProtocolState
+from mi.drivers.sbe37_driver import SBE37Parameter
+from mi.instrument_driver import DriverAsyncEvent
+from mi.instrument_driver import DriverConnectionState
+from mi.logger_process import EthernetDeviceLogger
+from mi.exceptions import InstrumentException
+from mi.exceptions import NotImplementedError
+from mi.exceptions import TimeoutError
+from mi.exceptions import ProtocolError
+from mi.exceptions import ParameterError
+from mi.exceptions import SampleError
+from mi.exceptions import StateError
+from mi.exceptions import UnknownCommandError
 
 # MI logger
-import ion.services.mi.mi_logger
+import mi.mi_logger
 mi_logger = logging.getLogger('mi_logger')
 
 # Make tests verbose and provide stdout
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_process
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_config
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_connect
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_get_set
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_poll
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_autosample
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_test
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_errors
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_discover_autosample
+# bin/nosetests -s -v mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_process
+# bin/nosetests -s -v mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_config
+# bin/nosetests -s -v mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_connect
+# bin/nosetests -s -v mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_get_set
+# bin/nosetests -s -v mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_poll
+# bin/nosetests -s -v mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_autosample
+# bin/nosetests -s -v mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_test
+# bin/nosetests -s -v mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_errors
+# bin/nosetests -s -v mi/drivers/test/test_sbe37_driver.py:TestSBE37Driver.test_discover_autosample
 
 # Driver and port agent configuration
 
 # Driver module and class.
-DVR_MOD = 'ion.services.mi.drivers.sbe37_driver'
+DVR_MOD = 'mi.drivers.sbe37_driver'
 DVR_CLS = 'SBE37Driver'
 
 # Device ethernet address and port

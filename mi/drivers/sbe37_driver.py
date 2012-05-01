@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.sbe37_driver
-@file ion/services/mi/sbe37_driver.py
+@package mi.sbe37_driver
+@file mi/sbe37_driver.py
 @author Edward Hunter
 @brief Driver class for sbe37 CTD instrument.
 """
@@ -16,21 +16,21 @@ import re
 import datetime
 from threading import Timer
 
-from ion.services.mi.common import BaseEnum
-from ion.services.mi.single_connection_instrument_driver import SingleConnectionInstrumentDriver
-from ion.services.mi.instrument_protocol import CommandResponseInstrumentProtocol
-from ion.services.mi.instrument_fsm import InstrumentFSM
-from ion.services.mi.instrument_driver import DriverEvent
-from ion.services.mi.instrument_driver import DriverAsyncEvent
-from ion.services.mi.instrument_driver import DriverProtocolState
-from ion.services.mi.instrument_driver import DriverParameter
-from ion.services.mi.exceptions import TimeoutError
-from ion.services.mi.exceptions import ParameterError
-from ion.services.mi.exceptions import SampleError
-from ion.services.mi.exceptions import StateError
-from ion.services.mi.exceptions import ProtocolError
+from mi.common import BaseEnum
+from mi.single_connection_instrument_driver import SingleConnectionInstrumentDriver
+from mi.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.instrument_fsm import InstrumentFSM
+from mi.instrument_driver import DriverEvent
+from mi.instrument_driver import DriverAsyncEvent
+from mi.instrument_driver import DriverProtocolState
+from mi.instrument_driver import DriverParameter
+from mi.exceptions import TimeoutError
+from mi.exceptions import ParameterError
+from mi.exceptions import SampleError
+from mi.exceptions import StateError
+from mi.exceptions import ProtocolError
 
-#import ion.services.mi.mi_logger
+#import mi.mi_logger
 mi_logger = logging.getLogger('mi_logger')
 
 # This is the mi_merge branch.

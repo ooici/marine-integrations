@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.common Common classes for MI work
-@file ion/services/mi/common.py
+@package mi.common Common classes for MI work
+@file mi/common.py
 @author Steve Foley
 @author Edward Hunter
 @brief Common enumerations, constants, utilities used in the MI work

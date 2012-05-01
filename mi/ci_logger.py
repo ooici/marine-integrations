@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.ci_logger CI_Logger
-@file ion/services/mi/ci_logger.py
+@package mi.ci_logger CI_Logger
+@file mi/ci_logger.py
 @author Bill Bollenbacher
 @brief Resource agent derived class providing a CI Logger agent as a resource.
 This resource fronts CG_Loggers and instrument drivers one-to-one in ION.
@@ -17,12 +17,12 @@ import SocketServer
 import logging
 from subprocess import Popen
 
-from ion.services.mi.instrument_fsm import InstrumentFSM
-from ion.services.mi.common import BaseEnum
-#from ion.services.mi.common import InstErrorCode
-from ion.services.mi.zmq_driver_client import ZmqDriverClient
-from ion.services.mi.zmq_driver_process import ZmqDriverProcess
-#from ion.services.mi.drivers.sbe37_driver import SBE37Channel
+from mi.instrument_fsm import InstrumentFSM
+from mi.common import BaseEnum
+#from mi.common import InstErrorCode
+from mi.zmq_driver_client import ZmqDriverClient
+from mi.zmq_driver_process import ZmqDriverProcess
+#from mi.drivers.sbe37_driver import SBE37Channel
 
 class CgMsgTypes(BaseEnum):
     ACK               = 0
@@ -51,7 +51,7 @@ class CiLogger(object):
         driver_config = {'svr_addr': 'localhost',
                          'cmd_port': 5556,
                          'evt_port': 5557,
-                         'dvr_mod': 'ion.services.mi.drivers.sbe37_driver',
+                         'dvr_mod': 'mi.drivers.sbe37_driver',
                          'dvr_cls': 'SBE37Driver'}
         result = self._start_driver(driver_config)
         if not isinstance(result, int):

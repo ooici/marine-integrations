@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.satlantic_par Satlantic PAR driver module
-@file ion/services/mi/drivers/satlantic_par.py
+@package mi.drivers.satlantic_par Satlantic PAR driver module
+@file mi/drivers/satlantic_par.py
 @author Steve Foley
 @brief Instrument driver classes that provide structure towards interaction
 with the Satlantic PAR sensor (PARAD in RSN nomenclature).
@@ -15,17 +15,17 @@ import logging
 import time
 import re
 
-from ion.services.mi.common import BaseEnum
-from ion.services.mi.data_decorator import ChecksumDecorator
-from ion.services.mi.instrument_protocol import CommandResponseInstrumentProtocol
-from ion.services.mi.instrument_driver import InstrumentDriver
-from ion.services.mi.instrument_connection import SerialInstrumentConnection
-#from ion.services.mi.common import InstErrorCode
-#from ion.services.mi.common import DriverAnnouncement
-from ion.services.mi.instrument_fsm import InstrumentFSM
-#from ion.services.mi.exceptions import InstrumentProtocolException
-#from ion.services.mi.exceptions import InstrumentTimeoutException
-#from ion.services.mi.exceptions import InstrumentDataException
+from mi.common import BaseEnum
+from mi.data_decorator import ChecksumDecorator
+from mi.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.instrument_driver import InstrumentDriver
+from mi.instrument_connection import SerialInstrumentConnection
+#from mi.common import InstErrorCode
+#from mi.common import DriverAnnouncement
+from mi.instrument_fsm import InstrumentFSM
+#from mi.exceptions import InstrumentProtocolException
+#from mi.exceptions import InstrumentTimeoutException
+#from mi.exceptions import InstrumentDataException
 
 mi_logger = logging.getLogger('mi_logger')
 

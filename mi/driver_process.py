@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.driver_process
-@file ion/services/mi/driver_process.py
+@package mi.driver_process
+@file mi/driver_process.py
 @author Edward Hunter
 @brief Messaing enabled driver processes.
 """
@@ -18,8 +18,8 @@ import signal
 import os
 import sys
 import time
-from ion.services.mi.exceptions import UnknownCommandError
-from ion.services.mi.instrument_driver import DriverAsyncEvent
+from mi.exceptions import UnknownCommandError
+from mi.instrument_driver import DriverAsyncEvent
 
 mi_logger = logging.getLogger('mi_logger')
 

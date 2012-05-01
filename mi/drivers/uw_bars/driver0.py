@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.uw_bars.driver0
-@file ion/services/mi/drivers/uw_bars/driver0.py
+@package mi.drivers.uw_bars.driver0
+@file mi/drivers/uw_bars/driver0.py
 @author Carlos Rueda
 @brief UW TRHPH BARS driver implementation based on bars_client
 """
@@ -10,21 +10,21 @@
 __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
 
-from ion.services.mi.drivers.uw_bars.bars_client import BarsClient
-import ion.services.mi.drivers.uw_bars.bars as bars
+from mi.drivers.uw_bars.bars_client import BarsClient
+import mi.drivers.uw_bars.bars as bars
 
-from ion.services.mi.instrument_driver import InstrumentDriver
-#from ion.services.mi.instrument_driver import DriverState
-#from ion.services.mi.exceptions import InstrumentProtocolException
+from mi.instrument_driver import InstrumentDriver
+#from mi.instrument_driver import DriverState
+#from mi.exceptions import InstrumentProtocolException
 
-#from ion.services.mi.common import InstErrorCode
-from ion.services.mi.drivers.uw_bars.common import BarsChannel
-from ion.services.mi.drivers.uw_bars.common import BarsParameter
+#from mi.common import InstErrorCode
+from mi.drivers.uw_bars.common import BarsChannel
+from mi.drivers.uw_bars.common import BarsParameter
 
 import unittest
 import re
 
-#import ion.services.mi.mi_logger
+#import mi.mi_logger
 import logging
 log = logging.getLogger('mi_logger')
 

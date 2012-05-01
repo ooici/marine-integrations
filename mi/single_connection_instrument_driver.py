@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.single_connection_instrument_driver 
-@file ion/services/mi/single_connection_instrument_driver.py
+@package mi.single_connection_instrument_driver 
+@file mi/single_connection_instrument_driver.py
 @author Edward Hunter
 @brief Instrument driver base class that provides state model for
 devices with a single connection. Base class for the majority of
@@ -14,17 +14,17 @@ __license__ = 'Apache 2.0'
 
 import logging
 
-from ion.services.mi.common import BaseEnum
-from ion.services.mi.exceptions import NotImplementedError
-from ion.services.mi.instrument_driver import InstrumentDriver
-from ion.services.mi.instrument_driver import DriverEvent
-from ion.services.mi.instrument_driver import DriverConnectionState
-from ion.services.mi.instrument_driver import DriverAsyncEvent
-from ion.services.mi.instrument_fsm import InstrumentFSM
-from ion.services.mi.logger_process import LoggerClient
-from ion.services.mi.exceptions import ParameterError
+from mi.common import BaseEnum
+from mi.exceptions import NotImplementedError
+from mi.instrument_driver import InstrumentDriver
+from mi.instrument_driver import DriverEvent
+from mi.instrument_driver import DriverConnectionState
+from mi.instrument_driver import DriverAsyncEvent
+from mi.instrument_fsm import InstrumentFSM
+from mi.logger_process import LoggerClient
+from mi.exceptions import ParameterError
 
-#import ion.services.mi.mi_logger
+#import mi.mi_logger
 mi_logger = logging.getLogger('mi_logger')
 
 class SingleConnectionInstrumentDriver(InstrumentDriver):

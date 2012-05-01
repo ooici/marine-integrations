@@ -3,14 +3,14 @@
 __author__ = "Carlos Rueda"
 __license__ = 'Apache 2.0'
 
-from ion.services.mi.drivers.uw_bars.test.pyon_test import PyonBarsTestCase
+from mi.drivers.uw_bars.test.pyon_test import PyonBarsTestCase
 """
-from ion.services.mi.drivers.uw_bars.driver import BarsInstrumentDriver
-from ion.services.mi.drivers.uw_bars.common import BarsChannel
-from ion.services.mi.drivers.uw_bars.common import BarsParameter
+from mi.drivers.uw_bars.driver import BarsInstrumentDriver
+from mi.drivers.uw_bars.common import BarsChannel
+from mi.drivers.uw_bars.common import BarsParameter
 
-from ion.services.mi.instrument_driver import DriverState
-from ion.services.mi.common import InstErrorCode
+from mi.instrument_driver import DriverState
+from mi.common import InstErrorCode
 """
 import time
 

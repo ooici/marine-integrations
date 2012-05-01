@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 '''
-@package ion.services.mi.data_decorator Implementation of data decoration
+@package mi.data_decorator Implementation of data decoration
    classes
-@file ion/services/mi/data_decorator.py
+@file mi/data_decorator.py
 @author Steve Foley
 @brief Decorators that operate on the data returning from the driver
 These decorators can be chained together to provide a series of actions on

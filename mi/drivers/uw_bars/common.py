@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.uw_bars.common UW TRHPH BARS common module
-@file ion/services/mi/drivers/uw_bars/common.py
+@package mi.drivers.uw_bars.common UW TRHPH BARS common module
+@file mi/drivers/uw_bars/common.py
 @author Carlos Rueda
 @brief Some common elements.
 """
@@ -10,8 +10,8 @@
 __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
 
-from ion.services.mi.common import BaseEnum
-#from ion.services.mi.instrument_driver import DriverChannel
+from mi.common import BaseEnum
+#from mi.instrument_driver import DriverChannel
 
 
 class BarsCommand(BaseEnum):

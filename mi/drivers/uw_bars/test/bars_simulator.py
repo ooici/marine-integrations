@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.test.bars_simulator
-@file ion/services/mi/drivers/test/bars_simulator.py
+@package mi.drivers.test.bars_simulator
+@file mi/drivers/test/bars_simulator.py
 @author Carlos Rueda
 
 @brief A partial simulator for the BARS instrument intended to facilitate
@@ -17,7 +17,7 @@ It accepts multiple clients but in sequential order.
 __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
 
-import ion.services.mi.drivers.uw_bars.bars as bars
+import mi.drivers.uw_bars.bars as bars
 
 import socket
 import random

@@ -3,11 +3,11 @@
 __author__ = "Carlos Rueda"
 __license__ = 'Apache 2.0'
 
-from ion.services.mi.drivers.uw_bars.bars_client import BarsClient
+from mi.drivers.uw_bars.bars_client import BarsClient
 
 import time
 
-from ion.services.mi.drivers.uw_bars.test import BarsTestCase
+from mi.drivers.uw_bars.test import BarsTestCase
 from nose.plugins.attrib import attr
 import unittest
 import os

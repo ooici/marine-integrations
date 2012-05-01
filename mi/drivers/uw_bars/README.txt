@@ -18,7 +18,7 @@ for the actual implementation
 
 * test/direct.py
 Simple program for direct user iteraction with the instrument:
-    $ bin/python ion/services/mi/drivers/uw_bars/test/direct.py 10.180.80.172 2001
+    $ bin/python mi/drivers/uw_bars/test/direct.py 10.180.80.172 2001
 See source code for details.
 
 * bars_client.py
@@ -29,7 +29,7 @@ The demo program is a complete script (no user interaction needed) involving:
 check for data collection, break to main menu, see system info, and resume
 data collection:
 
-    $ bin/python ion/services/mi/drivers/uw_bars/bars_client.py  \
+    $ bin/python mi/drivers/uw_bars/bars_client.py  \
          --host 10.180.80.172 --port 2001 --outfile output.txt --loglevel debug
     DEBUG      bars_client               5988   MainThread      - ### connecting to 10.180.80.172:2001
     DEBUG      bars_client               5988   _Recv           - ### _Recv running.
@@ -72,7 +72,7 @@ It accepts a TCP connection on a port and starts by sending out bursts of
 random data every few seconds. By default it binds the service to an
 automatically assigned port.
 It accepts multiple clients but in sequential order.
-    $ bin/python ion/services/mi/drivers/uw_bars/test/bars_simulator.py
+    $ bin/python mi/drivers/uw_bars/test/bars_simulator.py
                     |* [1]BarsSimulator: bound to port 53922
                     |* [1]BarsSimulator: ---waiting for connection---
 

@@ -8,7 +8,7 @@ Unit tests for the basic bars module.
 """
 
 
-import ion.services.mi.drivers.uw_bars.bars as bars
+import mi.drivers.uw_bars.bars as bars
 
 
 from unittest import TestCase

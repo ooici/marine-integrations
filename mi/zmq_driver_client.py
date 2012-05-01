@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.zmq_driver_client
-@file ion/services/mi/zmq_driver_client.py
+@package mi.zmq_driver_client
+@file mi/zmq_driver_client.py
 @author Edward Hunter
 @brief Messaging client for ZMQ driver processes.
 """
@@ -12,8 +12,8 @@ __license__ = 'Apache 2.0'
 
 """
 To create a client in the python interpreter:
-import ion.services.mi.mi_logger
-import ion.services.mi.zmq_driver_client as zdc
+import mi.mi_logger
+import mi.zmq_driver_client as zdc
 c = zdc.ZmqDriverClient('localhost', 5556, 5557)
 """
 
@@ -26,7 +26,7 @@ import time
 # with unpatched threads as well.
 import zmq
 
-from ion.services.mi.driver_client import DriverClient
+from mi.driver_client import DriverClient
 
 mi_logger = logging.getLogger('mi_logger')
 

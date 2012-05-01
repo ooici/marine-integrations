@@ -131,7 +131,7 @@ class _SimulatorLauncher(object):
         output_name = 'sim_output.txt'
 
         args = ['bin/python',
-                'ion/services/mi/drivers/uw_bars/test/bars_simulator.py',
+                'mi/drivers/uw_bars/test/bars_simulator.py',
                 '--outfile', output_name
         ]
 
@@ -173,7 +173,7 @@ class _SimulatorLauncher(object):
         if _SimulatorLauncher._use_separate_process:
             self._port = _SimulatorLauncher._launch_separate_process()
         else:
-            import ion.services.mi.drivers.uw_bars.test.bars_simulator as bs
+            import mi.drivers.uw_bars.test.bars_simulator as bs
             self._simulator = bs.BarsSimulator(accept_timeout=10.0)
             self._port = self._simulator.port
 

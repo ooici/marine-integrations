@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.driver_client
-@file ion/services/mi/driver_client.py
+@package mi.driver_client
+@file mi/driver_client.py
 @author Edward Hunter
 @brief Base class for driver process messaging client.
 """

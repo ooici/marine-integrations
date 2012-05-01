@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.uw_bars.driver UW TRHPH BARS driver module
-@file ion/services/mi/drivers/uw_bars/driver.py
+@package mi.drivers.uw_bars.driver UW TRHPH BARS driver module
+@file mi/drivers/uw_bars/driver.py
 @author Carlos Rueda
 @brief UW TRHPH BARS driver
 """
@@ -10,18 +10,18 @@
 __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
 
-from ion.services.mi.drivers.uw_bars.protocol import BarsInstrumentProtocol
+from mi.drivers.uw_bars.protocol import BarsInstrumentProtocol
 
-from ion.services.mi.instrument_driver import InstrumentDriver
-#from ion.services.mi.instrument_driver import DriverState
+from mi.instrument_driver import InstrumentDriver
+#from mi.instrument_driver import DriverState
 
-#from ion.services.mi.common import InstErrorCode
-from ion.services.mi.drivers.uw_bars.common import BarsChannel
-from ion.services.mi.drivers.uw_bars.common import BarsParameter
-from ion.services.mi.drivers.uw_bars.protocol import BarsProtocolState
+#from mi.common import InstErrorCode
+from mi.drivers.uw_bars.common import BarsChannel
+from mi.drivers.uw_bars.common import BarsParameter
+from mi.drivers.uw_bars.protocol import BarsProtocolState
 
 
-#import ion.services.mi.mi_logger
+#import mi.mi_logger
 import logging
 log = logging.getLogger('mi_logger')
 

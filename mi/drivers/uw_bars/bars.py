@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.uw_bars.bars
-@file ion/services/mi/drivers/uw_bars/bars.py
+@package mi.drivers.uw_bars.bars
+@file mi/drivers/uw_bars/bars.py
 @author Carlos Rueda
 @brief UW TRHPH BARS definitions and misc utilities
 """
