@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.sbe37.sbe37.sbe37_driver
-@file ion/services/mi/drivers/sbe37/sbe37_driver.py
-@author Edward Hunter
-@brief Driver class for sbe37 CTD instrument.
+@package ion.services.mi.sbe16_driver
+@file ion/services/mi/sbe16_driver.py
+@author David Everett 
+@brief Driver class for sbe16plus V2 CTD instrument.
 """
 
-__author__ = 'Edward Hunter'
+__author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 import logging
@@ -15,28 +15,27 @@ import time
 import re
 import datetime
 from threading import Timer
-import string
 
 from ion.services.mi.common import BaseEnum
+from ion.services.mi.instrument_driver import SingleConnectionInstrumentDriver
 from ion.services.mi.instrument_protocol import CommandResponseInstrumentProtocol
 from ion.services.mi.instrument_fsm import InstrumentFSM
-from ion.services.mi.instrument_driver import SingleConnectionInstrumentDriver
 from ion.services.mi.instrument_driver import DriverEvent
 from ion.services.mi.instrument_driver import DriverAsyncEvent
 from ion.services.mi.instrument_driver import DriverProtocolState
 from ion.services.mi.instrument_driver import DriverParameter
-from ion.services.mi.exceptions import InstrumentTimeoutException
-from ion.services.mi.exceptions import InstrumentParameterException
-from ion.services.mi.exceptions import SampleException
-from ion.services.mi.exceptions import InstrumentStateException
-from ion.services.mi.exceptions import InstrumentProtocolException
+from ion.services.mi.exceptions import TimeoutError
+from ion.services.mi.exceptions import ParameterError
+from ion.services.mi.exceptions import SampleError
+from ion.services.mi.exceptions import StateError
+from ion.services.mi.exceptions import ProtocolError
 
 #import ion.services.mi.mi_logger
 mi_logger = logging.getLogger('mi_logger')
 
-class SBE37ProtocolState(BaseEnum):
+class SBE16ProtocolState(BaseEnum):
     """
-    Protocol states for SBE37. Cherry picked from DriverProtocolState
+    Protocol states for SBE16. Cherry picked from DriverProtocolState
     enum.
     """
     UNKNOWN = DriverProtocolState.UNKNOWN
@@ -46,9 +45,9 @@ class SBE37ProtocolState(BaseEnum):
     CALIBRATE = DriverProtocolState.CALIBRATE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
     
-class SBE37ProtocolEvent(BaseEnum):
+class SBE16ProtocolEvent(BaseEnum):
     """
-    Protocol events for SBE37. Cherry picked from DriverEvent enum.
+    Protocol events for SBE16. Cherry picked from DriverEvent enum.
     """
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
@@ -62,13 +61,11 @@ class SBE37ProtocolEvent(BaseEnum):
     RUN_TEST = DriverEvent.RUN_TEST
     CALIBRATE = DriverEvent.CALIBRATE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
 
 # Device specific parameters.
-class SBE37Parameter(DriverParameter):
+class SBE16Parameter(DriverParameter):
     """
-    Device parameters for SBE37.
+    Device parameters for SBE16.
     """
     OUTPUTSAL = 'OUTPUTSAL'
     OUTPUTSV = 'OUTPUTSV'
@@ -109,21 +106,21 @@ class SBE37Parameter(DriverParameter):
     RTCA2 = 'RTCA2'
     
 # Device prompts.
-class SBE37Prompt(BaseEnum):
+class SBE16Prompt(BaseEnum):
     """
-    SBE37 io prompts.
+    SBE16 io prompts.
     """
     COMMAND = 'S>'
     BAD_COMMAND = '?cmd S>'
     AUTOSAMPLE = 'S>\r\n'
 
-# SBE37 newline.
-SBE37_NEWLINE = '\r\n'
+# SBE16 newline.
+SBE16_NEWLINE = '\r\n'
 
-# SBE37 default timeout.
-SBE37_TIMEOUT = 10
+# SBE16 default timeout.
+SBE16_TIMEOUT = 10
                 
-# Packet config for SBE37 data granules.
+# Packet config for SBE16 data granules.
 PACKET_CONFIG = {
         'ctd_parsed' : ('prototype.sci_data.stream_defs', 'ctd_stream_packet'),
         'ctd_raw' : None            
@@ -133,15 +130,15 @@ PACKET_CONFIG = {
 # Seabird Electronics 37-SMP MicroCAT Driver.
 ###############################################################################
 
-class SBE37Driver(SingleConnectionInstrumentDriver):
+class SBE16Driver(SingleConnectionInstrumentDriver):
     """
-    InstrumentDriver subclass for SBE37 driver.
+    InstrumentDriver subclass for SBE16 driver.
     Subclasses SingleConnectionInstrumentDriver with connection state
     machine.
     """
     def __init__(self, evt_callback):
         """
-        SBE37Driver constructor.
+        SBE16Driver constructor.
         @param evt_callback Driver process event callback.
         """
         #Construct superclass.
@@ -155,7 +152,7 @@ class SBE37Driver(SingleConnectionInstrumentDriver):
         """
         Return list of device parameters available.
         """
-        return SBE37Parameter.list()        
+        return SBE16Parameter.list()        
 
     ########################################################################
     # Protocol builder.
@@ -165,55 +162,52 @@ class SBE37Driver(SingleConnectionInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = SBE37Protocol(SBE37Prompt, SBE37_NEWLINE, self._driver_event)
+        self._protocol = SBE16Protocol(SBE16Prompt, SBE16_NEWLINE, self._driver_event)
 
 ###############################################################################
 # Seabird Electronics 37-SMP MicroCAT protocol.
 ###############################################################################
 
-class SBE37Protocol(CommandResponseInstrumentProtocol):
+class SBE16Protocol(CommandResponseInstrumentProtocol):
     """
-    Instrument protocol class for SBE37 driver.
+    Instrument protocol class for SBE16 driver.
     Subclasses CommandResponseInstrumentProtocol
     """
     def __init__(self, prompts, newline, driver_event):
         """
-        SBE37Protocol constructor.
+        SBE16Protocol constructor.
         @param prompts A BaseEnum class containing instrument prompts.
-        @param newline The SBE37 newline.
+        @param newline The SBE16 newline.
         @param driver_event Driver process event callback.
         """
         # Construct protocol superclass.
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
         
-        # Build SBE37 protocol state machine.
-        self._protocol_fsm = InstrumentFSM(SBE37ProtocolState, SBE37ProtocolEvent,
-                            SBE37ProtocolEvent.ENTER, SBE37ProtocolEvent.EXIT)
+        # Build SBE16 protocol state machine.
+        self._protocol_fsm = InstrumentFSM(SBE16ProtocolState, SBE16ProtocolEvent,
+                            SBE16ProtocolEvent.ENTER, SBE16ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(SBE37ProtocolState.UNKNOWN, SBE37ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.UNKNOWN, SBE37ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.UNKNOWN, SBE37ProtocolEvent.DISCOVER, self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.GET, self._handler_command_autosample_test_get)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.TEST, self._handler_command_test)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.ENTER, self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.GET, self._handler_command_autosample_test_get)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.TEST, SBE37ProtocolEvent.ENTER, self._handler_test_enter)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.TEST, SBE37ProtocolEvent.EXIT, self._handler_test_exit)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.TEST, SBE37ProtocolEvent.RUN_TEST, self._handler_test_run_tests)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.TEST, SBE37ProtocolEvent.GET, self._handler_command_autosample_test_get)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.DIRECT_ACCESS, SBE37ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.DIRECT_ACCESS, SBE37ProtocolEvent.EXIT, self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.DIRECT_ACCESS, SBE37ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.DIRECT_ACCESS, SBE37ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.UNKNOWN, SBE16ProtocolEvent.ENTER, self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.UNKNOWN, SBE16ProtocolEvent.EXIT, self._handler_unknown_exit)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.UNKNOWN, SBE16ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, SBE16ProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, SBE16ProtocolEvent.EXIT, self._handler_command_exit)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, SBE16ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, SBE16ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, SBE16ProtocolEvent.GET, self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, SBE16ProtocolEvent.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, SBE16ProtocolEvent.TEST, self._handler_command_test)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.AUTOSAMPLE, SBE16ProtocolEvent.ENTER, self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.AUTOSAMPLE, SBE16ProtocolEvent.EXIT, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.AUTOSAMPLE, SBE16ProtocolEvent.GET, self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.AUTOSAMPLE, SBE16ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.TEST, SBE16ProtocolEvent.ENTER, self._handler_test_enter)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.TEST, SBE16ProtocolEvent.EXIT, self._handler_test_exit)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.TEST, SBE16ProtocolEvent.RUN_TEST, self._handler_test_run_tests)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.TEST, SBE16ProtocolEvent.GET, self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.DIRECT_ACCESS, SBE16ProtocolEvent.ENTER, self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.DIRECT_ACCESS, SBE16ProtocolEvent.EXIT, self._handler_direct_access_exit)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -247,12 +241,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._sample_regex = re.compile(self._sample_pattern)
 
         # State state machine in UNKNOWN state. 
-        self._protocol_fsm.start(SBE37ProtocolState.UNKNOWN)
-        
-        # commands sent sent to device to be filtered in responses for telnet DA
-        self._sent_cmds = []
-
-
+        self._protocol_fsm.start(SBE16ProtocolState.UNKNOWN)
 
     ########################################################################
     # Unknown handlers.
@@ -275,30 +264,30 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state; can be COMMAND or AUTOSAMPLE.
-        @retval (next_state, result), (SBE37ProtocolState.COMMAND or
-        SBE37State.AUTOSAMPLE, None) if successful.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentStateException if the device response does not correspond to
+        @retval (next_state, result), (SBE16ProtocolState.COMMAND or
+        SBE16State.AUTOSAMPLE, None) if successful.
+        @throws TimeoutError if the device cannot be woken.
+        @throws ProtocolError if the device response does not correspond to
         an expected state.
         """
         next_state = None
         result = None
         
         # Wakeup the device with timeout if passed.
-        timeout = kwargs.get('timeout', SBE37_TIMEOUT)
+        timeout = kwargs.get('timeout', SBE16_TIMEOUT)
         prompt = self._wakeup(timeout)
         prompt = self._wakeup(timeout)
         
         # Set the state to change.
         # Raise if the prompt returned does not match command or autosample.
-        if prompt == SBE37Prompt.COMMAND:
-            next_state = SBE37ProtocolState.COMMAND
-            result = SBE37ProtocolState.COMMAND
-        elif prompt == SBE37Prompt.AUTOSAMPLE:
-            next_state = SBE37ProtocolState.AUTOSAMPLE
-            result = SBE37ProtocolState.AUTOSAMPLE
+        if prompt == SBE16Prompt.COMMAND:
+            next_state = SBE16ProtocolState.COMMAND
+            result = SBE16ProtocolState.COMMAND
+        elif prompt == SBE16Prompt.AUTOSAMPLE:
+            next_state = SBE16ProtocolState.AUTOSAMPLE
+            result = SBE16ProtocolState.AUTOSAMPLE
         else:
-            raise InstrumentStateException('Unknown state.')
+            raise ProtocolError('Failure to recognzie device state.')
             
         return (next_state, result)
 
@@ -309,8 +298,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
     def _handler_command_enter(self, *args, **kwargs):
         """
         Enter command state.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not recognized.
+        @throws TimeoutError if the device cannot be woken.
+        @throws ProtocolError if the update commands and not recognized.
         """
         # Command device to update parameters and send a config change event.
         self._update_params()
@@ -330,10 +319,10 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         Perform a set command.
         @param args[0] parameter : value dict.
         @retval (next_state, result) tuple, (None, None).
-        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
+        @throws ParameterError if missing set parameters, if set parameters not ALL and
         not a dict, or if paramter can't be properly formatted.
-        @throws InstrumentTimeoutException if device cannot be woken for set command.
-        @throws InstrumentProtocolException if set command could not be built or misunderstood.
+        @throws TimeoutError if device cannot be woken for set command.
+        @throws ProtocolError if set command could not be built or misunderstood.
         """
         next_state = None
         result = None
@@ -344,10 +333,10 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
             params = args[0]
             
         except IndexError:
-            raise InstrumentParameterException('Set command requires a parameter dict.')
+            raise ParameterError('Set command requires a parameter dict.')
 
         if not isinstance(params, dict):
-            raise InstrumentParameterException('Set parameters not a dict.')
+            raise ParameterError('Set parameters not a dict.')
         
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
@@ -361,11 +350,11 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_acquire_sample(self, *args, **kwargs):
         """
-        Acquire sample from SBE37.
+        Acquire sample from SBE16.
         @retval (next_state, result) tuple, (None, sample dict).        
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command could not be built or misunderstood.
-        @throws SampleException if a sample could not be extracted from result.
+        @throws TimeoutError if device cannot be woken for command.
+        @throws ProtocolError if command could not be built or misunderstood.
+        @throws SampleError if a sample could not be extracted from result.
         """
         next_state = None
         result = None
@@ -377,44 +366,34 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Switch into autosample mode.
-        @retval (next_state, result) tuple, (SBE37ProtocolState.AUTOSAMPLE,
+        @retval (next_state, result) tuple, (SBE16ProtocolState.AUTOSAMPLE,
         None) if successful.
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        @throws TimeoutError if device cannot be woken for command.
+        @throws ProtocolError if command could not be built or misunderstood.
         """
         next_state = None
         result = None
 
         # Assure the device is transmitting.
-        if not self._param_dict.get(SBE37Parameter.TXREALTIME):
-            self._do_cmd_resp('set', SBE37Parameter.TXREALTIME, True, **kwargs)
+        if not self._param_dict.get(SBE16Parameter.TXREALTIME):
+            self._do_cmd_resp('set', SBE16Parameter.TXREALTIME, True, **kwargs)
         
         # Issue start command and switch to autosample if successful.
         self._do_cmd_no_resp('startnow', *args, **kwargs)
                 
-        next_state = SBE37ProtocolState.AUTOSAMPLE        
+        next_state = SBE16ProtocolState.AUTOSAMPLE        
         
         return (next_state, result)
 
     def _handler_command_test(self, *args, **kwargs):
         """
         Switch to test state to perform instrument tests.
-        @retval (next_state, result) tuple, (SBE37ProtocolState.TEST, None).
+        @retval (next_state, result) tuple, (SBE16ProtocolState.TEST, None).
         """
         next_state = None
         result = None
 
-        next_state = SBE37ProtocolState.TEST
-        
-        return (next_state, result)
-
-    def _handler_command_start_direct(self):
-        """
-        """
-        next_state = None
-        result = None
-
-        next_state = SBE37ProtocolState.DIRECT_ACCESS
+        next_state = SBE16ProtocolState.TEST
         
         return (next_state, result)
 
@@ -439,26 +418,26 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Stop autosample and switch back to command mode.
-        @retval (next_state, result) tuple, (SBE37ProtocolState.COMMAND,
+        @retval (next_state, result) tuple, (SBE16ProtocolState.COMMAND,
         None) if successful.
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command misunderstood or
+        @throws TimeoutError if device cannot be woken for command.
+        @throws ProtocolError if command misunderstood or
         incorrect prompt received.
         """
         next_state = None
         result = None
 
         # Wake up the device, continuing until autosample prompt seen.
-        timeout = kwargs.get('timeout', SBE37_TIMEOUT)
-        self._wakeup_until(timeout, SBE37Prompt.AUTOSAMPLE)
+        timeout = kwargs.get('timeout', SBE16_TIMEOUT)
+        self._wakeup_until(timeout, SBE16Prompt.AUTOSAMPLE)
 
         # Issue the stop command.
         self._do_cmd_resp('stop', *args, **kwargs)        
         
         # Prompt device until command prompt is seen.
-        self._wakeup_until(timeout, SBE37Prompt.COMMAND)
+        self._wakeup_until(timeout, SBE16Prompt.COMMAND)
         
-        next_state = SBE37ProtocolState.COMMAND
+        next_state = SBE16ProtocolState.COMMAND
 
         return (next_state, result)
         
@@ -470,7 +449,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         """
         Get device parameters from the parameter dict.
         @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
-        @throws InstrumentParameterException if missing or invalid parameter.
+        @throws ParameterError if missing or invalid parameter.
         """
         next_state = None
         result = None
@@ -480,7 +459,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
             params = args[0]
            
         except IndexError:
-            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
+            raise ParameterError('Get command requires a parameter list or tuple.')
 
         # If all params requested, retrieve config.
         if params == DriverParameter.ALL:
@@ -491,7 +470,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         # Retireve each key in the list, raise if any are invalid.
         else:
             if not isinstance(params, (list, tuple)):
-                raise InstrumentParameterException('Get argument not a list or tuple.')
+                raise ParameterError('Get argument not a list or tuple.')
             result = {}
             for key in params:
                 try:
@@ -499,7 +478,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                     result[key] = val
 
                 except KeyError:
-                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
+                    raise ParameterError(('%s is not a valid parameter.' % key))
             
         return (next_state, result)
 
@@ -517,7 +496,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         
         # Forward the test event again to run the test handler and
         # switch back to command mode afterward.
-        Timer(1, lambda: self._protocol_fsm.on_event(SBE37ProtocolEvent.RUN_TEST)).start()
+        Timer(1, lambda: self._protocol_fsm.on_event(SBE16ProtocolEvent.RUN_TEST)).start()
     
     def _handler_test_exit(self, *args, **kwargs):
         """
@@ -528,8 +507,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
     def _handler_test_run_tests(self, *args, **kwargs):
         """
         Run test routines and validate results.
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command misunderstood or
+        @throws TimeoutError if device cannot be woken for command.
+        @throws ProtocolError if command misunderstood or
         incorrect prompt received.
         """
         next_state = None
@@ -563,7 +542,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
             test_result['success'] = 'Passed' if (tc_pass and tt_pass and tp_pass) else 'Failed'
             
         self._driver_event(DriverAsyncEvent.TEST_RESULT, test_result)
-        next_state = SBE37ProtocolState.COMMAND
+        next_state = SBE16ProtocolState.COMMAND
  
         return (next_state, result)
 
@@ -578,8 +557,6 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.                
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        
-        self._sent_cmds = []
     
     def _handler_direct_access_exit(self, *args, **kwargs):
         """
@@ -587,47 +564,23 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         """
         pass
 
-    def _handler_direct_access_execute_direct(self, data):
-        """
-        """
-        next_state = None
-        result = None
-
-        self._do_cmd_direct(data)
-                        
-        # add sent command to list for 'echo' filtering in callback
-        self._sent_cmds.append(data)        
-
-        return (next_state, result)
-
-    def _handler_direct_access_stop_direct(self):
-        """
-        @throw InstrumentProtocolException on invalid command
-        """
-        next_state = None
-        result = None
-
-        next_state = SBE37ProtocolState.COMMAND
-            
-        return (next_state, result)
-
     ########################################################################
     # Private helpers.
     ########################################################################
         
     def _send_wakeup(self):
         """
-        Send a newline to attempt to wake the SBE37 device.
+        Send a newline to attempt to wake the SBE16 device.
         """
-        self._connection.send(SBE37_NEWLINE)
+        self._connection.send(SBE16_NEWLINE)
                 
     def _update_params(self, *args, **kwargs):
         """
         Update the parameter dictionary. Wake the device then issue
         display status and display calibration commands. The parameter
         dict will match line output and udpate itself.
-        @throws InstrumentTimeoutException if device cannot be timely woken.
-        @throws InstrumentProtocolException if ds/dc misunderstood.
+        @throws TimeoutError if device cannot be timely woken.
+        @throws ProtocolError if ds/dc misunderstood.
         """
 
         
@@ -635,7 +588,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         old_config = self._param_dict.get_config()
         
         # Issue display commands and parse results.
-        timeout = kwargs.get('timeout', SBE37_TIMEOUT)
+        timeout = kwargs.get('timeout', SBE16_TIMEOUT)
         self._do_cmd_resp('ds',timeout=timeout)
         self._do_cmd_resp('dc',timeout=timeout)
         
@@ -647,11 +600,11 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         
     def _build_simple_command(self, cmd):
         """
-        Build handler for basic SBE37 commands.
-        @param cmd the simple sbe37 command to format.
+        Build handler for basic SBE16 commands.
+        @param cmd the simple sbe16 command to format.
         @retval The command to be sent to the device.
         """
-        return cmd+SBE37_NEWLINE
+        return cmd+SBE16_NEWLINE
     
     def _build_set_command(self, cmd, param, val):
         """
@@ -660,16 +613,16 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         @param param the parameter key to set.
         @param val the parameter value to set.
         @ retval The set command to be sent to the device.
-        @throws InstrumentProtocolException if the parameter is not valid or
+        @throws ProtocolError if the parameter is not valid or
         if the formatting function could not accept the value passed.
         """
         try:
             str_val = self._param_dict.format(param, val)
             set_cmd = '%s=%s' % (param, str_val)
-            set_cmd = set_cmd + SBE37_NEWLINE
+            set_cmd = set_cmd + SBE16_NEWLINE
             
         except KeyError:
-            raise InstrumentParameterException('Unknown driver parameter %s' % param)
+            raise ParameterError('Unknown driver parameter %s' % param)
             
         return set_cmd
 
@@ -678,22 +631,22 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         Parse handler for set command.
         @param response command response string.
         @param prompt prompt following command response.        
-        @throws InstrumentProtocolException if set command misunderstood.
+        @throws ProtocolError if set command misunderstood.
         """
-        if prompt != SBE37Prompt.COMMAND:
-            raise InstrumentProtocolException('Set command not recognized: %s' % response)
+        if prompt != SBE16Prompt.COMMAND:
+            raise ProtocolError('Set command not recognized: %s' % response)
 
     def _parse_dsdc_response(self, response, prompt):
         """
         Parse handler for dsdc commands.
         @param response command response string.
         @param prompt prompt following command response.        
-        @throws InstrumentProtocolException if dsdc command misunderstood.
+        @throws ProtocolError if dsdc command misunderstood.
         """
-        if prompt != SBE37Prompt.COMMAND:
-            raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
+        if prompt != SBE16Prompt.COMMAND:
+            raise ProtocolError('dsdc command not recognized: %s.' % response)
             
-        for line in response.split(SBE37_NEWLINE):
+        for line in response.split(SBE16_NEWLINE):
             self._param_dict.update(line)
         
     def _parse_ts_response(self, response, prompt):
@@ -702,21 +655,21 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         @param response command response string.
         @param prompt prompt following command response.
         @retval sample dictionary containig c, t, d values.
-        @throws InstrumentProtocolException if ts command misunderstood.
-        @throws InstrumentSampleException if response did not contain a sample
+        @throws ProtocolError if ts command misunderstood.
+        @throws InstrumentSampleError if response did not contain a sample
         """
         
-        if prompt != SBE37Prompt.COMMAND:
-            raise InstrumentProtocolException('ts command not recognized: %s', response)
+        if prompt != SBE16Prompt.COMMAND:
+            raise ProtocolError('ts command not recognized: %s', response)
         
         sample = None
-        for line in response.split(SBE37_NEWLINE):
+        for line in response.split(SBE16_NEWLINE):
             sample = self._extract_sample(line, True)
             if sample:
                 break
         
         if not sample:     
-            raise SampleException('Response did not contain sample: %s' % repr(response))
+            raise SampleError('Response did not contain sample: %s' % repr(response))
             
         return sample
                 
@@ -749,35 +702,17 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         """
         Callback for receiving new data from the device.
         """
-        if self.get_current_state() == SBE37ProtocolState.DIRECT_ACCESS:
-            # direct access mode
-            if len(data) > 0:
-                mi_logger.debug("SBE37Protocol._got_data(): <" + data + ">") 
-                # check for echoed commands from instrument (TODO: this should only be done for telnet?)
-                if len(self._sent_cmds) > 0:
-                    # there are sent commands that need to have there echoes filtered out
-                    oldest_sent_cmd = self._sent_cmds[0]
-                    if string.count(data, oldest_sent_cmd) > 0:
-                        # found a command echo, so remove it from data and delete the command form list
-                        data = string.replace(data, oldest_sent_cmd, "", 1) 
-                        self._sent_cmds.pop(0)            
-                if len(data) > 0 and self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
-                    # TODO: what about logging this as an event?
-            return
-        
-        if len(data)>0:
-            # Call the superclass to update line and prompt buffers.
-            CommandResponseInstrumentProtocol.got_data(self, data)
-    
-            # If in streaming mode, process the buffer for samples to publish.
-            cur_state = self.get_current_state()
-            if cur_state == SBE37ProtocolState.AUTOSAMPLE:
-                if SBE37_NEWLINE in self._linebuf:
-                    lines = self._linebuf.split(SBE37_NEWLINE)
-                    self._linebuf = lines[-1]
-                    for line in lines:
-                        self._extract_sample(line)                    
+        # Call the superclass to update line and promp buffers.
+        CommandResponseInstrumentProtocol.got_data(self, data)
+
+        # If in streaming mode, process the buffer for samples to publish.
+        cur_state = self.get_current_state()
+        if cur_state == SBE16ProtocolState.AUTOSAMPLE:
+            if SBE16_NEWLINE in self._linebuf:
+                lines = self._linebuf.split(SBE16_NEWLINE)
+                self._linebuf = lines[-1]
+                for line in lines:
+                    self._extract_sample(line)                    
                 
     def _extract_sample(self, line, publish=True):
         """
@@ -805,156 +740,156 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         
     def _build_param_dict(self):
         """
-        Populate the parameter dictionary with SBE37 parameters.
+        Populate the parameter dictionary with SBE16 parameters.
         For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.        
-        self._param_dict.add(SBE37Parameter.OUTPUTSAL,
+        self._param_dict.add(SBE16Parameter.OUTPUTSAL,
                              r'(do not )?output salinity with each sample',
                              lambda match : False if match.group(1) else True,
                              self._true_false_to_string)
-        self._param_dict.add(SBE37Parameter.OUTPUTSV,
+        self._param_dict.add(SBE16Parameter.OUTPUTSV,
                              r'(do not )?output sound velocity with each sample',
                              lambda match : False if match.group(1) else True,
                              self._true_false_to_string)
-        self._param_dict.add(SBE37Parameter.NAVG,
+        self._param_dict.add(SBE16Parameter.NAVG,
                              r'number of samples to average = (\d+)',
                              lambda match : int(match.group(1)),
                              self._int_to_string)
-        self._param_dict.add(SBE37Parameter.SAMPLENUM,
+        self._param_dict.add(SBE16Parameter.SAMPLENUM,
                              r'samplenumber = (\d+), free = \d+',
                              lambda match : int(match.group(1)),
                              self._int_to_string)
-        self._param_dict.add(SBE37Parameter.INTERVAL,
+        self._param_dict.add(SBE16Parameter.INTERVAL,
                              r'sample interval = (\d+) seconds',
                              lambda match : int(match.group(1)),
                              self._int_to_string)
-        self._param_dict.add(SBE37Parameter.STORETIME,
+        self._param_dict.add(SBE16Parameter.STORETIME,
                              r'(do not )?store time with each sample',
                              lambda match : False if match.group(1) else True,
                              self._true_false_to_string)
-        self._param_dict.add(SBE37Parameter.TXREALTIME,
+        self._param_dict.add(SBE16Parameter.TXREALTIME,
                              r'(do not )?transmit real-time data',
                              lambda match : False if match.group(1) else True,
                              self._true_false_to_string)
-        self._param_dict.add(SBE37Parameter.SYNCMODE,
+        self._param_dict.add(SBE16Parameter.SYNCMODE,
                              r'serial sync mode (enabled|disabled)',
                              lambda match : False if (match.group(1)=='disabled') else True,
                              self._true_false_to_string)
-        self._param_dict.add(SBE37Parameter.SYNCWAIT,
+        self._param_dict.add(SBE16Parameter.SYNCWAIT,
                              r'wait time after serial sync sampling = (\d+) seconds',
                              lambda match : int(match.group(1)),
                              self._int_to_string)
-        self._param_dict.add(SBE37Parameter.TCALDATE,
+        self._param_dict.add(SBE16Parameter.TCALDATE,
                              r'temperature: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
                              self._date_to_string)
-        self._param_dict.add(SBE37Parameter.TA0,
+        self._param_dict.add(SBE16Parameter.TA0,
                              r' +TA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.TA1,
+        self._param_dict.add(SBE16Parameter.TA1,
                              r' +TA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.TA2,
+        self._param_dict.add(SBE16Parameter.TA2,
                              r' +TA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.TA3,
+        self._param_dict.add(SBE16Parameter.TA3,
                              r' +TA3 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.CCALDATE,
+        self._param_dict.add(SBE16Parameter.CCALDATE,
                              r'conductivity: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
                              self._date_to_string)
-        self._param_dict.add(SBE37Parameter.CG,
+        self._param_dict.add(SBE16Parameter.CG,
                              r' +G = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.CH,
+        self._param_dict.add(SBE16Parameter.CH,
                              r' +H = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.CI,
+        self._param_dict.add(SBE16Parameter.CI,
                              r' +I = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.CJ,
+        self._param_dict.add(SBE16Parameter.CJ,
                              r' +J = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.WBOTC,
+        self._param_dict.add(SBE16Parameter.WBOTC,
                              r' +WBOTC = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.CTCOR,
+        self._param_dict.add(SBE16Parameter.CTCOR,
                              r' +CTCOR = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.CPCOR,
+        self._param_dict.add(SBE16Parameter.CPCOR,
                              r' +CPCOR = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.PCALDATE,
+        self._param_dict.add(SBE16Parameter.PCALDATE,
                              r'pressure .+ ((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
                              self._date_to_string)
-        self._param_dict.add(SBE37Parameter.PA0,
+        self._param_dict.add(SBE16Parameter.PA0,
                              r' +PA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.PA1,
+        self._param_dict.add(SBE16Parameter.PA1,
                              r' +PA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.PA2,
+        self._param_dict.add(SBE16Parameter.PA2,
                              r' +PA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.PTCA0,
+        self._param_dict.add(SBE16Parameter.PTCA0,
                              r' +PTCA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.PTCA1,
+        self._param_dict.add(SBE16Parameter.PTCA1,
                              r' +PTCA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.PTCA2,
+        self._param_dict.add(SBE16Parameter.PTCA2,
                              r' +PTCA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.PTCB0,
+        self._param_dict.add(SBE16Parameter.PTCB0,
                              r' +PTCSB0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.PTCB1,
+        self._param_dict.add(SBE16Parameter.PTCB1,
                              r' +PTCSB1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.PTCB2,
+        self._param_dict.add(SBE16Parameter.PTCB2,
                              r' +PTCSB2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.POFFSET,
+        self._param_dict.add(SBE16Parameter.POFFSET,
                              r' +POFFSET = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.RCALDATE,
+        self._param_dict.add(SBE16Parameter.RCALDATE,
                              r'rtc: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
                              self._date_to_string)
-        self._param_dict.add(SBE37Parameter.RTCA0,
+        self._param_dict.add(SBE16Parameter.RTCA0,
                              r' +RTCA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.RTCA1,
+        self._param_dict.add(SBE16Parameter.RTCA1,
                              r' +RTCA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE37Parameter.RTCA2,
+        self._param_dict.add(SBE16Parameter.RTCA2,
                              r' +RTCA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
@@ -967,14 +902,14 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
     @staticmethod
     def _true_false_to_string(v):
         """
-        Write a boolean value to string formatted for sbe37 set operations.
+        Write a boolean value to string formatted for sbe16 set operations.
         @param v a boolean value.
-        @retval A yes/no string formatted for sbe37 set operations.
-        @throws InstrumentParameterException if value not a bool.
+        @retval A yes/no string formatted for sbe16 set operations.
+        @throws ParameterError if value not a bool.
         """
         
         if not isinstance(v,bool):
-            raise InstrumentParameterException('Value %s is not a bool.' % str(v))
+            raise ParameterError('Value %s is not a bool.' % str(v))
         if v:
             return 'y'
         else:
@@ -983,45 +918,45 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
     @staticmethod
     def _int_to_string(v):
         """
-        Write an int value to string formatted for sbe37 set operations.
+        Write an int value to string formatted for sbe16 set operations.
         @param v An int val.
-        @retval an int string formatted for sbe37 set operations.
-        @throws InstrumentParameterException if value not an int.
+        @retval an int string formatted for sbe16 set operations.
+        @throws ParameterError if value not an int.
         """
         
         if not isinstance(v,int):
-            raise InstrumentParameterException('Value %s is not an int.' % str(v))
+            raise ParameterError('Value %s is not an int.' % str(v))
         else:
             return '%i' % v
 
     @staticmethod
     def _float_to_string(v):
         """
-        Write a float value to string formatted for sbe37 set operations.
+        Write a float value to string formatted for sbe16 set operations.
         @param v A float val.
-        @retval a float string formatted for sbe37 set operations.
-        @throws InstrumentParameterException if value is not a float.
+        @retval a float string formatted for sbe16 set operations.
+        @throws ParameterError if value is not a float.
         """
 
         if not isinstance(v,float):
-            raise InstrumentParameterException('Value %s is not a float.' % v)
+            raise ParameterError('Value %s is not a float.' % v)
         else:
             return '%e' % v
 
     @staticmethod
     def _date_to_string(v):
         """
-        Write a date tuple to string formatted for sbe37 set operations.
+        Write a date tuple to string formatted for sbe16 set operations.
         @param v a date tuple: (day,month,year).
-        @retval A date string formatted for sbe37 set operations.
-        @throws InstrumentParameterException if date tuple is not valid.
+        @retval A date string formatted for sbe16 set operations.
+        @throws ParameterError if date tuple is not valid.
         """
 
         if not isinstance(v,(list,tuple)):
-            raise InstrumentParameterException('Value %s is not a list, tuple.' % str(v))
+            raise ParameterError('Value %s is not a list, tuple.' % str(v))
         
         if not len(v)==3:
-            raise InstrumentParameterException('Value %s is not length 3.' % str(v))
+            raise ParameterError('Value %s is not length 3.' % str(v))
         
         months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep',
                   'Oct','Nov','Dec']
@@ -1033,33 +968,33 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
             year = int(str(year)[-2:])
         
         if not isinstance(day,int) or day < 1 or day > 31:
-            raise InstrumentParameterException('Value %s is not a day of month.' % str(day))
+            raise ParameterError('Value %s is not a day of month.' % str(day))
         
         if not isinstance(month,int) or month < 1 or month > 12:
-            raise InstrumentParameterException('Value %s is not a month.' % str(month))
+            raise ParameterError('Value %s is not a month.' % str(month))
 
         if not isinstance(year,int) or year < 0 or year > 99:
-            raise InstrumentParameterException('Value %s is not a 0-99 year.' % str(year))
+            raise ParameterError('Value %s is not a 0-99 year.' % str(year))
         
         return '%02i-%s-%02i' % (day,months[month-1],year)
 
     @staticmethod
     def _string_to_date(datestr,fmt):
         """
-        Extract a date tuple from an sbe37 date string.
-        @param str a string containing date information in sbe37 format.
+        Extract a date tuple from an sbe16 date string.
+        @param str a string containing date information in sbe16 format.
         @retval a date tuple.
-        @throws InstrumentParameterException if datestr cannot be formatted to
+        @throws ParameterError if datestr cannot be formatted to
         a date.
         """
         if not isinstance(datestr,str):
-            raise InstrumentParameterException('Value %s is not a string.' % str(datestr))
+            raise ParameterError('Value %s is not a string.' % str(datestr))
         try:
             date_time = time.strptime(datestr,fmt)
             date = (date_time[2],date_time[1],date_time[0])
 
         except ValueError:
-            raise InstrumentParameterException('Value %s could not be formatted to a date.' % str(datestr))
+            raise ParameterError('Value %s could not be formatted to a date.' % str(datestr))
                         
         return date
 
