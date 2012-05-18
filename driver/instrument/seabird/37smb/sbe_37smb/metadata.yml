@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Bill French
+  driver_make: seabird
+  driver_model: 37smb
+  driver_name: sbe_37smb
+  email: wfrench@ucsd.edu
+  release_notes: seabird
+  version: 0
