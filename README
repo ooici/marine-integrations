@@ -15,4 +15,46 @@ independantly of other ION releases.
 
 To develop drivers you must install ION and the Instrument Development Kit.  
 
+INSTALL
+=======
+
+# Download the lastest source from github.  Note: in order to run 
+# start_driver or package driver it is mandatory that you are running
+# on a fork of the ooici/marine-integrations repository.
+
+# Read only checkout
+$ git clone git://github.com/ooici/marine-integrations
+
+# Read / write checkout
+$ git clone git@github.com:<your_github_uname>/marine-integrations
+
+# Update all submodules (ion-definitions, coi-services, pyon)
+$ cd marine-integrations
+$ git submodules update --init
+
+# Buildout the environment
+$ python bootstrap.py
+$ bin/buildout
+
+USAGE
+=====
+
+####
+#    New Driver Workflow
+####
+
+bin/start_driver:
+   Run this process to start developing a new driver.  
+
+bin/test_driver:
+   Run this process to run driver tests.  If no options are given all tests 
+   (unit, integration, and qualification) are run.  This program offers 
+   different usage options.  Use -h for detailed usage.
+
+bin/package_driver:
+   Run this process to submit the driver for ingestion into the OOI network.  
+   The submitted driver could be rejected if tests are not complete, there is
+   a naming conflict, or any other issues.  Feedback will be sent to the 
+   developer to the address on your gethub account.
+
 
