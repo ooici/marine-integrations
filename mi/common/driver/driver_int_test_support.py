@@ -12,9 +12,9 @@ __license__ = 'Apache 2.0'
 import gevent
 import os
 import logging
-from ion.services.mi.logger_process import EthernetDeviceLogger
-from ion.services.mi.zmq_driver_client import ZmqDriverClient
-from ion.services.mi.zmq_driver_process import ZmqDriverProcess
+from ion.agents.port.logger_process import EthernetDeviceLogger
+from common.driver.zmq_driver_client import ZmqDriverClient
+from common.driver.zmq_driver_process import ZmqDriverProcess
 
 mi_logger = logging.getLogger('mi_logger')
 

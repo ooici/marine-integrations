@@ -17,22 +17,22 @@ import datetime
 from threading import Timer
 import string
 
-from ion.services.mi.common import BaseEnum
-from ion.services.mi.instrument_protocol import CommandResponseInstrumentProtocol
-from ion.services.mi.instrument_fsm import InstrumentFSM
-from ion.services.mi.instrument_driver import SingleConnectionInstrumentDriver
-from ion.services.mi.instrument_driver import DriverEvent
-from ion.services.mi.instrument_driver import DriverAsyncEvent
-from ion.services.mi.instrument_driver import DriverProtocolState
-from ion.services.mi.instrument_driver import DriverParameter
-from ion.services.mi.exceptions import InstrumentTimeoutException
-from ion.services.mi.exceptions import InstrumentParameterException
-from ion.services.mi.exceptions import SampleException
-from ion.services.mi.exceptions import InstrumentStateException
-from ion.services.mi.exceptions import InstrumentProtocolException
+from common.common import BaseEnum
+from common.driver.instrument_protocol import CommandResponseInstrumentProtocol
+from common.driver.instrument_fsm import InstrumentFSM
+from common.instrument_driver import SingleConnectionInstrumentDriver
+from common.driver.instrument_driver import DriverEvent
+from common.driver.instrument_driver import DriverAsyncEvent
+from common.driver.instrument_driver import DriverProtocolState
+from common.driver.instrument_driver import DriverParameter
+from common.exceptions import InstrumentTimeoutException
+from common.exceptions import InstrumentParameterException
+from common.exceptions import SampleException
+from common.exceptions import InstrumentStateException
+from common.exceptions import InstrumentProtocolException
 
 #import ion.services.mi.mi_logger
-mi_logger = logging.getLogger('mi_logger')
+#mi_logger = logging.getLogger('mi_logger')
 
 class SBE37ProtocolState(BaseEnum):
     """
@@ -752,7 +752,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         if self.get_current_state() == SBE37ProtocolState.DIRECT_ACCESS:
             # direct access mode
             if len(data) > 0:
-                mi_logger.debug("SBE37Protocol._got_data(): <" + data + ">") 
+                #mi_logger.debug("SBE37Protocol._got_data(): <" + data + ">") 
                 # check for echoed commands from instrument (TODO: this should only be done for telnet?)
                 if len(self._sent_cmds) > 0:
                     # there are sent commands that need to have there echoes filtered out

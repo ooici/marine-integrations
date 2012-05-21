@@ -26,7 +26,7 @@ import time
 # with unpatched threads as well.
 import zmq
 
-from ion.services.mi.driver_client import DriverClient
+from common.driver.driver_client import DriverClient
 
 mi_logger = logging.getLogger('mi_logger')
 

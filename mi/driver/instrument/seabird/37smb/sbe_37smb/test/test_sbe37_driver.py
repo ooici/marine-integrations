@@ -27,42 +27,42 @@ from nose.plugins.attrib import attr
 
 # Pyon and ION imports
 from pyon.util.unit_test import PyonTestCase
-from ion.services.mi.driver_int_test_support import DriverIntegrationTestSupport
+from common.driver.driver_int_test_support import DriverIntegrationTestSupport
 from pyon.public import CFG
-from ion.services.mi.zmq_driver_client import ZmqDriverClient
-from ion.services.mi.zmq_driver_process import ZmqDriverProcess
-from ion.services.mi.drivers.sbe37.sbe37_driver import SBE37Driver
-from ion.services.mi.drivers.sbe37.sbe37_driver import SBE37ProtocolState
-from ion.services.mi.drivers.sbe37.sbe37_driver import SBE37Parameter
-from ion.services.mi.instrument_driver import DriverAsyncEvent
-from ion.services.mi.instrument_driver import DriverConnectionState
-from ion.services.mi.logger_process import EthernetDeviceLogger
-from ion.services.mi.exceptions import InstrumentException
-from ion.services.mi.exceptions import NotImplementedException
-from ion.services.mi.exceptions import InstrumentTimeoutException
-from ion.services.mi.exceptions import InstrumentProtocolException
-from ion.services.mi.exceptions import InstrumentParameterException
-from ion.services.mi.exceptions import SampleException
-from ion.services.mi.exceptions import InstrumentStateException
-from ion.services.mi.exceptions import InstrumentCommandException
+from common.driver.zmq_driver_client import ZmqDriverClient
+from common.driver.zmq_driver_process import ZmqDriverProcess
+from common.driver.drivers.sbe37.sbe37_driver import SBE37Driver
+from common.driver.drivers.sbe37.sbe37_driver import SBE37ProtocolState
+from common.driver.drivers.sbe37.sbe37_driver import SBE37Parameter
+from common.driver.instrument_driver import DriverAsyncEvent
+from common.driver.instrument_driver import DriverConnectionState
+from common.driver.exceptions import InstrumentException
+from common.driver.exceptions import NotImplementedException
+from common.driver.exceptions import InstrumentTimeoutException
+from common.driver.exceptions import InstrumentProtocolException
+from common.driver.exceptions import InstrumentParameterException
+from common.driver.exceptions import SampleException
+from common.driver.exceptions import InstrumentStateException
+from common.driver.exceptions import InstrumentCommandException
 
+from ion.agents.port.logger_process import EthernetDeviceLogger
 
 # MI logger
-import ion.services.mi.mi_logger
+import common.mi_logger
 mi_logger = logging.getLogger('mi_logger')
 
 # Make tests verbose and provide stdout
-# bin/nosetests -s -v ion/services/mi/drivers/sbe37/test/test_sbe37_driver.py:TestSBE37Driver.test_process
-# bin/nosetests -s -v ion/services/mi/drivers/sbe37/test/test_sbe37_driver.py:TestSBE37Driver.test_config
-# bin/nosetests -s -v ion/services/mi/drivers/sbe37/test/test_sbe37_driver.py:TestSBE37Driver.test_connect
-# bin/nosetests -s -v ion/services/mi/drivers/sbe37/test/test_sbe37_driver.py:TestSBE37Driver.test_get_set
-# bin/nosetests -s -v ion/services/mi/drivers/sbe37/test/test_sbe37_driver.py:TestSBE37Driver.test_poll
-# bin/nosetests -s -v ion/services/mi/drivers/sbe37/test/test_sbe37_driver.py:TestSBE37Driver.test_autosample
-# bin/nosetests -s -v ion/services/mi/drivers/sbe37/test/test_sbe37_driver.py:TestSBE37Driver.test_test
-# bin/nosetests -s -v ion/services/mi/drivers/sbe37/test/test_sbe37_driver.py:TestSBE37Driver.test_errors
-# bin/nosetests -s -v ion/services/mi/drivers/sbe37/test/test_sbe37_driver.py:TestSBE37Driver.test_discover_autosample
+# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_process
+# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_config
+# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_connect
+# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_get_set
+# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_poll
+# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_autosample
+# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_test
+# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_errors
+# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_discover_autosample
 
-DVR_MOD = 'ion.services.mi.drivers.sbe37.sbe37_driver'
+DVR_MOD = 'driver.instrument.seabird.37smb.sbe_37smb.driver'
 
 DVR_CLS = 'SBE37Driver'
 DEV_ADDR = CFG.device.sbe37.host

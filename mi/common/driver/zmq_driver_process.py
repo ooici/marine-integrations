@@ -27,9 +27,9 @@ import uuid
 
 import zmq
 
-import ion.services.mi.mi_logger
-import ion.services.mi.driver_process as driver_process
-from ion.services.mi.instrument_driver import DriverAsyncEvent
+import ion.agents.port.mi_logger
+import common.driver.driver_process as driver_process
+from common.driver.instrument_driver import DriverAsyncEvent
 
 mi_logger = logging.getLogger('mi_logger')
 
