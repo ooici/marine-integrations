@@ -11,7 +11,7 @@ in the driver code.
 __author__ = 'Edward Hunter'
 __license__ = 'Apache 2.0'
 
-from ion.services.mi.common import InstErrorCode
+from mi.core.common import InstErrorCode
 import traceback
 
 class InstrumentException(Exception):

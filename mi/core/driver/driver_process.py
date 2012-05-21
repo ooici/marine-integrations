@@ -18,10 +18,10 @@ import signal
 import os
 import sys
 import time
-from ion.services.mi.exceptions import InstrumentCommandException
-from ion.services.mi.instrument_driver import DriverAsyncEvent
+from mi.core.exceptions import InstrumentCommandException
+from mi.core.driver.instrument_driver import DriverAsyncEvent
 
-mi_logger = logging.getLogger('mi_logger')
+from mi.core.logger import Log
 
 class DriverProcess(object):
     """
@@ -68,14 +68,14 @@ class DriverProcess(object):
         ctor_str = 'driver = dvr_mod.%s(self.send_event)' % self.driver_class
         try:
             exec import_str
-            mi_logger.info('Imported driver module %s', self.driver_module)
+            Log.info('Imported driver module %s' % self.driver_module)
             exec ctor_str
-            mi_logger.info('Constructed driver %s', self.driver_class)
+            Log.info('Constructed driver %s' % self.driver_class)
             
         except (ImportError, NameError, AttributeError) as e:
-            mi_logger.error('Could not import/construct driver module %s, class %s.',
-                      self.driver_module, self.driver_class)
-            mi_logger.error('%s', str(e))
+            Log.error('Could not import/construct driver module %s, class %s.' %
+                      (self.driver_module, self.driver_class))
+            Log.error('%s' % str(e))
             return False
 
         else:
@@ -101,7 +101,7 @@ class DriverProcess(object):
         """
         Shutdown function prior to process exit.
         """
-        mi_logger.info('Driver process shutting down.')
+        Log.info('Driver process shutting down.')
         self.driver_module = None
         self.driver_class = None
         self.driver = None
@@ -115,7 +115,7 @@ class DriverProcess(object):
                 os.kill(self.ppid, 0)
                 
             except OSError:
-                mi_logger.info('Driver process COULD NOT DETECT PARENT.')
+                Log.info('Driver process COULD NOT DETECT PARENT.')
                 return False
         
         return True
@@ -138,7 +138,7 @@ class DriverProcess(object):
         args = msg.get('args', None)
         kwargs = msg.get('kwargs', None)
         cmd_func = getattr(self.driver, cmd, None)
-        mi_logger.debug("DriverProcess.cmd_driver(): cmd=%s, cmd_func=%s" %(cmd, cmd_func))
+        Log.debug("DriverProcess.cmd_driver(): cmd=%s, cmd_func=%s" %(cmd, cmd_func))
         if cmd == 'stop_driver_process':
             self.stop_messaging()
             return'stop_driver_process'
@@ -186,10 +186,10 @@ class DriverProcess(object):
         specified.
         """
         
-        mi_logger.info('Driver process started.')
+        Log.info('Driver process started.')
         
         def shand(signum, frame):
-            mi_logger.info('DRIVER GOT SIGINT')        
+            Log.info('DRIVER GOT SIGINT')        
         signal.signal(signal.SIGINT, shand)
 
         if self.construct_driver():

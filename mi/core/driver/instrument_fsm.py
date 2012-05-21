@@ -10,7 +10,7 @@
 __author__ = 'Edward Hunter'
 __license__ = 'Apache 2.0'
 
-from ion.services.mi.exceptions import InstrumentStateException
+from mi.core.exceptions import InstrumentStateException
 
 
 class InstrumentFSM():

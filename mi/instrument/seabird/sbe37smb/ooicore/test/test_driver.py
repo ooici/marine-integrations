@@ -18,7 +18,6 @@ import gevent
 import time
 import unittest
 import logging
-from subprocess import Popen
 import os
 import signal
 
@@ -27,42 +26,44 @@ from nose.plugins.attrib import attr
 
 # Pyon and ION imports
 from pyon.util.unit_test import PyonTestCase
-from common.driver.driver_int_test_support import DriverIntegrationTestSupport
+from mi.core.driver.driver_int_test_support import DriverIntegrationTestSupport
 from pyon.public import CFG
-from common.driver.zmq_driver_client import ZmqDriverClient
-from common.driver.zmq_driver_process import ZmqDriverProcess
-from common.driver.drivers.sbe37.sbe37_driver import SBE37Driver
-from common.driver.drivers.sbe37.sbe37_driver import SBE37ProtocolState
-from common.driver.drivers.sbe37.sbe37_driver import SBE37Parameter
-from common.driver.instrument_driver import DriverAsyncEvent
-from common.driver.instrument_driver import DriverConnectionState
-from common.driver.exceptions import InstrumentException
-from common.driver.exceptions import NotImplementedException
-from common.driver.exceptions import InstrumentTimeoutException
-from common.driver.exceptions import InstrumentProtocolException
-from common.driver.exceptions import InstrumentParameterException
-from common.driver.exceptions import SampleException
-from common.driver.exceptions import InstrumentStateException
-from common.driver.exceptions import InstrumentCommandException
+
+from mi.core.driver.zmq_driver_client import ZmqDriverClient
+from mi.core.driver.zmq_driver_process import ZmqDriverProcess
+from mi.core.driver.instrument_driver import DriverAsyncEvent
+from mi.core.driver.instrument_driver import DriverConnectionState
+
+from mi.core.exceptions import InstrumentException
+from mi.core.exceptions import NotImplementedException
+from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import SampleException
+from mi.core.exceptions import InstrumentStateException
+from mi.core.exceptions import InstrumentCommandException
+
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Driver
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
 
 from ion.agents.port.logger_process import EthernetDeviceLogger
 
 # MI logger
-import common.mi_logger
-mi_logger = logging.getLogger('mi_logger')
+from mi.core.logger import Log
 
 # Make tests verbose and provide stdout
-# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_process
-# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_config
-# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_connect
-# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_get_set
-# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_poll
-# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_autosample
-# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_test
-# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_errors
-# bin/nosetests -s -v driver/instrument/seabird/37smb/sbe_37smb/test/test_sbe37_driver.py:TestSBE37Driver.test_discover_autosample
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_process
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_config
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_connect
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_get_set
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_poll
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_autosample
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_test
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_errors
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_discover_autosample
 
-DVR_MOD = 'driver.instrument.seabird.37smb.sbe_37smb.driver'
+DVR_MOD = 'mi.instrument.seabird.sbe37smb.ooicore.driver'
 
 DVR_CLS = 'SBE37Driver'
 DEV_ADDR = CFG.device.sbe37.host
@@ -159,7 +160,7 @@ class TestSBE37Driver(unittest.TestCase):
         self._dvr_client = None
 
         # Create and start the port agent.
-        mi_logger.info('start')
+        Log.info('start')
         COMMS_CONFIG['port'] = self._support.start_pagent()
         self.addCleanup(self._support.stop_pagent)    
 
@@ -612,7 +613,7 @@ class TestSBE37Driver(unittest.TestCase):
         while state != SBE37ProtocolState.COMMAND:
             gevent.sleep(5)
             elapsed = time.time() - start_time
-            mi_logger.info('Device testing %f seconds elapsed.' % elapsed)
+            Log.info('Device testing %f seconds elapsed.' % elapsed)
             state = self._dvr_client.cmd_dvr('get_current_state')
 
         # Verify we received the test result and it passed.

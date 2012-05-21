@@ -17,22 +17,21 @@ import datetime
 from threading import Timer
 import string
 
-from common.common import BaseEnum
-from common.driver.instrument_protocol import CommandResponseInstrumentProtocol
-from common.driver.instrument_fsm import InstrumentFSM
-from common.instrument_driver import SingleConnectionInstrumentDriver
-from common.driver.instrument_driver import DriverEvent
-from common.driver.instrument_driver import DriverAsyncEvent
-from common.driver.instrument_driver import DriverProtocolState
-from common.driver.instrument_driver import DriverParameter
-from common.exceptions import InstrumentTimeoutException
-from common.exceptions import InstrumentParameterException
-from common.exceptions import SampleException
-from common.exceptions import InstrumentStateException
-from common.exceptions import InstrumentProtocolException
+from mi.core.common import BaseEnum
+from mi.core.driver.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.driver.instrument_fsm import InstrumentFSM
+from mi.core.driver.instrument_driver import SingleConnectionInstrumentDriver
+from mi.core.driver.instrument_driver import DriverEvent
+from mi.core.driver.instrument_driver import DriverAsyncEvent
+from mi.core.driver.instrument_driver import DriverProtocolState
+from mi.core.driver.instrument_driver import DriverParameter
+from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import SampleException
+from mi.core.exceptions import InstrumentStateException
+from mi.core.exceptions import InstrumentProtocolException
 
-#import ion.services.mi.mi_logger
-#mi_logger = logging.getLogger('mi_logger')
+from mi.core.logger import Log
 
 class SBE37ProtocolState(BaseEnum):
     """

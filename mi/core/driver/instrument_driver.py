@@ -12,18 +12,15 @@ __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
 import time
-import logging
 
-from ion.services.mi.common import BaseEnum
-from ion.services.mi.exceptions import NotImplementedException 
-from ion.services.mi.exceptions import InstrumentException
-from ion.services.mi.exceptions import InstrumentParameterException
-from ion.services.mi.logger_process import LoggerClient
-from ion.services.mi.instrument_fsm import InstrumentFSM
+from ion.agents.port.logger_process import LoggerClient
 
-
-#import ion.services.mi.mi_logger
-mi_logger = logging.getLogger('mi_logger')
+from mi.core.common import BaseEnum
+from mi.core.exceptions import NotImplementedException 
+from mi.core.exceptions import InstrumentException
+from mi.core.exceptions import InstrumentParameterException
+from mi.core.driver.instrument_fsm import InstrumentFSM
+from mi.core.logger import Log
 
 class DriverState(BaseEnum):
     """Common driver state enum"""

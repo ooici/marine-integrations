@@ -26,9 +26,8 @@ import time
 # with unpatched threads as well.
 import zmq
 
-from common.driver.driver_client import DriverClient
-
-mi_logger = logging.getLogger('mi_logger')
+from mi.core.driver.driver_client import DriverClient
+from mi.core.logger import Log
 
  
 class ZmqDriverClient(DriverClient):
@@ -65,7 +64,7 @@ class ZmqDriverClient(DriverClient):
         self.zmq_context = zmq.Context()
         self.zmq_cmd_socket = self.zmq_context.socket(zmq.REQ)
         self.zmq_cmd_socket.connect(self.cmd_host_string)
-        mi_logger.info('Driver client cmd socket connected to %s.',
+        Log.info('Driver client cmd socket connected to %s.' %
                        self.cmd_host_string)        
         self.evt_callback = evt_callback
         
@@ -79,7 +78,7 @@ class ZmqDriverClient(DriverClient):
             sock = context.socket(zmq.SUB)
             sock.connect(driver_client.event_host_string)
             sock.setsockopt(zmq.SUBSCRIBE, '')
-            mi_logger.info('Driver client event thread connected to %s.',
+            Log.info('Driver client event thread connected to %s.',
                   driver_client.event_host_string)
 
             driver_client.stop_event_thread = False
@@ -87,20 +86,20 @@ class ZmqDriverClient(DriverClient):
             while not driver_client.stop_event_thread:
                 try:
                     evt = sock.recv_pyobj(flags=zmq.NOBLOCK)
-                    mi_logger.debug('got event: %s', str(evt))
+                    Log.debug('got event: %s', str(evt))
                     if driver_client.evt_callback:
                         driver_client.evt_callback(evt)
                 except zmq.ZMQError:
                     time.sleep(.5)
                 #cur_time = time.time()
                 #if cur_time - last_time > 5:
-                #    mi_logger.info('event thread listening')
+                #    Log.info('event thread listening')
                 #    last_time = cur_time
             sock.close()
             context.term()
-            mi_logger.info('Client event socket closed.')
+            Log.info('Client event socket closed.')
         self.event_thread = thread.start_new_thread(recv_evt_messages, (self,))
-        mi_logger.info('Driver client messaging started.')
+        Log.info('Driver client messaging started.')
         
     def stop_messaging(self):
         """
@@ -118,7 +117,7 @@ class ZmqDriverClient(DriverClient):
         #self.event_thread.join()
         self.event_thread = None
         self.evt_callback = None
-        mi_logger.info('Driver client messaging closed.')        
+        Log.info('Driver client messaging closed.')        
     
     def cmd_dvr(self, cmd, *args, **kwargs):
         """
@@ -133,7 +132,7 @@ class ZmqDriverClient(DriverClient):
         # Package command dictionary.
         msg = {'cmd':cmd,'args':args,'kwargs':kwargs}
         
-        mi_logger.debug('Sending command %s.', str(msg))
+        Log.debug('Sending command %s.', str(msg))
         while True:
             try:
                 # Attempt command send. Retry if necessary.
@@ -148,7 +147,7 @@ class ZmqDriverClient(DriverClient):
                 # Socket not ready to accept send. Sleep and retry later.
                 time.sleep(.5)
             
-        mi_logger.debug('Awaiting reply.')
+        Log.debug('Awaiting reply.')
         while True:
             try:
                 # Attempt reply recv. Retry if necessary.
@@ -161,7 +160,7 @@ class ZmqDriverClient(DriverClient):
                 # Socket not ready with the reply. Sleep and retry later.
                 time.sleep(.5)
                 
-        mi_logger.debug('Reply: %s.', str(reply))
+        Log.debug('Reply: %s.', str(reply))
         
         if isinstance(reply, Exception):
             raise reply

@@ -1,8 +1,8 @@
 driver_metadata:
   author: Bill French
   driver_make: seabird
-  driver_model: 37smb
-  driver_name: sbe_37smb
+  driver_model: sbe37smb
+  driver_name: ooicore
   email: wfrench@ucsd.edu
-  release_notes: seabird
+  release_notes: OOI Core instrument driver for SBE 37smb
   version: 0

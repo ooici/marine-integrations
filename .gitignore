@@ -42,3 +42,5 @@ cc-pid*
 coverage_results
 .noseids
 */*.cdl
+*/comm_config.yml
+*/metadata.yml

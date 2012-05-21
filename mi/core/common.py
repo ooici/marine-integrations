@@ -11,13 +11,25 @@
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
-# MI logger
-import logging
-mi_logger = logging.getLogger('mi_logger')
-
 """Default timeout value in seconds"""
 DEFAULT_TIMEOUT = 10
 
+class Singleton(object):
+    """
+    Singleton interface:
+    http://www.python.org/download/releases/2.2.3/descrintro/#__new__
+    """
+    def __new__(cls, *args, **kwds):
+        it = cls.__dict__.get("__it__")
+        if it is not None:
+            return it
+        cls.__it__ = it = object.__new__(cls)
+        it.init(*args, **kwds)
+        return it
+
+    def init(self, *args, **kwds):
+        pass
+    
 class BaseEnum(object):
     """Base class for enums.
     
