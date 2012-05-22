@@ -30,7 +30,7 @@ $ git clone git@github.com:<your_github_uname>/marine-integrations
 
 # Update all submodules (ion-definitions, coi-services, pyon)
 $ cd marine-integrations
-$ git submodules update --init
+$ git submodule update --init
 
 # Buildout the environment
 $ python bootstrap.py
