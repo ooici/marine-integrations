@@ -44,3 +44,6 @@ coverage_results
 */*.cdl
 */comm_config.yml
 */metadata.yml
+extern/coi-services
+extern/pyon
+extern/ion-definitions
