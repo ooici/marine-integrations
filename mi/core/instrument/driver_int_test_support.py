@@ -13,8 +13,8 @@ import gevent
 import os
 import logging
 from ion.agents.port.logger_process import EthernetDeviceLogger
-from mi.core.driver.zmq_driver_client import ZmqDriverClient
-from mi.core.driver.zmq_driver_process import ZmqDriverProcess
+from mi.core.instrument.zmq_driver_client import ZmqDriverClient
+from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
 from mi.core.logger import Log
 

@@ -26,7 +26,7 @@ import time
 # with unpatched threads as well.
 import zmq
 
-from mi.core.driver.driver_client import DriverClient
+from mi.core.instrument.driver_client import DriverClient
 from mi.core.logger import Log
 
  

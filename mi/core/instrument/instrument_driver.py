@@ -19,7 +19,7 @@ from mi.core.common import BaseEnum
 from mi.core.exceptions import NotImplementedException 
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentParameterException
-from mi.core.driver.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.logger import Log
 
 class DriverState(BaseEnum):

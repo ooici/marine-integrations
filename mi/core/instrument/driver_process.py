@@ -19,7 +19,7 @@ import os
 import sys
 import time
 from mi.core.exceptions import InstrumentCommandException
-from mi.core.driver.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
 from mi.core.logger import Log
 

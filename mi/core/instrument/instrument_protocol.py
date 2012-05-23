@@ -19,7 +19,7 @@ import signal
 import re
 
 from mi.core.common import BaseEnum
-from mi.core.driver.protocol_param_dict import ProtocolParameterDict
+from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
 
