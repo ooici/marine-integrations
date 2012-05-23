@@ -37,7 +37,5 @@ setup(  name = 'marine-integrations',
             ],
         },
         install_requires = [
-            'pyon',
-            'coi-services',
         ],
      )

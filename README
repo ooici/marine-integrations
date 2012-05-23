@@ -40,6 +40,20 @@ USAGE
 =====
 
 ####
+#    Configuration
+####
+
+The first time you run an IDK script it will create an IDK configuration
+directory (~/.idk).  In this directory you will find IDK log files and 
+and IDK configuration file.  The important configuration that you are 
+looking for in this file is 'working_repo'.  That is the directory where
+you checkouted the marine-integrations repository.
+
+If you move the local repository directory that file needs to be updated.
+You can do this from the command line by running idk_rebase from the root 
+of the local marine-integrations repository.
+
+####
 #    New Driver Workflow
 ####
 
@@ -56,5 +70,9 @@ bin/package_driver:
    The submitted driver could be rejected if tests are not complete, there is
    a naming conflict, or any other issues.  Feedback will be sent to the 
    developer to the address on your gethub account.
+
+bin/idk_rebase:
+   If you move the IDK directory this command will update your local IDK 
+   configuration with the new directory.
 
 
