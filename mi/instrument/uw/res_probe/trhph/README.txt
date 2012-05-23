@@ -5,6 +5,11 @@ Main documentation page: https://confluence.oceanobservatories.org/display/CIDev
 
 Some development notes:
 
+2012-05-22:  (
+- (first commit in the marine-integrations repo) removed obsolete files
+  protocol.py and driver.py that reappeared upon merges with coi-services
+  prior to the copy over the mi repo.
+
 2012-05-10:
 - NOTE: test_instrument_agent_with_trhph.py is incrementally launching new
   processes as the individual tests are run, so seems like the clean-up
