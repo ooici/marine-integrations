@@ -78,7 +78,7 @@ class ZmqDriverClient(DriverClient):
             sock = context.socket(zmq.SUB)
             sock.connect(driver_client.event_host_string)
             sock.setsockopt(zmq.SUBSCRIBE, '')
-            Log.info('Driver client event thread connected to %s.',
+            Log.info('Driver client event thread connected to %s.' %
                   driver_client.event_host_string)
 
             driver_client.stop_event_thread = False
@@ -86,7 +86,7 @@ class ZmqDriverClient(DriverClient):
             while not driver_client.stop_event_thread:
                 try:
                     evt = sock.recv_pyobj(flags=zmq.NOBLOCK)
-                    Log.debug('got event: %s', str(evt))
+                    Log.debug('got event: %s' % str(evt))
                     if driver_client.evt_callback:
                         driver_client.evt_callback(evt)
                 except zmq.ZMQError:
@@ -132,7 +132,7 @@ class ZmqDriverClient(DriverClient):
         # Package command dictionary.
         msg = {'cmd':cmd,'args':args,'kwargs':kwargs}
         
-        Log.debug('Sending command %s.', str(msg))
+        Log.debug('Sending command %s.' % str(msg))
         while True:
             try:
                 # Attempt command send. Retry if necessary.
@@ -160,7 +160,7 @@ class ZmqDriverClient(DriverClient):
                 # Socket not ready with the reply. Sleep and retry later.
                 time.sleep(.5)
                 
-        Log.debug('Reply: %s.', str(reply))
+        Log.debug('Reply: %s.' % str(reply))
         
         if isinstance(reply, Exception):
             raise reply

@@ -18,13 +18,13 @@ from threading import Timer
 import string
 
 from mi.core.common import BaseEnum
-from mi.core.driver.instrument_protocol import CommandResponseInstrumentProtocol
-from mi.core.driver.instrument_fsm import InstrumentFSM
-from mi.core.driver.instrument_driver import SingleConnectionInstrumentDriver
-from mi.core.driver.instrument_driver import DriverEvent
-from mi.core.driver.instrument_driver import DriverAsyncEvent
-from mi.core.driver.instrument_driver import DriverProtocolState
-from mi.core.driver.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
+from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException

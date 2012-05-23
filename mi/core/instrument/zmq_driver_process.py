@@ -28,7 +28,7 @@ import uuid
 import zmq
 
 import mi.core.instrument.driver_process as driver_process
-from mi.core.driver.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.logger import Log
 
 class ZmqDriverProcess(driver_process.DriverProcess):

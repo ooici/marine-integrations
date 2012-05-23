@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.sbe37.test.test_sbe37_driver
-@file ion/services/mi/drivers/sbe37/test/test_sbe37_driver.py
+@package ion.services.mi.instrument.sbe37.test.test_sbe37_driver
+@file ion/services/mi/instrument/sbe37/test/test_sbe37_driver.py
 @author Edward Hunter
 @brief Test cases for SBE37Driver
 """
@@ -26,13 +26,13 @@ from nose.plugins.attrib import attr
 
 # Pyon and ION imports
 from pyon.util.unit_test import PyonTestCase
-from mi.core.driver.driver_int_test_support import DriverIntegrationTestSupport
+from mi.core.instrument.driver_int_test_support import DriverIntegrationTestSupport
 from pyon.public import CFG
 
-from mi.core.driver.zmq_driver_client import ZmqDriverClient
-from mi.core.driver.zmq_driver_process import ZmqDriverProcess
-from mi.core.driver.instrument_driver import DriverAsyncEvent
-from mi.core.driver.instrument_driver import DriverConnectionState
+from mi.core.instrument.zmq_driver_client import ZmqDriverClient
+from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverConnectionState
 
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import NotImplementedException
@@ -49,19 +49,24 @@ from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
 
 from ion.agents.port.logger_process import EthernetDeviceLogger
 
+from ion.idk.metadata import Metadata
+from ion.idk.comm_config import CommConfig
+from ion.idk.unit_test import InstrumentDriverTestCase
+from ion.idk.test.driver_qualification import DriverQualificationTestCase
+
 # MI logger
 from mi.core.logger import Log
 
 # Make tests verbose and provide stdout
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_process
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_config
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_connect
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_get_set
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_poll
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_autosample
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_test
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_errors
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_sbe37_driver.py:TestSBE37Driver.test_discover_autosample
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_process
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_config
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_connect
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_get_set
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_poll
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_autosample
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_test
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_errors
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_discover_autosample
 
 DVR_MOD = 'mi.instrument.seabird.sbe37smb.ooicore.driver'
 
@@ -122,17 +127,61 @@ PARAMS = {
 }
 
 
-@attr('HARDWARE', group='mi')
-#@unittest.skip('Ready to go, remove skip when tested against simulator.')
-class TestSBE37Driver(unittest.TestCase):    
+#################################### RULES ####################################
+#                                                                             #
+# Common capabilities in the base class                                       #
+#                                                                             #
+# Instrument specific stuff in the derived class                              #
+#                                                                             #
+# Generator spits out either stubs or comments describing test this here,     #
+# test that there.                                                            #
+#                                                                             #
+# Qualification tests are driven through the instrument_agent                 #
+#                                                                             #
+###############################################################################
+
+###############################################################################
+#                                UNIT TESTS                                   #
+#         Unit tests test the method calls and parameters using Mock.         #
+###############################################################################
+
+@attr('UNIT', group='mi')
+class Tests_UNIT(InstrumentDriverTestCase):
+    """Unit Test Container"""
+    
+    def setUp(self):
+        """
+        @brief initalize mock objects for the protocol object.
+        """
+    
+###############################################################################
+#                            INTEGRATION TESTS                                #
+#     Integration test test the direct driver / instrument interaction        #
+#     but making direct calls via zeromq.                                     #
+#     - Common Integration tests test the driver through the instrument agent #
+#     and common for all drivers (minmum requirement for ION ingestion)       #
+###############################################################################
+
+@attr('INT', group='mi')
+class Tests_INT(InstrumentDriverTestCase):
     """
     Integration tests for the sbe37 driver. This class tests and shows
     use patterns for the sbe37 driver as a zmq driver process.
     """    
+    
+    @staticmethod
+    def driver_module():
+        return 'mi.instrument.s.s.s.driver'
+        
+    @staticmethod
+    def driver_class():
+        return 'sInstrumentDriver'    
+    
     def setUp(self):
         """
         Setup test cases.
         """
+        Log.debug("HERE!")
         self.device_addr = DEV_ADDR
         self.device_port = DEV_PORT
         self.work_dir = WORK_DIR
@@ -897,3 +946,50 @@ class TestSBE37Driver(unittest.TestCase):
         # Test the driver is in state unconfigured.
         state = self._dvr_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+
+###############################################################################
+#                            QUALIFICATION TESTS                              #
+# Device specific qualification tests are for                                 #
+# testing device specific capabilities                                        #
+###############################################################################
+
+@attr('QUAL', group='mi')
+class Tests_QUAL(DriverQualificationTestCase):
+    """Qualification Test Container"""
+
+    # Qualification tests live in the base class.  This class is extended
+    # here so that when running this test from 'nosetests' all tests
+    # (UNIT, INT, and QUAL) are run.
+    pass
+
+###############################################################################
+# Auto generated code.  There should rarely be reason to edit anything below. #
+###############################################################################
+
+class IntFromIDK(Tests_INT):
+    """
+    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
+    called from the IDK test_driver program
+    """
+    @classmethod
+    def init_comm(cls):
+        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
+
+class UnitFromIDK(Tests_UNIT):
+    """
+    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
+    called from the IDK test_driver program
+    """
+    @classmethod
+    def init_comm(cls):
+        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
+
+class QualFromIDK(Tests_QUAL):
+    """
+    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
+    called from the IDK test_driver program
+    """
+    @classmethod
+    def init_comm(cls):
+        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
