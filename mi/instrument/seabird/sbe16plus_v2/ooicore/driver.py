@@ -244,7 +244,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
 
         # Add build handlers for device commands.
         self._add_build_handler(SBE16Command.DS, self._build_simple_command)
-    # DHE dcal replaces dc
+        # DHE dcal replaces dc
         #self._add_build_handler('dc', self._build_simple_command)
         self._add_build_handler(SBE16Command.DCAL, self._build_simple_command)
         self._add_build_handler(SBE16Command.TS, self._build_simple_command)
@@ -266,7 +266,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(SBE16Command.TC, self._parse_test_response)
         self._add_response_handler(SBE16Command.TP, self._parse_test_response)
 
-       # Add sample handlers.
+        # Add sample handlers.
         self._sample_pattern = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'
         self._sample_pattern += r'(, *(-?\d+\.\d+))?(, *(-?\d+\.\d+))?'
         self._sample_pattern += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'
@@ -687,21 +687,18 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
 
         # DHE TEMPTEMP
         for line in response.split(SBE16_NEWLINE):
-        print line
+            print line
             if 'sample interval' in line:
-        for sline in line.split(','):
-            print 'DHE: split this: ' + sline.lstrip()
-            self._param_dict.update(sline.lstrip())
+                for sline in line.split(','):
+                    print 'DHE: split this: ' + sline.lstrip()
+                    self._param_dict.update(sline.lstrip())
             elif 'output salinity' in line:
-        for sline in line.split(','):
-            print 'DHE: split this: ' + sline.lstrip()
-            self._param_dict.update(sline.lstrip())
-        else: 
+                for sline in line.split(','):
+                    print 'DHE: split this: ' + sline.lstrip()
+                    self._param_dict.update(sline.lstrip())
+            else: 
                 self._param_dict.update(line)
             
-        for line in response.split(SBE16_NEWLINE):
-            self._param_dict.update(line)
-        
     # DHE new
     def _parse_dcal_response(self, response, prompt):
         """
@@ -714,8 +711,8 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             raise ProtocolError('dcal command not recognized: %s.' % response)
             
         for line in response.split(SBE16_NEWLINE):
-        # DHE TEMPTEMP
-        print line
+            # DHE TEMPTEMP
+            print line
             self._param_dict.update(line)
         
     def _parse_ts_response(self, response, prompt):
