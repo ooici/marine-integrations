@@ -240,6 +240,7 @@ class TestInstrumentAgent(IonIntegrationTestCase):
         self._ia_pid = container_client.spawn_process(name=IA_NAME,
                                 module=IA_MOD, cls=IA_CLS, config=agent_config)      
         log.info('Agent pid=%s.', str(self._ia_pid))
+        log.info("L4-CI-SA-RQ-234")
         
         # Start a resource agent client to talk with the instrument agent.
         self._ia_client = None
@@ -323,6 +324,8 @@ class TestInstrumentAgent(IonIntegrationTestCase):
         Create subscribers for agent and driver events.
         """
         def consume_event(*args, **kwargs):
+            log.info("L4-CI-SA-RQ-135")
+            log.info("L4-CI-SA-RQ-143")
             log.info('Test recieved ION event: args=%s, kwargs=%s, event=%s.', 
                      str(args), str(kwargs), str(args[0]))
             self._events_received.append(args[0])
@@ -503,6 +506,8 @@ class TestInstrumentAgent(IonIntegrationTestCase):
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
+        log.info("L4-CI-SA-RQ-221")
+
     def test_get_set(self):
         """
         Test instrument driver get and set interface.
@@ -623,6 +628,7 @@ class TestInstrumentAgent(IonIntegrationTestCase):
         # Assert we got 3 samples.
         self._async_data_result.get(timeout=10)
         self.assertTrue(len(self._samples_received)==3)
+        log.info("L4-CI-SA-RQ-371")
 
         cmd = AgentCommand(command='reset')
         retval = self._ia_client.execute_agent(cmd)
