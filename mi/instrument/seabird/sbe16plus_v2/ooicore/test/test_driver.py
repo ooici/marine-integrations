@@ -29,26 +29,24 @@ from nose.plugins.attrib import attr
 # Pyon and ION imports
 from pyon.util.unit_test import PyonTestCase
 from pyon.public import CFG
-from ion.services.mi.zmq_driver_client import ZmqDriverClient
-from ion.services.mi.zmq_driver_process import ZmqDriverProcess
-from ion.services.mi.drivers.sbe16_plus_v2.sbe16_driver import SBE16Driver
-from ion.services.mi.drivers.sbe16_plus_v2.sbe16_driver import SBE16ProtocolState
-from ion.services.mi.drivers.sbe16_plus_v2.sbe16_driver import SBE16Parameter
-from ion.services.mi.instrument_driver import DriverAsyncEvent
-from ion.services.mi.instrument_driver import DriverConnectionState
-from ion.services.mi.logger_process import EthernetDeviceLogger
-from ion.services.mi.exceptions import InstrumentException
-from ion.services.mi.exceptions import NotImplementedException
-from ion.services.mi.exceptions import InstrumentTimeoutException
-from ion.services.mi.exceptions import InstrumentProtocolException
-from ion.services.mi.exceptions import InstrumentParameterException
-from ion.services.mi.exceptions import SampleException
-from ion.services.mi.exceptions import InstrumentStateException
-from ion.services.mi.exceptions import InstrumentCommandException
+from mi.core.instrument.zmq_driver_client import ZmqDriverClient
+from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16Driver
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16ProtocolState
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16Parameter
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverConnectionState
+from ion.agents.port.logger_process import EthernetDeviceLogger
+from mi.core.exceptions import InstrumentException
+from mi.core.exceptions import NotImplementedException
+from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import SampleException
+from mi.core.exceptions import InstrumentStateException
+from mi.core.exceptions import InstrumentCommandException
 
-# MI logger
-import ion.services.mi.mi_logger
-mi_logger = logging.getLogger('mi_logger')
+from mi.core.logger import Log
 
 # Make tests verbose and provide stdout
 # bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe16_driver.py:TestSBE16Driver.test_process
@@ -61,10 +59,17 @@ mi_logger = logging.getLogger('mi_logger')
 # bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe16_driver.py:TestSBE16Driver.test_errors
 # bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe16_driver.py:TestSBE16Driver.test_discover_autosample
 
+
+
+from ion.idk.metadata import Metadata
+from ion.idk.comm_config import CommConfig
+from ion.idk.unit_test import InstrumentDriverTestCase
+from ion.idk.test.driver_qualification import DriverQualificationTestCase
+
 # Driver and port agent configuration
 
 # Driver module and class.
-DVR_MOD = 'ion.services.mi.drivers.sbe16_plus_v2.sbe16_driver'
+DVR_MOD = 'mi.instrument.seabird.sbe16plus_v2.ooicore.driver'
 DVR_CLS = 'SBE16Driver'
 
 #DEV_ADDR = CFG.device.sbe16.host
@@ -130,9 +135,43 @@ PARAMS = {
 }
 
 
-@attr('HARDWARE', group='mi')
-@unittest.skip('Ready to go, remove skip when tested against simulator.')
-class TestSBE16Driver(PyonTestCase):    
+#################################### RULES ####################################
+#                                                                             #
+# Common capabilities in the base class                                       #
+#                                                                             #
+# Instrument specific stuff in the derived class                              #
+#                                                                             #
+# Generator spits out either stubs or comments describing test this here,     #
+# test that there.                                                            #
+#                                                                             #
+# Qualification tests are driven through the instrument_agent                 #
+#                                                                             #
+###############################################################################
+
+###############################################################################
+#                                UNIT TESTS                                   #
+#         Unit tests test the method calls and parameters using Mock.         #
+###############################################################################
+
+@attr('UNIT', group='mi')
+class Tests_UNIT(InstrumentDriverTestCase):
+    """Unit Test Container"""
+
+    def setUp(self):
+        """
+        @brief initalize mock objects for the protocol object.
+        """
+
+###############################################################################
+#                            INTEGRATION TESTS                                #
+#     Integration test test the direct driver / instrument interaction        #
+#     but making direct calls via zeromq.                                     #
+#     - Common Integration tests test the driver through the instrument agent #
+#     and common for all drivers (minmum requirement for ION ingestion)       #
+###############################################################################
+
+@attr('INT', group='mi')
+class Tests_INT(InstrumentDriverTestCase):
     """
     Integration tests for the sbe16 driver. This class tests and shows
     use patterns for the sbe16 driver as a zmq driver process.
@@ -156,7 +195,7 @@ class TestSBE16Driver(PyonTestCase):
         self._dvr_client = None
 
         # Create and start the port agent.
-        mi_logger.info('start')
+        Log.info('start')
         self._start_pagent()
         self.addCleanup(self._stop_pagent)    
 
@@ -185,7 +224,7 @@ class TestSBE16Driver(PyonTestCase):
         
         COMMS_CONFIG['port'] = port
 
-        mi_logger.info('Started port agent pid %d listening at port %d', pid, port)
+        Log.info('Started port agent pid %d listening at port %d' % (pid, port))
 
     def _stop_pagent(self):
         """
@@ -194,10 +233,10 @@ class TestSBE16Driver(PyonTestCase):
         if self._pagent:
             pid = self._pagent.get_pid()
             if pid:
-                mi_logger.info('Stopping pagent pid %i', pid)
+                Log.info('Stopping pagent pid %i'% pid)
                 self._pagent.stop()
             else:
-                mi_logger.info('No port agent running.')
+                Log.info('No port agent running.')
             
     def _start_driver(self):
         """
@@ -208,19 +247,17 @@ class TestSBE16Driver(PyonTestCase):
         this_pid = os.getpid()
         (dvr_proc, cmd_port, evt_port) = ZmqDriverProcess.launch_process(DVR_MOD, DVR_CLS, WORK_DIR, this_pid)
         self._dvr_proc = dvr_proc
-        mi_logger.info('Started driver process for %d %d %s %s', cmd_port,
-            evt_port, DVR_MOD, DVR_CLS)
-        mi_logger.info('Driver process pid %d', self._dvr_proc.pid)
+        Log.info('Started driver process for %d %d %s %s'% (cmd_port, evt_port, DVR_MOD, DVR_CLS))
+        Log.info('Driver process pid %d'% self._dvr_proc.pid)
             
         # Create driver client.            
         self._dvr_client = ZmqDriverClient('localhost', cmd_port,
             evt_port)
-        mi_logger.info('Created driver client for %d %d %s %s', cmd_port,
-            evt_port, DVR_MOD, DVR_CLS)
+        Log.info('Created driver client for %d %d %s %s'%( cmd_port, evt_port, DVR_MOD, DVR_CLS))
         
         # Start client messaging.
         self._dvr_client.start_messaging(self.evt_recd)
-        mi_logger.info('Driver messaging started.')
+        Log.info('Driver messaging started.')
         gevent.sleep(.5)
             
     def _stop_driver(self):
@@ -230,7 +267,7 @@ class TestSBE16Driver(PyonTestCase):
         """
         
         if self._dvr_proc:
-            mi_logger.info('Stopping driver process pid %d', self._dvr_proc.pid)
+            Log.info('Stopping driver process pid %d'% self._dvr_proc.pid)
             if self._dvr_client:
                 self._dvr_client.done()
                 self._dvr_proc.wait()
@@ -238,7 +275,7 @@ class TestSBE16Driver(PyonTestCase):
 
             else:
                 try:
-                    mi_logger.info('Killing driver process.')
+                    Log.info('Killing driver process.')
                     self._dvr_proc.kill()
                 except OSError:
                     pass
@@ -690,7 +727,7 @@ class TestSBE16Driver(PyonTestCase):
         while state != SBE16ProtocolState.COMMAND:
             gevent.sleep(5)
             elapsed = time.time() - start_time
-            mi_logger.info('Device testing %f seconds elapsed.' % elapsed)
+            Log.info('Device testing %f seconds elapsed.' % elapsed)
             state = self._dvr_client.cmd_dvr('get_current_state')
 
         # Verify we received the test result and it passed.
@@ -976,4 +1013,51 @@ class TestSBE16Driver(PyonTestCase):
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
         
         
+
+###############################################################################
+#                            QUALIFICATION TESTS                              #
+# Device specific qualification tests are for                                 #
+# testing device specific capabilities                                        #
+###############################################################################
+
+@attr('QUAL', group='mi')
+class Tests_QUAL(DriverQualificationTestCase):
+    """Qualification Test Container"""
+
+    # Qualification tests live in the base class.  This class is extended
+    # here so that when running this test from 'nosetests' all tests
+    # (UNIT, INT, and QUAL) are run.
+    pass
+
+###############################################################################
+# Auto generated code.  There should rarely be reason to edit anything below. #
+###############################################################################
+
+class IntFromIDK(Tests_INT):
+    """
+    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
+    called from the IDK test_driver program
+    """
+    @classmethod
+    def init_comm(cls):
+        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
+
+class UnitFromIDK(Tests_UNIT):
+    """
+    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
+    called from the IDK test_driver program
+    """
+    @classmethod
+    def init_comm(cls):
+        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
+
+class QualFromIDK(Tests_QUAL):
+    """
+    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
+    called from the IDK test_driver program
+    """
+    @classmethod
+    def init_comm(cls):
+        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
+
         
