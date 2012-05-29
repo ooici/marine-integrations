@@ -628,33 +628,27 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @param args[0] Communiations config dictionary.
         @retval (next_state, result) tuple, (DriverConnectionState.DISCONNECTED,
         None) if successful, (None, None) otherwise.
-        @raises InstrumentParameterException if missing or invalid param dict.        
+        @raises InstrumentParameterException if missing or invalid param dict.
         """
         next_state = None
         result = None
-        
+
         # Get the required param dict.
-        try:
-            config = args[0]
-        
-        except IndexError:
+        config = kwargs.get('config', None)  # via kwargs
+        # TODO use kwargs as the only mechanism
+        if config is None:
+            try:
+                config = args[0]  # via first argument
+            except IndexError:
+                pass
+
+        if config is None:
             raise InstrumentParameterException('Missing comms config parameter.')
-        
+
         # Verify dict and construct connection client.
-        try:
-            addr = config['addr']
-            port = config['port']
-            
-            if isinstance(addr, str) and isinstance(port, int) and len(addr)>0:                
-                self._connection = LoggerClient(addr, port)
-                next_state = DriverConnectionState.DISCONNECTED
-                            
-            else:
-                raise InstrumentParameterException('Invalid comms config dict.')
-                
-        except (TypeError, KeyError):
-            raise InstrumentParameterException('Invalid comms config dict.')        
-        
+        self._connection = self._build_connection(config)
+        next_state = DriverConnectionState.DISCONNECTED
+
         return (next_state, result)
 
     ########################################################################
@@ -698,28 +692,22 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         """
         next_state = None
         result = None
-        
+
         # Get required config param dict.
-        try:
-            config = args[0]
-        
-        except IndexError:
+        config = kwargs.get('config', None)  # via kwargs
+        # TODO use kwargs as the only mechanism
+        if config is None:
+            try:
+                config = args[0]  # via first argument
+            except IndexError:
+                pass
+
+        if config is None:
             raise InstrumentParameterException('Missing comms config parameter.')
 
-        # Verify configuration dict, and update connection if possible.        
-        try:
-            addr = config['addr']
-            port = config['port']
-            
-            if isinstance(addr, str) and isinstance(port, int) and len(addr)>0:                
-                self._connection = LoggerClient(addr, port)
-                            
-            else:
-                raise InstrumentParameterException('Invalid comms config dict.')
-                
-        except (TypeError, KeyError):
-            raise InstrumentParameterException('Invalid comms config dict.')        
-        
+        # Verify configuration dict, and update connection if possible.
+        self._connection = self._build_connection(config)
+
         return (next_state, result)
 
     def _handler_disconnected_connect(self, *args, **kwargs):
@@ -805,6 +793,34 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
     ########################################################################
     # Helpers.
     ########################################################################
+
+    def _build_connection(self, config):
+        """
+        Constructs and returns a Connection object according to the given
+        configuration. The connection object is a LoggerClient instance in
+        this base class. Subclasses can overwrite this operation as needed.
+        The value returned by this operation is assigned to self._connection
+        and also to self._protocol._connection upon entering in the
+        DriverConnectionState.CONNECTED state.
+
+        @param config configuration dict
+
+        @retval a Connection instance, which will be assigned to
+                  self._connection
+
+        @throws InstrumentParameterException Invalid configuration.
+        """
+        try:
+            addr = config['addr']
+            port = config['port']
+
+            if isinstance(addr, str) and isinstance(port, int) and len(addr)>0:
+                return LoggerClient(addr, port)
+            else:
+                raise InstrumentParameterException('Invalid comms config dict.')
+
+        except (TypeError, KeyError):
+            raise InstrumentParameterException('Invalid comms config dict.')
 
     def _build_protocol(self):
         """
