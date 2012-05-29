@@ -7,13 +7,15 @@ __license__ = 'Apache 2.0'
 """
 
 
-from ion.services.mi.drivers.vadcp.pd0 import PD0DataStructure
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.pd0 import PD0DataStructure
 
 from unittest import TestCase
 from nose.plugins.attrib import attr
 
 
-def _read_sample(filename='ion/services/mi/drivers/vadcp/test/pd0_sample.bin'):
+def _read_sample(filename='mi/instrument/teledyne'
+                          '/workhorse_adcp_5_beam_600khz/ooicore/resource'
+                          '/pd0_sample.bin'):
     sample = file(filename, 'r')
     data = sample.read()
     sample.close()
