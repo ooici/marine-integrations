@@ -8,7 +8,7 @@ Unit tests for the basic trhph module.
 """
 
 
-import ion.services.mi.drivers.uw_trhph.trhph as trhph
+import mi.instrument.uw.res_probe.ooicore.trhph as trhph
 
 
 from unittest import TestCase

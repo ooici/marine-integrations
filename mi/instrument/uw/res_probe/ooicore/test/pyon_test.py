@@ -19,7 +19,7 @@ __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
 
 #from pyon.util.unit_test import PyonTestCase
-#from ion.services.mi.drivers.uw_trhph.test import TrhphTestCase
+#from mi.instrument.uw.res_probe.ooicore.test import TrhphTestCase
 #
 #
 #class PyonTrhphTestCase(PyonTestCase, TrhphTestCase):

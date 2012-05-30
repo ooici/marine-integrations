@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.uw_trhph.trhph_client
-@file ion/services/mi/drivers/uw_trhph/trhph_client.py
+@package mi.instrument.uw.res_probe.ooicore.trhph_client
+@file    mi/instrument/uw/res_probe/ooicore/trhph_client.py
 @author Carlos Rueda
 
 @brief TRHPH instrument client module.
@@ -12,10 +12,9 @@ __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
 
 """
-TrhphClient allows iteraction with the TRHPH instrument or simulator via a
-socket.
+TrhphClient allows iteraction with the TRHPH instrument or simulator.
 A demo program can be run as follows:
-    $ bin/python ion/services/mi/drivers/uw_trhph/trhph_client.py \
+    $ bin/python mi/instrument/uw/res_probe/ooicore/trhph_client.py \
            --host 10.180.80.172 --port 2001 --outfile output.txt
 """
 
@@ -43,10 +42,10 @@ import os
 import re
 
 import logging
-from ion.services.mi.mi_logger import mi_logger
+from mi.core.mi_logger import mi_logger
 log = mi_logger
 
-import ion.services.mi.drivers.uw_trhph.trhph as trhph
+import mi.instrument.uw.res_probe.ooicore.trhph as trhph
 
 
 NEWLINE = trhph.NEWLINE
@@ -1151,7 +1150,7 @@ def main(host, port, timeout, outfile=sys.stdout, prefix_state=False,
 
 if __name__ == '__main__':
     usage = """
-    USAGE: bin/python ion/services/mi/drivers/uw_trhph/trhph_client.py [options]
+    USAGE: bin/python mi/instrument/uw/res_probe/ooicore/trhph_client.py [options]
        --host address      # instrument address (localhost)
        --port port         # instrument port (required)
        --timeout secs      # generic timeout (%s secs)
@@ -1164,10 +1163,10 @@ if __name__ == '__main__':
     Examples:
 
     Only get current state of real instrument:
-    $ bin/python ion/services/mi/drivers/uw_trhph/trhph_client.py --host 10.180.80.172 --port 2001 --only_get_state --outfile /dev/null
+    $ bin/python mi/instrument/uw/res_probe/ooicore/trhph_client.py --host 10.180.80.172 --port 2001 --only_get_state --outfile /dev/null
 
     Simple interaction:
-    $ bin/python ion/services/mi/drivers/uw_trhph/trhph_client.py trhph_client.py --host 10.180.80.172 --port 2001
+    $ bin/python mi/instrument/uw/res_probe/ooicore/trhph_client.py trhph_client.py --host 10.180.80.172 --port 2001
     """
 
     host = 'localhost'

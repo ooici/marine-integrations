@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.uw_trhph.trhph
-@file ion/services/mi/drivers/uw_trhph/trhph.py
+@package mi.instrument.uw.res_probe.ooicore.trhph
+@file    mi/instrument/uw/res_probe/ooicore/trhph.py
 @author Carlos Rueda
 @brief UW TRHPH definitions and misc utilities
 """

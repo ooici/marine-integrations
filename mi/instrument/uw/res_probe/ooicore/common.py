@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.uw_trhph.common
-@file ion/services/mi/drivers/uw_trhph/common.py
+@package mi.instrument.uw.res_probe.ooicore.common
+@file    mi/instrument/uw/res_probe/ooicore/common.py
 @author Carlos Rueda
 @brief UW TRHPH common elements.
 """
@@ -10,8 +10,8 @@
 __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
 
-from ion.services.mi.common import BaseEnum
-#from ion.services.mi.instrument_driver import DriverChannel
+from mi.core.common import BaseEnum
+#from mi.core.instrument.instrument_driver import DriverChannel
 
 
 class TrhphCommand(BaseEnum):
