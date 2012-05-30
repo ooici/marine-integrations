@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver
-@file    ion/services/mi/drivers/vadcp/test/test_driver.py
+@package mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver0
+@file    mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/test_driver0.py
 @author Carlos Rueda
 @brief Direct tests to the driver class.
 """

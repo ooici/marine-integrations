@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
-__author__ = "Carlos Rueda"
-__license__ = 'Apache 2.0'
-
 """
 @package mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_ts
-@file    ion/services/mi/drivers/vadcp/test/test_ts.py
+@file    mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/test_ts.py
 @author Carlos Rueda
 @brief Unit tests for timestamp related functions
 """
+
+__author__ = "Carlos Rueda"
+__license__ = 'Apache 2.0'
 
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util.ts_filter import _partial_match

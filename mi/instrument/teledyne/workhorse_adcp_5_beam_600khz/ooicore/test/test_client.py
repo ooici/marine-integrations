@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-@file ion/services/mi/drivers/vadcp/test/test_client.py
+@file mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/test_client.py
 @author Carlos Rueda
 @brief VADCP Client tests
 """

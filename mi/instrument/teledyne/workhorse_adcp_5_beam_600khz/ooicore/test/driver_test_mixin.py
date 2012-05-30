@@ -2,7 +2,7 @@
 
 """
 @package mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.driver_test_mixin
-@file    ion/services/mi/drivers/vadcp/test/driver_test_mixin.py
+@file    mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/driver_test_mixin.py
 @author Carlos Rueda
 @brief A convenient mixin class for driver tests where the actual driver
        operations are implemented by a subclass.

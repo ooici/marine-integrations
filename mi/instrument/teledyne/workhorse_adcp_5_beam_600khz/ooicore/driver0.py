@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.driver
-@file    ion/services/mi/drivers/vadcp/driver.py
+@package mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.driver0
+@file    mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/driver0.py
 @author Carlos Rueda
 @brief VADCP driver implementation
 """

@@ -2,7 +2,7 @@
 
 """
 @package mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client
-@file    ion/services/mi/drivers/vadcp.client.py
+@file    mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/client.py
 @author Carlos Rueda
 
 @brief VADCP instrument client module.
@@ -10,9 +10,6 @@
 
 __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
-
-"""
-"""
 
 import time
 
@@ -93,7 +90,7 @@ class MetadataSections(BaseEnum):
     RECORDER_FILE_DIRECTORY = ('Recorder File Directory', 'RR')
 
 
-md_section_names = [name for (name,_) in MetadataSections.list()]
+md_section_names = [name for (name, _) in MetadataSections.list()]
 
 
 class _Receiver(Thread):
@@ -442,7 +439,7 @@ class Client(object):
         timeout = 1
         last_exc = None
         for a in xrange(attempts):
-            log.info("_get_prompt: attempt=%d" % (a+1))
+            log.info("_get_prompt: attempt=%d" % (a + 1))
             try:
                 r = self.send_and_expect_prompt("", timeout)
                 return r  # got it

@@ -2,7 +2,7 @@
 
 """
 @package mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test
-@file    ion/services/mi/drivers/vadcp/test/__init__.py
+@file    mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/__init__.py
 @author Carlos Rueda
 
 @brief Supporting stuff for tests

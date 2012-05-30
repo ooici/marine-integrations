@@ -2,7 +2,7 @@
 
 """
 @package mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util
-@file    ion/services/mi/drivers/vadcp/util/__init__.py
+@file    mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/util/__init__.py
 @author Carlos Rueda
 @brief Misc utilities
 """

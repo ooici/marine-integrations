@@ -2,7 +2,7 @@
 
 """
 @package mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver_proc
-@file    ion/services/mi/drivers/vadcp/test/test_driver_proc.py
+@file    mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/test_driver_proc.py
 @author Carlos Rueda
 @brief VADCP Driver integration tests involving port agent and driver process.
 """

@@ -4,7 +4,7 @@
 
 """
 @package mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.direct
-@file    ion/services/mi/drivers/vadcp/test/direct.py
+@file    mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/direct.py
 @author Carlos Rueda
 @brief Simple program to read in and parse an incoming stream from the
 instrument.
