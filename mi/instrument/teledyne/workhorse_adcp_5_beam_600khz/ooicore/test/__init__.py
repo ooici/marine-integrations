@@ -13,8 +13,7 @@ __license__ = 'Apache 2.0'
 
 import os
 import unittest
-from mi.core.mi_logger import mi_logger
-log = mi_logger
+from mi.core.mi_logger import mi_logger as log
 
 
 @unittest.skipIf(os.getenv('VADCP') is None,

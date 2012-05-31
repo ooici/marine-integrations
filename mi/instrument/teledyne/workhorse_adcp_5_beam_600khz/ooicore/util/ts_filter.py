@@ -15,8 +15,7 @@ import re
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util.coroutine import coroutine
 
-from mi.core.mi_logger import mi_logger
-log = mi_logger
+from mi.core.mi_logger import mi_logger as log
 
 
 # The opening timestamp tag

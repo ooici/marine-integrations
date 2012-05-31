@@ -11,9 +11,9 @@ __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
 
 
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
+    ClientException, TimeoutException
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import Client
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import ClientException
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import TimeoutException
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_driver import InstrumentDriver
@@ -29,8 +29,7 @@ from mi.core.exceptions import InstrumentTimeoutException
 import time
 
 import logging
-from mi.core.mi_logger import mi_logger
-log = mi_logger
+from mi.core.mi_logger import mi_logger as log
 
 # TODO define Packet config for data granules.
 PACKET_CONFIG = {}
