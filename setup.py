@@ -37,5 +37,6 @@ setup(  name = 'marine-integrations',
             ],
         },
         install_requires = [
+		'gitpython==0.1.7',
         ],
      )
