@@ -4,9 +4,12 @@
 @brief Main script class for running the switch_driver process
 """
 
+from os.path import exists
+
 from mi.idk.metadata import Metadata
 from mi.idk.comm_config import CommConfig
-from mi.idk.config import Config
+from mi.idk.exceptions import DriverDoesNotExist
+
 from pyon.util.log import log
 
 from mi.idk import prompt
@@ -41,6 +44,11 @@ class SwitchDriver():
         print( "*** Starting Switch Driver Process***" )
 
         self.fetch_metadata()
+
+        if not exists(self.metadata.driver_dir()):
+            raise DriverDoesNotExist( "%s/%s/$%s" % (self.metadata.driver_make,
+                                                     self.metadata.driver_model,
+                                                     self.driver_name))
         self.fetch_comm_config()
         self.metadata.link_current_metadata()
 

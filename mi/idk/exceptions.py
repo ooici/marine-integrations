@@ -15,10 +15,10 @@ class IDKException(Exception):
         self.msg = msg
         
         log.error(self)
-    
 
-class TestNotInitialized(IDKException):
-    """Test configuration singleton not configured"""
+
+class DriverDoesNotExist(IDKException):
+    """The driver specified doesn't exist"""
     pass
     
 class TestNoCommConfig(IDKException):
