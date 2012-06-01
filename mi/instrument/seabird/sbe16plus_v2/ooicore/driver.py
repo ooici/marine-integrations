@@ -43,8 +43,7 @@ mi_logger = logging.getLogger('mi_logger')
 
 class SBE16Command(BaseEnum):
         DS  = 'ds'
-        # DHE dcal replaces dc
-        DCAL = 'dcal'
+        DCAL = 'dcal' # DHE dcal replaces dc
         TS = 'ts'
         STARTNOW = 'startnow'
         STOP = 'stop'
@@ -111,6 +110,7 @@ class SBE16Parameter(DriverParameter):
     CH = 'CH'
     CI = 'CI'
     CJ = 'CJ'
+    # DHE
     # SBE 16plus doesn't do this
     #WBOTC = 'WBOTC'
     CTCOR = 'CTCOR'
@@ -141,7 +141,8 @@ class SBE16Prompt(BaseEnum):
     """
     COMMAND = 'S>'
     BAD_COMMAND = '?cmd S>'
-    AUTOSAMPLE = 'S>\r\n'
+    #AUTOSAMPLE = 'S>\r\n'
+    AUTOSAMPLE = 'S>'
 
 # SBE16 newline.
 SBE16_NEWLINE = '\r\n'
@@ -245,7 +246,6 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         # Add build handlers for device commands.
         self._add_build_handler(SBE16Command.DS, self._build_simple_command)
         # DHE dcal replaces dc
-        #self._add_build_handler('dc', self._build_simple_command)
         self._add_build_handler(SBE16Command.DCAL, self._build_simple_command)
         self._add_build_handler(SBE16Command.TS, self._build_simple_command)
         self._add_build_handler(SBE16Command.STARTNOW, self._build_simple_command)
@@ -258,16 +258,17 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         # Add response handlers for device commands.
         self._add_response_handler(SBE16Command.DS, self._parse_dsdc_response)
         # DHE dcal replaces dc
-        #self._add_response_handler('dc', self._parse_dsdc_response)
         self._add_response_handler(SBE16Command.DCAL, self._parse_dcal_response)
         self._add_response_handler(SBE16Command.TS, self._parse_ts_response)
         self._add_response_handler(SBE16Command.SET, self._parse_set_response)
         self._add_response_handler(SBE16Command.TC, self._parse_test_response)
-        self._add_response_handler(SBE16Command.TC, self._parse_test_response)
+        self._add_response_handler(SBE16Command.TT, self._parse_test_response)
         self._add_response_handler(SBE16Command.TP, self._parse_test_response)
 
         # Add sample handlers.
-        self._sample_pattern = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'
+        # DHE: replaced the pattern because our borrowed SBE16 doesn't have a pressure sensor 
+        #self._sample_pattern = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'
+        self._sample_pattern = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+) *'
         self._sample_pattern += r'(, *(-?\d+\.\d+))?(, *(-?\d+\.\d+))?'
         self._sample_pattern += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'
         self._sample_pattern += r'(, *(\d+)-(\d+)-(\d+), *(\d+):(\d+):(\d+))?'        
@@ -392,7 +393,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        result = self._do_cmd_resp(SBE16Command.TS *args, **kwargs)
+        result = self._do_cmd_resp(SBE16Command.TS, *args, **kwargs)
         
         return (next_state, result)
 
@@ -549,17 +550,18 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
 
         tc_pass = False
         tt_pass = False
-        tp_pass = False
+        #tp_pass = False
         tc_result = None
         tt_result = None
-        tp_result = None
+        #tp_result = None
 
         test_result = {}
 
         try:
             tc_pass, tc_result = self._do_cmd_resp(SBE16Command.TC, timeout=200)
             tt_pass, tt_result = self._do_cmd_resp(SBE16Command.TT, timeout=200)
-            tp_pass, tp_result = self._do_cmd_resp(SBE16Command.TP, timeout=200)
+            # DHE: our SBE16 has no pressure sensor
+            #tp_pass, tp_result = self._do_cmd_resp(SBE16Command.TP, timeout=200)
         
         except Exception as e:
             test_result['exception'] = e
@@ -570,9 +572,11 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             test_result['cond_data'] = tc_result
             test_result['temp_test'] = 'Passed' if tt_pass else 'Failed'
             test_result['temp_data'] = tt_result
-            test_result['pres_test'] = 'Passed' if tp_pass else 'Failed'
-            test_result['pres_data'] = tp_result
-            test_result['success'] = 'Passed' if (tc_pass and tt_pass and tp_pass) else 'Failed'
+            # DHE: our SBE16 has no pressure sensor
+            #test_result['pres_test'] = 'Passed' if tp_pass else 'Failed'
+            #test_result['pres_data'] = tp_result
+            #test_result['success'] = 'Passed' if (tc_pass and tt_pass and tp_pass) else 'Failed'
+            test_result['success'] = 'Passed' if (tc_pass and tt_pass) else 'Failed'
             
         self._driver_event(DriverAsyncEvent.TEST_RESULT, test_result)
         next_state = SBE16ProtocolState.COMMAND
@@ -651,14 +655,14 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         """
         try:
             str_val = self._param_dict.format(param, val)
-            set_cmd = '%s=%s' % (param, str_val)
-            set_cmd = set_cmd + SBE16_NEWLINE
             
             # DHE TEMPTEMP
-            print 'param is: ' + param
+            #print 'param is: ' + param
             if param == 'INTERVAL':
                 param = 'sampleinterval'
 
+            set_cmd = '%s=%s' % (param, str_val)
+            set_cmd = set_cmd + SBE16_NEWLINE
             
         except KeyError:
             raise InstrumentParameterException('Unknown driver parameter %s' % param)
@@ -685,21 +689,19 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         if prompt != SBE16Prompt.COMMAND:
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
-        # DHE TEMPTEMP
         for line in response.split(SBE16_NEWLINE):
             print line
             if 'sample interval' in line:
                 for sline in line.split(','):
-                    print 'DHE: split this: ' + sline.lstrip()
+                    #print 'DHE: split this: ' + sline.lstrip()
                     self._param_dict.update(sline.lstrip())
             elif 'output salinity' in line:
                 for sline in line.split(','):
-                    print 'DHE: split this: ' + sline.lstrip()
+                    #print 'DHE: split this: ' + sline.lstrip()
                     self._param_dict.update(sline.lstrip())
             else: 
                 self._param_dict.update(line)
             
-    # DHE new
     def _parse_dcal_response(self, response, prompt):
         """
         Parse handler for dsdc commands.
@@ -712,7 +714,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             
         for line in response.split(SBE16_NEWLINE):
             # DHE TEMPTEMP
-            print line
+            #print line
             self._param_dict.update(line)
         
     def _parse_ts_response(self, response, prompt):
@@ -793,7 +795,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             sample = {}
             sample['t'] = [float(match.group(1))]
             sample['c'] = [float(match.group(2))]
-            sample['p'] = [float(match.group(3))]
+            #sample['p'] = [float(match.group(3))]
 
             # Driver timestamp.
             sample['time'] = [time.time()]
@@ -840,9 +842,6 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         #                     r'(do not )?store time with each sample',
         #                     lambda match : False if match.group(1) else True,
         #                     self._true_false_to_string)
-        #
-        # DHE!!! TEST THIS!!!
-        #
         self._param_dict.add(SBE16Parameter.TXREALTIME,
                              #r'(do not )?transmit real-time data',
                              r'transmit real-time = (yes|no)',
