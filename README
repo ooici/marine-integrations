@@ -60,6 +60,9 @@ of the local marine-integrations repository.
 bin/start_driver:
    Run this process to start developing a new driver.  
 
+bin/switch_driver:
+   Switch to
+
 bin/test_driver:
    Run this process to run driver tests.  If no options are given all tests 
    (unit, integration, and qualification) are run.  This program offers 
