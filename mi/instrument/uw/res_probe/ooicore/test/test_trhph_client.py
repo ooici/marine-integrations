@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-@file ion/services/mi/drivers/uw_trhph/test/test_trhph_client.py
+@file mi/instrument/uw/res_probe/ooicore/test/test_trhph_client.py
 @author Carlos Rueda
 @brief TrhphClient tests
 """
@@ -9,17 +9,17 @@
 __author__ = "Carlos Rueda"
 __license__ = 'Apache 2.0'
 
-from ion.services.mi.drivers.uw_trhph.trhph import CHANNEL_NAMES
-from ion.services.mi.drivers.uw_trhph.trhph_client import TrhphClient
-from ion.services.mi.drivers.uw_trhph.trhph_client import State
+from mi.instrument.uw.res_probe.ooicore.trhph import CHANNEL_NAMES
+from mi.instrument.uw.res_probe.ooicore.trhph_client import TrhphClient
+from mi.instrument.uw.res_probe.ooicore.trhph_client import State
 
-from ion.services.mi.mi_logger import mi_logger
+from mi.core.mi_logger import mi_logger
 log = mi_logger
 
 import time
 import datetime
 
-from ion.services.mi.drivers.uw_trhph.test import TrhphTestCase
+from mi.instrument.uw.res_probe.ooicore.test import TrhphTestCase
 from nose.plugins.attrib import attr
 
 import unittest

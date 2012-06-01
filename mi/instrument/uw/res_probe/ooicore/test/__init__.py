@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.test
-@file ion/services/mi/drivers/test/__init__.py
+@package mi.instrument.uw.res_probe.ooicore.test
+@file    mi/instrument/uw/res_probe/ooicore/test/__init__.py
 @author Carlos Rueda
 
 @brief Supporting stuff mainly for integration tests, that is, tests that
@@ -14,7 +14,7 @@ __license__ = 'Apache 2.0'
 
 import os
 import unittest
-from ion.services.mi.mi_logger import mi_logger
+from mi.core.mi_logger import mi_logger
 log = mi_logger
 
 
@@ -181,7 +181,7 @@ class _SimulatorLauncher(object):
         output_name = 'sim_output.txt'
 
         args = ['bin/python',
-                'ion/services/mi/drivers/uw_trhph/test/trhph_simulator.py',
+                'mi/instrument/uw/res_probe/ooicore/test/trhph_simulator.py',
                 '--logfile', output_name
         ]
 
@@ -225,7 +225,7 @@ class _SimulatorLauncher(object):
         if _SimulatorLauncher._use_separate_process:
             self._port = _SimulatorLauncher._launch_separate_process()
         else:
-            import ion.services.mi.drivers.uw_trhph.test.trhph_simulator as s
+            import mi.instrument.uw.res_probe.ooicore.test.trhph_simulator as s
             self._simulator = s.TrhphSimulator(accept_timeout=10.0)
             self._port = self._simulator.port
 

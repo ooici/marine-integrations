@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-__author__ = 'Carlos Rueda'
-__license__ = 'Apache 2.0'
-
 """
 This program allows direct user iteraction with the instrument via a socket.
 It serves as a basis to determine and trace the actual messages in both
@@ -10,7 +7,7 @@ directions to implement the driver and diagnose any potential problem at the
 communication level.
 
 Usage example:
- bin/python ion/services/mi/drivers/uw_trhph/test/direct.py 10.180.80.172 2001
+ bin/python mi/instrument/uw/res_probe/ooicore/test/direct.py 10.180.80.172 2001
 
 It establishes a TCP connection with the provided service, starts a thread to
 print all incoming data from the associated socket, and goes into a loop to
@@ -30,6 +27,9 @@ directly or via pexpect.spawn.interact). Then, interaction is straightforward,
 that is, no need to re-attempt any of the commands except for the ^S case.
 The special command '!' makes the program do the multiple ^S attempts.
 """
+
+__author__ = 'Carlos Rueda'
+__license__ = 'Apache 2.0'
 
 import sys
 import socket

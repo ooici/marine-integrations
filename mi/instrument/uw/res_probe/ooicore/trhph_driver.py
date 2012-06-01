@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.uw_trhph.trhph_driver
-@file ion/services/mi/drivers/uw_trhph/trhph_driver.py
+@package mi.instrument.uw.res_probe.ooicore.trhph_driver
+@file    mi/instrument/uw/res_probe/ooicore/trhph_driver.py
 @author Carlos Rueda
 @brief UW TRHPH driver implementation based on trhph_client
 """
@@ -11,33 +11,33 @@ __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
 
 
-from ion.services.mi.common import BaseEnum
-#from ion.services.mi.instrument_driver import DriverState
+from mi.core.common import BaseEnum
+#from mi.core.instrument.instrument_driver import DriverState
 
-from ion.services.mi.drivers.uw_trhph.trhph_client import TrhphClient
-from ion.services.mi.drivers.uw_trhph.trhph_client import TrhphClientException
-from ion.services.mi.drivers.uw_trhph.trhph_client import TimeoutException
+from mi.instrument.uw.res_probe.ooicore.trhph_client import TrhphClient
+from mi.instrument.uw.res_probe.ooicore.trhph_client import TrhphClientException
+from mi.instrument.uw.res_probe.ooicore.trhph_client import TimeoutException
 
-from ion.services.mi.drivers.uw_trhph.common import TrhphParameter
+from mi.instrument.uw.res_probe.ooicore.common import TrhphParameter
 
-from ion.services.mi.instrument_driver import InstrumentDriver
-from ion.services.mi.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import InstrumentDriver
+from mi.core.instrument.instrument_driver import DriverParameter
 
-#from ion.services.mi.common import InstErrorCode
+#from mi.core.common import InstErrorCode
 
-from ion.services.mi.instrument_driver import DriverConnectionState
-from ion.services.mi.exceptions import InstrumentException
-#from ion.services.mi.exceptions import StateError
-from ion.services.mi.exceptions import InstrumentStateException
-#from ion.services.mi.exceptions import ParameterError
-from ion.services.mi.exceptions import InstrumentParameterException
-#from ion.services.mi.exceptions import TimeoutError
-from ion.services.mi.exceptions import InstrumentTimeoutException
+from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.exceptions import InstrumentException
+#from mi.core.exceptions import StateError
+from mi.core.exceptions import InstrumentStateException
+#from mi.core.exceptions import ParameterError
+from mi.core.exceptions import InstrumentParameterException
+#from mi.core.exceptions import TimeoutError
+from mi.core.exceptions import InstrumentTimeoutException
 
 import time
 
 import logging
-from ion.services.mi.mi_logger import mi_logger
+from mi.core.mi_logger import mi_logger
 log = mi_logger
 
 # TODO define Packet config for TRHPH data granules.

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.uw_trhph.test.test_trhph_driver
-@file    ion/services/mi/drivers/uw_trhph/test/test_trhph_driver.py
+@package mi.instrument.uw.res_probe.ooicore.test.test_trhph_driver
+@file    mi/instrument/uw/res_probe/ooicore/test/test_trhph_driver.py
 @author Carlos Rueda
 @brief Direct tests to the TrhphInstrumentDriver class.
 """
@@ -11,13 +11,13 @@ __author__ = "Carlos Rueda"
 __license__ = 'Apache 2.0'
 
 
-from ion.services.mi.drivers.uw_trhph.trhph_driver import TrhphInstrumentDriver
+from mi.instrument.uw.res_probe.ooicore.trhph_driver import TrhphInstrumentDriver
 
-from ion.services.mi.drivers.uw_trhph.test import TrhphTestCase
-from ion.services.mi.drivers.uw_trhph.test.driver_test_mixin import DriverTestMixin
+from mi.instrument.uw.res_probe.ooicore.test import TrhphTestCase
+from mi.instrument.uw.res_probe.ooicore.test.driver_test_mixin import DriverTestMixin
 from nose.plugins.attrib import attr
 
-from ion.services.mi.mi_logger import mi_logger
+from mi.core.mi_logger import mi_logger
 log = mi_logger
 
 import unittest

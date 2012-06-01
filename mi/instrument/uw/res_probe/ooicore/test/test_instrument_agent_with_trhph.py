@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.test.test_instrument_agent_with_trhph
-@file    ion/services/mi/test/test_instrument_agent_with_trhph.py
+@package mi.instrument.uw.res_probe.ooicore.test.test_instrument_agent_with_trhph
+@file    mi/instrument/uw/res_probe/ooicore/test/test_instrument_agent_with_trhph.py
 @author Carlos Rueda
 @brief R2 instrument agent tests with the TRHPH driver.
-    Adapted from ion.services.mi.test.test_instrument_agent, which is
+    Adapted from mi.core.instrument.test.test_instrument_agent, which is
     for the SBE37 driver.
 """
 
@@ -37,12 +37,12 @@ from pyon.event.event import EventSubscriber, EventPublisher
 
 from pyon.core.exception import InstParameterError
 
-from ion.services.mi.drivers.uw_trhph.test import TrhphTestCase
-from ion.services.mi.drivers.uw_trhph.common import TrhphParameter
-from ion.services.mi.drivers.uw_trhph.common import TrhphMetadataParameter
-from ion.services.mi.logger_process import EthernetDeviceLogger
-from ion.services.mi.instrument_agent import InstrumentAgentState
-from ion.services.mi.instrument_driver import DriverParameter
+from mi.instrument.uw.res_probe.ooicore.test import TrhphTestCase
+from mi.instrument.uw.res_probe.ooicore.common import TrhphParameter
+from mi.instrument.uw.res_probe.ooicore.common import TrhphMetadataParameter
+from ion.agents.port.logger_process import EthernetDeviceLogger
+from mi.core.instrument.instrument_agent import InstrumentAgentState
+from mi.core.instrument.instrument_driver import DriverParameter
 
 
 # Work dir and logger delimiter.
@@ -52,11 +52,11 @@ DELIM = ['<<','>>']
 # Driver config.
 # DVR_CONFIG['comms_config']['port'] is set by the setup.
 
-#from ion.services.mi.drivers.sbe37_driver import PACKET_CONFIG
+# TODO define PACKET_CONFIG properly
 PACKET_CONFIG = {}
 
 DVR_CONFIG = {
-    'dvr_mod' : 'ion.services.mi.drivers.uw_trhph.trhph_driver',
+    'dvr_mod' : 'mi.instrument.uw.res_probe.ooicore.trhph_driver',
     'dvr_cls' : 'TrhphInstrumentDriver',
     'workdir' : '/tmp/',
 }
@@ -65,7 +65,7 @@ DVR_CONFIG = {
 # TODO any rules to set this ID and name for the agent?
 IA_RESOURCE_ID = '123trhph'
 IA_NAME = 'InstrAgent_TRHPH'
-IA_MOD = 'ion.services.mi.instrument_agent'
+IA_MOD = 'mi.core.instrument.instrument_agent'
 IA_CLS = 'InstrumentAgent'
 
 

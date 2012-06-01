@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.uw_trhph.test.trhph_simulator
-@file ion/services/mi/drivers/uw_trhph/test/trhph_simulator.py
+@package mi.instrument.uw.res_probe.ooicore.test.trhph_simulator
+@file mi/instrument/uw/res_probe/ooicore/test/trhph_simulator.py
 @author Carlos Rueda
 
 @brief A TRHPH instrument simulator.
@@ -19,7 +19,7 @@ __license__ = 'Apache 2.0'
 # tests, even in "embedded" form (that is, within the same python execution
 # instance), so the gevent based implementation is of course more general.
 
-import ion.services.mi.drivers.uw_trhph.trhph as trhph
+import mi.instrument.uw.res_probe.ooicore.trhph as trhph
 
 import socket
 import random

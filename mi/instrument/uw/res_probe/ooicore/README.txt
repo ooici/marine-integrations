@@ -5,7 +5,13 @@ Main documentation page: https://confluence.oceanobservatories.org/display/CIDev
 
 Some development notes:
 
-2012-05-22:  (
+2012-05-29:
+- Systematic renamings to adjust paths and imports in the mi repo.
+- All tests passing as before *except* test_instrument_agent_with_trhph.py,
+  which was running fine in the previous coi-services repo. Will need somebody
+  to take care of the needed fixes in the code classes.
+
+2012-05-22:
 - (first commit in the marine-integrations repo) removed obsolete files
   protocol.py and driver.py that reappeared upon merges with coi-services
   prior to the copy over the mi repo.
@@ -35,7 +41,7 @@ Some development notes:
 
 - test_instrument_agent_with_trhph.py completed with basically the same set of
   tests as with the other test cases:
-    $ UW_TRHPH="simulator" bin/nosetests -v ion/services/mi/drivers/uw_trhph/test/test_instrument_agent_with_trhph.py
+    $ UW_TRHPH="simulator" bin/nosetests -v mi/instrument/uw/res_probe/ooicore/test/test_instrument_agent_with_trhph.py
     -- INSTR-AGENT/TRHPH: initialize ... ok
     -- INSTR-AGENT/TRHPH: state transitions ... ok
     -- INSTR-AGENT/TRHPH: get valid and invalid params ... ok
@@ -56,7 +62,7 @@ Some development notes:
 - All the other tests go as follows at this point:
 
   DRIVER via driver_client:
-    $ UW_TRHPH="simulator" bin/nosetests -sv ion/services/mi/drivers/uw_trhph/test/test_trhph_driver_proc.py
+    $ UW_TRHPH="simulator" bin/nosetests -sv mi/instrument/uw/res_probe/ooicore/test/test_trhph_driver_proc.py
     -- TRHPH DRIVER: basic tests ... ok
     -- TRHPH DRIVER: get valid params ... ok
     -- TRHPH DRIVER: get invalid params ... ok
@@ -83,7 +89,7 @@ Some development notes:
     - define environment variable run_it
 
   DRIVER directly:
-    $ run_it= UW_TRHPH="simulator" bin/nosetests -sv ion/services/mi/drivers/uw_trhph/test/test_trhph_driver.py
+    $ run_it= UW_TRHPH="simulator" bin/nosetests -sv mi/instrument/uw/res_probe/ooicore/test/test_trhph_driver.py
     -- TRHPH DRIVER: basic tests ... ok
     -- TRHPH DRIVER: get valid params ... ok
     -- TRHPH DRIVER: get invalid params ... ok
@@ -103,7 +109,7 @@ Some development notes:
 
 
   TrhphClient directly:
-    $ run_it= UW_TRHPH="simulator" bin/nosetests -sv ion/services/mi/drivers/uw_trhph/test/test_trhph_client.py
+    $ run_it= UW_TRHPH="simulator" bin/nosetests -sv mi/instrument/uw/res_probe/ooicore/test/test_trhph_client.py
     -- TRHPH CLIENT: Connect, get current state, sleep, disconnect ... ok
     -- TRHPH CLIENT: Get system info ... ok
     -- TRHPH CLIENT: Get data collection params ... ok
@@ -154,7 +160,7 @@ Some development notes:
 
     DRIVER via driver_client:
 
-    $ bin/nosetests -sv ion/services/mi/drivers/uw_trhph/test/test_trhph_driver_proc.py
+    $ bin/nosetests -sv mi/instrument/uw/res_probe/ooicore/test/test_trhph_driver_proc.py
     -- DRIVER BASIC TESTS ... ok
     -- DRIVER GET PARAMS TESTS ... ok
     -- DRIVER SET TESTS ... ok
@@ -173,7 +179,7 @@ Some development notes:
 
     DRIVER directly:  (see note below)
 
-    $ run_it= bin/nosetests -sv ion/services/mi/drivers/uw_trhph/test/test_trhph_driver.py
+    $ run_it= bin/nosetests -sv mi/instrument/uw/res_probe/ooicore/test/test_trhph_driver.py
     -- DRIVER BASIC TESTS ... ok
     -- DRIVER GET PARAMS TESTS ... ok
     -- DRIVER SET TESTS ... ok
@@ -191,7 +197,7 @@ Some development notes:
 
     TrhphClient directly:  (see note below)
 
-    $ run_it= bin/nosetests -sv ion/services/mi/drivers/uw_trhph/test/test_trhph_client.py
+    $ run_it= bin/nosetests -sv mi/instrument/uw/res_probe/ooicore/test/test_trhph_client.py
     -- Connect, get current state, sleep self._timeout and disconnect ... ok
     -- Get system info ... ok
     -- Get data collection params ... ok
@@ -231,12 +237,12 @@ Some development notes:
   (and with value "simulator" to launch the simulator as part of the test
   cases) goes as follows:
 
-    $ UW_TRHPH="simulator" bin/nosetests -sv ion/services/mi/drivers/uw_trhph
-    test_get_cycle_time (ion.services.mi.drivers.uw_trhph.test.test_basic.BasicTrhphTest) ... ok
-    test_get_power_statuses (ion.services.mi.drivers.uw_trhph.test.test_basic.BasicTrhphTest) ... ok
-    test_get_system_info_metadata (ion.services.mi.drivers.uw_trhph.test.test_basic.BasicTrhphTest) ... ok
-    test_get_verbose_vs_data_only (ion.services.mi.drivers.uw_trhph.test.test_basic.BasicTrhphTest) ... ok
-    test_simple (ion.services.mi.drivers.uw_trhph.test.test_greenlet.Test) ... SKIP: define run_it to run this.
+    $ UW_TRHPH="simulator" bin/nosetests -sv mi/instrument/uw/res_probe/ooicore
+    test_get_cycle_time (mi.instrument.uw.res_probe.ooicore.test.test_basic.BasicTrhphTest) ... ok
+    test_get_power_statuses (mi.instrument.uw.res_probe.ooicore.test.test_basic.BasicTrhphTest) ... ok
+    test_get_system_info_metadata (mi.instrument.uw.res_probe.ooicore.test.test_basic.BasicTrhphTest) ... ok
+    test_get_verbose_vs_data_only (mi.instrument.uw.res_probe.ooicore.test.test_basic.BasicTrhphTest) ... ok
+    test_simple (mi.instrument.uw.res_probe.ooicore.test.test_greenlet.Test) ... SKIP: define run_it to run this.
     -- Connect, get current state, sleep self._timeout and disconnect ... SKIP: Not run by default because of mixed monkey-patching issues. Define environment variable run_it to force execution.
     -- Get system info ... SKIP: Not run by default because of mixed monkey-patching issues. Define environment variable run_it to force execution.
     -- Get data collection params ... SKIP: Not run by default because of mixed monkey-patching issues. Define environment variable run_it to force execution.
@@ -289,10 +295,10 @@ Some development notes:
 - trhph_driver.py aligned and all tests passing as before, both with simulator
   and real instrument (Version 1.2 - Last Revision: Mar. 27, 2012):
 
-    $ UW_TRHPH="10.180.80.172:2001" bin/nosetests -sv ion/services/mi/drivers/uw_trhph/test/test_trhph_client.py
+    $ UW_TRHPH="10.180.80.172:2001" bin/nosetests -sv mi/instrument/uw/res_probe/ooicore/test/test_trhph_client.py
     Ran 9 tests in 242.147s
 
-    $ UW_TRHPH="10.180.80.172:2001" bin/nosetests -sv ion/services/mi/drivers/uw_trhph/test/test_trhph_driver.py
+    $ UW_TRHPH="10.180.80.172:2001" bin/nosetests -sv mi/instrument/uw/res_probe/ooicore/test/test_trhph_driver.py
     Ran 9 tests in 162.387s
 
 
@@ -301,7 +307,7 @@ Some development notes:
   with the rest of the pyon ecosystem. This is particularly important when
   the simulator is launched as part of the test setup (in concrete when
   indicating the environment variable UW_TRHPH="embsimulator", eg:
-  $ UW_TRHPH="embsimulator" bin/nosetests -v ion/services/mi/drivers/uw_trhph/test/test_trhph_client.py
+  $ UW_TRHPH="embsimulator" bin/nosetests -v mi/instrument/uw/res_probe/ooicore/test/test_trhph_client.py
 
 2012-04-21,24:
 Adjustments to start aligning with Edward's refactoring via Steve's
@@ -457,16 +463,16 @@ The rest of this document uses "BARS" as the main term for the instrument.
   tests.
 - Generated code coverage report as follows:
     $ run_it= UW_BARS="simulator" bin/nosetests --with-coverage --cover-erase \
-      --cover-package ion.services.mi.drivers.uw_bars \
+      --cover-package mi.core.drivers.uw_bars \
        ion/services/mi/drivers/uw_bars
     Name                                          Stmts   Miss  Cover   Missing
     ---------------------------------------------------------------------------
-    ion.services.mi.drivers.uw_bars                   1      0   100%
-    ion.services.mi.drivers.uw_bars.bars             69      2    97%   185, 188
-    ion.services.mi.drivers.uw_bars.bars_client     659    140    79%   116-126, 129-136, 200, 241, 244-245, 273, 321-322, 333-334, 451-458, 468, 504, 544, 579, 602-631, 646-647, 674, 685, 711, 714, 754-759, 793-794, 827, 866, 906, 948, 966, 1004, 1012, 1015, 1053, 1094-1104, 1155, 1210-1228, 1232-1278
-    ion.services.mi.drivers.uw_bars.common           24      0   100%
-    ion.services.mi.drivers.uw_bars.driver           46      0   100%
-    ion.services.mi.drivers.uw_bars.protocol        242     67    72%   74, 78, 86, 105, 142-148, 159, 189, 202, 234, 252, 290-293, 303, 322-327, 336, 339, 344-347, 350-359, 366, 379-384, 391, 404-409, 425, 448-453, 466, 480-485, 497, 509-514
+    mi.core.drivers.uw_bars                   1      0   100%
+    mi.core.drivers.uw_bars.bars             69      2    97%   185, 188
+    mi.core.drivers.uw_bars.bars_client     659    140    79%   116-126, 129-136, 200, 241, 244-245, 273, 321-322, 333-334, 451-458, 468, 504, 544, 579, 602-631, 646-647, 674, 685, 711, 714, 754-759, 793-794, 827, 866, 906, 948, 966, 1004, 1012, 1015, 1053, 1094-1104, 1155, 1210-1228, 1232-1278
+    mi.core.drivers.uw_bars.common           24      0   100%
+    mi.core.drivers.uw_bars.driver           46      0   100%
+    mi.core.drivers.uw_bars.protocol        242     67    72%   74, 78, 86, 105, 142-148, 159, 189, 202, 234, 252, 290-293, 303, 322-327, 336, 339, 344-347, 350-359, 366, 379-384, 391, 404-409, 425, 448-453, 466, 480-485, 497, 509-514
     ---------------------------------------------------------------------------
     TOTAL                                          1041    209    80%
     ----------------------------------------------------------------------

@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-__author__ = 'Carlos Rueda'
-__license__ = 'Apache 2.0'
-
 """
 A simple program exercising the pexpect library to communicate with the TRHPH
 instrument.
@@ -13,16 +10,20 @@ NOTE:
 
 Try this program with the TRHPH simulator:
     First, run the simulator:
-    $ bin/python ion/services/mi/drivers/uw_trhph/test/trhph_simulator.py
+    $ bin/python mi/instrument/uw/res_probe/ooicore/test/trhph_simulator.py
             |* TrhphSimulator: bound to port 63179
             |* TrhphSimulator: waiting for connection
 
     Then, run this program like so:
-    $ bin/python ion/services/mi/drivers/uw_trhph/test/expect.py 63179
+    $ bin/python mi/instrument/uw/res_probe/ooicore/test/expect.py 63179
 
 With the actual instrument:
-$ bin/python ion/services/mi/drivers/uw_trhph/test/expect.py 10.180.80.172 2001
+$ bin/python mi/instrument/uw/res_probe/ooicore/test/expect.py 10.180.80.172 2001
 """
+
+__author__ = 'Carlos Rueda'
+__license__ = 'Apache 2.0'
+
 
 try:
     import pexpect

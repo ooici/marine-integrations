@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.uw_trhph.test.driver_test_mixin
-@file    ion/services/mi/drivers/uw_trhph/test/driver_test_mixin.py
+@package mi.instrument.uw.res_probe.ooicore.test.driver_test_mixin
+@file    mi/instrument/uw/res_probe/ooicore/test/driver_test_mixin.py
 @author Carlos Rueda
 @brief A convenient mixin class for driver tests where the actual driver
        operations are implemented by a subclass.
@@ -12,16 +12,16 @@ __author__ = "Carlos Rueda"
 __license__ = 'Apache 2.0'
 
 
-from ion.services.mi.drivers.uw_trhph.trhph_driver import TrhphDriverState
-from ion.services.mi.drivers.uw_trhph.common import TrhphParameter
+from mi.instrument.uw.res_probe.ooicore.trhph_driver import TrhphDriverState
+from mi.instrument.uw.res_probe.ooicore.common import TrhphParameter
 
-from ion.services.mi.instrument_driver import DriverParameter
-from ion.services.mi.exceptions import InstrumentParameterException
-#from ion.services.mi.common import InstErrorCode
+from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.exceptions import InstrumentParameterException
+#from mi.core.common import InstErrorCode
 
 import random
 import time
-from ion.services.mi.mi_logger import mi_logger
+from mi.core.mi_logger import mi_logger
 log = mi_logger
 
 

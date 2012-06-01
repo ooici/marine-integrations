@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.vadcp.test
-@file    ion/services/mi/drivers/vadcp/test/__init__.py
+@package mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test
+@file    mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/__init__.py
 @author Carlos Rueda
 
 @brief Supporting stuff for tests
@@ -13,8 +13,7 @@ __license__ = 'Apache 2.0'
 
 import os
 import unittest
-from ion.services.mi.mi_logger import mi_logger
-log = mi_logger
+from mi.core.mi_logger import mi_logger as log
 
 
 @unittest.skipIf(os.getenv('VADCP') is None,

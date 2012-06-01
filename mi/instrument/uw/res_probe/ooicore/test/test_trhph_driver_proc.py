@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.drivers.uw_trhph.test.test_trhph_driver_proc
-@file    ion/services/mi/drivers/uw_trhph/test/test_trhph_driver_proc.py
+@package mi.instrument.uw.res_probe.ooicore.test.test_trhph_driver_proc
+@file    mi/instrument/uw/res_probe/ooicore/test/test_trhph_driver_proc.py
 @author Carlos Rueda
 @brief TrhphInstrumentDriver integration tests involving port agent
 and driver process.
@@ -14,15 +14,14 @@ __license__ = 'Apache 2.0'
 
 from gevent import monkey; monkey.patch_all()
 
-from ion.services.mi.drivers.uw_trhph.test import TrhphTestCase
-from ion.services.mi.drivers.uw_trhph.test.driver_test_mixin import DriverTestMixin
-from ion.services.mi.driver_int_test_support import DriverIntegrationTestSupport
+from mi.instrument.uw.res_probe.ooicore.test import TrhphTestCase
+from mi.instrument.uw.res_probe.ooicore.test.driver_test_mixin import DriverTestMixin
+
+from mi.core.instrument.instrument_driver import InstrumentDriver
+from mi.core.instrument.driver_int_test_support import DriverIntegrationTestSupport
 from nose.plugins.attrib import attr
 
-from ion.services.mi.instrument_driver import InstrumentDriver
-
-
-from ion.services.mi.mi_logger import mi_logger
+from mi.core.mi_logger import mi_logger
 log = mi_logger
 
 
@@ -67,7 +66,7 @@ class TrhphDriverProxy(InstrumentDriver):
         Setup test cases.
         """
 
-        driver_module = 'ion.services.mi.drivers.uw_trhph.trhph_driver'
+        driver_module = 'mi.instrument.uw.res_probe.ooicore.trhph_driver'
         driver_class = 'TrhphInstrumentDriver'
 
         self._support = DriverIntegrationTestSupport(driver_module,
