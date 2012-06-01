@@ -5,6 +5,20 @@ See https://confluence.oceanobservatories.org/display/ENG/VADCP+Driver
 
 Some development notes:
 
+2012-05-30:
+- some reorganization of the code
+- implemented a workaround to be able to run the unit tests involving the
+  client's receiver object (which by defatult uses threading.Thread) within
+  the regular bin/nosetests execution. The workaround is simply to use a
+  Greenlet instead of Thread only in such cases. Now I can do a single call to
+  run all available tests:
+
+    $ VADCP="10.180.80.178:2101" bin/nosetests mi/instrument/teledyne/workhorse_adcp_5_beam_600khz
+    ...
+    Ran 23 tests in 165.632s
+
+    OK
+
 2012-05-29:
 - Renamed "600khz_workhorse_adcp_5_beam" to "workhorse_adcp_5_beam_600khz"
   in the path (leading digit would cause syntax error).

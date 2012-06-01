@@ -10,28 +10,18 @@ __author__ = "Carlos Rueda"
 __license__ = 'Apache 2.0'
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import Client
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import MetadataSections
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import md_section_names
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import State
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import md_section_names
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.pd0 import PD0DataStructure
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util import prefix
 
-from mi.core.mi_logger import mi_logger
-log = mi_logger
-
-import time
-import datetime
+from mi.core.mi_logger import mi_logger as log
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test import VadcpTestCase
 from nose.plugins.attrib import attr
 
-import unittest
 import os
 
 
-@unittest.skipIf(os.getenv('run_it') is None,
-'''Not run by default because of mixed monkey-patching issues. \
-Define environment variable run_it to force execution.''')
 @attr('UNIT', group='mi')
 class ClientTest(VadcpTestCase):
 
@@ -64,6 +54,8 @@ class ClientTest(VadcpTestCase):
         """
         Sets up and connects the _client.
         """
+
+        os.environ["green_rcvr"] = "y"
 
         ClientTest._end_client_if_any()
 
@@ -121,7 +113,10 @@ class ClientTest(VadcpTestCase):
             s += "**%s:%s\n\n" % (name, prefix(text, "\n    "))
         log.info("METADATA result=%s" % prefix(s))
 
+    def test_execute_run_recorder_tests(self):
+        result = self._client.run_recorder_tests()
+        log.info("run_recorder_tests result=%s" % prefix(result))
+
     def test_all_tests(self):
         result = self._client.run_all_tests()
         log.info("ALL TESTS result=%s" % prefix(result))
-

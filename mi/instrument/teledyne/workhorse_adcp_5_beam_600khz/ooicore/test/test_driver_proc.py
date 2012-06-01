@@ -21,9 +21,7 @@ from nose.plugins.attrib import attr
 
 from mi.core.instrument.instrument_driver import InstrumentDriver
 
-
-from mi.core.mi_logger import mi_logger
-log = mi_logger
+from mi.core.mi_logger import mi_logger as log
 
 
 @attr('INT', group='mi')
@@ -76,12 +74,12 @@ class VadcpDriverProxy(InstrumentDriver):
                                                      device_port)
 
         # Create and start the port agent.
-        mi_logger.info('starting port agent')
+        log.info('starting port agent')
         self.comms_config = {'addr': 'localhost'}
         self.comms_config['port'] = self._support.start_pagent()
 
         # Create and start the driver.
-        mi_logger.info('starting driver client')
+        log.info('starting driver client')
         self._support.start_driver()
 
         self._dvr_client = self._support._dvr_client
@@ -97,7 +95,7 @@ def _add_methods_to_proxy():
     def create_method(name):
         def method(self, *args, **kwargs):
             reply = self._dvr_client.cmd_dvr(name, *args, **kwargs)
-            mi_logger.info("%s reply = %s" % (name, reply))
+            log.info("%s reply = %s" % (name, reply))
             return reply
         method.__name__ = '%s' % name
         return method

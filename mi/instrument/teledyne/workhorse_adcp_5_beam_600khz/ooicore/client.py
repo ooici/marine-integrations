@@ -12,245 +12,18 @@ __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
 
 import time
-
-from threading import Thread
 sleep = time.sleep
 
-import sys
 import socket
-import re
+import sys
 
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util.coroutine import coroutine
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util.ts_filter import timestamp_filter
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util.pd0_filter import pd0_filter
-from mi.core.common import BaseEnum
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
+    DEFAULT_GENERIC_TIMEOUT, State, TimeoutException, MetadataSections
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.receiver import \
+    build_receiver
 
 import logging
-from mi.core.mi_logger import mi_logger
-log = mi_logger
-
-
-# default value for the generic timeout. By default, 30 secs
-DEFAULT_GENERIC_TIMEOUT = 30
-
-PROMPT = '>'
-
-
-class State(object):
-    """Instrument states"""
-    COLLECTING_DATA = "COLLECTING_DATA"
-    TBD = "TBD"
-    PROMPT = "PROMPT"
-
-
-class ClientException(Exception):
-    """Some exception occured in TrhphClient."""
-
-
-class TimeoutException(ClientException):
-    """Timeout while waiting for some event or state in the instrument."""
-
-    def __init__(self, timeout, msg=None,
-                 expected_state=None, curr_state=None, lines=None):
-
-        self.timeout = timeout
-        self.expected_state = expected_state
-        self.curr_state = curr_state
-        self.lines = lines
-        if msg:
-            self.msg = msg
-        elif expected_state:
-            self.msg = "timeout while expecting state %s" % expected_state
-            if curr_state:
-                self.msg += " (curr_state=%s)" % curr_state
-        else:
-            self.msg = "timeout reached"
-
-    def __str__(self):
-        s = "TimeoutException(msg='%s'" % self.msg
-        s += "; timeout=%s" % str(self.timeout)
-        if self.expected_state:
-            s += "; expected_state=%s" % self.expected_state
-        if self.curr_state:
-            s += "; curr_state=%s" % self.curr_state
-        if self.lines:
-            s += "; lines=%s" % "\n".join(self.lines)
-        s += ")"
-        return s
-
-
-class MetadataSections(BaseEnum):
-    # code = (section-name, command)
-    SYSTEM_CONFIG = ('System configuration', 'PS0')
-    SYSTEM_FEATURES = ('System features', 'OL')
-    SYSTEM_SERIAL_CONFIG = ('System serial config', 'CB?')
-    TRANSFORMATION_MATRIX = ('Instrument Transformation Matrix', 'PS3')
-    DEPLOYMENTS_RECORDED = ('Number of Deployments Recorded', 'RA')
-    RECORDER_SPACE = ('Recorder Space used/free (bytes)', 'RF')
-    RECORDER_FILE_DIRECTORY = ('Recorder File Directory', 'RR')
-
-
-md_section_names = [name for (name, _) in MetadataSections.list()]
-
-
-class _Receiver(Thread):
-    """
-    Handles all received responses from the connection, keeping relevant
-    information and a state.
-    """
-
-    # MAX_NUM_LINES: Keep this max number of received lines. Should be greater
-    # that any single response. In prelimnary tests an "RR?" command (get
-    # recorder file directory) generated about 500 lines. Note that PD0
-    # ensembles and timestamps are not included in self._lines.
-    # TODO review this MAX_NUM_LINES fixed value
-    MAX_NUM_LINES = 1024
-
-    def __init__(self, sock, bufsize=4096, data_listener=None, outfile=None,
-                 prefix_state=True):
-        """
-        """
-        Thread.__init__(self, name="_Receiver")
-        self._sock = sock
-        self._bufsize = bufsize
-        self._data_listener = data_listener
-        self._outfile = outfile
-        self._prefix_state = prefix_state
-
-        self._active = False
-        self._state = None
-        self.setDaemon(True)
-
-        self._latest_ts = None
-        self._latest_pd0 = None
-
-        self._reset_internal_info()
-
-    def _reset_internal_info(self):
-        self._last_line = ''
-        self._new_line = ''
-        self._lines = []
-        self._recv_time = 0  # time of last received buffer
-        self._set_state(State.TBD)
-
-    def _recv(self):
-        """
-        Main read method. Reads from the socket, updates the time of last
-        received buffer, updates the outfile if any, and return the buffer.
-        """
-        recv = self._sock.recv(self._bufsize)
-        self._recv_time = time.time()
-        self._update_outfile(recv)
-        return recv
-
-    def _set_state(self, state):
-        if self._state != state:
-            log.info("{{TRANSITION: %s => %s %r}}" % (self._state, state,
-                                                   self._last_line))
-            if self._last_line:
-                log.debug("LINES=\n\t|%s" % "\n\t|".join(self._lines))
-            self._state = state
-
-    def end(self):
-        self._active = False
-
-    def _update_outfile(self, buffer):
-        """
-        Updates the outfile if any.
-        @param buffer buffer that has just been received
-        """
-        if self._outfile:
-            if self._prefix_state:
-                prefix = "\n%20s| " % self._state
-                buffer = buffer.replace('\n', prefix)
-            self._outfile.write(buffer)
-            self._outfile.flush()
-
-    def _end_outfile(self):
-        """
-        Writes a mark to the outfile to indicate that
-        the receiving thread has ended.
-        """
-        if self._outfile:
-            self._outfile.write('\n\n<_Receiver ended.>\n\n')
-            self._outfile.flush()
-
-    @coroutine
-    def sink(self):
-        """
-        The sink of the stream parsing pipeline.
-        """
-        while True:
-            xelems, buffer = (yield)
-            ts = xelems.get('latest_ts', None)
-            if ts:
-                self._timestamp_received(ts)
-
-            pd0 = xelems.get('pd0', None)
-            if pd0:
-                self._pd0_received(pd0)
-
-            if buffer:
-                self._buffer_received(buffer)
-
-    def _timestamp_received(self, ts):
-        self._latest_ts = ts
-        log.debug("{TIMESTAMP=%s}" % (ts))
-
-    def _pd0_received(self, pd0):
-        self._set_state(State.COLLECTING_DATA)
-        self._latest_pd0 = pd0
-        log.debug("PD0=\n    | %s" % (str(pd0).replace('\n', '\n    | ')))
-        if self._data_listener:
-            self._data_listener(pd0)
-
-    def _buffer_received(self, buffer):
-#        sys.stdout.write(buffer)
-#        sys.stdout.flush()
-        numl = self._update_lines(buffer)
-        if self._last_line.rstrip() == PROMPT:
-            self._set_state(State.PROMPT)
-        elif numl:
-            self._state = None
-
-    def _update_lines(self, buffer):
-        """
-        Updates the internal info about received lines.
-        @param buffer buffer that has just been received
-        """
-        numl = 0
-        for c in buffer:
-            if c == '\n':
-                numl += 1
-                self._last_line = self._new_line
-                self._new_line = ''
-                self._lines.append(self._last_line)
-                if len(self._lines) > self.MAX_NUM_LINES:
-                    self._lines = self._lines[1 - self.MAX_NUM_LINES:]
-#            elif c != '\r' and not isascii(c):
-#                print "NOT_ASCII=%r" % c
-            else:
-                self._new_line += c
-        return numl
-
-    def run(self):
-        """
-        Runs the receiver.
-        """
-        log.info("_Receiver running")
-        self._active = True
-
-        # set up pipeline
-        pipeline = timestamp_filter(pd0_filter(self.sink()))
-
-        # and read in and push received data into the pipeline:
-        while self._active:
-            recv = self._recv()
-            pipeline.send(({}, recv))
-
-        pipeline.close()
-        self._end_outfile()
-        log.info("_Receiver ended.")
+from mi.core.mi_logger import mi_logger as log
 
 
 class Client(object):
@@ -261,8 +34,12 @@ class Client(object):
     def __init__(self, host, port, outfile=None, prefix_state=True):
         """
         Creates a Client instance.
+
         @param host
         @param port
+        @param outfile
+        @param prefix_state
+
         """
         self._host = host
         self._port = port
@@ -342,13 +119,12 @@ class Client(object):
 #            self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1)
 
             log.info("creating _Receiver")
-            self._rt = _Receiver(self._sock,
+            self._rt = build_receiver(self._sock,
                                  outfile=self._outfile,
                                  data_listener=self._data_listener,
                                  prefix_state=self._prefix_state)
             log.info("starting _Receiver")
             self._rt.start()
-            log.info("_Receiver thread started.")
         else:
             raise last_error
 
@@ -380,7 +156,7 @@ class Client(object):
     def get_current_state(self, timeout=None):
         """
         """
-        return self._rt._state
+        return self._rt.state
 
     def _send(self, s, info=None):
         """
@@ -399,7 +175,7 @@ class Client(object):
         """
         Sleeps for self._delay_before_send and then sends string + '\r\n'
         """
-        self._rt._reset_internal_info()
+        self._rt.reset_internal_info()
         sleep(self._delay_before_send)
         s = string.rstrip() + '\r\n'
         self._send(s, info)
@@ -419,16 +195,17 @@ class Client(object):
         sleep(1)
         timeout = timeout or self._generic_timeout
         time_limit = time.time() + timeout
-        while self._rt._state != State.PROMPT and time.time() <= time_limit:
+        while self._rt.state != State.PROMPT and time.time() <= \
+                                                          time_limit:
             sleep(0.4)
-            time_limit = self._rt._recv_time + timeout
+            time_limit = self._rt.recv_time + timeout
 
-        if self._rt._state != State.PROMPT:
+        if self._rt.state != State.PROMPT:
             raise TimeoutException(
                     timeout, expected_state=State.PROMPT,
-                    curr_state=self._rt._state, lines=self._rt._lines)
+                    curr_state=self._rt.state, lines=self._rt.lines)
 
-        lines = self._rt._lines[0: -1]
+        lines = self._rt.lines[0: -1]
         return lines
 
     def _get_prompt(self, attempts=5):
@@ -454,20 +231,19 @@ class Client(object):
         """
         self._get_prompt()
         timeout = timeout or self._generic_timeout
-
         # now prepare to receive response for latest ensemble
-        self._rt._latest_pd0 = None
+        self._rt.set_latest_pd0(None)
         self.send("CE")
         sleep(0.2)
         time_limit = time.time() + timeout
-        while not self._rt._latest_pd0 and time.time() <= time_limit:
+        while not self._rt.latest_pd0 and time.time() <= time_limit:
             sleep(0.4)
-            time_limit = self._rt._recv_time + timeout
+            time_limit = self._rt.recv_time + timeout
 
-        if not self._rt._latest_pd0:
+        if not self._rt.latest_pd0:
             raise TimeoutException(timeout, msg="waiting for ensemble")
 
-        return self._rt._latest_pd0
+        return self._rt.latest_pd0
 
     def get_metadata(self, sections=None, timeout=None):
         """

@@ -12,13 +12,12 @@ __author__ = "Carlos Rueda"
 __license__ = 'Apache 2.0'
 
 
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import md_section_names
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
+    md_section_names
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.driver import DriverState
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util import prefix
 
-
-from mi.core.mi_logger import mi_logger
-log = mi_logger
+from mi.core.mi_logger import mi_logger as log
 
 
 class DriverTestMixin(object):

@@ -14,8 +14,7 @@ __license__ = 'Apache 2.0'
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.pd0 import PD0DataStructure
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util.coroutine import coroutine
 
-from mi.core.mi_logger import mi_logger
-log = mi_logger
+from mi.core.mi_logger import mi_logger as log
 
 
 # Some min data size to try to construct a structure and extract
