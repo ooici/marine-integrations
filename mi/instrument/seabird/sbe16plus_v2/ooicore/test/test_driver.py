@@ -49,15 +49,16 @@ from mi.core.exceptions import InstrumentCommandException
 from mi.core.logger import Log
 
 # Make tests verbose and provide stdout
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe16_driver.py:TestSBE16Driver.test_process
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe16_driver.py:TestSBE16Driver.test_config
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe16_driver.py:TestSBE16Driver.test_connect
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe16_driver.py:TestSBE16Driver.test_get_set
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe16_driver.py:TestSBE16Driver.test_poll
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe16_driver.py:TestSBE16Driver.test_autosample
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe16_driver.py:TestSBE16Driver.test_test
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe16_driver.py:TestSBE16Driver.test_errors
-# bin/nosetests -s -v ion/services/mi/drivers/test/test_sbe16_driver.py:TestSBE16Driver.test_discover_autosample
+# Note: currently the inheritance chain is backwards, so we're doing this:
+# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_process
+# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_config
+# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_connect
+# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_get_set
+# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_poll
+# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_autosample
+# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_test
+# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_errors
+# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_discover_autosample
 
 
 
@@ -123,7 +124,7 @@ PARAMS = {
     # DHE: sbe16 has no such parameter
     #SBE16Parameter.WBOTC : float,
     # Our SBE 16plus doesn't have a pressure sensor
-    #SBE16Parameter.CTCOR : float,
+    SBE16Parameter.CTCOR : float,
     #SBE16Parameter.CPCOR : float,
     #SBE16Parameter.PCALDATE : tuple,
     #SBE16Parameter.PA0 : float,
@@ -303,16 +304,19 @@ class Tests_INT(InstrumentDriverTestCase):
         self.assertTrue(isinstance(val, dict))
         self.assertTrue(val.has_key('c'))
         self.assertTrue(val.has_key('t'))
-        self.assertTrue(val.has_key('p'))
+        # DHE
+        #self.assertTrue(val.has_key('p'))
         self.assertTrue(val.has_key('time'))
         c = val['c'][0]
         t = val['t'][0]
-        p = val['p'][0]
+        # DHE
+        #p = val['p'][0]
         time = val['time'][0]
     
         self.assertTrue(isinstance(c, float))
         self.assertTrue(isinstance(t, float))
-        self.assertTrue(isinstance(p, float))
+        # DHE
+        #self.assertTrue(isinstance(p, float))
         self.assertTrue(isinstance(time, float))
     
     def assertParamDict(self, pd, all_params=False):
@@ -341,6 +345,10 @@ class Tests_INT(InstrumentDriverTestCase):
             if isinstance(val, float):
                 # Verify to 5% of the larger value.
                 max_val = max(abs(val), abs(correct_val))
+                #
+                # DHE TEMPTEMP
+                #
+                print 'val = ' + str(val) + ', correct_val = ' + str(correct_val) + ', delta = ' + str(max_val*.01)
                 self.assertAlmostEqual(val, correct_val, delta=max_val*.01)
 
             else:
@@ -465,7 +473,7 @@ class Tests_INT(InstrumentDriverTestCase):
         state = self._dvr_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
         
-    @unittest.skip('DHE: TESTTESTTEST')
+    #@unittest.skip('DHE: TESTTESTTEST')
     def test_get_set(self):
         """
         Test device parameter access.
@@ -554,7 +562,7 @@ class Tests_INT(InstrumentDriverTestCase):
         state = self._dvr_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)        
     
-    @unittest.skip('DHE: TESTTESTTEST')
+    #@unittest.skip('DHE: TESTTESTTEST')
     def test_poll(self):
         """
         Test sample polling commands and events.
@@ -613,7 +621,7 @@ class Tests_INT(InstrumentDriverTestCase):
         state = self._dvr_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
-    @unittest.skip('DHE: TESTTESTTEST')
+    #@unittest.skip('DHE: TESTTESTTEST')
     def test_autosample(self):
         """
         Test autosample mode.
@@ -648,7 +656,7 @@ class Tests_INT(InstrumentDriverTestCase):
         # to transmit.
         params = {
             SBE16Parameter.NAVG : 1,
-            SBE16Parameter.INTERVAL : 5,
+            SBE16Parameter.INTERVAL : 10, # Our borrowed SBE16plus takes no less than 10
             SBE16Parameter.TXREALTIME : True
         }
         reply = self._dvr_client.cmd_dvr('set', params)
@@ -660,7 +668,9 @@ class Tests_INT(InstrumentDriverTestCase):
         self.assertEqual(state, SBE16ProtocolState.AUTOSAMPLE)
         
         # Wait for a few samples to roll in.
-        gevent.sleep(30)
+        #gevent.sleep(30)
+        # DHE sleep long enough for a couple of samples
+        gevent.sleep(40)
         
         # Return to command mode. Catch timeouts and retry if necessary.
         count = 0
@@ -698,7 +708,7 @@ class Tests_INT(InstrumentDriverTestCase):
         state = self._dvr_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
-    @unittest.skip('Not supported by simulator and very long (> 5 min).')
+    #@unittest.skip('Not supported by simulator and very long (> 5 min).')
     def test_test(self):
         """
         Test the hardware testing mode.
@@ -1051,7 +1061,8 @@ class IntFromIDK(Tests_INT):
     """
     @classmethod
     def init_comm(cls):
-        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
+        pass
+        #cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
 
 class UnitFromIDK(Tests_UNIT):
     """
