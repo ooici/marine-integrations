@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 """
-@file coi-services/mi.idk/unit_test.py
+@file coi-services/ion/idk/unit_test.py
 @author Bill French
 @brief Base classes for instrument driver tests.  
 """
@@ -11,14 +11,18 @@ from pyon.public import log
 
 import re
 import os
-import signal
+import time
 
 import gevent
 from gevent import spawn
 from gevent.event import AsyncResult
 
-from ion.agents.instrument.zmq_driver_client import ZmqDriverClient
-from ion.agents.instrument.zmq_driver_process import ZmqDriverProcess
+from pyon.container.cc import Container
+from pyon.util.int_test import IonIntegrationTestCase
+from pyon.util.context import LocalContextMixin
+
+from mi.core.instrument.zmq_driver_client import ZmqDriverClient
+from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 from ion.agents.port.logger_process import EthernetDeviceLogger
 
 from mi.idk.comm_config import CommConfig
@@ -28,25 +32,21 @@ from mi.idk.common import Singleton
 from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import TestNoCommConfig
 from mi.idk.exceptions import TestNoDeployFile
-
-from pyon.util.log import log
-from pyon.container.cc import Container
-from pyon.util.int_test import IonIntegrationTestCase
-from pyon.util.context import LocalContextMixin
-
+from mi.idk.exceptions import PortAgentTimeout
 from mi.core.exceptions import InstrumentException
+
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverConnectionState
 
 class InstrumentDriverTestConfig(Singleton):
     """
     Singleton driver test config object.
     """
-    driver_module = None
-    driver_class  = None
-    working_dir   = "/tmp"
-    delimeter     = ['<<','>>']
-    
+    driver_module  = None
+    driver_class   = None
+    working_dir    = "/tmp"
+    delimeter      = ['<<','>>']
+    logger_timeout = 15
+
     instrument_agent_resource_id = None
     instrument_agent_name = None
     instrument_agent_module = 'ion.agents.instrument.instrument_agent'
@@ -77,50 +77,15 @@ class InstrumentDriverTestConfig(Singleton):
             self.instrument_agent_class = kwargs.get('instrument_agent_class')
         if kwargs.get('instrument_agent_stream_encoding'):
             self.instrument_agent_stream_encoding = kwargs.get('instrument_agent_stream_encoding')
-        
+
         if kwargs.get('container_deploy_file'):
             self.container_deploy_file = kwargs.get('container_deploy_file')
+
+        if kwargs.get('logger_timeout'):
+            self.container_deploy_file = kwargs.get('logger_timeout')
         
         self.initialized = True
     
-class InstrumentAgentPublishers(Singleton):
-    """
-    Singleton driver instrument agent publishers
-    """
-    no_samples = None
-    async_data_result = AsyncResult()
-    data_greenlets = []
-    stream_config = {}
-    samples_received = []
-    data_subscribers = []
-
-    no_events = None
-    async_event_result = AsyncResult()
-    events_received = []
-    event_subscribers = []
-    
-    def initialize(self):
-        no_samples = None
-        async_data_result = AsyncResult()
-        data_greenlets = []
-        stream_config = {}
-        samples_received = []
-        data_subscribers = []
-
-        no_events = None
-        async_event_result = AsyncResult()
-        events_received = []
-        event_subscribers = []
-        
-    
-        
-class FakeProcess(LocalContextMixin):
-    """
-    A fake process used because the test case is not an ion process.
-    """
-    name = ''
-    id=''
-    process_type = ''
 
 class InstrumentDriverTestCase(IonIntegrationTestCase):
     """
@@ -209,7 +174,9 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         log.info("Startup Port Agent")
         # Create port agent object.
         this_pid = os.getpid()
-        
+        log.debug( " -- our pid: %d" % this_pid)
+        log.debug( " -- address: %s, port: %s" % (self.comm_config.device_addr, self.comm_config.device_port))
+
         # Working dir and delim are hard coded here because this launch process
         # will change with the new port agent.  
         self.port_agent = EthernetDeviceLogger.launch_process(self.comm_config.device_addr,
@@ -218,18 +185,31 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
                                                               self._test_config.delimeter,
                                                               this_pid)
 
+
+        log.debug( " Port agent object created" )
+
+        start_time = time.time()
+        expire_time = start_time + int(self._test_config.logger_timeout)
         pid = self.port_agent.get_pid()
         while not pid:
             gevent.sleep(.1)
             pid = self.port_agent.get_pid()
-        
+            if time.time() > expire_time:
+                log.error("!!!! Failed to start Port Agent !!!!")
+                raise PortAgentTimeout()
+
         port = self.port_agent.get_port()
-        
+
+        start_time = time.time()
+        expire_time = start_time + int(self._test_config.logger_timeout)
         while not port:
             gevent.sleep(.1)
             port = self.port_agent.get_port()
+            if time.time() > expire_time:
+                log.error("!!!! Port Agent could not bind to port !!!!")
+                raise PortAgentTimeout()
 
-        log.info('Started port agent pid %d listening at port %d' % (pid, port))
+        log.info('Started port agent pid %s listening at port %s' % (pid, port))
         return port
     
     def stop_port_agent(self):
@@ -289,43 +269,20 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
                 except OSError:
                     pass
             self.driver_process = None
-    
 
-    
-    ###
-    #   Private Methods
-    ###
-    def _kill_process(self):
-        """
-        @brief Ensure a driver process has been killed 
-        """
-        process = self._driver_process
-        pid = process.pid
-        
-        log.debug("Killing driver process. PID: %d" % pid)
-        # For some reason process.kill and process.terminate didn't actually kill the process.
-        # that's whay we had to use the os kill command.  We have to call process.wait so that
-        # the returncode attribute is updated which could be blocking.  process.poll didn't
-        # seem to work.
-            
-        for sig in [ signal.SIGTERM, signal.SIGKILL ]:
-            if(process.returncode != None):
-                break
-            else:
-                log.debug("Sending signal %s to driver process" % sig)
-                os.kill(pid, sig)
-                process.wait()
-            
-        if(process.returncode == None):
-            raise Exception("TODO: Better exception.  Failed to kill driver process. PID: %d" % self._driver_process.pid)
-        
-        
+    def port_agent_comm_config(self):
+        port = self.port_agent.get_port()
+        return {
+            'addr': 'localhost',
+            'port': port
+        }
+
+
 class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     """
     Base class for instrument driver unit tests
     """
-    def foo(): pass
-    
+
 class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must inherit from here to get _start_container
     def setUp(self):
         """
@@ -336,28 +293,24 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         log.debug("InstrumentDriverIntegrationTestCase setUp")
         self.init_port_agent()
         self.init_driver_process_client()
-    
+
     def tearDown(self):
         """
         @brief Test teardown
         """
-        InstrumentDriverTestCase.tearDown(self)
-        
         log.debug("InstrumentDriverIntegrationTestCase tearDown")
         self.stop_driver_process_client()
         self.stop_port_agent()
-        
-        ###
-        #   Common Integration Tests
-        ###
-        
-    def test_process(self):
+
+        InstrumentDriverTestCase.tearDown(self)
+
+    def test_driver_process(self):
         """
         Test for correct launch of driver process and communications, including
         asynchronous driver events.
         """
 
-        log.info("Common integration test: test_process")
+        log.info("Ensuring driver process was started properly ...")
         
         # Verify processes exist.
         self.assertNotEqual(self.driver_process, None)
@@ -398,7 +351,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         with self.assertRaises(InstrumentException):
             exception_str = 'Oh no, something bad happened!'
             reply = self.driver_client.cmd_dvr('test_exceptions', exception_str)
-        
+
         # Verify we received a driver error event.
         gevent.sleep(1)
         error_events = [evt for evt in self.events if isinstance(evt, dict) and evt['type']==DriverAsyncEvent.ERROR]
@@ -406,10 +359,15 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
     
         
 class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
-    # Publisher singleton.  Needed a singleton because the setupClass and
-    # tearDownClass are class methods, not instances
-    _publishers = InstrumentAgentPublishers()
-        
+    class FakeProcess(LocalContextMixin):
+        """
+        A fake process used because the test case is not an ion process.
+        """
+        name = ''
+        id=''
+        process_type = ''
+
+
     def setUp(self):
         """
         @brief Setup test cases.
@@ -419,14 +377,14 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.container = Container.instance
         InstrumentDriverTestCase.setUp(self)
         
-        #self.init_port_agent()
-    
+        self.init_port_agent()
+
     def tearDown(self):
         """
         @brief Test teardown
         """
         log.debug("InstrumentDriverQualificationTestCase tearDown")
-        #self.stop_port_agent()
+        self.stop_port_agent()
         #self.stop_data_subscribers()
         #self.stop_event_subscribers()
         

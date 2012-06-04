@@ -16,6 +16,13 @@ class IDKException(Exception):
         
         log.error(self)
 
+class TestNotInitialized(IDKException):
+    """Test configuration singleton not configured"""
+    pass
+
+class PortAgentTimeout(IDKException):
+    """The port agent failed to start"""
+    pass
 
 class DriverDoesNotExist(IDKException):
     """The driver specified doesn't exist"""

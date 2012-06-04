@@ -4,5 +4,5 @@ driver_metadata:
   driver_model: sbe37smb
   driver_name: ooicore
   email: edhunter@ucsd.edu
-  release_notes: Seabird 37smb driver
+  release_notes: SBE Driver
   version: 0
