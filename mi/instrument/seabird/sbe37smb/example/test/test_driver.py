@@ -30,22 +30,14 @@ from ion.idk.metadata import Metadata
 from ion.idk.comm_config import CommConfig
 
 # MI imports.
-from ion.idk.unit_test import InstrumentDriverTestCase
-from ion.idk.unit_test import InstrumentDriverUnitTestCase
-from ion.idk.unit_test import InstrumentDriverIntegrationTestCase
-from ion.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import InstrumentDriverUnitTestCase
+from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
+from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 from prototype.sci_data.stream_defs import ctd_stream_definition
 
-from mi.core.logger import Log
-
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-import mi.instrument.seabird.sbe37smb.example.driver 
-from mi.instrument.seabird.sbe37smb.example.driver import exampleInstrumentDriver
 from mi.instrument.seabird.sbe37smb.example.driver import PACKET_CONFIG
-
-##  This needs tp be 
-from ion.agents.instrument.drivers.sbe37.sbe37_driver import PACKET_CONFIG
 
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.seabird.sbe37smb.example.driver',
