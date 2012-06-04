@@ -35,6 +35,7 @@ $ git submodule update --init
 # Buildout the environment
 $ python bootstrap.py
 $ bin/buildout
+$ bin/generate_interfaces
 
 USAGE
 =====
