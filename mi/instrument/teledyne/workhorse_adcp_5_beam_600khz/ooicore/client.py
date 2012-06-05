@@ -18,9 +18,11 @@ import socket
 import sys
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
-    DEFAULT_GENERIC_TIMEOUT, State, TimeoutException, MetadataSections
+    EOLN, DEFAULT_GENERIC_TIMEOUT, State, TimeoutException, MetadataSections
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util import \
+    connect_socket, prefix
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.receiver import \
-    build_receiver
+    ReceiverBuilder
 
 import logging
 from mi.core.mi_logger import mi_logger as log
@@ -78,52 +80,27 @@ class VadcpClient(object):
         """
         self.connect()
 
-    def connect(self, max_attempts=4, time_between_attempts=10):
+    def connect(self):
         """
         Establishes the connection and starts the receiving thread.
-        The connection is attempted a number of times.
-        @param max_attempts Maximum number of socket connection attempts
-                            (4 by default).
-        @param time_between_attempts Time in seconds between attempts
-                            (10 seconds by default).
+
         @throws socket.error The socket.error that was raised during the
-                         last attempt.
+                         last attempt to connect the socket.
         """
         assert self._sock is None
 
         host = self._conn_config['four_beam']['address']
         port = self._conn_config['four_beam']['port']
-        last_error = None
-        attempt = 0
-        while self._sock is None and attempt < max_attempts:
-            attempt += 1
-            log.info("Trying to connect to %s:%s (attempt=%d)" %
-                     (host, port, attempt))
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.connect((host, port))
-                self._sock = sock  # success.
-            except socket.error, e:
-                log.info("Socket error while trying to connect: %s" %
-                          str(e))
-                last_error = e
-                if attempt < max_attempts:
-                    log.info("Re-attempting in %s secs ..." %
-                              str(time_between_attempts))
-                    sleep(time_between_attempts)
 
-        if self._sock:
-            log.info("Connected to %s:%s" % (host, port))
+        self._sock = connect_socket(host, port)
 
-            log.info("creating _Receiver")
-            self._rt = build_receiver(self._sock,
-                                 outfile=self._outfile,
-                                 data_listener=self._data_listener,
-                                 prefix_state=self._prefix_state)
-            log.info("starting _Receiver")
-            self._rt.start()
-        else:
-            raise last_error
+        log.info("creating _Receiver")
+        self._rt = ReceiverBuilder.build_receiver(self._sock,
+                                  outfile=self._outfile,
+                                  data_listener=self._data_listener,
+                                  prefix_state=self._prefix_state)
+        log.info("starting _Receiver")
+        self._rt.start()
 
     def stop_comms(self):
         """
@@ -174,7 +151,7 @@ class VadcpClient(object):
         """
         self._rt.reset_internal_info()
         sleep(self._delay_before_send)
-        s = string.rstrip() + '\r\n'
+        s = string.rstrip() + EOLN
         self._send(s, info)
 
     def send_and_expect_prompt(self, string, timeout=None):
@@ -281,7 +258,74 @@ class VadcpClient(object):
 
         return "\n".join(lines)
 
-    def user_loop(self):
+    ###############################################
+    # OOI Digi
+    ###############################################
+
+    def _connect_ooi_digi(self):
+        """
+        Establishes the connection to the OOI digi
+        """
+
+        host = self._conn_config['ooi_digi']['address']
+        port = self._conn_config['ooi_digi']['port']
+
+        sock = connect_socket(host, port)
+
+        outfile = open('vadcp_ooi_digi_output.txt', 'a')
+        log.info("creating OOI Digi _Receiver")
+        rt = ReceiverBuilder.build_receiver(sock, outfile=outfile)
+        log.info("starting OOI Digi _Receiver")
+        rt.start()
+
+        return (sock, rt)
+
+    def send_break(self, duration=1000, attempts=3, timeout=None):
+        """
+        Issues a "break <duration>" command to the OOI digi.
+
+        @param duration Duration for the break command (by default 1000)
+        @param attempts Max number of attempts, 3 by default.
+        @param timeout
+
+        @retval True iff the command has had effect.
+        """
+
+        timeout = timeout or self._generic_timeout
+
+        # TODO the expectation below should be getting the corresponding
+        # response on the regular raw port.
+
+        sock, rt = self._connect_ooi_digi()
+        ok = False
+        try:
+            for a in xrange(attempts):
+                time.sleep(1)
+                rt.reset_internal_info()
+                log.info("Sending break (attempt=%d)" % (a + 1))
+                sock.send("break %s%s" % (duration, EOLN))
+                time.sleep(2)
+                response = "\n".join(rt.lines)
+                ok = response.find("Sending Serial Break") >= 0
+                if ok:
+                    break
+        finally:
+            log.info("ending OOI Digi receiver")
+            rt.end()
+            time.sleep(2)
+
+            sock.close()
+            log.info("socket to OOI Digi closed")
+
+        return ok
+
+
+def main(host, port, outfile):
+    """
+    Demo program:
+    """
+
+    def user_loop(client):
         """
         Sends lines received from stdin to the socket. EOF and "q" break the
         loop.
@@ -291,17 +335,13 @@ class VadcpClient(object):
             if not cmd or cmd.strip() == "q":
                 break
             else:
-                self.send(cmd)
+                client.send(cmd)
 
 
-def main(host, port, outfile):
-    """
-    Demo program:
-    """
     client = VadcpClient(host, port, outfile)
     try:
         client.connect()
-        client.user_loop()
+        user_loop(client)
 
 #        pd0 = client.get_latest_ensemble()
 #        print "get_latest_ensemble=%s" % str(pd0)

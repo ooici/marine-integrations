@@ -136,6 +136,14 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND_MODE,
                                        ProtocolEvent.RUN_ALL_TESTS,
                                        self._handler_command_run_all_tests)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND_MODE,
+                                       ProtocolEvent.BREAK,
+                                       self._handler_break)
+
+        # AUTOSAMPLE_MODE
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE_MODE,
+                                       ProtocolEvent.BREAK,
+                                       self._handler_break)
 
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
@@ -285,17 +293,34 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
+    def _handler_break(self, *args, **kwargs):
+        """
+        """
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("args=%s kwargs=%s" % (str(args), str(kwargs)))
+
+        next_state = self._protocol_fsm.get_current_state()
+        result = None
+
+        duration = int(kwargs.get('duration', 1000))
+
+        try:
+            result = self._connection.send_break(duration)
+        except TimeoutException, e:
+            raise InstrumentTimeoutException(msg=str(e))
+        except ClientException, e:
+            log.warn("ClientException while send_break: %s" %
+                     str(e))
+            raise InstrumentException('ClientException: %s' % str(e))
+
+        return (next_state, result)
+
     ###################################################################
     # Helpers
     ###################################################################
 
     def _wakeup(self, timeout):
         """There is no wakeup sequence for this instrument"""
-        pass
-
-    def _send_break(self, timeout=10):
-        """
-        """
         pass
 
 

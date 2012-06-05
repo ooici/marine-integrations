@@ -6,10 +6,13 @@
 # For the VADCP we need connections to both the 4-beam instrument and the 5th
 # beam instrument.
 
-four_beam:  # OOI Digi
+ooi_digi:
+  address: 10.180.80.178
+  port: 2102
+
+four_beam:
   address: 10.180.80.178
   port: 2101  # raw port
-  ooi_digi_port: 2102  # in particular, to send "break" commands
 
 fifth_beam:  # Digi ONE SP
   address: 10.180.80.174

@@ -13,13 +13,13 @@ from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import V
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import md_section_names
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.pd0 import PD0DataStructure
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util import prefix
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.receiver import \
+    ReceiverBuilder
 
 from mi.core.mi_logger import mi_logger as log
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test import VadcpTestCase
 from nose.plugins.attrib import attr
-
-import os
 
 
 @attr('UNIT', group='mi')
@@ -55,7 +55,7 @@ class ClientTest(VadcpTestCase):
         Sets up and connects the _client.
         """
 
-        os.environ["green_rcvr"] = "y"
+        ReceiverBuilder.use_greenlets()
 
         ClientTest._end_client_if_any()
 
@@ -80,6 +80,7 @@ class ClientTest(VadcpTestCase):
         """
         Ends the _client.
         """
+        ReceiverBuilder.use_default()
         client = ClientTest._client
         ClientTest._client = None
         try:
@@ -118,3 +119,8 @@ class ClientTest(VadcpTestCase):
     def test_all_tests(self):
         result = self._client.run_all_tests()
         log.info("ALL TESTS result=%s" % prefix(result))
+
+    def test_send_break(self):
+        result = self._client.send_break()
+        self.assertTrue(isinstance(result, bool))
+        log.info("send_break result=%s" % result)

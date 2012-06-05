@@ -12,7 +12,6 @@ __license__ = 'Apache 2.0'
 
 import time
 import socket
-import os
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import PROMPT, State
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util.coroutine import coroutine
@@ -22,42 +21,61 @@ from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util.pd0_filter
 from mi.core.mi_logger import mi_logger as log
 
 
-def build_receiver(sock, bufsize=4096, data_listener=None, outfile=None,
-                 prefix_state=True):
+class ReceiverBuilder(object):
     """
-    Creates a returns a receiver object that handles all received responses
-    from the connection, keeping relevant information and a state.
-
-    @param sock To read in from the instrument, sock.recv(bufsize)
-    @param bufsize To read in from the instrument, sock.recv(bufsize)
-    @param data_listener
-    @param outfile
-    @param prefix_state
+    Factory for receiver objects.
     """
 
-    receiver = _Receiver(sock, bufsize, data_listener, outfile, prefix_state)
-
-    # use greenlet if env variable "green_rcvr" is defined
     _use_greenlet = False
-    if "green_rcvr" in os.environ:
-        _use_greenlet = True
-        # definition takes effect only once:
-        del os.environ["green_rcvr"]
 
-    if _use_greenlet:
-        from gevent import Greenlet
-        runnable = Greenlet(receiver.run)
-        log.info("Created Greenlet-based _Receiver (env var 'green_rcvr' "
-                 "defined)")
-    else:
-        from threading import Thread
-        runnable = Thread(target=receiver.run)
-        runnable.setDaemon(True)
-        log.info("Created Thread-based _Receiver")
+    @classmethod
+    def use_greenlets(cls):
+        """
+        The builder creates Thread-based receivers by default.
+        This method instructs the builder to use Greenlet-based receivers
+        in subsequent calls to build_receiver.
+        """
+        cls._use_greenlet = True
+        log.info("ReceiverBuilder configured to use greenlets")
 
-    receiver._thr = runnable
+    @classmethod
+    def use_default(cls):
+        """
+        This method instructs the builder to use Thread-based receivers, which
+        is the default,
+        """
+        cls._use_greenlet = False
+        log.info("ReceiverBuilder configured to use threads")
 
-    return receiver
+    @classmethod
+    def build_receiver(cls, sock, bufsize=4096, data_listener=None,
+                       outfile=None, prefix_state=True):
+        """
+        Creates a returns a receiver object that handles all received responses
+        from the connection, keeping relevant information and a state.
+
+        @param sock To read in from the instrument, sock.recv(bufsize)
+        @param bufsize To read in from the instrument, sock.recv(bufsize)
+        @param data_listener
+        @param outfile
+        @param prefix_state
+        """
+
+        receiver = _Receiver(sock, bufsize, data_listener, outfile, prefix_state)
+
+        if cls._use_greenlet:
+            from gevent import Greenlet
+            runnable = Greenlet(receiver.run)
+            log.info("Created Greenlet-based _Receiver")
+        else:
+            from threading import Thread
+            runnable = Thread(target=receiver.run)
+            runnable.setDaemon(True)
+            log.info("Created Thread-based _Receiver")
+
+        receiver._thr = runnable
+
+        return receiver
 
 
 class _Receiver(object):
@@ -134,8 +152,8 @@ class _Receiver(object):
             self._active = False
             return None
 
-        log.debug("read %s bytes" % len(recv))
         self._recv_time = time.time()
+        log.debug("read %s bytes" % len(recv))
         self._update_outfile(recv)
         return recv
 

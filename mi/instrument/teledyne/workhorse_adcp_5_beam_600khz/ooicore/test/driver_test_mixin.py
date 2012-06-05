@@ -121,3 +121,12 @@ class DriverTestMixin(object):
         log.info("execute_run_all_tests result=%s" % prefix(result))
 
         self._disconnect()
+
+    def test_execute_break(self):
+        self._prepare_and_connect()
+
+        result = self.driver.execute_break(timeout=self._timeout)
+        self.assertTrue(isinstance(result, bool))
+        log.info("execute_break result=%s" % prefix(result))
+
+        self._disconnect()

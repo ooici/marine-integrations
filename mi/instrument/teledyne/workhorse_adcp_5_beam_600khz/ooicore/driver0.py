@@ -271,6 +271,24 @@ class VadcpDriver(InstrumentDriver):
                      str(e))
             raise InstrumentException('ClientException: %s' % str(e))
 
+    def execute_break(self, *args, **kwargs):
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("args=%s kwargs=%s" % (str(args), str(kwargs)))
+
+        self._assert_state(DriverState.CONNECTED)
+
+        timeout = kwargs.get('timeout', self._timeout)
+
+        try:
+            result = self._client.send_break(timeout=timeout)
+            return result
+        except TimeoutException, e:
+            raise InstrumentTimeoutException(msg=str(e))
+        except ClientException, e:
+            log.warn("ClientException while send_break: %s" %
+                     str(e))
+            raise InstrumentException('ClientException: %s' % str(e))
+
     ########################################################################
     # Resource query interface.
     ########################################################################

@@ -13,13 +13,15 @@ __license__ = 'Apache 2.0'
 
 from gevent import monkey; monkey.patch_all()
 
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.driver0 import VadcpDriver
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.driver import VadcpDriver
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test import VadcpTestCase
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.driver_test_mixin import DriverTestMixin
 from mi.core.instrument.driver_int_test_support import DriverIntegrationTestSupport
 from nose.plugins.attrib import attr
 
 from mi.core.instrument.instrument_driver import InstrumentDriver
+
+import copy
 
 from mi.core.mi_logger import mi_logger as log
 
@@ -68,24 +70,25 @@ class VadcpDriverProxy(InstrumentDriver):
         driver_module = 'mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.driver'
         driver_class = 'VadcpDriver'
 
-        device_address = conn_config['four_beam']['address']
-        device_port = conn_config['four_beam']['port']
+        four_beam = conn_config['four_beam']
+        device_address = four_beam['address']
+        device_port = four_beam['port']
 
         self._support = DriverIntegrationTestSupport(driver_module,
                                                      driver_class,
                                                      device_address,
                                                      device_port)
 
-        # Create and start the port agent.
+        # Create and start the port agent, which runs on localhost
         log.info('starting port agent')
         pagent_port = self._support.start_pagent()
 
         # so, we now connect to the 4-beam via the port agent:
-        # TODO the other connections (OOI digi and the 5th beam ones)
-        self.comms_config = {
-            'four_beam': {'address': 'localhost',
-                             'port': pagent_port}
-        }
+        self.comms_config = copy.deepcopy(conn_config)
+        self.comms_config['four_beam']['address'] = 'localhost'
+        self.comms_config['four_beam']['port'] = pagent_port
+
+        log.info("comms_config: %s" % self.comms_config)
 
         # Create and start the driver.
         log.info('starting driver client')

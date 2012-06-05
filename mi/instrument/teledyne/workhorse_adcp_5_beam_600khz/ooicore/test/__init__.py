@@ -11,6 +11,10 @@
 __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
 
+
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.receiver import \
+    ReceiverBuilder
+
 import yaml
 import os
 import unittest
@@ -56,12 +60,15 @@ class VadcpTestCase(unittest.TestCase):
             yml = yaml.load(f)
             f.close()
 
+            ooi_digi = yml['ooi_digi']
             four_beam = yml['four_beam']
             fifth_beam = yml['fifth_beam']
             self._conn_config = {
+                'ooi_digi': {'address': ooi_digi.get('address'),
+                              'port': ooi_digi.get('port')},
+
                 'four_beam': {'address': four_beam.get('address'),
-                              'port': four_beam.get('port'),
-                              'digi_port': four_beam.get('ooi_digi_port')},
+                              'port': four_beam.get('port')},
 
                 'fifth_beam': {'address': fifth_beam.get('address'),
                                'port': fifth_beam.get('port'),
@@ -75,16 +82,21 @@ class VadcpTestCase(unittest.TestCase):
             except:
                 self.skipTest("Malformed VADCP value")
 
-            # TODO None's here TBD:
+            # TODO hard-coded values here to be replaced
             self._conn_config = {
-                'four_beam': {'address': device_address,
-                              'port': port,
-                              'digi_port': None},
+                'ooi_digi': {'address': '10.180.80.178',
+                              'port': 2102},
 
-                'fifth_beam': {'address': None,
-                               'port': None,
-                               'telnet_port': None}
+                'four_beam': {'address': device_address,
+                              'port': port},
+
+                'fifth_beam': {'address': '10.180.80.174',
+                               'port': 2101,
+                               'telnet_port': 2001}
             }
 
 
         log.info("== VADCP _conn_config: %s" % self._conn_config)
+
+    def tearDown(self):
+        ReceiverBuilder.use_default()

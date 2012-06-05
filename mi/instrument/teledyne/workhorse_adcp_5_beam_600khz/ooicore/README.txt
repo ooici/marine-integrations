@@ -5,6 +5,16 @@ See https://confluence.oceanobservatories.org/display/ENG/VADCP+Driver
 
 Some development notes:
 
+2012-06-05:
+- preparations for handling of "break" command, which needs connection to the OOI digi.
+    $ VADCP="mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/connection.yml" \
+     bin/nosetests -sv mi/instrument/teledyne/workhorse_adcp_5_beam_600khz
+    ...
+    ----------------------------------------------------------------------
+    Ran 27 tests in 193.369s
+
+    OK
+
 2012-06-04:
 - added ad hoc connection.yml to indicate the various hosts/ports needed to
   interact with both the 4-beam system and the 5th beam system. In particular,
