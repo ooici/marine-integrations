@@ -26,23 +26,21 @@ import logging
 from mi.core.mi_logger import mi_logger as log
 
 
-class Client(object):
+class VadcpClient(object):
     """
     A basic client to the instrument.
     """
 
-    def __init__(self, host, port, outfile=None, prefix_state=True):
+    def __init__(self, conn_config, outfile=None, prefix_state=True):
         """
-        Creates a Client instance.
+        Creates a VadcpClient instance.
 
-        @param host
-        @param port
+        @param conn_config connection configuration
         @param outfile
         @param prefix_state
 
         """
-        self._host = host
-        self._port = port
+        self._conn_config = conn_config
         self._outfile = outfile
         self._prefix_state = prefix_state
         self._sock = None
@@ -93,7 +91,8 @@ class Client(object):
         """
         assert self._sock is None
 
-        host, port = self._host, self._port
+        host = self._conn_config['four_beam']['address']
+        port = self._conn_config['four_beam']['port']
         last_error = None
         attempt = 0
         while self._sock is None and attempt < max_attempts:
@@ -115,8 +114,6 @@ class Client(object):
 
         if self._sock:
             log.info("Connected to %s:%s" % (host, port))
-
-#            self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1)
 
             log.info("creating _Receiver")
             self._rt = build_receiver(self._sock,
@@ -301,7 +298,7 @@ def main(host, port, outfile):
     """
     Demo program:
     """
-    client = Client(host, port, outfile)
+    client = VadcpClient(host, port, outfile)
     try:
         client.connect()
         client.user_loop()

@@ -5,6 +5,15 @@ See https://confluence.oceanobservatories.org/display/ENG/VADCP+Driver
 
 Some development notes:
 
+2012-06-04:
+- added ad hoc connection.yml to indicate the various hosts/ports needed to
+  interact with both the 4-beam system and the 5th beam system. In particular,
+  additional functionality is to send "break" commands via the OOI Digi
+  interface (10.180.80.178 port 2102). The environment variable VADCP can also
+  be given the name of the connection.yml file, for ex:
+    $ VADCP="mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/connection.yml" \
+      bin/nosetests mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/test_client.py
+
 2012-05-30:
 - some reorganization of the code
 - implemented a workaround to be able to run the unit tests involving the

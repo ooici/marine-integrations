@@ -9,7 +9,7 @@
 __author__ = "Carlos Rueda"
 __license__ = 'Apache 2.0'
 
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import Client
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import VadcpClient
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import md_section_names
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.pd0 import PD0DataStructure
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util import prefix
@@ -25,7 +25,7 @@ import os
 @attr('UNIT', group='mi')
 class ClientTest(VadcpTestCase):
 
-    # this class variable is to keep a single reference to the Client
+    # this class variable is to keep a single reference to the VadcpClient
     # object in the current test. setUp will first finalize such object in case
     # tearDown/cleanup does not get called. Note that any test with an error
     # will likely make subsequent tests immediately fail because of the
@@ -34,9 +34,9 @@ class ClientTest(VadcpTestCase):
 
     @classmethod
     def _end_client_if_any(cls):
-        """Ends the current Client, if any."""
+        """Ends the current VadcpClient, if any."""
         if ClientTest._client:
-            log.info("releasing not finalized Client object")
+            log.info("releasing not finalized VadcpClient object")
             try:
                 ClientTest._client.end()
             finally:
@@ -44,7 +44,7 @@ class ClientTest(VadcpTestCase):
 
     @classmethod
     def tearDownClass(cls):
-        """Make sure we end the last Client object if still remaining."""
+        """Make sure we end the last VadcpClient object if still remaining."""
         try:
             cls._end_client_if_any()
         finally:
@@ -61,12 +61,10 @@ class ClientTest(VadcpTestCase):
 
         super(ClientTest, self).setUp()
 
-        host = self.device_address
-        port = self.device_port
         self._ensembles_recd = 0
         outfile = file('vadcp_output.txt', 'w')
         prefix_state = True
-        _client = Client(host, port, outfile, prefix_state)
+        _client = VadcpClient(self._conn_config, outfile, prefix_state)
 
         # set the class and instance variables to refer to this object:
         ClientTest._client = self._client = _client
@@ -86,7 +84,7 @@ class ClientTest(VadcpTestCase):
         ClientTest._client = None
         try:
             if client:
-                log.info("ending Client object")
+                log.info("ending VadcpClient object")
                 client.end()
         finally:
             super(ClientTest, self).tearDown()

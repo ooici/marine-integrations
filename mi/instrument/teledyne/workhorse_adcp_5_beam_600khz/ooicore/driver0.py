@@ -13,7 +13,7 @@ __license__ = 'Apache 2.0'
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
     ClientException, TimeoutException
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import Client
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import VadcpClient
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_driver import InstrumentDriver
@@ -139,29 +139,19 @@ class VadcpDriver(InstrumentDriver):
 #            raise InstrumentParameterException(msg="'config' parameter required")
             config = args[0]
 
+        outfile = file('vadcp_output.txt', 'w')
+
         # Verify dict and construct connection client.
+        log.info("setting VadcpClient with config: %s" % config)
         try:
-            addr = config['addr']
-            port = config['port']
-
-            if isinstance(addr, str) and \
-               isinstance(port, int) and len(addr) > 0:
-#                self._connection = LoggerClient(addr, port)
-
-                def _data_listener(sample):
-                    log.info("_data_listener: sample = %s" % str(sample))
-
-                host = addr
-                outfile = file('vadcp_output.txt', 'w')
-                log.info("setting Client to connect to %s:%s" % (host, port))
-                self._client = Client(host, port, outfile, True)
-                self._client.set_data_listener(_data_listener)
-
-            else:
-                raise InstrumentParameterException(msg='Invalid comms config dict')
-
+            self._client = VadcpClient(config, outfile, True)
         except (TypeError, KeyError):
-            raise InstrumentParameterException(msg='Invalid comms config dict.')
+            raise InstrumentParameterException('Invalid comms config dict.'
+                                               ' config=%s' % config)
+        def _data_listener(sample):
+            log.info("_data_listener: sample = %s" % str(sample))
+
+        self._client.set_data_listener(_data_listener)
 
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._state = DriverState.DISCONNECTED

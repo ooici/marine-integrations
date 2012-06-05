@@ -44,6 +44,4 @@ class DriverTest(VadcpTestCase, DriverTestMixin):
 
         # needed by DriverTestMixin
         self.driver = VadcpDriver(evt_callback)
-        self.comms_config = {
-            'addr': self.device_address,
-            'port': self.device_port}
+        self.comms_config = self._conn_config

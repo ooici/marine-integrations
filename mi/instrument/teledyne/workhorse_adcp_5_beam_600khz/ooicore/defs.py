@@ -19,6 +19,8 @@ DEFAULT_GENERIC_TIMEOUT = 30
 
 PROMPT = '>'
 
+EOLN = "\r\n"
+
 
 class State(object):
     """Instrument states"""

@@ -12,8 +12,8 @@ __license__ = 'Apache 2.0'
 
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
-    ClientException, TimeoutException
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import Client
+    EOLN, ClientException, TimeoutException
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import VadcpClient
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_driver import DriverConnectionState
@@ -33,8 +33,6 @@ from mi.core.mi_logger import mi_logger as log
 ####################################################################
 # Module-wide values
 ####################################################################
-
-EOLN = "\r\n"
 
 # TODO define Packet config for data granules.
 PACKET_CONFIG = {}
@@ -143,11 +141,6 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
 
     def execute_init_protocol(self, *args, **kwargs):
         """
-        (This is the operation called execute_init_device in PAR)
-        Transition the device to a known protocol state, which is initialized
-        in UNKNOWN.
-        Upon connection, this should be the first invoked operation before any
-        other.
         """
         return self._protocol_fsm.on_event(ProtocolEvent.INITIALIZE,
                                            *args, **kwargs)
@@ -328,24 +321,19 @@ class VadcpDriver(SingleConnectionInstrumentDriver):
         """
         log.info('_build_connection: config=%s' % config)
 
+        outfile = file('vadcp_output.txt', 'w')
+
+        log.info("setting VadcpClient with config: %s" % config)
+        try:
+            client = VadcpClient(config, outfile, True)
+        except (TypeError, KeyError):
+            raise InstrumentParameterException('Invalid comms config dict.'
+                                               ' config=%s' % config)
         def _data_listener(sample):
             log.info("_data_listener: sample = %s" % str(sample))
 
-        try:
-            addr = config['addr']
-            port = config['port']
-
-            if isinstance(addr, str) and isinstance(port, int):
-                outfile = file('vadcp_output.txt', 'w')
-                log.info("setting Client to connect to %s:%s" % (addr, port))
-                client = Client(addr, port, outfile, True)
-                client.set_data_listener(_data_listener)
-                return client
-            else:
-                raise InstrumentParameterException('Invalid comms config dict.')
-
-        except (TypeError, KeyError):
-            raise InstrumentParameterException('Invalid comms config dict.')
+        client.set_data_listener(_data_listener)
+        return client
 
     def _build_protocol(self):
         """ Construct driver protocol"""
