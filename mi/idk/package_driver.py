@@ -15,6 +15,7 @@ from mi.idk import prompt
 from mi.idk.metadata import Metadata
 from mi.idk.nose_test import NoseTest
 from mi.idk.driver_generator import DriverGenerator
+from mi.idk.egg_generator import EggGenerator
 
 
 class PackageManifest(object):
@@ -91,8 +92,13 @@ class PackageDriver(object):
     def log_path(self):
         return "%s/%s" % (self.metadata.idk_dir(), self.log_file())
 
+    def archive_file(self):
+        return "%s_%s_%s-%s-driver.zip" % (self.metadata.driver_make,
+                                                      self.metadata.driver_model,
+                                                      self.metadata.driver_name,
+                                                      self.metadata.version)
     def archive_path(self):
-        return "%s/%s_%02d_driver.zip" % (os.environ['HOME'], self.metadata.name.lower(), self.metadata.version)
+        return os.path.join(os.path.expanduser("~"),self.archive_file())
 
 
     ###
@@ -190,9 +196,11 @@ class PackageDriver(object):
         @brief Store all files in zip archive and add them to the manifest file
         """
 
-        # Add python source files
-        self._add_file(self.generator.driver_full_name(), 'src', 'driver source code')
-        self._add_file(self.generator.driver_test_full_name(), 'src/test', 'driver test code')
+        egg_generator = EggGenerator(self.metadata)
+        egg_file = egg_generator.save()
+
+        # Add egg
+        self._add_file(egg_file, 'egg', 'python driver egg package')
 
         # Add the package metadata file
         self._add_file(self.metadata.metadata_path(), description = 'package metadata')

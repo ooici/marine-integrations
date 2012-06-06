@@ -5,4 +5,4 @@ driver_metadata:
   driver_name: example
   email: wfrench@ucsd.edu
   release_notes: test driver
-  version: 0
+  version: 0.0.1

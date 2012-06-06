@@ -13,9 +13,10 @@ __license__ = 'Apache 2.0'
 import re
 import os
 import sys
+import shutil
 from os.path import basename, dirname
 from operator import itemgetter
-import pprint
+from string import Template
 
 from mi.idk.config import Config
 from mi.idk.metadata import Metadata
@@ -25,6 +26,9 @@ from pyon.util.log import log
 from mi.idk.exceptions import NotPython
 from mi.idk.exceptions import NoRoot
 from mi.idk.exceptions import FileNotFound
+from mi.idk.exceptions import InvalidParameters
+from mi.idk.exceptions import MissingTemplate
+from mi.idk.exceptions import ValidationFailure
 
 from snakefood.util import iter_pyfiles, setup_logging, def_ignores, is_python
 from snakefood.depends import output_depends, read_depends
@@ -351,10 +355,13 @@ class DriverFileList:
         result = []
         
         log.debug( "F: %s" % self.driver_file)
+        driver_files = []
         driver_files = self.driver_dependency.internal_dependencies()
-        test_files = self.test_dependency.internal_dependencies()
+        test_files = []
+        test_files = self._scrub_test_files(self.test_dependency.internal_dependencies())
+        extra_files = []
         extra_files = self._extra_files()
-        files = self._extra_files() + self.driver_dependency.internal_dependencies() + self.test_dependency.internal_dependencies()
+        files = extra_files + driver_files + test_files
 
         for fn in files:
             if not fn in result:
@@ -363,7 +370,23 @@ class DriverFileList:
                 result.append(f)
                 
         return result
-        
+
+    def _scrub_test_files(self, filelist):
+        """
+        The interface directory is built by generate interfaces so it comes up as an internal dependency.
+        """
+        # I don't particularly like this, but these generated interface files need to be removed
+        result = []
+        p = re.compile('^interface\/')
+        for file in filelist:
+            if p.findall(file):
+                log.debug(" Remove: %s" % file)
+            else:
+                result.append(file)
+
+        return result
+
+
     def _extra_files(self):
         result = []
         p = re.compile('\.(py|pyc)$')
@@ -386,7 +409,191 @@ class EggGenerator:
         @brief Constructor
         @param metadata IDK Metadata object
         """
-        
+        self.metadata = metadata
+        self._bdir = None
+
+        if not self._tmp_dir():
+            raise InvalidParameters("missing tmp_dir configuration")
+
+        if not self._tmp_dir():
+            raise InvalidParameters("missing working_repo configuration")
+
+    def _repo_dir(self):
+        return Config().get('working_repo')
+
+    def _tmp_dir(self):
+        return Config().get('tmp_dir')
+
+    def _setup_path(self):
+        return os.path.join(self._build_dir(), 'setup.py' )
+
+    def _setup_template_path(self):
+        return os.path.join(Config().template_dir(), 'setup.tmpl' )
+
+    def _build_name(self):
+        return "%s_%s_%s_%s" % (
+                self.metadata.driver_make,
+                self.metadata.driver_model,
+                self.metadata.driver_name,
+                self.metadata.version,
+            )
+
+    def _build_dir(self):
+        if self._bdir:
+            return self._bdir
+
+        self._bdir = self._generate_build_dir()
+
+        log.info( "egg build dir: %s" % self._bdir)
+        return self._bdir
+
+    def _generate_build_dir(self):
+        original_dir = os.path.join(self._tmp_dir(), self._build_name())
+        build_dir = original_dir
+        build_count = 1
+
+        # Find a directory that doesn't exist
+        while os.path.exists(build_dir):
+            build_dir = "%s.%03d" % (original_dir, build_count)
+            log.debug("build dir test: %s" % build_dir)
+            build_count += 1
+
+        return build_dir
+
+    def _stage_files(self, files):
+        if not os.path.exists(self._build_dir()):
+            os.makedirs(self._build_dir())
+
+
+        for file in files:
+            dest = os.path.join(self._build_dir(), file)
+            destdir = dirname(dest)
+            source = os.path.join(self._repo_dir(), file)
+
+            log.debug(" Copy %s => %s" % (source, dest))
+
+            if not os.path.exists(destdir):
+                os.makedirs(destdir)
+
+            shutil.copy(source, dest)
+
+    def _get_template(self, template_file):
+        """
+        @brief return a string.Template object constructed with the contents of template_file
+        @param template_file path to a file that containes a template
+        @retval string.Template object
+        """
+        try:
+            infile = open(template_file)
+            tmpl_str = infile.read()
+            return Template(tmpl_str)
+        except IOError:
+            raise MissingTemplate(msg="Missing: %s" % template_file)
+
+    def _generate_setup_file(self):
+        if not os.path.exists(self._build_dir()):
+            os.makedirs(self._build_dir())
+
+
+        setup_file = self._setup_path()
+        setup_template = self._get_template(self._setup_template_path())
+
+        log.debug("Create setup.py file: %s" % setup_file )
+        log.debug("setup.py template file: %s" % self._setup_template_path())
+        log.debug("setup.py template date: %s" % self._setup_template_data())
+
+        ofile = open(setup_file, 'w')
+        code = setup_template.substitute(self._setup_template_data())
+        ofile.write(code)
+        ofile.close()
+
+    def _setup_template_data(self):
+        name = "%s_%s_%s" % (self.metadata.driver_make,
+                             self.metadata.driver_model,
+                             self.metadata.driver_name)
+
+        return {
+            'name': name,
+            'version': self.metadata.version,
+            'description': 'ooi core driver',
+            'author': self.metadata.author,
+            'email': self.metadata.email,
+            'url': 'http://goo'
+        }
+
+    def _verify_ready(self):
+        """
+        verify that we have all the information and are in the correct state to build the egg
+        """
+        self._verify_python()
+        self._verify_metadata()
+        self._verify_version()
+        self._verify_git()
+
+    def _verify_metadata(self):
+        """
+        Ensure we have all the metadata we need to build the egg
+        """
+        pass
+
+    def _verify_version(self, version = None):
+        """
+        Ensure we have a good version number and that it has not already been packaged and published
+        """
+        if version == None:
+            version = self.metadata.version
+
+        if not version:
+            raise ValidationFailure("Driver version required in metadata")
+
+        p = re.compile("^\d+\.\d+\.\d+$")
+        if not p.findall("%s" % version):
+            raise ValidationFailure("Version format incorrect '%s', should be x.x.x" % version)
+
+        #TODO Add check to see if there is already the same version package built
+
+    def _verify_git(self):
+        """
+        Ensure the repository is up to date.  All files should be committed and pushed.  The local repo
+        should be in sync with the mainline
+        """
+        #TODO Update this check
+        pass
+
+    def _verify_python(self):
+        """
+        Ensure we build with the correct python version
+        """
+        if sys.version_info < (2, 7) or sys.version_info >= (2, 8):
+            raise ValidationFailure("Egg generation required version 2.7 of python")
+
+
+    def _build_egg(self, files):
+        try:
+            self._verify_ready()
+            self._stage_files(files)
+            self._generate_setup_file()
+
+            cmd = "cd %s; python setup.py bdist_egg" % self._build_dir()
+            log.info("CMD: %s" % cmd)
+            os.system(cmd)
+
+            egg_file = "%s/dist/%s_%s_%s-%s-py2.7.egg" % (self._build_dir(),
+                                                          self.metadata.driver_make,
+                                                          self.metadata.driver_model,
+                                                          self.metadata.driver_name,
+                                                          self.metadata.version)
+
+        except ValidationFailure, e:
+            log.error("Failed egg verification: %s" % e )
+            return None
+
+        log.debug("Egg file created:: %s" % egg_file)
+        return egg_file
+
+    def save(self):
+        filelist = DriverFileList(self.metadata, self._repo_dir())
+        return self._build_egg(filelist.files())
 
 
 if __name__ == '__main__':
