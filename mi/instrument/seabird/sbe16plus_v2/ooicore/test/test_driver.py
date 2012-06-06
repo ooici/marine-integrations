@@ -17,35 +17,33 @@ import gevent
 # Standard lib imports
 import time
 import unittest
-import logging
-from subprocess import Popen
-import os
-import signal
-import uuid
 
 # 3rd party imports
 from nose.plugins.attrib import attr
 
-# Pyon and ION imports
-from pyon.util.unit_test import PyonTestCase
-from pyon.public import CFG
-from mi.core.instrument.zmq_driver_client import ZmqDriverClient
-from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
-from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16Driver
-from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16ProtocolState
-from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16Parameter
+from prototype.sci_data.stream_defs import ctd_stream_definition
+
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
-from ion.agents.port.logger_process import EthernetDeviceLogger
+
 from mi.core.exceptions import InstrumentException
-from mi.core.exceptions import NotImplementedException
 from mi.core.exceptions import InstrumentTimeoutException
-from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
-from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import PACKET_CONFIG
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16Driver
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16ProtocolState
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16Parameter
+from ion.agents.port.logger_process import EthernetDeviceLogger
+
+from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import InstrumentDriverUnitTestCase
+from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
+from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+
+# MI logger
 from mi.core.logger import Log
 
 # Make tests verbose and provide stdout
@@ -60,41 +58,26 @@ from mi.core.logger import Log
 # bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_errors
 # bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_discover_autosample
 
-
-
-from ion.idk.metadata import Metadata
-from ion.idk.comm_config import CommConfig
-from ion.idk.unit_test import InstrumentDriverTestCase
-from ion.idk.test.driver_qualification import DriverQualificationTestCase
-
-# Driver and port agent configuration
-
 # Driver module and class.
 DVR_MOD = 'mi.instrument.seabird.sbe16plus_v2.ooicore.driver'
 DVR_CLS = 'SBE16Driver'
 
-#DEV_ADDR = CFG.device.sbe16.host
-#DEV_PORT = CFG.device.sbe16.port
-#DEV_ADDR = CFG.device.sbe37.host
-#DEV_PORT = CFG.device.sbe37.port
-# Device ethernet address and port
-DEV_ADDR = '67.58.40.197' # DigiConnect in 5th floor lab
-#DEV_ADDR = '67.58.49.220' 
-#DEV_ADDR = '137.110.112.119' # Moxa DHCP in Edward's office.
-#DEV_ADDR = 'sbe16-simulator.oceanobservatories.org' # Simulator addr.
-DEV_PORT = 2101 # DigiConnect raw mode port in 5th floor lab 
-#DEV_PORT = 4001 # Moxa port or simulator random data.
-#DEV_PORT = 4002 # Simulator sine data.
+## Initialize the test parameters
+InstrumentDriverTestCase.initialize(
+    driver_module = DVR_MOD,
+    driver_class = DVR_CLS,
 
+    instrument_agent_resource_id = '123xyz',
+    instrument_agent_name = 'Agent007',
+    instrument_agent_packet_config = PACKET_CONFIG,
+    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
+)
+
+# Driver and port agent configuration
 
 # Work dir and logger delimiter.
 WORK_DIR = '/tmp/'
 DELIM = ['<<','>>']
-
-# Driver comms config. Port number set when port agent launched.
-COMMS_CONFIG = {
-    'addr': 'localhost'
-}
 
 # Used to validate param config retrieved from driver.
 PARAMS = {
@@ -103,8 +86,6 @@ PARAMS = {
     SBE16Parameter.NAVG : int,
     SBE16Parameter.SAMPLENUM : int,
     SBE16Parameter.INTERVAL : int,
-    # DHE: sbe16 has no such parameter
-    #SBE16Parameter.STORETIME : bool,
     SBE16Parameter.TXREALTIME : bool,
     SBE16Parameter.SYNCMODE : bool,
     # DHE this doesn't show up in the status unless the
@@ -121,10 +102,8 @@ PARAMS = {
     SBE16Parameter.CH : float,
     SBE16Parameter.CI : float,
     SBE16Parameter.CJ : float,
-    # DHE: sbe16 has no such parameter
-    #SBE16Parameter.WBOTC : float,
-    # Our SBE 16plus doesn't have a pressure sensor
     SBE16Parameter.CTCOR : float,
+    # Our SBE 16plus doesn't have a pressure sensor
     #SBE16Parameter.CPCOR : float,
     #SBE16Parameter.PCALDATE : tuple,
     #SBE16Parameter.PA0 : float,
@@ -163,13 +142,9 @@ PARAMS = {
 ###############################################################################
 
 @attr('UNIT', group='mi')
-class Tests_UNIT(InstrumentDriverTestCase):
+class SBEUnitTestCase(InstrumentDriverUnitTestCase):
     """Unit Test Container"""
-
-    def setUp(self):
-        """
-        @brief initalize mock objects for the protocol object.
-        """
+    pass
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -180,121 +155,11 @@ class Tests_UNIT(InstrumentDriverTestCase):
 ###############################################################################
 
 @attr('INT', group='mi')
-class Tests_INT(InstrumentDriverTestCase):
+class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
     """
     Integration tests for the sbe16 driver. This class tests and shows
     use patterns for the sbe16 driver as a zmq driver process.
     """    
-    
-    def setUp(self):
-        """
-        Setup test cases.
-        """
-
-        # Clear driver event list.
-        self._events = []
-
-        # The port agent object. Used to start and stop the port agent.
-        self._pagent = None
-        
-        # The driver process popen object.
-        self._dvr_proc = None
-        
-        # The driver client.
-        self._dvr_client = None
-
-        # Create and start the port agent.
-        Log.info('start')
-        self._start_pagent()
-        self.addCleanup(self._stop_pagent)    
-
-        # Create and start the driver.
-        self._start_driver()
-        self.addCleanup(self._stop_driver)        
-        
-    def _start_pagent(self):
-        """
-        Construct and start the port agent.
-        """
-        
-        # Create port agent object.
-        this_pid = os.getpid()
-        self._pagent = EthernetDeviceLogger.launch_process(DEV_ADDR, DEV_PORT,
-                        WORK_DIR, DELIM, this_pid)
-
-        pid = self._pagent.get_pid()
-        while not pid:
-            gevent.sleep(.1)
-            pid = self._pagent.get_pid()
-        port = self._pagent.get_port()
-        while not port:
-            gevent.sleep(.1)
-            port = self._pagent.get_port()
-        
-        COMMS_CONFIG['port'] = port
-
-        Log.info('Started port agent pid %d listening at port %d' % (pid, port))
-
-    def _stop_pagent(self):
-        """
-        Stop the port agent.
-        """
-        if self._pagent:
-            pid = self._pagent.get_pid()
-            if pid:
-                Log.info('Stopping pagent pid %i'% pid)
-                self._pagent.stop()
-            else:
-                Log.info('No port agent running.')
-            
-    def _start_driver(self):
-        """
-        Start the driver process.
-        """
-        
-        # Launch driver process based on test config.
-        this_pid = os.getpid()
-        (dvr_proc, cmd_port, evt_port) = ZmqDriverProcess.launch_process(DVR_MOD, DVR_CLS, WORK_DIR, this_pid)
-        self._dvr_proc = dvr_proc
-        Log.info('Started driver process for %d %d %s %s'% (cmd_port, evt_port, DVR_MOD, DVR_CLS))
-        Log.info('Driver process pid %d'% self._dvr_proc.pid)
-            
-        # Create driver client.            
-        self._dvr_client = ZmqDriverClient('localhost', cmd_port,
-            evt_port)
-        Log.info('Created driver client for %d %d %s %s'%( cmd_port, evt_port, DVR_MOD, DVR_CLS))
-        
-        # Start client messaging.
-        self._dvr_client.start_messaging(self.evt_recd)
-        Log.info('Driver messaging started.')
-        gevent.sleep(.5)
-            
-    def _stop_driver(self):
-        """
-        Method to shut down the driver process. Attempt normal shutdown,
-        and kill the process if unsuccessful.
-        """
-        
-        if self._dvr_proc:
-            Log.info('Stopping driver process pid %d'% self._dvr_proc.pid)
-            if self._dvr_client:
-                self._dvr_client.done()
-                self._dvr_proc.wait()
-                self._dvr_client = None
-
-            else:
-                try:
-                    Log.info('Killing driver process.')
-                    self._dvr_proc.kill()
-                except OSError:
-                    pass
-            self._dvr_proc = None
-
-    def evt_recd(self, evt):
-        """
-        Simple callback to catch events from the driver for verification.
-        """
-        self._events.append(evt)
     
     def assertSampleDict(self, val):
         """
@@ -304,20 +169,20 @@ class Tests_INT(InstrumentDriverTestCase):
         self.assertTrue(isinstance(val, dict))
         self.assertTrue(val.has_key('c'))
         self.assertTrue(val.has_key('t'))
-        # DHE
+        # DHE: Our SBE16 doesn't have a pressure sensor
         #self.assertTrue(val.has_key('p'))
         self.assertTrue(val.has_key('time'))
         c = val['c'][0]
         t = val['t'][0]
+        time = val['time'][0]
         # DHE
         #p = val['p'][0]
-        time = val['time'][0]
     
         self.assertTrue(isinstance(c, float))
         self.assertTrue(isinstance(t, float))
+        self.assertTrue(isinstance(time, float))
         # DHE
         #self.assertTrue(isinstance(p, float))
-        self.assertTrue(isinstance(time, float))
     
     def assertParamDict(self, pd, all_params=False):
         """
@@ -355,55 +220,6 @@ class Tests_INT(InstrumentDriverTestCase):
                 # int, bool, str, or tuple of same
                 self.assertEqual(val, correct_val)
     
-    def test_process(self):
-        """
-        Test for correct launch of driver process and communications, including
-        asynchronous driver events.
-        """
-        # Verify processes exist.
-        self.assertNotEqual(self._dvr_proc, None)
-        drv_pid = self._dvr_proc.pid
-        self.assertTrue(isinstance(drv_pid, int))
-        
-        self.assertNotEqual(self._pagent, None)
-        pagent_pid = self._pagent.get_pid()
-        self.assertTrue(isinstance(pagent_pid, int))
-        
-        # Send a test message to the process interface, confirm result.
-        msg = 'I am a ZMQ message going to the process.'
-        reply = self._dvr_client.cmd_dvr('process_echo', msg)
-        self.assertEqual(reply,'process_echo: '+msg)
-        
-        # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-        
-        # Send a test message to the driver interface, confirm result.
-        msg = 'I am a ZMQ message going to the driver.'
-        reply = self._dvr_client.cmd_dvr('driver_echo', msg)
-        self.assertEqual(reply, 'driver_echo: '+msg)
-        
-        # Test the event thread publishes and client side picks up events.
-        events = [
-            'I am important event #1!',
-            'And I am important event #2!'
-            ]
-        reply = self._dvr_client.cmd_dvr('test_events', events=events)
-        gevent.sleep(1)
-        
-        # Confirm the events received are as expected.
-        self.assertEqual(self._events, events)
-
-        # Test the exception mechanism.
-        with self.assertRaises(InstrumentException):
-            exception_str = 'Oh no, something bad happened!'
-            reply = self._dvr_client.cmd_dvr('test_exceptions', exception_str)
-        
-        # Verify we received a driver error event.
-        gevent.sleep(1)
-        error_events = [evt for evt in self._events if isinstance(evt, dict) and evt['type']==DriverAsyncEvent.ERROR]
-        self.assertTrue(len(error_events) == 1)
-        
     def test_config(self):
         """
         Test to configure the driver process for device comms and transition
@@ -411,21 +227,21 @@ class Tests_INT(InstrumentDriverTestCase):
         """
 
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('configure', COMMS_CONFIG)
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Initialize the driver and transition to unconfigured.
-        reply = self._dvr_client.cmd_dvr('initialize')
+        reply = self.driver_client.cmd_dvr('initialize')
 
         # Test the driver returned state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
         
     def test_connect(self):
@@ -435,42 +251,42 @@ class Tests_INT(InstrumentDriverTestCase):
         """
         
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('configure', COMMS_CONFIG)
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('connect')
+        reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.COMMAND)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('disconnect')
+        reply = self.driver_client.cmd_dvr('disconnect')
 
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Initialize the driver and transition to unconfigured.
-        reply = self._dvr_client.cmd_dvr('initialize')
+        reply = self.driver_client.cmd_dvr('initialize')
     
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
         
     #@unittest.skip('DHE: TESTTESTTEST')
@@ -480,30 +296,30 @@ class Tests_INT(InstrumentDriverTestCase):
         """
 
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
-        reply = self._dvr_client.cmd_dvr('configure', COMMS_CONFIG)
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
-        reply = self._dvr_client.cmd_dvr('connect')
+        reply = self.driver_client.cmd_dvr('connect')
                 
         # Test the driver is in unknown state.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
                 
-        reply = self._dvr_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.COMMAND)
 
         # Get all device parameters. Confirm all expected keys are retrived
         # and have correct type.
-        reply = self._dvr_client.cmd_dvr('get', SBE16Parameter.ALL)
+        reply = self.driver_client.cmd_dvr('get', SBE16Parameter.ALL)
         self.assertParamDict(reply, True)
 
         # Remember original configuration.
@@ -516,7 +332,7 @@ class Tests_INT(InstrumentDriverTestCase):
             #SBE16Parameter.STORETIME,
             SBE16Parameter.TCALDATE
             ]
-        reply = self._dvr_client.cmd_dvr('get', params)
+        reply = self.driver_client.cmd_dvr('get', params)
         self.assertParamDict(reply)        
 
         # Remember the original subset.
@@ -532,34 +348,34 @@ class Tests_INT(InstrumentDriverTestCase):
         }
 
         # Set parameters and verify.
-        reply = self._dvr_client.cmd_dvr('set', new_params)
-        reply = self._dvr_client.cmd_dvr('get', params)
+        reply = self.driver_client.cmd_dvr('set', new_params)
+        reply = self.driver_client.cmd_dvr('get', params)
         self.assertParamVals(reply, new_params)
         
         # Restore original parameters and verify.
-        reply = self._dvr_client.cmd_dvr('set', orig_params)
-        reply = self._dvr_client.cmd_dvr('get', params)
+        reply = self.driver_client.cmd_dvr('set', orig_params)
+        reply = self.driver_client.cmd_dvr('get', params)
         self.assertParamVals(reply, orig_params)
 
         # Retrieve the configuration and ensure it matches the original.
         # Remove samplenum as it is switched by autosample and storetime.
-        reply = self._dvr_client.cmd_dvr('get', SBE16Parameter.ALL)
+        reply = self.driver_client.cmd_dvr('get', SBE16Parameter.ALL)
         reply.pop('SAMPLENUM')
         orig_config.pop('SAMPLENUM')
         self.assertParamVals(reply, orig_config)
 
         # Disconnect from the port agent.
-        reply = self._dvr_client.cmd_dvr('disconnect')
+        reply = self.driver_client.cmd_dvr('disconnect')
         
         # Test the driver is disconnected.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
         
         # Deconfigure the driver.
-        reply = self._dvr_client.cmd_dvr('initialize')
+        reply = self.driver_client.cmd_dvr('initialize')
         
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)        
     
     #@unittest.skip('DHE: TESTTESTTEST')
@@ -569,56 +385,56 @@ class Tests_INT(InstrumentDriverTestCase):
         """
 
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
-        reply = self._dvr_client.cmd_dvr('configure', COMMS_CONFIG)
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
-        reply = self._dvr_client.cmd_dvr('connect')
+        reply = self.driver_client.cmd_dvr('connect')
                 
         # Test the driver is in unknown state.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
                 
-        reply = self._dvr_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.COMMAND)
 
         # Poll for a sample and confirm result.
-        reply = self._dvr_client.cmd_dvr('execute_acquire_sample')
+        reply = self.driver_client.cmd_dvr('execute_acquire_sample')
         self.assertSampleDict(reply)
         
         # Poll for a sample and confirm result.
-        reply = self._dvr_client.cmd_dvr('execute_acquire_sample')
+        reply = self.driver_client.cmd_dvr('execute_acquire_sample')
         self.assertSampleDict(reply)
 
         # Poll for a sample and confirm result.
-        reply = self._dvr_client.cmd_dvr('execute_acquire_sample')
+        reply = self.driver_client.cmd_dvr('execute_acquire_sample')
         self.assertSampleDict(reply)
         
         # Confirm that 3 samples arrived as published events.
         gevent.sleep(1)
-        sample_events = [evt for evt in self._events if evt['type']==DriverAsyncEvent.SAMPLE]
+        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
         self.assertEqual(len(sample_events), 3)
 
         # Disconnect from the port agent.
-        reply = self._dvr_client.cmd_dvr('disconnect')
+        reply = self.driver_client.cmd_dvr('disconnect')
         
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
         
         # Deconfigure the driver.
-        reply = self._dvr_client.cmd_dvr('initialize')
+        reply = self.driver_client.cmd_dvr('initialize')
         
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
     #@unittest.skip('DHE: TESTTESTTEST')
@@ -628,28 +444,28 @@ class Tests_INT(InstrumentDriverTestCase):
         """
         
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('configure', COMMS_CONFIG)
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('connect')
+        reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.COMMAND)
         
         # Make sure the device parameters are set to sample frequently and
@@ -659,12 +475,12 @@ class Tests_INT(InstrumentDriverTestCase):
             SBE16Parameter.INTERVAL : 10, # Our borrowed SBE16plus takes no less than 10
             SBE16Parameter.TXREALTIME : True
         }
-        reply = self._dvr_client.cmd_dvr('set', params)
+        reply = self.driver_client.cmd_dvr('set', params)
         
-        reply = self._dvr_client.cmd_dvr('execute_start_autosample')
+        reply = self.driver_client.cmd_dvr('execute_start_autosample')
 
         # Test the driver is in autosample mode.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.AUTOSAMPLE)
         
         # Wait for a few samples to roll in.
@@ -676,7 +492,7 @@ class Tests_INT(InstrumentDriverTestCase):
         count = 0
         while True:
             try:
-                reply = self._dvr_client.cmd_dvr('execute_stop_autosample')
+                reply = self.driver_client.cmd_dvr('execute_stop_autosample')
             
             except InstrumentTimeoutException:
                 count += 1
@@ -687,25 +503,25 @@ class Tests_INT(InstrumentDriverTestCase):
                 break
 
         # Test the driver is in command mode.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.COMMAND)
 
         # Verify we received at least 2 samples.
-        sample_events = [evt for evt in self._events if evt['type']==DriverAsyncEvent.SAMPLE]
+        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
         self.assertTrue(len(sample_events) >= 2)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('disconnect')
+        reply = self.driver_client.cmd_dvr('disconnect')
 
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Initialize the driver and transition to unconfigured.
-        reply = self._dvr_client.cmd_dvr('initialize')
+        reply = self.driver_client.cmd_dvr('initialize')
     
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
     #@unittest.skip('Not supported by simulator and very long (> 5 min).')
@@ -714,60 +530,60 @@ class Tests_INT(InstrumentDriverTestCase):
         Test the hardware testing mode.
         """
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('configure', COMMS_CONFIG)
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('connect')
+        reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.COMMAND)
 
         start_time = time.time()
-        reply = self._dvr_client.cmd_dvr('execute_test')
+        reply = self.driver_client.cmd_dvr('execute_test')
 
         # Test the driver is in unknown state.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.TEST)
         
         while state != SBE16ProtocolState.COMMAND:
             gevent.sleep(5)
             elapsed = time.time() - start_time
             Log.info('Device testing %f seconds elapsed.' % elapsed)
-            state = self._dvr_client.cmd_dvr('get_current_state')
+            state = self.driver_client.cmd_dvr('get_current_state')
 
         # Verify we received the test result and it passed.
-        test_results = [evt for evt in self._events if evt['type']==DriverAsyncEvent.TEST_RESULT]
+        test_results = [evt for evt in self.events if evt['type']==DriverAsyncEvent.TEST_RESULT]
         self.assertTrue(len(test_results) == 1)
         self.assertEqual(test_results[0]['value']['success'], 'Passed')
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('disconnect')
+        reply = self.driver_client.cmd_dvr('disconnect')
 
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Initialize the driver and transition to unconfigured.
-        reply = self._dvr_client.cmd_dvr('initialize')
+        reply = self.driver_client.cmd_dvr('initialize')
     
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
     def test_errors(self):
@@ -776,90 +592,90 @@ class Tests_INT(InstrumentDriverTestCase):
         """
         
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Assert for an unknown driver command.
         with self.assertRaises(InstrumentCommandException):
-            reply = self._dvr_client.cmd_dvr('bogus_command')
+            reply = self.driver_client.cmd_dvr('bogus_command')
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
-            reply = self._dvr_client.cmd_dvr('execute_acquire_sample')
+            reply = self.driver_client.cmd_dvr('execute_acquire_sample')
 
         # Assert we forgot the comms parameter.
         with self.assertRaises(InstrumentParameterException):
-            reply = self._dvr_client.cmd_dvr('configure')
+            reply = self.driver_client.cmd_dvr('configure')
 
         # Assert we send a bad config object (not a dict).
         with self.assertRaises(InstrumentParameterException):
             BOGUS_CONFIG = 'not a config dict'            
-            reply = self._dvr_client.cmd_dvr('configure', BOGUS_CONFIG)
+            reply = self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
             
         # Assert we send a bad config object (missing addr value).
         with self.assertRaises(InstrumentParameterException):
-            BOGUS_CONFIG = COMMS_CONFIG.copy()
+            BOGUS_CONFIG = self.port_agent_comm_config().copy()
             BOGUS_CONFIG.pop('addr')
-            reply = self._dvr_client.cmd_dvr('configure', BOGUS_CONFIG)
+            reply = self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
 
         # Assert we send a bad config object (bad addr value).
         with self.assertRaises(InstrumentParameterException):
-            BOGUS_CONFIG = COMMS_CONFIG.copy()
+            BOGUS_CONFIG = self.port_agent_comm_config().copy()
             BOGUS_CONFIG['addr'] = ''
-            reply = self._dvr_client.cmd_dvr('configure', BOGUS_CONFIG)
+            reply = self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
         
         # Configure for comms.
-        reply = self._dvr_client.cmd_dvr('configure', COMMS_CONFIG)
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
-            reply = self._dvr_client.cmd_dvr('execute_acquire_sample')
+            reply = self.driver_client.cmd_dvr('execute_acquire_sample')
 
-        reply = self._dvr_client.cmd_dvr('connect')
+        reply = self.driver_client.cmd_dvr('connect')
                 
         # Test the driver is in unknown state.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
-            reply = self._dvr_client.cmd_dvr('execute_acquire_sample')
+            reply = self.driver_client.cmd_dvr('execute_acquire_sample')
                 
-        reply = self._dvr_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.COMMAND)
 
         # Poll for a sample and confirm result.
-        reply = self._dvr_client.cmd_dvr('execute_acquire_sample')
+        reply = self.driver_client.cmd_dvr('execute_acquire_sample')
         self.assertSampleDict(reply)
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
-            reply = self._dvr_client.cmd_dvr('execute_stop_autosample')
+            reply = self.driver_client.cmd_dvr('execute_stop_autosample')
         
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
-            reply = self._dvr_client.cmd_dvr('connect')
+            reply = self.driver_client.cmd_dvr('connect')
 
         # Get all device parameters. Confirm all expected keys are retrived
         # and have correct type.
-        reply = self._dvr_client.cmd_dvr('get', SBE16Parameter.ALL)
+        reply = self.driver_client.cmd_dvr('get', SBE16Parameter.ALL)
         self.assertParamDict(reply, True)
         
         # Assert get fails without a parameter.
         with self.assertRaises(InstrumentParameterException):
-            reply = self._dvr_client.cmd_dvr('get')
+            reply = self.driver_client.cmd_dvr('get')
             
         # Assert get fails without a bad parameter (not ALL or a list).
         with self.assertRaises(InstrumentParameterException):
             bogus_params = 'I am a bogus param list.'
-            reply = self._dvr_client.cmd_dvr('get', bogus_params)
+            reply = self.driver_client.cmd_dvr('get', bogus_params)
             
         # Assert get fails without a bad parameter (not ALL or a list).
         #with self.assertRaises(InvalidParameterValueError):
@@ -870,34 +686,34 @@ class Tests_INT(InstrumentDriverTestCase):
                 #SBE16Parameter.STORETIME,
                 SBE16Parameter.TCALDATE
                 ]
-            reply = self._dvr_client.cmd_dvr('get', bogus_params)        
+            reply = self.driver_client.cmd_dvr('get', bogus_params)        
         
         # Assert we cannot set a bogus parameter.
         with self.assertRaises(InstrumentParameterException):
             bogus_params = {
                 'a bogus parameter name' : 'bogus value'
             }
-            reply = self._dvr_client.cmd_dvr('set', bogus_params)
+            reply = self.driver_client.cmd_dvr('set', bogus_params)
             
         # Assert we cannot set a real parameter to a bogus value.
         with self.assertRaises(InstrumentParameterException):
             bogus_params = {
                 SBE16Parameter.INTERVAL : 'bogus value'
             }
-            reply = self._dvr_client.cmd_dvr('set', bogus_params)
+            reply = self.driver_client.cmd_dvr('set', bogus_params)
         
         # Disconnect from the port agent.
-        reply = self._dvr_client.cmd_dvr('disconnect')
+        reply = self.driver_client.cmd_dvr('disconnect')
         
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
         
         # Deconfigure the driver.
-        reply = self._dvr_client.cmd_dvr('initialize')
+        reply = self.driver_client.cmd_dvr('initialize')
         
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
     
     @unittest.skip('Not supported by simulator.')
@@ -907,28 +723,28 @@ class Tests_INT(InstrumentDriverTestCase):
         """
         
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('configure', COMMS_CONFIG)
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('connect')
+        reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.COMMAND)
         
         # Make sure the device parameters are set to sample frequently.
@@ -936,53 +752,53 @@ class Tests_INT(InstrumentDriverTestCase):
             SBE16Parameter.NAVG : 1,
             SBE16Parameter.INTERVAL : 5
         }
-        reply = self._dvr_client.cmd_dvr('set', params)
+        reply = self.driver_client.cmd_dvr('set', params)
         
-        reply = self._dvr_client.cmd_dvr('execute_start_autosample')
+        reply = self.driver_client.cmd_dvr('execute_start_autosample')
 
         # Test the driver is in autosample mode.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.AUTOSAMPLE)
     
         # Let a sample or two come in.
         gevent.sleep(30)
     
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('disconnect')
+        reply = self.driver_client.cmd_dvr('disconnect')
 
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Initialize the driver and transition to unconfigured.
-        reply = self._dvr_client.cmd_dvr('initialize')
+        reply = self.driver_client.cmd_dvr('initialize')
     
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Wait briefly before we restart the comms.
         gevent.sleep(10)
     
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('configure', COMMS_CONFIG)
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('connect')
+        reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
         count = 0
         while True:
             try:        
-                reply = self._dvr_client.cmd_dvr('discover')
+                reply = self.driver_client.cmd_dvr('discover')
 
             except InstrumentTimeoutException:
                 count += 1
@@ -993,7 +809,7 @@ class Tests_INT(InstrumentDriverTestCase):
                 break
 
         # Test the driver is in command mode.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.AUTOSAMPLE)
 
         # Let a sample or two come in.
@@ -1005,7 +821,7 @@ class Tests_INT(InstrumentDriverTestCase):
         count = 0
         while True:
             try:
-                reply = self._dvr_client.cmd_dvr('execute_stop_autosample')
+                reply = self.driver_client.cmd_dvr('execute_stop_autosample')
             
             except InstrumentTimeoutException:
                 count += 1
@@ -1016,21 +832,21 @@ class Tests_INT(InstrumentDriverTestCase):
                 break
 
         # Test the driver is in command mode.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE16ProtocolState.COMMAND)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self._dvr_client.cmd_dvr('disconnect')
+        reply = self.driver_client.cmd_dvr('disconnect')
 
         # Test the driver is configured for comms.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Initialize the driver and transition to unconfigured.
-        reply = self._dvr_client.cmd_dvr('initialize')
+        reply = self.driver_client.cmd_dvr('initialize')
     
         # Test the driver is in state unconfigured.
-        state = self._dvr_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
         
         
@@ -1042,7 +858,7 @@ class Tests_INT(InstrumentDriverTestCase):
 ###############################################################################
 
 @attr('QUAL', group='mi')
-class Tests_QUAL(DriverQualificationTestCase):
+class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
     """Qualification Test Container"""
 
     # Qualification tests live in the base class.  This class is extended
@@ -1050,36 +866,3 @@ class Tests_QUAL(DriverQualificationTestCase):
     # (UNIT, INT, and QUAL) are run.
     pass
 
-###############################################################################
-# Auto generated code.  There should rarely be reason to edit anything below. #
-###############################################################################
-
-class IntFromIDK(Tests_INT):
-    """
-    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    called from the IDK test_driver program
-    """
-    @classmethod
-    def init_comm(cls):
-        pass
-        #cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
-
-class UnitFromIDK(Tests_UNIT):
-    """
-    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    called from the IDK test_driver program
-    """
-    @classmethod
-    def init_comm(cls):
-        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
-
-class QualFromIDK(Tests_QUAL):
-    """
-    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    called from the IDK test_driver program
-    """
-    @classmethod
-    def init_comm(cls):
-        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
-
-        
