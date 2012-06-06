@@ -12,8 +12,8 @@ __license__ = 'Apache 2.0'
 
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
-    ClientException, TimeoutException
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import Client
+    EOLN, ClientException, TimeoutException
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import VadcpClient
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_driver import DriverConnectionState
@@ -33,8 +33,6 @@ from mi.core.mi_logger import mi_logger as log
 ####################################################################
 # Module-wide values
 ####################################################################
-
-EOLN = "\r\n"
 
 # TODO define Packet config for data granules.
 PACKET_CONFIG = {}
@@ -81,8 +79,8 @@ class ProtocolEvent(BaseEnum):
     RUN_RECORDER_TESTS = 'RUN_RECORDER_TESTS'
     RUN_ALL_TESTS = 'RUN_ALL_TESTS'
 
-    AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    BREAK = DriverEvent.BREAK
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
 
     STOP = DriverEvent.STOP_AUTOSAMPLE
     POLL = 'POLL_MODE'
@@ -138,16 +136,19 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND_MODE,
                                        ProtocolEvent.RUN_ALL_TESTS,
                                        self._handler_command_run_all_tests)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND_MODE,
+                                       ProtocolEvent.START_AUTOSAMPLE,
+                                       self._handler_command_autosample)
+
+        # AUTOSAMPLE_MODE
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE_MODE,
+                                       ProtocolEvent.STOP_AUTOSAMPLE,
+                                       self._handler_autosample_stop)
 
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
     def execute_init_protocol(self, *args, **kwargs):
         """
-        (This is the operation called execute_init_device in PAR)
-        Transition the device to a known protocol state, which is initialized
-        in UNKNOWN.
-        Upon connection, this should be the first invoked operation before any
-        other.
         """
         return self._protocol_fsm.on_event(ProtocolEvent.INITIALIZE,
                                            *args, **kwargs)
@@ -174,15 +175,6 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
         """
         """
         return self._protocol_fsm.on_event(ProtocolEvent.RUN_ALL_TESTS,
-                                           *args, **kwargs)
-
-    def execute_break(self, *args, **kwargs):
-        """ Execute the break command
-
-        @retval None if nothing was done, otherwise result of FSM event handle
-        @throws InstrumentProtocolException On invalid command or missing
-        """
-        return self._protocol_fsm.on_event(ProtocolEvent.BREAK,
                                            *args, **kwargs)
 
     ################
@@ -292,17 +284,65 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
+    def _handler_autosample_stop(self, *args, **kwargs):
+        """
+        """
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("args=%s kwargs=%s" % (str(args), str(kwargs)))
+
+        next_state = None
+        result = None
+
+        duration = int(kwargs.get('duration', 1000))
+
+        try:
+            result = self._connection.send_break(duration)
+            next_state = ProtocolState.COMMAND_MODE
+        except TimeoutException, e:
+            raise InstrumentTimeoutException(msg=str(e))
+        except ClientException, e:
+            log.warn("ClientException while send_break: %s" %
+                     str(e))
+            raise InstrumentException('ClientException: %s' % str(e))
+
+        return (next_state, result)
+
+    def _handler_command_autosample(self, *args, **kwargs):
+        """
+        """
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("args=%s kwargs=%s" % (str(args), str(kwargs)))
+
+        next_state = None
+        result = None
+
+        timeout = kwargs.get('timeout', self._timeout)
+
+        try:
+            result = self._connection.start_autosample(timeout=timeout)
+            next_state = ProtocolState.AUTOSAMPLE_MODE
+        except TimeoutException, e:
+            raise InstrumentTimeoutException(msg=str(e))
+        except ClientException, e:
+            log.warn("ClientException while start_autosample: %s" %
+                     str(e))
+            raise InstrumentException('ClientException: %s' % str(e))
+
+        return (next_state, result)
+
+    ########################################################################
+    # Incomming data callback.
+    ########################################################################
+    def got_data(self, data):
+        CommandResponseInstrumentProtocol.got_data(self, data)
+        log.info("!!!!!!!!!!!!!!!!!!!got_data: data = %s" % str(data))
+
     ###################################################################
     # Helpers
     ###################################################################
 
     def _wakeup(self, timeout):
         """There is no wakeup sequence for this instrument"""
-        pass
-
-    def _send_break(self, timeout=10):
-        """
-        """
         pass
 
 
@@ -328,24 +368,20 @@ class VadcpDriver(SingleConnectionInstrumentDriver):
         """
         log.info('_build_connection: config=%s' % config)
 
+        outfile = file('vadcp_output.txt', 'w')
+
+        log.info("setting VadcpClient with config: %s" % config)
+        try:
+            client = VadcpClient(config, outfile, True)
+        except (TypeError, KeyError):
+            raise InstrumentParameterException('Invalid comms config dict.'
+                                               ' config=%s' % config)
         def _data_listener(sample):
             log.info("_data_listener: sample = %s" % str(sample))
+            self._driver_event(DriverAsyncEvent.SAMPLE, val=sample)
 
-        try:
-            addr = config['addr']
-            port = config['port']
-
-            if isinstance(addr, str) and isinstance(port, int):
-                outfile = file('vadcp_output.txt', 'w')
-                log.info("setting Client to connect to %s:%s" % (addr, port))
-                client = Client(addr, port, outfile, True)
-                client.set_data_listener(_data_listener)
-                return client
-            else:
-                raise InstrumentParameterException('Invalid comms config dict.')
-
-        except (TypeError, KeyError):
-            raise InstrumentParameterException('Invalid comms config dict.')
+        client.set_data_listener(_data_listener)
+        return client
 
     def _build_protocol(self):
         """ Construct driver protocol"""

@@ -15,27 +15,27 @@ from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.driver0 import 
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test import VadcpTestCase
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.driver_test_mixin import DriverTestMixin
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.receiver import \
+    ReceiverBuilder
+
 from nose.plugins.attrib import attr
 
 from mi.core.mi_logger import mi_logger as log
-
-import os
 
 
 @attr('UNIT', group='mi')
 class DriverTest(VadcpTestCase, DriverTestMixin):
     """
-    Direct tests to the Driver class. The actual set of tests
+    Direct tests to the VadcpDriver class. The actual set of tests
     is provided by DriverTestMixin.
     """
 
     def setUp(self):
         """
         Calls VadcpTestCase.setUp(self), creates and assigns the
-        Driver instance, and assign the comm_config object.
+        VadcpDriver instance, and assign the comm_config object.
         """
-
-        os.environ["green_rcvr"] = "y"
+        ReceiverBuilder.use_greenlets()
 
         VadcpTestCase.setUp(self)
 
@@ -44,6 +44,4 @@ class DriverTest(VadcpTestCase, DriverTestMixin):
 
         # needed by DriverTestMixin
         self.driver = VadcpDriver(evt_callback)
-        self.comms_config = {
-            'addr': self.device_address,
-            'port': self.device_port}
+        self.comms_config = self._conn_config

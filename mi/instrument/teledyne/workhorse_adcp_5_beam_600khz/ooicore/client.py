@@ -18,31 +18,31 @@ import socket
 import sys
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
-    DEFAULT_GENERIC_TIMEOUT, State, TimeoutException, MetadataSections
+    EOLN, DEFAULT_GENERIC_TIMEOUT, State, TimeoutException, MetadataSections
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util import \
+    connect_socket, prefix
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.receiver import \
-    build_receiver
+    ReceiverBuilder
 
 import logging
 from mi.core.mi_logger import mi_logger as log
 
 
-class Client(object):
+class VadcpClient(object):
     """
     A basic client to the instrument.
     """
 
-    def __init__(self, host, port, outfile=None, prefix_state=True):
+    def __init__(self, conn_config, outfile=None, prefix_state=True):
         """
-        Creates a Client instance.
+        Creates a VadcpClient instance.
 
-        @param host
-        @param port
+        @param conn_config connection configuration
         @param outfile
         @param prefix_state
 
         """
-        self._host = host
-        self._port = port
+        self._conn_config = conn_config
         self._outfile = outfile
         self._prefix_state = prefix_state
         self._sock = None
@@ -76,57 +76,31 @@ class Client(object):
     def init_comms(self, callback=None):
         """
         Just calls self.connect()
-        @param callback ignored
+        @param callback ignored.
         """
         self.connect()
 
-    def connect(self, max_attempts=4, time_between_attempts=10):
+    def connect(self):
         """
         Establishes the connection and starts the receiving thread.
-        The connection is attempted a number of times.
-        @param max_attempts Maximum number of socket connection attempts
-                            (4 by default).
-        @param time_between_attempts Time in seconds between attempts
-                            (10 seconds by default).
+
         @throws socket.error The socket.error that was raised during the
-                         last attempt.
+                         last attempt to connect the socket.
         """
         assert self._sock is None
 
-        host, port = self._host, self._port
-        last_error = None
-        attempt = 0
-        while self._sock is None and attempt < max_attempts:
-            attempt += 1
-            log.info("Trying to connect to %s:%s (attempt=%d)" %
-                     (host, port, attempt))
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.connect((host, port))
-                self._sock = sock  # success.
-            except socket.error, e:
-                log.info("Socket error while trying to connect: %s" %
-                          str(e))
-                last_error = e
-                if attempt < max_attempts:
-                    log.info("Re-attempting in %s secs ..." %
-                              str(time_between_attempts))
-                    sleep(time_between_attempts)
+        host = self._conn_config['four_beam']['address']
+        port = self._conn_config['four_beam']['port']
 
-        if self._sock:
-            log.info("Connected to %s:%s" % (host, port))
+        self._sock = connect_socket(host, port)
 
-#            self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1)
-
-            log.info("creating _Receiver")
-            self._rt = build_receiver(self._sock,
-                                 outfile=self._outfile,
-                                 data_listener=self._data_listener,
-                                 prefix_state=self._prefix_state)
-            log.info("starting _Receiver")
-            self._rt.start()
-        else:
-            raise last_error
+        log.info("creating _Receiver")
+        self._rt = ReceiverBuilder.build_receiver(self._sock,
+                                  outfile=self._outfile,
+                                  data_listener=self._data_listener,
+                                  prefix_state=self._prefix_state)
+        log.info("starting _Receiver")
+        self._rt.start()
 
     def stop_comms(self):
         """
@@ -177,7 +151,7 @@ class Client(object):
         """
         self._rt.reset_internal_info()
         sleep(self._delay_before_send)
-        s = string.rstrip() + '\r\n'
+        s = string.rstrip() + EOLN
         self._send(s, info)
 
     def send_and_expect_prompt(self, string, timeout=None):
@@ -284,7 +258,124 @@ class Client(object):
 
         return "\n".join(lines)
 
-    def user_loop(self):
+    def start_autosample(self, timeout=None):
+        """
+        PD0 - Binary output data format
+        CS - Start pinging
+        """
+
+        timeout = timeout or self._generic_timeout
+
+        # TODO eventually keep current state with enough reliability to
+        # check whether we are already in streaming mode ...
+#        if self._rt.state == State.COLLECTING_DATA:
+#            return  # already streaming
+        # ... to just return if already streaming.
+
+        # However, for the moment, force a break:
+        self.send_break(timeout=timeout)
+        # and continue with regular steps to start autosampling:
+
+        self._get_prompt()
+
+        # send PD0 - Binary output data format
+        self.send_and_expect_prompt("PD0", timeout)
+
+        # send CS - Start pinging
+        self.send("CS")
+        sleep(1)
+        time_limit = time.time() + timeout
+        while self._rt.state != State.COLLECTING_DATA and time.time() <= \
+                                                          time_limit:
+            sleep(0.4)
+            time_limit = self._rt.recv_time + timeout
+
+        if self._rt.state != State.COLLECTING_DATA:
+            raise TimeoutException(
+                    timeout, expected_state=State.COLLECTING_DATA,
+                    curr_state=self._rt.state, lines=self._rt.lines)
+
+    def stop_autosample(self, timeout=None):
+        """
+        Sends a "break" command via the OOI Digi connection
+        """
+
+        if self._rt.state != State.COLLECTING_DATA:
+            return  # not streaming
+
+        timeout = timeout or self._generic_timeout
+
+        self.send_break(timeout=timeout)
+        self._get_prompt()
+
+    ###############################################
+    # OOI Digi
+    ###############################################
+
+    def _connect_ooi_digi(self):
+        """
+        Establishes the connection to the OOI digi
+        """
+
+        host = self._conn_config['ooi_digi']['address']
+        port = self._conn_config['ooi_digi']['port']
+
+        sock = connect_socket(host, port)
+
+        outfile = open('vadcp_ooi_digi_output.txt', 'a')
+        log.info("creating OOI Digi _Receiver")
+        rt = ReceiverBuilder.build_receiver(sock, outfile=outfile)
+        log.info("starting OOI Digi _Receiver")
+        rt.start()
+
+        return (sock, rt)
+
+    def send_break(self, duration=1000, attempts=3, timeout=None):
+        """
+        Issues a "break <duration>" command to the OOI digi.
+
+        @param duration Duration for the break command (by default 1000)
+        @param attempts Max number of attempts, 3 by default.
+        @param timeout
+
+        @retval True iff the command has had effect.
+        """
+
+        timeout = timeout or self._generic_timeout
+
+        # TODO the expectation below should be getting the corresponding
+        # response on the regular raw port.
+
+        sock, rt = self._connect_ooi_digi()
+        ok = False
+        try:
+            for a in xrange(attempts):
+                time.sleep(1)
+                rt.reset_internal_info()
+                log.info("Sending break (attempt=%d)" % (a + 1))
+                sock.send("break %s%s" % (duration, EOLN))
+                time.sleep(2)
+                response = "\n".join(rt.lines)
+                ok = response.find("Sending Serial Break") >= 0
+                if ok:
+                    break
+        finally:
+            log.info("ending OOI Digi receiver")
+            rt.end()
+            time.sleep(2)
+
+            sock.close()
+            log.info("socket to OOI Digi closed")
+
+        return ok
+
+
+def main(host, port, outfile):
+    """
+    Demo program:
+    """
+
+    def user_loop(client):
         """
         Sends lines received from stdin to the socket. EOF and "q" break the
         loop.
@@ -294,17 +385,13 @@ class Client(object):
             if not cmd or cmd.strip() == "q":
                 break
             else:
-                self.send(cmd)
+                client.send(cmd)
 
 
-def main(host, port, outfile):
-    """
-    Demo program:
-    """
-    client = Client(host, port, outfile)
+    client = VadcpClient(host, port, outfile)
     try:
         client.connect()
-        client.user_loop()
+        user_loop(client)
 
 #        pd0 = client.get_latest_ensemble()
 #        print "get_latest_ensemble=%s" % str(pd0)
