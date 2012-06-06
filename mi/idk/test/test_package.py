@@ -10,23 +10,28 @@
 __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
+from shutil import rmtree
 from os.path import basename, dirname
-from os import makedirs
+from os import makedirs, path, remove
 from os.path import exists
 import sys
 
 from nose.plugins.attrib import attr
 from mock import Mock
 import unittest
+from time import sleep
 
-from pyon.util.log import log
+from mi.core.logger import Log
+#from pyon.util.log import log
 from mi.idk.metadata import Metadata
 from mi.idk.driver_generator import DriverGenerator
 
 from mi.idk.exceptions import NotPython
 from mi.idk.exceptions import NoRoot
 from mi.idk.exceptions import FileNotFound
+from mi.idk.exceptions import ValidationFailure
 
+from mi.idk.config import Config
 from mi.idk.egg_generator import DriverFileList
 from mi.idk.egg_generator import DependencyList
 from mi.idk.egg_generator import EggGenerator
@@ -37,7 +42,6 @@ ROOTDIR="/tmp/test_package.idk_test"
 if exists("/private/tmp"):
     ROOTDIR = "/private%s" % ROOTDIR
 TESTDIR="%s/mi/foo" % ROOTDIR
-
 
 @attr('UNIT', group='mi')
 class IDKPackageNose(unittest.TestCase):
@@ -149,7 +153,7 @@ class IDKPackageNose(unittest.TestCase):
         dependencies of this file.
         """
         destdir = dirname(self.resfile())
-        log.debug(self.resfile())
+        #log.debug(self.resfile())
         if not exists(destdir):
             makedirs(destdir)
         
@@ -273,6 +277,7 @@ class TestDependencyList(IDKPackageNose):
 
         self.assertEqual(internal_deps, dep_list)
 
+
     def test_external_dependencies(self):
         """
         Test external the dependency lists.  This should exclude
@@ -330,8 +335,8 @@ class TestDriverFileList(IDKPackageNose):
         
         files = filelist._extra_files()
 
-        log.debug(sorted(files))
-        log.debug(sorted(known_files))
+        #log.debug(sorted(files))
+        #log.debug(sorted(known_files))
 
         self.assertEqual(sorted(files), sorted(known_files))
         
@@ -357,9 +362,135 @@ class TestDriverFileList(IDKPackageNose):
         ]
         
         files = filelist.files()
-        log.debug( "F: %s" % files)
+        #log.debug( "F: %s" % files)
 
         self.assertEqual(sorted(files), sorted(known_files))
-        pass
-        
-        
+
+    def test_sbe37_list(self):
+        metadata = Metadata('seabird', 'sbe37smb', 'example')
+        filelist = DriverFileList(metadata, Config().get('working_repo'))
+        known_files = ['mi/instrument/seabird/sbe37smb/example/comm_config.yml',
+                       'mi/instrument/seabird/sbe37smb/example/metadata.yml',
+                       'mi/__init__.py',
+                       'mi/core/__init__.py',
+                       'mi/core/common.py',
+                       'mi/core/exceptions.py',
+                       'mi/core/instrument/__init__.py',
+                       'mi/core/instrument/instrument_driver.py',
+                       'mi/core/instrument/instrument_fsm.py',
+                       'mi/core/instrument/instrument_protocol.py',
+                       'mi/core/instrument/protocol_param_dict.py',
+                       'mi/core/logger.py',
+                       'mi/instrument/__init__.py',
+                       'mi/instrument/seabird/__init__.py',
+                       'mi/instrument/seabird/sbe37smb/__init__.py',
+                       'mi/instrument/seabird/sbe37smb/example/__init__.py',
+                       'mi/instrument/seabird/sbe37smb/example/driver.py',
+                       'mi/core/instrument/driver_client.py',
+                       'mi/core/instrument/driver_process.py',
+                       'mi/core/instrument/zmq_driver_client.py',
+                       'mi/core/instrument/zmq_driver_process.py',
+                       'mi/idk/__init__.py',
+                       'mi/idk/comm_config.py',
+                       'mi/idk/common.py',
+                       'mi/idk/config.py',
+                       'mi/idk/exceptions.py',
+                       'mi/idk/prompt.py',
+                       'mi/idk/unit_test.py',
+                       'mi/instrument/seabird/sbe37smb/example/test/__init__.py',
+                       'mi/instrument/seabird/sbe37smb/example/test/test_driver.py']
+
+        files = filelist.files()
+        self.assertEqual(sorted(files), sorted(known_files))
+
+@attr('UNIT', group='mi')
+class TestDriverEggGenerator(IDKPackageNose):
+    """
+    Test the egg generation process
+    """
+    def setUp(self):
+        IDKPackageNose.setUp(self)
+
+
+        self._metadata = Metadata('seabird', 'sbe37smb', 'example')
+        self._generator = EggGenerator(self._metadata)
+
+        # Ensure the base build dir doesnt exists
+        build_dir = path.join(self._generator._tmp_dir(), self._generator._build_name())
+        if exists(build_dir):
+            rmtree(build_dir)
+            self._generator._generate_build_dir()
+
+        self._repo_dir = Config().get('working_repo')
+        self._tmp_dir  = Config().get('tmp_dir')
+
+    def tearDown(self):
+        IDKPackageNose.tearDown(self)
+        if exists(self._generator._build_dir()):
+            rmtree(self._generator._build_dir())
+
+
+    def test_path(self):
+        """
+        Test the object paths
+        """
+        known_name = "%s_%s_%s_%s" % (
+            self._metadata.driver_make,
+            self._metadata.driver_model,
+            self._metadata.driver_name,
+            self._metadata.version,
+            )
+
+        self.assertEqual(self._generator._tmp_dir(), self._tmp_dir)
+        self.assertEqual(self._generator._repo_dir(), self._repo_dir)
+        self.assertEqual(self._generator._setup_path(), path.join(self._tmp_dir,self._generator._build_name(),'setup.py'))
+        self.assertEqual(self._generator._build_name(), known_name)
+        self.assertEqual(self._generator._build_dir(), path.join(self._tmp_dir,self._generator._build_name()))
+
+    def test_build_dir_create(self):
+        """
+        test to ensure that the build dir is created properly
+        """
+        build_dir_orig = self._generator._generate_build_dir()
+        self.assertFalse(exists(build_dir_orig))
+        makedirs(build_dir_orig)
+        self.assertTrue(exists(build_dir_orig))
+
+        build_dir = self._generator._generate_build_dir()
+
+        rmtree(build_dir_orig)
+        self.assertFalse(exists(build_dir_orig))
+
+        self.assertEqual(build_dir, "%s.001" % build_dir_orig)
+
+
+    def test_version_verify(self):
+        with self.assertRaises(ValidationFailure):
+            self._generator._verify_version(0)
+
+        with self.assertRaises(ValidationFailure):
+            self._generator._verify_version("5.1")
+
+        with self.assertRaises(ValidationFailure):
+            self._generator._verify_version(-1)
+
+        with self.assertRaises(ValidationFailure):
+            self._generator._verify_version("-1.1.1")
+
+        self._generator._verify_version("1.1.1")
+
+
+    def test_egg_build(self):
+        files = [ 'mi/instrument/seabird/sbe37smb/example/driver.py',
+                  'mi/instrument/seabird/sbe37smb/example/test/test_driver.py']
+
+        egg_file = self._generator._build_egg(files)
+        self.assertTrue(exists(egg_file))
+
+
+    def test_sbe37_egg(self):
+        egg_file = self._generator.save()
+        self.assertTrue(exists(egg_file))
+
+
+

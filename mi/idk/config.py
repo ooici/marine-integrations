@@ -44,6 +44,7 @@ CONFIG_FILENAME = "idk.yml"
 DEFAULT_CONFIG = "extern/ion-definitions/res/config/idk.yml"
 IDK_YAML_GROUP = "idk"
 YAML_CONFIG_WORKING_REPO = "working_repo"
+YAML_CONFIG_TEMPLATE_DIR = "template_dir"
 
 MI_REPO_NAME = "marine-integrations"
 
@@ -196,7 +197,7 @@ class Config(object):
         @brief directory where code templates are stored
         @retval template dir name
         """
-        return os.path.join(self.base_dir(), "extern/coi-services/mi.idk/templates")
+        return self.cm.get(YAML_CONFIG_TEMPLATE_DIR)
         
     def rebase(self):
         """

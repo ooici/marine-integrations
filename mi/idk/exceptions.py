@@ -35,7 +35,11 @@ class TestNoCommConfig(IDKException):
 class TestNoDeployFile(IDKException):
     """Can't find container deploy file"""
     pass
-    
+
+class ValidationFailure(IDKException):
+    """egg generation validation failure"""
+    pass
+
 class InvalidParameters(IDKException):
     """Wrong parameters sent"""
     pass

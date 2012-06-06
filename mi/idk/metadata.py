@@ -107,7 +107,7 @@ class Metadata():
         if(driver_make and driver_model and driver_name):
             log.debug("Construct from parameters")
             if(os.path.isfile(self.metadata_path())):
-                self.read_from_file()
+                self.read_from_file(self.metadata_path())
             
         elif(not(driver_make or driver_model or driver_name)):
             self.read_from_file()

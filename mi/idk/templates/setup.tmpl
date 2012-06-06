@@ -1,0 +1,15 @@
+from setuptools import setup
+
+setup(
+    name='${name}',
+    version='${version}',
+    description='${description}',
+    author='${author}',
+    author_email='${email}',
+    url='${url}',
+    entry_points = {
+        'setuptools.installation': [
+            'eggsecutable = my_package.some_module:main_func',
+        ]
+    }
+)
