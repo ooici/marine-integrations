@@ -14,6 +14,7 @@ __license__ = 'Apache 2.0'
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
     ClientException, TimeoutException
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import VadcpClient
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util import prefix
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_driver import InstrumentDriver
@@ -57,6 +58,8 @@ class VadcpDriver(InstrumentDriver):
         """
         InstrumentDriver.__init__(self, evt_callback)
 
+        self._ensembles_recd = 0
+
         # _client created in configure()
         self._client = None
 
@@ -86,6 +89,11 @@ class VadcpDriver(InstrumentDriver):
         if cs != state:
             raise InstrumentStateException(
                     "current state=%s, expected=%s" % (cs, state))
+
+    def _data_listener(self, pd0):
+        self._ensembles_recd += 1
+        log.info("_data_listener: received PD0=%s" % prefix(pd0))
+        self._driver_event(DriverAsyncEvent.SAMPLE, val=pd0)
 
     #############################################################
     # Device connection interface.
@@ -148,10 +156,6 @@ class VadcpDriver(InstrumentDriver):
         except (TypeError, KeyError):
             raise InstrumentParameterException('Invalid comms config dict.'
                                                ' config=%s' % config)
-        def _data_listener(sample):
-            log.info("_data_listener: sample = %s" % str(sample))
-
-        self._client.set_data_listener(_data_listener)
 
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._state = DriverState.DISCONNECTED
@@ -171,6 +175,7 @@ class VadcpDriver(InstrumentDriver):
 
         self._assert_state(DriverState.DISCONNECTED)
 
+        self._client.set_data_listener(self._data_listener)
         self._client.connect()
 
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -271,7 +276,7 @@ class VadcpDriver(InstrumentDriver):
                      str(e))
             raise InstrumentException('ClientException: %s' % str(e))
 
-    def execute_break(self, *args, **kwargs):
+    def execute_start_autosample(self, *args, **kwargs):
         if log.isEnabledFor(logging.DEBUG):
             log.debug("args=%s kwargs=%s" % (str(args), str(kwargs)))
 
@@ -280,12 +285,30 @@ class VadcpDriver(InstrumentDriver):
         timeout = kwargs.get('timeout', self._timeout)
 
         try:
-            result = self._client.send_break(timeout=timeout)
+            result = self._client.start_autosample(timeout=timeout)
             return result
         except TimeoutException, e:
             raise InstrumentTimeoutException(msg=str(e))
         except ClientException, e:
-            log.warn("ClientException while send_break: %s" %
+            log.warn("ClientException while start_autosample: %s" %
+                     str(e))
+            raise InstrumentException('ClientException: %s' % str(e))
+
+    def execute_stop_autosample(self, *args, **kwargs):
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("args=%s kwargs=%s" % (str(args), str(kwargs)))
+
+        self._assert_state(DriverState.CONNECTED)
+
+        timeout = kwargs.get('timeout', self._timeout)
+
+        try:
+            result = self._client.stop_autosample(timeout=timeout)
+            return result
+        except TimeoutException, e:
+            raise InstrumentTimeoutException(msg=str(e))
+        except ClientException, e:
+            log.warn("ClientException while stop_autosample: %s" %
                      str(e))
             raise InstrumentException('ClientException: %s' % str(e))
 

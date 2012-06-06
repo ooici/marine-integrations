@@ -79,8 +79,8 @@ class ProtocolEvent(BaseEnum):
     RUN_RECORDER_TESTS = 'RUN_RECORDER_TESTS'
     RUN_ALL_TESTS = 'RUN_ALL_TESTS'
 
-    AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    BREAK = DriverEvent.BREAK
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
 
     STOP = DriverEvent.STOP_AUTOSAMPLE
     POLL = 'POLL_MODE'
@@ -137,13 +137,13 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
                                        ProtocolEvent.RUN_ALL_TESTS,
                                        self._handler_command_run_all_tests)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND_MODE,
-                                       ProtocolEvent.BREAK,
-                                       self._handler_break)
+                                       ProtocolEvent.START_AUTOSAMPLE,
+                                       self._handler_command_autosample)
 
         # AUTOSAMPLE_MODE
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE_MODE,
-                                       ProtocolEvent.BREAK,
-                                       self._handler_break)
+                                       ProtocolEvent.STOP_AUTOSAMPLE,
+                                       self._handler_autosample_stop)
 
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
@@ -175,15 +175,6 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
         """
         """
         return self._protocol_fsm.on_event(ProtocolEvent.RUN_ALL_TESTS,
-                                           *args, **kwargs)
-
-    def execute_break(self, *args, **kwargs):
-        """ Execute the break command
-
-        @retval None if nothing was done, otherwise result of FSM event handle
-        @throws InstrumentProtocolException On invalid command or missing
-        """
-        return self._protocol_fsm.on_event(ProtocolEvent.BREAK,
                                            *args, **kwargs)
 
     ################
@@ -293,19 +284,20 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
-    def _handler_break(self, *args, **kwargs):
+    def _handler_autosample_stop(self, *args, **kwargs):
         """
         """
         if log.isEnabledFor(logging.DEBUG):
             log.debug("args=%s kwargs=%s" % (str(args), str(kwargs)))
 
-        next_state = self._protocol_fsm.get_current_state()
+        next_state = None
         result = None
 
         duration = int(kwargs.get('duration', 1000))
 
         try:
             result = self._connection.send_break(duration)
+            next_state = ProtocolState.COMMAND_MODE
         except TimeoutException, e:
             raise InstrumentTimeoutException(msg=str(e))
         except ClientException, e:
@@ -314,6 +306,36 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
             raise InstrumentException('ClientException: %s' % str(e))
 
         return (next_state, result)
+
+    def _handler_command_autosample(self, *args, **kwargs):
+        """
+        """
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("args=%s kwargs=%s" % (str(args), str(kwargs)))
+
+        next_state = None
+        result = None
+
+        timeout = kwargs.get('timeout', self._timeout)
+
+        try:
+            result = self._connection.start_autosample(timeout=timeout)
+            next_state = ProtocolState.AUTOSAMPLE_MODE
+        except TimeoutException, e:
+            raise InstrumentTimeoutException(msg=str(e))
+        except ClientException, e:
+            log.warn("ClientException while start_autosample: %s" %
+                     str(e))
+            raise InstrumentException('ClientException: %s' % str(e))
+
+        return (next_state, result)
+
+    ########################################################################
+    # Incomming data callback.
+    ########################################################################
+    def got_data(self, data):
+        CommandResponseInstrumentProtocol.got_data(self, data)
+        log.info("!!!!!!!!!!!!!!!!!!!got_data: data = %s" % str(data))
 
     ###################################################################
     # Helpers
@@ -356,6 +378,7 @@ class VadcpDriver(SingleConnectionInstrumentDriver):
                                                ' config=%s' % config)
         def _data_listener(sample):
             log.info("_data_listener: sample = %s" % str(sample))
+            self._driver_event(DriverAsyncEvent.SAMPLE, val=sample)
 
         client.set_data_listener(_data_listener)
         return client

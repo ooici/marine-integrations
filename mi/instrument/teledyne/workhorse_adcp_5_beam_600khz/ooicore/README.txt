@@ -6,12 +6,14 @@ See https://confluence.oceanobservatories.org/display/ENG/VADCP+Driver
 Some development notes:
 
 2012-06-05:
-- preparations for handling of "break" command, which needs connection to the OOI digi.
+- implement "break" command, which needs connection to the OOI digi.
+- initial implementation of start_autosample and stop_autosample.
+
     $ VADCP="mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/connection.yml" \
-     bin/nosetests -sv mi/instrument/teledyne/workhorse_adcp_5_beam_600khz
+      bin/nosetests -v mi/instrument/teledyne/workhorse_adcp_5_beam_600khz
     ...
     ----------------------------------------------------------------------
-    Ran 27 tests in 193.369s
+    Ran 27 tests in 261.790s
 
     OK
 

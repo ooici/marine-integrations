@@ -17,6 +17,7 @@ from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.driver import DriverState
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util import prefix
 
+import time
 from mi.core.mi_logger import mi_logger as log
 
 
@@ -122,11 +123,15 @@ class DriverTestMixin(object):
 
         self._disconnect()
 
-    def test_execute_break(self):
+    def test_start_and_stop_autosample(self):
         self._prepare_and_connect()
 
-        result = self.driver.execute_break(timeout=self._timeout)
-        self.assertTrue(isinstance(result, bool))
-        log.info("execute_break result=%s" % prefix(result))
+        result = self.driver.execute_start_autosample(timeout=self._timeout)
+        log.info("execute_start_autosample result=%s" % prefix(result))
+
+        time.sleep(6)
+
+        result = self.driver.execute_stop_autosample(timeout=self._timeout)
+        log.info("execute_stop_autosample result=%s" % prefix(result))
 
         self._disconnect()

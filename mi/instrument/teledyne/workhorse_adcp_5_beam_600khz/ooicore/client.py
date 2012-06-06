@@ -76,7 +76,7 @@ class VadcpClient(object):
     def init_comms(self, callback=None):
         """
         Just calls self.connect()
-        @param callback ignored
+        @param callback ignored.
         """
         self.connect()
 
@@ -257,6 +257,56 @@ class VadcpClient(object):
         lines = self.send_and_expect_prompt("PT200", timeout)
 
         return "\n".join(lines)
+
+    def start_autosample(self, timeout=None):
+        """
+        PD0 - Binary output data format
+        CS - Start pinging
+        """
+
+        timeout = timeout or self._generic_timeout
+
+        # TODO eventually keep current state with enough reliability to
+        # check whether we are already in streaming mode ...
+#        if self._rt.state == State.COLLECTING_DATA:
+#            return  # already streaming
+        # ... to just return if already streaming.
+
+        # However, for the moment, force a break:
+        self.send_break(timeout=timeout)
+        # and continue with regular steps to start autosampling:
+
+        self._get_prompt()
+
+        # send PD0 - Binary output data format
+        self.send_and_expect_prompt("PD0", timeout)
+
+        # send CS - Start pinging
+        self.send("CS")
+        sleep(1)
+        time_limit = time.time() + timeout
+        while self._rt.state != State.COLLECTING_DATA and time.time() <= \
+                                                          time_limit:
+            sleep(0.4)
+            time_limit = self._rt.recv_time + timeout
+
+        if self._rt.state != State.COLLECTING_DATA:
+            raise TimeoutException(
+                    timeout, expected_state=State.COLLECTING_DATA,
+                    curr_state=self._rt.state, lines=self._rt.lines)
+
+    def stop_autosample(self, timeout=None):
+        """
+        Sends a "break" command via the OOI Digi connection
+        """
+
+        if self._rt.state != State.COLLECTING_DATA:
+            return  # not streaming
+
+        timeout = timeout or self._generic_timeout
+
+        self.send_break(timeout=timeout)
+        self._get_prompt()
 
     ###############################################
     # OOI Digi
