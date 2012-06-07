@@ -13,9 +13,12 @@ import re
 import os
 import time
 
+from os.path import basename
+
 import gevent
 from gevent import spawn
 from gevent.event import AsyncResult
+import subprocess
 
 from pyon.container.cc import Container
 from pyon.util.int_test import IonIntegrationTestCase
@@ -33,6 +36,9 @@ from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import TestNoCommConfig
 from mi.idk.exceptions import TestNoDeployFile
 from mi.idk.exceptions import PortAgentTimeout
+from mi.idk.exceptions import MissingConfig
+from mi.idk.exceptions import MissingExecutable
+from mi.idk.exceptions import FailedToLaunch
 from mi.core.exceptions import InstrumentException
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -396,7 +402,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         @brief One time setup class
         """
         log.debug("InstrumentDriverQualificationTestCase setupClass")
-        #cls.init_instrument_agent()
+        cls.init_rabbitmq_server()
+        cls.init_couchdb()
+        cls.init_instrument_agent()
         
         
     @classmethod
@@ -406,8 +414,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         
         log.debug("InstrumentDriverQualificationTestCase tear down class")
-        #cls.stop_instrument_agent()
-    
+        cls.stop_instrument_agent()
+        cls.stop_couchdb()
+        cls.stop_rabbitmq_server()
+
     @classmethod
     def init_instrument_agent(cls):
         """
@@ -489,8 +499,112 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             
         testcase = _StartContainer()
         testcase.container = Container.instance
-        testcase._stop_container()        
-        
+        testcase._stop_container()
+
+    @classmethod
+    def init_couchdb(cls):
+        """
+        @brief Start the instrument agent
+        """
+        cmd = Config().get("couchdb")
+        if not cmd:
+            raise MissingConfig("couchdb")
+
+        cls._run_process(cmd, '-b', cls._pid_filename("couchdb"), False)
+
+    @classmethod
+    def stop_couchdb(cls):
+        """
+        @brief Stop the instrument agent
+        """
+        pid = cls._read_pidfile(cls._pid_filename("couchdb"))
+
+        if not pid:
+            return
+
+        cmd = Config().get("couchdb")
+        if not cmd:
+            raise MissingConfig("couchdb")
+
+        cls._run_process(cmd, '-k')
+
+        os.remove(cls._pid_filename("couchdb"))
+
+    @classmethod
+    def init_rabbitmq_server(cls):
+        """
+        @brief Start the instrument agent
+        """
+        cmd = Config().get("rabbitmq")
+        if not cmd:
+            raise MissingConfig("rabbitmq")
+
+        cls._run_process(cmd, '', cls._pid_filename("rabbitmq"), False)
+
+    @classmethod
+    def stop_rabbitmq_server(cls):
+        """
+        @brief Stop the instrument agent
+        """
+        pid = cls._read_pidfile(cls._pid_filename("rabbitmq"))
+
+        if not pid:
+            return
+
+        os.remove(cls._pid_filename("rabbitmq"))
+
+    @classmethod
+    def _run_process(cls, cmd, args = None, pidfile = None, raise_error = True):
+        """
+        @brief Start an external process and store the PID
+        """
+        if not args: args = ''
+        name = basename(cmd)
+        log.info("Start process: %s" % name)
+        log.debug( "cmd: %s %s" % (cmd, args))
+
+        if not os.path.exists(cmd):
+            raise MissingExecutable(cmd)
+
+        command_line = "%s %s" % (cmd, args);
+
+        process = subprocess.Popen( command_line, shell=True)
+        time.sleep(2)
+
+        log.debug("Process pid: %d" % process.pid )
+        if process.pid > 0:
+            if pidfile:
+                cls._write_pidfile(process.pid, pidfile)
+        else:
+            log.error( "Failed to launch application: %s " % command_line)
+            if(raise_error):
+                raise FailedToLaunch(command_line)
+
+
+    @classmethod
+    def _write_pidfile(cls, pid, pidfile):
+        log.debug("write pid %d to file %s" % (pid, pidfile))
+        outfile = open(pidfile, "w")
+        outfile.write("%s" % pid)
+        outfile.close()
+
+    @classmethod
+    def _read_pidfile(cls, pidfile):
+        log.debug( "read pidfile %s" % pidfile)
+        try:
+            infile = open(pidfile, "r")
+            pid = infile.read()
+            infile.close()
+        except IOError, e:
+            return None
+
+        return pid
+
+    @classmethod
+    def _pid_filename(cls, name):
+        return "%s/%s_%d.pid" % (Config().get('tmp_dir'), name, os.getpid())
+
+
     def start_data_subscribers(self):
         """
         Data subscribers

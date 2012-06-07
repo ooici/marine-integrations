@@ -100,3 +100,15 @@ class WorkingRepoNotSet(IDKException):
     """The working_repo config parameter not set"""
     pass
 
+class MissingExecutable(IDKException):
+    """Can't find an executable"""
+    pass
+
+class MissingConfig(IDKException):
+    """Missing and IDK configuration option"""
+    pass
+
+class FailedToLaunch(IDKException):
+    """Could not launch external application"""
+    pass
+
