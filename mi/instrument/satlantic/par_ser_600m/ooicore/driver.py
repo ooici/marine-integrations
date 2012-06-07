@@ -15,20 +15,20 @@ import logging
 import time
 import re
 
-from ion.services.mi.common import BaseEnum
-from ion.services.mi.data_decorator import ChecksumDecorator
-from ion.services.mi.instrument_protocol import CommandResponseInstrumentProtocol
-from ion.services.mi.instrument_driver import SingleConnectionInstrumentDriver
-from ion.services.mi.instrument_driver import DriverEvent
-from ion.services.mi.instrument_driver import DriverProtocolState
-from ion.services.mi.instrument_driver import DriverAsyncEvent
-from ion.services.mi.instrument_driver import DriverParameter
-from ion.services.mi.common import InstErrorCode
-from ion.services.mi.instrument_fsm import InstrumentFSM
-from ion.services.mi.exceptions import InstrumentException
-from ion.services.mi.exceptions import InstrumentProtocolException
-from ion.services.mi.exceptions import InstrumentTimeoutException
-from ion.services.mi.exceptions import InstrumentDataException
+from mi.core.common import BaseEnum
+from mi.core.instrument.data_decorator import ChecksumDecorator
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
+from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.common import InstErrorCode
+from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.exceptions import InstrumentException
+from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import InstrumentDataException
 
 mi_logger = logging.getLogger('mi_logger')
 
