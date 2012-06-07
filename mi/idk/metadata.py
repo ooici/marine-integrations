@@ -137,15 +137,13 @@ class Metadata():
         """
         @brief Pretty print the current metadata object to STDOUT
         """
-        if( not self.version ): version = ''
-
         print( "Driver Make: " + self.driver_make )
         print( "Driver Model: " + self.driver_model )
         print( "Driver Name: " + self.driver_name )
         print( "Author: " + self.author )
         print( "Email: " + self.email )
         print( "Release Notes: \n" + self.notes )
-        print( "Driver Version: \n" + version )
+        print( "Driver Version: \n" + self.version )
 
 
     def confirm_metadata(self):
@@ -235,6 +233,7 @@ class Metadata():
         self.driver_make = prompt.text( 'Driver Make', self.driver_make )
         self.driver_model = prompt.text( 'Driver Model', self.driver_model )
         self.driver_name = prompt.text( 'Driver Name', self.driver_name )
+        self.version = prompt.text( 'Driver Version', self.version )
         self.author = prompt.text( 'Author', self.author )
         self.email = prompt.text( 'Email', self.email )
         self.notes = prompt.multiline( 'Release Notes', self.notes )
