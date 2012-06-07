@@ -12,20 +12,33 @@ __license__ = 'Apache 2.0'
 
 import re
 import logging
+from mi.core.common import BaseEnum
 
 mi_logger = logging.getLogger('mi_logger')
+
+class ParameterDictVisibility(BaseEnum):
+    READ_ONLY = "READ_ONLY"
+    READ_WRITE = "READ_WRITE"
+    DIRECT_ACCESS = "DIRECT_ACCESS"
 
 class ParameterDictVal(object):
     """
     A parameter dictionary value.
     """
-    def __init__(self, name, pattern, f_getval, f_format, value=None):
+    def __init__(self, name, pattern, f_getval, f_format, value=None,
+                 visibility=ParameterDictVisibility.READ_WRITE,
+                 menu_path_read=None,
+                 menu_path_write=None):
         """
         Parameter value constructor.
         @param name The parameter name.
         @param pattern The regex that matches the parameter in line output.
         @param f_getval The fuction that extracts the value from a regex match.
         @param f_format The function that formats the parameter value for a set command.
+        @param visibility The ParameterDictVisibility value that indicates what
+        the access to this parameter is
+        @param menu_path The path of menu options required to get to the parameter
+        value display when presented in a menu-based instrument
         @param value The parameter value (initializes to None).
         """
         self.name = name
@@ -34,6 +47,9 @@ class ParameterDictVal(object):
         self.f_getval = f_getval
         self.f_format = f_format
         self.value = value
+        self.menu_path_read = menu_path_read
+        self.menu_path_write = menu_path_write
+        self.visibility = visibility
 
     def update(self, input):
         """
@@ -62,16 +78,26 @@ class ProtocolParameterDict(object):
         """
         self._param_dict= {}
         
-    def add(self, name, pattern, f_getval, f_format, value=None):
+    def add(self, name, pattern, f_getval, f_format, value=None,
+            visibility=ParameterDictVisibility.READ_WRITE,
+            menu_path_read=None, menu_path_write=None):
         """
         Add a parameter object to the dictionary.
         @param name The parameter name.
         @param pattern The regex that matches the parameter in line output.
         @param f_getval The fuction that extracts the value from a regex match.
         @param f_format The function that formats the parameter value for a set command.
+        @param visibility The ParameterDictVisibility value that indicates what
+        the access to this parameter is
+        @param menu_path The path of menu options required to get to the parameter
+        value display when presented in a menu-based instrument
         @param value The parameter value (initializes to None).        
         """
-        val = ParameterDictVal(name, pattern, f_getval, f_format, value)
+        val = ParameterDictVal(name, pattern, f_getval, f_format,
+                               value=value,
+                               visibility=visibility,
+                               menu_path_read=menu_path_read,
+                               menu_path_write=menu_path_write)
         self._param_dict[name] = val
         
     def get(self, name):

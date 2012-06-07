@@ -33,6 +33,7 @@ class DriverState(BaseEnum):
     ACQUIRE_SAMPLE = 'DRIVER_STATE_ACQUIRE_SAMPLE'
     UPDATE_PARAMS = 'DRIVER_STATE_UPDATE_PARAMS'
     SET = 'DRIVER_STATE_SET'
+    SLEEP = 'DRIVER_STATE_SLEEP'
 
 class DriverProtocolState(BaseEnum):
     """

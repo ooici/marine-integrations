@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Steve Foley
+  driver_make: satlantic
+  driver_model: isusv3
+  driver_name: ooicore
+  email: sfoley@ucsd.edu
+  release_notes: Satlantic MBARI-ISUSv3 Nutrient sampler
+  version: 0

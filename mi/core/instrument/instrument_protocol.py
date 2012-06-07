@@ -66,7 +66,124 @@ class InstrumentProtocol(object):
         Return current state of the protocol FSM.
         """
         return self._protocol_fsm.get_current_state()
+
+    ########################################################################
+    # Command build and response parse handlers.
+    ########################################################################            
+    def _add_response_handler(self, cmd, func, state=None):
+        """
+        Insert a handler class responsible for handling the response to a
+        command sent to the instrument, optionally available only in a
+        specific state.
+        
+        @param cmd The high level key of the command to responsd to.
+        @param func The function that handles the response
+        @param state The state to pair with the command for which the function
+        should be used
+        """
+        if state == None:
+            self._response_handlers[cmd] = func
+        else:            
+            self._response_handlers[(state, cmd)] = func
+
+    def _add_build_handler(self, cmd, func):
+        """
+        Add a command building function.
+        @param cmd The device command to build.
+        @param func The function that constructs the command.
+        """
+        self._build_handlers[cmd] = func
+        
+    ########################################################################
+    # Static helpers to build commands.
+    ########################################################################
+    @staticmethod
+    def _build_simple_command(self, cmd, *args):
+        """
+        Builder for simple commands
+
+        @param cmd The command to build
+        @param args Unused arguments
+        @retval Returns string ready for sending to instrument        
+        """
+        return "%s%s" % (cmd, self.eoln)
     
+    @staticmethod
+    def _build_keypress_command(self, cmd, *args):
+        """
+        Builder for simple, non-EOLN-terminated commands
+
+        @param cmd The command to build
+        @param args Unused arguments
+        @retval Returns string ready for sending to instrument        
+        """
+        return "%s" % (cmd)
+    
+    @staticmethod
+    def _build_multi_keypress_command(self, cmd, *args):
+        """
+        Builder for simple, non-EOLN-terminated commands
+
+        @param cmd The command to build
+        @param args Unused arguments
+        @retval Returns string ready for sending to instrument        
+        """
+        return "%s%s%s%s%s%s" % (cmd, cmd, cmd, cmd, cmd, cmd)
+
+    ########################################################################
+    # Static helpers to format set commands.
+    ########################################################################
+
+    @staticmethod
+    def _true_false_to_string(v):
+        """
+        Write a boolean value to string formatted for "generic" set operations.
+        Subclasses should overload this as needed for instrument-specific
+        formatting.
+        
+        @param v a boolean value.
+        @retval A yes/no string formatted as a Python boolean for set operations.
+        @throws InstrumentParameterException if value not a bool.
+        """
+        
+        if not isinstance(v,bool):
+            raise InstrumentParameterException('Value %s is not a bool.' % str(v))
+        return str(v)
+
+    @staticmethod
+    def _int_to_string(v):
+        """
+        Write an int value to string formatted for "generic" set operations.
+        Subclasses should overload this as needed for instrument-specific
+        formatting.
+        
+        @param v An int val.
+        @retval an int string formatted for generic set operations.
+        @throws InstrumentParameterException if value not an int.
+        """
+        
+        if not isinstance(v,int):
+            raise InstrumentParameterException('Value %s is not an int.' % str(v))
+        else:
+            return '%i' % v
+
+    @staticmethod
+    def _float_to_string(v):
+        """
+        Write a float value to string formatted for "generic" set operations.
+        Subclasses should overload this as needed for instrument-specific
+        formatting.
+        
+        @param v A float val.
+        @retval a float string formatted for "generic" set operations.
+        @throws InstrumentParameterException if value is not a float.
+        """
+
+        if not isinstance(v,float):
+            raise InstrumentParameterException('Value %s is not a float.' % v)
+        else:
+            return '%e' % v
+
 class CommandResponseInstrumentProtocol(InstrumentProtocol):
     """
     Base class for text-based command-response instruments.
@@ -107,33 +224,6 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         self._response_handlers = {}
 
         self._last_data_receive_timestamp = None
-
-    ########################################################################
-    # Command build and response parse handlers.
-    ########################################################################            
-    def _add_response_handler(self, cmd, func, state=None):
-        """
-        Insert a handler class responsible for handling the response to a
-        command sent to the instrument, optionally available only in a
-        specific state.
-        
-        @param cmd The high level key of the command to responsd to.
-        @param func The function that handles the response
-        @param state The state to pair with the command for which the function
-        should be used
-        """
-        if state == None:
-            self._response_handlers[cmd] = func
-        else:            
-            self._response_handlers[(state, cmd)] = func
-                   
-    def _add_build_handler(self, cmd, func):
-        """
-        Add a command building function.
-        @param cmd The device command to build.
-        @param func The function that constructs the command.
-        """
-        self._build_handlers[cmd] = func
         
     def _get_response(self, timeout=10, expected_prompt=None):
         """
@@ -261,7 +351,6 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         # Send command.
         Log.debug('_do_cmd_direct: <%s>' % cmd)
         self._connection.send(cmd)
-
  
     ########################################################################
     # Incomming data callback.
@@ -275,7 +364,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         # Update the line and prompt buffers.
         self._linebuf += data        
         self._promptbuf += data
-        self._last_data_received_timestamp = time.time()
+        self._last_data_timestamp = time.time()
 
     ########################################################################
     # Wakeup helpers.
@@ -338,56 +427,64 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                 if count >= no_tries:
                     raise InstrumentProtocolException('Incorrect prompt.')
                     
-    ########################################################################
-    # Static helpers to format set commands.
-    ########################################################################
+                    
+class MenuInstrumentProtocol(InstrumentProtocol):
+    """
+    Base class for menu-based instrument interfaces.
+    
+    @todo Needs a way to walk through menu based on param dict menu_paths.
+    Might be broken down further into some simple tools to walk menus and check prompts
+    
+    @todo Needs some common logic to walk through menus and/or arrive at specific prompts?
+    
+    @todo Needs a way to send and receive data at the right prompts, checking to
+    see if command was successful
+    
+    @todo Needs a way to handle input and output of data
+    """
+    
+    def __init__(self, prompts, newline, driver_event):
+        """
+        Constructor.
+        @param prompts Enum class containing possbile device prompts used for
+        menu system.
+        @param newline The device newline.
+        @driver_event The callback for asynchronous driver events.
+        """
+        
+        # Construct superclass.
+        InstrumentProtocol.__init__(self, driver_event)
 
-    @staticmethod
-    def _true_false_to_string(v):
-        """
-        Write a boolean value to string formatted for "generic" set operations.
-        Subclasses should overload this as needed for instrument-specific
-        formatting.
+        # The end of line delimiter.                
+        self._newline = newline
+    
+        # Class of prompts used by device.
+        self._prompts = prompts
+    
+        # Linebuffer for input from device.
+        self._linebuf = ''
         
-        @param v a boolean value.
-        @retval A yes/no string formatted as a Python boolean for set operations.
-        @throws InstrumentParameterException if value not a bool.
-        """
+        # Short buffer to look for prompts from device in command-response
+        # mode.
+        self._promptbuf = ''
         
-        if not isinstance(v,bool):
-            raise InstrumentParameterException('Value %s is not a bool.' % str(v))
-        return str(v)
+        # Lines of data awaiting further processing.
+        self._datalines = []
 
-    @staticmethod
-    def _int_to_string(v):
-        """
-        Write an int value to string formatted for "generic" set operations.
-        Subclasses should overload this as needed for instrument-specific
-        formatting.
-        
-        @param v An int val.
-        @retval an int string formatted for generic set operations.
-        @throws InstrumentParameterException if value not an int.
-        """
-        
-        if not isinstance(v,int):
-            raise InstrumentParameterException('Value %s is not an int.' % str(v))
-        else:
-            return '%i' % v
+        # Handlers to build commands.
+        self._build_handlers = {}
 
-    @staticmethod
-    def _float_to_string(v):
-        """
-        Write a float value to string formatted for "generic" set operations.
-        Subclasses should overload this as needed for instrument-specific
-        formatting.
-        
-        @param v A float val.
-        @retval a float string formatted for "generic" set operations.
-        @throws InstrumentParameterException if value is not a float.
-        """
+        # Handlers to parse responses.
+        self._response_handlers = {}
 
-        if not isinstance(v,float):
-            raise InstrumentParameterException('Value %s is not a float.' % v)
-        else:
-            return '%e' % v
+        self._last_data_receive_timestamp = None
+        
+    def got_data(self, data):
+        """
+        Called by the instrument connection when data is available.
+        Append line and prompt buffers. Extended by device specific
+        subclasses.
+        """
+        self._linebuf += data        
+        self._promptbuf += data
+        self._last_data_timestamp = time.time()    
