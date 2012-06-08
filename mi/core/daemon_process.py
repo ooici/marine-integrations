@@ -92,6 +92,10 @@ class DaemonProcess(object):
             pid = int(pf.read().strip())
             pf.close()
 
+        except ValueError:
+            # If we read something from the file that is not an int.
+            pid = None
+
         except IOError:
             pid = None
 

@@ -1,0 +1,20 @@
+#
+# This is basically an interim connection configuration, which will probably
+# be defined via comm_config.yml or other file -- the appropriate spec is
+# not available yet.
+
+# For the VADCP we need connections to both the 4-beam instrument and the 5th
+# beam instrument.
+
+ooi_digi:
+  address: 10.180.80.178
+  port: 2102
+
+four_beam:
+  address: 10.180.80.178
+  port: 2101  # raw port
+
+fifth_beam:  # Digi ONE SP
+  address: 10.180.80.174
+  port: 2101  # raw port
+  telnet_port: 2001
