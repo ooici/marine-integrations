@@ -46,6 +46,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from interface.objects import AgentCommand
 from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
 from pyon.public import StreamSubscriberRegistrar
+from pyon.event.event import EventSubscriber, EventPublisher
 
 from mi.core.logger import Log
 
@@ -70,7 +71,7 @@ class InstrumentDriverTestConfig(Singleton):
     instrument_agent_stream_encoding = 'ION R2'
     instrument_agent_stream_definition = None
     
-    container_deploy_file = 'res/deploy/r2deploy.yml'
+    container_deploy_file = 'res/deploy/r2lca.yml'
     
     initialized   = False
     
@@ -85,8 +86,6 @@ class InstrumentDriverTestConfig(Singleton):
         self.instrument_agent_resource_id = kwargs.get('instrument_agent_resource_id')
         self.instrument_agent_name = kwargs.get('instrument_agent_name')
         self.instrument_agent_packet_config = kwargs.get('instrument_agent_packet_config')
-        Log.debug("ROGER ROGER ROGER")
-        Log.debug(str(self.instrument_agent_packet_config))
         self.instrument_agent_stream_definition = kwargs.get('instrument_agent_stream_definition')
         if kwargs.get('instrument_agent_module'):
             self.instrument_agent_module = kwargs.get('instrument_agent_module')
@@ -295,81 +294,6 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         }
 
 
-    def start_data_subscribers(self):
-        """
-        Data subscribers
-        """
-        # Create a pubsub client to create streams.
-        pubsub_client = PubsubManagementServiceClient(node=self.container.node)
-
-        # A callback for processing subscribed-to data.
-        def consume_data(message, headers):
-            log.info('Subscriber received data message: %s.', str(message))
-            self.samples_received.append(message)
-            if self.no_samples and self.no_samples == len(self.samples_received):
-                self.async_data_result.set()
-
-        # Create a stream subscriber registrar to create subscribers.
-        subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
-            node=self.container.node)
-
-        # Create streams and subscriptions for each stream named in driver.
-
-        self.stream_config = {}
-        self.data_subscribers = []
-        Log.debug("ROGER ROGER ROGER")
-        Log.debug(str(self.instrument_agent_packet_config))
-        for (stream_name, val) in self._test_config.instrument_agent_packet_config.iteritems():
-            stream_def_id = pubsub_client.create_stream_definition(
-                container=self._test_config.instrument_agent_stream_definition)
-            stream_id = pubsub_client.create_stream(
-                name=stream_name,
-                stream_definition_id=stream_def_id,
-                original=True,
-                encoding=self._test_config.instrument_agent_stream_encoding)
-            self.stream_config[stream_name] = stream_id
-
-            # Create subscriptions for each stream.
-            exchange_name = '%s_queue' % stream_name
-            sub = subscriber_registrar.create_subscriber(exchange_name=exchange_name,
-                callback=consume_data)
-            self._listen(sub)
-            self.data_subscribers.append(sub)
-            query = StreamQuery(stream_ids=[stream_id])
-            sub_id = pubsub_client.create_subscription(\
-                query=query, exchange_name=exchange_name)
-            pubsub_client.activate_subscription(sub_id)
-
-    def stop_data_subscribers(self):
-        """
-        Stop the data subscribers on cleanup.
-        """
-        for sub in self.data_subscribers:
-            sub.stop()
-        for gl in self.data_greenlets:
-            gl.kill()
-
-    def start_event_subscribers(self):
-        """
-        Create subscribers for agent and driver events.
-        """
-        def consume_event(*args, **kwargs):
-            log.info('Test recieved ION event: args=%s, kwargs=%s, event=%s.',
-                str(args), str(kwargs), str(args[0]))
-            self.events_received.append(args[0])
-            if self.no_events and self.no_events == len(self.event_received):
-                self.async_event_result.set()
-
-        event_sub = EventSubscriber(event_type="DeviceEvent", callback=consume_event)
-        event_sub.activate()
-        self.event_subscribers.append(event_sub)
-
-    def stop_event_subscribers(self):
-        """
-        Stop event subscribers on cleanup.
-        """
-        for sub in self.event_subscribers:
-            sub.deactivate()
 
 
 class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
@@ -468,8 +392,12 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         log.debug("InstrumentDriverQualificationTestCase setUp")
         
         self.container = Container.instance
+        self.instrument_agent_client = self.container.instrument_agent_client
+
         InstrumentDriverTestCase.setUp(self)
-        
+
+        self.init_event_subscribers()
+        self.init_data_subscribers()
         self.init_port_agent()
 
     def tearDown(self):
@@ -477,9 +405,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         @brief Test teardown
         """
         log.debug("InstrumentDriverQualificationTestCase tearDown")
-        #self.stop_port_agent()
-        #self.stop_data_subscribers()
-        #self.stop_event_subscribers()
+        self.stop_port_agent()
+        self.stop_data_subscribers()
+        self.stop_event_subscribers()
         
         InstrumentDriverTestCase.tearDown(self)
         
@@ -511,7 +439,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         @brief Launch the instrument agent
         """
         log.info("Startup Instrument Agent")
-        
+
         if not os.path.exists(cls._test_config.container_deploy_file):
             raise TestNoDeployFile(cls._test_config.container_deploy_file)
             
@@ -521,31 +449,22 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             def runTest(self): pass
             
         testcase = _StartContainer()
-        
+
         # Start container.
         testcase._start_container()
-
+        container = testcase.container
 
         log.debug( "Capability container id: %s" % testcase.container.id )
-        
+
         # Bring up services in a deploy file (no need to message)
-        testcase.container.start_rel_from_url(testcase._test_config.container_deploy_file)
-        #return
-        
-        ###
-        #    Not starting up publishers and subscribers for now.  Waiting on DM
-        #    for a new stream definition
-        ###
-        testcase.initialize() #RU
-        testcase.stream_config = {}
-        testcase.start_data_subscribers()
-        testcase.start_event_subscribers()
+        container.start_rel_from_url(testcase._test_config.container_deploy_file)
+        return
 
         # Driver config
         driver_config = {
-            'dvr_mod' : testcase._test_config.driver_module,
-            'dvr_cls' : testcase._test_config.driver_class,
-            'workdir' : testcase._test_config.working_dir
+            'dvr_mod' : cls._test_config.driver_module,
+            'dvr_cls' : cls._test_config.driver_class,
+            'workdir' : cls._test_config.working_dir
         }
         
         # Create agent config.
@@ -556,27 +475,25 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'test_mode' : True  ## Enable a poison pill. If the spawning process dies
                                 ## shutdown the daemon process.
         }
-        
+
         # Start instrument agent.
-        testcase._instrument_agent_pid = None
         log.debug("TestInstrumentAgent.setup(): starting IA.")
-        container_client = ContainerAgentClient(node=testcase.container.node,
-                                                name=testcase.container.name)
-        testcase._instrument_agent_pid = container_client.spawn_process(
-                                                 name=testcase._test_config.instrument_agent_name,
-                                                 module=testcase._test_config.instrument_agent_module, 
-                                                 cls=testcase._test_config.instrument_agent_class, 
+        container_client = ContainerAgentClient(node=container.node,
+                                                name=container.name)
+
+        instrument_agent_pid = container_client.spawn_process(
+                                                 name=cls._test_config.instrument_agent_name,
+                                                 module=cls._test_config.instrument_agent_module,
+                                                 cls=cls._test_config.instrument_agent_class,
                                                  config=agent_config)      
-        log.info('Agent pid=%s.', str(testcase._instrument_agent_pid))
+        log.info('Agent pid=%s.', instrument_agent_pid)
         
-        # Start a resource agent client to talk with the instrument agent.
-        testcase._instrument_agent_client = None
-        testcase._instrument_agent_client = ResourceAgentClient(
-            testcase._test_config.instrument_agent_resource_id, process=FakeProcess())
+        ia_client = ResourceAgentClient(
+            cls._test_config.instrument_agent_resource_id, process=FakeProcess())
 
+        log.info('Got ia client %s.', str(ia_client))
 
-        cls.instrument_agent_client = testcase._instrument_agent_client
-        log.info('Got ia client %s.', str(testcase._instrument_agent_client))   
+        container.instrument_agent_client = ia_client
         
     @classmethod
     def stop_instrument_agent(cls):
@@ -593,6 +510,80 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         testcase = _StartContainer()
         testcase.container = Container.instance
         testcase._stop_container()
+
+    def init_data_subscribers(self):
+        """
+        Data subscribers
+        """
+        # Create a pubsub client to create streams.
+        pubsub_client = PubsubManagementServiceClient(node=self.container.node)
+
+        # A callback for processing subscribed-to data.
+        def consume_data(message, headers):
+            log.info('Subscriber received data message: %s.', str(message))
+            self.samples_received.append(message)
+            if self.no_samples and self.no_samples == len(self.samples_received):
+                self.async_data_result.set()
+
+        # Create a stream subscriber registrar to create subscribers.
+        subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
+            node=self.container.node)
+
+        # Create streams and subscriptions for each stream named in driver.
+
+        self.stream_config = {}
+        self.data_subscribers = []
+        for (stream_name, val) in self._test_config.instrument_agent_packet_config.iteritems():
+            stream_def_id = pubsub_client.create_stream_definition(
+                container=self._test_config.instrument_agent_stream_definition)
+            stream_id = pubsub_client.create_stream(
+                name=stream_name,
+                stream_definition_id=stream_def_id,
+                original=True,
+                encoding=self._test_config.instrument_agent_stream_encoding)
+            self.stream_config[stream_name] = stream_id
+
+            # Create subscriptions for each stream.
+            exchange_name = '%s_queue' % stream_name
+            sub = subscriber_registrar.create_subscriber(exchange_name=exchange_name,
+                callback=consume_data)
+            self._listen(sub)
+            self.data_subscribers.append(sub)
+            query = StreamQuery(stream_ids=[stream_id])
+            sub_id = pubsub_client.create_subscription(\
+                query=query, exchange_name=exchange_name)
+            pubsub_client.activate_subscription(sub_id)
+
+    def stop_data_subscribers(self):
+        """
+        Stop the data subscribers on cleanup.
+        """
+        for sub in self.data_subscribers:
+            sub.stop()
+        for gl in self.data_greenlets:
+            gl.kill()
+
+    def init_event_subscribers(self):
+        """
+        Create subscribers for agent and driver events.
+        """
+        def consume_event(*args, **kwargs):
+            log.info('Test recieved ION event: args=%s, kwargs=%s, event=%s.',
+                str(args), str(kwargs), str(args[0]))
+            self.events_received.append(args[0])
+            if self.no_events and self.no_events == len(self.event_received):
+                self.async_event_result.set()
+
+        event_sub = EventSubscriber(event_type="DeviceEvent", callback=consume_event)
+        event_sub.activate()
+        self.event_subscribers.append(event_sub)
+
+    def stop_event_subscribers(self):
+        """
+        Stop event subscribers on cleanup.
+        """
+        for sub in self.event_subscribers:
+            sub.deactivate()
 
     @classmethod
     def init_couchdb(cls):
