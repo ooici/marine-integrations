@@ -44,6 +44,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 # MI logger
 from mi.core.logger import Log
+from interface.objects import AgentCommand
 
 # Make tests verbose and provide stdout
 # bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_process
@@ -477,7 +478,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
-    #@unittest.skip('Not supported by simulator and very long (> 5 min).')
+    @unittest.skip('Not supported by simulator and very long (> 5 min).')
     def test_test(self):
         """
         Test the hardware testing mode.
@@ -669,7 +670,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
     
-    #@unittest.skip('Not supported by simulator.')
+    @unittest.skip('Not supported by simulator.')
     def test_discover_autosample(self):
         """
         Test the device can discover autosample mode.
@@ -802,7 +803,15 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
+    # Added tests below
 
+
+
+#self._dvr_proc = self.driver_process
+#self._pagent = self.port_agent
+#self._dvr_client = self.driver_client
+#self._events = self.events
+#COMMS_CONFIG = self.port_agent_comm_config()
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -817,3 +826,69 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.
     pass
+
+    def test_instrument_agent_to_instrument_driver_connectivity(self):
+        """
+        @brief This test verifies that the instrument agent can
+               talk to the instrument driver.
+
+               The intent of this is to be a ping to the driver
+               layer.
+
+
+        """
+
+        self._ia_client = self.__class__.instrument_agent_client
+
+        cmd = AgentCommand(command='power_down')
+        retval = self._ia_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
+
+        cmd = AgentCommand(command='power_up')
+        retval = self._ia_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command='initialize')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+
+        cmd = AgentCommand(command='go_layer_ping')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.LAYER_PING)
+        log.debug("***** If i get here i am in LAYER_PING state....")
+
+        cmd = AgentCommand(command='helo_agent', kwargs={'message': 'PING-AGENT'})
+        retval = self._ia_client.execute_agent(cmd)
+        self.assertEqual(retval.result, "PONG-PING-AGENT")
+
+        cmd = AgentCommand(command='helo_driver', kwargs={'message': 'PING-DRIVER'})
+        retval = self._ia_client.execute_agent(cmd)
+        self.assertEqual(retval.result, 'process_echo: PING-DRIVER')
+
+        cmd = AgentCommand(command='go_inactive')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        log.debug("***** retval2 = " + str(retval))
+
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+        log.debug("***** If i get here i am in POWERED_DOWN state....")
