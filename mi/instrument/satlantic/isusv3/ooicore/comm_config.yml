@@ -1,6 +1,6 @@
 comm:
-  device_addr: "67.58.40.195"
+  device_addr: 67.58.40.195
   device_port: 2001
   method: ethernet
-  server_addr: "localhost"
+  server_addr: localhost
   server_port: 5555

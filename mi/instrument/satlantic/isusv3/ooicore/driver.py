@@ -27,7 +27,8 @@ import datetime
 from mi.core.common import BaseEnum
 
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
-from mi.core.instrument.instrument_driver import InstrumentDriver
+#from mi.core.instrument.instrument_driver import InstrumentDriver
+from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -299,25 +300,25 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         self.eoln = EOLN
         
         ##### Setup the state machine
-        self._fsm = InstrumentFSM(State, Event, Event.ENTER, Event.EXIT)
+        self._protocol_fsm = InstrumentFSM(State, Event, Event.ENTER, Event.EXIT)
         
-        self._fsm.add_handler(State.UNCONFIGURED_MODE, Event.INITIALIZE,
+        self._protocol_fsm.add_handler(State.UNCONFIGURED_MODE, Event.INITIALIZE,
                               self._handler_initialize) 
-        self._fsm.add_handler(State.CONTINUOUS_MODE, Event.MENU_CMD,
+        self._protocol_fsm.add_handler(State.CONTINUOUS_MODE, Event.MENU_CMD,
                               self._handler_continuous_menu) 
-        self._fsm.add_handler(State.CONTINUOUS_MODE, Event.GO_CMD,
+        self._protocol_fsm.add_handler(State.CONTINUOUS_MODE, Event.GO_CMD,
                               self._handler_continuous_go)
-        self._fsm.add_handler(State.CONTINUOUS_MODE, Event.STOP_CMD,
+        self._protocol_fsm.add_handler(State.CONTINUOUS_MODE, Event.STOP_CMD,
                               self._handler_continuous_stop) 
         
         # ... and so on with the operation handler listings...
         # In general, naming is _handler_currentstate_eventreceived
 
-        self._fsm.add_handler(State.ROOT_MENU, Event.CONFIG_MENU,
+        self._protocol_fsm.add_handler(State.ROOT_MENU, Event.CONFIG_MENU,
                               self._handler_root_config) 
-        self._fsm.add_handler(State.ROOT_MENU, Event.SETUP_MENU,
+        self._protocol_fsm.add_handler(State.ROOT_MENU, Event.SETUP_MENU,
                               self._handler_root_setup) 
-        self._fsm.add_handler(State.ROOT_MENU, Event.FILE_MENU,
+        self._protocol_fsm.add_handler(State.ROOT_MENU, Event.FILE_MENU,
                               self._handler_root_file) 
         
         # @todo ... and so on with the menu handler listings...
@@ -467,7 +468,11 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
                                               Event.DEPLOYMENT_SETUP_MENU,
                                               Event.INITIAL_DELAY,
                                               Event.YES])
-        
+
+
+        # State state machine in UNCONFIGURED state.
+        self._protocol_fsm.start(State.UNCONFIGURED_MODE)
+
         """
         @todo ... and so on, continuing with these additional parameters (and any that
         may have been left out...drive the list by the actual interface...
@@ -661,6 +666,45 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         if (new_config != old_config) and (None not in old_config.values()):
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)            
             
+    #
+    # DHE ADDED herehere
+    #
+    def got_data(self, data):
+        """
+        Callback for receiving new data from the device.
+        """
+        #if self.get_current_state() == State.DIRECT_ACCESS:
+        #    # direct access mode
+        #    if len(data) > 0:
+        #        #mi_logger.debug("ooicoreInstrumentProtocol.got_data(): <" + data + ">")
+        #        # check for echoed commands from instrument (TODO: this should only be done for telnet?)
+        #        if len(self._sent_cmds) > 0:
+        #            # there are sent commands that need to have there echoes filtered out
+        #            oldest_sent_cmd = self._sent_cmds[0]
+        #            if string.count(data, oldest_sent_cmd) > 0:
+        #                # found a command echo, so remove it from data and delete the command form list
+        #                data = string.replace(data, oldest_sent_cmd, "", 1)
+        #                self._sent_cmds.pop(0)
+        #        if len(data) > 0 and self._driver_event:
+        #            self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
+        #            # TODO: what about logging this as an event?
+        #    return
+
+        print "DHE ------------------> <--------------------DHE"
+        if len(data)>0:
+            # Call the superclass to update line and prompt buffers.
+            MenuInstrumentProtocol.got_data(self, data)
+
+            # If in streaming mode, process the buffer for samples to publish.
+            #cur_state = self.get_current_state()
+            #if cur_state == SBE37ProtocolState.AUTOSAMPLE:
+            #    if SBE37_NEWLINE in self._linebuf:
+            #        lines = self._linebuf.split(SBE37_NEWLINE)
+            #        self._linebuf = lines[-1]
+            #        for line in lines:
+            #            self._extract_sample(line)
+
+
     # @todo Add necessary helper routines as needed.
     # Maybe a stop/break/reset for leaving operating modes?
     #
@@ -669,12 +713,13 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
 ###
 #   Driver for ooicore
 ###
-class ooicoreInstrumentDriver(InstrumentDriver):
+#class ooicoreInstrumentDriver(InstrumentDriver):
+class ooicoreInstrumentDriver(SingleConnectionInstrumentDriver):
     """
     """
     def __init__(self, evt_callback):
-        InstrumentDriver.__init__(self, evt_callback)
-        self.protocol = ooicoreInstrumentProtocol(evt_callback)
+        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+        self._protocol = ooicoreInstrumentProtocol(evt_callback)
     
     def driver_echo(self, msg):
         """
@@ -682,8 +727,4 @@ class ooicoreInstrumentDriver(InstrumentDriver):
         """
         echo = 'driver_echo: %s' % msg
         return echo
-
-
-
-
 

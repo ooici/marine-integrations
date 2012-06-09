@@ -28,13 +28,37 @@ __license__ = 'Apache 2.0'
 
 #from nose.plugins.attrib import attr
 
-from ion.idk.metadata import Metadata
-from ion.idk.comm_config import CommConfig
-from ion.idk.unit_test import InstrumentDriverTestCase
-from ion.idk.test.driver_qualification import DriverQualificationTestCase
-from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreInstrumentProtocol
+# Standard imports.
+import time
 
-#from mi.instrument.satlantic.isusv3.ooicore.driver import State
+# 3rd party imports.
+from nose.plugins.attrib import attr
+
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverConnectionState
+
+from mi.core.exceptions import InstrumentException
+from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import InstrumentStateException
+from mi.core.exceptions import InstrumentCommandException
+
+# DHE: replaced these...
+#from ion.idk.metadata import Metadata
+#from ion.idk.comm_config import CommConfig
+#from ion.idk.unit_test import InstrumentDriverTestCase
+#from ion.idk.test.driver_qualification import DriverQualificationTestCase
+#from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreInstrumentProtocol
+# with these.
+from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import InstrumentDriverUnitTestCase
+from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
+from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+
+# MI logger
+from mi.core.logger import Log
+
+from mi.instrument.satlantic.isusv3.ooicore.driver import State
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Event
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Error
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Status
@@ -46,25 +70,6 @@ from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreInstrumentProto
 #from mi.instrument.satlantic.isusv3.ooicore.driver import MetadataParameter
 #from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreInstrumentProtocol
 #from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreInstrumentDriver
-
-
-# Import pyon first for monkey patching.
-from pyon.public import log
-
-# Standard imports.
-import os
-import signal
-import time
-import unittest
-from datetime import datetime
-
-# 3rd party imports.
-from gevent import spawn
-from gevent.event import AsyncResult
-import gevent
-from nose.plugins.attrib import attr
-from mock import patch
-import uuid
 
 # ION imports.
 from interface.objects import StreamQuery
@@ -90,6 +95,17 @@ from ion.agents.instrument.instrument_agent import InstrumentAgentState
 # next line should match the above line mostly
 from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreParameter
 
+## Initialize the test parameters
+InstrumentDriverTestCase.initialize(
+    driver_module='mi.instrument.satlantic.isusv3.ooicore.driver',
+    driver_class="ooicoreInstrumentDriver",
+
+    instrument_agent_resource_id = '123xyz',
+    instrument_agent_name = 'Agent007',
+    #instrument_agent_packet_config = PACKET_CONFIG,
+    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
+)
+
 #################################### RULES ####################################
 #                                                                             #
 # Common capabilities in the base class                                       #
@@ -109,33 +125,10 @@ from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreParameter
 ###############################################################################
 
 @attr('UNIT', group='mi')
-class Testooicore_UNIT(InstrumentDriverTestCase):
+class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
     """Unit Test Container"""
-    
-    def setUp(self):
-        """
-        @brief initalize mock objects for the protocol object.
-        """
-        #self.callback = Mock(name='callback')
-        #self.logger = Mock(name='logger')
-        #self.logger_client = Mock(name='logger_client')
-        #self.protocol = ooicoreInstrumentProtocol()
-    
-        #self.protocol.configure(self.comm_config)
-        #self.protocol.initialize()
-        #self.protocol._logger = self.logger 
-        #self.protocol._logger_client = self.logger_client
-        #self.protocol._get_response = Mock(return_value=('$', None))
-        
-        # Quick sanity check to make sure the logger got mocked properly
-        #self.assertEquals(self.protocol._logger, self.logger)
-        #self.assertEquals(self.protocol._logger_client, self.logger_client)
-        
-    ###
-    #    Add driver specific unit tests
-    ###
-    
-    
+    pass
+
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 #     Integration test test the direct driver / instrument interaction        #
@@ -145,57 +138,84 @@ class Testooicore_UNIT(InstrumentDriverTestCase):
 ###############################################################################
 
 @attr('INT', group='mi')
-class Testooicore_INT(InstrumentDriverTestCase):
+class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
     """Integration Test Container"""
     
-    @staticmethod
-    def driver_module():
-        return 'mi.instrument.satlantic.isusv3.ooicore.driver'
-        
-    @staticmethod
-    def driver_class():
-        return 'ooicoreInstrumentDriver'    
-    
-    def setUp(self):
+    def test_config(self):
         """
+        Test to configure the driver process for device comms and transition
+        to disconnected state.
         """
-        self.protocol = ooicoreInstrumentProtocol()
-        #Configure the protocol here...send a CONFIGURE event?
-        #self.protocol.configure(self.comm_config)
-        
-    def test_process(self):
-        """
-        @brief Test for correct launch of driver process and communications, including
-        asynchronous driver events.
-        """
-        #driver_process, driver_client = self.init_driver_process_client();
-        
-        # Add test to verify process exists.
 
-        # Send a test message to the process interface, confirm result.
-        #msg = 'I am a ZMQ message going to the process.'
-        #reply = driver_client.cmd_dvr('process_echo', msg)
-        #self.assertEqual(reply,'process_echo: '+msg)
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
-        # Send a test message to the driver interface, confirm result.
-        #msg = 'I am a ZMQ message going to the driver.'
-        #reply = driver_client.cmd_dvr('driver_echo', msg)
-        #self.assertEqual(reply, 'driver_echo: '+msg)
-        
-        # Test the event thread publishes and client side picks up events.
-        #events = [
-        #    'I am important event #1!',
-        #    'And I am important event #2!'
-        #    ]
-        #reply = driver_client.cmd_dvr('test_events', events=events)
-        #time.sleep(2)
-        
-        # Confirm the events received are as expected.
-        #self.assertEqual(self.events, events)
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
-    ###
-    #    Add driver specific integration tests
-    ###
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Initialize the driver and transition to unconfigured.
+        reply = self.driver_client.cmd_dvr('initialize')
+
+        # Test the driver returned state unconfigured.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+
+    def test_connect(self):
+        """
+        Test configuring and connecting to the device through the port
+        agent. Discover device state.
+        """
+        Log.info("test_connect test started")
+
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, State.UNCONFIGURED_MODE)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('discover')
+
+        # DHE THIS DOESN'T WORK
+        # isusv3 driver doesn't have a discover handler that puts it
+        # in command mode...
+        # Test the driver is in command mode.
+        #state = self.driver_client.cmd_dvr('get_current_state')
+        #self.assertEqual(state, State.MENU_MODE)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('disconnect')
+
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Initialize the driver and transition to unconfigured.
+        reply = self.driver_client.cmd_dvr('initialize')
+
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+
 
 ###############################################################################
 #                            HARDWARE TESTS                                   #
@@ -373,42 +393,11 @@ class Testooicore_HW(InstrumentDriverTestCase):
 ###############################################################################
 
 @attr('QUAL', group='mi')
-class Testooicore_QUAL(DriverQualificationTestCase):
+class ISUS3QualificationTestCase(InstrumentDriverQualificationTestCase):
     """Qualification Test Container"""
     
     # Qualification tests live in the base class.  This class is extended
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.  
     pass
-
-###############################################################################
-# Auto generated code.  There should rarely be reason to edit anything below. #
-###############################################################################
-
-class IntFromIDK(Testooicore_INT):
-    """
-    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    called from the IDK test_driver program
-    """
-    @classmethod
-    def init_comm(cls):
-        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
-
-class UnitFromIDK(Testooicore_UNIT):
-    """
-    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    called from the IDK test_driver program
-    """
-    @classmethod
-    def init_comm(cls):
-        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
-
-class QualFromIDK(Testooicore_QUAL):
-    """
-    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    called from the IDK test_driver program
-    """
-    @classmethod
-    def init_comm(cls):
-        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
 
