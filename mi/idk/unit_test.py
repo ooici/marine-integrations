@@ -49,9 +49,12 @@ from pyon.public import StreamSubscriberRegistrar
 from pyon.event.event import EventSubscriber, EventPublisher
 
 from mi.core.logger import Log
+from interface.services.icontainer_agent import ContainerAgentClient
+from pyon.agent.agent import ResourceAgentClient
 
-
-
+from ion.agents.instrument.instrument_agent import InstrumentAgentState
+from pyon.core.exception import InstParameterError
+from interface.objects import StreamQuery
 
 class InstrumentDriverTestConfig(Singleton):
     """
@@ -71,7 +74,7 @@ class InstrumentDriverTestConfig(Singleton):
     instrument_agent_stream_encoding = 'ION R2'
     instrument_agent_stream_definition = None
     
-    container_deploy_file = 'res/deploy/r2lca.yml'
+    container_deploy_file = 'res/deploy/r2deploy.yml'
     
     initialized   = False
     
@@ -392,7 +395,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         log.debug("InstrumentDriverQualificationTestCase setUp")
         
         self.container = Container.instance
-        self.instrument_agent_client = self.container.instrument_agent_client
+
 
         InstrumentDriverTestCase.setUp(self)
 
@@ -400,17 +403,94 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.init_data_subscribers()
         self.init_port_agent()
 
+
+        self.init_instrument_agent_client()
+
+        self.instrument_agent_client = self.container.instrument_agent_client
+
+
+    def init_instrument_agent_client(self):
+        # A callback for processing subscribed-to data.
+        def consume_data(message, headers):
+            log.info('Subscriber received data message: %s.', str(message))
+            self.samples_received.append(message)
+            if self.no_samples and self.no_samples == len(self.samples_received):
+                self.async_data_result.set()
+
+        # Driver config
+        driver_config = {
+            'dvr_mod' : self._test_config.driver_module,
+            'dvr_cls' : self._test_config.driver_class,
+            'workdir' : self._test_config.working_dir
+        }
+        # Create streams and subscriptions for each stream named in driver.
+
+        stream_config = {}
+
+        for (stream_name, val) in self._test_config.instrument_agent_packet_config.iteritems():
+            stream_def_id = self.pubsub_client.create_stream_definition(
+                container=self._test_config.instrument_agent_stream_definition)
+            stream_id = self.pubsub_client.create_stream(
+                name=stream_name,
+                stream_definition_id=stream_def_id,
+                original=True,
+                encoding=self._test_config.instrument_agent_stream_encoding)
+            stream_config[stream_name] = stream_id
+
+            # Create subscriptions for each stream.
+            exchange_name = '%s_queue' % stream_name
+            sub = self.subscriber_registrar.create_subscriber(exchange_name=exchange_name,
+                callback=consume_data)
+            self._listen(sub)
+            self.data_subscribers.append(sub)
+            query = StreamQuery(stream_ids=[stream_id])
+            sub_id = self.pubsub_client.create_subscription(\
+                query=query, exchange_name=exchange_name)
+            self.pubsub_client.activate_subscription(sub_id)
+
+        # Create agent config.
+        agent_config = {
+            'driver_config' : driver_config,
+            'stream_config' : stream_config,
+            'agent'         : {'resource_id': self._test_config.instrument_agent_resource_id},
+            'test_mode' : True  ## Enable a poison pill. If the spawning process dies
+            ## shutdown the daemon process.
+        }
+
+
+
+
+        # Start instrument agent.
+        log.debug("TestInstrumentAgent.setup(): starting IA.")
+        container_client = ContainerAgentClient(node=self.container.node,
+            name=self.container.name)
+
+        instrument_agent_pid = container_client.spawn_process(
+            name=self._test_config.instrument_agent_name,
+            module=self._test_config.instrument_agent_module,
+            cls=self._test_config.instrument_agent_class,
+            config=agent_config)
+        log.info('Agent pid=%s.', instrument_agent_pid)
+
+        ia_client = ResourceAgentClient(
+            self._test_config.instrument_agent_resource_id, process=self.FakeProcess())
+
+        log.info('Got ia client %s.', str(ia_client))
+
+        self.container.instrument_agent_client = ia_client
+
+
     def tearDown(self):
         """
         @brief Test teardown
         """
         log.debug("InstrumentDriverQualificationTestCase tearDown")
-        self.stop_port_agent()
-        self.stop_data_subscribers()
-        self.stop_event_subscribers()
+        #self.stop_port_agent()
+        #self.stop_data_subscribers()
+        #self.stop_event_subscribers()
         
-        InstrumentDriverTestCase.tearDown(self)
-        
+        #InstrumentDriverTestCase.tearDown(self)
+
     @classmethod
     def setupClass(cls):
         """
@@ -458,43 +538,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         # Bring up services in a deploy file (no need to message)
         container.start_rel_from_url(testcase._test_config.container_deploy_file)
-        return
 
-        # Driver config
-        driver_config = {
-            'dvr_mod' : cls._test_config.driver_module,
-            'dvr_cls' : cls._test_config.driver_class,
-            'workdir' : cls._test_config.working_dir
-        }
-        
-        # Create agent config.
-        agent_config = {
-            'driver_config' : driver_config,
-            'stream_config' : testcase.stream_config,
-            'agent'         : {'resource_id': testcase._test_config.instrument_agent_resource_id},
-            'test_mode' : True  ## Enable a poison pill. If the spawning process dies
-                                ## shutdown the daemon process.
-        }
 
-        # Start instrument agent.
-        log.debug("TestInstrumentAgent.setup(): starting IA.")
-        container_client = ContainerAgentClient(node=container.node,
-                                                name=container.name)
-
-        instrument_agent_pid = container_client.spawn_process(
-                                                 name=cls._test_config.instrument_agent_name,
-                                                 module=cls._test_config.instrument_agent_module,
-                                                 cls=cls._test_config.instrument_agent_class,
-                                                 config=agent_config)      
-        log.info('Agent pid=%s.', instrument_agent_pid)
-        
-        ia_client = ResourceAgentClient(
-            cls._test_config.instrument_agent_resource_id, process=FakeProcess())
-
-        log.info('Got ia client %s.', str(ia_client))
-
-        container.instrument_agent_client = ia_client
-        
     @classmethod
     def stop_instrument_agent(cls):
         """
@@ -515,44 +560,22 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         Data subscribers
         """
+        self.data_subscribers = []
+        self.data_greenlets = []
+        self.events_received = []
+        self.no_events = None
         # Create a pubsub client to create streams.
-        pubsub_client = PubsubManagementServiceClient(node=self.container.node)
+        self.pubsub_client = PubsubManagementServiceClient(node=self.container.node)
 
-        # A callback for processing subscribed-to data.
-        def consume_data(message, headers):
-            log.info('Subscriber received data message: %s.', str(message))
-            self.samples_received.append(message)
-            if self.no_samples and self.no_samples == len(self.samples_received):
-                self.async_data_result.set()
+
 
         # Create a stream subscriber registrar to create subscribers.
-        subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
+        self.subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
             node=self.container.node)
 
-        # Create streams and subscriptions for each stream named in driver.
 
-        self.stream_config = {}
-        self.data_subscribers = []
-        for (stream_name, val) in self._test_config.instrument_agent_packet_config.iteritems():
-            stream_def_id = pubsub_client.create_stream_definition(
-                container=self._test_config.instrument_agent_stream_definition)
-            stream_id = pubsub_client.create_stream(
-                name=stream_name,
-                stream_definition_id=stream_def_id,
-                original=True,
-                encoding=self._test_config.instrument_agent_stream_encoding)
-            self.stream_config[stream_name] = stream_id
 
-            # Create subscriptions for each stream.
-            exchange_name = '%s_queue' % stream_name
-            sub = subscriber_registrar.create_subscriber(exchange_name=exchange_name,
-                callback=consume_data)
-            self._listen(sub)
-            self.data_subscribers.append(sub)
-            query = StreamQuery(stream_ids=[stream_id])
-            sub_id = pubsub_client.create_subscription(\
-                query=query, exchange_name=exchange_name)
-            pubsub_client.activate_subscription(sub_id)
+
 
     def stop_data_subscribers(self):
         """
@@ -567,6 +590,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         Create subscribers for agent and driver events.
         """
+        self.event_subscribers = []
         def consume_event(*args, **kwargs):
             log.info('Test recieved ION event: args=%s, kwargs=%s, event=%s.',
                 str(args), str(kwargs), str(args[0]))
@@ -695,7 +719,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         gl = spawn(sub.listen)
         self.data_greenlets.append(gl)
-        sub.ready_event.wait(timeout=5)
+        sub._ready_event.wait(timeout=5)
         return gl
 
 
