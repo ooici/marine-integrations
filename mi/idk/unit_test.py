@@ -43,6 +43,19 @@ from mi.core.exceptions import InstrumentException
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
+from interface.objects import AgentCommand
+from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
+from pyon.public import StreamSubscriberRegistrar
+from pyon.event.event import EventSubscriber, EventPublisher
+
+from mi.core.logger import Log
+from interface.services.icontainer_agent import ContainerAgentClient
+from pyon.agent.agent import ResourceAgentClient
+
+from ion.agents.instrument.instrument_agent import InstrumentAgentState
+from pyon.core.exception import InstParameterError
+from interface.objects import StreamQuery
+
 class InstrumentDriverTestConfig(Singleton):
     """
     Singleton driver test config object.
@@ -284,6 +297,8 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         }
 
 
+
+
 class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     """
     Base class for instrument driver unit tests
@@ -312,8 +327,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
     def test_driver_process(self):
         """
-        Test for correct launch of driver process and communications, including
-        asynchronous driver events.
+        @Brief Test for correct launch of driver process and communications, including asynchronous driver events.
         """
 
         log.info("Ensuring driver process was started properly ...")
@@ -381,21 +395,102 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         log.debug("InstrumentDriverQualificationTestCase setUp")
         
         self.container = Container.instance
+
+
         InstrumentDriverTestCase.setUp(self)
-        
+
+        self.init_event_subscribers()
+        self.init_data_subscribers()
         self.init_port_agent()
+
+
+        self.init_instrument_agent_client()
+
+        self.instrument_agent_client = self.container.instrument_agent_client
+
+
+    def init_instrument_agent_client(self):
+        # A callback for processing subscribed-to data.
+        def consume_data(message, headers):
+            log.info('Subscriber received data message: %s.', str(message))
+            self.samples_received.append(message)
+            if self.no_samples and self.no_samples == len(self.samples_received):
+                self.async_data_result.set()
+
+        # Driver config
+        driver_config = {
+            'dvr_mod' : self._test_config.driver_module,
+            'dvr_cls' : self._test_config.driver_class,
+            'workdir' : self._test_config.working_dir
+        }
+        # Create streams and subscriptions for each stream named in driver.
+
+        stream_config = {}
+
+        for (stream_name, val) in self._test_config.instrument_agent_packet_config.iteritems():
+            stream_def_id = self.pubsub_client.create_stream_definition(
+                container=self._test_config.instrument_agent_stream_definition)
+            stream_id = self.pubsub_client.create_stream(
+                name=stream_name,
+                stream_definition_id=stream_def_id,
+                original=True,
+                encoding=self._test_config.instrument_agent_stream_encoding)
+            stream_config[stream_name] = stream_id
+
+            # Create subscriptions for each stream.
+            exchange_name = '%s_queue' % stream_name
+            sub = self.subscriber_registrar.create_subscriber(exchange_name=exchange_name,
+                callback=consume_data)
+            self._listen(sub)
+            self.data_subscribers.append(sub)
+            query = StreamQuery(stream_ids=[stream_id])
+            sub_id = self.pubsub_client.create_subscription(\
+                query=query, exchange_name=exchange_name)
+            self.pubsub_client.activate_subscription(sub_id)
+
+        # Create agent config.
+        agent_config = {
+            'driver_config' : driver_config,
+            'stream_config' : stream_config,
+            'agent'         : {'resource_id': self._test_config.instrument_agent_resource_id},
+            'test_mode' : True  ## Enable a poison pill. If the spawning process dies
+            ## shutdown the daemon process.
+        }
+
+
+
+
+        # Start instrument agent.
+        log.debug("TestInstrumentAgent.setup(): starting IA.")
+        container_client = ContainerAgentClient(node=self.container.node,
+            name=self.container.name)
+
+        instrument_agent_pid = container_client.spawn_process(
+            name=self._test_config.instrument_agent_name,
+            module=self._test_config.instrument_agent_module,
+            cls=self._test_config.instrument_agent_class,
+            config=agent_config)
+        log.info('Agent pid=%s.', instrument_agent_pid)
+
+        ia_client = ResourceAgentClient(
+            self._test_config.instrument_agent_resource_id, process=self.FakeProcess())
+
+        log.info('Got ia client %s.', str(ia_client))
+
+        self.container.instrument_agent_client = ia_client
+
 
     def tearDown(self):
         """
         @brief Test teardown
         """
         log.debug("InstrumentDriverQualificationTestCase tearDown")
-        self.stop_port_agent()
+        #self.stop_port_agent()
         #self.stop_data_subscribers()
         #self.stop_event_subscribers()
         
-        InstrumentDriverTestCase.tearDown(self)
-        
+        #InstrumentDriverTestCase.tearDown(self)
+
     @classmethod
     def setupClass(cls):
         """
@@ -414,9 +509,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         
         log.debug("InstrumentDriverQualificationTestCase tear down class")
-        cls.stop_instrument_agent()
-        cls.stop_couchdb()
-        cls.stop_rabbitmq_server()
+        #cls.stop_instrument_agent()
+        #cls.stop_couchdb()
+        #cls.stop_rabbitmq_server()
 
     @classmethod
     def init_instrument_agent(cls):
@@ -424,7 +519,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         @brief Launch the instrument agent
         """
         log.info("Startup Instrument Agent")
-        
+
         if not os.path.exists(cls._test_config.container_deploy_file):
             raise TestNoDeployFile(cls._test_config.container_deploy_file)
             
@@ -434,57 +529,17 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             def runTest(self): pass
             
         testcase = _StartContainer()
-        
+
         # Start container.
         testcase._start_container()
-        log.debug( "Capability container id: %s" % testcase.container.id )
-        
-        # Bring up services in a deploy file (no need to message)
-        testcase.container.start_rel_from_url(testcase._test_config.container_deploy_file)
-        return
-        
-        ###
-        #    Not starting up publishers and subscribers for now.  Waiting on DM
-        #    for a new stream definition
-        ###
-        testcase._publishers.initialize()
-        testcase.start_data_subscribers()
-        testcase.start_event_subscribers()
+        container = testcase.container
 
-        # Driver config
-        driver_config = {
-            dvr_mod : testcase._test_config.driver_module,
-            dvr_cls : testcase._test_config.driver_class,
-            workdir : testcase._test_config.working_dir
-        }
-        
-        # Create agent config.
-        agent_config = {
-            'driver_config' : driver_config,
-            'stream_config' : testcase._publishers.stream_config,
-            'agent'         : {'resource_id': testcase._test_config.instrument_agent_resource_id},
-            'test_mode' : True  ## Enable a poison pill. If the spawning process dies
-                                ## shutdown the daemon process.
-        }
-        
-        # Start instrument agent.
-        testcase._instrument_agent_pid = None
-        log.debug("TestInstrumentAgent.setup(): starting IA.")
-        container_client = ContainerAgentClient(node=testcase.container.node,
-                                                name=testcase.container.name)
-        testcase._instrument_agent_pid = container_client.spawn_process(
-                                                 name=testcase._test_config.instrument_agent_name,
-                                                 module=testcase._test_config.instrument_agent_module, 
-                                                 cls=testcase._test_config.instrument_agent_class, 
-                                                 config=agent_config)      
-        log.info('Agent pid=%s.', str(testcase._instrument_agent_pid))
-        
-        # Start a resource agent client to talk with the instrument agent.
-        testcase._instrument_agent_client = None
-        testcase._instrument_agent_client = ResourceAgentClient(
-            testcase._test_config.instrument_agent_resource_id, process=FakeProcess())
-        log.info('Got ia client %s.', str(testcase._instrument_agent_client))   
-        
+        log.debug( "Capability container id: %s" % testcase.container.id )
+
+        # Bring up services in a deploy file (no need to message)
+        container.start_rel_from_url(testcase._test_config.container_deploy_file)
+
+
     @classmethod
     def stop_instrument_agent(cls):
         """
@@ -500,6 +555,59 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         testcase = _StartContainer()
         testcase.container = Container.instance
         testcase._stop_container()
+
+    def init_data_subscribers(self):
+        """
+        Data subscribers
+        """
+        self.data_subscribers = []
+        self.data_greenlets = []
+        self.events_received = []
+        self.no_events = None
+        # Create a pubsub client to create streams.
+        self.pubsub_client = PubsubManagementServiceClient(node=self.container.node)
+
+
+
+        # Create a stream subscriber registrar to create subscribers.
+        self.subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
+            node=self.container.node)
+
+
+
+
+
+    def stop_data_subscribers(self):
+        """
+        Stop the data subscribers on cleanup.
+        """
+        for sub in self.data_subscribers:
+            sub.stop()
+        for gl in self.data_greenlets:
+            gl.kill()
+
+    def init_event_subscribers(self):
+        """
+        Create subscribers for agent and driver events.
+        """
+        self.event_subscribers = []
+        def consume_event(*args, **kwargs):
+            log.info('Test recieved ION event: args=%s, kwargs=%s, event=%s.',
+                str(args), str(kwargs), str(args[0]))
+            self.events_received.append(args[0])
+            if self.no_events and self.no_events == len(self.event_received):
+                self.async_event_result.set()
+
+        event_sub = EventSubscriber(event_type="DeviceEvent", callback=consume_event)
+        event_sub.activate()
+        self.event_subscribers.append(event_sub)
+
+    def stop_event_subscribers(self):
+        """
+        Stop event subscribers on cleanup.
+        """
+        for sub in self.event_subscribers:
+            sub.deactivate()
 
     @classmethod
     def init_couchdb(cls):
@@ -605,88 +713,204 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         return "%s/%s_%d.pid" % (Config().get('tmp_dir'), name, os.getpid())
 
 
-    def start_data_subscribers(self):
-        """
-        Data subscribers
-        """
-        # Create a pubsub client to create streams.
-        pubsub_client = PubsubManagementServiceClient(node=self.container.node)
-
-        # A callback for processing subscribed-to data.
-        def consume_data(message, headers):
-            log.info('Subscriber received data message: %s.', str(message))
-            self._publishers.samples_received.append(message)
-            if self._publishers.no_samples and self._publishers.no_samples == len(self._publishers.samples_received):
-                self._publishers.async_data_result.set()
-                
-        # Create a stream subscriber registrar to create subscribers.
-        subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
-                                                         node=self.container.node)
-
-        # Create streams and subscriptions for each stream named in driver.
-        self._publishers.stream_config = {}
-        self._publishers.data_subscribers = []
-        for (stream_name, val) in self._test_config.instrument_agent_packet_config.iteritems():
-            stream_def_id = pubsub_client.create_stream_definition(
-                                container=self._test_config.instrument_agent_stream_definition)        
-            stream_id = pubsub_client.create_stream(
-                        name=stream_name,
-                        stream_definition_id=stream_def_id,
-                        original=True,
-                        encoding=self._test_config.instrument_agent_stream_encoding)
-            self._publishers.stream_config[stream_name] = stream_id
-            
-            # Create subscriptions for each stream.
-            exchange_name = '%s_queue' % stream_name
-            sub = subscriber_registrar.create_subscriber(exchange_name=exchange_name,
-                                                         callback=consume_data)
-            self._listen(sub)
-            self._publishers.data_subscribers.append(sub)
-            query = StreamQuery(stream_ids=[stream_id])
-            sub_id = pubsub_client.create_subscription(\
-                                query=query, exchange_name=exchange_name)
-            pubsub_client.activate_subscription(sub_id)
-            
-    def stop_data_subscribers(self):
-        """
-        Stop the data subscribers on cleanup.
-        """
-        for sub in self._publishers.data_subscribers:
-            sub.stop()
-        for gl in self._publishers.data_greenlets:
-            gl.kill()
-            
-    def start_event_subscribers(self):
-        """
-        Create subscribers for agent and driver events.
-        """
-        def consume_event(*args, **kwargs):
-            log.info('Test recieved ION event: args=%s, kwargs=%s, event=%s.', 
-                     str(args), str(kwargs), str(args[0]))
-            self._publishers.events_received.append(args[0])
-            if self._publishers.no_events and self._publishers.no_events == len(self._publishers.event_received):
-                self._publishers.async_event_result.set()
-                
-        event_sub = EventSubscriber(event_type="DeviceEvent", callback=consume_event)
-        event_sub.activate()
-        self._publishers.event_subscribers.append(event_sub)
-        
-    def stop_event_subscribers(self):
-        """
-        Stop event subscribers on cleanup.
-        """
-        for sub in self._publishers.event_subscribers:
-            sub.deactivate()
-            
     def _listen(self, sub):
         """
         Pass in a subscriber here, this will make it listen in a background greenlet.
         """
         gl = spawn(sub.listen)
-        self._publishers.data_greenlets.append(gl)
-        sub._publishers.ready_event.wait(timeout=5)
+        self.data_greenlets.append(gl)
+        sub._ready_event.wait(timeout=5)
         return gl
-                                 
+
+
     def test_common_qualification(self):
         self.assertTrue(1)
-    
+
+    def test_instrument_agent_common_state_model_lifecycle(self):
+        """
+        @brief Test agent state transitions.
+               This test verifies that the instrument agent can
+               properly command the instrument through the following states.
+
+               KNOWN COMMANDS               -> RESULTANT STATES:
+               * power_up                   -> UNINITIALIZED
+               * power_down                 -> POWERED_DOWN
+               * initialize                 -> INACTIVE
+               * reset                      -> UNINITIALIZED
+               * go_active                  -> IDLE
+               * go_inactive                -> INACTIVE
+               * run                        -> OBSERVATORY
+               * clear                      -> IDLE
+               * pause                      -> STOPPED
+               * resume                     -> OBSERVATORY
+               * go_streaming               -> STREAMING
+               * go_direct_access           -> DIRECT_ACCESS
+               * go_observatory             -> OBSERVATORY
+               * get_current_state          -> gives current state.
+               * start_transaction (NA)
+               * end_transaction (NA)
+
+               STATES ACHIEVED:
+               * InstrumentAgentState.POWERED_DOWN
+               * InstrumentAgentState.UNINITIALIZED
+               * InstrumentAgentState.INACTIVE
+               * InstrumentAgentState.IDLE
+               * InstrumentAgentState.OBSERVATORY
+               * InstrumentAgentState.STREAMING
+               * InstrumentAgentState.DIRECT_ACCESS
+               * InstrumentAgentState.STOPPED
+
+               above that are common to all devices go into common,
+               others go into instrument specific
+
+               ?? when we get it, we can add:
+               ??    get_current_capabilitys <- instrument specific
+
+               A side effect of this testing is verification that the
+               events emitted by the agent conform to those expected
+               by the system.
+        """
+
+        self._ia_client = self.instrument_agent_client
+        cmd = AgentCommand(command='power_down')
+        retval = self._ia_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
+
+        cmd = AgentCommand(command='power_up')
+        retval = self._ia_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command='initialize')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+        cmd = AgentCommand(command='go_inactive')
+        retval = self._ia_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+        # ...and put it back to where it should be...
+        cmd = AgentCommand(command='go_active')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+
+        cmd = AgentCommand(command='run')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        # Begin streaming.
+        cmd = AgentCommand(command='go_streaming')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.STREAMING)
+
+        # Halt streaming.
+        cmd = AgentCommand(command='go_observatory')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        # go direct access
+        cmd = AgentCommand(command='go_direct_access')
+        retval = self._ia_client.execute_agent(cmd)
+        log.debug("5***** go_direct_access retval=" + str(retval.result))
+        # 5***** go_direct_access retval={'token': '3AE880EF-27FE-4DE8-BFFF-C078640A3090', 'ip_address': 'REDACTED.local', 'port': 8000}
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.DIRECT_ACCESS)
+
+        # Halt DA.
+        cmd = AgentCommand(command='go_observatory')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        cmd = AgentCommand(command='pause')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.STOPPED)
+
+        cmd = AgentCommand(command='resume')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        cmd = AgentCommand(command='clear')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+        cmd = AgentCommand(command='run')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        cmd = AgentCommand(command='pause')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.STOPPED)
+
+        cmd = AgentCommand(command='clear')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+        cmd = AgentCommand(command='reset')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)

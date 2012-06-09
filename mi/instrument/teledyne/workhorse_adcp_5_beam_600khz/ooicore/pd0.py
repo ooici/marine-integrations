@@ -11,6 +11,7 @@
 __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
 
+import datetime
 from struct import pack, unpack
 
 ID_HEADER = 0x7F
@@ -103,6 +104,8 @@ class PD0DataStructure(object):
         s.append("ErrorVelocityMaximum = %s" % self.getErrorVelocityMaximum())
         s.append("BinOneDistance = %s" % self.getBinOneDistance())
         s.append("SpeedOfSound = %s" % self.getSpeedOfSound())
+        s.append("EnsembleNumber = %s" % self.getEnsembleNumber())
+        s.append("Time = %s" % str(self.getTime()))
         s.append("DepthOfTransducer = %s" % self.getDepthOfTransducer())
         s.append("Heading = %s" % self.getHeading())
         s.append("Pitch = %s" % self.getPitch())
@@ -197,6 +200,37 @@ class PD0DataStructure(object):
     def getOffsetForVariableLeader(self):
         return int(self.getOffsetForDataType(DATATYPE_VARIABLE_LEADER))
 
+    def getEnsembleNumber(self):
+        """
+        @retval sequential number of the ensemble to which the data in the
+                output buffer apply taking into account the MSB
+        """
+        ens_number = self.getShort(self.getOffsetForVariableLeader() + 2)
+        msb = int(self.data[self.getOffsetForVariableLeader() + 11])
+
+        number = 65536 * msb + ens_number
+
+        return number
+
+    def getTime(self):
+        """
+        @retval datetime object representing the time from the WorkHorse ADCP's
+                real-time clock (RTC) that the current data ensemble began.
+        """
+        century = int(self.data[self.getOffsetForVariableLeader() + 57])
+        year2 = int(self.data[self.getOffsetForVariableLeader() + 58])
+        year = 100 * century + year2
+        month = int(self.data[self.getOffsetForVariableLeader() + 59])
+        day = int(self.data[self.getOffsetForVariableLeader() + 60])
+        hour = int(self.data[self.getOffsetForVariableLeader() + 61])
+        min = int(self.data[self.getOffsetForVariableLeader() + 62])
+        sec = int(self.data[self.getOffsetForVariableLeader() + 63])
+        hun = int(self.data[self.getOffsetForVariableLeader() + 64])
+        us = 10000 * hun
+
+        ens_time = datetime.datetime(year, month, day, hour, min, sec, us)
+        return ens_time
+
     def getSpeedOfSound(self):
         """
         @return speed of sound (m/s)
@@ -207,7 +241,7 @@ class PD0DataStructure(object):
         """
         @return depth in meters
         """
-        return self.getShort(self.getOffsetForVariableLeader() + 14) * 0.1
+        return self.getShort(self.getOffsetForVariableLeader() + 16) * 0.1
 
     def getHeading(self):
         """
@@ -240,7 +274,7 @@ class PD0DataStructure(object):
         return self.getShort(self.getOffsetForVariableLeader() + 26) * 0.01
 
     #######################
-    # Variable Leader Info
+    # Data Info
     #######################
 
     def getVelocity(self, beam):

@@ -5,6 +5,14 @@ See https://confluence.oceanobservatories.org/display/ENG/VADCP+Driver
 
 Some development notes:
 
+2012-06-08:
+- troubleshooting access to 5th beam with Dana enabling an OOI digi interface
+  as with the 4-beam unit.
+- adding get operations to PD0DataStructure to retrieve time-related
+  information, which I'll be using to correlate ensembles from both units,
+  probably in combination with the OOI Digi timestamping, but in general
+  while a proper timestamping mechanism is implemented according to Bill.
+
 2012-06-05:
 - implement "break" command, which needs connection to the OOI digi.
 - initial implementation of start_autosample and stop_autosample.
