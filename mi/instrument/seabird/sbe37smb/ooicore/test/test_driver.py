@@ -838,10 +838,17 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         """
 
-        self._ia_client = self.__class__.instrument_agent_client
+        Log.debug("IA client = " + str(self.instrument_agent_client))
+
+
 
         cmd = AgentCommand(command='power_down')
-        retval = self._ia_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        return  # <-------- HIDDEN RETURN (Roger)
+
+
 
         cmd = AgentCommand(command='get_current_state')
         retval = self._ia_client.execute_agent(cmd)
