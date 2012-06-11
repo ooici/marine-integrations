@@ -5,6 +5,12 @@ See https://confluence.oceanobservatories.org/display/ENG/VADCP+Driver
 
 Some development notes:
 
+2012-06-10:
+- Incorporating concept of "VADCP unit" to refer to the particular unit, either
+  the 4-beam unit or the 5th beam unit. Each unit has a raw connection and an
+  OOI Digi connection.
+
+
 2012-06-08:
 - troubleshooting access to 5th beam with Dana enabling an OOI digi interface
   as with the 4-beam unit.

@@ -24,7 +24,7 @@ from mi.core.mi_logger import mi_logger as log
 
 
 @attr('UNIT', group='mi')
-class DriverTest(VadcpTestCase, DriverTestMixin):
+class Test(VadcpTestCase, DriverTestMixin):
     """
     Direct tests to the VadcpDriver class. The actual set of tests
     is provided by DriverTestMixin.
@@ -44,4 +44,4 @@ class DriverTest(VadcpTestCase, DriverTestMixin):
 
         # needed by DriverTestMixin
         self.driver = VadcpDriver(evt_callback)
-        self.comms_config = self._conn_config
+        self.comms_config = self._conn_config[self._vadcp_unit]

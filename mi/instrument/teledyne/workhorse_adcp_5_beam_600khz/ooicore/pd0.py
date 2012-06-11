@@ -113,11 +113,8 @@ class PD0DataStructure(object):
         s.append("Salinity = %s" % self.getSalinity())
         s.append("Temperature = %s" % self.getTemperature())
 
-        s.append("NumberOfDataTypes = %d" % self.getNumberOfDataTypes())
-        for i in range(self.getNumberOfDataTypes()):
-            t = i + 1
-            s.append("  OffsetForDataType_%d = %d" %
-                     (t, self.getOffsetForDataType(t)))
+        offsets = [self.getOffsetForDataType(i + 1) for i in range(self.getNumberOfDataTypes())]
+        s.append("NumberOfDataTypes = %d -> %s" % (self.getNumberOfDataTypes(), offsets))
 
         s.append("NumberOfBeams = %d" % self.getNumberOfBeams())
         for i in range(self.getNumberOfBeams()):

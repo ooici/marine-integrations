@@ -147,7 +147,8 @@ class VadcpDriver(InstrumentDriver):
 #            raise InstrumentParameterException(msg="'config' parameter required")
             config = args[0]
 
-        outfile = file('vadcp_output.txt', 'w')
+        outfilename = 'vadcp_output_%s_%s.txt' % (config.host, config.port)
+        outfile = file(outfilename, 'w')
 
         # Verify dict and construct connection client.
         log.info("setting VadcpClient with config: %s" % config)

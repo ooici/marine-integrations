@@ -12,6 +12,8 @@ __author__ = 'Carlos Rueda'
 __license__ = 'Apache 2.0'
 
 
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
+    AdcpUnitConnConfig
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.receiver import \
     ReceiverBuilder
 
@@ -30,11 +32,50 @@ class VadcpTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """
-        Sets up _vadcp, _timeout, according to corresponding
-        environment variables.
+        Sets up _conn_config, _timeout, according to environment variables.
         """
-        cls._vadcp = os.getenv('VADCP')
 
+        cls._skip_reason = None
+
+        #
+        # cls._conn_config
+        #
+        cls._conn_config = None
+        vadcp = os.getenv('VADCP')
+        if vadcp:
+            filename = vadcp
+            log.info("loading connection params from '%s'" % filename)
+            try:
+                f = open(filename)
+                yml = yaml.load(f)
+                f.close()
+
+                def create_unit_conn_config(yml):
+                    return AdcpUnitConnConfig(yml.get('host'),
+                                              yml.get('port'),
+                                              yml.get('ooi_digi_host'),
+                                              yml.get('ooi_digi_port'))
+
+                cls._conn_config = {
+                    'four_beam': create_unit_conn_config(yml['four_beam']),
+                    'fifth_beam': create_unit_conn_config(yml['fifth_beam'])
+                }
+            except Exception, e:
+                cls._skip_reason = "Problem with connection config file: '%s': %s" % (
+                                    filename, str(e))
+                log.warn(cls._skip_reason)
+        else:
+            cls._skip_reason = 'environment variable VADCP undefined'
+
+        #
+        # cls._vadcp_unit
+        #
+        cls._vadcp_unit = os.getenv('VADCP_UNIT', 'four_beam')
+        log.info("_adcp_unit set to: %s" % cls._vadcp_unit)
+
+        #
+        # cls._timeout
+        #
         cls._timeout = 30
         timeout_str = os.getenv('timeout')
         if timeout_str:
@@ -49,52 +90,8 @@ class VadcpTestCase(unittest.TestCase):
         """
         """
 
-        if self._vadcp is None:
-            # should not happen, but anyway just skip here:
-            self.skipTest("Environment variable VADCP undefined")
-
-        if self._vadcp.endswith(".yml"):
-            filename = self._vadcp
-            log.info("loading connection params from %s" % filename)
-            f = open(filename)
-            yml = yaml.load(f)
-            f.close()
-
-            ooi_digi = yml['ooi_digi']
-            four_beam = yml['four_beam']
-            fifth_beam = yml['fifth_beam']
-            self._conn_config = {
-                'ooi_digi': {'address': ooi_digi.get('address'),
-                              'port': ooi_digi.get('port')},
-
-                'four_beam': {'address': four_beam.get('address'),
-                              'port': four_beam.get('port')},
-
-                'fifth_beam': {'address': fifth_beam.get('address'),
-                               'port': fifth_beam.get('port'),
-                               'telnet_port': fifth_beam.get('telnet_port')}
-            }
-
-        else:
-            try:
-                device_address, p = self._vadcp.split(':')
-                port = int(p)
-            except:
-                self.skipTest("Malformed VADCP value")
-
-            # TODO hard-coded values here to be replaced
-            self._conn_config = {
-                'ooi_digi': {'address': '10.180.80.178',
-                              'port': 2102},
-
-                'four_beam': {'address': device_address,
-                              'port': port},
-
-                'fifth_beam': {'address': '10.180.80.174',
-                               'port': 2101,
-                               'telnet_port': 2001}
-            }
-
+        if self._skip_reason:
+            self.skipTest(self._skip_reason)
 
         log.info("== VADCP _conn_config: %s" % self._conn_config)
 

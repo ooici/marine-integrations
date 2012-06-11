@@ -368,7 +368,11 @@ class VadcpDriver(SingleConnectionInstrumentDriver):
         """
         log.info('_build_connection: config=%s' % config)
 
-        outfile = file('vadcp_output.txt', 'w')
+        if 'localhost' == config.host:
+            outfilename = 'vadcp_output.txt'
+        else:
+            outfilename = 'vadcp_output_%s_%s.txt' % (config.host, config.port)
+        outfile = file(outfilename, 'w')
 
         log.info("setting VadcpClient with config: %s" % config)
         try:
