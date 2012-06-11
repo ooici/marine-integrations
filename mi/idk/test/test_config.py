@@ -69,6 +69,7 @@ class TestConfig(unittest.TestCase):
 
     def test_default_config(self):
         """Test that the default configuration is created"""
+        print "pbb"
         config = Config(ROOTDIR)
         self.assertTrue(config)
 

@@ -11,6 +11,9 @@
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
+import yaml
+import collections
+
 """Default timeout value in seconds"""
 DEFAULT_TIMEOUT = 10
 
@@ -29,6 +32,68 @@ class Singleton(object):
 
     def init(self, *args, **kwds):
         pass
+
+class Config(object):
+    """
+    Read yaml config files.
+    """
+    config = None
+
+    def __init__(self, files = None, content = None):
+        result = None
+
+        if files:
+            content = []
+            for file in files:
+                infile = open(file, 'r')
+                c = infile.read()
+                infile.close()
+                content.append(c)
+
+        self._store_content(content)
+
+    def _store_content(self, content_list):
+        result = []
+        for content in content_list:
+            if content:
+                input_config = yaml.load(content)
+                if result:
+                    self._merge(result, input_config, True)
+                else:
+                    result = input_config;
+
+        self.config = result
+
+    def _quacks_like_dict(self, object):
+        """Check if object is dict-like"""
+        return isinstance(object, collections.Mapping)
+
+    def _merge(self, base, upd, inplace=False):
+        """Merge two deep dicts non-destructively.
+        Uses a stack to avoid maximum recursion depth exceptions.
+        @param base the dict to merge into
+        @param upd the content to merge
+        @param inplace change base if True
+        @retval the merged dict (base of inplace else a merged copy)
+        """
+        assert self._quacks_like_dict(base), self._quacks_like_dict(upd)
+        dst = base if inplace else base.copy()
+
+        stack = [(dst, upd)]
+        while stack:
+            current_dst, current_src = stack.pop()
+            for key in current_src:
+                if key not in current_dst:
+                    current_dst[key] = current_src[key]
+                else:
+                    if self._quacks_like_dict(current_src[key]) and self._quacks_like_dict(current_dst[key]) :
+                        stack.append((current_dst[key], current_src[key]))
+                    else:
+                        current_dst[key] = current_src[key]
+        return dst
+
+    def as_dict(self):
+        return self.config
     
 class BaseEnum(object):
     """Base class for enums.

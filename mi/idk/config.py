@@ -26,6 +26,8 @@ import sys
 import yaml
 from git import Repo
 
+import mi.core.common 
+
 from mi.idk.exceptions import IDKConfigMissing
 from mi.idk.exceptions import IDKWrongRunningDirectory
 from mi.idk.exceptions import WorkingRepoNotSet
@@ -82,23 +84,12 @@ class ConfigManager(Singleton):
 
         self.read_config([ os.path.join(self.get("working_repo"), DEFAULT_CONFIG),
                            cfgpath ])
+        pass
 
     def read_config(self, config_list):
-        result = None
-
-        for config in config_list:
-            infile = open(config)
-            input_config = yaml.load(infile)
-            infile.close()
-            if result:
-                pyon.util.config.dict_merge(result, input_config, inplace = True)
-            else:
-                result = input_config;
-
-        log.debug(result)
-
-        self.yaml = result
-
+        config = mi.core.common.Config(config_list)
+        self.yaml = config.as_dict()
+        pass
 
     def rebase(self):
         """
