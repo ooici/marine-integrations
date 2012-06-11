@@ -1,6 +1,31 @@
 #!/usr/bin/env python
+"""
+@file mi/core/log.py
+@author Bill French
+@brief Log mechanism for the MI repository.  The log facility is
+pretty much a copy paste from pyon.util.log and pyon.util.config.
+I've also added a log manager which which uses a singleton to
+ensure the mi logger is only initialized once.  It also provides
+methods to set the log level and file dynamically at runtime.
 
-__author__ = 'Adam R. Smith'
+Usage:
+
+from pyon.util.log import log, log_manager
+
+# Note that this only changes the log level for the MI logger
+log_manager.set_log_level("DEBUG")
+
+# Dynamically change the log file
+log_manager.set_log_file("/tmp/file")
+
+# Write a log message
+log.critical("message")
+log.error("message")
+log.warn("message")
+log.info("message")
+log.debug("message")
+"""
+__author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
 import __builtin__
@@ -24,7 +49,9 @@ class LoggerConfig(object):
         system_log_config = None
         local_log_config = None
 
+        # Allows for relative pathing starting from this file in a package.  This will work with zip_safe egg files
         system_log_config = resource_string(__name__, '../../extern/ion-definitions/res/config/logging.yml')
+
         try:
             local_log_config = resource_string(__name__, '../../extern/ion-definitions/res/config/logging.local.yml')
         except IOError, e:
@@ -34,9 +61,13 @@ class LoggerConfig(object):
                 raise e
 
         self.config = Config(content = [system_log_config, local_log_config]).as_dict()
+
+        # Save and initialize the logger
         self.initialize_logging()
 
     def initialize_logging(self):
+        """Update the logging singleton with the new config dict"""
+
         # Ensure the logging directories exist
         for handler in self.config.get('handlers', {}).itervalues():
             if 'filename' in handler:
@@ -49,29 +80,36 @@ class LoggerConfig(object):
             logging.config.dictConfig(self.config)
 
     def set_log_file(self, filename):
+        """Change the log file for all handlers"""
         for handler in self.config.get('handlers', {}).itervalues():
             if 'filename' in handler:
                 handler['filename'] = filename
         self.initialize_logging()
 
     def set_log_level(self, level):
-        for logger in self.config.get('loggers', {}).itervalues():
-            if 'level' in logger:
-                logger['level'] = level
+        """Change the log level for the MI logger"""
+
+        # Do we need to update this to change all log levels?
+        self.config['loggers']['mi']['level'] = level
+        #for logger in self.config.get('loggers', {}).itervalues():
+        #    if 'level' in logger:
+        #        logger['level'] = level
         self.initialize_logging()
-        print self.config
 
 class LoggerManager(Singleton):
     """
     Logger Manager.  Provides an interface to configure logging at runtime.
     """
     def init(self):
+        """Initialize logging for MI.  Because this is a singleton it will only be initialized once."""
         self.config = LoggerConfig()
 
     def set_log_level(self, level):
+        """Change the current log level"""
         self.config.set_log_level(level)
 
     def set_log_file(self, filename):
+        """Change the current log file"""
         self.config.set_log_file(filename)
 
 
