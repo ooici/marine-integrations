@@ -25,7 +25,7 @@ from nose.plugins.attrib import attr
 
 
 @attr('UNIT', group='mi')
-class ClientTest(VadcpTestCase):
+class Test(VadcpTestCase):
 
     # this class variable is to keep a single reference to the VadcpClient
     # object in the current test. setUp will first finalize such object in case
@@ -37,12 +37,12 @@ class ClientTest(VadcpTestCase):
     @classmethod
     def _end_client_if_any(cls):
         """Ends the current VadcpClient, if any."""
-        if ClientTest._client:
+        if Test._client:
             log.info("releasing not finalized VadcpClient object")
             try:
-                ClientTest._client.end()
+                Test._client.end()
             finally:
-                ClientTest._client = None
+                Test._client = None
 
     @classmethod
     def tearDownClass(cls):
@@ -50,7 +50,7 @@ class ClientTest(VadcpTestCase):
         try:
             cls._end_client_if_any()
         finally:
-            super(ClientTest, cls).tearDownClass()
+            super(Test, cls).tearDownClass()
 
     def setUp(self):
         """
@@ -59,38 +59,38 @@ class ClientTest(VadcpTestCase):
 
         ReceiverBuilder.use_greenlets()
 
-        ClientTest._end_client_if_any()
+        Test._end_client_if_any()
 
-        super(ClientTest, self).setUp()
+        super(Test, self).setUp()
 
         self._ensembles_recd = 0
-        outfile = file('vadcp_output.txt', 'w')
-        prefix_state = True
-        _client = VadcpClient(self._conn_config, outfile, prefix_state)
 
-        # set the class and instance variables to refer to this object:
-        ClientTest._client = self._client = _client
+        conn_config = self._conn_config[self._vadcp_unit]
+        outfilename = 'vadcp_output_%s_%s.txt' % (conn_config.host, conn_config.port)
+        outfile = file(outfilename, 'w')
+        prefix_state = True
+        Test._client = VadcpClient(conn_config, outfile, prefix_state)
 
         # prepare client including going to the main menu
-        _client.set_generic_timeout(self._timeout)
+        Test._client.set_generic_timeout(self._timeout)
 
         log.info("connecting")
-        _client.set_data_listener(self._data_listener)
-        _client.connect()
+        Test._client.set_data_listener(self._data_listener)
+        Test._client.connect()
 
     def tearDown(self):
         """
         Ends the _client.
         """
         ReceiverBuilder.use_default()
-        client = ClientTest._client
-        ClientTest._client = None
+        client = Test._client
+        Test._client = None
         try:
             if client:
                 log.info("ending VadcpClient object")
                 client.end()
         finally:
-            super(ClientTest, self).tearDown()
+            super(Test, self).tearDown()
 
     def _data_listener(self, pd0):
         self._ensembles_recd += 1

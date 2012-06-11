@@ -16,18 +16,19 @@ from gevent import monkey; monkey.patch_all()
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.driver import VadcpDriver
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test import VadcpTestCase
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.driver_test_mixin import DriverTestMixin
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
+    AdcpUnitConnConfig
+
 from mi.core.instrument.driver_int_test_support import DriverIntegrationTestSupport
 from nose.plugins.attrib import attr
 
 from mi.core.instrument.instrument_driver import InstrumentDriver
 
-import copy
-
 from mi.core.mi_logger import mi_logger as log
 
 
 @attr('INT', group='mi')
-class DriverTest(VadcpTestCase, DriverTestMixin):
+class Test(VadcpTestCase, DriverTestMixin):
     """
     Driver integration tests involving port agent
     and driver process. The actual set of tests is provided by
@@ -44,8 +45,9 @@ class DriverTest(VadcpTestCase, DriverTestMixin):
 
         VadcpTestCase.setUp(self)
 
+        conn_config = self._conn_config[self._vadcp_unit]
         # needed by DriverTestMixin
-        self.driver = VadcpDriverProxy(self._conn_config)
+        self.driver = VadcpDriverProxy(conn_config)
         self.comms_config = self.driver.comms_config
 
         def cleanup():
@@ -70,9 +72,10 @@ class VadcpDriverProxy(InstrumentDriver):
         driver_module = 'mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.driver'
         driver_class = 'VadcpDriver'
 
-        four_beam = conn_config['four_beam']
-        device_address = four_beam['address']
-        device_port = four_beam['port']
+        device_address = conn_config.host
+        device_port = conn_config.port
+
+        # TODO set up port agent for the OOI Digi connection as well.
 
         self._support = DriverIntegrationTestSupport(driver_module,
                                                      driver_class,
@@ -84,9 +87,11 @@ class VadcpDriverProxy(InstrumentDriver):
         pagent_port = self._support.start_pagent()
 
         # so, we now connect to the 4-beam via the port agent:
-        self.comms_config = copy.deepcopy(conn_config)
-        self.comms_config['four_beam']['address'] = 'localhost'
-        self.comms_config['four_beam']['port'] = pagent_port
+        # Note that only the raw connection is adjusted
+        # TODO set up port agent for the OOI Digi connection as well.
+        self.comms_config = AdcpUnitConnConfig('localhost', pagent_port,
+                                               conn_config.ooi_digi_host,
+                                               conn_config.ooi_digi_port)
 
         log.info("comms_config: %s" % self.comms_config)
 

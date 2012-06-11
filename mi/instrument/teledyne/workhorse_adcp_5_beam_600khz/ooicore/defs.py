@@ -14,6 +14,39 @@ __license__ = 'Apache 2.0'
 
 from mi.core.common import BaseEnum
 
+
+class AdcpUnitConnConfig(object):
+    """
+    Connection configuration for an ADCP unit
+    """
+    def __init__(self, host, port, ooi_digi_host, ooi_digi_port):
+        self._host = host
+        self._port = port
+        self._ooi_digi_host = ooi_digi_host
+        self._ooi_digi_port = ooi_digi_port
+
+    def __str__(self):
+        return "%s(host=%s, port=%s, ooi_digi_port=%s)" % (
+            self.__class__.__name__,
+            self.host, self.port, self.ooi_digi_port)
+
+    @property
+    def host(self):
+        return self._host
+
+    @property
+    def port(self):
+        return self._port
+
+    @property
+    def ooi_digi_host(self):
+        return self._ooi_digi_host
+
+    @property
+    def ooi_digi_port(self):
+        return self._ooi_digi_port
+
+
 # default value for the generic timeout. By default, 30 secs
 DEFAULT_GENERIC_TIMEOUT = 30
 

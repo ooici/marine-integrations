@@ -18,7 +18,8 @@ import socket
 import sys
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
-    EOLN, DEFAULT_GENERIC_TIMEOUT, State, TimeoutException, MetadataSections
+    AdcpUnitConnConfig, EOLN, DEFAULT_GENERIC_TIMEOUT, State, \
+    TimeoutException, MetadataSections
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util import \
     connect_socket, prefix
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.receiver import \
@@ -31,13 +32,14 @@ from mi.core.mi_logger import mi_logger as log
 class VadcpClient(object):
     """
     A basic client to the instrument.
+    TODO NOTE Currently this is for a single unit
     """
 
     def __init__(self, conn_config, outfile=None, prefix_state=True):
         """
         Creates a VadcpClient instance.
 
-        @param conn_config connection configuration
+        @param conn_config AdcpUnitConnConfig
         @param outfile
         @param prefix_state
 
@@ -55,6 +57,9 @@ class VadcpClient(object):
         self._generic_timeout = DEFAULT_GENERIC_TIMEOUT
 
         log.info("VADCP client object created.")
+
+    def _data_listener(self, pd0):
+        pass
 
     def set_data_listener(self, data_listener):
         """
@@ -89,8 +94,8 @@ class VadcpClient(object):
         """
         assert self._sock is None
 
-        host = self._conn_config['four_beam']['address']
-        port = self._conn_config['four_beam']['port']
+        host = self._conn_config.host
+        port = self._conn_config.port
 
         self._sock = connect_socket(host, port)
 
@@ -317,12 +322,16 @@ class VadcpClient(object):
         Establishes the connection to the OOI digi
         """
 
-        host = self._conn_config['ooi_digi']['address']
-        port = self._conn_config['ooi_digi']['port']
+        host = self._conn_config.ooi_digi_host
+        port = self._conn_config.ooi_digi_port
 
         sock = connect_socket(host, port)
 
-        outfile = open('vadcp_ooi_digi_output.txt', 'a')
+        if 'localhost' == host:
+            outfilename = 'vadcp_ooi_digi_output.txt'
+        else:
+            outfilename = 'vadcp_output_%s_%s.txt' % (host, port)
+        outfile = open(outfilename, 'a')
         log.info("creating OOI Digi _Receiver")
         rt = ReceiverBuilder.build_receiver(sock, outfile=outfile)
         log.info("starting OOI Digi _Receiver")
@@ -370,7 +379,7 @@ class VadcpClient(object):
         return ok
 
 
-def main(host, port, outfile):
+def main(conn_config, outfile):
     """
     Demo program:
     """
@@ -388,7 +397,7 @@ def main(host, port, outfile):
                 client.send(cmd)
 
 
-    client = VadcpClient(host, port, outfile)
+    client = VadcpClient(conn_config, outfile)
     try:
         client.connect()
         user_loop(client)
@@ -403,31 +412,28 @@ def main(host, port, outfile):
 if __name__ == '__main__':
     usage = """
     USAGE: client.py [options]
-       --host address      # instrument address (localhost)
-       --port port         # instrument port (required)
-       --outfile filename  # file to save all received data
+       --unit str          # unit: four_beam or fifth_beam
+       --outfile filename  # file to save all received data ('-' == stdout)
        --loglevel level    # used to eval mi_logger.setLevel(logging.%%s)
     """
     usage += """
     Example:
-        client.py --host 10.180.80.178 --port 2101 --outfile vadcp_output.txt
+        client.py --unit four_beam --outfile -
+        Connects to the 4-beam unit writing all received responses or data to stdout
     """
 
-    host = 'localhost'
-    port = None
+    unit = None
     outfile = None
 
     arg = 1
     while arg < len(sys.argv):
-        if sys.argv[arg] == "--host":
+        if sys.argv[arg] == "--unit":
             arg += 1
-            host = sys.argv[arg]
-        elif sys.argv[arg] == "--port":
-            arg += 1
-            port = int(sys.argv[arg])
+            unit = sys.argv[arg]
         elif sys.argv[arg] == "--outfile":
             arg += 1
-            outfile = file(sys.argv[arg], 'w')
+            outfilename = sys.argv[arg]
+            outfile = sys.stdout if outfilename == "-" else file(outfilename, 'w')
         elif sys.argv[arg] == "--loglevel":
             arg += 1
             loglevel = sys.argv[arg].upper()
@@ -439,7 +445,16 @@ if __name__ == '__main__':
             break
         arg += 1
 
-    if port is None:
-        print usage
+    host = None
+    port = 2101
+    ooi_digi_port = 2102
+    if unit == "four_beam":
+        host = '10.180.80.178'
+    elif unit == "fifth_beam":
+        host = '10.180.80.177'
+
+    if host:
+        conn_config = AdcpUnitConnConfig(host, port, host, ooi_digi_port)
+        main(conn_config, outfile)
     else:
-        main(host, port, outfile)
+        print usage
