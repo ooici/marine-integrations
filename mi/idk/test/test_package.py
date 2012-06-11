@@ -21,8 +21,8 @@ from mock import Mock
 import unittest
 from time import sleep
 
-from mi.core.logger import Log
-#from pyon.util.log import log
+from mi.core.log import log
+#from mi.core.log import log
 from mi.idk.metadata import Metadata
 from mi.idk.driver_generator import DriverGenerator
 

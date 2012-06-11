@@ -12,7 +12,7 @@ import urllib2
 import logging
 import subprocess
 
-from pyon.util.log import log
+from mi.core.log import log
 
 PYTHON = '/Library/Frameworks/Python.framework/Versions/2.7/bin/python'
 

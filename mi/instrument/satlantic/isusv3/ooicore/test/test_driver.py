@@ -56,7 +56,7 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 # MI logger
-from mi.core.logger import Log
+from mi.core.log import log
 
 from mi.instrument.satlantic.isusv3.ooicore.driver import State
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Event
@@ -171,7 +171,7 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
         Test configuring and connecting to the device through the port
         agent. Discover device state.
         """
-        Log.info("test_connect test started")
+        log.info("test_connect test started")
 
         # Test the driver is in state unconfigured.
         state = self.driver_client.cmd_dvr('get_current_state')

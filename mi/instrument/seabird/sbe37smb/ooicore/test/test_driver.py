@@ -43,7 +43,7 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 # MI logger
-from mi.core.logger import Log
+from mi.core.log import log
 from interface.objects import AgentCommand
 
 # Make tests verbose and provide stdout
@@ -209,7 +209,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         Test configuring and connecting to the device through the port
         agent. Discover device state.
         """
-        Log.info("test_connect test started")
+        log.info("test_connect test started")
 
         # Test the driver is in state unconfigured.
         state = self.driver_client.cmd_dvr('get_current_state')
@@ -518,7 +518,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         while state != SBE37ProtocolState.COMMAND:
             gevent.sleep(5)
             elapsed = time.time() - start_time
-            Log.info('Device testing %f seconds elapsed.' % elapsed)
+            log.info('Device testing %f seconds elapsed.' % elapsed)
             state = self.driver_client.cmd_dvr('get_current_state')
 
         # Verify we received the test result and it passed.
@@ -838,7 +838,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         """
 
-        Log.debug("IA client = " + str(self.instrument_agent_client))
+        log.debug("IA client = " + str(self.instrument_agent_client))
 
 
 

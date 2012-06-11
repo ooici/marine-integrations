@@ -23,7 +23,7 @@ from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
 
-from mi.core.logger import Log
+from mi.core.log import log
 
 class InterfaceType(BaseEnum):
     """The methods of connecting to a device"""
@@ -284,7 +284,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         self._promptbuf = ''
 
         # Send command.
-        Log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
+        log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
                         (repr(cmd_line), timeout, write_delay, expected_prompt))
         if (write_delay == 0):
             self._connection.send(cmd_line)
@@ -332,7 +332,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         self._promptbuf = ''
 
         # Send command.
-        Log.debug('_do_cmd_no_resp: %s, timeout=%s' % (repr(cmd_line), timeout))
+        log.debug('_do_cmd_no_resp: %s, timeout=%s' % (repr(cmd_line), timeout))
         if (write_delay == 0):
             self._connection.send(cmd_line)
         else:
@@ -349,7 +349,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         """
 
         # Send command.
-        Log.debug('_do_cmd_direct: <%s>' % cmd)
+        log.debug('_do_cmd_direct: <%s>' % cmd)
         self._connection.send(cmd)
  
     ########################################################################
@@ -392,13 +392,13 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         
         while True:
             # Send a line return and wait a sec.
-            Log.debug('Sending wakeup.')
+            log.debug('Sending wakeup.')
             self._send_wakeup()
             time.sleep(delay)
             
             for item in self._prompts.list():
                 if self._promptbuf.endswith(item):
-                    Log.debug('wakeup got prompt: %s' % repr(item))
+                    log.debug('wakeup got prompt: %s' % repr(item))
                     return item
 
             if time.time() > starttime + timeout:

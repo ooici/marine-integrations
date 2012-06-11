@@ -44,7 +44,7 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 # MI logger
-from mi.core.logger import Log
+from mi.core.log import log
 
 # Make tests verbose and provide stdout
 # Note: currently the inheritance chain is backwards, so we're doing this:
@@ -564,7 +564,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         while state != SBE16ProtocolState.COMMAND:
             gevent.sleep(5)
             elapsed = time.time() - start_time
-            Log.info('Device testing %f seconds elapsed.' % elapsed)
+            log.info('Device testing %f seconds elapsed.' % elapsed)
             state = self.driver_client.cmd_dvr('get_current_state')
 
         # Verify we received the test result and it passed.

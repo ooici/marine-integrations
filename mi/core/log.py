@@ -10,7 +10,7 @@ methods to set the log level and file dynamically at runtime.
 
 Usage:
 
-from pyon.util.log import log, log_manager
+from mi.core.log import log, log_manager
 
 # Note that this only changes the log level for the MI logger
 log_manager.set_log_level("DEBUG")

@@ -8,9 +8,9 @@ from os import makedirs
 from os.path import exists
 import sys
 
-from pyon.util.log import log as pyon_log
+from mi.core.log import log as pyon_log
 from mi.core.log import log, log_manager
-from pyon.util.log import log as pyon_log
+from mi.core.log import log as pyon_log
 
 from mi.core.test.log_class import debug
 
@@ -47,7 +47,7 @@ class TestLogger(unittest.TestCase):
         pass
 
     def test_pyon_logger(self):
-        #pyon_log.error("Pyon logger message")
+        pyon_log.error("Pyon logger message")
         pass
 
 
