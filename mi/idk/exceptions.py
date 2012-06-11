@@ -16,6 +16,10 @@ class IDKException(Exception):
         
         log.error(self)
 
+class NoContainer(IDKException):
+    """Capability Container not started"""
+    pass
+
 class TestNotInitialized(IDKException):
     """Test configuration singleton not configured"""
     pass
