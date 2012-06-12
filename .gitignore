@@ -48,3 +48,6 @@ coverage_results
 extern/coi-services
 extern/pyon
 extern/ion-definitions
+couchdb.stderr
+couchdb.stdout
+erl_crash.dump
