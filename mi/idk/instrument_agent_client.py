@@ -29,19 +29,19 @@ from pyon.agent.agent import ResourceAgentClient
 
 DEFAULT_DEPLOY = 'res/deploy/r2deploy.yml'
 
+class FakeProcess(LocalContextMixin):
+    """
+    A fake process used because the test case is not an ion process.
+    """
+    name = ''
+    id=''
+    process_type = ''
+
 class InstrumentAgentClient(object):
     """
     Launch a capability container and instrument agent client
     """
     container = Container.instance
-
-    class FakeProcess(LocalContextMixin):
-        """
-        A fake process used because the test case is not an ion process.
-        """
-    name = ''
-    id=''
-    process_type = ''
 
     def start_client(self, name, module, cls, config, resource_id, deploy_file = DEFAULT_DEPLOY):
         """
@@ -61,7 +61,7 @@ class InstrumentAgentClient(object):
             config=config)
         log.info('Agent pid=%s.', instrument_agent_pid)
 
-        ia_client = ResourceAgentClient(resource_id, process=self.FakeProcess())
+        ia_client = ResourceAgentClient(resource_id, process=FakeProcess())
 
         log.info('Got ia client %s.', str(ia_client))
 

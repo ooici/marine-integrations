@@ -414,30 +414,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         }
         # Create streams and subscriptions for each stream named in driver.
 
+        # stream config
         stream_config = {}
-
-        log.debug("Build stream config")
-        for (stream_name, val) in self._test_config.instrument_agent_packet_config.iteritems():
-            log.debug("Stream Definition: %s " % self._test_config.instrument_agent_stream_definition)
-            stream_def_id = self.pubsub_client.create_stream_definition(
-                container=self._test_config.instrument_agent_stream_definition)
-            stream_id = self.pubsub_client.create_stream(
-                name=stream_name,
-                stream_definition_id=stream_def_id,
-                original=True,
-                encoding=self._test_config.instrument_agent_stream_encoding)
-            stream_config[stream_name] = stream_id
-
-            # Create subscriptions for each stream.
-            exchange_name = '%s_queue' % stream_name
-            sub = self.subscriber_registrar.create_subscriber(exchange_name=exchange_name,
-                callback=consume_data)
-            self._listen(sub)
-            self.data_subscribers.append(sub)
-            query = StreamQuery(stream_ids=[stream_id])
-            sub_id = self.pubsub_client.create_subscription(\
-                query=query, exchange_name=exchange_name)
-            self.pubsub_client.activate_subscription(sub_id)
 
         # Create agent config.
         agent_config = {
