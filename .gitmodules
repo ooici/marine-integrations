@@ -1,6 +1,6 @@
 [submodule "extern/coi-services"]
 	path = extern/coi-services
-	url = git://github.com/ooici/coi-services
+	url = git://github.com/wfrench/coi-services
 [submodule "extern/pyon"]
 	path = extern/pyon
 	url = git://github.com/ooici/pyon
