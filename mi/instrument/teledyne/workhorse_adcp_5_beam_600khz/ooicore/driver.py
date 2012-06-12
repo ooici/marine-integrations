@@ -126,7 +126,7 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
         # COMMAND_MODE
         self._protocol_fsm.add_handler(ProtocolState.COMMAND_MODE,
                                        ProtocolEvent.GET_LAST_ENSEMBLE,
-                                       self._handler_command_get_latest_ensemble)
+                                       self._handler_command_get_latest_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND_MODE,
                                        ProtocolEvent.GET_METADATA,
                                        self._handler_command_get_metadata)
@@ -153,7 +153,7 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
         return self._protocol_fsm.on_event(ProtocolEvent.INITIALIZE,
                                            *args, **kwargs)
 
-    def execute_get_latest_ensemble(self, *args, **kwargs):
+    def execute_get_latest_sample(self, *args, **kwargs):
         """
         """
         return self._protocol_fsm.on_event(ProtocolEvent.GET_LAST_ENSEMBLE,
@@ -195,7 +195,7 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
-    def _handler_command_get_latest_ensemble(self, *args, **kwargs):
+    def _handler_command_get_latest_sample(self, *args, **kwargs):
         """
         """
         if log.isEnabledFor(logging.DEBUG):
@@ -207,11 +207,11 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
         timeout = kwargs.get('timeout', self._timeout)
 
         try:
-            result = self._connection.get_latest_ensemble(timeout)
+            result = self._connection.get_latest_sample(timeout)
         except TimeoutException, e:
             raise InstrumentTimeoutException(msg=str(e))
         except ClientException, e:
-            log.warn("ClientException while get_latest_ensemble: %s" %
+            log.warn("ClientException while get_latest_sample: %s" %
                      str(e))
             raise InstrumentException('ClientException: %s' % str(e))
 
@@ -368,15 +368,16 @@ class VadcpDriver(SingleConnectionInstrumentDriver):
         """
         log.info('_build_connection: config=%s' % config)
 
-        if 'localhost' == config.host:
-            outfilename = 'vadcp_output.txt'
-        else:
-            outfilename = 'vadcp_output_%s_%s.txt' % (config.host, config.port)
-        outfile = file(outfilename, 'w')
+        c4 = config['four_beam']
+        outfilename = 'vadcp_output_%s_%s.txt' % (c4.host, c4.port)
+        u4_outfile = file(outfilename, 'w')
+        c5 = config['fifth_beam']
+        outfilename = 'vadcp_output_%s_%s.txt' % (c5.host, c5.port)
+        u5_outfile = file(outfilename, 'w')
 
         log.info("setting VadcpClient with config: %s" % config)
         try:
-            client = VadcpClient(config, outfile, True)
+            client = VadcpClient(config, u4_outfile, u5_outfile)
         except (TypeError, KeyError):
             raise InstrumentParameterException('Invalid comms config dict.'
                                                ' config=%s' % config)
@@ -394,8 +395,8 @@ class VadcpDriver(SingleConnectionInstrumentDriver):
     def execute_init_protocol(self, *args, **kwargs):
         return self._protocol.execute_init_protocol(*args, **kwargs)
 
-    def execute_get_latest_ensemble(self, *args, **kwargs):
-        return self._protocol.execute_get_latest_ensemble(*args, **kwargs)
+    def execute_get_latest_sample(self, *args, **kwargs):
+        return self._protocol.execute_get_latest_sample(*args, **kwargs)
 
     def execute_get_metadata(self, *args, **kwargs):
         return self._protocol.execute_get_metadata(*args, **kwargs)

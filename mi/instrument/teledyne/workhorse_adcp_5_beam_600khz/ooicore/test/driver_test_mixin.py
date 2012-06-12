@@ -84,11 +84,11 @@ class DriverTestMixin(object):
         self._prepare_and_connect()
         self._disconnect()
 
-    def test_execute_get_latest_ensemble(self):
+    def test_execute_get_latest_sample(self):
         self._prepare_and_connect()
 
-        result = self.driver.execute_get_latest_ensemble(timeout=self._timeout)
-        log.info("get_latest_ensemble result = %s" % str(result))
+        result = self.driver.execute_get_latest_sample(timeout=self._timeout)
+        log.info("get_latest_sample result = %s" % str(result))
 
         self._disconnect()
 
@@ -100,9 +100,11 @@ class DriverTestMixin(object):
                                                   timeout=self._timeout)
         self.assertTrue(isinstance(result, dict))
         s = ''
-        for name, text in result.items():
-            self.assertTrue(name in md_section_names)
-            s += "**%s:%s\n\n" % (name, prefix(text, "\n    "))
+        for unit, unit_result in result.items():
+            s += "==UNIT: %s==\n\n" % unit
+            for name, text in unit_result.items():
+                self.assertTrue(name in md_section_names)
+                s += "**%s:%s\n\n" % (name, prefix(text, "\n    "))
         log.info("METADATA result=%s" % prefix(s))
 
         self._disconnect()

@@ -145,17 +145,25 @@ class _Receiver(object):
         received buffer, updates the outfile if any, and return the buffer.
         """
         log.debug("reading")
-        try:
-            recv = self._sock.recv(self._bufsize)
-        except socket.error, e:
-            log.debug("socket.error: %s" % e)
-            self._active = False
-            return None
+        recv = None
+        while self._active and recv is None:
+            try:
+                recv = self._sock.recv(self._bufsize)
+            except socket.timeout, e:
+                # ok, this is our regular check for active
+                continue
+            except socket.error, e:
+                log.debug("socket.error: %s" % e)
+                self._active = False
+                return None
 
-        self._recv_time = time.time()
-        log.debug("read %s bytes" % len(recv))
-        self._update_outfile(recv)
-        return recv
+        if self._active and recv:
+            self._recv_time = time.time()
+            log.debug("read %s bytes" % len(recv))
+            self._update_outfile(recv)
+            return recv
+        else:
+            return None
 
     def _set_state(self, state):
         if self._state != state:
@@ -251,6 +259,12 @@ class _Receiver(object):
         """
         Runs the receiver.
         """
+
+        # set a timeout to the socket so we can regularly check that we are
+        # still to be active (see self._recv());
+        if self._sock.gettimeout() is None:
+            self._sock.settimeout(0.4)
+
         log.info("_Receiver running")
         self._active = True
 
