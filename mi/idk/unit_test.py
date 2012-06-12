@@ -392,6 +392,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         InstrumentDriverTestCase.setUp(self)
 
+        self.init_port_agent()
+
         self.instrument_agent_manager = InstrumentAgentClient();
         self.instrument_agent_manager.start_container(deploy_file=self._test_config.container_deploy_file)
         self.container = self.instrument_agent_manager.container
@@ -419,7 +421,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         driver_config = {
             'dvr_mod' : self._test_config.driver_module,
             'dvr_cls' : self._test_config.driver_class,
-            'workdir' : self._test_config.working_dir
+            'workdir' : self._test_config.working_dir,
+            'comms_config' : self.port_agent_comm_config()
         }
 
         # Create agent config.
