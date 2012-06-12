@@ -31,6 +31,8 @@ from mi.idk.comm_config import CommConfig
 from mi.idk.config import Config
 from mi.idk.common import Singleton
 from mi.idk.instrument_agent_client import InstrumentAgentClient
+from mi.idk.instrument_agent_client import InstrumentAgentDataSubscribers
+from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
 
 from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import TestNoCommConfig
@@ -393,12 +395,19 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.instrument_agent_manager = InstrumentAgentClient();
         self.instrument_agent_manager.start_container(deploy_file=self._test_config.container_deploy_file)
         self.container = self.instrument_agent_manager.container
+        self.data_subscribers = InstrumentAgentDataSubscribers(
+            packet_config=self._test_config.instrument_agent_packet_config,
+            encoding=self._test_config.instrument_agent_stream_encoding,
+            stream_definition=self._test_config.instrument_agent_stream_definition
+        )
+        self.event_subscribers = InstrumentAgentEventSubscribers()
 
-        self.init_data_subscribers()
         self.init_instrument_agent_client()
 
 
     def init_instrument_agent_client(self):
+        log.info("Start Instrument Agent Client")
+
         # A callback for processing subscribed-to data.
         def consume_data(message, headers):
             log.info('Subscriber received data message: %s.', str(message))
@@ -412,15 +421,11 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'dvr_cls' : self._test_config.driver_class,
             'workdir' : self._test_config.working_dir
         }
-        # Create streams and subscriptions for each stream named in driver.
-
-        # stream config
-        stream_config = {}
 
         # Create agent config.
         agent_config = {
             'driver_config' : driver_config,
-            'stream_config' : stream_config,
+            'stream_config' : self.data_subscribers.stream_config,
             'agent'         : {'resource_id': self._test_config.instrument_agent_resource_id},
             'test_mode' : True  ## Enable a poison pill. If the spawning process dies
             ## shutdown the daemon process.
@@ -448,65 +453,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.stop_port_agent()
 
         InstrumentDriverTestCase.tearDown(self)
-
-    def init_data_subscribers(self):
-        """
-        Data subscribers
-        """
-        self.data_subscribers = []
-        self.data_greenlets = []
-        self.events_received = []
-        self.no_events = None
-        # Create a pubsub client to create streams.
-        self.pubsub_client = PubsubManagementServiceClient(node=self.container)
-
-
-
-        # Create a stream subscriber registrar to create subscribers.
-        self.subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
-            node=self.container.node)
-
-    def stop_data_subscribers(self):
-        """
-        Stop the data subscribers on cleanup.
-        """
-        for sub in self.data_subscribers:
-            sub.stop()
-        for gl in self.data_greenlets:
-            gl.kill()
-
-    def init_event_subscribers(self):
-        """
-        Create subscribers for agent and driver events.
-        """
-        self.event_subscribers = []
-        def consume_event(*args, **kwargs):
-            log.info('Test recieved ION event: args=%s, kwargs=%s, event=%s.',
-                str(args), str(kwargs), str(args[0]))
-            self.events_received.append(args[0])
-            if self.no_events and self.no_events == len(self.event_received):
-                self.async_event_result.set()
-
-        event_sub = EventSubscriber(event_type="DeviceEvent", callback=consume_event)
-        event_sub.activate()
-        self.event_subscribers.append(event_sub)
-
-    def stop_event_subscribers(self):
-        """
-        Stop event subscribers on cleanup.
-        """
-        for sub in self.event_subscribers:
-            sub.deactivate()
-
-    def _listen(self, sub):
-        """
-        Pass in a subscriber here, this will make it listen in a background greenlet.
-        """
-        gl = spawn(sub.listen)
-        self.data_greenlets.append(gl)
-        sub._ready_event.wait(timeout=5)
-        return gl
-
 
     def test_common_qualification(self):
         self.assertTrue(1)
@@ -559,7 +505,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
 
-        return
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result

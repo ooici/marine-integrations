@@ -35,6 +35,9 @@ from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
+from interface.objects import AgentCommand
+from ion.agents.instrument.instrument_agent import InstrumentAgentState
+
 from prototype.sci_data.stream_defs import ctd_stream_definition
 
 from mi.instrument.seabird.sbe37smb.example.driver import PACKET_CONFIG
@@ -66,4 +69,67 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 class QualFromIDK(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
+
+    def test_direct_access(self):
+        """
+        Test agent direct_access command. This causes creation of
+        driver process and transition to direct access.
+        """
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        cmd = AgentCommand(command='go_direct_access',
+            #kwargs={'session_type':DirectAccessTypes.telnet,
+            kwargs={'session_type':DirectAccessTypes.vsp,
+                    'session_timeout':600,
+                    'inactivity_timeout':600})
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        print("go_direct_access retval=" + str(retval))
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.DIRECT_ACCESS)
+
+        # sleep to let tester run telnet client manually
+        print "test sleeping to run telnet client"
+        time.sleep(60)
+
+        # Halt DA.
+        cmd = AgentCommand(command='go_observatory')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        cmd = AgentCommand(command='reset')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
 
