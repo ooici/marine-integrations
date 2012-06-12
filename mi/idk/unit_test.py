@@ -22,7 +22,6 @@ import subprocess
 
 from pyon.container.cc import Container
 from pyon.util.int_test import IonIntegrationTestCase
-from pyon.util.context import LocalContextMixin
 
 from mi.core.instrument.zmq_driver_client import ZmqDriverClient
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
@@ -31,6 +30,7 @@ from ion.agents.port.logger_process import EthernetDeviceLogger
 from mi.idk.comm_config import CommConfig
 from mi.idk.config import Config
 from mi.idk.common import Singleton
+from mi.idk.instrument_agent_client import InstrumentAgentClient
 
 from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import TestNoCommConfig
@@ -49,7 +49,7 @@ from interface.services.dm.ipubsub_management_service import PubsubManagementSer
 from pyon.public import StreamSubscriberRegistrar
 from pyon.event.event import EventSubscriber, EventPublisher
 
-from mi.core.logger import Log
+from mi.core.log import log
 from interface.services.icontainer_agent import ContainerAgentClient
 from pyon.agent.agent import ResourceAgentClient
 
@@ -379,13 +379,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
 
 class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
-    class FakeProcess(LocalContextMixin):
-        """
-        A fake process used because the test case is not an ion process.
-        """
-        name = ''
-        id=''
-        process_type = ''
+
 
 
     def setUp(self):
@@ -396,14 +390,11 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         InstrumentDriverTestCase.setUp(self)
 
-        self.container = Container.instance
-        if not self.container:
-            NoContainer()
+        self.instrument_agent_manager = InstrumentAgentClient();
+        self.instrument_agent_manager.start_container(deploy_file=self._test_config.container_deploy_file)
+        self.container = self.instrument_agent_manager.container
 
-        self.init_event_subscribers()
         self.init_data_subscribers()
-        self.init_port_agent()
-
         self.init_instrument_agent_client()
 
 
@@ -425,7 +416,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         stream_config = {}
 
+        log.debug("Build stream config")
         for (stream_name, val) in self._test_config.instrument_agent_packet_config.iteritems():
+            log.debug("Stream Definition: %s " % self._test_config.instrument_agent_stream_definition)
             stream_def_id = self.pubsub_client.create_stream_definition(
                 container=self._test_config.instrument_agent_stream_definition)
             stream_id = self.pubsub_client.create_stream(
@@ -455,24 +448,17 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             ## shutdown the daemon process.
         }
 
-        # Start instrument agent.
-        log.debug("TestInstrumentAgent.setup(): starting IA.")
-        container_client = ContainerAgentClient(node=self.container.node,
-            name=self.container.name)
-
-        instrument_agent_pid = container_client.spawn_process(
+        # Start instrument agent client.
+        self.instrument_agent_manager.start_client(
             name=self._test_config.instrument_agent_name,
             module=self._test_config.instrument_agent_module,
             cls=self._test_config.instrument_agent_class,
-            config=agent_config)
-        log.info('Agent pid=%s.', instrument_agent_pid)
+            config=agent_config,
+            resource_id=self._test_config.instrument_agent_resource_id,
+            deploy_file=self._test_config.container_deploy_file
+        )
 
-        ia_client = ResourceAgentClient(self._test_config.instrument_agent_resource_id,
-                                        process=self.FakeProcess())
-
-        log.info('Got ia client %s.', str(ia_client))
-
-        self.instrument_agent_client = ia_client
+        self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
 
 
     def tearDown(self):
@@ -480,76 +466,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         @brief Test teardown
         """
         log.debug("InstrumentDriverQualificationTestCase tearDown")
-        #self.stop_port_agent()
-        #self.stop_data_subscribers()
-        #self.stop_event_subscribers()
-        
-        #InstrumentDriverTestCase.tearDown(self)
+        self.instrument_agent_manager.stop_container()
+        self.stop_port_agent()
 
-    @classmethod
-    def setupClass(cls):
-        """
-        @brief One time setup class
-        """
-        log.debug("InstrumentDriverQualificationTestCase setupClass")
-        cls.init_rabbitmq_server()
-        cls.init_couchdb()
-        cls.init_container()
-        
-        
-    @classmethod
-    def tearDownClass(cls):
-        """
-        @brief One time teardown class
-        """
-        
-        log.debug("InstrumentDriverQualificationTestCase tear down class")
-        #cls.stop_instrument_agent()
-        #cls.stop_couchdb()
-        #cls.stop_rabbitmq_server()
-
-    @classmethod
-    def init_container(cls):
-        """
-        @brief Launch the instrument agent
-        """
-        log.info("Startup Instrument Agent")
-
-        if not os.path.exists(cls._test_config.container_deploy_file):
-            raise TestNoDeployFile(cls._test_config.container_deploy_file)
-            
-        # Derive a special test case so we can instantiate a testcase object.
-        # then we can run start_container which initiallized the capability container
-        class _StartContainer(InstrumentDriverTestCase):
-            def runTest(self): pass
-            
-        testcase = _StartContainer()
-
-        # Start container.
-        testcase._start_container()
-        container = testcase.container
-
-        log.debug( "Capability container id: %s" % testcase.container.id )
-
-        # Bring up services in a deploy file (no need to message)
-        container.start_rel_from_url(testcase._test_config.container_deploy_file)
-
-
-    @classmethod
-    def stop_instrument_agent(cls):
-        """
-        @brief Stop the instrument agent
-        """
-        log.info("Stop the instrument agent")
-        
-        # Derive a special test case so we can instantiate a testcase object.
-        # then we can run start_container which initiallized the capability container
-        class _StartContainer(InstrumentDriverTestCase):
-            def runTest(self): pass
-            
-        testcase = _StartContainer()
-        testcase.container = Container.instance
-        testcase._stop_container()
+        InstrumentDriverTestCase.tearDown(self)
 
     def init_data_subscribers(self):
         """
@@ -560,17 +480,13 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.events_received = []
         self.no_events = None
         # Create a pubsub client to create streams.
-        self.pubsub_client = PubsubManagementServiceClient(node=self.container.node)
+        self.pubsub_client = PubsubManagementServiceClient(node=self.container)
 
 
 
         # Create a stream subscriber registrar to create subscribers.
         self.subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
             node=self.container.node)
-
-
-
-
 
     def stop_data_subscribers(self):
         """
@@ -603,110 +519,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         for sub in self.event_subscribers:
             sub.deactivate()
-
-    @classmethod
-    def init_couchdb(cls):
-        """
-        @brief Start the instrument agent
-        """
-        cmd = Config().get("couchdb")
-        if not cmd:
-            raise MissingConfig("couchdb")
-
-        cls._run_process(cmd, '-b', cls._pid_filename("couchdb"), False)
-
-    @classmethod
-    def stop_couchdb(cls):
-        """
-        @brief Stop the instrument agent
-        """
-        pid = cls._read_pidfile(cls._pid_filename("couchdb"))
-
-        if not pid:
-            return
-
-        cmd = Config().get("couchdb")
-        if not cmd:
-            raise MissingConfig("couchdb")
-
-        cls._run_process(cmd, '-k')
-
-        os.remove(cls._pid_filename("couchdb"))
-
-    @classmethod
-    def init_rabbitmq_server(cls):
-        """
-        @brief Start the instrument agent
-        """
-        cmd = Config().get("rabbitmq")
-        if not cmd:
-            raise MissingConfig("rabbitmq")
-
-        cls._run_process(cmd, '', cls._pid_filename("rabbitmq"), False)
-
-    @classmethod
-    def stop_rabbitmq_server(cls):
-        """
-        @brief Stop the instrument agent
-        """
-        pid = cls._read_pidfile(cls._pid_filename("rabbitmq"))
-
-        if not pid:
-            return
-
-        os.remove(cls._pid_filename("rabbitmq"))
-
-    @classmethod
-    def _run_process(cls, cmd, args = None, pidfile = None, raise_error = True):
-        """
-        @brief Start an external process and store the PID
-        """
-        if not args: args = ''
-        name = basename(cmd)
-        log.info("Start process: %s" % name)
-        log.debug( "cmd: %s %s" % (cmd, args))
-
-        if not os.path.exists(cmd):
-            raise MissingExecutable(cmd)
-
-        command_line = "%s %s" % (cmd, args);
-
-        process = subprocess.Popen( command_line, shell=True)
-        time.sleep(2)
-
-        log.debug("Process pid: %d" % process.pid )
-        if process.pid > 0:
-            if pidfile:
-                cls._write_pidfile(process.pid, pidfile)
-        else:
-            log.error( "Failed to launch application: %s " % command_line)
-            if(raise_error):
-                raise FailedToLaunch(command_line)
-
-
-    @classmethod
-    def _write_pidfile(cls, pid, pidfile):
-        log.debug("write pid %d to file %s" % (pid, pidfile))
-        outfile = open(pidfile, "w")
-        outfile.write("%s" % pid)
-        outfile.close()
-
-    @classmethod
-    def _read_pidfile(cls, pidfile):
-        log.debug( "read pidfile %s" % pidfile)
-        try:
-            infile = open(pidfile, "r")
-            pid = infile.read()
-            infile.close()
-        except IOError, e:
-            return None
-
-        return pid
-
-    @classmethod
-    def _pid_filename(cls, name):
-        return "%s/%s_%d.pid" % (Config().get('tmp_dir'), name, os.getpid())
-
 
     def _listen(self, sub):
         """

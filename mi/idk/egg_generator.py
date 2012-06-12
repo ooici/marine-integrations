@@ -21,7 +21,7 @@ from string import Template
 from mi.idk.config import Config
 from mi.idk.metadata import Metadata
 from mi.idk.driver_generator import DriverGenerator
-from pyon.util.log import log
+from mi.core.log import log
 
 from mi.idk.exceptions import NotPython
 from mi.idk.exceptions import NoRoot

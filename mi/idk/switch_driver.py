@@ -10,7 +10,7 @@ from mi.idk.metadata import Metadata
 from mi.idk.comm_config import CommConfig
 from mi.idk.exceptions import DriverDoesNotExist
 
-from pyon.util.log import log
+from mi.core.log import log
 
 from mi.idk import prompt
 

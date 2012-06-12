@@ -29,7 +29,7 @@ import zmq
 
 import mi.core.instrument.driver_process as driver_process
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.logger import Log
+from mi.core.log import log
 
 class ZmqDriverProcess(driver_process.DriverProcess):
     """
@@ -128,7 +128,7 @@ class ZmqDriverProcess(driver_process.DriverProcess):
             context = zmq.Context()
             sock = context.socket(zmq.REP)
             zmq_driver_process.cmd_port = sock.bind_to_random_port(zmq_driver_process.cmd_host_string)
-            Log.info('Driver process cmd socket bound to %i' %
+            log.info('Driver process cmd socket bound to %i' %
                            zmq_driver_process.cmd_port)
             file(zmq_driver_process.cmd_port_fname,'w+').write(str(zmq_driver_process.cmd_port)+'\n')
 
@@ -136,7 +136,7 @@ class ZmqDriverProcess(driver_process.DriverProcess):
             while not zmq_driver_process.stop_cmd_thread:
                 try:
                     msg = sock.recv_pyobj(flags=zmq.NOBLOCK)
-                    Log.debug('Processing message %s' % str(msg))
+                    log.debug('Processing message %s' % str(msg))
                     reply = zmq_driver_process.cmd_driver(msg)
                     while True:
                         try:
@@ -151,7 +151,7 @@ class ZmqDriverProcess(driver_process.DriverProcess):
                 
             sock.close()
             context.term()
-            Log.info('Driver process cmd socket closed.')
+            log.info('Driver process cmd socket closed.')
                            
         def send_evt_msg(zmq_driver_process):
             """
@@ -161,7 +161,7 @@ class ZmqDriverProcess(driver_process.DriverProcess):
             context = zmq.Context()
             sock = context.socket(zmq.PUB)
             zmq_driver_process.evt_port = sock.bind_to_random_port(zmq_driver_process.event_host_string)
-            Log.info('Driver process event socket bound to %i' %
+            log.info('Driver process event socket bound to %i' %
                            zmq_driver_process.evt_port)
             file(zmq_driver_process.evt_port_fname,'w+').write(str(zmq_driver_process.evt_port)+'\n')
 
@@ -169,12 +169,12 @@ class ZmqDriverProcess(driver_process.DriverProcess):
             while not zmq_driver_process.stop_evt_thread:
                 try:
                     evt = zmq_driver_process.events.pop(0)
-                    Log.debug('Event thread sending event %s' % str(evt))
+                    log.debug('Event thread sending event %s' % str(evt))
                     while evt:
                         try:
                             sock.send_pyobj(evt, flags=zmq.NOBLOCK)
                             evt = None
-                            Log.debug('Event sent!')
+                            log.debug('Event sent!')
                         except zmq.ZMQError:
                             time.sleep(.1)
                             if zmq_driver_process.stop_evt_thread:
@@ -184,7 +184,7 @@ class ZmqDriverProcess(driver_process.DriverProcess):
 
             sock.close()
             context.term()
-            Log.info('Driver process event socket closed')
+            log.info('Driver process event socket closed')
 
         self.cmd_thread = Thread(target=recv_cmd_msg, args=(self, ))
         self.evt_thread = Thread(target=send_evt_msg, args=(self, ))

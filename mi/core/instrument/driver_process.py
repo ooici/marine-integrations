@@ -21,7 +21,7 @@ import time
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
-from mi.core.logger import Log
+from mi.core.log import log
 
 class DriverProcess(object):
     """
@@ -68,14 +68,14 @@ class DriverProcess(object):
         ctor_str = 'driver = dvr_mod.%s(self.send_event)' % self.driver_class
         try:
             exec import_str
-            Log.info('Imported driver module %s' % self.driver_module)
+            log.info('Imported driver module %s' % self.driver_module)
             exec ctor_str
-            Log.info('Constructed driver %s' % self.driver_class)
+            log.info('Constructed driver %s' % self.driver_class)
             
         except (ImportError, NameError, AttributeError) as e:
-            Log.error('Could not import/construct driver module %s, class %s.' %
+            log.error('Could not import/construct driver module %s, class %s.' %
                       (self.driver_module, self.driver_class))
-            Log.error('%s' % str(e))
+            log.error('%s' % str(e))
             return False
 
         else:
@@ -101,7 +101,7 @@ class DriverProcess(object):
         """
         Shutdown function prior to process exit.
         """
-        Log.info('Driver process shutting down.')
+        log.info('Driver process shutting down.')
         self.driver_module = None
         self.driver_class = None
         self.driver = None
@@ -115,7 +115,7 @@ class DriverProcess(object):
                 os.kill(self.ppid, 0)
                 
             except OSError:
-                Log.info('Driver process COULD NOT DETECT PARENT.')
+                log.info('Driver process COULD NOT DETECT PARENT.')
                 return False
         
         return True
@@ -138,7 +138,7 @@ class DriverProcess(object):
         args = msg.get('args', None)
         kwargs = msg.get('kwargs', None)
         cmd_func = getattr(self.driver, cmd, None)
-        Log.debug("DriverProcess.cmd_driver(): cmd=%s, cmd_func=%s" %(cmd, cmd_func))
+        log.debug("DriverProcess.cmd_driver(): cmd=%s, cmd_func=%s" %(cmd, cmd_func))
         if cmd == 'stop_driver_process':
             self.stop_messaging()
             return'stop_driver_process'
@@ -186,10 +186,10 @@ class DriverProcess(object):
         specified.
         """
         
-        Log.info('Driver process started.')
+        log.info('Driver process started.')
         
         def shand(signum, frame):
-            Log.info('DRIVER GOT SIGINT')        
+            log.info('DRIVER GOT SIGINT')        
         signal.signal(signal.SIGINT, shand)
 
         if self.construct_driver():

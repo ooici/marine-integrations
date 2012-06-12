@@ -16,7 +16,7 @@ from ion.agents.port.logger_process import EthernetDeviceLogger
 from mi.core.instrument.zmq_driver_client import ZmqDriverClient
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
-from mi.core.logger import Log
+from mi.core.log import log
 
 
 class DriverIntegrationTestSupport(object):
@@ -75,7 +75,7 @@ class DriverIntegrationTestSupport(object):
             gevent.sleep(.1)
             port = self._pagent.get_port()
 
-        Log.info('Started port agent pid %d listening at port %d' % (pid, port))
+        log.info('Started port agent pid %d listening at port %d' % (pid, port))
         return port
 
     def stop_pagent(self):
@@ -85,10 +85,10 @@ class DriverIntegrationTestSupport(object):
         if self._pagent:
             pid = self._pagent.get_pid()
             if pid:
-                Log.info('Stopping pagent pid %i' % pid)
+                log.info('Stopping pagent pid %i' % pid)
                 self._pagent.stop()
             else:
-                Log.info('No port agent running.')
+                log.info('No port agent running.')
 
     def start_driver(self):
         """
@@ -102,19 +102,19 @@ class DriverIntegrationTestSupport(object):
                                                                          self.work_dir,
                                                                          this_pid)
         self._dvr_proc = dvr_proc
-        Log.info('Started driver process for %d %d %s %s' % 
+        log.info('Started driver process for %d %d %s %s' % 
                  (cmd_port, evt_port, self.driver_module, self.driver_class))
-        Log.info('Driver process pid %d' % self._dvr_proc.pid)
+        log.info('Driver process pid %d' % self._dvr_proc.pid)
 
         # Create driver client.
         self._dvr_client = ZmqDriverClient('localhost', cmd_port,
             evt_port)
-        Log.info('Created driver client for %d %d %s %s' % (cmd_port,
+        log.info('Created driver client for %d %d %s %s' % (cmd_port,
             evt_port, self.driver_module, self.driver_class))
 
         # Start client messaging.
         self._dvr_client.start_messaging(self.evt_recd)
-        Log.info('Driver messaging started.')
+        log.info('Driver messaging started.')
         gevent.sleep(.5)
 
     def stop_driver(self):
@@ -124,7 +124,7 @@ class DriverIntegrationTestSupport(object):
         """
 
         if self._dvr_proc:
-            Log.info('Stopping driver process pid %d' % self._dvr_proc.pid)
+            log.info('Stopping driver process pid %d' % self._dvr_proc.pid)
             if self._dvr_client:
                 self._dvr_client.done()
                 self._dvr_proc.wait()
@@ -132,7 +132,7 @@ class DriverIntegrationTestSupport(object):
 
             else:
                 try:
-                    Log.info('Killing driver process.')
+                    log.info('Killing driver process.')
                     self._dvr_proc.kill()
                 except OSError:
                     pass

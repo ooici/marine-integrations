@@ -8,10 +8,11 @@ from os import makedirs
 from os.path import exists
 import sys
 
-#from pyon.util.log import log as pyon_log
-import pyon.util.config
+from mi.core.log import log as pyon_log
+from mi.core.log import log, log_manager
+from mi.core.log import log as pyon_log
 
-from mi.core.log import log, log_manager, LoggerConfig
+from mi.core.test.log_class import debug
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -41,5 +42,12 @@ class TestLogger(unittest.TestCase):
         log_manager.set_log_level("DEBUG")
         log.debug("debug message 3")
 
+    def test_module_logger(self):
+        debug("test message")
+        pass
+
+    def test_pyon_logger(self):
+        pyon_log.error("Pyon logger message")
+        pass
 
 

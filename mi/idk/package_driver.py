@@ -10,7 +10,7 @@ import zipfile
 
 import yaml
 
-from pyon.util.log import log
+from mi.core.log import log
 from mi.idk import prompt
 from mi.idk.metadata import Metadata
 from mi.idk.nose_test import NoseTest

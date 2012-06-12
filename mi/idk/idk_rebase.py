@@ -6,7 +6,7 @@
 """
 
 from mi.idk.config import Config
-from pyon.util.log import log
+from mi.core.log import log
 
 class IDKRebase():
     """
