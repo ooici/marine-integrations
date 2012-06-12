@@ -14,6 +14,9 @@ __license__ = 'Apache 2.0'
 
 from mi.core.common import BaseEnum
 
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util import \
+    prefix
+
 
 class AdcpUnitConnConfig(object):
     """
@@ -45,6 +48,35 @@ class AdcpUnitConnConfig(object):
     @property
     def ooi_digi_port(self):
         return self._ooi_digi_port
+
+
+class VadcpSample(object):
+    """
+    Encapsulates a single sample from the VADCP instrument, which is comprised
+    of the two PD0 ensembles from the 4-beam and 5th beam units.
+
+    TODO this is preliminary
+    """
+    def __init__(self, u4_pd0, u5_pd0):
+        self._u4_pd0 = u4_pd0
+        self._u5_pd0 = u5_pd0
+
+    def __str__(self):
+        s = []
+        s.append("==VadcpSample:==")
+        s.append("4-beam PD0 ensemble:")
+        s.append("%s" % prefix(self._u4_pd0))
+        s.append("5th beam PD0 ensemble:")
+        s.append("%s" % prefix(self._u5_pd0))
+        return "\n".join(s)
+
+    @property
+    def four_beam_ensemble(self):
+        return self._u4_pd0
+
+    @property
+    def fifth_beam_ensemble(self):
+        return self._u5_pd0
 
 
 # default value for the generic timeout. By default, 30 secs

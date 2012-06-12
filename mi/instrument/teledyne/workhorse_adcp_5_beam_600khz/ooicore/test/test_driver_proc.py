@@ -45,9 +45,8 @@ class Test(VadcpTestCase, DriverTestMixin):
 
         VadcpTestCase.setUp(self)
 
-        conn_config = self._conn_config[self._vadcp_unit]
         # needed by DriverTestMixin
-        self.driver = VadcpDriverProxy(conn_config)
+        self.driver = VadcpDriverProxy(self._conn_config)
         self.comms_config = self.driver.comms_config
 
         def cleanup():
@@ -72,8 +71,10 @@ class VadcpDriverProxy(InstrumentDriver):
         driver_module = 'mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.driver'
         driver_class = 'VadcpDriver'
 
-        device_address = conn_config.host
-        device_port = conn_config.port
+        u4_conn_config = conn_config['four_beam']
+
+        device_address = u4_conn_config.host
+        device_port = u4_conn_config.port
 
         # TODO set up port agent for the OOI Digi connection as well.
 
@@ -88,11 +89,13 @@ class VadcpDriverProxy(InstrumentDriver):
 
         # so, we now connect to the 4-beam via the port agent:
         # Note that only the raw connection is adjusted
-        # TODO set up port agent for the OOI Digi connection as well.
-        self.comms_config = AdcpUnitConnConfig('localhost', pagent_port,
-                                               conn_config.ooi_digi_host,
-                                               conn_config.ooi_digi_port)
 
+        self.comms_config = {
+            'four_beam': AdcpUnitConnConfig('localhost', pagent_port,
+                                            u4_conn_config.ooi_digi_host,
+                                            u4_conn_config.ooi_digi_port),
+            'fifth_beam': conn_config['fifth_beam']
+        }
         log.info("comms_config: %s" % self.comms_config)
 
         # Create and start the driver.

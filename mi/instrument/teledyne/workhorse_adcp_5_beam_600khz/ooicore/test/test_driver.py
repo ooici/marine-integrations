@@ -44,4 +44,4 @@ class Test(VadcpTestCase, DriverTestMixin):
 
         # needed by DriverTestMixin
         self.driver = VadcpDriver(evt_callback)
-        self.comms_config = self._conn_config[self._vadcp_unit]
+        self.comms_config = self._conn_config

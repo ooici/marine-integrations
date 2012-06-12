@@ -147,13 +147,17 @@ class VadcpDriver(InstrumentDriver):
 #            raise InstrumentParameterException(msg="'config' parameter required")
             config = args[0]
 
-        outfilename = 'vadcp_output_%s_%s.txt' % (config.host, config.port)
-        outfile = file(outfilename, 'w')
+        c4 = config['four_beam']
+        outfilename = 'vadcp_output_%s_%s.txt' % (c4.host, c4.port)
+        u4_outfile = file(outfilename, 'w')
+        c5 = config['fifth_beam']
+        outfilename = 'vadcp_output_%s_%s.txt' % (c5.host, c5.port)
+        u5_outfile = file(outfilename, 'w')
 
         # Verify dict and construct connection client.
         log.info("setting VadcpClient with config: %s" % config)
         try:
-            self._client = VadcpClient(config, outfile, True)
+            self._client = VadcpClient(config, u4_outfile, u5_outfile)
         except (TypeError, KeyError):
             raise InstrumentParameterException('Invalid comms config dict.'
                                                ' config=%s' % config)
@@ -204,7 +208,7 @@ class VadcpDriver(InstrumentDriver):
         # TODO
         pass
 
-    def execute_get_latest_ensemble(self, *args, **kwargs):
+    def execute_get_latest_sample(self, *args, **kwargs):
         if log.isEnabledFor(logging.DEBUG):
             log.debug("args=%s kwargs=%s" % (str(args), str(kwargs)))
 
@@ -213,12 +217,12 @@ class VadcpDriver(InstrumentDriver):
         timeout = kwargs.get('timeout', self._timeout)
 
         try:
-            result = self._client.get_latest_ensemble(timeout)
+            result = self._client.get_latest_sample(timeout)
             return result
         except TimeoutException, e:
             raise InstrumentTimeoutException(msg=str(e))
         except ClientException, e:
-            log.warn("ClientException while get_latest_ensemble: %s" %
+            log.warn("ClientException while get_latest_sample: %s" %
                      str(e))
             raise InstrumentException('ClientException: %s' % str(e))
 

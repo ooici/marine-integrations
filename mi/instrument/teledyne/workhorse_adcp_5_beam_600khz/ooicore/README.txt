@@ -5,6 +5,18 @@ See https://confluence.oceanobservatories.org/display/ENG/VADCP+Driver
 
 Some development notes:
 
+2012-06-11:
+- new UnitClient based on what VadcpClient had until now, which was specific
+  to a particular unit. Now, VadcpClient has two UnitClient objects, which
+  will be used to control and integrate responses from the two units.
+
+  Two of the key command operations are "break" and "CS" (start pinging).
+  Assuming other relevant master-slave configuration settings are in
+  place, these operations basically consist of sending the corresponding
+  command first to the slave unit (5th beam) and then to the master (4-beam).
+  For the CS command in particular, this order is needed "to ensure exact
+  timing between the Master and Slave systems."
+
 2012-06-10:
 - Incorporating concept of "VADCP unit" to refer to the particular unit, either
   the 4-beam unit or the 5th beam unit. Each unit has a raw connection and an
@@ -74,7 +86,7 @@ Some development notes:
     $ run_it= VADCP="10.180.80.178:2101"  bin/nosetests -sv mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/test_client.py
     test_all_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_client.ClientTest) ... ok
     test_connect_disconnect (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_client.ClientTest) ... ok
-    test_get_latest_ensemble (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_client.ClientTest) ... ok
+    test_get_latest_sample (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_client.ClientTest) ... ok
     test_get_metadata (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_client.ClientTest) ... ok
 
     ----------------------------------------------------------------------
@@ -84,7 +96,7 @@ Some development notes:
 
     $ run_it= VADCP="10.180.80.178:2101"  bin/nosetests -sv mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/test_driver.py
     test_connect_disconnect (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver.DriverTest) ... ok
-    test_execute_get_latest_ensemble (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver.DriverTest) ... ok
+    test_execute_get_latest_sample (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver.DriverTest) ... ok
     test_execute_get_metadata (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver.DriverTest) ... ok
     test_execute_run_all_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver.DriverTest) ... ok
     test_execute_run_recorder_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver.DriverTest) ... ok
@@ -96,7 +108,7 @@ Some development notes:
 
     $ run_it= VADCP="10.180.80.178:2101"  bin/nosetests -sv mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/test_driver0.py
     test_connect_disconnect (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver0.DriverTest) ... ok
-    test_execute_get_latest_ensemble (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver0.DriverTest) ... ok
+    test_execute_get_latest_sample (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver0.DriverTest) ... ok
     test_execute_get_metadata (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver0.DriverTest) ... ok
     test_execute_run_all_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver0.DriverTest) ... ok
     test_execute_run_recorder_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver0.DriverTest) ... ok
@@ -116,7 +128,7 @@ Some development notes:
 - The preliminary INT tests go as follows:
     $ VADCP="10.180.80.178:2101" bin/nosetests -sv ion/services/mi/drivers/vadcp/test/test_driver_proc.py
     test_connect_disconnect (ion.services.mi.drivers.vadcp.test.test_driver_proc.DriverTest) ... ok
-    test_execute_get_latest_ensemble (ion.services.mi.drivers.vadcp.test.test_driver_proc.DriverTest) ... ok
+    test_execute_get_latest_sample (ion.services.mi.drivers.vadcp.test.test_driver_proc.DriverTest) ... ok
     test_execute_get_metadata (ion.services.mi.drivers.vadcp.test.test_driver_proc.DriverTest) ... ok
     test_execute_run_all_tests (ion.services.mi.drivers.vadcp.test.test_driver_proc.DriverTest) ... ok
     test_execute_run_recorder_tests (ion.services.mi.drivers.vadcp.test.test_driver_proc.DriverTest) ... ok

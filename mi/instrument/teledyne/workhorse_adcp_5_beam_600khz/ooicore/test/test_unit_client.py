@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 
 """
-@file mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/test_client.py
+@file mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/test_unit_client.py
 @author Carlos Rueda
-@brief VADCP Client tests
+@brief Tests for a single VADCP unit.
 """
 
 __author__ = "Carlos Rueda"
 __license__ = 'Apache 2.0'
 
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.client import VadcpClient
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.unit_client import UnitClient
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.pd0 import PD0DataStructure
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
-    md_section_names, State, VadcpSample
+    md_section_names, State
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util import prefix
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.receiver import \
-    ReceiverBuilder
+from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.receiver import ReceiverBuilder
 
 import time
 from mi.core.mi_logger import mi_logger as log
@@ -64,14 +64,11 @@ class Test(VadcpTestCase):
 
         self._samples_recd = 0
 
-        c4 = self._conn_config['four_beam']
-        outfilename = 'vadcp_output_%s_%s.txt' % (c4.host, c4.port)
-        u4_outfile = file(outfilename, 'w')
-        c5 = self._conn_config['fifth_beam']
-        outfilename = 'vadcp_output_%s_%s.txt' % (c5.host, c5.port)
-        u5_outfile = file(outfilename, 'w')
+        cc = self._conn_config[self._vadcp_unit]
+        outfilename = 'vadcp_output_%s_%s.txt' % (cc.host, cc.port)
+        outfile = file(outfilename, 'w')
 
-        Test._client = VadcpClient(self._conn_config, u4_outfile, u5_outfile)
+        Test._client = UnitClient(cc, outfile)
 
         # prepare client including going to the main menu
         Test._client.set_generic_timeout(self._timeout)
@@ -104,18 +101,16 @@ class Test(VadcpTestCase):
 
     def test_get_latest_sample(self):
         sample = self._client.get_latest_sample()
-        self.assertTrue(sample is None or isinstance(sample, VadcpSample))
+        self.assertTrue(sample is None or isinstance(sample, PD0DataStructure))
 
     def test_get_metadata(self):
         sections = None  # None => all sections
         result = self._client.get_metadata(sections)
         self.assertTrue(isinstance(result, dict))
         s = ''
-        for unit, unit_result in result.items():
-            s += "==UNIT: %s==\n\n" % unit
-            for name, text in unit_result.items():
-                self.assertTrue(name in md_section_names)
-                s += "**%s:%s\n\n" % (name, prefix(text, "\n    "))
+        for name, text in result.items():
+            self.assertTrue(name in md_section_names)
+            s += "**%s:%s\n\n" % (name, prefix(text, "\n    "))
         log.info("METADATA result=%s" % prefix(s))
 
     def test_execute_run_recorder_tests(self):
@@ -132,8 +127,7 @@ class Test(VadcpTestCase):
             result = self._client.start_autosample()
             log.info("start_autosample result=%s" % result)
 
-        # TODO handle state properly for comparison
-#        self.assertEqual(State.COLLECTING_DATA, self._client.get_current_state())
+        self.assertEqual(State.COLLECTING_DATA, self._client.get_current_state())
 
         time.sleep(6)
         log.info("ensembles_recd = %s" % self._samples_recd)
