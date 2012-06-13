@@ -5,6 +5,50 @@ See https://confluence.oceanobservatories.org/display/ENG/VADCP+Driver
 
 Some development notes:
 
+2012-06-13:
+- some code review, pyflakes fixes, documentation on confluence.
+- all the tests at the moment:
+    $ VADCP="mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/connection.yml" bin/nosetests -v mi/instrument/teledyne/workhorse_adcp_5_beam_600khz
+    test_all_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_client.Test) ... ok
+    test_connect_disconnect (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_client.Test) ... ok
+    test_execute_run_recorder_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_client.Test) ... ok
+    test_get_latest_sample (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_client.Test) ... ok
+    test_get_metadata (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_client.Test) ... ok
+    test_start_and_stop_autosample (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_client.Test) ... ok
+    test_connect_disconnect (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver.Test) ... ok
+    test_execute_get_latest_sample (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver.Test) ... ok
+    test_execute_get_metadata (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver.Test) ... ok
+    test_execute_run_all_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver.Test) ... ok
+    test_execute_run_recorder_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver.Test) ... ok
+    test_start_and_stop_autosample (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver.Test) ... ok
+    test_connect_disconnect (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver0.Test) ... ok
+    test_execute_get_latest_sample (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver0.Test) ... ok
+    test_execute_get_metadata (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver0.Test) ... ok
+    test_execute_run_all_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver0.Test) ... ok
+    test_execute_run_recorder_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver0.Test) ... ok
+    test_start_and_stop_autosample (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver0.Test) ... ok
+    test_connect_disconnect (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver_proc.Test) ... ok
+    test_execute_get_latest_sample (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver_proc.Test) ... ok
+    test_execute_get_metadata (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver_proc.Test) ... ok
+    test_execute_run_all_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver_proc.Test) ... ok
+    test_execute_run_recorder_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver_proc.Test) ... ok
+    test_start_and_stop_autosample (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_driver_proc.Test) ... ok
+    test_pd0 (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_pd0.Test) ... ok
+    test_partial_match_close (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_ts.Test) ... ok
+    test_partial_match_open (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_ts.Test) ... ok
+    test_all_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_unit_client.Test) ... ok
+    test_connect_disconnect (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_unit_client.Test) ... ok
+    test_execute_run_recorder_tests (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_unit_client.Test) ... ok
+    test_get_latest_sample (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_unit_client.Test) ... ok
+    test_get_metadata (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_unit_client.Test) ... ok
+    test_start_and_stop_autosample (mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.test_unit_client.Test) ... ok
+
+    ----------------------------------------------------------------------
+    Ran 33 tests in 456.395s
+
+    OK
+
+
 2012-06-11:
 - new UnitClient based on what VadcpClient had until now, which was specific
   to a particular unit. Now, VadcpClient has two UnitClient objects, which

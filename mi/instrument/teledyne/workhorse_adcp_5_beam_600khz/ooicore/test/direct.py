@@ -28,6 +28,8 @@ from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util.ts_filter 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util.pd0_filter import pd0_filter
 
 
+show_string = 's'
+
 def receive(sock, bufsize, pd0_file, out_file):
     """
     The routine for the receiving thread.
@@ -112,7 +114,6 @@ def user_loop(sock):
         return send(chr(a))
 
     global show_string
-    show_string = 's'
     while True:
         cmd = sys.stdin.readline()
         cmd = cmd.strip()
