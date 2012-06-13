@@ -13,6 +13,7 @@ __license__ = 'Apache 2.0'
 # Ensure the test class is monkey patched for gevent
 from gevent import monkey; monkey.patch_all()
 import gevent
+import socket
 
 # Standard lib imports
 import time
@@ -46,6 +47,10 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.core.log import log
 from interface.objects import AgentCommand
 
+from ion.agents.instrument.instrument_agent import InstrumentAgentState
+
+from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+
 # Make tests verbose and provide stdout
 # bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_process
 # bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_config
@@ -68,6 +73,7 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config = PACKET_CONFIG,
     instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
 )
+#
 
 # Used to validate param config retrieved from driver.
 PARAMS = {
@@ -109,6 +115,80 @@ PARAMS = {
     SBE37Parameter.RTCA1 : float,
     SBE37Parameter.RTCA2 : float
 }
+
+class my_sock():
+    buf = ""
+    def __init__(self, host, port):
+        self.buf = ""
+        self.host = host
+        self.port = port
+        # log.debug("OPEN SOCKET HOST = " + str(host) + " PORT = " + str(port))
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.connect((self.host, self.port))
+        self.s.settimeout(0.0)
+
+    def read_a_char(self):
+        c = None
+        if len(self.buf) > 0:
+            c = self.buf[0:1]
+            self.buf = self.buf[1:]
+        else:
+            self.buf = self.s.recv(1024)
+            log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
+
+        return c
+
+
+    def peek_at_buffer(self):
+        if len(self.buf) == 0:
+            try:
+                self.buf = self.s.recv(1024)
+                log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
+            except:
+                """
+                Ignore this exception, its harmless
+                """
+
+        return self.buf
+
+    def remove_from_buffer(self, remove):
+        log.debug("BUF WAS " + str(repr(self.buf)))
+        self.buf = self.buf.replace(remove, "")
+        log.debug("BUF IS '" + str(repr(self.buf)) + "'")
+
+    def get_data(self):
+        data = ""
+        try:
+            ret = ""
+
+            while True:
+                c = self.read_a_char()
+                if c == None:
+                    break
+                if c == '\n' or c == '':
+                    ret += c
+                    break
+                else:
+                    ret += c
+
+            data = ret
+        except AttributeError:
+            log.debug("CLOSING - GOT AN ATTRIBUTE ERROR")
+            self.s.close()
+        except:
+            data = ""
+
+        if data:
+            data = data.lower()
+            log.debug("IN  [" + repr(data) + "]")
+        return data
+
+    def send_data(self, data, debug):
+        try:
+            log.debug("OUT [" + repr(data) + "]")
+            self.s.sendall(data)
+        except:
+            log.debug("*** send_data FAILED [" + debug + "] had an exception sending [" + data + "]")
 
 
 @attr('UNIT', group='mi')
@@ -827,75 +907,126 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
     # (UNIT, INT, and QUAL) are run.
     pass
 
-    def test_instrument_agent_to_instrument_driver_connectivity(self):
+    @unittest.skip("Do not include until direct_access gets implemented")
+    def test_direct_access_telnet_mode(self):
         """
-        @brief This test verifies that the instrument agent can
-               talk to the instrument driver.
-
-               The intent of this is to be a ping to the driver
-               layer.
-
-
+        @brief This test verifies that the Instrument Driver
+               properly supports direct access to the physical
+               instrument. (telnet mode)
         """
-
-        log.debug("IA client = " + str(self.instrument_agent_client))
-
-
-
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
-
-
-        return  # <-------- HIDDEN RETURN (Roger)
-
-
-
         cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
 
         cmd = AgentCommand(command='power_up')
-        retval = self._ia_client.execute_agent(cmd)
-
+        retval = self.instrument_agent_client.execute_agent(cmd)
         cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command='initialize')
-        retval = self._ia_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
-
-        cmd = AgentCommand(command='go_layer_ping')
-        retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.LAYER_PING)
-        log.debug("***** If i get here i am in LAYER_PING state....")
-
-        cmd = AgentCommand(command='helo_agent', kwargs={'message': 'PING-AGENT'})
-        retval = self._ia_client.execute_agent(cmd)
-        self.assertEqual(retval.result, "PONG-PING-AGENT")
-
-        cmd = AgentCommand(command='helo_driver', kwargs={'message': 'PING-DRIVER'})
-        retval = self._ia_client.execute_agent(cmd)
-        self.assertEqual(retval.result, 'process_echo: PING-DRIVER')
-
-        cmd = AgentCommand(command='go_inactive')
-        retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
-        state = retval.result
-        log.debug("***** retval2 = " + str(retval))
-
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
-        log.debug("***** If i get here i am in POWERED_DOWN state....")
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        # go direct access
+        cmd = AgentCommand(command='go_direct_access',
+                           kwargs={'session_type': DirectAccessTypes.telnet,
+                                   #kwargs={'session_type':DirectAccessTypes.vsp,
+                                   'session_timeout':600,
+                                   'inactivity_timeout':600})
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.warn("go_direct_access retval=" + str(retval.result))
+
+        s = my_sock(retval.result['ip_address'], retval.result['port'])
+
+
+        while s.peek_at_buffer().find("Username: ") == -1:
+            log.debug("WANT 'Username:' READ ==>" + str(s.peek_at_buffer()))
+            gevent.sleep(1)
+        s.remove_from_buffer("Username: ")
+        s.send_data("bob\r\n", "1")
+
+
+        while s.peek_at_buffer().find("token: ") == -1:
+            log.debug("WANT 'token: ' READ ==>" + str(s.peek_at_buffer()))
+            gevent.sleep(1)
+        s.remove_from_buffer("token: ")
+        s.send_data(retval.result['token'] + "\r\n", "1")
+
+
+
+
+
+
+        while s.peek_at_buffer().find("connected\n") == -1:
+            log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
+            gevent.sleep(1)
+            s.peek_at_buffer()
+
+        s.remove_from_buffer("connected\n")
+        s.send_data("ts\r\n", "1")
+        log.debug("SENT THE TS COMMAND")
+
+        pattern = re.compile("^([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9a-z]+),([ 0-9:]+)")
+
+        matches = 0
+        n = 0
+        while n < 100:
+            n = n + 1
+            gevent.sleep(1)
+            data = s.get_data()
+            log.debug("READ ==>" + str(repr(data)))
+            m = pattern.search(data)
+            if m != None:
+                matches = m.lastindex
+                if matches == 7:
+                    break
+
+        self.assertTrue(matches == 7) # need to have found 7 conformant fields.
+
+    @unittest.skip("Do not include until a good method is devised")
+    def test_direct_access_virtual_serial_port_mode(self):
+        """
+        @brief This test verifies that the Instrument Driver
+               properly supports direct access to the physical
+               instrument. (virtual serial port mode)
+
+        Status: Sample code for this test has yet to be written.
+                WCB will implement next iteration
+
+        UPDATE: Do not include for now. May include later as a
+                good method is devised
+
+        TODO:
+        """
+        pass
+
+
+
+
+
+
+
+
+

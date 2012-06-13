@@ -13,12 +13,16 @@ import nose
 import signal
 import subprocess
 import time
+from gevent import spawn
+from gevent.event import AsyncResult
+import gevent
 
 from mi.core.log import log
 
 from mi.idk.config import Config
 
 from mi.idk.exceptions import TestNoDeployFile
+from mi.idk.exceptions import NoContainer
 
 from pyon.util.int_test import IonIntegrationTestCase
 from pyon.container.cc import Container
@@ -26,22 +30,27 @@ from pyon.util.context import LocalContextMixin
 
 from interface.services.icontainer_agent import ContainerAgentClient
 from pyon.agent.agent import ResourceAgentClient
+from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
+from pyon.public import StreamSubscriberRegistrar
+from pyon.event.event import EventSubscriber, EventPublisher
+
+from interface.objects import StreamQuery
 
 DEFAULT_DEPLOY = 'res/deploy/r2deploy.yml'
+
+class FakeProcess(LocalContextMixin):
+    """
+    A fake process used because the test case is not an ion process.
+    """
+    name = ''
+    id=''
+    process_type = ''
 
 class InstrumentAgentClient(object):
     """
     Launch a capability container and instrument agent client
     """
     container = Container.instance
-
-    class FakeProcess(LocalContextMixin):
-        """
-        A fake process used because the test case is not an ion process.
-        """
-    name = ''
-    id=''
-    process_type = ''
 
     def start_client(self, name, module, cls, config, resource_id, deploy_file = DEFAULT_DEPLOY):
         """
@@ -61,7 +70,7 @@ class InstrumentAgentClient(object):
             config=config)
         log.info('Agent pid=%s.', instrument_agent_pid)
 
-        ia_client = ResourceAgentClient(resource_id, process=self.FakeProcess())
+        ia_client = ResourceAgentClient(resource_id, process=FakeProcess())
 
         log.info('Got ia client %s.', str(ia_client))
 
@@ -246,4 +255,87 @@ class InstrumentAgentClient(object):
 
     def _pid_filename(self, name):
         return "%s/%s_%d.pid" % (Config().get('tmp_dir'), name, os.getpid())
+
+class InstrumentAgentDataSubscribers(object):
+    """
+    Setup Instrument Agent Publishers
+    """
+    def __init__(self, packet_config = {}, stream_definition = None, original = True, encoding = "ION R2"):
+        log.info("Start data subscribers")
+
+        self.no_samples = None
+        self.async_data_result = AsyncResult()
+        self.data_greenlets = []
+        self.stream_config = {}
+        self.samples_received = []
+        self.data_subscribers = []
+        self.container = Container.instance
+        if not self.container:
+            raise NoContainer()
+
+        # Create a pubsub client to create streams.
+        pubsub_client = PubsubManagementServiceClient(node=self.container.node)
+
+        # A callback for processing subscribed-to data.
+        def consume_data(message, headers):
+            log.info('Subscriber received data message: %s.', str(message))
+            self.samples_received.append(message)
+            if self.no_samples and self.no_samples == len(self_samples_received):
+                self.async_data_result.set()
+
+        # Create a stream subscriber registrar to create subscribers.
+        subscriber_registrar = StreamSubscriberRegistrar(process=self.container, node=self.container.node)
+
+        # Create streams and subscriptions for each stream named in driver.
+        self.stream_config = {}
+        self.data_subscribers = []
+        for (stream_name, val) in packet_config.iteritems():
+            stream_def_id = pubsub_client.create_stream_definition(container=stream_definition)
+            stream_id = pubsub_client.create_stream(
+                name=stream_name,
+                stream_definition_id=stream_def_id,
+                original=original,
+                encoding=encoding)
+            self.stream_config[stream_name] = stream_id
+
+            # Create subscriptions for each stream.
+            exchange_name = '%s_queue' % stream_name
+            sub = subscriber_registrar.create_subscriber(exchange_name=exchange_name, callback=consume_data)
+            self._listen(sub)
+            self.data_subscribers.append(sub)
+            query = StreamQuery(stream_ids=[stream_id])
+            sub_id = pubsub_client.create_subscription(query=query, exchange_name=exchange_name)
+            pubsub_client.activate_subscription(sub_id)
+
+    def _listen(self, sub):
+        """
+        Pass in a subscriber here, this will make it listen in a background greenlet.
+        """
+        gl = spawn(sub.listen)
+        self.data_greenlets.append(gl)
+        sub._ready_event.wait(timeout=5)
+        return gl
+
+class InstrumentAgentEventSubscribers(object):
+    """
+    Create subscribers for agent and driver events.
+    """
+    log.info("Start event subscribers")
+    def __init__(self):
+        # Start event subscribers, add stop to cleanup.
+        self.no_events = None
+        self.async_event_result = AsyncResult()
+        self.events_received = []
+        self.event_subscribers = []
+
+        def consume_event(*args, **kwargs):
+            log.info('Test recieved ION event: args=%s, kwargs=%s, event=%s.',
+                str(args), str(kwargs), str(args[0]))
+            self.events_received.append(args[0])
+            if self.no_events and self.no_events == len(self.event_received):
+                self.async_event_result.set()
+
+        event_sub = EventSubscriber(event_type="DeviceEvent", callback=consume_event)
+        event_sub.activate()
+        self.event_subscribers.append(event_sub)
 
