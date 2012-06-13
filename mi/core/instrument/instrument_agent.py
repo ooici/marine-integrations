@@ -710,7 +710,7 @@ class InstrumentAgent(ResourceAgent):
         """
         Handler for power_down agent command in uninitialized state.
         """
-        result = none
+        result = None
         next_state = InstrumentAgentState.POWERED_DOWN
 
         return (next_state, result)
@@ -789,6 +789,7 @@ class InstrumentAgent(ResourceAgent):
         
         except IndexError:
             pass
+
         
         # Configure the driver, driver checks if config is valid.
         dvr_comms = self._dvr_config.get('comms_config', None)   

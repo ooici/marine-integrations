@@ -383,22 +383,40 @@ class UnitClient(object):
 
 def main(conn_config, outfile):
     """
-    Demo program:
+    Ad hoc program for experimentation.
     """
+    import re
 
     def user_loop(client):
         """
         Sends lines received from stdin to the socket. EOF and "q" break the
         loop.
         """
+        polled = False
         while True:
             cmd = sys.stdin.readline()
-            if not cmd or cmd.strip() == "q":
+            if not cmd:
                 break
-            elif cmd.strip() == "cs":
-                client.start_autosample()
-            elif cmd.strip() == "break":
+            cmd = cmd.strip()
+            if cmd == "q":
+                break
+            elif re.match(r"CP\s*(0|1)", cmd, re.IGNORECASE):
+                cmd = cmd.upper()
+                polled = cmd.endswith('1')
+                client.send(cmd)
+                log.info("polled set to: %s" % polled)
+            elif cmd == "break":
                 client.send_break()
+            elif polled and cmd.upper() in ['!', '+', '-', 'D', 'E', 'T']:
+                # See Table 10: Polled Mode Commands in "Workhorse Commands
+                # an Output Data Format" doc.
+                # I've noted (on both units) that only '!' and '+' are
+                # actually handled, that is, with no echo and apparently
+                # triggering the documented behavior (certainly for the '!'
+                # break reset one); the others are echoed and probably not
+                # causing the corresponding behavior.
+                cmd = cmd.upper()
+                client._send(cmd, info="sending polled mode cmd='%s'" % cmd)
             else:
                 client.send(cmd)
 
