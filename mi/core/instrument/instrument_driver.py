@@ -85,7 +85,7 @@ class DriverEvent(BaseEnum):
     EXECUTE_DIRECT = 'EXECUTE_DIRECT'    
     START_DIRECT = 'DRIVER_EVENT_START_DIRECT'
     STOP_DIRECT = 'DRIVER_EVENT_STOP_DIRECT'
-
+    PING_DRIVER = 'DRIVER_EVENT_PING_DRIVER'
 class DriverAsyncEvent(BaseEnum):
     """
     Asynchronous driver event types.
@@ -423,6 +423,8 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.TEST, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.CALIBRATE, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.EXECUTE_DIRECT, self._handler_connected_protocol_event)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.START_DIRECT, self._handler_connected_protocol_event)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.STOP_DIRECT, self._handler_connected_protocol_event)
             
         # Start state machine.
         self._connection_fsm.start(DriverConnectionState.UNCONFIGURED)
@@ -448,6 +450,8 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises InstrumentStateException if command not allowed in current state        
         @throws InstrumentParameterException if missing comms or invalid config dict.
         """
+
+
         # Forward event and argument to the connection FSM.
         return self._connection_fsm.on_event(DriverEvent.CONFIGURE, *args, **kwargs)
         
@@ -633,6 +637,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         """
         next_state = None
         result = None
+
 
         # Get the required param dict.
         config = kwargs.get('config', None)  # via kwargs
