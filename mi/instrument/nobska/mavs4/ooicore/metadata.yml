@@ -2,7 +2,7 @@ driver_metadata:
   author: Bill Bollenbacher
   driver_make: nobska
   driver_model: mavs4
-  driver_name: mavs4
+  driver_name: ooicore
   email: wbollenbacher@ucsd.edu
   release_notes: initial release
   version: '1'
