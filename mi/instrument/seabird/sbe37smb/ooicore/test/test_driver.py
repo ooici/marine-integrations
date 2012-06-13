@@ -907,7 +907,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
     # (UNIT, INT, and QUAL) are run.
     pass
 
-    #@unittest.skip("Do not include until direct_access gets implemented")
+    @unittest.skip("Do not include until direct_access gets implemented")
     def test_direct_access_telnet_mode(self):
         """
         @brief This test verifies that the Instrument Driver
