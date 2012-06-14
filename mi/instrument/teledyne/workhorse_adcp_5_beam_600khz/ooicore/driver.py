@@ -24,7 +24,6 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentParameterException
-from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
 
 import logging
@@ -51,18 +50,6 @@ class DriverState(BaseEnum):
 ####################################################################
 # Static enumerations for this class
 ####################################################################
-
-class Command(BaseEnum):
-    SAVE = 'save'
-    EXIT = 'exit'
-    EXIT_AND_RESET = 'exit!'
-    GET = 'show'
-    SET = 'set'
-    RESET = 0x12
-    BREAK = 0x03
-    STOP = 0x13
-    AUTOSAMPLE = 0x01
-    SAMPLE = 0x0D
 
 
 class ProtocolState(BaseEnum):
@@ -108,9 +95,9 @@ class VadcpProtocol(CommandResponseInstrumentProtocol):
         CommandResponseInstrumentProtocol.__init__(self, Prompt, EOLN, callback)
 
         # TODO probably promote this convenience to super-class?
+        # _timeout: Default timeout value for operations accepting an
+        # optional timeout argument
         self._timeout = 30
-        """Default timeout value for operations accepting an optional timeout
-        argument."""
 
         self._last_data_timestamp = None
         self.eoln = EOLN
@@ -358,11 +345,11 @@ class VadcpDriver(SingleConnectionInstrumentDriver):
     def _build_connection(self, config):
         """
         Constructs and returns a Connection object according to the given
-        configuration.
+        configuration. The object returned here is a VadcpClient instance.
 
         @param config configuration dict
 
-        @retval a Connection instance
+        @retval a VadcpClient instance
 
         @throws InstrumentParameterException Invalid configuration.
         """
@@ -381,6 +368,9 @@ class VadcpDriver(SingleConnectionInstrumentDriver):
         except (TypeError, KeyError):
             raise InstrumentParameterException('Invalid comms config dict.'
                                                ' config=%s' % config)
+
+        # set data_listener to the client so we can notify corresponding
+        # DriverAsyncEvent.SAMPLE events:
         def _data_listener(sample):
             log.info("_data_listener: sample = %s" % str(sample))
             self._driver_event(DriverAsyncEvent.SAMPLE, val=sample)

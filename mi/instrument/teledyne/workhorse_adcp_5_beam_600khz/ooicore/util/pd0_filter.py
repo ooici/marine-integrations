@@ -90,7 +90,7 @@ def pd0_filter(receiver):
             try:
                 pd0 = PD0DataStructure(data)
                 ensemble_len = pd0.getNumberOfBytesInEnsemble()
-            except Exception, e:
+            except Exception:
                 #
                 # ok, we are not yet seeing the beginning of a structure, just
                 # shift the data array a position and continue
