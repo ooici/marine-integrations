@@ -265,6 +265,7 @@ class InstrumentAgentDataSubscribers(object):
 
         self.no_samples = None
         self.async_data_result = AsyncResult()
+
         self.data_greenlets = []
         self.stream_config = {}
         self.samples_received = []
@@ -279,8 +280,9 @@ class InstrumentAgentDataSubscribers(object):
         # A callback for processing subscribed-to data.
         def consume_data(message, headers):
             log.info('Subscriber received data message: %s.', str(message))
+
             self.samples_received.append(message)
-            if self.no_samples and self.no_samples == len(self_samples_received):
+            if self.no_samples and self.no_samples == len(self.samples_received):
                 self.async_data_result.set()
 
         # Create a stream subscriber registrar to create subscribers.
