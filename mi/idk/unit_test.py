@@ -12,6 +12,7 @@ from mi.core.log import log
 import re
 import os
 import time
+import unittest
 
 from os.path import basename
 
@@ -65,25 +66,8 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 from ion.agents.instrument.common import InstErrorCode
 from mi.core.instrument.instrument_driver import DriverConnectionState
 
-def check_for_reused_values(obj):
-    """
-    @author Roger Unwin
-    @brief  verifies that no two definitions resolve to the same value.
-    @returns True if no reused values
-    """
-    match = 0
-    outer_match = 0
-    for i in [v for v in dir(obj) if not callable(getattr(obj,v))]:
-        if i.startswith('_') == False:
-            outer_match = outer_match + 1
-            for j in [x for x in dir(obj) if not callable(getattr(obj,x))]:
-                if i.startswith('_') == False:
-                    if getattr(obj, i) == getattr(obj, j):
-                        match = match + 1
-                        log.debug(str(i) + " == " + j + " (Looking for reused values)")
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
-    # If this assert fails, then two of the enumerations have an identical value...
-    return match == outer_match
 
 class InstrumentDriverTestConfig(Singleton):
     """
@@ -420,6 +404,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.init_port_agent()
 
+
+
         self.instrument_agent_manager = InstrumentAgentClient();
         self.instrument_agent_manager.start_container(deploy_file=self._test_config.container_deploy_file)
         self.container = self.instrument_agent_manager.container
@@ -437,12 +423,13 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         log.info("Start Instrument Agent Client")
 
         # A callback for processing subscribed-to data.
+        '''
         def consume_data(message, headers):
             log.info('Subscriber received data message: %s.', str(message))
             self.samples_received.append(message)
             if self.no_samples and self.no_samples == len(self.samples_received):
                 self.async_data_result.set()
-
+        '''
         # Driver config
         driver_config = {
             'dvr_mod' : self._test_config.driver_module,
@@ -607,7 +594,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
 
-        '''
+
         # go direct access
         cmd = AgentCommand(command='go_direct_access',
                            kwargs={'session_type':DirectAccessTypes.telnet,
@@ -624,7 +611,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.DIRECT_ACCESS)
-        '''
+
         # Halt DA.
         cmd = AgentCommand(command='go_observatory')
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -757,41 +744,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         @brief check InstErrorCode for consistency
         """
-        self.assertTrue(check_for_reused_values(InstErrorCode))
-
-
-        # Left over comments
-        # DELAY ENUMERATIONS TEST.
-        # Lets figure out what we want to test here.
-        # We currently do it 2 different ways.
-
-        """
-        @brief This tests the following enumerations have
-               been correctly inherited.
-               https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Agent+Interface
-               * Agent and device enumeration constants
-               X AgentState
-               X AgentEvent
-               G AgentCommand
-               G AgentParameter
-               G AgentStatus
-               G TimeSource
-               G ConnectionMethod
-               G DriverChannel
-               G DriverCommand
-               G DriverState -> DriverProtocolState
-               X DriverEvent
-               G DriverStatus
-               X DriverParameter
-               G DriverAnnouncement
-               G ObservatoryCapability
-               G DriverCapability
-               G InstrumentCapability
-               X InstErrorCode
-               This test is a place holder. The individual tests are broken out below.
-
-        TODO:
-        """
+        self.assertTrue(self.check_for_reused_values(InstErrorCode))
         pass
 
     def test_driver_connection_state_enum(self):
@@ -804,12 +757,197 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # self.assertEqual(TrhphDriverState.DISCONNECTED, DriverConnectionState.DISCONNECTED)
         # self.assertEqual(TrhphDriverState.CONNECTED, DriverConnectionState.CONNECTED)
 
-        self.assertTrue(check_for_reused_values(DriverConnectionState))
+        self.assertTrue(self.check_for_reused_values(DriverConnectionState))
 
     def test_instrument_agent_event_enum(self):
 
-        self.assertTrue(check_for_reused_values(InstrumentAgentEvent))
+        self.assertTrue(self.check_for_reused_values(InstrumentAgentEvent))
 
     def test_instrument_agent_state_enum(self):
 
-        self.assertTrue(check_for_reused_values(InstrumentAgentState))
+        self.assertTrue(self.check_for_reused_values(InstrumentAgentState))
+
+
+    def check_for_reused_values(self, obj):
+        """
+        @author Roger Unwin
+        @brief  verifies that no two definitions resolve to the same value.
+        @returns True if no reused values
+        """
+        match = 0
+        outer_match = 0
+        for i in [v for v in dir(obj) if not callable(getattr(obj,v))]:
+            if i.startswith('_') == False:
+                outer_match = outer_match + 1
+                for j in [x for x in dir(obj) if not callable(getattr(obj,x))]:
+                    if i.startswith('_') == False:
+                        if getattr(obj, i) == getattr(obj, j):
+                            match = match + 1
+                            log.debug(str(i) + " == " + j + " (Looking for reused values)")
+
+        # If this assert fails, then two of the enumerations have an identical value...
+        return match == outer_match
+
+    def test_driver_async_event_enum(self):
+        """
+        @ brief ProtocolState enum test
+
+            1. test that SBE37ProtocolState matches the expected enums from DriverProtocolState.
+            2. test that multiple distinct states do not resolve back to the same string.
+        """
+
+        self.assertTrue(self.check_for_reused_values(DriverAsyncEvent))
+
+    @unittest.skip("Transaction management not yet implemented")
+    def test_transaction_management_messages(self):
+        """
+        @brief This tests the start_transaction and
+               end_transaction methods.
+               https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Agent+Interface#CIADMISVInstrumentAgentInterface-Transactionmanagementmessages
+               * start_transaction(acq_timeout,exp_timeout)
+               * end_transaction(transaction_id)
+               * transaction_id
+
+               See: ion/services/mi/instrument_agent.py
+               UPDATE: stub it out fill in later when its available ... place holder
+        TODO:
+        """
+        pass
+
+
+    def test_driver_notification_messages(self):
+        """
+        @brief This tests event messages from the driver.  The following
+               test moves the IA through all its states.  As it does this,
+               event messages are generated and caught.  These messages
+               are then compared with a list of expected messages to
+               insure that the proper messages have been generated.
+        """
+
+        # Clear off any events from before this test so we have consistent state
+        self._events_received = []
+
+        expected_events = []
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_POWERED_DOWN')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_UNINITIALIZED')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_INACTIVE')
+        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
+        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
+        expected_events.append('New driver state: DRIVER_STATE_UNKNOWN')
+        expected_events.append('New driver configuration:')
+        expected_events.append('New driver state: DRIVER_STATE_COMMAND')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_IDLE')
+        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_INACTIVE')
+        expected_events.append('New driver state: DRIVER_STATE_UNCONFIGURED')
+        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
+        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
+        expected_events.append('New driver state: DRIVER_STATE_UNKNOWN')
+        expected_events.append('New driver configuration:')
+        expected_events.append('New driver state: DRIVER_STATE_COMMAND')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_IDLE')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_OBSERVATORY')
+        expected_events.append('New driver state: DRIVER_STATE_AUTOSAMPLE')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_STREAMING')
+        expected_events.append('New driver configuration:')
+        expected_events.append('New driver state: DRIVER_STATE_COMMAND')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_OBSERVATORY')
+        expected_events.append('New driver state: DRIVER_STATE_DIRECT_ACCESS')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_DIRECT_ACCESS')
+        expected_events.append('New driver state: DRIVER_STATE_COMMAND')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_OBSERVATORY')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_STOPPED')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_OBSERVATORY')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_IDLE')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_OBSERVATORY')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_STOPPED')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_IDLE')
+        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
+        expected_events.append('New driver state: DRIVER_STATE_UNCONFIGURED')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_UNINITIALIZED')
+
+        cmd = AgentCommand(command='power_down')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='power_up')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='go_inactive')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        # Begin streaming.
+        cmd = AgentCommand(command='go_streaming')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        # Halt streaming.
+        cmd = AgentCommand(command='go_observatory')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        # go direct access
+        #cmd = AgentCommand(command='go_direct_access')
+        cmd = AgentCommand(command='go_direct_access',
+            kwargs={'session_type':DirectAccessTypes.telnet,
+                    #kwargs={'session_type':DirectAccessTypes.vsp,
+                    'session_timeout':600,
+                    'inactivity_timeout':600})
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        log.debug("RETVAL = " + str(retval))
+        # Halt DA.
+        cmd = AgentCommand(command='go_observatory')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='pause')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='resume')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='clear')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='pause')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='clear')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='reset')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        raw_events = []
+        log.warn("ROGER *********************EVENTS " + str(self.event_subscribers.events_received))
+        for x in self.event_subscribers.events_received:
+            if x.description.find("New driver configuration:") >= 0:
+                raw_events.append("New driver configuration:")
+                log.warn("ROGER *********************APPENDING " + "New driver configuration:")
+            else:
+                raw_events.append(str(x.description))
+                log.warn("ROGER *********************APPENDING " + str(x.description))
+        log.debug("raw_events[] = " + str(raw_events))
+        for x in sorted(raw_events):
+            log.debug(str(x) + " ?in (expected_events) = " + str(x in expected_events))
+            self.assertTrue(x in expected_events)
+
+        for x in sorted(expected_events):
+            log.debug(str(x) + " ?in (raw_events) = " + str(x in raw_events))
+            self.assertTrue(x in raw_events)
+
+        # assert we got the expected number of events
+        self.assertEqual(len(expected_events), len(raw_events))
+        pass
