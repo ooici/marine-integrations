@@ -64,9 +64,9 @@ import numpy
 from prototype.sci_data.stream_parser import PointSupplementStreamParser
 
 from pyon.core import exception
-
-
 from pyon.core.exception import InstParameterError
+from pyon.core import exception as iex
+
 # Make tests verbose and provide stdout
 # bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_process
 # bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_config
@@ -1337,41 +1337,54 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         """
         pass
 
-    # broken
-    def test_instrument_driver_vs_invalid_commands(self):
+    def test_capabilities(self):
         """
-        @Author Edward Hunter
-        @brief This test should send mal-formed, misspelled,
-               missing parameter, or out of bounds parameters
-               at the instrument driver in an attempt to
-               confuse it.
-
-               See: test_instrument_driver_to_physical_instrument_interoperability
-               That test will provide the how-to of connecting.
-               Once connected, send messed up commands.
-
-               * negative testing
-
-
-               Test illegal behavior and replies.
+        Test the ability to retrieve agent and resource parameter and command
+        capabilities.
         """
+        AGT_CMDS = [
+            'clear',
+            'end_transaction',
+            'get_current_state',
+            'go_active',
+            'go_direct_access',
+            'go_inactive',
+            'go_layer_ping',
+            'go_observatory',
+            'go_streaming',
+            'helo_agent',
+            'helo_driver',
+            'initialize',
+            'pause',
+            'power_down',
+            'power_up',
+            'reset',
+            'resume',
+            'run',
+            'start_transaction'
+        ]
+
+        CMDS = [
+            'acquire_sample',
+            'calibrate',
+            'direct_access',
+            'start_autosample',
+            'start_direct_access',
+            'stop_autosample',
+            'stop_direct_access',
+            'test'
+        ]
+
+        acmds = self.instrument_agent_client.get_capabilities(['AGT_CMD'])
+        acmds = [item[1] for item in acmds]
+        self.assertEqual(acmds, AGT_CMDS)
+        apars = self.instrument_agent_client.get_capabilities(['AGT_PAR'])
+        apars = [item[1] for item in apars]
 
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
-        # Can't go active in unitialized state.
-        # Status 660 is state error.
-        cmd = AgentCommand(command='go_active')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.info('GO ACTIVE CMD %s',str(retval))
-        self.assertEquals(retval.status, 660)
-
-        # Can't command driver in this state.
-        cmd = AgentCommand(command='acquire_sample')
-        reply = self.instrument_agent_client.execute(cmd)
-        self.assertEqual(reply.status, 660)
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -1380,52 +1393,110 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
 
+
+        rcmds = self.instrument_agent_client.get_capabilities(['RES_CMD'])
+        rcmds = [item[1] for item in rcmds]
+        self.assertEqual(rcmds, CMDS)
+
+        rpars = self.instrument_agent_client.get_capabilities(['RES_PAR'])
+        rpars = [item[1] for item in rpars]
+        self.assertEqual(rpars, SBE37Parameter.list())
+
+        cmd = AgentCommand(command='reset')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+
+    def test_autosample(self):
+        """
+        Test instrument driver execute interface to start and stop streaming
+        mode.
+        """
+
+
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+
         cmd = AgentCommand(command='go_active')
         retval = self.instrument_agent_client.execute_agent(cmd)
+
+
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
 
+
         cmd = AgentCommand(command='run')
         retval = self.instrument_agent_client.execute_agent(cmd)
+
+
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
 
-        # OK, I can do this now.
-        cmd = AgentCommand(command='acquire_sample')
-        reply = self.instrument_agent_client.execute(cmd)
-        self.assertSampleDict(reply.result)
 
+        # Make sure the sampling rate and transmission are sane.
+        params = {
+            SBE37Parameter.NAVG : 1,
+            SBE37Parameter.INTERVAL : 5,
+            SBE37Parameter.TXREALTIME : True
+        }
+        self.instrument_agent_client.set_param(params)
 
-        # 404 unknown agent command.
-        cmd = AgentCommand(command='kiss_edward')
+        self.data_subscribers.no_samples = 2
+
+        # Begin streaming.
+        cmd = AgentCommand(command='go_streaming')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        self.assertEquals(retval.status, 404)
 
-        # 670 unknown driver command.
-        cmd = AgentCommand(command='acquire_sample_please')
-        retval = self.instrument_agent_client.execute(cmd)
-        self.assertEqual(retval.status, 670)
 
-        log.debug("THIS IS BROKEN")
-        # 630 Parameter error.
-        with self.assertRaises(InstParameterError):
-            reply = self.instrument_agent_client.get_param('bogus bogus')
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.STREAMING)
+
+        # Wait for some samples to roll in.
+        gevent.sleep(15)
+
+        # Halt streaming.
+        cmd = AgentCommand(command='go_observatory')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        # Assert we got some samples.
+        self.data_subscribers.async_data_result.get(timeout=10)
+        self.assertTrue(len(self.data_subscribers.samples_received)>=2)
+
 
         cmd = AgentCommand(command='reset')
         retval = self.instrument_agent_client.execute_agent(cmd)
 
+
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
-
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
-    def broke(self):
-        log.debug("THIS IS BROKEN")
-        # 630 Parameter error.
-        with self.assertRaises(InstParameterError):
-            reply = self.instrument_agent_client.get_param('bogus bogus')

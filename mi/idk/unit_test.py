@@ -950,3 +950,143 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # assert we got the expected number of events
         self.assertEqual(len(expected_events), len(raw_events))
         pass
+
+    # broken
+    def test_instrument_driver_vs_invalid_commands(self):
+        """
+        @Author Edward Hunter
+        @brief This test should send mal-formed, misspelled,
+               missing parameter, or out of bounds parameters
+               at the instrument driver in an attempt to
+               confuse it.
+
+               See: test_instrument_driver_to_physical_instrument_interoperability
+               That test will provide the how-to of connecting.
+               Once connected, send messed up commands.
+
+               * negative testing
+
+
+               Test illegal behavior and replies.
+        """
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+        # Can't go active in unitialized state.
+        # Status 660 is state error.
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.info('GO ACTIVE CMD %s',str(retval))
+        self.assertEquals(retval.status, 660)
+
+        # Can't command driver in this state.
+        cmd = AgentCommand(command='acquire_sample')
+        reply = self.instrument_agent_client.execute(cmd)
+        self.assertEqual(reply.status, 660)
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        # OK, I can do this now.
+        cmd = AgentCommand(command='acquire_sample')
+        reply = self.instrument_agent_client.execute(cmd)
+        self.assertSampleDict(reply.result)
+
+
+        # 404 unknown agent command.
+        cmd = AgentCommand(command='kiss_edward')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        self.assertEquals(retval.status, 404)
+
+        # 670 unknown driver command.
+        cmd = AgentCommand(command='acquire_sample_please')
+        retval = self.instrument_agent_client.execute(cmd)
+        self.assertEqual(retval.status, 670)
+
+        log.debug("THIS IS BROKEN")
+        # 630 Parameter error.
+        with self.assertRaises(InstParameterError):
+            reply = self.instrument_agent_client.get_param('bogus bogus')
+
+        cmd = AgentCommand(command='reset')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+    def broke(self):
+        log.debug("THIS IS BROKEN")
+        # 630 Parameter error.
+        #with self.assertRaises(InstParameterError) as e:
+        try:
+            reply = self.instrument_agent_client.get_param('bogus bogus')
+        except Exception as e:
+            log.debug("ROGER EXCEPTION = " + str(e))
+        """
+        2012-06-14 12:47:43,288 DEBUG    mi.core.log     ROGER EXCEPTION = 660 -
+        2012-06-14 12:47:43,288 DEBUG    mi.core.log     InstrumentDriverQualificationTestCase tearDown
+        2012-06-14 12:47:43,288 INFO     mi.core.log     Stop the instrument agent
+        """
+
+    def test_instrument_driver_to_physical_instrument_interoperability(self):
+        """
+        @Brief this test is the integreation test test_connect
+               but run through the agent.
+
+               On a seabird sbe37 this results in a ds and dc command being sent.
+        """
+
+
+
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        # Test the driver is configured for comms.
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+        pass
+
+    @unittest.skip("Driver.get_device_signature not yet implemented")
+    def test_get_device_signature(self):
+        """
+        @Brief this test will call get_device_signature once that is
+               implemented in the driver
+        """
+        pass
