@@ -1,9 +1,9 @@
-[submodule "extern/coi-services"]
-	path = extern/coi-services
-	url = git://github.com/wfrench/coi-services
 [submodule "extern/pyon"]
 	path = extern/pyon
 	url = git://github.com/ooici/pyon
 [submodule "extern/ion-definitions"]
 	path = extern/ion-definitions
 	url = git://github.com/wfrench/ion-definitions
+[submodule "extern/coi-services"]
+	path = extern/coi-services
+	url = git://github.com/wfrench/coi-services
