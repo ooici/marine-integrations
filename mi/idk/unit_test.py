@@ -24,9 +24,8 @@ import subprocess
 from pyon.container.cc import Container
 from pyon.util.int_test import IonIntegrationTestCase
 
-from mi.core.instrument.zmq_driver_client import ZmqDriverClient
-from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 from ion.agents.port.logger_process import EthernetDeviceLogger
+from ion.agents.instrument.driver_process import DriverProcess, DriverProcessType
 
 from mi.idk.comm_config import CommConfig
 from mi.idk.config import Config
@@ -261,45 +260,42 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         @retval return driver process and driver client object
         """
         log.info("Startup Driver Process")
-        
-        this_pid = os.getpid()
-        (dvr_proc, cmd_port, evt_port) = ZmqDriverProcess.launch_process(self._test_config.driver_module,
-                                                                         self._test_config.driver_class,
-                                                                         self._test_config.working_dir,
-                                                                         this_pid)
-        self.driver_process = dvr_proc
-        log.info('Started driver process for %d %d %s %s' %
-                 (cmd_port, evt_port, self._test_config.driver_module, self._test_config.driver_class))
-        log.info('Driver process pid %d' % self.driver_process.pid)
 
-        # Create driver client.
-        self.driver_client = ZmqDriverClient('localhost', cmd_port, evt_port)
-        log.info('Created driver client for %d %d %s %s' % (cmd_port,
-            evt_port, self._test_config.driver_module, self._test_config.driver_class))
+        driver_config = {
+            'dvr_mod'      : self._test_config.driver_module,
+            'dvr_cls'      : self._test_config.driver_class,
+            'workdir'      : self._test_config.working_dir,
+            'comms_config' : self.port_agent_comm_config(),
+            'process_type' : DriverProcessType.PYTHON_MODULE
+        }
 
-        # Start client messaging.
-        self.driver_client.start_messaging(self.event_received)
-        log.info('Driver messaging started.')
-        gevent.sleep(.5)
+        self.driver_process = DriverProcess.get_process(driver_config, True)
+        self.driver_process.launch()
+
+        # Verify the driver has started.
+        if not self.driver_process.getpid():
+            log.error('Error starting driver process.')
+            raise InstrumentException('Error starting driver process.')
+
+        try:
+            driver_client = self.driver_process.get_client()
+            driver_client.start_messaging(self.event_received)
+            retval = driver_client.cmd_dvr('process_echo', 'Test.')
+
+            self.driver_client = driver_client
+        except Exception, e:
+            self.driver_process.stop()
+            log.error('Error starting driver client. %s', e)
+            raise InstrumentException('Error starting driver client.')
+
+        log.info('started its driver.')
     
     def stop_driver_process_client(self):
         """
         Stop the driver_process.
         """
         if self.driver_process:
-            log.info('Stopping driver process pid %d' % self.driver_process.pid)
-            if self.driver_client:
-                self.driver_client.done()
-                self.driver_process.wait()
-                self.driver_client = None
-
-            else:
-                try:
-                    log.info('Killing driver process.')
-                    self.driver_process.kill()
-                except OSError:
-                    pass
-            self.driver_process = None
+            self.driver_process.stop()
 
     def port_agent_comm_config(self):
         port = self.port_agent.get_port()
@@ -346,7 +342,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         
         # Verify processes exist.
         self.assertNotEqual(self.driver_process, None)
-        drv_pid = self.driver_process.pid
+        drv_pid = self.driver_process.getpid()
         self.assertTrue(isinstance(drv_pid, int))
         
         self.assertNotEqual(self.port_agent, None)
@@ -434,6 +430,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         driver_config = {
             'dvr_mod' : self._test_config.driver_module,
             'dvr_cls' : self._test_config.driver_class,
+
+            'process_type' : DriverProcessType.PYTHON_MODULE,
+
             'workdir' : self._test_config.working_dir,
             'comms_config' : self.port_agent_comm_config()
         }
