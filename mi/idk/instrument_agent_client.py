@@ -220,11 +220,19 @@ class InstrumentAgentClient(object):
 
         command_line = "%s %s" % (cmd, args);
 
-        process = subprocess.Popen(command_line, shell=True)
-        time.sleep(1)
+        process = subprocess.Popen(command_line, shell=True, stdout=subprocess.PIPE)
+
+        # Wait for the process to complete
+        while process.poll() == None:
+            time.sleep(.1)
+
+        # Dump output
+        for line in process.stdout:
+
+            log.debug(line.rstrip())
 
         log.debug("Process pid: %d" % process.pid )
-        if process.pid > 0:
+        if process.pid > 0 and process.returncode == 0:
             if pidfile:
                 self._write_pidfile(process.pid, pidfile)
         else:
