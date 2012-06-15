@@ -168,6 +168,7 @@ class InstrumentAgentClient(object):
         self._run_process(cmd, '-k')
 
         os.remove(self._pid_filename("couchdb"))
+        time.sleep(2) # couch requires some refractory time
 
     def start_rabbitmq_server(self):
         """
@@ -186,7 +187,7 @@ class InstrumentAgentClient(object):
         # erl isn't in the path the server doesn't start.
         # TODO: put this in a config parameter
         os.environ['PATH'] = "%s:%s" % (os.environ['PATH'], "/usr/local/bin")
-        self._run_process(cmd, '', self._pid_filename("rabbitmq"), False)
+        self._run_process(cmd, '-detached', self._pid_filename("rabbitmq"), False)
 
     def stop_rabbitmq_server(self):
         """
@@ -223,16 +224,23 @@ class InstrumentAgentClient(object):
         process = subprocess.Popen(command_line, shell=True, stdout=subprocess.PIPE)
 
         # Wait for the process to complete
+        
+        start_time = time.time()
         while process.poll() == None:
+            if start_time + 10 < time.time():
+                log.error("Failed to launch application: %s " % command_line)
+                if (raise_error):
+                    raise FailedToLaunch(command_line)
+                break
             time.sleep(.1)
-
+        
+        # This causes blocking behavior because the process does not close.
         # Dump output
-        for line in process.stdout:
+        #for line in process.stdout:
+        #    log.debug(line.rstrip())
 
-            log.debug(line.rstrip())
-
-        log.debug("Process pid: %d" % process.pid )
-        if process.pid > 0 and process.returncode == 0:
+        log.debug("Process pid: %d returncode: %d" % (process.pid, process.returncode))
+        if process.pid > 0:
             if pidfile:
                 self._write_pidfile(process.pid, pidfile)
         else:
