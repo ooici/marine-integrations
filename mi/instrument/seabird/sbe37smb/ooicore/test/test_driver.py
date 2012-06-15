@@ -14,6 +14,7 @@ __license__ = 'Apache 2.0'
 from gevent import monkey; monkey.patch_all()
 import gevent
 import socket
+import re
 
 # Standard lib imports
 import time
@@ -991,10 +992,6 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         s.send_data(retval.result['token'] + "\r\n", "1")
 
 
-
-
-
-
         while s.peek_at_buffer().find("connected\n") == -1:
             log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
             gevent.sleep(1)
@@ -1337,7 +1334,6 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         """
         pass
 
-    # not tested
     def test_capabilities(self):
         """
         Test the ability to retrieve agent and resource parameter and command
@@ -1410,7 +1406,6 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
-    # not tested
     def test_autosample(self):
         """
         Test instrument driver execute interface to start and stop streaming
@@ -1502,60 +1497,109 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
-    def test_poll(self):
-        """
-        Test observatory polling function.
-        """
 
+    def assertParamDict(self, pd, all_params=False):
+        """
+        Verify all device parameters exist and are correct type.
+        """
+        if all_params:
+            self.assertEqual(set(pd.keys()), set(PARAMS.keys()))
+            for (key, type_val) in PARAMS.iteritems():
+                if type_val == list or type_val == tuple:
+                    self.assertTrue(isinstance(pd[key], (list, tuple)))
+                else:
+                    self.assertTrue(isinstance(pd[key], type_val))
+
+        else:
+            for (key, val) in pd.iteritems():
+                self.assertTrue(PARAMS.has_key(key))
+                self.assertTrue(isinstance(val, PARAMS[key]))
+
+    def assertParamVals(self, params, correct_params):
+        """
+        Verify parameters take the correct values.
+        """
+        self.assertEqual(set(params.keys()), set(correct_params.keys()))
+        for (key, val) in params.iteritems():
+            correct_val = correct_params[key]
+            if isinstance(val, float):
+                # Verify to 5% of the larger value.
+                max_val = max(abs(val), abs(correct_val))
+                self.assertAlmostEqual(val, correct_val, delta=max_val*.01)
+
+            elif isinstance(val, (list, tuple)):
+                # list of tuple.
+                self.assertEqual(list(val), list(correct_val))
+
+            else:
+                # int, bool, str.
+                self.assertEqual(val, correct_val)
+
+    def test_get_set(self):
+        """
+        Test instrument driver get and set interface.
+        """
         cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command='initialize')
-        retval = self._ia_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
 
         cmd = AgentCommand(command='go_active')
-        retval = self._ia_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
 
         cmd = AgentCommand(command='run')
-        retval = self._ia_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
 
-        # Lets get 3 samples.
-        self._no_samples = 3
+        # Retrieve all resource parameters.
+        reply = self.instrument_agent_client.get_param(SBE37Parameter.ALL)
+        self.assertParamDict(reply, True)
+        orig_config = reply
 
-        # Poll for a few samples.
-        cmd = AgentCommand(command='acquire_sample')
-        reply = self._ia_client.execute(cmd)
-        self.assertSampleDict(reply.result)
+        # Retrieve a subset of resource parameters.
+        params = [
+            SBE37Parameter.TA0,
+            SBE37Parameter.INTERVAL,
+            SBE37Parameter.STORETIME
+        ]
+        reply = self.instrument_agent_client.get_param(params)
+        self.assertParamDict(reply)
+        orig_params = reply
 
-        cmd = AgentCommand(command='acquire_sample')
-        reply = self._ia_client.execute(cmd)
-        self.assertSampleDict(reply.result)
+        # Set a subset of resource parameters.
+        new_params = {
+            SBE37Parameter.TA0 : (orig_params[SBE37Parameter.TA0] * 2),
+            SBE37Parameter.INTERVAL : (orig_params[SBE37Parameter.INTERVAL] + 1),
+            SBE37Parameter.STORETIME : (not orig_params[SBE37Parameter.STORETIME])
+        }
+        self.instrument_agent_client.set_param(new_params)
+        check_new_params = self.instrument_agent_client.get_param(params)
+        self.assertParamVals(check_new_params, new_params)
 
-        cmd = AgentCommand(command='acquire_sample')
-        reply = self._ia_client.execute(cmd)
-        self.assertSampleDict(reply.result)
-
-        # Assert we got 3 samples.
-        self._async_data_result.get(timeout=10)
-        self.assertTrue(len(self._samples_received)==self._no_samples)
+        # Reset the parameters back to their original values.
+        self.instrument_agent_client.set_param(orig_params)
+        reply = self.instrument_agent_client.get_param(SBE37Parameter.ALL)
+        reply.pop(SBE37Parameter.SAMPLENUM)
+        orig_config.pop(SBE37Parameter.SAMPLENUM)
+        self.assertParamVals(reply, orig_config)
 
         cmd = AgentCommand(command='reset')
-        retval = self._ia_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
