@@ -80,6 +80,7 @@ class InstrumentDriverTestConfig(Singleton):
     delimeter      = ['<<','>>']
     logger_timeout = 15
 
+    driver_process_type = DriverProcessType.PYTHON_MODULE
     instrument_agent_resource_id = None
     instrument_agent_name = None
     instrument_agent_module = 'ion.agents.instrument.instrument_agent'
@@ -116,6 +117,9 @@ class InstrumentDriverTestConfig(Singleton):
 
         if kwargs.get('logger_timeout'):
             self.container_deploy_file = kwargs.get('logger_timeout')
+
+        if kwargs.get('driver_process_type'):
+            self.container_deploy_file = kwargs.get('driver_process_type')
         
         self.initialized = True
 
@@ -125,14 +129,14 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
     """
     
     # configuration singleton
-    _test_config = InstrumentDriverTestConfig()
+    test_config = InstrumentDriverTestConfig()
     
     @classmethod
     def initialize(cls, *args, **kwargs):
         """
         Initialize the test_configuration singleton
         """
-        cls._test_config.initialize(*args,**kwargs)
+        cls.test_config.initialize(*args,**kwargs)
     
     # Port agent process object.
     port_agent = None
@@ -144,7 +148,7 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         log.debug("InstrumentDriverTestCase setUp")
         
         # Test to ensure we have initialized our test config
-        if not self._test_config.initialized:
+        if not self.test_config.initialized:
             return TestNotInitialized(msg="Tests non initialized. Missing InstrumentDriverTestCase.initalize(...)?")
             
         self.clear_events()
@@ -174,7 +178,7 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         @return if comm_config.yml exists return the full path
         """
         repo_dir = Config().get('working_repo')
-        driver_path = self._test_config.driver_module
+        driver_path = self.test_config.driver_module
         p = re.compile('\.')
         driver_path = p.sub('/', driver_path)
         abs_path = "%s/%s/%s" % (repo_dir, os.path.dirname(driver_path), CommConfig.config_filename())
@@ -213,15 +217,15 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         # will change with the new port agent.  
         self.port_agent = EthernetDeviceLogger.launch_process(self.comm_config.device_addr,
                                                               self.comm_config.device_port,
-                                                              self._test_config.working_dir,
-                                                              self._test_config.delimeter,
+                                                              self.test_config.working_dir,
+                                                              self.test_config.delimeter,
                                                               this_pid)
 
 
         log.debug( " Port agent object created" )
 
         start_time = time.time()
-        expire_time = start_time + int(self._test_config.logger_timeout)
+        expire_time = start_time + int(self.test_config.logger_timeout)
         pid = self.port_agent.get_pid()
         while not pid:
             gevent.sleep(.1)
@@ -233,7 +237,7 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         port = self.port_agent.get_port()
 
         start_time = time.time()
-        expire_time = start_time + int(self._test_config.logger_timeout)
+        expire_time = start_time + int(self.test_config.logger_timeout)
         while not port:
             gevent.sleep(.1)
             port = self.port_agent.get_port()
@@ -264,11 +268,11 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         log.info("Startup Driver Process")
 
         driver_config = {
-            'dvr_mod'      : self._test_config.driver_module,
-            'dvr_cls'      : self._test_config.driver_class,
-            'workdir'      : self._test_config.working_dir,
+            'dvr_mod'      : self.test_config.driver_module,
+            'dvr_cls'      : self.test_config.driver_class,
+            'workdir'      : self.test_config.working_dir,
             'comms_config' : self.port_agent_comm_config(),
-            'process_type' : DriverProcessType.PYTHON_MODULE
+            'process_type' : self.test_config.driver_process_type,
         }
 
         self.driver_process = DriverProcess.get_process(driver_config, True)
@@ -405,12 +409,12 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
 
         self.instrument_agent_manager = InstrumentAgentClient();
-        self.instrument_agent_manager.start_container(deploy_file=self._test_config.container_deploy_file)
+        self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
         self.container = self.instrument_agent_manager.container
         self.data_subscribers = InstrumentAgentDataSubscribers(
-            packet_config=self._test_config.instrument_agent_packet_config,
-            encoding=self._test_config.instrument_agent_stream_encoding,
-            stream_definition=self._test_config.instrument_agent_stream_definition
+            packet_config=self.test_config.instrument_agent_packet_config,
+            encoding=self.test_config.instrument_agent_stream_encoding,
+            stream_definition=self.test_config.instrument_agent_stream_definition
         )
         self.event_subscribers = InstrumentAgentEventSubscribers()
 
@@ -430,12 +434,12 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         '''
         # Driver config
         driver_config = {
-            'dvr_mod' : self._test_config.driver_module,
-            'dvr_cls' : self._test_config.driver_class,
+            'dvr_mod' : self.test_config.driver_module,
+            'dvr_cls' : self.test_config.driver_class,
 
-            'process_type' : DriverProcessType.PYTHON_MODULE,
+            'process_type' : self.test_config.driver_process_type,
 
-            'workdir' : self._test_config.working_dir,
+            'workdir' : self.test_config.working_dir,
             'comms_config' : self.port_agent_comm_config()
         }
 
@@ -443,19 +447,19 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         agent_config = {
             'driver_config' : driver_config,
             'stream_config' : self.data_subscribers.stream_config,
-            'agent'         : {'resource_id': self._test_config.instrument_agent_resource_id},
+            'agent'         : {'resource_id': self.test_config.instrument_agent_resource_id},
             'test_mode' : True  ## Enable a poison pill. If the spawning process dies
             ## shutdown the daemon process.
         }
 
         # Start instrument agent client.
         self.instrument_agent_manager.start_client(
-            name=self._test_config.instrument_agent_name,
-            module=self._test_config.instrument_agent_module,
-            cls=self._test_config.instrument_agent_class,
+            name=self.test_config.instrument_agent_name,
+            module=self.test_config.instrument_agent_module,
+            cls=self.test_config.instrument_agent_class,
             config=agent_config,
-            resource_id=self._test_config.instrument_agent_resource_id,
-            deploy_file=self._test_config.container_deploy_file
+            resource_id=self.test_config.instrument_agent_resource_id,
+            deploy_file=self.test_config.container_deploy_file
         )
 
         self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
