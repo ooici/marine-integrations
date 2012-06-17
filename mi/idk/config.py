@@ -72,7 +72,7 @@ class ConfigManager(Singleton):
         ## Initialize the config file if one doesn't exist
         cfgpath = os.path.join(config_dir, CONFIG_FILENAME)
         log.debug("config file: %s" % cfgpath)
-        if not os.path.exists(cfgpath):
+        if not self.get("working_repo"):
             log.debug("User IDK config doesn't exist: " + cfgpath)
             self.rebase()
             
@@ -146,7 +146,10 @@ class ConfigManager(Singleton):
         @brief get a named parameter from the yaml file
         @retval value from the yaml file
         """
-        return self.yaml[IDK_YAML_GROUP].get(config_name)
+        if self.yaml and self.yaml.get(IDK_YAML_GROUP):
+            return self.yaml[IDK_YAML_GROUP].get(config_name)
+        else:
+            return None
 
 
 class Config(object):
