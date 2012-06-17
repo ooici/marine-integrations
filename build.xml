@@ -5,21 +5,16 @@
         This module is set up to start the pyon CC and parts of the ION system from.
     </description>
 
-    <!-- load python specific ant tasks from jar file -->
-    <taskdef resource="pyAntTasks.properties" classpath="scripts/lib/pyAntTasks-1.3.3.jar"/>
-
     <!-- set global properties for this build -->
     <property name="src" location="ion"/>
     <property name="build" location="build"/>
     <property name="dist"  location="dist"/>
 
-    <property name="pyon.base"  location="../pyon"/>
-    <property name="iondef.base"  location="../ion-definitions"/>
+    <property name="pyon.base"  location="extern/pyon"/>
+    <property name="iondef.base"  location="extern/ion-definitions"/>
 
     <target name="info">
-        <echo message="Repository for COI-services as part of the ION system."/>
-        <echo message="This repository is enabled to launch the ION system and containers from."/>
-        <echo message="Run 'ant -p' to retrieve a list of targets."/>
+        <echo message="Repository for marine-integratiosn as part of the ION system."/>
     </target>
 
     <target name="init">
@@ -43,8 +38,9 @@
         <delete dir="${build}" failonerror="false"/>
         <delete dir="${dist}" failonerror="false"/>
         <delete dir="pyon.egg-info" failonerror="false"/>
-        
-        <!--<antcall target="remeggs"/>-->
+        <delete file="couchdb.stderr" failonerror="false"/>
+        <delete file="couchdb.stdout" failonerror="false"/>
+        <delete file="erl_crash.dump" failonerror="false"/>
     </target>
 
     <!-- Generates the interfaces -->
