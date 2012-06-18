@@ -37,6 +37,31 @@ $ python bootstrap.py
 $ bin/buildout
 $ bin/generate_interfaces
 
+
+####
+##   Fresh Build
+####
+
+If you have unexplained issues or have done a large pull you may want to do a full rebuild.  
+
+# Clean the last build
+$ ant clean clean-buildout
+
+# remove submodules
+$ rm -r extern
+
+# reload submodules, submodule sycn read the .gitmodules file and resets your
+# local git modules index.
+$ git submodule sync
+$ git submodule init
+$ git submodule update
+
+# Buildout
+$ python bootstrap.py
+$ bin/buildout
+$ bin/generate_interfaces
+
+
 USAGE
 =====
 
