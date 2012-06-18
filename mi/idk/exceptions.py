@@ -100,6 +100,14 @@ class InvalidCommType(IDKException):
     """Invalid Communication Configuration Type"""
     pass
 
+class GitCommandException(IDKException):
+    """not a git local repo"""
+    pass
+
+class InvalidGitRepo(IDKException):
+    """not a git local repo"""
+    pass
+
 class WorkingRepoNotSet(IDKException):
     """The working_repo config parameter not set"""
     pass
