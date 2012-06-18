@@ -5,6 +5,9 @@ See https://confluence.oceanobservatories.org/display/ENG/VADCP+Driver
 
 Some development notes:
 
+2012-06-18:
+- overall review, some adjustment and clean-up, and more comments in the code.
+
 2012-06-13:
 - some code review, pyflakes fixes, documentation on confluence.
 - all the tests at the moment:

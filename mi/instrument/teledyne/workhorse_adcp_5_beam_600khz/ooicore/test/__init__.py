@@ -86,6 +86,10 @@ class VadcpTestCase(unittest.TestCase):
                          timeout_str)
         log.info("Generic timeout set to: %d" % cls._timeout)
 
+    @classmethod
+    def tearDownClass(self):
+        ReceiverBuilder.use_default()
+
     def setUp(self):
         """
         """
@@ -94,6 +98,3 @@ class VadcpTestCase(unittest.TestCase):
             self.skipTest(self._skip_reason)
 
         log.info("== VADCP _conn_config: %s" % self._conn_config)
-
-    def tearDown(self):
-        ReceiverBuilder.use_default()

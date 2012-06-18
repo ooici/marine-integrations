@@ -3,7 +3,7 @@
 """
 @file mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/test_unit_client.py
 @author Carlos Rueda
-@brief Tests for a single VADCP unit.
+@brief Tests for a VADCP unit.
 """
 
 __author__ = "Carlos Rueda"
@@ -26,76 +26,50 @@ from nose.plugins.attrib import attr
 @attr('UNIT', group='mi')
 class Test(VadcpTestCase):
 
-    # this class variable is to keep a single reference to the VadcpClient
-    # object in the current test. setUp will first finalize such object in case
-    # tearDown/cleanup does not get called. Note that any test with an error
-    # will likely make subsequent tests immediately fail because of the
-    # potential problem with a second connection.
     _client = None
+    _samples_recd = 0
 
     @classmethod
-    def _end_client_if_any(cls):
-        """Ends the current VadcpClient, if any."""
-        if Test._client:
-            log.info("releasing not finalized VadcpClient object")
-            try:
-                Test._client.end()
-            finally:
-                Test._client = None
+    def _data_listener(cls, sample):
+        cls._samples_recd += 1
+        log.info("_data_listener: received PD0=%s" % prefix(sample))
 
     @classmethod
-    def tearDownClass(cls):
-        """Make sure we end the last VadcpClient object if still remaining."""
-        try:
-            cls._end_client_if_any()
-        finally:
-            super(Test, cls).tearDownClass()
-
-    def setUp(self):
-        """
-        Sets up and connects the _client.
-        """
+    def setUpClass(cls):
+        super(Test, cls).setUpClass()
+        if cls._skip_reason:
+            return
 
         ReceiverBuilder.use_greenlets()
 
-        Test._end_client_if_any()
-
-        super(Test, self).setUp()
-
-        self._samples_recd = 0
-
-        cc = self._conn_config[self._vadcp_unit]
+        cc = cls._conn_config[cls._vadcp_unit]
         outfilename = 'vadcp_output_%s_%s.txt' % (cc.host, cc.port)
         outfile = file(outfilename, 'w')
 
-        Test._client = UnitClient(cc, outfile)
+        cls._client = UnitClient(cc, outfile)
 
-        # prepare client including going to the main menu
-        Test._client.set_generic_timeout(self._timeout)
+        cls._client.set_generic_timeout(cls._timeout)
 
         log.info("connecting")
-        Test._client.set_data_listener(self._data_listener)
-        Test._client.connect()
+        cls._client.set_data_listener(cls._data_listener)
+        cls._client.connect()
 
-    def tearDown(self):
-        """
-        Ends the _client.
-        """
-        ReceiverBuilder.use_default()
-        client = Test._client
-        Test._client = None
+        log.info("sending break")
+        cls._client.send_break()
+
+        log.info("waiting from prompt")
+        cls._client._get_prompt()
+
+    @classmethod
+    def tearDownClass(cls):
         try:
-            if client:
-                log.info("ending VadcpClient object")
-                client.end()
+            if cls._client:
+                log.info("ending UnitClient object")
+                cls._client.end()
         finally:
-            super(Test, self).tearDown()
+            super(Test, cls).tearDownClass()
 
-    def _data_listener(self, pd0):
-        self._samples_recd += 1
-        log.info("_data_listener: received PD0=%s" % prefix(pd0))
-
-    def test_connect_disconnect(self):
+    def test_basic(self):
         state = self._client.get_current_state()
         log.info("current instrument state: %s" % str(state))
 
@@ -122,7 +96,7 @@ class Test(VadcpTestCase):
         log.info("ALL TESTS result=%s" % prefix(result))
 
     def test_start_and_stop_autosample(self):
-        self._samples_recd = 0
+        Test._samples_recd = 0
         if State.COLLECTING_DATA != self._client.get_current_state():
             result = self._client.start_autosample()
             log.info("start_autosample result=%s" % result)
@@ -130,7 +104,7 @@ class Test(VadcpTestCase):
         self.assertEqual(State.COLLECTING_DATA, self._client.get_current_state())
 
         time.sleep(6)
-        log.info("ensembles_recd = %s" % self._samples_recd)
+        log.info("ensembles_recd = %s" % Test._samples_recd)
 
         result = self._client.stop_autosample()
         log.info("stop_autosample result=%s" % result)

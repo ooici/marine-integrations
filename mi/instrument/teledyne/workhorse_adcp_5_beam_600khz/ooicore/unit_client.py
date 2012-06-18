@@ -99,6 +99,7 @@ class UnitClient(object):
 
         log.info("creating _Receiver")
         self._rt = ReceiverBuilder.build_receiver(self._sock,
+                                  ooi_digi=False,
                                   outfile=self._outfile,
                                   data_listener=self._data_listener,
                                   prefix_state=self._prefix_state)
@@ -317,13 +318,19 @@ class UnitClient(object):
 
     def _connect_ooi_digi(self):
         """
-        Establishes the connection to the OOI digi
+        Establishes the connection to the OOI digi.
+
+        The connection is attempted a number of times.
+
+        NOTE: The connection has sporadically failed, which have been fixed by
+        rebooting the unit through the web interface (which is
+        http://10.180.80.178/html/reboot.htm for the 4-beam unit).
         """
 
         host = self._conn_config.ooi_digi_host
         port = self._conn_config.ooi_digi_port
 
-        sock = connect_socket(host, port)
+        sock = connect_socket(host, port, timeout=self._generic_timeout)
 
         if 'localhost' == host:
             outfilename = 'vadcp_ooi_digi_output.txt'
@@ -331,7 +338,8 @@ class UnitClient(object):
             outfilename = 'vadcp_output_%s_%s.txt' % (host, port)
         outfile = open(outfilename, 'a')
         log.info("creating OOI Digi _Receiver")
-        rt = ReceiverBuilder.build_receiver(sock, outfile=outfile)
+        rt = ReceiverBuilder.build_receiver(sock, ooi_digi=True,
+                                            outfile=outfile)
         log.info("starting OOI Digi _Receiver")
         rt.start()
 
