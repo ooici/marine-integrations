@@ -28,7 +28,7 @@ NEWLINE = '\r\n'
 # default timeout.
 TIMEOUT = 10
 
-# Packet config for SBE37 data granules.
+# Packet config
 PACKET_CONFIG = {
     'parsed' : None,
     'raw' : None
@@ -36,20 +36,22 @@ PACKET_CONFIG = {
 
 class ProtocolState(BaseEnum):
     """
-    Protocol states for SBE37. Cherry picked from DriverProtocolState
+    Protocol states
     enum.
     """
     UNKNOWN = DriverProtocolState.UNKNOWN
+    COMMAND = DriverProtocolState.COMMAND
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
     
 class ProtocolEvent(BaseEnum):
     """
-    Protocol events for SBE37. Cherry picked from DriverEvent enum.
+    Protocol events
     """
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
+    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -128,12 +130,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Add event handlers for protocol state machine.
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -173,14 +177,10 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
-        Discover current state; can be COMMAND or AUTOSAMPLE.
-        @retval (next_state, result), (ProtocolState.COMMAND or
-        SBE37State.AUTOSAMPLE, None) if successful.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentStateException if the device response does not correspond to
-        an expected state.
+        Discover current state
+        @retval (next_state, result)
         """
-        pass
+        (ProtocolState.COMMAND, None)
 
     ########################################################################
     # Command handlers.

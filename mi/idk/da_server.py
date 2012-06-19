@@ -151,6 +151,8 @@ class DirectAccessServer():
 
         # Driver config
         driver_config = {
+            #'dvr_mod' : 'mi.instrument.seabird.sbe37smb.example.driver',
+            #'dvr_cls' : 'InstrumentDriver',
             'dvr_mod' : 'mi.instrument.seabird.sbe37smb.ooicore.driver',
             'dvr_cls' : 'SBE37Driver',
 
@@ -184,26 +186,49 @@ class DirectAccessServer():
     def _start_da(self, type):
         self.start_container()
 
+        log.info("--- Starting DA server ---")
+
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("retval: %s", retval)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("retval: %s", retval)
 
         cmd = AgentCommand(command='power_up')
         retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("retval: %s", retval)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("retval: %s", retval)
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("retval: %s", retval)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("retval: %s", retval)
 
         cmd = AgentCommand(command='go_active')
         retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("retval: %s", retval)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("retval: %s", retval)
 
         cmd = AgentCommand(command='run')
         retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("retval: %s", retval)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("retval: %s", retval)
 
         cmd = AgentCommand(command='go_direct_access',
             kwargs={'session_type': type,
                     'session_timeout': TIMEOUT,
                     'inactivity_timeout': TIMEOUT})
         retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("retval: %s", retval)
 
         ip_address = retval.result['ip_address']
         port= retval.result['port']
