@@ -277,7 +277,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
                 # int, bool, str, or tuple of same
                 self.assertEqual(val, correct_val)
 
-    def test_config(self):
+    def test_configuration(self):
         """
         Test to configure the driver process for device comms and transition
         to disconnected state.
