@@ -14,6 +14,10 @@ from mi.core.log import log
 from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.comm_config import CommConfig
 from mi.idk.config import Config
+from mi.idk.driver_generator import DriverGenerator
+from mi.idk.metadata import Metadata
+from mi.idk.unit_test import InstrumentDriverTestConfig
+from mi.idk.exceptions import TestNotInitialized
 
 from interface.objects import AgentCommand
 
@@ -32,7 +36,26 @@ class DirectAccessServer():
     instrument_agent_manager = None
     instrument_agent_client = None
 
+    def __init__(self):
+        """
+        Setup the direct access server
+        """
+        # Currently we are pulling the driver config information from the driver tests.  There is a better way to do
+        # this, but we are time crunched.  TODO: Fix this!
+
+        generator = DriverGenerator(Metadata())
+        __import__(generator.test_modulename())
+        self.test_config = InstrumentDriverTestConfig()
+
+        # Test to ensure we have initialized our test config
+        if not self.test_config.initialized:
+            raise TestNotInitialized(msg="Tests non initialized. Missing InstrumentDriverTestCase.initalize(...)?")
+
+
     def __del__(self):
+        """
+        Destructor to cleanup all the processes we started to run DA
+        """
         log.info("tearing down agents and containers")
 
         log.debug("killing the capability container")
@@ -45,6 +68,9 @@ class DirectAccessServer():
 
 
     def start_container(self):
+        """
+        Start up the capability container, port agent and the IA client
+        """
         self.init_comm_config()
         self.init_port_agent()
         self.instrument_agent_manager = InstrumentAgentClient();
@@ -57,7 +83,7 @@ class DirectAccessServer():
         @return if comm_config.yml exists return the full path
         """
         repo_dir = Config().get('working_repo')
-        driver_path = 'mi.instrument.seabird.sbe37smb.example.driver'
+        driver_path = self.test_config.driver_module
         p = re.compile('\.')
         driver_path = p.sub('/', driver_path)
         abs_path = "%s/%s/%s" % (repo_dir, os.path.dirname(driver_path), CommConfig.config_filename())
@@ -96,7 +122,7 @@ class DirectAccessServer():
         # will change with the new port agent.
         self.port_agent = EthernetDeviceLogger.launch_process(self.comm_config.device_addr,
             self.comm_config.device_port,
-            "/tmp",
+            "/tmp/",
             ['<<', '>>'],
             this_pid)
 
@@ -140,6 +166,9 @@ class DirectAccessServer():
                 log.info('No port agent running.')
 
     def init_instrument_agent_client(self):
+        """
+        Start up the instrument agent client.
+        """
         log.info("Start Instrument Agent Client")
 
         # Port config
@@ -151,39 +180,40 @@ class DirectAccessServer():
 
         # Driver config
         driver_config = {
-            #'dvr_mod' : 'mi.instrument.seabird.sbe37smb.example.driver',
-            #'dvr_cls' : 'InstrumentDriver',
-            'dvr_mod' : 'mi.instrument.seabird.sbe37smb.ooicore.driver',
-            'dvr_cls' : 'SBE37Driver',
+            'dvr_mod' : self.test_config.driver_module,
+            'dvr_cls' : self.test_config.driver_class,
 
-            'process_type' : DriverProcessType.PYTHON_MODULE,
+            'process_type' : self.test_config.driver_process_type,
 
-            'workdir' : "/tmp",
-            'comms_config' : port_config,
+            'workdir' : self.test_config.working_dir,
+            'comms_config' : port_config
         }
 
         # Create agent config.
         agent_config = {
             'driver_config' : driver_config,
             'stream_config' : {},
-            'agent'         : {'resource_id': 'da_idk_run'},
+            'agent'         : {'resource_id': self.test_config.instrument_agent_resource_id},
             'test_mode' : True  ## Enable a poison pill. If the spawning process dies
             ## shutdown the daemon process.
         }
 
         # Start instrument agent client.
         self.instrument_agent_manager.start_client(
-            name='agent_name',
-            module='ion.agents.instrument.instrument_agent',
-            cls='InstrumentAgent',
+            name=self.test_config.instrument_agent_name,
+            module=self.test_config.instrument_agent_module,
+            cls=self.test_config.instrument_agent_class,
             config=agent_config,
-            resource_id='da_idk_run',
-            deploy_file='res/deploy/r2deploy.yml',
+            resource_id=self.test_config.instrument_agent_resource_id,
+            deploy_file=self.test_config.container_deploy_file
         )
 
         self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
 
     def _start_da(self, type):
+        """
+        The actual work to start up a DA session.
+        """
         self.start_container()
 
         log.info("--- Starting DA server ---")
@@ -255,8 +285,6 @@ class DirectAccessServer():
 
         else:
             log.error("Failed to start DA server")
-
-
 
 
     def start_telnet_server(self):

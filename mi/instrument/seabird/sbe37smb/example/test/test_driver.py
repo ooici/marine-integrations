@@ -44,8 +44,8 @@ InstrumentDriverTestCase.initialize(
     driver_class="InstrumentDriver",
 
     # Set these parameters!
-    instrument_agent_resource_id = None,
-    instrument_agent_name = None,
+    instrument_agent_resource_id = 'seabird_sbe37smb_example',
+    instrument_agent_name = 'seabird_sbe37smb_example',
     instrument_agent_packet_config = {},
     instrument_agent_stream_definition = {}
 )
