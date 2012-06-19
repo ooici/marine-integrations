@@ -591,5 +591,19 @@ class SatlanticParDecoratorTest(PyonTestCase):
         self.assertRaises(InstrumentDataException,
                           self.checksum_decorator.handle_incoming_data,
                           "SATPAR0229,10.01,2206748544,235",
-                          "SATPAR0229,10.01,2206748544,235")                        
-  
+                          "SATPAR0229,10.01,2206748544,235")
+
+
+
+
+@attr('UNIT', group='mi')
+class UnitFromIDK(SatlanticParDecoratorTest):
+    pass
+
+@attr('INT', group='mi')
+class IntFromIDK(SatlanticParProtocolIntegrationTest):
+    pass
+
+@attr('QUAL', group='mi')
+class QualFromIDK(InstrumentDriverQualificationTestCase):
+    pass
