@@ -1603,15 +1603,3 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
-@attr('UNIT', group='mi')
-class UnitFromIDK(SBEUnitTestCase):
-    pass
-
-@attr('INT', group='mi')
-class IntFromIDK(SBEIntTestCase):
-    pass
-
-@attr('QUAL', group='mi')
-class QualFromIDK(SBEQualificationTestCase):
-    pass
