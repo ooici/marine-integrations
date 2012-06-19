@@ -23,100 +23,81 @@ from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
-from mi.core.instrument.instrument_driver import InstrumentDriver
-
-#from mi.instrument_connection import SerialInstrumentConnection
-#from mi.instrument_protocol import CommandResponseInstrumentProtocol
-#from mi.instrument_driver import InstrumentDriver
-#from mi.instrument_driver import DriverChannel
-#from mi.instrument_driver import DriverCommand
-#from mi.instrument_driver import DriverState
-#from mi.instrument_driver import DriverEvent
-#from mi.instrument_driver import DriverParameter
-#from mi.exceptions import InstrumentProtocolException
-#from mi.exceptions import InstrumentTimeoutException
-#from mi.exceptions import InstrumentStateException
-#from mi.exceptions import InstrumentConnectionException
-#from mi.common import InstErrorCode
-#from mi.common import BaseEnum
-#from mi.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
+from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import InstrumentParameterException
 
 ###
 #   Module wide values
 ###
 log = logging.getLogger('mi_logger')
-INSTRUMENT_NEWLINE = '\n'
 
+INSTRUMENT_NEWLINE = '\r\n'
 
-###
-#   Static Enumerations
-###
-class State(BaseEnum):
-    """
-    Enumerated driver states.  Your driver will likly only support a subset of these.
-    """
-    #UNCONFIGURED = DriverState.UNCONFIGURED
-    #DISCONNECTED =  DriverState.DISCONNECTED
-    #CONNECTING =  DriverState.CONNECTING
-    #DISCONNECTING =  DriverState.DISCONNECTING
-    #CONNECTED =  DriverState.CONNECTED
-    #ACQUIRE_SAMPLE =  DriverState.ACQUIRE_SAMPLE
-    #UPDATE_PARAMS =  DriverState.UPDATE_PARAMS
-    #SET =  DriverState.SET
-    #AUTOSAMPLE =  DriverState.AUTOSAMPLE
-    #TEST =  DriverState.TEST
-    #CALIBRATE =  DriverState.CALIBRATE
-    #DETACHED =  DriverState.DETACHED
-    #COMMAND =  DriverState.COMMAND
+# default timeout.
+INSTRUMENT_TIMEOUT = 5
 
-class Event(BaseEnum):
+# Device prompts.
+class InstrumentPrompts(BaseEnum):
     """
-    Enumerated driver events.  Your driver will likly only support a subset of these.
+    MAVS-4 prompts.
+    The main menu prompt has 2 bells and the sub menu prompts have one; the PicoDOS prompt has none.
     """
-    #CONFIGURE = DriverEvent.CONFIGURE
-    #INITIALIZE = DriverEvent.INITIALIZE
-    #CONNECT = DriverEvent.CONNECT
-    #CONNECTION_COMPLETE = DriverEvent.CONNECTION_COMPLETE
-    #CONNECTION_FAILED = DriverEvent.CONNECTION_FAILED
-    #CONNECTION_LOST = DriverEvent.CONNECTION_LOST
-    #DISCONNECT = DriverEvent.DISCONNECT
-    #DISCONNECT_COMPLETE = DriverEvent.DISCONNECT_COMPLETE
-    #DISCONNECT_FAILED = DriverEvent.DISCONNECT_FAILED
-    #PROMPTED = DriverEvent.PROMPTED
-    #DATA_RECEIVED = DriverEvent.DATA_RECEIVED
-    #COMMAND_RECEIVED = DriverEvent.COMMAND_RECEIVED
-    #RESPONSE_TIMEOUT = DriverEvent.RESPONSE_TIMEOUT
-    #SET = DriverEvent.SET
-    #GET = DriverEvent.GET
-    #EXECUTE = DriverEvent.EXECUTE
-    #ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    #START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    #STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    #TEST = DriverEvent.TEST
-    #STOP_TEST = DriverEvent.STOP_TEST
-    #CALIBRATE = DriverEvent.CALIBRATE
-    #RESET = DriverEvent.RESET
-    #ENTER = DriverEvent.ENTER
-    #EXIT = DriverEvent.EXIT
-    #ATTACH = DriverEvent.ATTACH
-    #DETACH = DriverEvent.DETACH
-    #UPDATE_PARAMS = DriverEvent.UPDATE_PARAMS
+    MAIN_MENU = '\a\b ? \a\b'
+    SUB_MENU  = '\a\b'
+    PICO_DOS  = 'Enter command >> '
+    SLEEPING  = 'Sleeping . . .'
+    WAKEUP    = 'Enter <CTRL>-<C> now to wake up?'
+
+class ProtocolStates(BaseEnum):
+    """
+    Protocol states for MAVS-4. Cherry picked from DriverProtocolState enum.
+    """
+    UNKNOWN = DriverProtocolState.UNKNOWN
+    COMMAND = DriverProtocolState.COMMAND
+    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
+    TEST = DriverProtocolState.TEST
+    CALIBRATE = DriverProtocolState.CALIBRATE
+    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
+    
+class ProtocolEvents(BaseEnum):
+    """
+    Protocol events for MAVS-4. Cherry picked from DriverEvent enum.
+    """
+    ENTER = DriverEvent.ENTER
+    EXIT = DriverEvent.EXIT
+    GET = DriverEvent.GET
+    SET = DriverEvent.SET
+    DISCOVER = DriverEvent.DISCOVER
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+    TEST = DriverEvent.TEST
+    RUN_TEST = DriverEvent.RUN_TEST
+    CALIBRATE = DriverEvent.CALIBRATE
+    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    START_DIRECT = DriverEvent.START_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
+
+# Device specific parameters.
+class InstrumentParameters(DriverParameter):
+    """
+    Device parameters for MAVS-4.
+    """
+    OUTPUTSAL = 'OUTPUTSAL'
 
 class Channel(BaseEnum):
     """
-    Enumerated driver channels.  Your driver will likly only support a subset of these.
+    Enumerated driver channels.  
     """
     #CTD = DriverChannel.CTD
     #ALL = DriverChannel.ALL
 
 #class Command(DriverCommand):
 #    pass
-
-class Prompt(BaseEnum):
-    pass
-
-class Parameter(DriverParameter):
-    pass
 
 class MetadataParameter(BaseEnum):
     pass
@@ -130,9 +111,39 @@ class Capability(BaseEnum):
 class Status(BaseEnum):
     pass
 
-class mavs4Parameter():
+
+###
+#   Driver for mavs4
+###
+class mavs4InstrumentDriver(SingleConnectionInstrumentDriver):
+
     """
+    Instrument driver class for MAVS-4 driver.
+    Uses CommandResponseInstrumentProtocol to communicate with the device
     """
+
+    def __init__(self, evt_callback):
+        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+    
+    def _build_protocol(self):
+        """
+        Construct the driver protocol state machine.
+        """
+        self._protocol = mavs4InstrumentProtocol(InstrumentPrompts, INSTRUMENT_NEWLINE, self._driver_event)
+        
+    def get_resource_params(self):
+        """
+        Return list of device parameters available.
+        """
+        return InstrumentParameters.list()        
+
+    def driver_echo(self, msg):
+        """
+        @brief Sample driver command. 
+        """
+        echo = 'driver_echo: %s' % msg
+        return echo
+
 
 ###
 #   Protocol for mavs4
@@ -143,32 +154,197 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
     commands and a few set commands.
     """
     
-    def __init__(self, callback=None, prompt=Prompt(), newline=INSTRUMENT_NEWLINE):
+    def __init__(self, prompts, newline, driver_event):
         """
         """
-        #CommandResponseInstrumentProtocol.__init__(self, callback, prompt, newline)
+        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
         
-        #self._fsm = InstrumentFSM(State, Event, Event.ENTER,
-        #                          Event.EXIT,
-        #                          InstErrorCode.UNHANDLED_EVENT)
+        self._protocol_fsm = InstrumentFSM(ProtocolStates, 
+                                           ProtocolEvents, 
+                                           ProtocolEvents.ENTER,
+                                           ProtocolEvents.EXIT)
 
-###
-#   Driver for mavs4
-###
-class mavs4InstrumentDriver(InstrumentDriver):
-    """
-    """
-    def __init__(self, evt_callback):
-        InstrumentDriver.__init__(self, evt_callback)
-        self.protocol = mavs4InstrumentProtocol(evt_callback)
+        # Add event handlers for protocol state machine.
+        self._protocol_fsm.add_handler(ProtocolStates.UNKNOWN, ProtocolEvents.ENTER, self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(ProtocolStates.UNKNOWN, ProtocolEvents.EXIT, self._handler_unknown_exit)
+        self._protocol_fsm.add_handler(ProtocolStates.UNKNOWN, ProtocolEvents.DISCOVER, self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.EXIT, self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.GET, self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.TEST, self._handler_command_test)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.ENTER, self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.EXIT, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.GET, self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolStates.TEST, ProtocolEvents.ENTER, self._handler_test_enter)
+        self._protocol_fsm.add_handler(ProtocolStates.TEST, ProtocolEvents.EXIT, self._handler_test_exit)
+        self._protocol_fsm.add_handler(ProtocolStates.TEST, ProtocolEvents.RUN_TEST, self._handler_test_run_tests)
+        self._protocol_fsm.add_handler(ProtocolStates.TEST, ProtocolEvents.GET, self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.ENTER, self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.EXIT, self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.STOP_DIRECT, self._handler_direct_access_stop_direct)
+
+        # Set state machine in UNKNOWN state. 
+        self._protocol_fsm.start(ProtocolStates.UNKNOWN)
+
+
+    ########################################################################
+    # State Unknown handlers.
+    ########################################################################
+
+    def _handler_unknown_enter(self, *args, **kwargs):
+        """
+        Enter unknown state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
     
-    def driver_echo(self, msg):
+    def _handler_unknown_exit(self, *args, **kwargs):
         """
-        @brief Sample driver command. 
+        Exit unknown state.
         """
-        echo = 'driver_echo: %s' % msg
-        return echo
+        pass
 
+    def _handler_unknown_discover(self, *args, **kwargs):
+        """
+        Discover current state; can be COMMAND or AUTOSAMPLE.  If the instrument is sleeping
+        consider that to be in command state.
+        @retval (next_state, result), (ProtocolStates.COMMAND or ProtocolStates.AUTOSAMPLE, None) if successful.
+        """
+        next_state = None
+        result = None
+        
+        # try to wakeup the device using timeout if passed.
+        timeout = kwargs.get('timeout', INSTRUMENT_TIMEOUT)
+        try:
+            prompt = self._wakeup(timeout)
+        except InstrumentTimeoutException:
+            # didn't get any command mode prompt, so...
+            # might be in deployed mode and sending data or 
+            # might be in 'deployed' mode with monitor off or 
+            # maybe not connected to an instrument at all
+            next_state = ProtocolStates.AUTOSAMPLE
+            result = ProtocolStates.AUTOSAMPLE
+        else:
+            # got one of the prompts, so device is in command mode           
+            next_state = ProtocolStates.COMMAND
+            result = ProtocolStates.COMMAND
+            
+        return (next_state, result)
+
+
+    ########################################################################
+    # State Command handlers.
+    ########################################################################
+
+    def _handler_command_enter(self, *args, **kwargs):
+        """
+        Enter command state.
+        @throws InstrumentTimeoutException if the device cannot be woken.
+        @throws InstrumentProtocolException if the update commands and not recognized.
+        """
+        # Command device to update parameters and send a config change event.
+        self._update_params()
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+            
+    def _handler_command_exit(self, *args, **kwargs):
+        """
+        Exit command state.
+        """
+        pass
+
+    def _handler_command_set(self, *args, **kwargs):
+        """
+        Perform a set command.
+        @param args[0] parameter : value dict.
+        @retval (next_state, result) tuple, (None, None).
+        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
+        not a dict, or if paramter can't be properly formatted.
+        @throws InstrumentTimeoutException if device cannot be woken for set command.
+        @throws InstrumentProtocolException if set command could not be built or misunderstood.
+        """
+        next_state = None
+        result = None
+
+        # Retrieve required parameter.
+        # Raise if no parameter provided, or not a dict.
+        try:
+            params = args[0]
+            
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        if not isinstance(params, dict):
+            raise InstrumentParameterException('Set parameters not a dict.')
+        
+        # For each key, val in the dict, issue set command to device.
+        # Raise if the command not understood.
+        else:
+            
+            for (key, val) in params.iteritems():
+                result = self._do_cmd_resp('set', key, val, **kwargs)
+            self._update_params()
+            
+        return (next_state, result)
+
+    def _handler_command_start_autosample(self, *args, **kwargs):
+        """
+        Switch into autosample mode.
+        @retval (next_state, result) tuple, (SBE37ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        next_state = None
+        result = None
+
+        # Issue start command and switch to autosample if successful.
+        self._do_cmd_no_resp('startnow', *args, **kwargs)
+                
+        next_state = ProtocolStates.AUTOSAMPLE        
+        
+        return (next_state, result)
+
+    def _handler_command_test(self, *args, **kwargs):
+        """
+        Switch to test state to perform instrument tests.
+        @retval (next_state, result) tuple, (SBE37ProtocolState.TEST, None).
+        """
+        next_state = None
+        result = None
+
+        next_state = ProtocolStates.TEST
+        
+        return (next_state, result)
+
+    def _handler_command_start_direct(self):
+        """
+        """
+        next_state = None
+        result = None
+
+        next_state = ProtocolStates.DIRECT_ACCESS
+        
+        return (next_state, result)
+
+    ########################################################################
+    # Private helpers.
+    ########################################################################
+        
+    def _send_wakeup(self):
+        """
+        Send two newlines to attempt to wake the MAVS-4 device.
+        """
+        self._connection.send(INSTRUMENT_NEWLINE + INSTRUMENT_NEWLINE)
+                
 
 
 
