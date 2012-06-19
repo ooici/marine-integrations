@@ -1,60 +1,223 @@
 """
-@file coi-services/mi.idk/start_driver.py
+@file mi/idk/da_server.py
 @author Bill French
-@brief Main script class for running the start_driver process
+@brief Main script class for running the direct access process
 """
 
-from mi.idk.metadata import Metadata
-from mi.idk.comm_config import CommConfig
-from mi.idk.driver_generator import DriverGenerator
-from mi.idk.comm_config import CommConfig
+import os
+import re
+import time
 
-class StartDriver():
+from mi.core.log import log
+
+from mi.idk.instrument_agent_client import InstrumentAgentClient
+from mi.idk.comm_config import CommConfig
+from mi.idk.config import Config
+
+from interface.objects import AgentCommand
+
+from ion.agents.instrument.driver_process import DriverProcessType
+from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+from ion.agents.port.logger_process import EthernetDeviceLogger
+
+class DirectAccessServer():
     """
     Main class for running the start driver process.
     """
+    port_agent = None
+    instrument_agent_manager = None
+    instrument_agent_client = None
 
-    def fetch_metadata(self):
-        """
-        @brief collect metadata from the user
-        """
-        self.metadata = Metadata()
-        self.metadata.get_from_console()
+    def __del__(self):
+        log.info("tearing down agents and containers")
 
-    def fetch_comm_config(self):
-        """
-        @brief collect connection information for the logger from the user
-        """
-        config_path = "%s/%s" % (self.metadata.driver_dir(), CommConfig.config_filename())
-        self.comm_config = CommConfig.get_config_from_console(config_path)
-        self.comm_config.get_from_console()
+        log.debug("killing the capability container")
+        if self.instrument_agent_manager:
+            self.instrument_agent_manager.stop_container()
 
-    def generate_code(self, force = False):
-        """
-        @brief generate the directory structure, code and tests for the new driver.
-        """
-        driver = DriverGenerator( self.metadata, force = force )
-        driver.generate()
-
-    def overwrite(self):
-        """
-        @brief Overwrite the current files with what is stored in the current metadata file.
-        """
-        self.metadata = Metadata()
-        self.comm_config = CommConfig.get_config_from_file(self.metadata)
-        self.generate_code(force = True)
-
-    def run(self):
-        """
-        @brief Run it.
-        """
-        print( "*** Starting Driver Creation Process***" )
-
-        self.fetch_metadata()
-        self.fetch_comm_config()
-        self.generate_code()
+        log.debug("killing the port agent")
+        if self.port_agent:
+            self.port_agent.stop()
 
 
-if __name__ == '__main__':
-    app = StartDriver()
-    app.run()
+    def start_container(self):
+        self.init_comm_config()
+        self.init_port_agent()
+        self.instrument_agent_manager = InstrumentAgentClient();
+        self.instrument_agent_manager.start_container()
+        self.init_instrument_agent_client()
+
+    def comm_config_file(self):
+        """
+        @brief Return the path the the driver comm config yaml file.
+        @return if comm_config.yml exists return the full path
+        """
+        repo_dir = Config().get('working_repo')
+        driver_path = 'mi.instrument.seabird.sbe37smb.example.driver'
+        p = re.compile('\.')
+        driver_path = p.sub('/', driver_path)
+        abs_path = "%s/%s/%s" % (repo_dir, os.path.dirname(driver_path), CommConfig.config_filename())
+
+        log.debug(abs_path)
+        return abs_path
+
+    def init_comm_config(self):
+        """
+        @brief Create the comm config object by reading the comm_config.yml file.
+        """
+        log.info("Initialize comm config")
+        config_file = self.comm_config_file()
+
+        log.debug( " -- reading comm config from: %s" % config_file )
+        if not os.path.exists(config_file):
+            raise TestNoCommConfig(msg="Missing comm config.  Try running start_driver or switch_driver")
+
+        self.comm_config = CommConfig.get_config_from_file(config_file)
+
+    def init_port_agent(self):
+        """
+        @brief Launch the driver process and driver client.  This is used in the
+        integration and qualification tests.  The port agent abstracts the physical
+        interface with the instrument.
+        @retval return the pid to the logger process
+        """
+        log.info("Startup Port Agent")
+
+        # Create port agent object.
+        this_pid = os.getpid()
+        log.debug( " -- our pid: %d" % this_pid)
+        log.debug( " -- address: %s, port: %s" % (self.comm_config.device_addr, self.comm_config.device_port))
+
+        # Working dir and delim are hard coded here because this launch process
+        # will change with the new port agent.
+        self.port_agent = EthernetDeviceLogger.launch_process(self.comm_config.device_addr,
+            self.comm_config.device_port,
+            "/tmp",
+            ['<<', '>>'],
+            this_pid)
+
+
+        log.debug( " Port agent object created" )
+
+        start_time = time.time()
+        expire_time = start_time + 20
+        pid = self.port_agent.get_pid()
+        while not pid:
+            time.sleep(.1)
+            pid = self.port_agent.get_pid()
+            if time.time() > expire_time:
+                log.error("!!!! Failed to start Port Agent !!!!")
+                raise PortAgentTimeout()
+
+        port = self.port_agent.get_port()
+
+        start_time = time.time()
+        expire_time = start_time + 20
+        while not port:
+            time.sleep(.1)
+            port = self.port_agent.get_port()
+            if time.time() > expire_time:
+                log.error("!!!! Port Agent could not bind to port !!!!")
+                raise PortAgentTimeout()
+
+        log.info('Started port agent pid %s listening at port %s' % (pid, port))
+        return port
+
+    def stop_port_agent(self):
+        """
+        Stop the port agent.
+        """
+        if self.port_agent:
+            pid = self.port_agent.get_pid()
+            if pid:
+                log.info('Stopping pagent pid %i' % pid)
+                # self.port_agent.stop() # BROKE
+            else:
+                log.info('No port agent running.')
+
+    def init_instrument_agent_client(self):
+        log.info("Start Instrument Agent Client")
+
+        # Port config
+        port = self.port_agent.get_port()
+        port_config = {
+            'addr': 'localhost',
+            'port': port
+        }
+
+        # Driver config
+        driver_config = {
+            'dvr_mod' : 'mi.instrument.seabird.sbe37smb.example.driver',
+            'dvr_cls' : 'InstrumentDriver',
+
+            'process_type' : DriverProcessType.PYTHON_MODULE,
+
+            'workdir' : "/tmp",
+            'comms_config' : port_config,
+        }
+
+        # Create agent config.
+        agent_config = {
+            'driver_config' : driver_config,
+            'stream_config' : {},
+            'agent'         : {'resource_id': 'da_idk_run'},
+            'test_mode' : True  ## Enable a poison pill. If the spawning process dies
+            ## shutdown the daemon process.
+        }
+
+        # Start instrument agent client.
+        self.instrument_agent_manager.start_client(
+            name='agent_name',
+            module='ion.agents.instrument.instrument_agent',
+            cls='InstrumentAgent',
+            config=agent_config,
+            resource_id='da_idk_run',
+            deploy_file='res/deploy/r2deploy.yml',
+        )
+
+        self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
+
+    def start_telnet_server(self):
+        """
+        @brief Run the telnet server
+        """
+        self.start_container()
+
+        cmd = AgentCommand(command='power_down')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("retval: %s", retval)
+
+        #cmd = AgentCommand(command='power_up')
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #log.debug("retval: %s", retval)
+
+        #cmd = AgentCommand(command='initialize')
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #log.debug("retval: %s", retval)
+
+        #cmd = AgentCommand(command='go_active')
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #log.debug("retval: %s", retval)
+
+        #cmd = AgentCommand(command='run')
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #log.debug("retval: %s", retval)
+
+        #cmd = AgentCommand(command='go_direct_access',
+        #    kwargs={'session_type': DirectAccessTypes.telnet,
+        #            #kwargs={'session_type':DirectAccessTypes.vsp,
+        #            'session_timeout':600,
+        #            'inactivity_timeout':600})
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+
+        #log.debug(str(retval))
+
+
+    def start_vps_server(self):
+        """
+        @brief run the vps server
+        """
+        self.start_container()
+
+        pass
+

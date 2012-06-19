@@ -16,6 +16,10 @@ class IDKException(Exception):
         
         log.error(self)
 
+class ParameterRequired(IDKException):
+    """Command parameter required"""
+    pass
+
 class NoContainer(IDKException):
     """Capability Container not started"""
     pass

@@ -256,7 +256,7 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
             pid = self.port_agent.get_pid()
             if pid:
                 log.info('Stopping pagent pid %i' % pid)
-                # self.port_agent.stop() # BROKE
+                self.port_agent.stop()
             else:
                 log.info('No port agent running.')
     
