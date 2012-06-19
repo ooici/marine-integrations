@@ -7,6 +7,7 @@
 import os
 import re
 import time
+import gevent
 
 from mi.core.log import log
 
@@ -16,9 +17,12 @@ from mi.idk.config import Config
 
 from interface.objects import AgentCommand
 
+from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.driver_process import DriverProcessType
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 from ion.agents.port.logger_process import EthernetDeviceLogger
+
+TIMEOUT = 600
 
 class DirectAccessServer():
     """
@@ -147,8 +151,8 @@ class DirectAccessServer():
 
         # Driver config
         driver_config = {
-            'dvr_mod' : 'mi.instrument.seabird.sbe37smb.example.driver',
-            'dvr_cls' : 'InstrumentDriver',
+            'dvr_mod' : 'mi.instrument.seabird.sbe37smb.ooicore.driver',
+            'dvr_cls' : 'SBE37Driver',
 
             'process_type' : DriverProcessType.PYTHON_MODULE,
 
@@ -177,47 +181,68 @@ class DirectAccessServer():
 
         self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
 
-    def start_telnet_server(self):
-        """
-        @brief Run the telnet server
-        """
+    def _start_da(self, type):
         self.start_container()
 
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='power_up')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='go_direct_access',
+            kwargs={'session_type': type,
+                    'session_timeout': TIMEOUT,
+                    'inactivity_timeout': TIMEOUT})
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        ip_address = retval.result['ip_address']
+        port= retval.result['port']
+        token= retval.result['token']
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
 
-        #cmd = AgentCommand(command='power_up')
-        #retval = self.instrument_agent_client.execute_agent(cmd)
-        #log.debug("retval: %s", retval)
+        ia_state = retval.result
+        log.debug("IA State: %s", ia_state)
 
-        #cmd = AgentCommand(command='initialize')
-        #retval = self.instrument_agent_client.execute_agent(cmd)
-        #log.debug("retval: %s", retval)
+        if ia_state == InstrumentAgentState.DIRECT_ACCESS:
+            print "Direct access server started, IP: %s Port: %s" % (ip_address, port)
+            if token:
+                print "Token: %s" % token
 
-        #cmd = AgentCommand(command='go_active')
-        #retval = self.instrument_agent_client.execute_agent(cmd)
-        #log.debug("retval: %s", retval)
+            while ia_state == InstrumentAgentState.DIRECT_ACCESS:
+                cmd = AgentCommand(command='get_current_state')
+                retval = self.instrument_agent_client.execute_agent(cmd)
 
-        #cmd = AgentCommand(command='run')
-        #retval = self.instrument_agent_client.execute_agent(cmd)
-        #log.debug("retval: %s", retval)
+                ia_state = retval.result
+                gevent.sleep(.1)
 
-        #cmd = AgentCommand(command='go_direct_access',
-        #    kwargs={'session_type': DirectAccessTypes.telnet,
-        #            #kwargs={'session_type':DirectAccessTypes.vsp,
-        #            'session_timeout':600,
-        #            'inactivity_timeout':600})
-        #retval = self.instrument_agent_client.execute_agent(cmd)
+        else:
+            log.error("Failed to start DA server")
 
-        #log.debug(str(retval))
 
+
+
+    def start_telnet_server(self):
+        """
+        @brief Run the telnet server
+        """
+        self._start_da(DirectAccessTypes.telnet)
 
     def start_vps_server(self):
         """
         @brief run the vps server
         """
-        self.start_container()
-
-        pass
+        self._start_da(DirectAccessTypes.vsp)
 
