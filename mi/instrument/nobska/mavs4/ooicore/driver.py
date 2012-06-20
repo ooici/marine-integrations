@@ -111,6 +111,12 @@ class Capability(BaseEnum):
 class Status(BaseEnum):
     pass
 
+# Packet config for MAVS-4 data granules.
+# TODO: set this up for MAVS-4
+PACKET_CONFIG = {
+        'adcp_parsed' : ('prototype.sci_data.stream_defs', 'ctd_stream_packet'),
+        'adcp_raw' : None            
+}
 
 ###
 #   Driver for mavs4

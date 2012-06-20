@@ -15,10 +15,10 @@ USAGE:
        $ bin/test_driver -q
 
    * From pyon
-       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nobska/mavs4/mavs4
-       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nobska/mavs4/mavs4 -a UNIT
-       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nobska/mavs4/mavs4 -a INT
-       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nobska/mavs4/mavs4 -a QUAL
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nobska/mavs4
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nobska/mavs4 -a UNIT
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nobska/mavs4 -a INT
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nobska/mavs4 -a QUAL
 """
 
 __author__ = 'Bill Bollenbacher'
@@ -28,10 +28,12 @@ __license__ = 'Apache 2.0'
 
 #from nose.plugins.attrib import attr
 
+"""
 from ion.idk.metadata import Metadata
 from ion.idk.comm_config import CommConfig
 from ion.idk.unit_test import InstrumentDriverTestCase
 from ion.idk.test.driver_qualification import DriverQualificationTestCase
+"""
 
 #from mi.instrument.nobska.mavs4.mavs4.driver import State
 #from mi.instrument.nobska.mavs4.mavs4.driver import Event
@@ -86,10 +88,24 @@ from pyon.core.exception import InstParameterError
 # MI imports.
 from ion.agents.port.logger_process import EthernetDeviceLogger
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from ion.agents.instrument.drivers.sbe37.sbe37_driver import SBE37Parameter
-# next line should match the above line mostly
-from mi.instrument.nobska.mavs4.mavs4.driver import mavs4Parameter
+from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentParameters
+from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import InstrumentDriverUnitTestCase
+from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
+from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
+from mi.instrument.nobska.mavs4.ooicore.driver import PACKET_CONFIG
+
+## Initialize the test configuration
+InstrumentDriverTestCase.initialize(
+    driver_module='mi.instrument.nobska.mavs4.ooicore.driver',
+    driver_class="mavs4InstrumentDriver",
+
+    instrument_agent_resource_id = '123xyz',
+    instrument_agent_name = 'Agent007',
+    instrument_agent_packet_config = PACKET_CONFIG,
+    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
+)
 
 
 #################################### RULES ####################################
@@ -116,7 +132,7 @@ class Testmavs4_UNIT(InstrumentDriverTestCase):
     
     def setUp(self):
         """
-        @brief initalize mock objects for the protocol object.
+        @brief initialize mock objects for the protocol object.
         """
         #self.callback = Mock(name='callback')
         #self.logger = Mock(name='logger')
@@ -143,44 +159,46 @@ class Testmavs4_UNIT(InstrumentDriverTestCase):
 #     Integration test test the direct driver / instrument interaction        #
 #     but making direct calls via zeromq.                                     #
 #     - Common Integration tests test the driver through the instrument agent #
-#     and common for all drivers (minmum requirement for ION ingestion)       #
+#     and common for all drivers (minimum requirement for ION ingestion)       #
 ###############################################################################
 
 @attr('INT', group='mi')
-class Testmavs4_INT(InstrumentDriverTestCase):
+class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
     """Integration Test Container"""
     
     @staticmethod
     def driver_module():
-        return 'mi.instrument.nobska.mavs4.mavs4.driver'
+        return 'mi.instrument.nobska.mavs4.ooicore.driver'
         
     @staticmethod
     def driver_class():
         return 'mavs4InstrumentDriver'    
     
+    """
     def setUp(self):
-        """
-        """
+        print("Testmavs4_INT.setUp()")
         #self.protocol = mavs4InstrumentProtocol()
         #self.protocol.configure(self.comm_config)
+    """
         
-    def test_process(self):
+    def Xtest_process(self):
         """
         @brief Test for correct launch of driver process and communications, including
         asynchronous driver events.
         """
+        #print("Testmavs4_INT.test_process()")
         #driver_process, driver_client = self.init_driver_process_client();
         
         # Add test to verify process exists.
 
         # Send a test message to the process interface, confirm result.
         #msg = 'I am a ZMQ message going to the process.'
-        #reply = driver_client.cmd_dvr('process_echo', msg)
+        #reply = self.driver_client.cmd_dvr('process_echo', msg)
         #self.assertEqual(reply,'process_echo: '+msg)
 
         # Send a test message to the driver interface, confirm result.
         #msg = 'I am a ZMQ message going to the driver.'
-        #reply = driver_client.cmd_dvr('driver_echo', msg)
+        #reply = self.driver_client.cmd_dvr('driver_echo', msg)
         #self.assertEqual(reply, 'driver_echo: '+msg)
         
         # Test the event thread publishes and client side picks up events.
@@ -205,7 +223,7 @@ class Testmavs4_INT(InstrumentDriverTestCase):
 ###############################################################################
 
 @attr('QUAL', group='mi')
-class Testmavs4_QUAL(DriverQualificationTestCase):
+class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
     """Qualification Test Container"""
     
     # Qualification tests live in the base class.  This class is extended
