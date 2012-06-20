@@ -118,9 +118,10 @@ class CommConfig(object):
         @param filename filename that contains the config
         """
         self.config_file_path = filename
-        
+
+        log.debug("read comm config file %s", filename)
         # If the config file doesn't exists don't read
-        if os.path.exists(self.config_file_path):
+        if self.config_file_path and os.path.exists(self.config_file_path):
             try:
                 infile = open( filename, "r" )
                 input = yaml.load( infile )

@@ -14,6 +14,8 @@ import os
 import sys
 import re
 from string import Template
+import random
+import string
 
 import yaml
 
@@ -201,7 +203,7 @@ class DriverGenerator:
             'driver_make': self.metadata.driver_make,
             'driver_model': self.metadata.driver_model,
             'driver_name': self.metadata.driver_name,
-            'release_notes': self.metadata.notes
+            'release_notes': self.metadata.notes,
         }
 
 
@@ -210,16 +212,26 @@ class DriverGenerator:
         @brief dictionary containing a map of substitutions for the driver test code generation
         @retval data mapping for driver test generation
         """
+        chars=string.ascii_uppercase + string.digits
+        id = ''.join(random.choice(chars) for x in range(6))
+        name = "%s_%s_%s" % ( self.metadata.driver_make,
+                              self.metadata.driver_model,
+                              self.metadata.driver_name,
+            )
+
         return {
             'test_module': self.test_modulename(),
             'driver_module': self.driver_modulename(),
+            'driver_class': 'InstrumentDriver',
             'driver_dir': self.driver_dir(),
             'driver_path': self.driver_dir(),
             'file': self.driver_path(),
             'author': self.metadata.author,
             'driver_make': self.metadata.driver_make,
             'driver_model': self.metadata.driver_model,
-            'driver_name': self.metadata.driver_name
+            'driver_name': self.metadata.driver_name,
+            'instrument_agent_resource_id': id,
+            'instrument_agent_name': name,
         }
 
 

@@ -60,9 +60,6 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    def test_foo(self):
-        pass
-
 @attr('QUAL', group='mi')
 class QualFromIDK(InstrumentDriverQualificationTestCase):
     def setUp(self):
