@@ -91,7 +91,7 @@ class InstrumentDriverTestConfig(Singleton):
     """
     driver_module  = None
     driver_class   = None
-    working_dir    = "/tmp"
+    working_dir    = "/tmp/"
     delimeter      = ['<<','>>']
     logger_timeout = 15
 

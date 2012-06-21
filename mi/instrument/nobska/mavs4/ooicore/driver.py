@@ -31,10 +31,12 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
 
+from mi.core.log import log
+
 ###
 #   Module wide values
 ###
-log = logging.getLogger('mi_logger')
+#log = logging.getLogger('mi_logger')
 
 INSTRUMENT_NEWLINE = '\r\n'
 
@@ -177,10 +179,10 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.START_AUTOSAMPLE, self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.GET, self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.TEST, self._handler_command_test)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.START_DIRECT, self._handler_command_start_direct)
+        """
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.GET, self._handler_command_autosample_test_get)
@@ -193,10 +195,42 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.EXIT, self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.STOP_DIRECT, self._handler_direct_access_stop_direct)
+        """
 
         # Set state machine in UNKNOWN state. 
         self._protocol_fsm.start(ProtocolStates.UNKNOWN)
 
+
+    ########################################################################
+    # override _wakeup for this instrument to search for prompt strings at other than
+    # the end of the line.
+    ########################################################################
+    def  _wakeup(self, timeout, delay=1):
+        """
+        Clear buffers and send a wakeup command to the instrument
+        @param timeout The timeout to wake the device.
+        @param delay The time to wait between consecutive wakeups.
+        @throw InstrumentTimeoutException if the device could not be woken.
+        """
+        # Clear the prompt buffer.
+        self._promptbuf = ''
+        
+        # Grab time for timeout.
+        starttime = time.time()
+        
+        while True:
+            # Send a line return and wait a sec.
+            log.debug('Sending wakeup.')
+            self._send_wakeup()
+            time.sleep(delay)
+            
+            for item in self._prompts.list():
+                if item in self._promptbuf:
+                    log.debug('wakeup got prompt: %s' % repr(item))
+                    return item
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException()
 
     ########################################################################
     # State Unknown handlers.
@@ -255,7 +289,7 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
         # Command device to update parameters and send a config change event.
-        self._update_params()
+        #self._update_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.

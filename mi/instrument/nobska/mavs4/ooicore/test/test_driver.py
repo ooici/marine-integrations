@@ -24,16 +24,15 @@ USAGE:
 __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
+"""
 #from mock import Mock, call, DEFAULT
 
 #from nose.plugins.attrib import attr
 
-"""
 from ion.idk.metadata import Metadata
 from ion.idk.comm_config import CommConfig
 from ion.idk.unit_test import InstrumentDriverTestCase
 from ion.idk.test.driver_qualification import DriverQualificationTestCase
-"""
 
 #from mi.instrument.nobska.mavs4.mavs4.driver import State
 #from mi.instrument.nobska.mavs4.mavs4.driver import Event
@@ -49,52 +48,93 @@ from ion.idk.test.driver_qualification import DriverQualificationTestCase
 #from mi.instrument.nobska.mavs4.mavs4.driver import mavs4InstrumentDriver
 
 
-# Import pyon first for monkey patching.
-from pyon.public import log
-
 # Standard imports.
-import os
-import signal
+#import os
+#import signal
 import time
 import unittest
-from datetime import datetime
+#from datetime import datetime
 
 # 3rd party imports.
-from gevent import spawn
-from gevent.event import AsyncResult
+#from gevent import spawn
+#from gevent.event import AsyncResult
 import gevent
 from nose.plugins.attrib import attr
-from mock import patch
-import uuid
+#from mock import patch
+#import uuid
 
 # ION imports.
-from interface.objects import StreamQuery
-from interface.services.dm.itransform_management_service import TransformManagementServiceClient
-from interface.services.cei.iprocess_dispatcher_service import ProcessDispatcherServiceClient
-from interface.services.icontainer_agent import ContainerAgentClient
-from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
-from pyon.public import StreamSubscriberRegistrar
+#from interface.objects import StreamQuery
+#from interface.services.dm.itransform_management_service import TransformManagementServiceClient
+#from interface.services.cei.iprocess_dispatcher_service import ProcessDispatcherServiceClient
+#from interface.services.icontainer_agent import ContainerAgentClient
+#from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
+#from pyon.public import StreamSubscriberRegistrar
 from prototype.sci_data.stream_defs import ctd_stream_definition
-from pyon.agent.agent import ResourceAgentClient
-from interface.objects import AgentCommand
-from pyon.util.int_test import IonIntegrationTestCase
-from pyon.util.context import LocalContextMixin
-from pyon.public import CFG
-from pyon.event.event import EventSubscriber, EventPublisher
+#from pyon.agent.agent import ResourceAgentClient
+#from interface.objects import AgentCommand
+#from pyon.util.int_test import IonIntegrationTestCase
+#from pyon.util.context import LocalContextMixin
+#from pyon.public import CFG
+#from pyon.event.event import EventSubscriber, EventPublisher
 
-from pyon.core.exception import InstParameterError
+#from pyon.core.exception import InstParameterError
 
 
 # MI imports.
-from ion.agents.port.logger_process import EthernetDeviceLogger
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
+#from ion.agents.port.logger_process import EthernetDeviceLogger
+#from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentParameters
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.core.log import log
 
 from mi.instrument.nobska.mavs4.ooicore.driver import PACKET_CONFIG
+"""
+
+# Ensure the test class is monkey patched for gevent
+from gevent import monkey; monkey.patch_all()
+import gevent
+import socket
+
+# Standard lib imports
+import time
+import unittest
+
+# 3rd party imports
+from nose.plugins.attrib import attr
+
+from prototype.sci_data.stream_defs import ctd_stream_definition
+
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverConnectionState
+
+from mi.core.exceptions import InstrumentException
+from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import InstrumentStateException
+from mi.core.exceptions import InstrumentCommandException
+
+from mi.instrument.seabird.sbe37smb.ooicore.driver import PACKET_CONFIG
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Driver
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
+
+from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import InstrumentDriverUnitTestCase
+from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
+from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+
+# MI logger
+from mi.core.log import log
+from interface.objects import AgentCommand
+
+from ion.agents.instrument.instrument_agent import InstrumentAgentState
+
+from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+
 
 ## Initialize the test configuration
 InstrumentDriverTestCase.initialize(
@@ -174,43 +214,38 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
     def driver_class():
         return 'mavs4InstrumentDriver'    
     
-    """
-    def setUp(self):
-        print("Testmavs4_INT.setUp()")
-        #self.protocol = mavs4InstrumentProtocol()
-        #self.protocol.configure(self.comm_config)
-    """
-        
-    def Xtest_process(self):
+    @unittest.skip("skip while in development")
+    def test_driver_process(self):
+        pass 
+    
+    def test_instrumment_wakeup(self):
         """
-        @brief Test for correct launch of driver process and communications, including
-        asynchronous driver events.
+        @brief Test for instrument wakeup
         """
-        #print("Testmavs4_INT.test_process()")
-        #driver_process, driver_client = self.init_driver_process_client();
-        
-        # Add test to verify process exists.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
-        # Send a test message to the process interface, confirm result.
-        #msg = 'I am a ZMQ message going to the process.'
-        #reply = self.driver_client.cmd_dvr('process_echo', msg)
-        #self.assertEqual(reply,'process_echo: '+msg)
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
-        # Send a test message to the driver interface, confirm result.
-        #msg = 'I am a ZMQ message going to the driver.'
-        #reply = self.driver_client.cmd_dvr('driver_echo', msg)
-        #self.assertEqual(reply, 'driver_echo: '+msg)
+        # Test the driver is configured for comms and in disconnected state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Connect to instrument and transition to unknown.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
+
+        # discover instrument state and transition to command.
+        reply = self.driver_client.cmd_dvr('discover')
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, SBE37ProtocolState.COMMAND)
         
-        # Test the event thread publishes and client side picks up events.
-        #events = [
-        #    'I am important event #1!',
-        #    'And I am important event #2!'
-        #    ]
-        #reply = driver_client.cmd_dvr('test_events', events=events)
-        #time.sleep(2)
-        
-        # Confirm the events received are as expected.
-        #self.assertEqual(self.events, events)
 
     ###
     #    Add driver specific integration tests
@@ -235,30 +270,29 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
 # Auto generated code.  There should rarely be reason to edit anything below. #
 ###############################################################################
 
+"""
+these cause nosetest to run all tests twice!
 class IntFromIDK(Testmavs4_INT):
-    """
-    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    called from the IDK test_driver program
-    """
+    #This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
+    #called from the IDK test_driver program
+    
     @classmethod
     def init_comm(cls):
         cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
 
 class UnitFromIDK(Testmavs4_UNIT):
-    """
-    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    called from the IDK test_driver program
-    """
+    #This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
+    #called from the IDK test_driver program
+
     @classmethod
     def init_comm(cls):
         cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
 
 class QualFromIDK(Testmavs4_QUAL):
-    """
-    This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    called from the IDK test_driver program
-    """
+    #This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
+    #called from the IDK test_driver program
+
     @classmethod
     def init_comm(cls):
         cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
-
+"""
