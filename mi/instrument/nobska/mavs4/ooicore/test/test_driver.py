@@ -214,13 +214,13 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
     def driver_class():
         return 'mavs4InstrumentDriver'    
     
-    @unittest.skip("skip while in development")
+    @unittest.skip("override & skip while in development")
     def test_driver_process(self):
         pass 
     
-    def test_instrumment_wakeup(self):
+    def Xtest_instrumment_wakeup(self):
         """
-        @brief Test for instrument wakeup
+        @brief Test for instrument wakeup, expects instrument to be in 'command' state
         """
         state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
@@ -245,7 +245,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, SBE37ProtocolState.COMMAND)
-        
+                
 
     ###
     #    Add driver specific integration tests

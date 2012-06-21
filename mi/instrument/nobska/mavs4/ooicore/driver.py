@@ -191,22 +191,25 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolStates.TEST, ProtocolEvents.EXIT, self._handler_test_exit)
         self._protocol_fsm.add_handler(ProtocolStates.TEST, ProtocolEvents.RUN_TEST, self._handler_test_run_tests)
         self._protocol_fsm.add_handler(ProtocolStates.TEST, ProtocolEvents.GET, self._handler_command_autosample_test_get)
+        """
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.EXIT, self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.STOP_DIRECT, self._handler_direct_access_stop_direct)
-        """
 
         # Set state machine in UNKNOWN state. 
         self._protocol_fsm.start(ProtocolStates.UNKNOWN)
 
 
     ########################################################################
-    # override _wakeup for this instrument to search for prompt strings at other than
-    # the end of the line.
+    # overridden superclass methods
     ########################################################################
+
     def  _wakeup(self, timeout, delay=1):
         """
+        _wakeup is overridden for this instrument to search for prompt strings at other than
+        just the end of the line.
+        
         Clear buffers and send a wakeup command to the instrument
         @param timeout The timeout to wake the device.
         @param delay The time to wait between consecutive wakeups.
@@ -231,6 +234,7 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
 
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException()
+
 
     ########################################################################
     # State Unknown handlers.
@@ -375,13 +379,56 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
         
         return (next_state, result)
 
+
+    ########################################################################
+    # Direct access handlers.
+    ########################################################################
+
+    def _handler_direct_access_enter(self, *args, **kwargs):
+        """
+        Enter direct access state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.                
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        
+        self._sent_cmds = []
+    
+    def _handler_direct_access_exit(self, *args, **kwargs):
+        """
+        Exit direct access state.
+        """
+        pass
+
+    def _handler_direct_access_execute_direct(self, data):
+        """
+        """
+        next_state = None
+        result = None
+
+        self._do_cmd_direct(data)
+                        
+        return (next_state, result)
+
+    def _handler_direct_access_stop_direct(self):
+        """
+        @throw InstrumentProtocolException on invalid command
+        """
+        next_state = None
+        result = None
+
+        next_state = ProtocolStates.COMMAND
+            
+        return (next_state, result)
+
+
     ########################################################################
     # Private helpers.
     ########################################################################
         
     def _send_wakeup(self):
         """
-        Send two newlines to attempt to wake the MAVS-4 device.
+        Send two newlines to attempt to wake the MAVS-4 device and get a response.
         """
         self._connection.send(INSTRUMENT_NEWLINE + INSTRUMENT_NEWLINE)
                 
