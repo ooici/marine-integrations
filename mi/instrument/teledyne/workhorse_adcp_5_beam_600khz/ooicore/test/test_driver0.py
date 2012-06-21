@@ -5,6 +5,10 @@
 @file    mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/test/test_driver0.py
 @author Carlos Rueda
 @brief Direct tests to the driver class.
+       Until 2012-06-18 this file and driver0.py were more or less kept
+       up-to-date but can be removed if so desired.
+       An ad hoc nose atribute "INTERNAL" is used so this test is excluded
+       under the usual UNIT, INT, or QUAL execution settings.
 """
 
 __author__ = "Carlos Rueda"
@@ -23,7 +27,8 @@ from nose.plugins.attrib import attr
 from mi.core.mi_logger import mi_logger as log
 
 
-@attr('UNIT', group='mi')
+@attr('INTERNAL', group='mi')
+#@attr('UNIT', group='mi')
 class Test(VadcpTestCase, DriverTestMixin):
     """
     Direct tests to the VadcpDriver class. The actual set of tests

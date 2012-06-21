@@ -24,17 +24,14 @@ __license__ = 'Apache 2.0'
 import os
 import sys
 import yaml
-from git import Repo
 
 import mi.core.common 
 
-from mi.idk.exceptions import IDKConfigMissing
 from mi.idk.exceptions import IDKWrongRunningDirectory
 from mi.idk.exceptions import WorkingRepoNotSet
 
 from mi.core.log import log
 from mi.idk.common import Singleton
-import pyon.util.config
 
 ####
 #    Config defaults.  These are hard coded because they shouldn't
@@ -72,12 +69,17 @@ class ConfigManager(Singleton):
         ## Initialize the config file if one doesn't exist
         cfgpath = os.path.join(config_dir, CONFIG_FILENAME)
         log.debug("config file: %s" % cfgpath)
+
         if not os.path.exists(cfgpath):
             log.debug("User IDK config doesn't exist: " + cfgpath)
             self.rebase()
             
         ## Read the user config file once to get the working repo dir, then again with the default and user config
         self.read_config([cfgpath])
+
+        if not self.get("working_repo"):
+            log.debug("working_repo config option doesn't exist: " + cfgpath)
+            self.rebase()
 
         if not self.get("working_repo"):
             raise WorkingRepoNotSet()
@@ -103,16 +105,11 @@ class ConfigManager(Singleton):
         # We assume we are in the root of the local repository directory because
         # DEFAULT_CONFIG is a relative path from there
         log.debug("Check for GIT information in: " + os.curdir);
-        repo = Repo(idk_repo)
-       
-        if repo.bare:
-            raise IDKWrongRunningDirectory(msg="Please run this process from the root your local MI git repository")
-            
+        # TODO add git check
+
         ### This would be nice to ultimately pull from the repo object, but the version of gitpython
         ### installed doesn't support remotes. 
         origin = idk_repo
-        #origin = repo.remotes.origin.url
-        #log.debug("Current repo origin: " + origin)
 
         log.debug( "Does '%s' contain '%s'" % (origin, MI_REPO_NAME))
         if origin.find(MI_REPO_NAME) < 0:
@@ -146,7 +143,10 @@ class ConfigManager(Singleton):
         @brief get a named parameter from the yaml file
         @retval value from the yaml file
         """
-        return self.yaml[IDK_YAML_GROUP].get(config_name)
+        if self.yaml and self.yaml.get(IDK_YAML_GROUP):
+            return self.yaml[IDK_YAML_GROUP].get(config_name)
+        else:
+            return None
 
 
 class Config(object):

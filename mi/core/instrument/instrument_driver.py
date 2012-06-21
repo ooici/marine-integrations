@@ -13,13 +13,13 @@ __license__ = 'Apache 2.0'
 
 import time
 
-from ion.agents.port.logger_process import LoggerClient
-
 from mi.core.common import BaseEnum
 from mi.core.exceptions import NotImplementedException 
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.logger_client import LoggerClient
+
 from mi.core.log import log
 
 class DriverState(BaseEnum):

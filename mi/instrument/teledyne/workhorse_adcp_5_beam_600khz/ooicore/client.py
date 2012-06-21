@@ -165,6 +165,7 @@ class VadcpClient(object):
         """
         Sends the two units a "break" command via the corresp OOI Digi
         connections. First to the 5th beam, then to the 4-beam.
+        In both cases, also _get_prompt is called.
         """
 
         self._u5.send_break(timeout=timeout)

@@ -4,7 +4,10 @@
 @package mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.driver0
 @file    mi/instrument/teledyne/workhorse_adcp_5_beam_600khz/ooicore/driver0.py
 @author Carlos Rueda
-@brief VADCP driver implementation
+@brief A VADCP driver implementation that directly defines a VadcpDriver
+       subclass of InstrumentDriver, and does not use InstrumentProtocol nor
+       FSMs. Until 2012-06-18 this file and test_driver0.py were more or
+       less kept up-to-date but can be removed if so desired.
 """
 
 __author__ = 'Carlos Rueda'

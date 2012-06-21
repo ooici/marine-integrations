@@ -14,6 +14,7 @@ __license__ = 'Apache 2.0'
 from gevent import monkey; monkey.patch_all()
 import gevent
 import socket
+import re
 
 # Standard lib imports
 import time
@@ -37,6 +38,8 @@ from mi.instrument.seabird.sbe37smb.ooicore.driver import PACKET_CONFIG
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Driver
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolEvent
+from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
@@ -50,6 +53,20 @@ from interface.objects import AgentCommand
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+from mi.core.instrument.instrument_driver import DriverEvent
+
+from mi.core.instrument.instrument_driver import DriverProtocolState
+
+from prototype.sci_data.stream_parser import PointSupplementStreamParser
+from prototype.sci_data.constructor_apis import PointSupplementConstructor
+from prototype.sci_data.stream_defs import ctd_stream_definition
+from prototype.sci_data.stream_defs import SBE37_CDM_stream_definition
+import numpy
+from prototype.sci_data.stream_parser import PointSupplementStreamParser
+
+from pyon.core import exception
+from pyon.core.exception import InstParameterError
+from pyon.core import exception as iex
 
 # Make tests verbose and provide stdout
 # bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_process
@@ -260,7 +277,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
                 # int, bool, str, or tuple of same
                 self.assertEqual(val, correct_val)
 
-    def test_config(self):
+    def test_configuration(self):
         """
         Test to configure the driver process for device comms and transition
         to disconnected state.
@@ -907,7 +924,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
     # (UNIT, INT, and QUAL) are run.
     pass
 
-    @unittest.skip("Do not include until direct_access gets implemented")
+    #@unittest.skip("Do not include until direct_access gets implemented")
     def test_direct_access_telnet_mode(self):
         """
         @brief This test verifies that the Instrument Driver
@@ -975,10 +992,6 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         s.send_data(retval.result['token'] + "\r\n", "1")
 
 
-
-
-
-
         while s.peek_at_buffer().find("connected\n") == -1:
             log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
             gevent.sleep(1)
@@ -1022,11 +1035,571 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         """
         pass
 
+    def test_sbe37_parameter_enum(self):
+        """
+        @ brief ProtocolState enum test
+
+            1. test that SBE37ProtocolState matches the expected enums from DriverProtocolState.
+            2. test that multiple distinct states do not resolve back to the same string.
+        """
+
+        self.assertEqual(SBE37Parameter.ALL, DriverParameter.ALL)
+
+        self.assertTrue(self.check_for_reused_values(DriverParameter))
+        self.assertTrue(self.check_for_reused_values(SBE37Parameter))
+
+
+    def test_protocol_event_enum(self):
+        """
+        @brief ProtocolState enum test
+
+            1. test that SBE37ProtocolState matches the expected enums from DriverProtocolState.
+            2. test that multiple distinct states do not resolve back to the same string.
+        """
+
+        self.assertEqual(SBE37ProtocolEvent.ENTER, DriverEvent.ENTER)
+        self.assertEqual(SBE37ProtocolEvent.EXIT, DriverEvent.EXIT)
+        self.assertEqual(SBE37ProtocolEvent.GET, DriverEvent.GET)
+        self.assertEqual(SBE37ProtocolEvent.SET, DriverEvent.SET)
+        self.assertEqual(SBE37ProtocolEvent.DISCOVER, DriverEvent.DISCOVER)
+        self.assertEqual(SBE37ProtocolEvent.ACQUIRE_SAMPLE, DriverEvent.ACQUIRE_SAMPLE)
+        self.assertEqual(SBE37ProtocolEvent.START_AUTOSAMPLE, DriverEvent.START_AUTOSAMPLE)
+        self.assertEqual(SBE37ProtocolEvent.STOP_AUTOSAMPLE, DriverEvent.STOP_AUTOSAMPLE)
+        self.assertEqual(SBE37ProtocolEvent.TEST, DriverEvent.TEST)
+        self.assertEqual(SBE37ProtocolEvent.RUN_TEST, DriverEvent.RUN_TEST)
+        self.assertEqual(SBE37ProtocolEvent.CALIBRATE, DriverEvent.CALIBRATE)
+        self.assertEqual(SBE37ProtocolEvent.EXECUTE_DIRECT, DriverEvent.EXECUTE_DIRECT)
+        self.assertEqual(SBE37ProtocolEvent.START_DIRECT, DriverEvent.START_DIRECT)
+        self.assertEqual(SBE37ProtocolEvent.STOP_DIRECT, DriverEvent.STOP_DIRECT)
+
+        self.assertTrue(self.check_for_reused_values(DriverEvent))
+        self.assertTrue(self.check_for_reused_values(SBE37ProtocolEvent))
+
+
+    def test_protocol_state_enum(self):
+        """
+        @ brief ProtocolState enum test
+
+            1. test that SBE37ProtocolState matches the expected enums from DriverProtocolState.
+            2. test that multiple distinct states do not resolve back to the same string.
+
+        """
+
+        self.assertEqual(SBE37ProtocolState.UNKNOWN, DriverProtocolState.UNKNOWN)
+        self.assertEqual(SBE37ProtocolState.COMMAND, DriverProtocolState.COMMAND)
+        self.assertEqual(SBE37ProtocolState.AUTOSAMPLE, DriverProtocolState.AUTOSAMPLE)
+        self.assertEqual(SBE37ProtocolState.TEST, DriverProtocolState.TEST)
+        self.assertEqual(SBE37ProtocolState.CALIBRATE, DriverProtocolState.CALIBRATE)
+        self.assertEqual(SBE37ProtocolState.DIRECT_ACCESS, DriverProtocolState.DIRECT_ACCESS)
+
+
+        #SBE37ProtocolState.UNKNOWN = SBE37ProtocolState.COMMAND
+        #SBE37ProtocolState.UNKNOWN2 = SBE37ProtocolState.UNKNOWN
+
+        self.assertTrue(self.check_for_reused_values(DriverProtocolState))
+        self.assertTrue(self.check_for_reused_values(SBE37ProtocolState))
+
+
+    @unittest.skip("Underlying method not yet implemented")
+    def test_driver_memory_leaks(self):
+        """
+        @brief long running test that runs over a half hour, and looks for memory leaks.
+               stub this out for now
+        TODO: write test if time permits after all other tests are done.
+        """
+        pass
+
+    @unittest.skip("SKIP for now.  This will come in around the time we split IA into 2 parts wet side dry side")
+    def test_instrument_agent_data_decimation(self):
+        """
+        @brief This test verifies that the instrument driver,
+               if required, can properly decimate sampling data.
+                decimate here means send every 5th sample.
+
+        """
+        pass
+
+
+    def test_data_stream_integrity_autosample_parsed(self):
+        """
+        @brief This tests verifies that the canonical data
+               stream emitted by the driver properly conforms
+               to the canonical format. parsed data stream in autosample mode
+        """
+
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        self.data_subscribers.samples_received = []
+
+        # Make sure the sampling rate and transmission are sane.
+        params = {
+            SBE37Parameter.NAVG : 1,
+            SBE37Parameter.INTERVAL : 5,
+            SBE37Parameter.TXREALTIME : True
+        }
+        self.instrument_agent_client.set_param(params)
+
+        self.data_subscribers.no_samples = 2
+
+        # Begin streaming.
+        cmd = AgentCommand(command='go_streaming')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.STREAMING)
+
+        # Wait for some samples to roll in.
+        gevent.sleep(15)
+
+        # Halt streaming.
+        cmd = AgentCommand(command='go_observatory')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        # Assert we got some samples.
+
+
+        self.data_subscribers.async_data_result.get(timeout=10)
+
+        self.assertTrue(len(self.data_subscribers.samples_received)>=2)
+
+
+        for x in self.data_subscribers.samples_received:
+
+            psd = PointSupplementStreamParser(stream_definition=SBE37_CDM_stream_definition(), stream_granule=x)
+
+            self.assertTrue(isinstance(psd, PointSupplementStreamParser))
+            field_names = psd.list_field_names()
+
+            self.assertTrue('conductivity' in field_names)
+            self.assertTrue('pressure' in field_names)
+            self.assertTrue('temperature' in field_names)
+            self.assertTrue('time' in field_names)
+
+            conductivity = psd.get_values('conductivity')
+            pressure = psd.get_values('pressure')
+            temperature = psd.get_values('temperature')
+            time = psd.get_values('time')
+
+            self.assertTrue(isinstance(conductivity[0], numpy.float64))
+            self.assertTrue(isinstance(temperature[0], numpy.float64))
+            self.assertTrue(isinstance(pressure[0], numpy.float64))
+            self.assertTrue(isinstance(time[0], numpy.float64))
 
 
 
+        cmd = AgentCommand(command='reset')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
 
 
+        pass
+
+    @unittest.skip("raw mode not yet implemented")
+    def test_data_stream_integrity_autosample_raw(self):
+        """
+        @brief This tests verifies that the canonical data
+               stream emitted by the driver properly conforms
+               to the canonical format. raw data stream in autosample mode
+        """
+        pass
+
+    def assertSampleDict(self, val):
+        """
+        Verify the value is a sample dictionary for the sbe37.
+        #{'p': [-6.945], 'c': [0.08707], 't': [20.002], 'time': [1333752198.450622]}
+        """
+        self.assertTrue(isinstance(val, dict))
+        self.assertTrue(val.has_key('c'))
+        self.assertTrue(val.has_key('t'))
+        self.assertTrue(val.has_key('p'))
+        self.assertTrue(val.has_key('time'))
+        c = val['c'][0]
+        t = val['t'][0]
+        p = val['p'][0]
+        time = val['time'][0]
+
+        self.assertTrue(isinstance(c, float))
+        self.assertTrue(isinstance(t, float))
+        self.assertTrue(isinstance(p, float))
+        self.assertTrue(isinstance(time, float))
 
 
+    def test_data_stream_integrity_polled_parsed(self):
+        """
+        @brief This tests verifies that the canonical data
+               stream emitted by the driver properly conforms
+               to the canonical format. parsed data stream in polled mode
+        """
+        self.data_subscribers.samples_received = []
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        # Lets get 3 samples.
+        self.data_subscribers.no_samples = 3
+
+        # Poll for a few samples.
+        cmd = AgentCommand(command='acquire_sample')
+        reply = self.instrument_agent_client.execute(cmd)
+        self.assertSampleDict(reply.result)
+
+        cmd = AgentCommand(command='acquire_sample')
+        reply = self.instrument_agent_client.execute(cmd)
+        self.assertSampleDict(reply.result)
+
+        cmd = AgentCommand(command='acquire_sample')
+        reply = self.instrument_agent_client.execute(cmd)
+        self.assertSampleDict(reply.result)
+
+        # Assert we got 3 samples.
+        self.data_subscribers.async_data_result.get(timeout=10)
+        self.assertTrue(len(self.data_subscribers.samples_received)==self.data_subscribers.no_samples)
+
+        for x in self.data_subscribers.samples_received:
+            psd = PointSupplementStreamParser(stream_definition=SBE37_CDM_stream_definition(), stream_granule=x)
+
+            self.assertTrue(isinstance(psd, PointSupplementStreamParser))
+            field_names = psd.list_field_names()
+
+            self.assertTrue('conductivity' in field_names)
+            self.assertTrue('pressure' in field_names)
+            self.assertTrue('temperature' in field_names)
+            self.assertTrue('time' in field_names)
+
+            conductivity = psd.get_values('conductivity')
+            pressure = psd.get_values('pressure')
+            temperature = psd.get_values('temperature')
+            time = psd.get_values('time')
+
+            self.assertTrue(isinstance(conductivity[0], numpy.float64))
+            self.assertTrue(isinstance(temperature[0], numpy.float64))
+            self.assertTrue(isinstance(pressure[0], numpy.float64))
+            self.assertTrue(isinstance(time[0], numpy.float64))
+
+        cmd = AgentCommand(command='reset')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+        pass
+
+    @unittest.skip("raw mode not yet implemented")
+    def test_data_stream_integrity_polled_raw(self):
+        """
+        @brief This tests verifies that the canonical data
+               stream emitted by the driver properly conforms
+               to the canonical format. raw data stream in polled mode
+        """
+        pass
+
+    def test_capabilities(self):
+        """
+        Test the ability to retrieve agent and resource parameter and command
+        capabilities.
+        """
+        AGT_CMDS = [
+            'clear',
+            'end_transaction',
+            'get_current_state',
+            'go_active',
+            'go_direct_access',
+            'go_inactive',
+            'go_layer_ping',
+            'go_observatory',
+            'go_streaming',
+            'helo_agent',
+            'helo_driver',
+            'initialize',
+            'pause',
+            'power_down',
+            'power_up',
+            'reset',
+            'resume',
+            'run',
+            'start_transaction'
+        ]
+
+        CMDS = [
+            'acquire_sample',
+            'calibrate',
+            'direct_access',
+            'start_autosample',
+            'start_direct_access',
+            'stop_autosample',
+            'stop_direct_access',
+            'test'
+        ]
+
+        acmds = self.instrument_agent_client.get_capabilities(['AGT_CMD'])
+        acmds = [item[1] for item in acmds]
+        self.assertEqual(acmds, AGT_CMDS)
+        apars = self.instrument_agent_client.get_capabilities(['AGT_PAR'])
+        apars = [item[1] for item in apars]
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+
+        rcmds = self.instrument_agent_client.get_capabilities(['RES_CMD'])
+        rcmds = [item[1] for item in rcmds]
+        self.assertEqual(rcmds, CMDS)
+
+        rpars = self.instrument_agent_client.get_capabilities(['RES_PAR'])
+        rpars = [item[1] for item in rpars]
+        self.assertEqual(rpars, SBE37Parameter.list())
+
+        cmd = AgentCommand(command='reset')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+    def test_autosample(self):
+        """
+        Test instrument driver execute interface to start and stop streaming
+        mode.
+        """
+
+
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+
+        # Make sure the sampling rate and transmission are sane.
+        params = {
+            SBE37Parameter.NAVG : 1,
+            SBE37Parameter.INTERVAL : 5,
+            SBE37Parameter.TXREALTIME : True
+        }
+        self.instrument_agent_client.set_param(params)
+
+        self.data_subscribers.no_samples = 2
+
+        # Begin streaming.
+        cmd = AgentCommand(command='go_streaming')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.STREAMING)
+
+        # Wait for some samples to roll in.
+        gevent.sleep(15)
+
+        # Halt streaming.
+        cmd = AgentCommand(command='go_observatory')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        # Assert we got some samples.
+        self.data_subscribers.async_data_result.get(timeout=10)
+        self.assertTrue(len(self.data_subscribers.samples_received)>=2)
+
+
+        cmd = AgentCommand(command='reset')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+
+    def assertParamDict(self, pd, all_params=False):
+        """
+        Verify all device parameters exist and are correct type.
+        """
+        if all_params:
+            self.assertEqual(set(pd.keys()), set(PARAMS.keys()))
+            for (key, type_val) in PARAMS.iteritems():
+                if type_val == list or type_val == tuple:
+                    self.assertTrue(isinstance(pd[key], (list, tuple)))
+                else:
+                    self.assertTrue(isinstance(pd[key], type_val))
+
+        else:
+            for (key, val) in pd.iteritems():
+                self.assertTrue(PARAMS.has_key(key))
+                self.assertTrue(isinstance(val, PARAMS[key]))
+
+    def assertParamVals(self, params, correct_params):
+        """
+        Verify parameters take the correct values.
+        """
+        self.assertEqual(set(params.keys()), set(correct_params.keys()))
+        for (key, val) in params.iteritems():
+            correct_val = correct_params[key]
+            if isinstance(val, float):
+                # Verify to 5% of the larger value.
+                max_val = max(abs(val), abs(correct_val))
+                self.assertAlmostEqual(val, correct_val, delta=max_val*.01)
+
+            elif isinstance(val, (list, tuple)):
+                # list of tuple.
+                self.assertEqual(list(val), list(correct_val))
+
+            else:
+                # int, bool, str.
+                self.assertEqual(val, correct_val)
+
+    def test_get_set(self):
+        """
+        Test instrument driver get and set interface.
+        """
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        # Retrieve all resource parameters.
+        reply = self.instrument_agent_client.get_param(SBE37Parameter.ALL)
+        self.assertParamDict(reply, True)
+        orig_config = reply
+
+        # Retrieve a subset of resource parameters.
+        params = [
+            SBE37Parameter.TA0,
+            SBE37Parameter.INTERVAL,
+            SBE37Parameter.STORETIME
+        ]
+        reply = self.instrument_agent_client.get_param(params)
+        self.assertParamDict(reply)
+        orig_params = reply
+
+        # Set a subset of resource parameters.
+        new_params = {
+            SBE37Parameter.TA0 : (orig_params[SBE37Parameter.TA0] * 2),
+            SBE37Parameter.INTERVAL : (orig_params[SBE37Parameter.INTERVAL] + 1),
+            SBE37Parameter.STORETIME : (not orig_params[SBE37Parameter.STORETIME])
+        }
+        self.instrument_agent_client.set_param(new_params)
+        check_new_params = self.instrument_agent_client.get_param(params)
+        self.assertParamVals(check_new_params, new_params)
+
+        # Reset the parameters back to their original values.
+        self.instrument_agent_client.set_param(orig_params)
+        reply = self.instrument_agent_client.get_param(SBE37Parameter.ALL)
+        reply.pop(SBE37Parameter.SAMPLENUM)
+        orig_config.pop(SBE37Parameter.SAMPLENUM)
+        self.assertParamVals(reply, orig_config)
+
+        cmd = AgentCommand(command='reset')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)

@@ -41,7 +41,8 @@ class StartDriver():
         @brief Overwrite the current files with what is stored in the current metadata file.
         """
         self.metadata = Metadata()
-        self.comm_config = CommConfig.get_config_from_file(self.metadata)
+        config_path = "%s/%s" % (self.metadata.driver_dir(), CommConfig.config_filename())
+        self.comm_config = CommConfig.get_config_from_file(config_path)
         self.generate_code(force = True)
 
     def run(self):
