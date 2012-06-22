@@ -558,6 +558,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
+        log.debug("Instrument active.  Verify RQ-634")
 
         cmd = AgentCommand(command='go_inactive')
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -590,6 +591,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.STREAMING)
+        log.debug("Enterered streaming mode. Verify RQ-636")
 
         # Halt streaming.
         cmd = AgentCommand(command='go_observatory')

@@ -18,6 +18,7 @@ from mi.idk.driver_generator import DriverGenerator
 from mi.idk.metadata import Metadata
 from mi.idk.unit_test import InstrumentDriverTestConfig
 from mi.idk.exceptions import TestNotInitialized
+from mi.idk.util import launch_data_monitor
 
 from interface.objects import AgentCommand
 
@@ -35,8 +36,9 @@ class DirectAccessServer():
     port_agent = None
     instrument_agent_manager = None
     instrument_agent_client = None
+    monitor_process = None
 
-    def __init__(self):
+    def __init__(self, launch_monitor=False):
         """
         Setup the direct access server
         """
@@ -50,6 +52,8 @@ class DirectAccessServer():
         # Test to ensure we have initialized our test config
         if not self.test_config.initialized:
             raise TestNotInitialized(msg="Tests non initialized. Missing InstrumentDriverTestCase.initalize(...)?")
+
+        self.launch_monitor = launch_monitor
 
 
     def __del__(self):
@@ -65,6 +69,10 @@ class DirectAccessServer():
         log.debug("killing the port agent")
         if self.port_agent:
             self.port_agent.stop()
+
+        if self.monitor_process:
+            log.debug("killing the monitor process")
+            self.monitor_process.kill()
 
 
     def start_container(self):
@@ -150,8 +158,11 @@ class DirectAccessServer():
                 log.error("!!!! Port Agent could not bind to port !!!!")
                 raise PortAgentTimeout()
 
-        log.info('Started port agent pid %s listening at port %s' % (pid, port))
-        return port
+        if self.launch_monitor:
+            self.logfile = self.port_agent.logfname
+            log.info('Started port agent pid %s listening at port %s' % (pid, port))
+            log.info("data log: %s" % self.logfile)
+            self.monitor_process = launch_data_monitor(self.logfile)
 
     def stop_port_agent(self):
         """
@@ -164,6 +175,9 @@ class DirectAccessServer():
                 # self.port_agent.stop() # BROKE
             else:
                 log.info('No port agent running.')
+
+        if self.monitor_process:
+            self.monitor_process.kill()
 
     def init_instrument_agent_client(self):
         """
