@@ -205,6 +205,12 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
     # overridden superclass methods
     ########################################################################
 
+    def _send_wakeup(self):
+        """
+        Send two newlines to attempt to wake the MAVS-4 device and get a response.
+        """
+        self._connection.send(INSTRUMENT_NEWLINE + INSTRUMENT_NEWLINE)
+
     def  _wakeup(self, timeout, delay=1):
         """
         _wakeup is overridden for this instrument to search for prompt strings at other than
@@ -235,6 +241,32 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException()
 
+    def got_data(self, data):
+        """
+        Callback for receiving new data from the device.
+        """
+        if self.get_current_state() == ProtocolStates.DIRECT_ACCESS:
+            # direct access mode
+            if len(data) > 0:
+                log.debug("mavs4InstrumentProtocol._got_data(): <" + data + ">") 
+                if self._driver_event:
+                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
+                    # TODO: what about logging this as an event?
+            return
+        
+        if len(data)>0:
+            # Call the superclass to update line and prompt buffers.
+            CommandResponseInstrumentProtocol.got_data(self, data)
+    
+            # If in streaming mode, process the buffer for samples to publish.
+            cur_state = self.get_current_state()
+            if cur_state == ProtocolStates.AUTOSAMPLE:
+                if INSTRUMENT_NEWLINE in self._linebuf:
+                    lines = self._linebuf.split(INSTRUMENT_NEWLINE)
+                    self._linebuf = lines[-1]
+                    for line in lines:
+                        self._extract_sample(line)                    
+                
 
     ########################################################################
     # State Unknown handlers.
@@ -426,11 +458,30 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
         
-    def _send_wakeup(self):
+    def _extract_sample(self, line, publish=True):
         """
-        Send two newlines to attempt to wake the MAVS-4 device and get a response.
+        Extract sample from a response line if present and publish to agent.
+        @param line string to match for sample.
+        @param publsih boolean to publish sample (default True).
+        @retval Sample dictionary if present or None.
         """
-        self._connection.send(INSTRUMENT_NEWLINE + INSTRUMENT_NEWLINE)
+        sample = None
+        match = self._sample_regex.match(line)
+        if match:
+            sample = {}
+            sample['t'] = [float(match.group(1))]
+            sample['c'] = [float(match.group(2))]
+            sample['p'] = [float(match.group(3))]
+
+            # Driver timestamp.
+            sample['time'] = [time.time()]
+            sample['stream_name'] = 'ctd_parsed'
+
+            if self._driver_event:
+                self._driver_event(DriverAsyncEvent.SAMPLE, sample)
+
+        return sample            
+        
                 
 
 

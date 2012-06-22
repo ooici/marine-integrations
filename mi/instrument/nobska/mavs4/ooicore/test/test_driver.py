@@ -148,6 +148,85 @@ InstrumentDriverTestCase.initialize(
 )
 
 
+class TcpClient():
+    buf = ""
+
+    def __init__(self, host, port):
+        self.buf = ""
+        self.host = host
+        self.port = port
+        # log.debug("OPEN SOCKET HOST = " + str(host) + " PORT = " + str(port))
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.connect((self.host, self.port))
+        self.s.settimeout(0.0)
+
+    def read_a_char(self):
+        temp = self.s.recv(1024)
+        if len(temp) > 0:
+            log.debug("read_a_char got '" + str(repr(temp)) + "'")
+            self.buf += temp
+        if len(self.buf) > 0:
+            c = self.buf[0:1]
+            self.buf = self.buf[1:]
+        else:
+            c = None
+
+        return c
+
+
+    def peek_at_buffer(self):
+        if len(self.buf) == 0:
+            try:
+                self.buf = self.s.recv(1024)
+                log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
+            except:
+                """
+                Ignore this exception, its harmless
+                """
+
+        return self.buf
+
+    def remove_from_buffer(self, remove):
+        log.debug("BUF WAS " + str(repr(self.buf)))
+        self.buf = self.buf.replace(remove, "")
+        log.debug("BUF IS '" + str(repr(self.buf)) + "'")
+
+    def get_data(self):
+        data = ""
+        try:
+            ret = ""
+
+            while True:
+                c = self.read_a_char()
+                if c == None:
+                    break
+                if c == '\n' or c == '':
+                    ret += c
+                    break
+                else:
+                    ret += c
+
+            data = ret
+        except AttributeError:
+            log.debug("CLOSING - GOT AN ATTRIBUTE ERROR")
+            self.s.close()
+        except:
+            data = ""
+
+        if data:
+            data = data.lower()
+            log.debug("IN  [" + repr(data) + "]")
+        return data
+
+    def send_data(self, data, debug):
+        try:
+            log.debug("OUT [" + repr(data) + "]")
+            self.s.sendall(data)
+        except:
+            log.debug("*** send_data FAILED [" + debug + "] had an exception sending [" + data + "]")
+
+
+
 #################################### RULES ####################################
 #                                                                             #
 # Common capabilities in the base class                                       #
@@ -266,6 +345,114 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
     # (UNIT, INT, and QUAL) are run.  
     pass
 
+    #@unittest.skip("Do not include until direct_access gets implemented")
+    def test_direct_access_telnet_mode(self):
+        """
+        @brief This test verifies that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+        cmd = AgentCommand(command='power_down')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
+
+        cmd = AgentCommand(command='power_up')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        gevent.sleep(5)  # wait for mavs4 to go back to sleep if it was sleeping
+        
+        # go direct access
+        cmd = AgentCommand(command='go_direct_access',
+                           kwargs={'session_type': DirectAccessTypes.telnet,
+                                   #kwargs={'session_type':DirectAccessTypes.vsp,
+                                   'session_timeout':600,
+                                   'inactivity_timeout':600})
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.warn("go_direct_access retval=" + str(retval.result))
+
+        # start 'telnet' client with returned address and port
+        s = TcpClient(retval.result['ip_address'], retval.result['port'])
+
+        # look for and swallow 'Username' prompt
+        while s.peek_at_buffer().find("Username: ") == -1:
+            log.debug("WANT 'Username:' READ ==>" + str(s.peek_at_buffer()))
+            gevent.sleep(1)
+        s.remove_from_buffer("Username: ")
+        # send some username string
+        s.send_data("bob\r\n", "1")
+        
+        # look for and swallow 'token' prompt
+        while s.peek_at_buffer().find("token: ") == -1:
+            log.debug("WANT 'token: ' READ ==>" + str(s.peek_at_buffer()))
+            gevent.sleep(1)
+        s.remove_from_buffer("token: ")
+        # send the returned token
+        s.send_data(retval.result['token'] + "\r\n", "1")
+        
+        # look for and swallow 'connected' indicator
+        while s.peek_at_buffer().find("connected\n") == -1:
+            log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
+            gevent.sleep(1)
+            s.peek_at_buffer()
+        s.remove_from_buffer("connected\n")
+        
+        # try to wake the instrument up from its sleep mode
+        n = 0
+        s.send_data("\r\n\r\n", "1")
+        gevent.sleep(1)
+        while s.peek_at_buffer().find("Enter <CTRL>-<C> now to wake up") == -1:
+            self.assertNotEqual(n, 5)
+            n += 1
+            log.debug("WANT 'Enter <CTRL>-<C> now to wake up' READ ==>" + str(s.peek_at_buffer()))
+            s.send_data("\r\n\r\n", "1")
+            gevent.sleep(1)
+            s.peek_at_buffer()
+       
+        """
+        pattern = re.compile("^([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9a-z]+),([ 0-9:]+)")
+
+        matches = 0
+        n = 0
+        while n < 100:
+            n = n + 1
+            gevent.sleep(1)
+            data = s.get_data()
+            log.debug("READ ==>" + str(repr(data)))
+            m = pattern.search(data)
+            if m != None:
+                matches = m.lastindex
+                if matches == 7:
+                    break
+
+        self.assertTrue(matches == 7) # need to have found 7 conformant fields.
+        """
+        
 ###############################################################################
 # Auto generated code.  There should rarely be reason to edit anything below. #
 ###############################################################################
