@@ -79,4 +79,7 @@ bin/idk_rebase:
    If you move the IDK directory this command will update your local IDK 
    configuration with the new directory.
 
+bin/da_server:
+   Start up direct access server.  -t for telnet -v for virtual serial
+
 
