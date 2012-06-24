@@ -51,10 +51,25 @@ class LoggerConfig(object):
         local_log_config = None
 
         # Allows for relative pathing starting from this file in a package.  This will work with zip_safe egg files
-        system_log_config = resource_string(__name__, '../../extern/ion-definitions/res/config/logging.yml')
+        try:
+            system_log_config = resource_string(__name__, '../../res/config/logging.yml')
+        except IOError, e:
+            if e.errno == errno.ENOENT:
+                system_log_config = resource_string(__name__, '../../../../res/config/logging.yml')
+            else:
+                raise e
 
         try:
-            local_log_config = resource_string(__name__, '../../extern/ion-definitions/res/config/logging.local.yml')
+            local_log_config = resource_string(__name__, '../../res/config/logging.local.yml')
+        except IOError, e:
+            if e.errno == errno.ENOENT:
+                local_log_config = None
+            else:
+                raise e
+
+        try:
+            if not local_log_config:
+                local_log_config = resource_string(__name__, '../../../../res/config/logging.local.yml')
         except IOError, e:
             if e.errno == errno.ENOENT:
                 local_log_config = None
