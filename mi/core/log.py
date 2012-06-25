@@ -55,7 +55,16 @@ class LoggerConfig(object):
             system_log_config = resource_string(__name__, '../../res/config/logging.yml')
         except IOError, e:
             if e.errno == errno.ENOENT:
-                system_log_config = resource_string(__name__, '../../../../res/config/logging.yml')
+                system_log_config = None
+            else:
+                raise e
+
+        try:
+            if not system_log_config:
+                system_log_config = read_file('res/config/logging.yml')
+        except IOError, e:
+            if e.errno == errno.ENOENT:
+                system_log_config = None
             else:
                 raise e
 
@@ -69,7 +78,7 @@ class LoggerConfig(object):
 
         try:
             if not local_log_config:
-                local_log_config = resource_string(__name__, '../../../../res/config/logging.local.yml')
+                local_log_config = read_file('res/config/logging.local.yml')
         except IOError, e:
             if e.errno == errno.ENOENT:
                 local_log_config = None
@@ -80,6 +89,19 @@ class LoggerConfig(object):
 
         # Save and initialize the logger
         self.init_logging()
+
+    def read_file(self, filename):
+        content = None
+        try:
+            infile = open(filename, 'r')
+            content = infile.read()
+        except IOError, e:
+            if e.errno == errno.ENOENT:
+                pass
+            else:
+                raise e
+
+        return content
 
     def init_logging(self):
         """Update the logging singleton with the new config dict"""
