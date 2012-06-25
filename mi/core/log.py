@@ -53,6 +53,7 @@ class LoggerConfig(object):
         # Allows for relative pathing starting from this file in a package.  This will work with zip_safe egg files
         try:
             system_log_config = resource_string(__name__, '../../res/config/logging.yml')
+            pass
         except IOError, e:
             if e.errno == errno.ENOENT:
                 system_log_config = None
@@ -61,7 +62,7 @@ class LoggerConfig(object):
 
         try:
             if not system_log_config:
-                system_log_config = read_file('res/config/logging.yml')
+                system_log_config = self.read_file('res/config/logging.yml')
         except IOError, e:
             if e.errno == errno.ENOENT:
                 system_log_config = None
@@ -78,7 +79,7 @@ class LoggerConfig(object):
 
         try:
             if not local_log_config:
-                local_log_config = read_file('res/config/logging.local.yml')
+                local_log_config = self.read_file('res/config/logging.local.yml')
         except IOError, e:
             if e.errno == errno.ENOENT:
                 local_log_config = None
