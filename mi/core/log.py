@@ -59,7 +59,7 @@ class LoggerConfig(object):
                 system_log_config = None
             else:
                 raise e
-
+        '''
         try:
             if not system_log_config:
                 system_log_config = self.read_file('res/config/logging.yml')
@@ -68,7 +68,7 @@ class LoggerConfig(object):
                 system_log_config = None
             else:
                 raise e
-
+        '''
         try:
             local_log_config = resource_string(__name__, '../../res/config/logging.local.yml')
         except IOError, e:
@@ -76,7 +76,7 @@ class LoggerConfig(object):
                 local_log_config = None
             else:
                 raise e
-
+        '''
         try:
             if not local_log_config:
                 local_log_config = self.read_file('res/config/logging.local.yml')
@@ -85,6 +85,7 @@ class LoggerConfig(object):
                 local_log_config = None
             else:
                 raise e
+        '''
 
         self.config = Config(content = [system_log_config, local_log_config]).as_dict()
 
