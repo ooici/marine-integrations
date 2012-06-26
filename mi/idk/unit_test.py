@@ -70,13 +70,16 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 #from pyon.net.channel import ChannelError
 from mi.core.exceptions import InstrumentParameterException
 
+from ion.agents.port.port_agent_process import PortAgentProcess
 class InstrumentDriverTestConfig(Singleton):
     """
     Singleton driver test config object.
     """
     driver_module  = None
     driver_class   = None
-    working_dir    = "/tmp/"
+
+    working_dir    = "/tmp/" # requires trailing / or it messes up the path. should fix.
+
     delimeter      = ['<<','>>']
     logger_timeout = 15
 
@@ -208,42 +211,17 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         @retval return the pid to the logger process
         """
         log.info("Startup Port Agent")
-        # Create port agent object.
-        this_pid = os.getpid()
-        log.debug( " -- our pid: %d" % this_pid)
-        log.debug( " -- address: %s, port: %s" % (self.comm_config.device_addr, self.comm_config.device_port))
 
-        # Working dir and delim are hard coded here because this launch process
-        # will change with the new port agent.  
-        self.port_agent = EthernetDeviceLogger.launch_process(self.comm_config.device_addr,
-                                                              self.comm_config.device_port,
-                                                              self.test_config.working_dir,
-                                                              self.test_config.delimeter,
-                                                              this_pid)
+        config = {
+            'device_addr' : self.comm_config.device_addr,
+            'device_port' : self.comm_config.device_port
+        }
 
+        self.port_agent = PortAgentProcess.launch_process(config, timeout = 60,
+            test_mode = True)
 
-        log.debug( " Port agent object created" )
-
-        start_time = time.time()
-        expire_time = start_time + int(self.test_config.logger_timeout)
-        pid = self.port_agent.get_pid()
-        while not pid:
-            gevent.sleep(.1)
-            pid = self.port_agent.get_pid()
-            if time.time() > expire_time:
-                log.error("!!!! Failed to start Port Agent !!!!")
-                raise PortAgentTimeout()
-
-        port = self.port_agent.get_port()
-
-        start_time = time.time()
-        expire_time = start_time + int(self.test_config.logger_timeout)
-        while not port:
-            gevent.sleep(.1)
-            port = self.port_agent.get_port()
-            if time.time() > expire_time:
-                log.error("!!!! Port Agent could not bind to port !!!!")
-                raise PortAgentTimeout()
+        port = self.port_agent.get_data_port()
+        pid  = self.port_agent.get_pid()
 
         log.info('Started port agent pid %s listening at port %s' % (pid, port))
         return port
@@ -252,13 +230,8 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         """
         Stop the port agent.
         """
-        if self.port_agent:
-            pid = self.port_agent.get_pid()
-            if pid:
-                log.info('Stopping pagent pid %i' % pid)
-                self.port_agent.stop()
-            else:
-                log.info('No port agent running.')
+        self.port_agent.stop()
+
     
     def init_driver_process_client(self):
         """
