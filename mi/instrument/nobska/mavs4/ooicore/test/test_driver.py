@@ -149,6 +149,7 @@ InstrumentDriverTestCase.initialize(
 
 
 class TcpClient():
+    # for direct access testing
     buf = ""
 
     def __init__(self, host, port):
@@ -172,7 +173,6 @@ class TcpClient():
             c = None
 
         return c
-
 
     def peek_at_buffer(self):
         if len(self.buf) == 0:
@@ -345,8 +345,66 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
     # (UNIT, INT, and QUAL) are run.  
     pass
 
-    #@unittest.skip("Do not include until direct_access gets implemented")
-    def test_direct_access_telnet_mode(self):
+
+    def test_direct_access_telnet_mode_manually(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+        cmd = AgentCommand(command='power_down')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        print("sent power_down; IA state = %s" %str(retval.result))
+        self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
+
+        cmd = AgentCommand(command='power_up')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        print("sent power_up; IA state = %s" %str(retval.result))
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        print("sent initialize; IA state = %s" %str(retval.result))
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        print("sent go_active; IA state = %s" %str(retval.result))
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        print("sent run; IA state = %s" %str(retval.result))
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        gevent.sleep(5)  # wait for mavs4 to go back to sleep if it was sleeping
+        
+        # go direct access
+        cmd = AgentCommand(command='go_direct_access',
+                           kwargs={'session_type': DirectAccessTypes.telnet,
+                                   #kwargs={'session_type':DirectAccessTypes.vsp,
+                                   'session_timeout':600,
+                                   'inactivity_timeout':600})
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.warn("go_direct_access retval=" + str(retval.result))
+        
+        gevent.sleep(600)  # wait for manual telnet session to be run
+
+
+    def Xtest_direct_access_telnet_mode(self):
         """
         @brief This test verifies that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """

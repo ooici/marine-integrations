@@ -182,11 +182,10 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.TEST, self._handler_command_test)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.START_DIRECT, self._handler_command_start_direct)
-        """
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.GET, self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+        """
         self._protocol_fsm.add_handler(ProtocolStates.TEST, ProtocolEvents.ENTER, self._handler_test_enter)
         self._protocol_fsm.add_handler(ProtocolStates.TEST, ProtocolEvents.EXIT, self._handler_test_exit)
         self._protocol_fsm.add_handler(ProtocolStates.TEST, ProtocolEvents.RUN_TEST, self._handler_test_run_tests)
@@ -413,6 +412,42 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
 
 
     ########################################################################
+    # Autosample handlers.
+    ########################################################################
+
+    def _handler_autosample_enter(self, *args, **kwargs):
+        """
+        Enter autosample state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.        
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+    
+    def _handler_autosample_exit(self, *args, **kwargs):
+        """
+        Exit autosample state.
+        """
+        pass
+
+    def _handler_autosample_stop_autosample(self, *args, **kwargs):
+        """
+        Stop autosample and switch back to command mode.
+        @retval (next_state, result) tuple, (SBE37ProtocolState.COMMAND,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command misunderstood or
+        incorrect prompt received.
+        """
+        next_state = None
+        result = None
+
+        # Wake up the device, continuing until CTRL-C prompt seen.
+        
+        next_state = ProtocolStates.COMMAND
+
+        return (next_state, result)
+        
+    ########################################################################
     # Direct access handlers.
     ########################################################################
 
@@ -465,6 +500,7 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
         @param publsih boolean to publish sample (default True).
         @retval Sample dictionary if present or None.
         """
+        return  # TODO remove this when sample format is known
         sample = None
         match = self._sample_regex.match(line)
         if match:
@@ -480,7 +516,7 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
             if self._driver_event:
                 self._driver_event(DriverAsyncEvent.SAMPLE, sample)
 
-        return sample            
+        return             
         
                 
 
