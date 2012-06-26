@@ -558,6 +558,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
+        log.debug("Instrument active.  Verify RQ-634")
 
         cmd = AgentCommand(command='go_inactive')
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -590,6 +591,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.STREAMING)
+        log.debug("Enterered streaming mode. Verify RQ-636")
 
         # Halt streaming.
         cmd = AgentCommand(command='go_observatory')
@@ -1102,64 +1104,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         pass
 
-
-    def test_poll(self):
-        """
-        Test observatory polling function.
-        """
-
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command='initialize')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
-
-        cmd = AgentCommand(command='go_active')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
-
-        cmd = AgentCommand(command='run')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
-
-        # Lets get 3 samples.
-        self.data_subscribers.no_samples = 3
-
-        # Poll for a few samples.
-        cmd = AgentCommand(command='acquire_sample')
-        reply = self.instrument_agent_client.execute(cmd)
-        self.assertSampleDict(reply.result)
-
-        cmd = AgentCommand(command='acquire_sample')
-        reply = self.instrument_agent_client.execute(cmd)
-        self.assertSampleDict(reply.result)
-
-        cmd = AgentCommand(command='acquire_sample')
-        reply = self.instrument_agent_client.execute(cmd)
-        self.assertSampleDict(reply.result)
-
-        # Assert we got 3 samples.
-        self.data_subscribers.async_data_result.get(timeout=10)
-        self.assertTrue(len(self.data_subscribers.samples_received)==self.data_subscribers.no_samples)
-
-        cmd = AgentCommand(command='reset')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
     def test_initialize(self):
         """

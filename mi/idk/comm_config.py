@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """
 @file coi-services/mi.idk/comm_config.py
 @author Bill French

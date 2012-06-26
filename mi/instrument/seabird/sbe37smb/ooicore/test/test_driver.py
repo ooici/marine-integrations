@@ -68,6 +68,8 @@ from pyon.core import exception
 from pyon.core.exception import InstParameterError
 from pyon.core import exception as iex
 
+from gevent.timeout import Timeout
+
 # Make tests verbose and provide stdout
 # bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_process
 # bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_config
@@ -976,26 +978,36 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         log.warn("go_direct_access retval=" + str(retval.result))
 
         s = my_sock(retval.result['ip_address'], retval.result['port'])
-
-
+        
+        try_count = 0
         while s.peek_at_buffer().find("Username: ") == -1:
             log.debug("WANT 'Username:' READ ==>" + str(s.peek_at_buffer()))
             gevent.sleep(1)
+            try_count = try_count + 1
+            if try_count > 10:
+                raise Timeout('I took longer than 10 seconds to get a Username: prompt')
+
         s.remove_from_buffer("Username: ")
         s.send_data("bob\r\n", "1")
 
-
+        try_count = 0
         while s.peek_at_buffer().find("token: ") == -1:
             log.debug("WANT 'token: ' READ ==>" + str(s.peek_at_buffer()))
             gevent.sleep(1)
+            try_count = try_count + 1
+            if try_count > 10:
+                raise Timeout('I took longer than 10 seconds to get a token: prompt')
         s.remove_from_buffer("token: ")
         s.send_data(retval.result['token'] + "\r\n", "1")
 
-
+        try_count = 0
         while s.peek_at_buffer().find("connected\n") == -1:
             log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
             gevent.sleep(1)
             s.peek_at_buffer()
+            try_count = try_count + 1
+            if try_count > 10:
+                raise Timeout('I took longer than 10 seconds to get a connected prompt')
 
         s.remove_from_buffer("connected\n")
         s.send_data("ts\r\n", "1")
@@ -1596,6 +1608,65 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         reply.pop(SBE37Parameter.SAMPLENUM)
         orig_config.pop(SBE37Parameter.SAMPLENUM)
         self.assertParamVals(reply, orig_config)
+
+        cmd = AgentCommand(command='reset')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+
+    def test_poll(self):
+        """
+        Test observatory polling function.
+        """
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        # Lets get 3 samples.
+        self.data_subscribers.no_samples = 3
+
+        # Poll for a few samples.
+        cmd = AgentCommand(command='acquire_sample')
+        reply = self.instrument_agent_client.execute(cmd)
+        self.assertSampleDict(reply.result)
+
+        cmd = AgentCommand(command='acquire_sample')
+        reply = self.instrument_agent_client.execute(cmd)
+        self.assertSampleDict(reply.result)
+
+        cmd = AgentCommand(command='acquire_sample')
+        reply = self.instrument_agent_client.execute(cmd)
+        self.assertSampleDict(reply.result)
+
+        # Assert we got 3 samples.
+        self.data_subscribers.async_data_result.get(timeout=10)
+        self.assertTrue(len(self.data_subscribers.samples_received)==self.data_subscribers.no_samples)
 
         cmd = AgentCommand(command='reset')
         retval = self.instrument_agent_client.execute_agent(cmd)

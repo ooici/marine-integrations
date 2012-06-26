@@ -51,33 +51,71 @@ class LoggerConfig(object):
         local_log_config = None
 
         # Allows for relative pathing starting from this file in a package.  This will work with zip_safe egg files
-        system_log_config = resource_string(__name__, '../../extern/ion-definitions/res/config/logging.yml')
-
         try:
-            local_log_config = resource_string(__name__, '../../extern/ion-definitions/res/config/logging.local.yml')
+            system_log_config = resource_string(__name__, '../../res/config/logging.yml')
+            pass
+        except IOError, e:
+            if e.errno == errno.ENOENT:
+                system_log_config = None
+            else:
+                raise e
+        '''
+        try:
+            if not system_log_config:
+                system_log_config = self.read_file('res/config/logging.yml')
+        except IOError, e:
+            if e.errno == errno.ENOENT:
+                system_log_config = None
+            else:
+                raise e
+        '''
+        try:
+            local_log_config = resource_string(__name__, '../../res/config/logging.local.yml')
         except IOError, e:
             if e.errno == errno.ENOENT:
                 local_log_config = None
             else:
                 raise e
+        '''
+        try:
+            if not local_log_config:
+                local_log_config = self.read_file('res/config/logging.local.yml')
+        except IOError, e:
+            if e.errno == errno.ENOENT:
+                local_log_config = None
+            else:
+                raise e
+        '''
 
         self.config = Config(content = [system_log_config, local_log_config]).as_dict()
 
         # Save and initialize the logger
         self.init_logging()
 
+    def read_file(self, filename):
+        content = None
+        try:
+            infile = open(filename, 'r')
+            content = infile.read()
+        except IOError, e:
+            if e.errno == errno.ENOENT:
+                pass
+            else:
+                raise e
+
+        return content
+
     def init_logging(self):
         """Update the logging singleton with the new config dict"""
-
-        # Ensure the logging directories exist
-        for handler in self.config.get('handlers', {}).itervalues():
-            if 'filename' in handler:
-                log_dir = os.path.dirname(handler['filename'])
-                if not os.path.exists(log_dir):
-                    os.makedirs(log_dir)
-
         # if there's no logging config, we can't configure it: the call requires version at a minimum
         if self.config:
+            # Ensure the logging directories exist
+            for handler in self.config.get('handlers', {}).itervalues():
+                if 'filename' in handler:
+                    log_dir = os.path.dirname(handler['filename'])
+                    if not os.path.exists(log_dir):
+                        os.makedirs(log_dir)
+
             logging.config.dictConfig(self.config)
 
     def set_log_file(self, filename):

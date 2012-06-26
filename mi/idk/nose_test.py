@@ -20,7 +20,7 @@ from mi.idk.exceptions import IDKConfigMissing
 from mi.idk.exceptions import DriverNotStarted
 from mi.idk.exceptions import CommConfigReadFail
 
-class NoseTest():
+class NoseTest(object):
     """
     Helper class to invoke nose tests for drivers.
     """
@@ -28,7 +28,7 @@ class NoseTest():
     ###
     #   Private Methods
     ###
-    def __init__(self, metadata, log_file = None):
+    def __init__(self, metadata, log_file = None, launch_data_moniotor = False):
         """
         @brief Constructor
         @param metadata IDK Metadata object

@@ -6,8 +6,8 @@ from mi.idk.da_server import DirectAccessServer
 from mi.idk.exceptions import ParameterRequired
 
 def run():
-    app = DirectAccessServer()
     opts = parseArgs()
+    app = DirectAccessServer(opts.launch_monitor)
 
     if(opts.telnet and opts.vps):
         ParameterRequired("-t and -v are mutually exclusive")
@@ -34,6 +34,8 @@ def parseArgs():
                         help="run telnet direct access" )
     parser.add_argument("-v", dest='vps', action="store_true",
                         help="run virtual serial port access" )
+    parser.add_argument("-m", dest='launch_monitor', action="store_true",
+                        help="Launch data file monitor" )
     return parser.parse_args()
 
 

@@ -12,7 +12,7 @@ import sys
 if sys.platform == 'darwin':
     os.environ['C_INCLUDE_PATH'] = '/usr/local/include'
 
-version = '0.1'
+version = '0.2.1'
 
 setup(  name = 'marine-integrations',
         version = version,
