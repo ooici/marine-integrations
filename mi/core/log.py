@@ -106,16 +106,15 @@ class LoggerConfig(object):
 
     def init_logging(self):
         """Update the logging singleton with the new config dict"""
-
-        # Ensure the logging directories exist
-        for handler in self.config.get('handlers', {}).itervalues():
-            if 'filename' in handler:
-                log_dir = os.path.dirname(handler['filename'])
-                if not os.path.exists(log_dir):
-                    os.makedirs(log_dir)
-
         # if there's no logging config, we can't configure it: the call requires version at a minimum
         if self.config:
+            # Ensure the logging directories exist
+            for handler in self.config.get('handlers', {}).itervalues():
+                if 'filename' in handler:
+                    log_dir = os.path.dirname(handler['filename'])
+                    if not os.path.exists(log_dir):
+                        os.makedirs(log_dir)
+
             logging.config.dictConfig(self.config)
 
     def set_log_file(self, filename):
