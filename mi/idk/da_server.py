@@ -25,7 +25,7 @@ from interface.objects import AgentCommand
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.driver_process import DriverProcessType
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-from ion.agents.port.logger_process import EthernetDeviceLogger
+from ion.agents.port.port_agent_process import PortAgentProcess
 
 TIMEOUT = 600
 
@@ -121,45 +121,21 @@ class DirectAccessServer():
         """
         log.info("Startup Port Agent")
 
-        # Create port agent object.
-        this_pid = os.getpid()
-        log.debug( " -- our pid: %d" % this_pid)
-        log.debug( " -- address: %s, port: %s" % (self.comm_config.device_addr, self.comm_config.device_port))
+        config = {
+            'device_addr' : self.comm_config.device_addr,
+            'device_port' : self.comm_config.device_port
+        }
 
-        # Working dir and delim are hard coded here because this launch process
-        # will change with the new port agent.
-        self.port_agent = EthernetDeviceLogger.launch_process(self.comm_config.device_addr,
-            self.comm_config.device_port,
-            "/tmp/",
-            ['<<', '>>'],
-            this_pid)
+        self.port_agent = PortAgentProcess.launch_process(config, timeout = 60,
+            test_mode = True)
 
+        port = self.port_agent.get_data_port()
+        pid  = self.port_agent.get_pid()
 
-        log.debug( " Port agent object created" )
-
-        start_time = time.time()
-        expire_time = start_time + 20
-        pid = self.port_agent.get_pid()
-        while not pid:
-            time.sleep(.1)
-            pid = self.port_agent.get_pid()
-            if time.time() > expire_time:
-                log.error("!!!! Failed to start Port Agent !!!!")
-                raise PortAgentTimeout()
-
-        port = self.port_agent.get_port()
-
-        start_time = time.time()
-        expire_time = start_time + 20
-        while not port:
-            time.sleep(.1)
-            port = self.port_agent.get_port()
-            if time.time() > expire_time:
-                log.error("!!!! Port Agent could not bind to port !!!!")
-                raise PortAgentTimeout()
+        log.info('Started port agent pid %s listening at port %s' % (pid, port))
 
         if self.launch_monitor:
-            self.logfile = self.port_agent.logfname
+            self.logfile = self.port_agent.port_agent.logfname
             log.info('Started port agent pid %s listening at port %s' % (pid, port))
             log.info("data log: %s" % self.logfile)
             self.monitor_process = launch_data_monitor(self.logfile)
@@ -169,12 +145,7 @@ class DirectAccessServer():
         Stop the port agent.
         """
         if self.port_agent:
-            pid = self.port_agent.get_pid()
-            if pid:
-                log.info('Stopping pagent pid %i' % pid)
-                # self.port_agent.stop() # BROKE
-            else:
-                log.info('No port agent running.')
+            self.port_agent.stop()
 
         if self.monitor_process:
             self.monitor_process.kill()
@@ -186,7 +157,7 @@ class DirectAccessServer():
         log.info("Start Instrument Agent Client")
 
         # Port config
-        port = self.port_agent.get_port()
+        port = self.port_agent.get_data_port()
         port_config = {
             'addr': 'localhost',
             'port': port

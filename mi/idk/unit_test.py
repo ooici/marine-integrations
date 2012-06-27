@@ -155,8 +155,7 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
             return TestNotInitialized(msg="Tests non initialized. Missing InstrumentDriverTestCase.initalize(...)?")
             
         self.clear_events()
-        self.init_comm_config()
-        
+
     def tearDown(self):
         """
         @brief Test teardown
@@ -174,36 +173,39 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         @brief Simple callback to catch events from the driver for verification.
         """
         self.events.append(evt)
-        
-    def comm_config_file(self):
+
+    @classmethod
+    def comm_config_file(cls):
         """
         @brief Return the path the the driver comm config yaml file.
         @return if comm_config.yml exists return the full path
         """
         repo_dir = Config().get('working_repo')
-        driver_path = self.test_config.driver_module
+        driver_path = cls.test_config.driver_module
         p = re.compile('\.')
         driver_path = p.sub('/', driver_path)
         abs_path = "%s/%s/%s" % (repo_dir, os.path.dirname(driver_path), CommConfig.config_filename())
         
         log.debug(abs_path)
         return abs_path
-    
-    def init_comm_config(self):
+
+    @classmethod
+    def get_comm_config(cls):
         """
         @brief Create the comm config object by reading the comm_config.yml file.
         """
-        log.info("Initialize comm config")
-        config_file = self.comm_config_file()
+        log.info("get comm config")
+        config_file = cls.comm_config_file()
         
         log.debug( " -- reading comm config from: %s" % config_file )
         if not os.path.exists(config_file):
             raise TestNoCommConfig(msg="Missing comm config.  Try running start_driver or switch_driver")
         
-        self.comm_config = CommConfig.get_config_from_file(config_file)
+        return CommConfig.get_config_from_file(config_file)
         
-        
-    def init_port_agent(self):
+
+    @classmethod
+    def init_port_agent(cls):
         """
         @brief Launch the driver process and driver client.  This is used in the
         integration and qualification tests.  The port agent abstracts the physical
@@ -212,25 +214,33 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         """
         log.info("Startup Port Agent")
 
+        comm_config = cls.get_comm_config()
+
         config = {
-            'device_addr' : self.comm_config.device_addr,
-            'device_port' : self.comm_config.device_port
+            'device_addr' : comm_config.device_addr,
+            'device_port' : comm_config.device_port
         }
 
-        self.port_agent = PortAgentProcess.launch_process(config, timeout = 60,
+        port_agent = PortAgentProcess.launch_process(config, timeout = 60,
             test_mode = True)
 
-        port = self.port_agent.get_data_port()
-        pid  = self.port_agent.get_pid()
+        port = port_agent.get_data_port()
+        pid  = port_agent.get_pid()
 
         log.info('Started port agent pid %s listening at port %s' % (pid, port))
+
+        cls.test_config.port_agent = port_agent
         return port
-    
-    def stop_port_agent(self):
+
+    @classmethod
+    def stop_port_agent(cls):
         """
         Stop the port agent.
         """
-        self.port_agent.stop()
+        log.info("Stop port agent")
+        if cls.test_config.port_agent:
+            log.debug("found port agent, now stop it")
+            cls.test_config.port_agent.stop()
 
     
     def init_driver_process_client(self):
@@ -292,14 +302,22 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     """
 
 class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must inherit from here to get _start_container
+    @classmethod
+    def setUpClass(cls):
+        cls.init_port_agent()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.stop_port_agent()
+
     def setUp(self):
         """
         @brief Setup test cases.
         """
         InstrumentDriverTestCase.setUp(self)
-        
+        self.port_agent = self.test_config.port_agent
+
         log.debug("InstrumentDriverIntegrationTestCase setUp")
-        self.init_port_agent()
         self.init_driver_process_client()
 
     def tearDown(self):
@@ -308,7 +326,6 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         """
         log.debug("InstrumentDriverIntegrationTestCase tearDown")
         self.stop_driver_process_client()
-        self.stop_port_agent()
 
         InstrumentDriverTestCase.tearDown(self)
 
@@ -367,7 +384,13 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
 class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        cls.init_port_agent()
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.stop_port_agent()
 
     def setUp(self):
         """
@@ -377,7 +400,11 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         InstrumentDriverTestCase.setUp(self)
 
+<<<<<<< HEAD
+        self.port_agent = self.test_config.port_agent
+=======
         self.init_port_agent()
+>>>>>>> upstream/master
 
         self.instrument_agent_manager = InstrumentAgentClient();
         self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
@@ -443,8 +470,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         log.debug("InstrumentDriverQualificationTestCase tearDown")
         self.instrument_agent_manager.stop_container()
-        self.stop_port_agent()
-
         InstrumentDriverTestCase.tearDown(self)
 
     def test_common_qualification(self):

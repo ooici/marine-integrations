@@ -7,7 +7,7 @@ from mi.idk.metadata import Metadata
 
 def run():
     opts = parseArgs()
-    app = NoseTest(Metadata(), launch_data_moniotor=opts.launch_monitor)
+    app = NoseTest(Metadata())
 
     if( opts.unit ):
         app.report_header()
