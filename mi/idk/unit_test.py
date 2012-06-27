@@ -230,7 +230,8 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         """
         Stop the port agent.
         """
-        self.port_agent.stop()
+        if self.port_agent:
+            self.port_agent.stop()
 
     
     def init_driver_process_client(self):
@@ -277,7 +278,7 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
             self.driver_process.stop()
 
     def port_agent_comm_config(self):
-        port = self.port_agent.get_port()
+        port = self.port_agent.get_data_port()
         return {
             'addr': 'localhost',
             'port': port
