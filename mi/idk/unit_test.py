@@ -400,11 +400,16 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         InstrumentDriverTestCase.setUp(self)
 
+<<<<<<< HEAD
         self.port_agent = self.test_config.port_agent
+=======
+        self.init_port_agent()
+>>>>>>> upstream/master
 
         self.instrument_agent_manager = InstrumentAgentClient();
         self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
         self.container = self.instrument_agent_manager.container
+
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.instrument_agent_packet_config,
             encoding=self.test_config.instrument_agent_stream_encoding,
