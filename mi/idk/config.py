@@ -81,6 +81,10 @@ class ConfigManager(Singleton):
             log.debug("working_repo config option doesn't exist: " + cfgpath)
             self.rebase()
 
+        if not os.path.exists(self.get("working_repo")):
+            log.debug("working_repo doesn't exist: %s", self.get("working_repo"))
+            self.rebase()
+
         if not self.get("working_repo"):
             raise WorkingRepoNotSet()
 
