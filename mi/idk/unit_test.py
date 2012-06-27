@@ -400,11 +400,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         InstrumentDriverTestCase.setUp(self)
 
-<<<<<<< HEAD
         self.port_agent = self.test_config.port_agent
-=======
-        self.init_port_agent()
->>>>>>> upstream/master
 
         self.instrument_agent_manager = InstrumentAgentClient();
         self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
