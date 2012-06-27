@@ -277,7 +277,7 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
             self.driver_process.stop()
 
     def port_agent_comm_config(self):
-        port = self.port_agent.get_port()
+        port = self.port_agent.get_data_port()
         return {
             'addr': 'localhost',
             'port': port
@@ -379,11 +379,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.init_port_agent()
 
-
-
         self.instrument_agent_manager = InstrumentAgentClient();
         self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
         self.container = self.instrument_agent_manager.container
+
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.instrument_agent_packet_config,
             encoding=self.test_config.instrument_agent_stream_encoding,
