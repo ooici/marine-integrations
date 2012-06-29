@@ -16,6 +16,10 @@ class IDKException(Exception):
         
         log.error(self)
 
+class ParameterRequired(IDKException):
+    """Command parameter required"""
+    pass
+
 class NoContainer(IDKException):
     """Capability Container not started"""
     pass
@@ -98,6 +102,14 @@ class CommConfigReadFail(IDKException):
 
 class InvalidCommType(IDKException):
     """Invalid Communication Configuration Type"""
+    pass
+
+class GitCommandException(IDKException):
+    """not a git local repo"""
+    pass
+
+class InvalidGitRepo(IDKException):
+    """not a git local repo"""
     pass
 
 class WorkingRepoNotSet(IDKException):

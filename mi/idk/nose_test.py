@@ -20,7 +20,7 @@ from mi.idk.exceptions import IDKConfigMissing
 from mi.idk.exceptions import DriverNotStarted
 from mi.idk.exceptions import CommConfigReadFail
 
-class NoseTest():
+class NoseTest(object):
     """
     Helper class to invoke nose tests for drivers.
     """
@@ -28,7 +28,7 @@ class NoseTest():
     ###
     #   Private Methods
     ###
-    def __init__(self, metadata, log_file = None):
+    def __init__(self, metadata, log_file = None, launch_data_moniotor = False):
         """
         @brief Constructor
         @param metadata IDK Metadata object
@@ -135,7 +135,7 @@ class NoseTest():
         self._log("*** Starting Unit Tests ***")
         self._log(" ==> module: " + self._driver_test_module())
         args=[ sys.argv[0], '-s', '-v', '-a', 'UNIT']
-        module = "%s:%s" % (self._driver_test_module(), self._unit_test_class())
+        module = "%s" % (self._driver_test_module())
 
         return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
 
@@ -146,7 +146,7 @@ class NoseTest():
         self._log("*** Starting Integration Tests ***")
         self._log(" ==> module: " + self._driver_test_module())
         args=[ sys.argv[0], '-s', '-v', '-a', 'INT']
-        module = "%s:%s" % (self._driver_test_module(), self._int_test_class())
+        module = "%s" % (self._driver_test_module())
 
         return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
 
@@ -157,7 +157,7 @@ class NoseTest():
         self._log("*** Starting Qualification Tests ***")
         self._log(" ==> module: " + self._qualification_test_module())
         args=[ sys.argv[0], '-s', '-v', '-a', 'QUAL', '-v' ]
-        module = "%s:%s" % (self._qualification_test_module(), self._qual_test_class())
+        module = "%s" % (self._qualification_test_module())
 
         return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
 

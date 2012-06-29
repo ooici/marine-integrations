@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """
 @file coi-services/mi.idk/comm_config.py
 @author Bill French
@@ -118,9 +116,10 @@ class CommConfig(object):
         @param filename filename that contains the config
         """
         self.config_file_path = filename
-        
+
+        log.debug("read comm config file %s", filename)
         # If the config file doesn't exists don't read
-        if os.path.exists(self.config_file_path):
+        if self.config_file_path and os.path.exists(self.config_file_path):
             try:
                 infile = open( filename, "r" )
                 input = yaml.load( infile )
@@ -245,8 +244,6 @@ class CommConfigEthernet(CommConfig):
     def __init__(self, filename):
         self.device_addr = None
         self.device_port = None
-        self.server_addr = None
-        self.server_port = None
 
         CommConfig.__init__(self, filename)
 
@@ -256,29 +253,21 @@ class CommConfigEthernet(CommConfig):
         if( yamlInput ):
             self.device_addr = yamlInput['comm'].get('device_addr')
             self.device_port = yamlInput['comm'].get('device_port')
-            self.server_addr = yamlInput['comm'].get('server_addr')
-            self.server_port = yamlInput['comm'].get('server_port')
 
     def get_from_console(self):
         self.device_addr = prompt.text( 'Device Address', self.device_addr )
         self.device_port = prompt.text( 'Device Port', self.device_port )
-        self.server_addr = prompt.text( 'Server Address', self.server_addr )
-        self.server_port = prompt.text( 'Server Port', self.server_port )
         CommConfig.get_from_console(self)
 
     def display_config(self):
         CommConfig.display_config(self)
         print( "Device Address: " + self.device_addr )
         print( "Device Port: " + self.device_port )
-        print( "Server Address: " + self.server_addr )
-        print( "Server Port: " + self.server_port )
 
     def _config_dictionary(self):
         config = CommConfig._config_dictionary(self)
         config['device_addr'] = self.device_addr
         config['device_port'] = int(self.device_port)
-        config['server_addr'] = self.server_addr
-        config['server_port'] = int(self.server_port)
 
         return config
 

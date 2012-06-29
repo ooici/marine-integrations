@@ -43,9 +43,8 @@ coverage_results
 */*.cdl
 */comm_config.yml
 */metadata.yml
-extern/coi-services
-extern/pyon
-extern/ion-definitions
 couchdb.stderr
 couchdb.stdout
 erl_crash.dump
+
+mavs4_menu_hex.txt

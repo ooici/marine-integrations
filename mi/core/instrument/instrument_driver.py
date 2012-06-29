@@ -13,13 +13,13 @@ __license__ = 'Apache 2.0'
 
 import time
 
-from ion.agents.port.logger_process import LoggerClient
-
 from mi.core.common import BaseEnum
 from mi.core.exceptions import NotImplementedException 
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.logger_client import LoggerClient
+
 from mi.core.log import log
 
 class DriverState(BaseEnum):
@@ -578,11 +578,34 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         # Forward event and argument to the protocol FSM.
         return self._connection_fsm.on_event(DriverEvent.CALIBRATE, DriverEvent.CALIBRATE, *args, **kwargs)
 
-    def execute_direct(self, *args, **kwargs):
+    def execute_start_direct_access(self, *args, **kwargs):
         """
+        Switch to direct access mode.
+        @raises TimeoutError if could not wake device or no response.
+        @raises StateError if command not allowed in current state.
+        @raises NotImplementedError if not implemented by subclass.                
         """
-        # Forward event and argument to the protocol FSM.
+        return self._connection_fsm.on_event(DriverEvent.START_DIRECT, DriverEvent.START_DIRECT, *args, **kwargs)
+
+    def execute_direct_access(self, *args, **kwargs):
+        """
+        output direct access data to device.
+        @raises TimeoutError if could not wake device or no response.
+        @raises StateError if command not allowed in current state.
+        @raises NotImplementedError if not implemented by subclass.                
+        """
         return self._connection_fsm.on_event(DriverEvent.EXECUTE_DIRECT, DriverEvent.EXECUTE_DIRECT, *args, **kwargs)
+
+    def execute_stop_direct_access(self, *args, **kwargs):
+        """
+        Leave direct access mode.
+        @raises TimeoutError if could not wake device or no response.
+        @raises ProtocolError if stop command not recognized.
+        @raises StateError if command not allowed in current state.
+        @raises NotImplementedError if not implemented by subclass.                
+        """
+        return self._connection_fsm.on_event(DriverEvent.STOP_DIRECT, DriverEvent.STOP_DIRECT, *args, **kwargs)
+
 
 
     ########################################################################

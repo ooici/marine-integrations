@@ -3,7 +3,8 @@
 """
 @package ion.services.mi.instrument_protocol Base instrument protocol structure
 @file ion/services/mi/instrument_protocol.py
-@author Steve Foley
+@author Steve Foley, 
+        Bill Bollenbacher
 @brief Instrument protocol classes that provide structure towards the
 nitty-gritty interaction with individual instruments in the system.
 @todo Figure out what gets thrown on errors
@@ -18,10 +19,11 @@ import os
 import signal
 import re
 
-from mi.core.common import BaseEnum
+from mi.core.common import BaseEnum, InstErrorCode
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentParameterException
 
 from mi.core.log import log
 
@@ -55,11 +57,11 @@ class InstrumentProtocol(object):
     # Helper methods
     ########################################################################
     def got_data(self, data):
-       """
-       Called by the instrument connection when data is available.
-       Defined in subclasses.
-       """
-       pass
+        """
+        Called by the instrument connection when data is available.
+         Defined in subclasses.
+        """
+        pass
     
     def get_current_state(self):
         """
@@ -76,7 +78,7 @@ class InstrumentProtocol(object):
         command sent to the instrument, optionally available only in a
         specific state.
         
-        @param cmd The high level key of the command to responsd to.
+        @param cmd The high level key of the command to respond to.
         @param func The function that handles the response
         @param state The state to pair with the command for which the function
         should be used
@@ -189,7 +191,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
     def __init__(self, prompts, newline, driver_event):
         """
         Constructor.
-        @param prompts Enum class containing possbile device prompts used for
+        @param prompts Enum class containing possible device prompts used for
         command response logic.
         @param newline The device newline.
         @driver_event The callback for asynchronous driver events.
@@ -204,7 +206,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         # Class of prompts used by device.
         self._prompts = prompts
     
-        # Linebuffer for input from device.
+        # Line buffer for input from device.
         self._linebuf = ''
         
         # Short buffer to look for prompts from device in command-response
@@ -255,7 +257,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @param args positional arguments to pass to the build handler.
         @param timeout=timeout optional wakeup and command timeout.
         @retval resp_result The (possibly parsed) response result.
-        @raises InstrumentTimeoutException if the reponse did not occur in time.
+        @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
@@ -273,7 +275,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         
         cmd_line = build_handler(cmd, *args)
         
-        # Wakeup the device, pass up exeception if timeout
+        # Wakeup the device, pass up exception if timeout
         prompt = self._wakeup(timeout)
                     
         # Clear line and prompt buffers for result.
@@ -309,7 +311,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @param cmd The command to execute.
         @param args positional arguments to pass to the build handler.
         @param timeout=timeout optional wakeup timeout.
-        @raises InstrumentTimeoutException if the reponse did not occur in time.
+        @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built.        
         """
         timeout = kwargs.get('timeout', 10)
@@ -410,7 +412,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @delay Time to wake between consecutive wakeups.
         @no_tries Maximum number of wakeup tries to see desired prompt.
         @raises InstrumentTimeoutException if device could not be woken.
-        @raises InstrumentProtocolException if the deisred prompt is not seen in the
+        @raises InstrumentProtocolException if the desired prompt is not seen in the
         maximum number of attempts.
         """
         count = 0
@@ -425,32 +427,39 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                     raise InstrumentProtocolException('Incorrect prompt.')
                     
                     
-class MenuInstrumentProtocol(InstrumentProtocol):
+class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
     """
-    Base class for menu-based instrument interfaces.
-    
-    @todo Needs a way to walk through menu based on param dict menu_paths.
-    Might be broken down further into some simple tools to walk menus and check prompts
-    
-    @todo Needs some common logic to walk through menus and/or arrive at specific prompts?
-    
-    @todo Needs a way to send and receive data at the right prompts, checking to
-    see if command was successful
-    
-    @todo Needs a way to handle input and output of data
+    Base class for menu-based instrument interfaces that can use a cmd/response approach to
+    walking down the menu from its root.
     """
     
-    def __init__(self, prompts, newline, driver_event):
+    class MenuTree(object):
+        # nodes is a dictionary of menu tree nodes that each contain directions, which are lists of cmd/response 
+        # pairs that need to be executed in the specified order to get from the root node to the sub-menu node
+        # example;
+        # nodes = {sub_menu1: [["1", "menu1_prompt"],
+        #          sub_menu2: [["1", "menu1_prompt"], ["1", "menu2_prompt"]]
+        #         }
+        _nodes = {}
+        
+        def __init__(self, nodes):
+            self._nodes = nodes
+            
+        def get_directions(self, node):
+            return self._nodes[node]
+           
+    def __init__(self, menu, prompts, newline, driver_event):
         """
         Constructor.
-        @param prompts Enum class containing possbile device prompts used for
+        @param prompts Enum class containing possible device prompts used for
         menu system.
         @param newline The device newline.
         @driver_event The callback for asynchronous driver events.
         """
         
         # Construct superclass.
-        InstrumentProtocol.__init__(self, driver_event)
+        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+        self._menu = menu
 
         # The end of line delimiter.                
         self._newline = newline
@@ -611,5 +620,4 @@ class MenuInstrumentProtocol(InstrumentProtocol):
         self._linebuf += data        
         self._promptbuf += data
         self._last_data_timestamp = time.time()    
-
 

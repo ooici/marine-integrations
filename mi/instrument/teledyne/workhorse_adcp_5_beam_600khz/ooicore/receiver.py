@@ -23,7 +23,10 @@ from mi.core.mi_logger import mi_logger as log
 
 class ReceiverBuilder(object):
     """
-    Factory for receiver objects.
+    Factory for receiver objects. It allows the use of Greenlets instead
+    of Threads to faciliate testing under a standard bin/nosetest session.
+    By default, Threads are used so it follows the general scheme in other
+    drivers.
     """
 
     _use_greenlet = False
@@ -35,8 +38,9 @@ class ReceiverBuilder(object):
         This method instructs the builder to use Greenlet-based receivers
         in subsequent calls to build_receiver.
         """
-        cls._use_greenlet = True
-        log.info("ReceiverBuilder configured to use greenlets")
+        if not cls._use_greenlet:
+            cls._use_greenlet = True
+            log.info("ReceiverBuilder configured to use greenlets")
 
     @classmethod
     def use_default(cls):
@@ -44,11 +48,13 @@ class ReceiverBuilder(object):
         This method instructs the builder to use Thread-based receivers, which
         is the default,
         """
-        cls._use_greenlet = False
-        log.info("ReceiverBuilder configured to use threads")
+        if cls._use_greenlet:
+            cls._use_greenlet = False
+            log.info("ReceiverBuilder configured to use threads")
 
     @classmethod
-    def build_receiver(cls, sock, bufsize=4096, data_listener=None,
+    def build_receiver(cls, sock, bufsize=4096,
+                       ooi_digi=False, data_listener=None,
                        outfile=None, prefix_state=True):
         """
         Creates a returns a receiver object that handles all received responses
@@ -56,12 +62,16 @@ class ReceiverBuilder(object):
 
         @param sock To read in from the instrument, sock.recv(bufsize)
         @param bufsize To read in from the instrument, sock.recv(bufsize)
+        @param ooi_digi True to indicate the connection is with an OOI Digi;
+               False to indicate the connection is with an actual ADCP unit.
+               By default, False.
         @param data_listener
         @param outfile
         @param prefix_state
         """
 
-        receiver = _Receiver(sock, bufsize, data_listener, outfile, prefix_state)
+        receiver = _Receiver(sock, bufsize, ooi_digi,
+                             data_listener, outfile, prefix_state)
 
         if cls._use_greenlet:
             from gevent import Greenlet
@@ -91,12 +101,14 @@ class _Receiver(object):
     # TODO review this MAX_NUM_LINES fixed value
     MAX_NUM_LINES = 1024
 
-    def __init__(self, sock, bufsize=4096, data_listener=None, outfile=None,
-                 prefix_state=True):
+    def __init__(self, sock, bufsize=4096, ooi_digi=False,
+                 data_listener=None, outfile=None, prefix_state=True):
         """
+        Do not call this constructor directly; instead use ReceiverBuilder.
         """
         self._sock = sock
         self._bufsize = bufsize
+        self._ooi_digi = ooi_digi
         self._data_listener = data_listener
         self._outfile = outfile
         self._prefix_state = prefix_state
@@ -269,7 +281,11 @@ class _Receiver(object):
         self._active = True
 
         # set up pipeline
-        pipeline = timestamp_filter(pd0_filter(self.sink()))
+        if self._ooi_digi:
+            # no need to parse for timestamps or PD0 ensembles:
+            pipeline = self.sink()
+        else:
+            pipeline = timestamp_filter(pd0_filter(self.sink()))
 
         # and read in and push received data into the pipeline:
         while self._active:

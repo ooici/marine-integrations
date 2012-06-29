@@ -14,17 +14,13 @@ __license__ = 'Apache 2.0'
 import time
 sleep = time.sleep
 
-import socket
 import sys
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.unit_client import \
     UnitClient
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
     AdcpUnitConnConfig, VadcpSample, DEFAULT_GENERIC_TIMEOUT
-from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.util import \
-    connect_socket, prefix
 
-import logging
 from mi.core.mi_logger import mi_logger as log
 
 
@@ -39,18 +35,18 @@ class VadcpClient(object):
         Creates a VadcpClient instance.
 
         @param conn_config connection configurations for the two units
-        @param outfile
+        @param b4_outfile
+        @param b5_outfile
 
         """
 
-        
         self._u4 = UnitClient(conn_config['four_beam'], outfile=b4_outfile)
         self._u5 = UnitClient(conn_config['fifth_beam'], outfile=b5_outfile)
 
-        """sleep time used just before sending data"""
+        # sleep time used just before sending data
         self._delay_before_send = 0.2
 
-        """generic timeout for various operations"""
+        # generic timeout for various operations
         self._generic_timeout = DEFAULT_GENERIC_TIMEOUT
 
         log.info("VADCP client object created.")
@@ -169,6 +165,7 @@ class VadcpClient(object):
         """
         Sends the two units a "break" command via the corresp OOI Digi
         connections. First to the 5th beam, then to the 4-beam.
+        In both cases, also _get_prompt is called.
         """
 
         self._u5.send_break(timeout=timeout)
@@ -212,7 +209,7 @@ class VadcpClient(object):
 
 def main(conn_config, b4_outfile, b5_outfile):
     """
-    Demo program:
+    program for experimentation.
     """
 
     def user_loop(client):

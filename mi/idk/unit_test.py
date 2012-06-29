@@ -12,6 +12,8 @@ from mi.core.log import log
 import re
 import os
 import time
+import unittest
+from sets import Set
 
 from os.path import basename
 
@@ -23,9 +25,8 @@ import subprocess
 from pyon.container.cc import Container
 from pyon.util.int_test import IonIntegrationTestCase
 
-from mi.core.instrument.zmq_driver_client import ZmqDriverClient
-from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 from ion.agents.port.logger_process import EthernetDeviceLogger
+from ion.agents.instrument.driver_process import DriverProcess, DriverProcessType
 
 from mi.idk.comm_config import CommConfig
 from mi.idk.config import Config
@@ -65,36 +66,24 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 from ion.agents.instrument.common import InstErrorCode
 from mi.core.instrument.instrument_driver import DriverConnectionState
 
-def check_for_reused_values(obj):
-    """
-    @author Roger Unwin
-    @brief  verifies that no two definitions resolve to the same value.
-    @returns True if no reused values
-    """
-    match = 0
-    outer_match = 0
-    for i in [v for v in dir(obj) if not callable(getattr(obj,v))]:
-        if i.startswith('_') == False:
-            outer_match = outer_match + 1
-            for j in [x for x in dir(obj) if not callable(getattr(obj,x))]:
-                if i.startswith('_') == False:
-                    if getattr(obj, i) == getattr(obj, j):
-                        match = match + 1
-                        log.debug(str(i) + " == " + j + " (Looking for reused values)")
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+#from pyon.net.channel import ChannelError
+from mi.core.exceptions import InstrumentParameterException
 
-    # If this assert fails, then two of the enumerations have an identical value...
-    return match == outer_match
-
+from ion.agents.port.port_agent_process import PortAgentProcess
 class InstrumentDriverTestConfig(Singleton):
     """
     Singleton driver test config object.
     """
     driver_module  = None
     driver_class   = None
-    working_dir    = "/tmp"
+
+    working_dir    = "/tmp/" # requires trailing / or it messes up the path. should fix.
+
     delimeter      = ['<<','>>']
     logger_timeout = 15
 
+    driver_process_type = DriverProcessType.PYTHON_MODULE
     instrument_agent_resource_id = None
     instrument_agent_name = None
     instrument_agent_module = 'ion.agents.instrument.instrument_agent'
@@ -131,6 +120,9 @@ class InstrumentDriverTestConfig(Singleton):
 
         if kwargs.get('logger_timeout'):
             self.container_deploy_file = kwargs.get('logger_timeout')
+
+        if kwargs.get('driver_process_type'):
+            self.container_deploy_file = kwargs.get('driver_process_type')
         
         self.initialized = True
 
@@ -140,14 +132,14 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
     """
     
     # configuration singleton
-    _test_config = InstrumentDriverTestConfig()
+    test_config = InstrumentDriverTestConfig()
     
     @classmethod
     def initialize(cls, *args, **kwargs):
         """
         Initialize the test_configuration singleton
         """
-        cls._test_config.initialize(*args,**kwargs)
+        cls.test_config.initialize(*args,**kwargs)
     
     # Port agent process object.
     port_agent = None
@@ -159,12 +151,11 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         log.debug("InstrumentDriverTestCase setUp")
         
         # Test to ensure we have initialized our test config
-        if not self._test_config.initialized:
+        if not self.test_config.initialized:
             return TestNotInitialized(msg="Tests non initialized. Missing InstrumentDriverTestCase.initalize(...)?")
             
         self.clear_events()
-        self.init_comm_config()
-        
+
     def tearDown(self):
         """
         @brief Test teardown
@@ -182,36 +173,39 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         @brief Simple callback to catch events from the driver for verification.
         """
         self.events.append(evt)
-        
-    def comm_config_file(self):
+
+    @classmethod
+    def comm_config_file(cls):
         """
         @brief Return the path the the driver comm config yaml file.
         @return if comm_config.yml exists return the full path
         """
         repo_dir = Config().get('working_repo')
-        driver_path = self._test_config.driver_module
+        driver_path = cls.test_config.driver_module
         p = re.compile('\.')
         driver_path = p.sub('/', driver_path)
         abs_path = "%s/%s/%s" % (repo_dir, os.path.dirname(driver_path), CommConfig.config_filename())
         
         log.debug(abs_path)
         return abs_path
-    
-    def init_comm_config(self):
+
+    @classmethod
+    def get_comm_config(cls):
         """
         @brief Create the comm config object by reading the comm_config.yml file.
         """
-        log.info("Initialize comm config")
-        config_file = self.comm_config_file()
+        log.info("get comm config")
+        config_file = cls.comm_config_file()
         
         log.debug( " -- reading comm config from: %s" % config_file )
         if not os.path.exists(config_file):
             raise TestNoCommConfig(msg="Missing comm config.  Try running start_driver or switch_driver")
         
-        self.comm_config = CommConfig.get_config_from_file(config_file)
+        return CommConfig.get_config_from_file(config_file)
         
-        
-    def init_port_agent(self):
+
+    @classmethod
+    def init_port_agent(cls):
         """
         @brief Launch the driver process and driver client.  This is used in the
         integration and qualification tests.  The port agent abstracts the physical
@@ -219,57 +213,35 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         @retval return the pid to the logger process
         """
         log.info("Startup Port Agent")
-        # Create port agent object.
-        this_pid = os.getpid()
-        log.debug( " -- our pid: %d" % this_pid)
-        log.debug( " -- address: %s, port: %s" % (self.comm_config.device_addr, self.comm_config.device_port))
 
-        # Working dir and delim are hard coded here because this launch process
-        # will change with the new port agent.  
-        self.port_agent = EthernetDeviceLogger.launch_process(self.comm_config.device_addr,
-                                                              self.comm_config.device_port,
-                                                              self._test_config.working_dir,
-                                                              self._test_config.delimeter,
-                                                              this_pid)
+        comm_config = cls.get_comm_config()
 
+        config = {
+            'device_addr' : comm_config.device_addr,
+            'device_port' : comm_config.device_port
+        }
 
-        log.debug( " Port agent object created" )
+        port_agent = PortAgentProcess.launch_process(config, timeout = 60,
+            test_mode = True)
 
-        start_time = time.time()
-        expire_time = start_time + int(self._test_config.logger_timeout)
-        pid = self.port_agent.get_pid()
-        while not pid:
-            gevent.sleep(.1)
-            pid = self.port_agent.get_pid()
-            if time.time() > expire_time:
-                log.error("!!!! Failed to start Port Agent !!!!")
-                raise PortAgentTimeout()
-
-        port = self.port_agent.get_port()
-
-        start_time = time.time()
-        expire_time = start_time + int(self._test_config.logger_timeout)
-        while not port:
-            gevent.sleep(.1)
-            port = self.port_agent.get_port()
-            if time.time() > expire_time:
-                log.error("!!!! Port Agent could not bind to port !!!!")
-                raise PortAgentTimeout()
+        port = port_agent.get_data_port()
+        pid  = port_agent.get_pid()
 
         log.info('Started port agent pid %s listening at port %s' % (pid, port))
+
+        cls.test_config.port_agent = port_agent
         return port
-    
-    def stop_port_agent(self):
+
+    @classmethod
+    def stop_port_agent(cls):
         """
         Stop the port agent.
         """
-        if self.port_agent:
-            pid = self.port_agent.get_pid()
-            if pid:
-                log.info('Stopping pagent pid %i' % pid)
-                # self.port_agent.stop() # BROKE
-            else:
-                log.info('No port agent running.')
+        log.info("Stop port agent")
+        if cls.test_config.port_agent:
+            log.debug("found port agent, now stop it")
+            cls.test_config.port_agent.stop()
+
     
     def init_driver_process_client(self):
         """
@@ -277,48 +249,45 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         @retval return driver process and driver client object
         """
         log.info("Startup Driver Process")
-        
-        this_pid = os.getpid()
-        (dvr_proc, cmd_port, evt_port) = ZmqDriverProcess.launch_process(self._test_config.driver_module,
-                                                                         self._test_config.driver_class,
-                                                                         self._test_config.working_dir,
-                                                                         this_pid)
-        self.driver_process = dvr_proc
-        log.info('Started driver process for %d %d %s %s' %
-                 (cmd_port, evt_port, self._test_config.driver_module, self._test_config.driver_class))
-        log.info('Driver process pid %d' % self.driver_process.pid)
 
-        # Create driver client.
-        self.driver_client = ZmqDriverClient('localhost', cmd_port, evt_port)
-        log.info('Created driver client for %d %d %s %s' % (cmd_port,
-            evt_port, self._test_config.driver_module, self._test_config.driver_class))
+        driver_config = {
+            'dvr_mod'      : self.test_config.driver_module,
+            'dvr_cls'      : self.test_config.driver_class,
+            'workdir'      : self.test_config.working_dir,
+            'comms_config' : self.port_agent_comm_config(),
+            'process_type' : self.test_config.driver_process_type,
+        }
 
-        # Start client messaging.
-        self.driver_client.start_messaging(self.event_received)
-        log.info('Driver messaging started.')
-        gevent.sleep(.5)
+        self.driver_process = DriverProcess.get_process(driver_config, True)
+        self.driver_process.launch()
+
+        # Verify the driver has started.
+        if not self.driver_process.getpid():
+            log.error('Error starting driver process.')
+            raise InstrumentException('Error starting driver process.')
+
+        try:
+            driver_client = self.driver_process.get_client()
+            driver_client.start_messaging(self.event_received)
+            retval = driver_client.cmd_dvr('process_echo', 'Test.')
+
+            self.driver_client = driver_client
+        except Exception, e:
+            self.driver_process.stop()
+            log.error('Error starting driver client. %s', e)
+            raise InstrumentException('Error starting driver client.')
+
+        log.info('started its driver.')
     
     def stop_driver_process_client(self):
         """
         Stop the driver_process.
         """
         if self.driver_process:
-            log.info('Stopping driver process pid %d' % self.driver_process.pid)
-            if self.driver_client:
-                self.driver_client.done()
-                self.driver_process.wait()
-                self.driver_client = None
-
-            else:
-                try:
-                    log.info('Killing driver process.')
-                    self.driver_process.kill()
-                except OSError:
-                    pass
-            self.driver_process = None
+            self.driver_process.stop()
 
     def port_agent_comm_config(self):
-        port = self.port_agent.get_port()
+        port = self.port_agent.get_data_port()
         return {
             'addr': 'localhost',
             'port': port
@@ -333,14 +302,22 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     """
 
 class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must inherit from here to get _start_container
+    @classmethod
+    def setUpClass(cls):
+        cls.init_port_agent()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.stop_port_agent()
+
     def setUp(self):
         """
         @brief Setup test cases.
         """
         InstrumentDriverTestCase.setUp(self)
-        
+        self.port_agent = self.test_config.port_agent
+
         log.debug("InstrumentDriverIntegrationTestCase setUp")
-        self.init_port_agent()
         self.init_driver_process_client()
 
     def tearDown(self):
@@ -349,7 +326,6 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         """
         log.debug("InstrumentDriverIntegrationTestCase tearDown")
         self.stop_driver_process_client()
-        self.stop_port_agent()
 
         InstrumentDriverTestCase.tearDown(self)
 
@@ -362,7 +338,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         
         # Verify processes exist.
         self.assertNotEqual(self.driver_process, None)
-        drv_pid = self.driver_process.pid
+        drv_pid = self.driver_process.getpid()
         self.assertTrue(isinstance(drv_pid, int))
         
         self.assertNotEqual(self.port_agent, None)
@@ -408,7 +384,13 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
 class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        cls.init_port_agent()
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.stop_port_agent()
 
     def setUp(self):
         """
@@ -418,15 +400,16 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         InstrumentDriverTestCase.setUp(self)
 
-        self.init_port_agent()
+        self.port_agent = self.test_config.port_agent
 
         self.instrument_agent_manager = InstrumentAgentClient();
-        self.instrument_agent_manager.start_container(deploy_file=self._test_config.container_deploy_file)
+        self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
         self.container = self.instrument_agent_manager.container
+
         self.data_subscribers = InstrumentAgentDataSubscribers(
-            packet_config=self._test_config.instrument_agent_packet_config,
-            encoding=self._test_config.instrument_agent_stream_encoding,
-            stream_definition=self._test_config.instrument_agent_stream_definition
+            packet_config=self.test_config.instrument_agent_packet_config,
+            encoding=self.test_config.instrument_agent_stream_encoding,
+            stream_definition=self.test_config.instrument_agent_stream_definition
         )
         self.event_subscribers = InstrumentAgentEventSubscribers()
 
@@ -437,17 +420,21 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         log.info("Start Instrument Agent Client")
 
         # A callback for processing subscribed-to data.
+        '''
         def consume_data(message, headers):
             log.info('Subscriber received data message: %s.', str(message))
             self.samples_received.append(message)
             if self.no_samples and self.no_samples == len(self.samples_received):
                 self.async_data_result.set()
-
+        '''
         # Driver config
         driver_config = {
-            'dvr_mod' : self._test_config.driver_module,
-            'dvr_cls' : self._test_config.driver_class,
-            'workdir' : self._test_config.working_dir,
+            'dvr_mod' : self.test_config.driver_module,
+            'dvr_cls' : self.test_config.driver_class,
+
+            'process_type' : self.test_config.driver_process_type,
+
+            'workdir' : self.test_config.working_dir,
             'comms_config' : self.port_agent_comm_config()
         }
 
@@ -455,19 +442,19 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         agent_config = {
             'driver_config' : driver_config,
             'stream_config' : self.data_subscribers.stream_config,
-            'agent'         : {'resource_id': self._test_config.instrument_agent_resource_id},
+            'agent'         : {'resource_id': self.test_config.instrument_agent_resource_id},
             'test_mode' : True  ## Enable a poison pill. If the spawning process dies
             ## shutdown the daemon process.
         }
 
         # Start instrument agent client.
         self.instrument_agent_manager.start_client(
-            name=self._test_config.instrument_agent_name,
-            module=self._test_config.instrument_agent_module,
-            cls=self._test_config.instrument_agent_class,
+            name=self.test_config.instrument_agent_name,
+            module=self.test_config.instrument_agent_module,
+            cls=self.test_config.instrument_agent_class,
             config=agent_config,
-            resource_id=self._test_config.instrument_agent_resource_id,
-            deploy_file=self._test_config.container_deploy_file
+            resource_id=self.test_config.instrument_agent_resource_id,
+            deploy_file=self.test_config.container_deploy_file
         )
 
         self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
@@ -479,8 +466,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         log.debug("InstrumentDriverQualificationTestCase tearDown")
         self.instrument_agent_manager.stop_container()
-        self.stop_port_agent()
-
         InstrumentDriverTestCase.tearDown(self)
 
     def test_common_qualification(self):
@@ -566,6 +551,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
+        log.debug("Instrument active.  Verify RQ-634")
 
         cmd = AgentCommand(command='go_inactive')
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -598,6 +584,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.STREAMING)
+        log.debug("Enterered streaming mode. Verify RQ-636")
 
         # Halt streaming.
         cmd = AgentCommand(command='go_observatory')
@@ -607,7 +594,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
 
-        '''
+
         # go direct access
         cmd = AgentCommand(command='go_direct_access',
                            kwargs={'session_type':DirectAccessTypes.telnet,
@@ -624,7 +611,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.DIRECT_ACCESS)
-        '''
+
         # Halt DA.
         cmd = AgentCommand(command='go_observatory')
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -757,41 +744,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         @brief check InstErrorCode for consistency
         """
-        self.assertTrue(check_for_reused_values(InstErrorCode))
-
-
-        # Left over comments
-        # DELAY ENUMERATIONS TEST.
-        # Lets figure out what we want to test here.
-        # We currently do it 2 different ways.
-
-        """
-        @brief This tests the following enumerations have
-               been correctly inherited.
-               https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Agent+Interface
-               * Agent and device enumeration constants
-               X AgentState
-               X AgentEvent
-               G AgentCommand
-               G AgentParameter
-               G AgentStatus
-               G TimeSource
-               G ConnectionMethod
-               G DriverChannel
-               G DriverCommand
-               G DriverState -> DriverProtocolState
-               X DriverEvent
-               G DriverStatus
-               X DriverParameter
-               G DriverAnnouncement
-               G ObservatoryCapability
-               G DriverCapability
-               G InstrumentCapability
-               X InstErrorCode
-               This test is a place holder. The individual tests are broken out below.
-
-        TODO:
-        """
+        self.assertTrue(self.check_for_reused_values(InstErrorCode))
         pass
 
     def test_driver_connection_state_enum(self):
@@ -804,12 +757,267 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # self.assertEqual(TrhphDriverState.DISCONNECTED, DriverConnectionState.DISCONNECTED)
         # self.assertEqual(TrhphDriverState.CONNECTED, DriverConnectionState.CONNECTED)
 
-        self.assertTrue(check_for_reused_values(DriverConnectionState))
+        self.assertTrue(self.check_for_reused_values(DriverConnectionState))
 
     def test_instrument_agent_event_enum(self):
 
-        self.assertTrue(check_for_reused_values(InstrumentAgentEvent))
+        self.assertTrue(self.check_for_reused_values(InstrumentAgentEvent))
 
     def test_instrument_agent_state_enum(self):
 
-        self.assertTrue(check_for_reused_values(InstrumentAgentState))
+        self.assertTrue(self.check_for_reused_values(InstrumentAgentState))
+
+
+    def check_for_reused_values(self, obj):
+        """
+        @author Roger Unwin
+        @brief  verifies that no two definitions resolve to the same value.
+        @returns True if no reused values
+        """
+        match = 0
+        outer_match = 0
+        for i in [v for v in dir(obj) if not callable(getattr(obj,v))]:
+            if i.startswith('_') == False:
+                outer_match = outer_match + 1
+                for j in [x for x in dir(obj) if not callable(getattr(obj,x))]:
+                    if i.startswith('_') == False:
+                        if getattr(obj, i) == getattr(obj, j):
+                            match = match + 1
+                            log.debug(str(i) + " == " + j + " (Looking for reused values)")
+
+        # If this assert fails, then two of the enumerations have an identical value...
+        return match == outer_match
+
+    def test_driver_async_event_enum(self):
+        """
+        @ brief ProtocolState enum test
+
+            1. test that SBE37ProtocolState matches the expected enums from DriverProtocolState.
+            2. test that multiple distinct states do not resolve back to the same string.
+        """
+
+        self.assertTrue(self.check_for_reused_values(DriverAsyncEvent))
+
+    @unittest.skip("Transaction management not yet implemented")
+    def test_transaction_management_messages(self):
+        """
+        @brief This tests the start_transaction and
+               end_transaction methods.
+               https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Agent+Interface#CIADMISVInstrumentAgentInterface-Transactionmanagementmessages
+               * start_transaction(acq_timeout,exp_timeout)
+               * end_transaction(transaction_id)
+               * transaction_id
+
+               See: ion/services/mi/instrument_agent.py
+               UPDATE: stub it out fill in later when its available ... place holder
+        TODO:
+        """
+        pass
+
+    def de_dupe(self, list_in):
+        unique_set = Set(item for item in list_in)
+        return [(item) for item in unique_set]
+
+    def test_driver_notification_messages(self):
+        """
+        @brief This tests event messages from the driver.  The following
+               test moves the IA through all its states.  As it does this,
+               event messages are generated and caught.  These messages
+               are then compared with a list of expected messages to
+               insure that the proper messages have been generated.
+        """
+
+        # Clear off any events from before this test so we have consistent state
+        self._events_received = []
+
+        expected_events = []
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_POWERED_DOWN')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_UNINITIALIZED')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_INACTIVE')
+        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
+        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
+        expected_events.append('New driver state: DRIVER_STATE_UNKNOWN')
+        expected_events.append('New driver configuration:')
+        expected_events.append('New driver state: DRIVER_STATE_COMMAND')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_IDLE')
+        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_INACTIVE')
+        expected_events.append('New driver state: DRIVER_STATE_UNCONFIGURED')
+        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
+        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
+        expected_events.append('New driver state: DRIVER_STATE_UNKNOWN')
+        expected_events.append('New driver configuration:')
+        expected_events.append('New driver state: DRIVER_STATE_COMMAND')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_IDLE')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_OBSERVATORY')
+        expected_events.append('New driver state: DRIVER_STATE_AUTOSAMPLE')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_STREAMING')
+        expected_events.append('New driver configuration:')
+        expected_events.append('New driver state: DRIVER_STATE_COMMAND')
+        expected_events.append('New driver state: DRIVER_STATE_DIRECT_ACCESS')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_DIRECT_ACCESS')
+        expected_events.append('New driver state: DRIVER_STATE_COMMAND')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_OBSERVATORY')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_STOPPED')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_OBSERVATORY')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_IDLE')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_OBSERVATORY')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_STOPPED')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_IDLE')
+        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
+        expected_events.append('New driver state: DRIVER_STATE_UNCONFIGURED')
+        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_UNINITIALIZED')
+
+        cmd = AgentCommand(command='power_down')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='power_up')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='go_inactive')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        # Begin streaming.
+        cmd = AgentCommand(command='go_streaming')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        # Halt streaming.
+        cmd = AgentCommand(command='go_observatory')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        # go direct access
+        cmd = AgentCommand(command='go_direct_access',
+            kwargs={'session_type':DirectAccessTypes.telnet,
+                    #kwargs={'session_type':DirectAccessTypes.vsp,
+                    'session_timeout':600,
+                    'inactivity_timeout':600})
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        log.debug("RETVAL = " + str(retval))
+        # Halt DA.
+        cmd = AgentCommand(command='go_observatory')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='pause')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='resume')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='clear')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='pause')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='clear')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='reset')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        raw_events = []
+        log.warn("ROGER *********************EVENTS " + str(self.event_subscribers.events_received))
+        for x in self.event_subscribers.events_received:
+            if x.description.find("New driver configuration:") >= 0:
+                raw_events.append("New driver configuration:")
+                log.warn("ROGER *********************APPENDING " + "New driver configuration:")
+            else:
+                raw_events.append(str(x.description))
+                log.warn("ROGER *********************APPENDING " + str(x.description))
+        log.debug("raw_events[] = " + str(raw_events))
+        for x in sorted(raw_events):
+            log.debug(str(x) + " ?in (expected_events) = " + str(x in expected_events))
+            self.assertTrue(x in expected_events)
+
+        for x in sorted(expected_events):
+            log.debug(str(x) + " ?in (raw_events) = " + str(x in raw_events))
+            self.assertTrue(x in raw_events)
+
+        # assert we got the expected number of events
+        self.assertEqual(len(self.de_dupe(expected_events)), len(self.de_dupe(raw_events)))
+        # FAIL AssertionError: 37 != 38
+        pass
+
+
+    def test_instrument_driver_to_physical_instrument_interoperability(self):
+        """
+        @Brief this test is the integreation test test_connect
+               but run through the agent.
+
+               On a seabird sbe37 this results in a ds and dc command being sent.
+        """
+
+
+
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        # Test the driver is configured for comms.
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+        pass
+
+    @unittest.skip("Driver.get_device_signature not yet implemented")
+    def test_get_device_signature(self):
+        """
+        @Brief this test will call get_device_signature once that is
+               implemented in the driver
+        """
+        pass
+
+
+    def test_initialize(self):
+        """
+        Test agent initialize command. This causes creation of
+        driver process and transition to inactive.
+        """
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+        cmd = AgentCommand(command='reset')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='get_current_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
