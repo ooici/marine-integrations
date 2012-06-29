@@ -43,13 +43,6 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
-# DHE: replaced these...
-#from ion.idk.metadata import Metadata
-#from ion.idk.comm_config import CommConfig
-#from ion.idk.unit_test import InstrumentDriverTestCase
-#from ion.idk.test.driver_qualification import DriverQualificationTestCase
-#from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreInstrumentProtocol
-# with these.
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
@@ -59,13 +52,13 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.core.log import log
 
 from mi.instrument.satlantic.isusv3.ooicore.driver import State
+from mi.instrument.satlantic.isusv3.ooicore.driver import Parameter
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Event
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Error
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Status
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Prompt
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Channel
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Command
-#from mi.instrument.satlantic.isusv3.ooicore.driver import Parameter
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Capability
 #from mi.instrument.satlantic.isusv3.ooicore.driver import MetadataParameter
 #from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreInstrumentProtocol
@@ -141,6 +134,22 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
 class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
     """Integration Test Container"""
     
+    def assertParamDict(self, pd, all_params=False):
+        """
+        Verify all device parameters exist and are correct type.
+        """
+        if all_params:
+            self.assertEqual(set(pd.keys()), set(PARAMS.keys()))
+            print '-----> DHE: keys: ' +  str(pd.keys())
+            for (key, type_val) in PARAMS.iteritems():
+                print key
+                #self.assertTrue(isinstance(pd[key], type_val))
+        else:
+            for (key, val) in pd.iteritems():
+                self.assertTrue(PARAMS.has_key(key))
+                self.assertTrue(isinstance(val, PARAMS[key]))
+
+
     def test_config(self):
         """
         Test to configure the driver process for device comms and transition
@@ -214,6 +223,56 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
         # Test the driver is in state unconfigured.
         state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+    #@unittest.skip('DHE: TESTTESTTEST')
+    def test_get(self):
+        """
+        Test device parameter access.
+        """
+
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, State.UNCONFIGURED_MODE)
+
+        reply = self.driver_client.cmd_dvr('discover')
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        # Currently using ROOT_MENU as "COMMAND" state
+        #self.assertEqual(state, State.MENU_MODE)
+        self.assertEqual(state, State.ROOT_MENU)
+
+        # Get all device parameters. Confirm all expected keys are retrived
+        # and have correct type.
+        reply = self.driver_client.cmd_dvr('get', Parameter.ALL)
+
+        # DHE TEMPTEMP
+        # This should get the list of all parameters supported by the driver
+        print "DHE: test_driver: reply to Parameter.ALL is: " + str(reply)
+
+        # Now test getting a specific parameter
+        params = [
+            Parameter.BAUDRATE,
+            Parameter.DEPLOYMENT_COUNTER
+        ]
+        reply = self.driver_client.cmd_dvr('get', params)
+
+        # DHE TEMPTEMP
+        #print "DHE: test_driver: reply: " + str(reply)
+
+        #self.assertParamDict(reply, True)
 
 
 
