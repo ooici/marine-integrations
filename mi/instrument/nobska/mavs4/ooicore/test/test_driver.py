@@ -293,11 +293,13 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
     def driver_class():
         return 'mavs4InstrumentDriver'    
     
+
     @unittest.skip("override & skip while in development")
     def test_driver_process(self):
         pass 
+
     
-    def Xtest_instrumment_wakeup(self):
+    def test_instrumment_wakeup(self):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' state
         """

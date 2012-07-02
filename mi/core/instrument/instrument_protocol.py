@@ -437,19 +437,98 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
     """
     
     class MenuTree(object):
-        # nodes is a dictionary of menu tree nodes that each contain directions, which are lists of cmd/response 
-        # pairs that need to be executed in the specified order to get from the root node to the sub-menu node
-        # example;
-        # nodes = {sub_menu1: [["1", "menu1_prompt"],
-        #          sub_menu2: [["1", "menu1_prompt"], ["1", "menu2_prompt"]]
-        #         }
-        _nodes = {}
+        # The _node_directions variable is a dictionary of menu sub-menus keyed by the sub-menu's name.
+        # Each sub-menu entry contains a list of directions, which are either cmd/response pairs or 
+        # sub_menu names. These commands need to be executed in the specified order to get from the root menu
+        # to the sub-menu.
+        # example:
+        #
+        # for these enumerations:
+        #
+        # class SubMenues(BaseEnum):
+        #     SUB_MENU1 = 'sub_menu1'
+        #     SUB_MENU2 = 'sub_menu2'
+        #     SUB_MENU3 = 'sub_menu3'
+        #     SUB_MENU4 = 'sub_menu4'
+        #
+        # class InstrumentPrompts(BaseEnum):
+        #     MAIN_MENU = '\a\b ? \a\b'
+        #     SUB_MENU1  = '\a\b 1'
+        #     SUB_MENU2  = '\a\b 2'
+        #     SUB_MENU3  = '\a\b 3'
+        #     SUB_MENU4  = '\a\b 4'
+        #
+        # the instance creation could look like:
+        #
+        # Directions = MenuInstrumentProtocol.MenuTree.Directions
+        #
+        # menu = MenuInstrumentProtocol.MenuTree({
+        #    SubMenues.SUB_MENU1   : [Directions("1", InstrumentPrompts.SUB_MENU1)],
+        #    SubMenues.SUB_MENU2   : [Directions("2", InstrumentPrompts.SUB_MENU2)],
+        #    SubMenues.SUB_MENU3   : [Directions(SubMenues.SUB_MENU2),
+        #                            Directions("2", InstrumentPrompts.SUB_MENU3)],
+        #    SubMenues.SUB_MENU4   : [Directions(SubMenues.SUB_MENU3),
+        #                            Directions("d", InstrumentPrompts.SUB_MENU4)]
+        #    })
+        #
+        # After passing the menu into the constructor via:
+        # MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event)
+        #
+        # directions can be retrieved for a sub-menu using:
+        #
+        # directions_list = self._menu.get_directions(SubMenues.SUB_MENU4)
+        #
+        # which should return a list of Directions objects which can be used to walk from
+        # the root menu to the sub-menu as follows:
+        #
+        # for directions in directions_list:
+        #     command = directions.get_command()
+        #     response = directions.get_response()
+        #     do_cmd_reponse(command, expected_prompt = response)
         
-        def __init__(self, nodes):
-            self._nodes = nodes
+
+        class Directions(object):
+            def __init__(self, command = None, response = None):
+                if command == None:
+                    raise InstrumentProtocolException('MenuTree.Directions(): command parameter missing')                
+                self.command = command
+                self.response = response
+                
+            def __str__(self):
+                return "command=%s, response=%s" %(repr(self.command), repr(self.response))
+            
+            def get_command(self):
+                return self.command
+            
+            def get_response(self):
+                return self.response
+                
+        _node_directions = {}
+        
+        def __init__(self, node_directions):
+            if not isinstance(node_directions, dict):
+                raise InstrumentProtocolException('MenuTree.__init__(): node_directions parameter not a dictionary')                
+            self._node_directions = node_directions
             
         def get_directions(self, node):
-            return self._nodes[node]
+            try:
+                directions_list = self._node_directions[node]
+            except:
+                raise InstrumentProtocolException('MenuTree.get_directions(): node %s not in _node_directions dictionary'
+                                                  %str(node))                
+            log.debug("################################# MenuTree.get_directions(): _node_directions = %s, node = %s, d_list = %s" 
+                      %(str(self._node_directions), str(node), str(directions_list)))
+            directions = []
+            for item in directions_list:
+                if not isinstance(item, self.Directions):
+                    raise InstrumentProtocolException('MenuTree.get_directions(): item %s in directions list not a Directions object'
+                                                      %str(item))                
+                if item.response != None:
+                    directions.append(item)
+                else:
+                    directions += self.get_directions(item.command)
+            return directions
+        
            
     def __init__(self, menu, prompts, newline, driver_event):
         """

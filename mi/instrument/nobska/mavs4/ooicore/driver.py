@@ -22,7 +22,7 @@ import datetime
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_driver import DriverParameter
 
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -113,6 +113,17 @@ class Capability(BaseEnum):
 class Status(BaseEnum):
     pass
 
+class SubMenues(BaseEnum):
+    SET_TIME    = 'set_time'
+    FLASH_CARD  = 'flash_card'
+    CALIBRATION = 'calibration'
+    SLEEP       = 'sleep'
+    BENCH_TESTS = 'bench_tests'
+    DEPLOY      = 'deploy'
+    OFFLOAD     = 'offload'
+    PICO_DOS    = 'pico_dos'
+    DUMMY       = 'dummy'
+
 # Packet config for MAVS-4 data granules.
 # TODO: set this up for MAVS-4
 PACKET_CONFIG = {
@@ -156,7 +167,7 @@ class mavs4InstrumentDriver(SingleConnectionInstrumentDriver):
 ###
 #   Protocol for mavs4
 ###
-class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
+class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     """
     The protocol is a very simple command/response protocol with a few show
     commands and a few set commands.
@@ -165,7 +176,22 @@ class mavs4InstrumentProtocol(CommandResponseInstrumentProtocol):
     def __init__(self, prompts, newline, driver_event):
         """
         """
-        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+        Directions = MenuInstrumentProtocol.MenuTree.Directions
+        menu = MenuInstrumentProtocol.MenuTree({
+            SubMenues.SET_TIME   : [Directions("1", InstrumentPrompts.SUB_MENU+'set_time')],
+            SubMenues.FLASH_CARD : [Directions("2", InstrumentPrompts.SUB_MENU+'flash_card')],
+            SubMenues.PICO_DOS   : [Directions(SubMenues.FLASH_CARD),
+                                    Directions("2", InstrumentPrompts.SUB_MENU+'pico_dos')],
+            SubMenues.DUMMY      : [Directions(SubMenues.PICO_DOS),
+                                    Directions("d", InstrumentPrompts.SUB_MENU+'dummy')]
+            })
+        
+        MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event)
+        
+        directions = self._menu.get_directions(SubMenues.DUMMY)
+        log.debug("################################# directions to DUMMY sub-menu are:")
+        for d in directions:
+            log.debug("%s" %str(d))
         
         self._protocol_fsm = InstrumentFSM(ProtocolStates, 
                                            ProtocolEvents, 
