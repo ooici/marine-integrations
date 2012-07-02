@@ -29,6 +29,11 @@ from mi.core.exceptions import InstrumentTimeoutException
 import logging
 from mi.core.mi_logger import mi_logger as log
 
+# init log configuration
+from mi.core.log import LoggerManager
+LoggerManager().init()
+
+
 ####################################################################
 # Module-wide values
 ####################################################################
