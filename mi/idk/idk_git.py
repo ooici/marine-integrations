@@ -12,7 +12,7 @@ from os import environ
 from git import LocalRepository
 from git.exceptions import GitCommandFailedException
 
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.config import Config
 
 from mi.idk.exceptions import InvalidGitRepo

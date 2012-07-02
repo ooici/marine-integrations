@@ -15,7 +15,7 @@ import errno
 
 import yaml
 
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 from mi.idk.config import Config
 from mi.idk import prompt

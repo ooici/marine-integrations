@@ -26,7 +26,7 @@ __license__ = 'Apache 2.0'
 
 from nose.plugins.attrib import attr
 
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase

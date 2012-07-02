@@ -9,7 +9,7 @@ import re
 import time
 import gevent
 
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.comm_config import CommConfig

@@ -21,7 +21,7 @@ import yaml
 
 from mi.idk.config import Config
 from mi.idk.metadata import Metadata
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 from mi.idk.exceptions import DriverParameterUndefined
 from mi.idk.exceptions import MissingTemplate

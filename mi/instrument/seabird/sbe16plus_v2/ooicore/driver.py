@@ -30,6 +30,11 @@ from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
 
+# init log configuration
+from mi.core.log import LoggerManager
+LoggerManager().init()
+
+
 #import ion.services.mi.mi_logger
 mi_logger = logging.getLogger('mi_logger')
 

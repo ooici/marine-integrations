@@ -30,6 +30,10 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentDataException
 
+# init log configuration
+from mi.core.log import LoggerManager
+LoggerManager().init()
+
 mi_logger = logging.getLogger('mi_logger')
 
 ####################################################################
