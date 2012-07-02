@@ -99,7 +99,6 @@ class InstrumentProtocol(object):
     ########################################################################
     # Static helpers to build commands.
     ########################################################################
-    @staticmethod
     def _build_simple_command(self, cmd, *args):
         """
         Builder for simple commands
@@ -110,7 +109,6 @@ class InstrumentProtocol(object):
         """
         return "%s%s" % (cmd, self.eoln)
     
-    @staticmethod
     def _build_keypress_command(self, cmd, *args):
         """
         Builder for simple, non-EOLN-terminated commands
@@ -121,7 +119,6 @@ class InstrumentProtocol(object):
         """
         return "%s" % (cmd)
     
-    @staticmethod
     def _build_multi_keypress_command(self, cmd, *args):
         """
         Builder for simple, non-EOLN-terminated commands
@@ -542,4 +539,164 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Construct superclass.
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
         self._menu = menu
+
+        # The end of line delimiter.                
+        self._newline = newline
+    
+        # Class of prompts used by device.
+        self._prompts = prompts
+    
+        # Linebuffer for input from device.
+        self._linebuf = ''
+        
+        # Short buffer to look for prompts from device in command-response
+        # mode.
+        self._promptbuf = ''
+        
+        # Lines of data awaiting further processing.
+        self._datalines = []
+
+        # Handlers to build commands.
+        self._build_handlers = {}
+
+        # Handlers to parse responses.
+        self._response_handlers = {}
+
+        self._last_data_receive_timestamp = None
+        
+    # DHE Added
+    def _get_response(self, timeout=10, expected_prompt=None):
+        """
+        Get a response from the instrument
+        @todo Consider cases with no prompt
+        @param timeout The timeout in seconds
+        @param expected_prompt Only consider the specific expected prompt as
+        presented by this string
+        @throw InstrumentProtocolExecption on timeout
+        """
+        # Grab time for timeout and wait for prompt.
+        starttime = time.time()
+                
+        if expected_prompt == None:
+            prompt_list = self._prompts.list()
+        else:
+            assert isinstance(expected_prompt, str)
+            prompt_list = [expected_prompt]            
+        while True:
+            for item in prompt_list:
+                if self._promptbuf.endswith(item):
+                    return (item, self._linebuf)
+                else:
+                    time.sleep(.1)
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException()
+               
+    # DHE Added
+    def _navigate_and_execute(self, cmd, *args, **kwargs):
+        """
+        Navigate to a sub-menu and execute a command.  
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup and command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the reponse did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
+        
+        # Get timeout and initialize response.
+        timeout = kwargs.get('timeout', 10)
+        expected_prompt = kwargs.get('expected_prompt', None)
+        write_delay = kwargs.get('write_delay', 0)
+        retval = None
+        
+        # Get the build handler.
+        build_handler = self._build_handlers.get(cmd, None)
+        if not build_handler:
+            raise InstrumentProtocolException('Cannot build command: %s' % cmd)
+        
+        cmd_line = build_handler(cmd, *args)
+        
+        # Clear line and prompt buffers for result.
+        self._linebuf = ''
+        self._promptbuf = ''
+
+        log.debug('_navigate_and_execute: %s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
+                        (repr(cmd_line), timeout, write_delay, expected_prompt))
+
+        #
+        # iterate through the path, reading results until we get to the end of the path, 
+        # at which point we should be at the submenu we need.
+        #
+        dict_element = self._param_dict.get_menu_path_read('BAUDRATE')
+        for (command, response) in dict_element:
+            log.debug('_navigate_and_execute: intermediate command: %s, expected response: %s' % 
+                (command, response))
+            self._do_cmd_resp(command, expected_prompt = response)
+
+        (final_command, response) = self._param_dict.get_submenu_read('BAUDRATE')
+        print "final_command is: " + final_command
+        resp_result = self._do_cmd_resp(final_command)
+ 
+        return resp_result
+
+    def _do_cmd_resp(self, cmd, *args, **kwargs):
+        """
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup and command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the reponse did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
+
+        # Get timeout and initialize response.
+        timeout = kwargs.get('timeout', 10)
+        expected_prompt = kwargs.get('expected_prompt', None)
+        write_delay = kwargs.get('write_delay', 0)
+        retval = None
+
+        # Get the build handler.
+        build_handler = self._build_handlers.get(cmd, None)
+        if not build_handler:
+            raise InstrumentProtocolException('Cannot build command: %s' % cmd)
+
+        cmd_line = build_handler(cmd, *args)
+
+        # Clear line and prompt buffers for result.
+        self._linebuf = ''
+        self._promptbuf = ''
+
+        # Send command.
+        log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
+                        (repr(cmd_line), timeout, write_delay, expected_prompt))
+        if (write_delay == 0):
+            self._connection.send(cmd_line)
+        else:
+            for char in cmd_line:
+                self._connection.send(char)
+                time.sleep(write_delay)
+
+        # Wait for the prompt, prepare result and return, timeout exception
+        (prompt, result) = self._get_response(timeout,
+                                              expected_prompt=expected_prompt)
+        resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
+            self._response_handlers.get(cmd, None)
+        resp_result = None
+        if resp_handler:
+            resp_result = resp_handler(result, prompt)
+
+        return resp_result
+
+    def got_data(self, data):
+        """
+        Called by the instrument connection when data is available.
+        Append line and prompt buffers. Extended by device specific
+        subclasses.
+        """
+        self._linebuf += data        
+        self._promptbuf += data
+        self._last_data_timestamp = time.time()    
 
