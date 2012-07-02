@@ -21,7 +21,10 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 
-from mi.core.log import log
+# init log configuration
+from mi.core.log import LoggerManager, get_logger
+LoggerManager().init()
+log = get_logger()
 
 
 # newline.
