@@ -21,7 +21,7 @@ import time
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 class DriverProcess(object):
     """

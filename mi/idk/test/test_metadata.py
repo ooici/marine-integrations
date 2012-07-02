@@ -19,7 +19,7 @@ from nose.plugins.attrib import attr
 from mock import Mock
 import unittest
 
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.metadata import Metadata
 
 from mi.idk.exceptions import InvalidParameters

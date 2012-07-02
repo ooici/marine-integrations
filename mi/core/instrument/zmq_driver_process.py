@@ -29,7 +29,7 @@ import zmq
 
 import mi.core.instrument.driver_process as driver_process
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 class ZmqDriverProcess(driver_process.DriverProcess):
     """

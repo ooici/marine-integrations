@@ -44,7 +44,7 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 # MI logger
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 # Make tests verbose and provide stdout
 # Note: currently the inheritance chain is backwards, so we're doing this:
