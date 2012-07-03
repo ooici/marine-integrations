@@ -18,7 +18,8 @@ import signal
 import os
 import sys
 import time
-from mi.core.exceptions import InstrumentCommandException
+import traceback
+from mi.core.exceptions import InstrumentException, InstrumentCommandException
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
 from mi.core.log import log
@@ -160,6 +161,10 @@ class DriverProcess(object):
                     'time' : time.time()
                 }
                 self.send_event(event)
+                if not isinstance(e, InstrumentException):
+                    trace = traceback.format_exc()
+                    log.critical("Python error, Trace follows: \n%s" %trace)
+                
                 
         else:
             reply = InstrumentCommandException('Unknown driver command.')
