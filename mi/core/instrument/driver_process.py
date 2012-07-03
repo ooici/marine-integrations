@@ -22,7 +22,8 @@ import traceback
 from mi.core.exceptions import InstrumentException, InstrumentCommandException
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
-from mi.core.log import log
+from mi.core.log import get_logger
+log = get_logger()
 
 class DriverProcess(object):
     """
@@ -190,7 +191,10 @@ class DriverProcess(object):
         Periodically check messaging is going and parent exists if
         specified.
         """
-        
+
+        from mi.core.log import LoggerManager
+        LoggerManager()
+
         log.info('Driver process started.')
         
         def shand(signum, frame):

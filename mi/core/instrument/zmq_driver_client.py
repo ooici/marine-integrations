@@ -27,7 +27,7 @@ import time
 import zmq
 
 from mi.core.instrument.driver_client import DriverClient
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
  
 class ZmqDriverClient(DriverClient):

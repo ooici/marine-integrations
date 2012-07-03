@@ -30,8 +30,8 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
-
-from mi.core.log import log
+from mi.core.log import get_logger
+log = get_logger()
 
 class SBE37ProtocolState(BaseEnum):
     """

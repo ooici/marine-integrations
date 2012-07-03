@@ -8,7 +8,7 @@ import shlex
 import subprocess
 
 from mi.idk.config import Config
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 def launch_data_monitor(filename, launch_options = ''):
     """

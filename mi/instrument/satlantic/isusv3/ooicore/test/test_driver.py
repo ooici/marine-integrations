@@ -49,10 +49,11 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 # MI logger
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 from mi.instrument.satlantic.isusv3.ooicore.driver import State
 from mi.instrument.satlantic.isusv3.ooicore.driver import Parameter
+from mi.instrument.satlantic.isusv3.ooicore.driver import PACKET_CONFIG
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Event
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Error
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Status
@@ -95,7 +96,7 @@ InstrumentDriverTestCase.initialize(
 
     instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'Agent007',
-    #instrument_agent_packet_config = PACKET_CONFIG,
+    instrument_agent_packet_config = PACKET_CONFIG,
     instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
 )
 
@@ -150,7 +151,7 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
                 self.assertTrue(isinstance(val, PARAMS[key]))
 
 
-    def test_config(self):
+    def test_isus_config(self):
         """
         Test to configure the driver process for device comms and transition
         to disconnected state.

@@ -43,15 +43,23 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 
+from mi.core.log import get_logger
+log = get_logger()
+
 ###
 #   Module wide values
 ###
-log = logging.getLogger('mi_logger')
 INSTRUMENT_NEWLINE = '\n'
 WRITE_DELAY = 0
 RESET_DELAY = 25
 #EOLN = "\r\n"
 EOLN = "\n"
+
+# Packet config for ISUSV3 data granules.
+PACKET_CONFIG = {
+        'ctd_parsed' : ('prototype.sci_data.stream_defs', 'ctd_stream_packet'),
+        'ctd_raw' : None
+}
 
 # @todo May need some regex(s) for data format returned...at least to confirm
 # that it is data.
@@ -292,6 +300,12 @@ class Status(BaseEnum):
 class ooicoreParameter():
     """
     """
+class SubMenues(BaseEnum):
+    CONFIG_MENU = 'config_menu'
+    SHOW_CONFIG_MENU = 'show_config_menu'
+
+class InstrumentPrompts(BaseEnum):
+    MAIN_MENU = "ISUS> [H] ?"
 
 ###
 #   Protocol for ooicore
@@ -305,11 +319,22 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
     def __init__(self, prompts, newline, driver_event):
         """
         """
-        MenuInstrumentProtocol.__init__(self, prompts, newline, driver_event) 
+        MenuInstrumentProtocol.__init__(self, 'placeholder', prompts, newline, driver_event) 
         self.write_delay = WRITE_DELAY
         self._last_data_timestamp = None
         self.eoln = EOLN
         
+        print "---__---__---DHE: getting directions" 
+        directions = self.MenuTree.Directions
+
+        menu = self.MenuTree({
+            SubMenues.CONFIG_MENU: [directions(Event.CONFIG_MENU, Prompt.CONFIG_MENU)],
+            SubMenues.SHOW_CONFIG_MENU: [directions(SubMenues.CONFIG_MENU),
+                                        directions(Event.SHOW_CONFIG, Prompt.CONFIG_MENU)]
+        })
+
+        self._menu = menu
+
         ##### Setup the state machine
         self._protocol_fsm = InstrumentFSM(State, Event, Event.ENTER, Event.EXIT)
         
@@ -644,7 +669,7 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         # Not sure what this was for. 
         #self.get_config()
 
-        self._navigate_and_execute(Event.CONFIG_MENU, 5)
+        self._navigate_and_execute(Event.CONFIG_MENU, dest_submenu=SubMenues.SHOW_CONFIG_MENU, timeout=5)
 
         new_config = self._param_dict.get_config()            
         if (new_config != old_config) and (None not in old_config.values()):
@@ -717,6 +742,14 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
             #        for line in lines:
             #            self._extract_sample(line)
 
+
+    #
+    # DHE ADDED
+    #
+    def _go_home(self):
+        """
+        Determine if we're at home (root-menu); if not, iterate sending 'Q' (quit) until we get there.
+        """
 
     def _build_param_dict(self):
         """

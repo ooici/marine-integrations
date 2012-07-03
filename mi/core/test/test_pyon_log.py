@@ -8,9 +8,9 @@ from os import makedirs
 from os.path import exists
 import sys
 
-from mi.core.log import log as pyon_log
-from mi.core.log import log, log_manager
-from mi.core.log import log as pyon_log
+from mi.core.log import get_logger ; log = get_logger() as pyon_log
+from mi.core.log import get_logger ; log = get_logger(), log_manager
+from mi.core.log import get_logger ; log = get_logger() as pyon_log
 
 from mi.core.test.log_class import debug
 
