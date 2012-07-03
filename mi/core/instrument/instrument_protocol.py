@@ -604,6 +604,12 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         was not recognized.
         """
         
+        # Get dest_submenu arg
+        dest_submenu = kwargs.get('dest_submenu', None)
+        if dest_submenu == None:
+            raise InstrumentProtocolException('_navigate_and_execute(): dest_submenu parameter missing')
+
+        
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', 10)
         expected_prompt = kwargs.get('expected_prompt', None)
@@ -624,19 +630,14 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         log.debug('_navigate_and_execute: %s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
                         (repr(cmd_line), timeout, write_delay, expected_prompt))
 
-        #
-        # iterate through the path, reading results until we get to the end of the path, 
-        # at which point we should be at the submenu we need.
-        #
-        dict_element = self._param_dict.get_menu_path_read('BAUDRATE')
-        for (command, response) in dict_element:
-            log.debug('_navigate_and_execute: intermediate command: %s, expected response: %s' % 
-                (command, response))
-            self._do_cmd_resp(command, expected_prompt = response)
+        # iterate through the directions 
+        directions_list = self._menu.get_directions(dest_submenu)
+        for directions in directions_list:
+            command = directions.get_command()
+            response = directions.get_response()
+            resp_result = self._do_cmd_resp(command, expected_prompt = response)
 
-        (final_command, response) = self._param_dict.get_submenu_read('BAUDRATE')
-        print "final_command is: " + final_command
-        resp_result = self._do_cmd_resp(final_command)
+
  
         return resp_result
 
