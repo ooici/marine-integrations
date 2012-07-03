@@ -124,6 +124,7 @@ class Event(BaseEnum):
     """
     
     # Menu and operation commands
+    QUIT_CMD = 'Q'
     GO_CMD = 'G'
     STOP_CMD = 'S'
     MENU_CMD = 'M'
@@ -319,12 +320,6 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
     def __init__(self, prompts, newline, driver_event):
         """
         """
-        MenuInstrumentProtocol.__init__(self, 'placeholder', prompts, newline, driver_event) 
-        self.write_delay = WRITE_DELAY
-        self._last_data_timestamp = None
-        self.eoln = EOLN
-        
-        print "---__---__---DHE: getting directions" 
         directions = self.MenuTree.Directions
 
         menu = self.MenuTree({
@@ -332,8 +327,11 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
             SubMenues.SHOW_CONFIG_MENU: [directions(SubMenues.CONFIG_MENU)]
         })
 
-        self._menu = menu
-
+        MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event) 
+        self.write_delay = WRITE_DELAY
+        self._last_data_timestamp = None
+        self.eoln = EOLN
+        
         ##### Setup the state machine
         self._protocol_fsm = InstrumentFSM(State, Event, Event.ENTER, Event.EXIT)
         
@@ -441,25 +439,13 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         next_state = None
         result = None
 
-        timeout = 10
-        prompt = self._wakeup(timeout)
-        prompt = self._wakeup(timeout)
-
-        if Prompt.ROOT_MENU in prompt:
-            """
-            DHE: This state transition was to MENU_MODE, which is an alias for
-            COMMAND_MODE, which I think is a required instrument driver state.
-            However, Steve had no state handlers for that state, nor do I see
-            how he was expecting to reconcile COMMAND_MODE with the ROOT_MENU
-            handlers.  For now, I'm going to use ROOT_MENU as the basic "command
-            mode" and maybe rename it to COMMAND_MODE or MENU_MODE (alias).
-            """
-            #next_state = State.MENU_MODE
-            #result = State.MENU_MODE
+        try:
+            self._go_to_root_menu()
+        except InstrumentTimeoutException:
+            raise InstrumentProtocolException('Instrument timed out going to root menu.')
+        else:
             next_state = State.ROOT_MENU
             result = State.ROOT_MENU
-        else:
-            raise InstrumentProtocolException('Failure to recognzie device state.')
         
         return (next_state, result)
 
@@ -668,8 +654,9 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         # Not sure what this was for. 
         #self.get_config()
 
-        #self._navigate_and_execute(Event.CONFIG_MENU, dest_submenu=SubMenues.SHOW_CONFIG_MENU, timeout=5)
+        self._go_to_root_menu()
         self._navigate_and_execute(Event.SHOW_CONFIG, dest_submenu=SubMenues.SHOW_CONFIG_MENU, timeout=5)
+        self._go_to_root_menu()
 
         new_config = self._param_dict.get_config()            
         if (new_config != old_config) and (None not in old_config.values()):
@@ -683,6 +670,10 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         @param delay The time to wait between consecutive wakeups.
         @throw InstrumentTimeoutException if the device could not be woken.
         """
+        #
+        # DHE: This doesn't seem very efficient...seems like there should be an expected response optional
+        # kwarg so that we don't have to iterate through all the prompts in self._prompts
+        #
         # Clear the prompt buffer.
         self._promptbuf = ''
 
@@ -746,10 +737,39 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
     #
     # DHE ADDED
     #
-    def _go_home(self):
+    def _go_to_root_menu(self):
         """
         Determine if we're at home (root-menu); if not, iterate sending 'Q' (quit) until we get there.
         """
+        """
+        Clear buffers and send a wakeup command to the instrument
+        @throw InstrumentTimeoutException if the device does not get to root.
+        """
+        #
+        # DHE: This doesn't seem very efficient...seems like there should be an expected response optional
+        # kwarg so that we don't have to iterate through all the prompts in self._prompts
+        #
+
+        timeout = 10
+        delay = 1
+        prompt = self._wakeup(timeout)
+
+        # Grab time for timeout.
+        starttime = time.time()
+
+        while Prompt.ROOT_MENU not in self._promptbuf:
+            # Clear the prompt buffer.
+            self._promptbuf = ''
+
+            # Send a quit  
+            log.debug('======DHE: Sending quit.')
+
+            self._connection.send(Event.QUIT_CMD + self.eoln)
+            time.sleep(delay)
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException()
+
 
     def _build_param_dict(self):
         """
