@@ -177,23 +177,20 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def __init__(self, prompts, newline, driver_event):
         """
         """
+        # create short alias for Directions class
         Directions = MenuInstrumentProtocol.MenuTree.Directions
+        
+        # create MenuTree object
         menu = MenuInstrumentProtocol.MenuTree({
-            SubMenues.SET_TIME   : [Directions("1", InstrumentPrompts.SUB_MENU+'set_time')],
-            SubMenues.FLASH_CARD : [Directions("2", InstrumentPrompts.SUB_MENU+'flash_card')],
+            SubMenues.SET_TIME   : [Directions("1", InstrumentPrompts.SUB_MENU)],
+            SubMenues.FLASH_CARD : [Directions("2", InstrumentPrompts.SUB_MENU)],
+            SubMenues.DEPLOY     : [Directions("6", InstrumentPrompts.SUB_MENU)],
             SubMenues.PICO_DOS   : [Directions(SubMenues.FLASH_CARD),
-                                    Directions("2", InstrumentPrompts.SUB_MENU+'pico_dos')],
-            SubMenues.DUMMY      : [Directions(SubMenues.PICO_DOS),
-                                    Directions("d", InstrumentPrompts.SUB_MENU+'dummy')]
+                                    Directions("2", InstrumentPrompts.SUB_MENU)]
             })
         
         MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event)
-        
-        directions = self._menu.get_directions(SubMenues.DUMMY)
-        log.debug("################################# directions to DUMMY sub-menu are:")
-        for d in directions:
-            log.debug("%s" %str(d))
-        
+                
         self._protocol_fsm = InstrumentFSM(ProtocolStates, 
                                            ProtocolEvents, 
                                            ProtocolEvents.ENTER,

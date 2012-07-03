@@ -24,6 +24,7 @@ from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import NotImplementedException 
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -599,7 +600,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param args positional arguments to pass to the build handler.
         @param timeout=timeout optional wakeup and command timeout.
         @retval resp_result The (possibly parsed) response result.
-        @raises InstrumentTimeoutException if the reponse did not occur in time.
+        @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
@@ -648,7 +649,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param args positional arguments to pass to the build handler.
         @param timeout=timeout optional wakeup and command timeout.
         @retval resp_result The (possibly parsed) response result.
-        @raises InstrumentTimeoutException if the reponse did not occur in time.
+        @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
@@ -690,6 +691,13 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             resp_result = resp_handler(result, prompt)
 
         return resp_result
+    
+    def _go_to_root_menu(self):
+        """
+        This method needs to be implemented for each instrument.  It performs the commands that 
+        returns the instrument to its root menu
+        """
+        raise NotImplementedException('_go_to_root_menu() not implemented.')
 
     def got_data(self, data):
         """
