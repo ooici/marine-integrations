@@ -30,7 +30,7 @@ import mi.core.common
 from mi.idk.exceptions import IDKWrongRunningDirectory
 from mi.idk.exceptions import WorkingRepoNotSet
 
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.common import Singleton
 
 ####

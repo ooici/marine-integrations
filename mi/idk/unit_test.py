@@ -7,7 +7,7 @@
 """
 
 # Import pyon first for monkey patching.
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 import re
 import os
@@ -54,7 +54,7 @@ from interface.services.dm.ipubsub_management_service import PubsubManagementSer
 from pyon.public import StreamSubscriberRegistrar
 from pyon.event.event import EventSubscriber, EventPublisher
 
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 from interface.services.icontainer_agent import ContainerAgentClient
 from pyon.agent.agent import ResourceAgentClient
 

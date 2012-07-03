@@ -8,7 +8,7 @@ from os import makedirs
 from os.path import exists
 import sys
 
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 from nose.plugins.attrib import attr
 from mock import Mock

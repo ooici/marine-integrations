@@ -128,7 +128,7 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 # MI logger
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 from interface.objects import AgentCommand
 
 from ion.agents.instrument.instrument_agent import InstrumentAgentState

@@ -43,10 +43,12 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 
+from mi.core.log import get_logger
+log = get_logger()
+
 ###
 #   Module wide values
 ###
-log = logging.getLogger('mi_logger')
 INSTRUMENT_NEWLINE = '\n'
 WRITE_DELAY = 0
 RESET_DELAY = 25

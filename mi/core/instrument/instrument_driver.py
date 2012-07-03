@@ -20,7 +20,8 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.logger_client import LoggerClient
 
-from mi.core.log import log
+from mi.core.log import get_logger,LoggerManager
+log = get_logger()
 
 class DriverState(BaseEnum):
     """Common driver state enum"""
@@ -115,6 +116,7 @@ class InstrumentDriver(object):
         @param event_callback The driver process callback used to send
         asynchrous driver events to the agent.
         """
+        LoggerManager()
         self._send_event = event_callback
 
     #############################################################

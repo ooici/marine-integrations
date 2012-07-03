@@ -32,7 +32,7 @@ import yaml
 
 from mi.idk import prompt
 from mi.idk.config import Config
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 from mi.idk.exceptions import DriverParameterUndefined
 from mi.idk.exceptions import NoConfigFileSpecified

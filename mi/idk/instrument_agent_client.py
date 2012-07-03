@@ -17,7 +17,7 @@ from gevent import spawn
 from gevent.event import AsyncResult
 import gevent
 
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 from mi.idk.config import Config
 

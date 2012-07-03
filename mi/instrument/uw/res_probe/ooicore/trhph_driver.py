@@ -37,8 +37,11 @@ from mi.core.exceptions import InstrumentTimeoutException
 import time
 
 import logging
-from mi.core.mi_logger import mi_logger
-log = mi_logger
+#from mi.core.mi_logger import mi_logger
+
+# init log configuration
+from mi.core.log import get_logger
+log = get_logger()
 
 # TODO define Packet config for TRHPH data granules.
 PACKET_CONFIG = {}

@@ -21,7 +21,7 @@ from mock import Mock
 import unittest
 from time import sleep
 
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 #from mi.core.log import log
 from mi.idk.metadata import Metadata
 from mi.idk.driver_generator import DriverGenerator
