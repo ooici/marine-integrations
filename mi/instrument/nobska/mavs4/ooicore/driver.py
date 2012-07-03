@@ -31,11 +31,8 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
 
-from mi.core.log import get_logger ; log = get_logger()
-
-# init log configuration
-from mi.core.log import LoggerManager
-LoggerManager().init()
+from mi.core.log import get_logger
+log = get_logger()
 
 ###
 #   Module wide values

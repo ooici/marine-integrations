@@ -40,8 +40,7 @@ import logging
 #from mi.core.mi_logger import mi_logger
 
 # init log configuration
-from mi.core.log import LoggerManager, get_logger
-LoggerManager().init()
+from mi.core.log import get_logger
 log = get_logger()
 
 # TODO define Packet config for TRHPH data granules.

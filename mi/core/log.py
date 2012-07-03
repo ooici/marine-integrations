@@ -54,7 +54,7 @@ class LoggerConfig(object):
        but separate overrides can be created by using two files if needed).
     """
     def __init__(self):
-        primary_config = self.read_file('mi-logging.yml') or self.read_resource('config/logging.yml')
+        primary_config = self.read_file('mi-logging.yml') or self.read_resource('../../config/logging.yml')
         local_override = self.read_file('mi-logging.local.yml') or self.read_file('logging.local.yml')
         self.config = Config(content = [primary_config, local_override]).as_dict()
         self.init_logging()
@@ -64,6 +64,7 @@ class LoggerConfig(object):
             return resource_string(__name__, resource_name)
         except IOError, e:
             if e.errno != errno.ENOENT:
+                # can't use logging yet!
                 print 'WARNING: error reading logging configuration resource ' + resource_name + ': ' + str(e)
         return None
 
@@ -73,6 +74,7 @@ class LoggerConfig(object):
                 return infile.read()
         except IOError, e:
             if e.errno != errno.ENOENT:
+                # can't use logging yet!
                 print 'WARNING: error reading logging configuration file ' + filename + ': ' + str(e)
         return None
 
@@ -83,7 +85,7 @@ class LoggerConfig(object):
             # Ensure the logging directories exist
             for handler in self.config.get('handlers', {}).itervalues():
                 if 'filename' in handler:
-                    log_dir = os.path.dirname(handler['filename'])
+                    log_dir = os.path.abspath(os.path.dirname(handler['filename']))
                     if not os.path.exists(log_dir):
                         os.makedirs(log_dir)
 
@@ -136,12 +138,14 @@ def remove_syspath(file):
 _log = logging.getLogger(__name__)
 
 def get_logger():
-    for f in traceback.extract_stack(limit=4):
+    # find last frame in stack...
+    stack = traceback.extract_stack(limit=4)
+    for f in reversed(stack):
         file = f[0]
         module = remove_syspath(file).replace('/','.')
         if module.endswith('.py'):
             module = module[:-3]
-        # first entry in stack that isn't a logging module should be the caller
+        # ...that isn't part of the logging framework
         if not (module.endswith(__name__) or module=='pyon.util.log'):
             return logging.getLogger(module)
 

@@ -43,9 +43,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 
-# init log configuration
-from mi.core.log import LoggerManager, get_logger
-LoggerManager().init()
+from mi.core.log import get_logger
 log = get_logger()
 
 ###
