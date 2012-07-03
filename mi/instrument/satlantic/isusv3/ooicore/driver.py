@@ -329,8 +329,7 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
 
         menu = self.MenuTree({
             SubMenues.CONFIG_MENU: [directions(Event.CONFIG_MENU, Prompt.CONFIG_MENU)],
-            SubMenues.SHOW_CONFIG_MENU: [directions(SubMenues.CONFIG_MENU),
-                                        directions(Event.SHOW_CONFIG, Prompt.CONFIG_MENU)]
+            SubMenues.SHOW_CONFIG_MENU: [directions(SubMenues.CONFIG_MENU)]
         })
 
         self._menu = menu
@@ -669,7 +668,8 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         # Not sure what this was for. 
         #self.get_config()
 
-        self._navigate_and_execute(Event.CONFIG_MENU, dest_submenu=SubMenues.SHOW_CONFIG_MENU, timeout=5)
+        #self._navigate_and_execute(Event.CONFIG_MENU, dest_submenu=SubMenues.SHOW_CONFIG_MENU, timeout=5)
+        self._navigate_and_execute(Event.SHOW_CONFIG, dest_submenu=SubMenues.SHOW_CONFIG_MENU, timeout=5)
 
         new_config = self._param_dict.get_config()            
         if (new_config != old_config) and (None not in old_config.values()):

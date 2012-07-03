@@ -616,28 +616,14 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         write_delay = kwargs.get('write_delay', 0)
         retval = None
         
-        # Get the build handler.
-        build_handler = self._build_handlers.get(cmd, None)
-        if not build_handler:
-            raise InstrumentProtocolException('Cannot build command: %s' % cmd)
-        
-        cmd_line = build_handler(cmd, *args)
-        
-        # Clear line and prompt buffers for result.
-        self._linebuf = ''
-        self._promptbuf = ''
-
-        log.debug('_navigate_and_execute: %s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
-                        (repr(cmd_line), timeout, write_delay, expected_prompt))
-
         # iterate through the directions 
         directions_list = self._menu.get_directions(dest_submenu)
         for directions in directions_list:
             command = directions.get_command()
             response = directions.get_response()
-            resp_result = self._do_cmd_resp(command, expected_prompt = response)
+            self._do_cmd_resp(command, expected_prompt = response)
 
-
+        resp_result = self._do_cmd_resp(cmd, expected_prompt = response)
  
         return resp_result
 
