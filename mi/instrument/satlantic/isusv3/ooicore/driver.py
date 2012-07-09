@@ -33,12 +33,12 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import InstrumentStateException
 #from mi.instrument_connection import SerialInstrumentConnection
 #from mi.instrument_driver import InstrumentDriver
 #from mi.instrument_driver import DriverChannel
-#from mi.exceptions import InstrumentProtocolException
-#from mi.exceptions import InstrumentTimeoutException
-#from mi.exceptions import InstrumentStateException
 #from mi.exceptions import InstrumentConnectionException
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
@@ -242,14 +242,18 @@ class Prompt(BaseEnum):
     SETUP_MENU = "ISUS_SETUP> [H] ?"
     SETUP_OUTPUT_MENU = "ISUS_SETUP_OUTPUT> [H] ?"
     SETUP_DEPLOY_MENU = "ISUS_SETUP_DEPLOY> [H] ?"
+    SETUP_FIT_MENU = "ISUS_SETUP_FIT> [H] ?"
     SETUP_SPEC_MENU = "ISUS_SETUP_SPEC> [H] ?"
     SETUP_LAMP_MENU = "ISUS_SETUP_LAMP> [H] ?"
     FILE_MENU = "ISUS_FILE> [H] ?"
     INFO_MENU = "ISUS_INFO> [H] ?"
-    SAVE_SETTINGS = "Save current settings? (Otherwise changes are lost at next power-down) [Y] ?"
-    REPLACE_SETTINGS = "Replace existing setting by current? [N] ?"
+    #SAVE_SETTINGS = "Save current settings? (Otherwise changes are lost at next power-down) [Y] ?"
+    SAVE_SETTINGS = "Save current settings? (Otherwise changes are lost at next power-down)"
+    #REPLACE_SETTINGS = "Replace existing setting by current? [N] ?"
+    REPLACE_SETTINGS = "Replace existing setting by current?"
     MODIFY = "Modify? [N] ?"
     ENTER_CHOICE = "Enter number to assign new value [5] ?"
+    ENTER_DEPLOYMENT_COUNTER = "Enter deployment counter. ?"
 
 class Parameter(DriverParameter):
     """ The parameters that drive/control the operation and behavior of the device """
@@ -304,6 +308,7 @@ class ooicoreParameter():
 class SubMenues(BaseEnum):
     CONFIG_MENU = 'config_menu'
     SHOW_CONFIG_MENU = 'show_config_menu'
+    DEPLOYMENT_COUNTER_MENU = 'deployment_counter_menu'
 
 class InstrumentPrompts(BaseEnum):
     MAIN_MENU = "ISUS> [H] ?"
@@ -324,7 +329,9 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
 
         menu = self.MenuTree({
             SubMenues.CONFIG_MENU: [directions(Event.CONFIG_MENU, Prompt.CONFIG_MENU)],
-            SubMenues.SHOW_CONFIG_MENU: [directions(SubMenues.CONFIG_MENU)]
+            SubMenues.SHOW_CONFIG_MENU: [directions(SubMenues.CONFIG_MENU)],
+            SubMenues.DEPLOYMENT_COUNTER_MENU: [directions(SubMenues.CONFIG_MENU),
+                                                directions(Event.DEPLOYMENT_COUNTER, Prompt.ENTER_DEPLOYMENT_COUNTER)]
         })
 
         MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event) 
@@ -363,12 +370,16 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         self._protocol_fsm.add_handler(State.ROOT_MENU, Event.GET,
                               self._handler_command_get) 
         
+        self._protocol_fsm.add_handler(State.ROOT_MENU, Event.SET,
+                              self._handler_command_set) 
+        
         # @todo ... and so on with the menu handler listings...
         # these build handlers will be called by the base class during the
         # navigate_and_execute sequence.        
         self._add_build_handler(Event.CONFIG_MENU, self._build_simple_command)
         self._add_build_handler(Event.SHOW_CONFIG, self._build_simple_command)
         self._add_build_handler(Event.BAUD_RATE, self._build_simple_command)
+        self._add_build_handler(Event.DEPLOYMENT_COUNTER, self._build_simple_command)
 
         # Add response handlers for parsing command responses
         self._add_response_handler(Event.SHOW_CONFIG, self._parse_show_config_menu_response)
@@ -521,6 +532,56 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
 
         return (next_state, result)
         
+
+    def _handler_command_set(self, *args, **kwargs):
+        """
+        Perform a set command.
+        @param args[0] parameter : value dict.
+        @retval (next_state, result) tuple, (None, None).
+        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
+        not a dict, or if paramter can't be properly formatted.
+        @throws InstrumentTimeoutException if device cannot be woken for set command.
+        @throws InstrumentProtocolException if set command could not be built or misunderstood.
+        """
+
+        # DHE TEMP
+        print '-----> DHE in _handler_command_set'
+
+        next_state = None
+        result = None
+
+        # Retrieve required parameter.
+        # Raise if no parameter provided, or not a dict.
+        try:
+            params = args[0]
+
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        if not isinstance(params, dict):
+            raise InstrumentParameterException('Set parameters not a dict.')
+
+        # For each key, val in the dict, issue set command to device.
+        # Raise if the command not understood.
+        else:
+
+            # DHE TEMP
+            print '-----> DHE in _handler_command_set: params are: ' + str(params)
+
+            #
+            # There is a problem with the current build_handler scheme; it's keyed by
+            # the command.  I need to pass the "final command" parameter as a value,
+            # and there is no build handler for all of the possible values.   
+            #
+            for (key, val) in params.iteritems():
+                dest_submenu = self._param_dict.get_menu_path_write(key)
+                command = self._param_dict.get_submenu_write(key)
+                self._navigate_and_execute(None, value=val, dest_submenu=dest_submenu, timeout=5)
+            self._update_params()
+
+        return (next_state, result)
+
+
     def _handler_root_menu_enter(self, *args, **kwargs):
         """Entry event for the command state
         """
@@ -762,13 +823,24 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
             self._promptbuf = ''
 
             # Send a quit  
-            log.debug('======DHE: Sending quit.')
+            print '====== DHE: Sending quit.'
 
             self._connection.send(Event.QUIT_CMD + self.eoln)
             time.sleep(delay)
 
             if time.time() > starttime + timeout:
+                print '====== DHE: Dude we timed out.'
                 raise InstrumentTimeoutException()
+
+            if Prompt.SAVE_SETTINGS in self._promptbuf:
+                print '====== DHE: Save settings yes.'
+                self._connection.send(Event.YES + self.eoln)
+                time.sleep(delay)
+
+            if Prompt.REPLACE_SETTINGS in self._promptbuf:
+                print '====== DHE: Replace settings yes.'
+                self._connection.send(Event.YES + self.eoln)
+                time.sleep(delay)
 
 
     def _build_param_dict(self):
@@ -801,8 +873,9 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              menu_path_read=[[Event.CONFIG_MENU, Prompt.CONFIG_MENU]],
                              submenu_read=[Event.SHOW_CONFIG, Prompt.CONFIG_MENU],
-                             menu_path_write=[[Event.CONFIG_MENU, Prompt.CONFIG_MENU]],
-                             submenu_write=[Event.BAUD_RATE, Event.YES])
+                             #menu_path_write=[[Event.CONFIG_MENU, Prompt.CONFIG_MENU]],
+                             menu_path_write=SubMenues.DEPLOYMENT_COUNTER_MENU,
+                             submenu_write=[Event.DEPLOYMENT_COUNTER, Event.YES])
 
         """
         DHE COMMENTED OUT
