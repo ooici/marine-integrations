@@ -24,76 +24,6 @@ USAGE:
 __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
-"""
-#from mock import Mock, call, DEFAULT
-
-#from nose.plugins.attrib import attr
-
-from ion.idk.metadata import Metadata
-from ion.idk.comm_config import CommConfig
-from ion.idk.unit_test import InstrumentDriverTestCase
-from ion.idk.test.driver_qualification import DriverQualificationTestCase
-
-#from mi.instrument.nobska.mavs4.mavs4.driver import State
-#from mi.instrument.nobska.mavs4.mavs4.driver import Event
-#from mi.instrument.nobska.mavs4.mavs4.driver import Error
-#from mi.instrument.nobska.mavs4.mavs4.driver import Status
-#from mi.instrument.nobska.mavs4.mavs4.driver import Prompt
-#from mi.instrument.nobska.mavs4.mavs4.driver import Channel
-#from mi.instrument.nobska.mavs4.mavs4.driver import Command
-#from mi.instrument.nobska.mavs4.mavs4.driver import Parameter
-#from mi.instrument.nobska.mavs4.mavs4.driver import Capability
-#from mi.instrument.nobska.mavs4.mavs4.driver import MetadataParameter
-#from mi.instrument.nobska.mavs4.mavs4.driver import mavs4InstrumentProtocol
-#from mi.instrument.nobska.mavs4.mavs4.driver import mavs4InstrumentDriver
-
-
-# Standard imports.
-#import os
-#import signal
-import time
-import unittest
-#from datetime import datetime
-
-# 3rd party imports.
-#from gevent import spawn
-#from gevent.event import AsyncResult
-import gevent
-from nose.plugins.attrib import attr
-#from mock import patch
-#import uuid
-
-# ION imports.
-#from interface.objects import StreamQuery
-#from interface.services.dm.itransform_management_service import TransformManagementServiceClient
-#from interface.services.cei.iprocess_dispatcher_service import ProcessDispatcherServiceClient
-#from interface.services.icontainer_agent import ContainerAgentClient
-#from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
-#from pyon.public import StreamSubscriberRegistrar
-from prototype.sci_data.stream_defs import ctd_stream_definition
-#from pyon.agent.agent import ResourceAgentClient
-#from interface.objects import AgentCommand
-#from pyon.util.int_test import IonIntegrationTestCase
-#from pyon.util.context import LocalContextMixin
-#from pyon.public import CFG
-#from pyon.event.event import EventSubscriber, EventPublisher
-
-#from pyon.core.exception import InstParameterError
-
-
-# MI imports.
-#from ion.agents.port.logger_process import EthernetDeviceLogger
-#from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentParameters
-from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from mi.core.log import log
-
-from mi.instrument.nobska.mavs4.ooicore.driver import PACKET_CONFIG
-"""
-
 # Ensure the test class is monkey patched for gevent
 from gevent import monkey; monkey.patch_all()
 import gevent
@@ -117,10 +47,10 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
-from mi.instrument.seabird.sbe37smb.ooicore.driver import PACKET_CONFIG
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Driver
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
+from mi.instrument.nobska.mavs4.ooicore.driver import PACKET_CONFIG
+from mi.instrument.nobska.mavs4.ooicore.driver import mavs4InstrumentDriver
+from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolStates
+from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentParameters
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
@@ -318,14 +248,21 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
 
         # Test the driver is in unknown state.
         state = self.driver_client.cmd_dvr('get_current_state')
-        self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
+        self.assertEqual(state, ProtocolStates.UNKNOWN)
 
         # discover instrument state and transition to command.
         reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_current_state')
-        self.assertEqual(state, SBE37ProtocolState.COMMAND)
+        self.assertEqual(state, ProtocolStates.COMMAND)
+                
+        # discover instrument state and transition to command.
+        reply = self.driver_client.cmd_dvr('execute_start_autosample')
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, ProtocolStates.AUTOSAMPLE)
                 
 
     ###

@@ -624,7 +624,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             response = directions.get_response()
             self._do_cmd_resp(command, expected_prompt = response)
 
-        resp_result = self._do_cmd_resp(cmd, expected_prompt = response)
+        resp_result = self._do_cmd_resp(cmd, expected_prompt = expected_prompt)
  
         return resp_result
 
