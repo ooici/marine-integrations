@@ -154,6 +154,25 @@ class ProtocolParameterDict(object):
         """
         return self._param_dict[name].submenu_read
         
+    # DHE Added
+    def get_menu_path_write(self, name):
+        """
+        Get a parameter value from the dictionary.
+        @param name Name of the value to be retrieved.
+        @raises KeyError if the name is invalid.
+        """
+        return self._param_dict[name].menu_path_write
+        
+    # DHE Added
+    # This is the final destination submenu
+    def get_submenu_write(self, name):
+        """
+        Get a parameter value from the dictionary.
+        @param name Name of the value to be retrieved.
+        @raises KeyError if the name is invalid.
+        """
+        return self._param_dict[name].submenu_write
+        
     def update(self, input):
         """
         Update the dictionaray with a line input. Iterate through all objects

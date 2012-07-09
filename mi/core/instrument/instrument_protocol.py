@@ -98,7 +98,7 @@ class InstrumentProtocol(object):
         self._build_handlers[cmd] = func
         
     ########################################################################
-    # Static helpers to build commands.
+    # Helpers to build commands.
     ########################################################################
     def _build_simple_command(self, cmd, *args):
         """
@@ -585,19 +585,23 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             prompt_list = [expected_prompt]            
         while True:
             for item in prompt_list:
-                if self._promptbuf.endswith(item):
+                # DHE: this doesn't work well; changing for now.
+                #if self._promptbuf.endswith(item):
+                #print "---> DHE: looking for item: " + str(item) + " in promptbuf: " + str(self._promptbuf)
+                if item in self._promptbuf:
+                    #print "---> DHE: FOUND IT!"
                     return (item, self._linebuf)
                 else:
                     time.sleep(.1)
             if time.time() > starttime + timeout:
+                #print "------->> DHE TIMEOUT!!!!"
                 raise InstrumentTimeoutException()
                
     # DHE Added
-    def _navigate_and_execute(self, cmd, *args, **kwargs):
+    def _navigate_and_execute(self, cmd, **kwargs):
         """
         Navigate to a sub-menu and execute a command.  
         @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
         @param timeout=timeout optional wakeup and command timeout.
         @retval resp_result The (possibly parsed) response result.
         @raises InstrumentTimeoutException if the response did not occur in time.
@@ -605,12 +609,13 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         was not recognized.
         """
         
+        resp_result = None
+
         # Get dest_submenu arg
         dest_submenu = kwargs.get('dest_submenu', None)
         if dest_submenu == None:
             raise InstrumentProtocolException('_navigate_and_execute(): dest_submenu parameter missing')
 
-        
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', 10)
         expected_prompt = kwargs.get('expected_prompt', None)
@@ -624,15 +629,24 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             response = directions.get_response()
             self._do_cmd_resp(command, expected_prompt = response)
 
-        resp_result = self._do_cmd_resp(cmd, expected_prompt = expected_prompt)
+        value = kwargs.get('value', None)
+        #
+        # DHE: this is a kludge; need a way to send a parameter as a "command."  We can't expect to look
+        # up all possible values in the build_handlers
+        #
+        if cmd is None:
+            cmd_line = self._build_simple_command(value) 
+            #print "-----> DHE: sending value: " + cmd_line + " to connection.send()"
+            self._connection.send(cmd_line)
+        else:
+            resp_result = self._do_cmd_resp(cmd, value = value, expected_prompt = response)
  
         return resp_result
 
-    def _do_cmd_resp(self, cmd, *args, **kwargs):
+    def _do_cmd_resp(self, cmd, **kwargs):
         """
         Perform a command-response on the device.
         @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
         @param timeout=timeout optional wakeup and command timeout.
         @retval resp_result The (possibly parsed) response result.
         @raises InstrumentTimeoutException if the response did not occur in time.
@@ -640,24 +654,29 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         was not recognized.
         """
 
+        #print "-----> DHE: do_cmd_resp sending cmd: " + str(cmd)
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', 10)
         expected_prompt = kwargs.get('expected_prompt', None)
         write_delay = kwargs.get('write_delay', 0)
         retval = None
 
+        # Get the value
+        value = kwargs.get('value', None)
+
         # Get the build handler.
         build_handler = self._build_handlers.get(cmd, None)
         if not build_handler:
             raise InstrumentProtocolException('Cannot build command: %s' % cmd)
 
-        cmd_line = build_handler(cmd, *args)
+        # DHE taking out args; if we need them we'll use kwargs
+        #cmd_line = build_handler(cmd, *args)
+        cmd_line = build_handler(cmd)
 
         # Clear line and prompt buffers for result.
         self._linebuf = ''
         self._promptbuf = ''
 
-        # Send command.
         log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
                         (repr(cmd_line), timeout, write_delay, expected_prompt))
         if (write_delay == 0):
