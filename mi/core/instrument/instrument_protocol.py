@@ -486,20 +486,26 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         
 
         class Directions(object):
-            def __init__(self, command = None, response = None):
+            def __init__(self, command = None, response = None, timeout = 10):
                 if command == None:
                     raise InstrumentProtocolException('MenuTree.Directions(): command parameter missing')                
                 self.command = command
                 self.response = response
+                self.timeout = timeout
                 
             def __str__(self):
-                return "command=%s, response=%s" %(repr(self.command), repr(self.response))
+                return "command=%s, response=%s, timeout=%s" %(repr(self.command), 
+                                                               repr(self.response), 
+                                                               repr(self.timeout))
             
             def get_command(self):
                 return self.command
             
             def get_response(self):
                 return self.response
+                
+            def get_timeout(self):
+                return self.timeout
                 
         _node_directions = {}
         
@@ -514,7 +520,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             except:
                 raise InstrumentProtocolException('MenuTree.get_directions(): node %s not in _node_directions dictionary'
                                                   %str(node))                
-            log.debug("################################# MenuTree.get_directions(): _node_directions = %s, node = %s, d_list = %s" 
+            log.debug("MenuTree.get_directions(): _node_directions = %s, node = %s, d_list = %s" 
                       %(str(self._node_directions), str(node), str(directions_list)))
             directions = []
             for item in directions_list:
@@ -628,7 +634,8 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             #print "--------> DHE: nav_and_ex: directions: " + str(directions)
             command = directions.get_command()
             response = directions.get_response()
-            self._do_cmd_resp(command, expected_prompt = response)
+            timeout = directions.get_timeout()
+            self._do_cmd_resp(command, expected_prompt = response, timeout = timeout)
 
         value = kwargs.get('value', None)
         #

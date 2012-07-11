@@ -14,7 +14,7 @@ __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
 
-import logging
+#import logging
 import time
 import re
 import datetime
@@ -59,7 +59,7 @@ class InstrumentPrompts(BaseEnum):
     
 class InstrumentCmds(BaseEnum):
     EXIT_SUB_MENU = '\x03'     # CTRL-C
-    DEPLOY_GO     = '\a\n'     # CTRL-G (bell) + NL
+    DEPLOY_GO     = '\a'     # CTRL-G (bell) + NL
     DEPLOY_MENU   = '6'
 
 class ProtocolStates(BaseEnum):
@@ -196,7 +196,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             SubMenues.ROOT       : [],
             SubMenues.SET_TIME   : [Directions("1", InstrumentPrompts.SUB_MENU)],
             SubMenues.FLASH_CARD : [Directions("2", InstrumentPrompts.SUB_MENU)],
-            SubMenues.DEPLOY     : [Directions(InstrumentCmds.DEPLOY_MENU, InstrumentPrompts.SUB_MENU)],
+            SubMenues.DEPLOY     : [Directions(InstrumentCmds.DEPLOY_MENU, InstrumentPrompts.SUB_MENU, 20)],
             SubMenues.PICO_DOS   : [Directions(SubMenues.FLASH_CARD),
                                     Directions("2", InstrumentPrompts.SUB_MENU)]
             })
@@ -267,13 +267,16 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._promptbuf = ''
 
         # Send command.
-        log.debug('_do_cmd_resp: %s, timeout=%s, expected_prompt=%s,' %
-                        (repr(cmd), timeout, expected_prompt))
-        for char in cmd:
-            self._connection.send(char)
-            # Wait for the character to be echoed, timeout exception
-            self._get_response(timeout, expected_prompt='%s'%char)
-        self._connection.send(INSTRUMENT_NEWLINE)
+        log.debug('mavs4InstrumentProtocol._do_cmd_resp: %s, timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,' 
+                  %(repr(cmd), timeout, expected_prompt, expected_prompt.encode("hex")))
+        if cmd == InstrumentCmds.EXIT_SUB_MENU:
+            self._connection.send(cmd)
+        else:
+            for char in cmd:
+                self._connection.send(char)
+                # Wait for the character to be echoed, timeout exception
+                self._get_response(timeout, expected_prompt='%s'%char)
+            self._connection.send(INSTRUMENT_NEWLINE)
         self._get_response(timeout, expected_prompt=expected_prompt)
     
     def got_data(self, data):
@@ -425,7 +428,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # Issue start command and switch to autosample if successful.
         self._navigate_and_execute(InstrumentCmds.DEPLOY_GO, 
                                    dest_submenu=SubMenues.DEPLOY, 
-                                   timeout=15, 
+                                   timeout=20, 
                                    expected_prompt=InstrumentPrompts.DEPLOY,
                                    *args, **kwargs)
                 
@@ -486,8 +489,14 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_state = None
         result = None
 
-        # Wake up the device, continuing until CTRL-C prompt seen.
-        
+        # Issue stop command and switch to command if successful.
+        for i in range(10):
+            try:
+                self._go_to_root_menu()
+                break
+            except:
+                pass
+                        
         next_state = ProtocolStates.COMMAND
 
         return (next_state, result)
