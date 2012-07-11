@@ -587,14 +587,14 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             for item in prompt_list:
                 # DHE: this doesn't work well; changing for now.
                 #if self._promptbuf.endswith(item):
-                #print "---> DHE: looking for item: " + str(item) + " in promptbuf: " + str(self._promptbuf)
+                #print "---> DHE: get_response looking for item: " + str(item) + " in promptbuf: " + str(self._promptbuf)
                 if item in self._promptbuf:
-                    #print "---> DHE: FOUND IT!"
+                    #print "---> get_response DHE: FOUND IT!"
                     return (item, self._linebuf)
                 else:
                     time.sleep(.1)
             if time.time() > starttime + timeout:
-                #print "------->> DHE TIMEOUT!!!!"
+                #print "------->> get_response DHE TIMEOUT!!!!"
                 raise InstrumentTimeoutException()
                
     # DHE Added
@@ -625,6 +625,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         # iterate through the directions 
         directions_list = self._menu.get_directions(dest_submenu)
         for directions in directions_list:
+            #print "--------> DHE: nav_and_ex: directions: " + str(directions)
             command = directions.get_command()
             response = directions.get_response()
             self._do_cmd_resp(command, expected_prompt = response)
@@ -639,7 +640,8 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             #print "-----> DHE: sending value: " + cmd_line + " to connection.send()"
             self._connection.send(cmd_line)
         else:
-            resp_result = self._do_cmd_resp(cmd, value = value, expected_prompt = response)
+            #print "-----> DHE: sending command: " + str(cmd) + " + value: " + str(value) + " to do_cmd_resp()"
+            resp_result = self._do_cmd_resp(cmd, value = value, expected_prompt = expected_prompt, timeout = timeout)
  
         return resp_result
 
@@ -654,7 +656,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         was not recognized.
         """
 
-        #print "-----> DHE: do_cmd_resp sending cmd: " + str(cmd)
+        #print "-----> DHE: do_cmd_resp sending cmd: " + str(cmd[0])
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', 10)
         expected_prompt = kwargs.get('expected_prompt', None)
@@ -665,13 +667,19 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         value = kwargs.get('value', None)
 
         # Get the build handler.
-        build_handler = self._build_handlers.get(cmd, None)
+        build_handler = self._build_handlers.get(cmd[0], None)
         if not build_handler:
-            raise InstrumentProtocolException('Cannot build command: %s' % cmd)
+            raise InstrumentProtocolException('Cannot build command: %s' % cmd[0])
 
         # DHE taking out args; if we need them we'll use kwargs
         #cmd_line = build_handler(cmd, *args)
-        cmd_line = build_handler(cmd)
+        #
+        # DHE: Should this really be like this: intent.format_input()?  This way the "command"
+        # or "intent" object contains the build instructions?  This seems strange to me to 
+        # do it this way.
+        # (passing the actual command to this instead of the unique name, because the command
+        # overlaps sometimes.
+        cmd_line = build_handler(cmd[1])
 
         # Clear line and prompt buffers for result.
         self._linebuf = ''
@@ -682,6 +690,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         if (write_delay == 0):
             self._connection.send(cmd_line)
         else:
+            #print "---> DHE: do_cmd_resp() sending cmd_line: " + cmd_line
             for char in cmd_line:
                 self._connection.send(char)
                 time.sleep(write_delay)
@@ -689,10 +698,14 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Wait for the prompt, prepare result and return, timeout exception
         (prompt, result) = self._get_response(timeout,
                                               expected_prompt=expected_prompt)
-        resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
-            self._response_handlers.get(cmd, None)
+
+        # DHE TEMP
+        #print "----->>> DHE: looking for response handler for: " + str(cmd[0])
+        resp_handler = self._response_handlers.get((self.get_current_state(), cmd[0]), None) or \
+            self._response_handlers.get(cmd[0], None)
         resp_result = None
         if resp_handler:
+            #print "--->>> DHE:  calling response handler: " + str(resp_handler)
             resp_result = resp_handler(result, prompt)
 
         return resp_result

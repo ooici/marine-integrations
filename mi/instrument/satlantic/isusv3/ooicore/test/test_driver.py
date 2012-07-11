@@ -103,7 +103,8 @@ InstrumentDriverTestCase.initialize(
 # Used to validate param config retrieved from driver.
 PARAMS = {
     Parameter.BAUDRATE: int,
-    Parameter.DEPLOYMENT_COUNTER: int
+    Parameter.DEPLOYMENT_COUNTER: int,
+    Parameter.DEPLOYMENT_MODE: str
 }
 
 #################################### RULES ####################################
