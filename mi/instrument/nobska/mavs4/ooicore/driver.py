@@ -28,8 +28,12 @@ from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.exceptions import InstrumentTimeoutException, InstrumentParameterException, InstrumentProtocolException
+from mi.core.exceptions import InstrumentTimeoutException, \
+                               InstrumentParameterException, \
+                               InstrumentProtocolException, \
+                               InstrumentStateException
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
+from mi.core.common import InstErrorCode
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -271,6 +275,82 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     commands and a few set commands.
     """
     
+    upload_parameter_list = [
+        InstrumentParameters.SYS_CLOCK,
+        InstrumentParameters.BAUD_RATE,
+        InstrumentParameters.VERSION_NUMBER,
+        InstrumentParameters.CONFIG_INITIALIZED,
+        InstrumentParameters.V_OFFSET_0,
+        InstrumentParameters.V_OFFSET_1,
+        InstrumentParameters.V_OFFSET_2,
+        InstrumentParameters.V_OFFSET_3,
+        InstrumentParameters.V_SCALE,
+        InstrumentParameters.ANALOG_OUT,
+        InstrumentParameters.COMPASS,
+        InstrumentParameters.M0_OFFSET,
+        InstrumentParameters.M1_OFFSET,
+        InstrumentParameters.M2_OFFSET,
+        InstrumentParameters.M0_SCALE,
+        InstrumentParameters.M1_SCALE,
+        InstrumentParameters.M2_SCALE,
+        InstrumentParameters.TILT,
+        InstrumentParameters.TY_OFFSET,
+        InstrumentParameters.TX_OFFSET,
+        InstrumentParameters.TY_SCALE,
+        InstrumentParameters.TX_SCALE,
+        InstrumentParameters.TY_TEMPCO,
+        InstrumentParameters.TX_TEMPCO,
+        InstrumentParameters.FAST_SENSOR,
+        InstrumentParameters.THERMISTOR,
+        InstrumentParameters.TH_OFFSET,
+        InstrumentParameters.PRESSURE,
+        InstrumentParameters.P_OFFSET,
+        InstrumentParameters.P_SCALE,
+        InstrumentParameters.P_MA,
+        InstrumentParameters.AUXILIARY1,
+        InstrumentParameters.A1_OFFSET,
+        InstrumentParameters.A1_SCALE,
+        InstrumentParameters.A1_MA,
+        InstrumentParameters.AUXILIARY2,
+        InstrumentParameters.A2_OFFSET,
+        InstrumentParameters.A2_SCALE,
+        InstrumentParameters.A2_MA,
+        InstrumentParameters.AUXILIARY3,
+        InstrumentParameters.A3_OFFSET,
+        InstrumentParameters.A3_SCALE,
+        InstrumentParameters.A3_MA,
+        InstrumentParameters.SENSOR_ORIENTATION,
+        InstrumentParameters.SERIAL_NUMBER,
+        InstrumentParameters.QUERY_CHARACTER,
+        InstrumentParameters.POWER_UP_TIME_OUT,
+        InstrumentParameters.DEPLOY_INITIALIZED,
+        InstrumentParameters.LINE1,
+        InstrumentParameters.LINE2,
+        InstrumentParameters.LINE3,
+        InstrumentParameters.START_TIME,
+        InstrumentParameters.STOP_TIME,
+        InstrumentParameters.FRAME,
+        InstrumentParameters.DATA_MONITOR,
+        InstrumentParameters.INTERNAL_LOGGING,
+        InstrumentParameters.APPEND_MODE,
+        InstrumentParameters.BYTES_PER_SAMPLE,
+        InstrumentParameters.VERBOSE_MODE,
+        InstrumentParameters.QUERY_MODE,
+        InstrumentParameters.EXTERNAL_POWER,
+        InstrumentParameters.MEASUREMENT_FREQUENCY,
+        InstrumentParameters.MEASUREMENT_PERIOD_SECS,
+        InstrumentParameters.MEASUREMENT_PERIOD_TICKS,
+        InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
+        InstrumentParameters.SAMPLE_PERIOD_SECS,
+        InstrumentParameters.SAMPLE_PERIOD_TICKS,
+        InstrumentParameters.SAMPLES_PER_BURST,
+        InstrumentParameters.INTERVAL_BETWEEN_BURSTS,
+        InstrumentParameters.BURSTS_PER_FILE,
+        InstrumentParameters.STORE_TIME,
+        InstrumentParameters.STORE_FRACTIONAL_TIME,
+        InstrumentParameters.STORE_RAW_PATHS,
+        InstrumentParameters.PATH_UNITS]
+    
     def __init__(self, prompts, newline, driver_event):
         """
         """
@@ -298,7 +378,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.EXIT_SUB_MENU, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.UPLOAD, self._build_simple_command)
         
+        # Add response handlers for device commands.
+        self._add_response_handler(InstrumentCmds.UPLOAD, self._parse_upload_response)
+
         self._protocol_fsm = InstrumentFSM(ProtocolStates, 
                                            ProtocolEvents, 
                                            ProtocolEvents.ENTER,
@@ -371,8 +455,13 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 # Wait for the character to be echoed, timeout exception
                 self._get_response(timeout, expected_prompt='%s'%char)
             self._connection.send(INSTRUMENT_NEWLINE)
-        self._get_response(timeout, expected_prompt=expected_prompt)
-    
+        (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
+        resp_handler = self._response_handlers.get(cmd, None)
+        resp_result = None
+        if resp_handler:
+            resp_result = resp_handler(result, prompt)
+        return resp_result
+   
     def got_data(self, data):
         """
         Callback for receiving new data from the device.
@@ -461,7 +550,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
         # Command device to update parameters and send a config change event.
-        #self._update_params()
+        self._update_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -584,13 +673,18 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         result = None
 
         # Issue stop command and switch to command if successful.
+        got_root_prompt = False
         for i in range(10):
             try:
                 self._go_to_root_menu()
+                got_root_prompt = True
                 break
             except:
                 pass
-                        
+            
+        if not got_root_prompt:                
+            raise InstrumentTimeoutException()
+        
         next_state = ProtocolStates.COMMAND
 
         return (next_state, result)
@@ -1061,24 +1155,56 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @retval Sample dictionary if present or None.
         """
         return  # TODO remove this when sample format is known
-        sample = None
-        match = self._sample_regex.match(line)
-        if match:
-            sample = {}
-            sample['t'] = [float(match.group(1))]
-            sample['c'] = [float(match.group(2))]
-            sample['p'] = [float(match.group(3))]
-
-            # Driver timestamp.
-            sample['time'] = [time.time()]
-            sample['stream_name'] = 'ctd_parsed'
-
-            if self._driver_event:
-                self._driver_event(DriverAsyncEvent.SAMPLE, sample)
-
-        return             
         
-                
+    def _update_params(self, *args, **kwargs):
+        """
+        Update the parameter dictionary. Issue the upload command. The response
+        needs to be interated through a line at a time and valuse saved.
+        @throws InstrumentTimeoutException if device cannot be timely woken.
+        @throws InstrumentProtocolException if ds/dc misunderstood.
+        """
+        if self.get_current_state() != ProtocolStates.COMMAND:
+            raise InstrumentStateException('Can not perform update of parameters when not in command state',
+                                           error_code=InstErrorCode.INCORRECT_STATE)
+        # Get old param dict config.
+        old_config = self._param_dict.get_config()
+
+        # go to root menu.
+        got_root_prompt = False
+        for i in range(10):
+            try:
+                self._go_to_root_menu()
+                got_root_prompt = True
+                break
+            except:
+                pass
+            
+        if not got_root_prompt:                
+            raise InstrumentTimeoutException()
+                                
+        # Issue upload command 
+        self._do_cmd_resp(InstrumentCmds.UPLOAD,
+                          expected_prompt=InstrumentPrompts.UPLOAD)
+
+        # Get new param dict config. If it differs from the old config,
+        # tell driver superclass to publish a config change event.
+        new_config = self._param_dict.get_config()
+        if new_config != old_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
+    def _parse_upload_response(self, response, prompt):
+        """
+        Parse handler for upload command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if upload command misunderstood.
+        """
+        if prompt != InstrumentPrompts.UPLOAD:
+            raise InstrumentProtocolException('upload command not recognized: %s.' % response)
+
+        for name, line in zip(self.upload_parameter_list, response.split(INSTRUMENT_NEWLINE)):
+            self._param_dict.set(name, line)
+              
 
 
 
