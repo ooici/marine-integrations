@@ -20,9 +20,10 @@ from nose.plugins.attrib import attr
 
 from pyon.util.unit_test import PyonTestCase
 
-from ion.services.mi.zmq_driver_client import ZmqDriverClient
-from ion.services.mi.zmq_driver_process import ZmqDriverProcess
-import ion.services.mi.mi_logger
+from mi.core.instrument.zmq_driver_client import ZmqDriverClient
+from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
+import mi.core.mi_logger 
+
 
 mi_logger = logging.getLogger('mi_logger')
 

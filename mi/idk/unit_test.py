@@ -9,6 +9,9 @@
 # Import pyon first for monkey patching.
 from mi.core.log import get_logger ; log = get_logger()
 
+from mock import patch
+from pyon.core.bootstrap import CFG
+
 import re
 import os
 import time
@@ -269,7 +272,7 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         try:
             driver_client = self.driver_process.get_client()
             driver_client.start_messaging(self.event_received)
-            retval = driver_client.cmd_dvr('process_echo', 'Test.')
+            retval = driver_client.cmd_dvr('process_echo', 'Test.') # data=? RU
 
             self.driver_client = driver_client
         except Exception, e:
@@ -471,6 +474,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
     def test_common_qualification(self):
         self.assertTrue(1)
 
+    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 1200}}})
     def test_instrument_agent_common_state_model_lifecycle(self):
         """
         @brief Test agent state transitions.
@@ -818,6 +822,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         unique_set = Set(item for item in list_in)
         return [(item) for item in unique_set]
 
+    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 1200}}})
     def test_driver_notification_messages(self):
         """
         @brief This tests event messages from the driver.  The following
@@ -960,7 +965,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # FAIL AssertionError: 37 != 38
         pass
 
-
+    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 20}}})
     def test_instrument_driver_to_physical_instrument_interoperability(self):
         """
         @Brief this test is the integreation test test_connect
@@ -980,8 +985,11 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
 
+        log.debug("BEFORE GO_ACTIVE")
         cmd = AgentCommand(command='go_active')
+        log.debug("MIDDLE GO_ACTIVE")
         retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("AFTER GO_ACTIVE")
 
         # Test the driver is configured for comms.
 

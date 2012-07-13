@@ -1,0 +1,4 @@
+comm:
+  device_addr: localhost
+  device_port: 2102
+  method: ethernet

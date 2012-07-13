@@ -14,6 +14,8 @@ import re
 import logging
 from mi.core.common import BaseEnum
 
+from mi.core.log import get_logger ; log = get_logger()
+
 mi_logger = logging.getLogger('mi_logger')
 
 class ParameterDictVisibility(BaseEnum):
@@ -133,6 +135,7 @@ class ProtocolParameterDict(object):
         @param value The parameter value.
         @raises KeyError if the name is invalid.
         """
+        log.debug("setting " + name + " to " + str(value))
         self._param_dict[name] = value
         
     # DHE Added
@@ -162,7 +165,9 @@ class ProtocolParameterDict(object):
         @retval The name that was successfully updated, None if not updated
         """
         for (name, val) in self._param_dict.iteritems():
+            log.debug("NAME/VAL = " + str(name) + "/" + str(val))
             if val.update(input):
+                log.debug("RETURNING NAME = " + str(name))
                 return name
         return False
     
