@@ -56,11 +56,15 @@ class InstrumentPrompts(BaseEnum):
     SLEEPING  = 'Sleeping . . .'
     WAKEUP    = 'Enter <CTRL>-<C> now to wake up?'
     DEPLOY    = '>>> <CTRL>-<C> to terminate deployment <<<'
+    UPLOAD    = '\x04'    # EOT
+    DOWNLOAD  = ' \a'
     
 class InstrumentCmds(BaseEnum):
-    EXIT_SUB_MENU = '\x03'     # CTRL-C
-    DEPLOY_GO     = '\a'     # CTRL-G (bell) + NL
+    EXIT_SUB_MENU = '\x03'   # CTRL-C
+    DEPLOY_GO     = '\a'     # CTRL-G (bell)
     DEPLOY_MENU   = '6'
+    UPLOAD        = 'u'
+    DOWNLOAD      = 'b'
 
 class ProtocolStates(BaseEnum):
     """
@@ -96,7 +100,80 @@ class InstrumentParameters(DriverParameter):
     """
     Device parameters for MAVS-4.
     """
-    OUTPUTSAL = 'OUTPUTSAL'
+    SYS_CLOCK = 'sys_clock'
+    BAUD_RATE = 'BaudRate'
+    VERSION_NUMBER = 'VersionNumber'
+    CONFIG_INITIALIZED = 'ConfigInitialized'
+    V_OFFSET_0 = 'V_offset_0'
+    V_OFFSET_1 = 'V_offset_1'
+    V_OFFSET_2 = 'V_offset_2'
+    V_OFFSET_3 = 'V_offset_3'
+    V_SCALE = 'V_scale'
+    ANALOG_OUT = 'AnalogOut'
+    COMPASS = 'Compass'
+    M0_OFFSET = 'M0_offset'
+    M1_OFFSET = 'M1_offset'
+    M2_OFFSET = 'M2_offset'
+    M0_SCALE = 'M0_scale'
+    M1_SCALE = 'M1_scale'
+    M2_SCALE = 'M2_scale'
+    TILT = 'Tilt'
+    TY_OFFSET = 'TY_offset'
+    TX_OFFSET = 'TX_offset'
+    TY_SCALE = 'TY_scale'
+    TX_SCALE = 'TX_scale'
+    TY_TEMPCO = 'TY_tempco'
+    TX_TEMPCO = 'TX_tempco'
+    FAST_SENSOR = 'FastSensor'
+    THERMISTOR = 'Thermistor'
+    TH_OFFSET = 'Th_offset'
+    PRESSURE = 'Pressure'
+    P_OFFSET = 'P_offset'
+    P_SCALE = 'P_scale'
+    P_MA = 'P_mA'
+    AUXILIARY1 = 'Auxiliary1'
+    A1_OFFSET = 'A1_offset'
+    A1_SCALE = 'A1_scale'
+    A1_MA = 'A1_mA'
+    AUXILIARY2 = 'Auxiliary2'
+    A2_OFFSET = 'A2_offset'
+    A2_SCALE = 'A2_scale'
+    A2_MA = 'A2_mA'
+    AUXILIARY3 = 'Auxiliary3'
+    A3_OFFSET = 'A3_offset'
+    A3_SCALE = 'A3_scale'
+    A3_MA = 'A3_mA'
+    SENSOR_ORIENTATION = 'SensorOrientation'
+    SERIAL_NUMBER = 'SerialNumber'
+    QUERY_CHARACTER = 'QueryCharacter'
+    POWER_UP_TIME_OUT = 'PowerUpTimeOut'
+    DEPLOY_INITIALIZED = 'DeployInitialized'
+    LINE1 = 'line1'
+    LINE2 = 'line2'
+    LINE3 = 'line3'
+    START_TIME = 'StartTime'
+    STOP_TIME = 'StopTime'
+    FRAME = 'FRAME'
+    DATA_MONITOR = 'DataMonitor'
+    INTERNAL_LOGGING = 'InternalLogging'
+    APPEND_MODE = 'AppendMode'
+    BYTES_PER_SAMPLE = 'BytesPerSample'
+    VERBOSE_MODE = 'VerboseMode'
+    QUERY_MODE = 'QueryMode'
+    EXTERNAL_POWER = 'ExternalPower'
+    MEASUREMENT_FREQUENCY = 'MeasurementFrequency'
+    MEASUREMENT_PERIOD_SECS = 'MeasurementPeriod.secs'
+    MEASUREMENT_PERIOD_TICKS = 'MeasurementPeriod.ticks'
+    MEASUREMENTS_PER_SAMPLE = 'MeasurementsPerSample'
+    SAMPLE_PERIOD_SECS = 'SamplePeriod.secs'
+    SAMPLE_PERIOD_TICKS = 'SamplePeriod.ticks'
+    SAMPLES_PER_BURST = 'SamplesPerBurst'
+    INTERVAL_BETWEEN_BURSTS = 'IntervalBetweenBursts'
+    BURSTS_PER_FILE = 'BurstsPerFile'
+    STORE_TIME = 'StoreTime'
+    STORE_FRACTIONAL_TIME = 'StoreFractionalTime'
+    STORE_RAW_PATHS = 'StoreRawPaths'
+    PATH_UNITS = 'PathUnits'
 
 class Channel(BaseEnum):
     """
@@ -547,6 +624,16 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     # Private helpers.
     ########################################################################
         
+    def _build_param_dict(self):
+        """
+        Populate the parameter dictionary with MAVS4 parameters.
+        For each parameter key add value formatting function for set commands.
+        """
+        # Add parameter handlers to parameter dict.
+        self._param_dict.add(InstrumentParameters.SYS_CLOCK,
+                             None, None,
+                             self._true_false_to_string)
+
     def  _get_prompt(self, timeout, delay=1):
         """
         _wakeup is replaced by this method for this instrument to search for prompt strings at other than
