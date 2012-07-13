@@ -98,7 +98,7 @@ class InstrumentProtocol(object):
         self._build_handlers[cmd] = func
         
     ########################################################################
-    # Static helpers to build commands.
+    # Helpers to build commands.
     ########################################################################
     def _build_simple_command(self, cmd, *args):
         """
@@ -486,20 +486,26 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         
 
         class Directions(object):
-            def __init__(self, command = None, response = None):
+            def __init__(self, command = None, response = None, timeout = 10):
                 if command == None:
                     raise InstrumentProtocolException('MenuTree.Directions(): command parameter missing')                
                 self.command = command
                 self.response = response
+                self.timeout = timeout
                 
             def __str__(self):
-                return "command=%s, response=%s" %(repr(self.command), repr(self.response))
+                return "command=%s, response=%s, timeout=%s" %(repr(self.command), 
+                                                               repr(self.response), 
+                                                               repr(self.timeout))
             
             def get_command(self):
                 return self.command
             
             def get_response(self):
                 return self.response
+                
+            def get_timeout(self):
+                return self.timeout
                 
         _node_directions = {}
         
@@ -514,7 +520,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             except:
                 raise InstrumentProtocolException('MenuTree.get_directions(): node %s not in _node_directions dictionary'
                                                   %str(node))                
-            log.debug("################################# MenuTree.get_directions(): _node_directions = %s, node = %s, d_list = %s" 
+            log.debug("MenuTree.get_directions(): _node_directions = %s, node = %s, d_list = %s" 
                       %(str(self._node_directions), str(node), str(directions_list)))
             directions = []
             for item in directions_list:
@@ -585,19 +591,23 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             prompt_list = [expected_prompt]            
         while True:
             for item in prompt_list:
-                if self._promptbuf.endswith(item):
+                # DHE: this doesn't work well; changing for now.
+                #if self._promptbuf.endswith(item):
+                #print "---> DHE: get_response looking for item: " + str(item) + " in promptbuf: " + str(self._promptbuf)
+                if item in self._promptbuf:
+                    #print "---> get_response DHE: FOUND IT!"
                     return (item, self._linebuf)
                 else:
                     time.sleep(.1)
             if time.time() > starttime + timeout:
+                #print "------->> get_response DHE TIMEOUT!!!!"
                 raise InstrumentTimeoutException()
                
     # DHE Added
-    def _navigate_and_execute(self, cmd, *args, **kwargs):
+    def _navigate_and_execute(self, cmd, **kwargs):
         """
         Navigate to a sub-menu and execute a command.  
         @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
         @param timeout=timeout optional wakeup and command timeout.
         @retval resp_result The (possibly parsed) response result.
         @raises InstrumentTimeoutException if the response did not occur in time.
@@ -605,12 +615,13 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         was not recognized.
         """
         
+        resp_result = None
+
         # Get dest_submenu arg
         dest_submenu = kwargs.get('dest_submenu', None)
         if dest_submenu == None:
             raise InstrumentProtocolException('_navigate_and_execute(): dest_submenu parameter missing')
 
-        
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', 10)
         expected_prompt = kwargs.get('expected_prompt', None)
@@ -620,19 +631,31 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         # iterate through the directions 
         directions_list = self._menu.get_directions(dest_submenu)
         for directions in directions_list:
+            #print "--------> DHE: nav_and_ex: directions: " + str(directions)
             command = directions.get_command()
             response = directions.get_response()
-            self._do_cmd_resp(command, expected_prompt = response)
+            timeout = directions.get_timeout()
+            self._do_cmd_resp(command, expected_prompt = response, timeout = timeout)
 
-        resp_result = self._do_cmd_resp(cmd, expected_prompt = response)
+        value = kwargs.get('value', None)
+        #
+        # DHE: this is a kludge; need a way to send a parameter as a "command."  We can't expect to look
+        # up all possible values in the build_handlers
+        #
+        if cmd is None:
+            cmd_line = self._build_simple_command(value) 
+            #print "-----> DHE: sending value: " + cmd_line + " to connection.send()"
+            self._connection.send(cmd_line)
+        else:
+            #print "-----> DHE: sending command: " + str(cmd) + " + value: " + str(value) + " to do_cmd_resp()"
+            resp_result = self._do_cmd_resp(cmd, value = value, expected_prompt = expected_prompt, timeout = timeout)
  
         return resp_result
 
-    def _do_cmd_resp(self, cmd, *args, **kwargs):
+    def _do_cmd_resp(self, cmd, **kwargs):
         """
         Perform a command-response on the device.
         @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
         @param timeout=timeout optional wakeup and command timeout.
         @retval resp_result The (possibly parsed) response result.
         @raises InstrumentTimeoutException if the response did not occur in time.
@@ -640,29 +663,41 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         was not recognized.
         """
 
+        #print "-----> DHE: do_cmd_resp sending cmd: " + str(cmd[0])
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', 10)
         expected_prompt = kwargs.get('expected_prompt', None)
         write_delay = kwargs.get('write_delay', 0)
         retval = None
 
-        # Get the build handler.
-        build_handler = self._build_handlers.get(cmd, None)
-        if not build_handler:
-            raise InstrumentProtocolException('Cannot build command: %s' % cmd)
+        # Get the value
+        value = kwargs.get('value', None)
 
-        cmd_line = build_handler(cmd, *args)
+        # Get the build handler.
+        build_handler = self._build_handlers.get(cmd[0], None)
+        if not build_handler:
+            raise InstrumentProtocolException('Cannot build command: %s' % cmd[0])
+
+        # DHE taking out args; if we need them we'll use kwargs
+        #cmd_line = build_handler(cmd, *args)
+        #
+        # DHE: Should this really be like this: intent.format_input()?  This way the "command"
+        # or "intent" object contains the build instructions?  This seems strange to me to 
+        # do it this way.
+        # (passing the actual command to this instead of the unique name, because the command
+        # overlaps sometimes.
+        cmd_line = build_handler(cmd[1])
 
         # Clear line and prompt buffers for result.
         self._linebuf = ''
         self._promptbuf = ''
 
-        # Send command.
         log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
                         (repr(cmd_line), timeout, write_delay, expected_prompt))
         if (write_delay == 0):
             self._connection.send(cmd_line)
         else:
+            #print "---> DHE: do_cmd_resp() sending cmd_line: " + cmd_line
             for char in cmd_line:
                 self._connection.send(char)
                 time.sleep(write_delay)
@@ -670,10 +705,14 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Wait for the prompt, prepare result and return, timeout exception
         (prompt, result) = self._get_response(timeout,
                                               expected_prompt=expected_prompt)
-        resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
-            self._response_handlers.get(cmd, None)
+
+        # DHE TEMP
+        #print "----->>> DHE: looking for response handler for: " + str(cmd[0])
+        resp_handler = self._response_handlers.get((self.get_current_state(), cmd[0]), None) or \
+            self._response_handlers.get(cmd[0], None)
         resp_result = None
         if resp_handler:
+            #print "--->>> DHE:  calling response handler: " + str(resp_handler)
             resp_result = resp_handler(result, prompt)
 
         return resp_result

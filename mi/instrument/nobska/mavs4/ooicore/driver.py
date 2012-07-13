@@ -14,7 +14,7 @@ __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
 
-import logging
+#import logging
 import time
 import re
 import datetime
@@ -28,8 +28,7 @@ from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.exceptions import InstrumentTimeoutException
-from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import InstrumentTimeoutException, InstrumentParameterException, InstrumentProtocolException
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -40,6 +39,7 @@ log = get_logger()
 #log = logging.getLogger('mi_logger')
 
 INSTRUMENT_NEWLINE = '\r\n'
+WRITE_DELAY = 0
 
 # default timeout.
 INSTRUMENT_TIMEOUT = 5
@@ -55,6 +55,12 @@ class InstrumentPrompts(BaseEnum):
     PICO_DOS  = 'Enter command >> '
     SLEEPING  = 'Sleeping . . .'
     WAKEUP    = 'Enter <CTRL>-<C> now to wake up?'
+    DEPLOY    = '>>> <CTRL>-<C> to terminate deployment <<<'
+    
+class InstrumentCmds(BaseEnum):
+    EXIT_SUB_MENU = '\x03'     # CTRL-C
+    DEPLOY_GO     = '\a'     # CTRL-G (bell) + NL
+    DEPLOY_MENU   = '6'
 
 class ProtocolStates(BaseEnum):
     """
@@ -115,6 +121,7 @@ class Status(BaseEnum):
     pass
 
 class SubMenues(BaseEnum):
+    ROOT        = 'root_menu'
     SET_TIME    = 'set_time'
     FLASH_CARD  = 'flash_card'
     CALIBRATION = 'calibration'
@@ -177,20 +184,31 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def __init__(self, prompts, newline, driver_event):
         """
         """
+        self.write_delay = WRITE_DELAY
+        self._last_data_timestamp = None
+        self.eoln = INSTRUMENT_NEWLINE
+        
         # create short alias for Directions class
         Directions = MenuInstrumentProtocol.MenuTree.Directions
         
         # create MenuTree object
         menu = MenuInstrumentProtocol.MenuTree({
+            SubMenues.ROOT       : [],
             SubMenues.SET_TIME   : [Directions("1", InstrumentPrompts.SUB_MENU)],
             SubMenues.FLASH_CARD : [Directions("2", InstrumentPrompts.SUB_MENU)],
-            SubMenues.DEPLOY     : [Directions("6", InstrumentPrompts.SUB_MENU)],
+            SubMenues.DEPLOY     : [Directions(InstrumentCmds.DEPLOY_MENU, InstrumentPrompts.SUB_MENU, 20)],
             SubMenues.PICO_DOS   : [Directions(SubMenues.FLASH_CARD),
                                     Directions("2", InstrumentPrompts.SUB_MENU)]
             })
         
         MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event)
                 
+        # these build handlers will be called by the base class during the
+        # navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.EXIT_SUB_MENU, self._build_simple_command)
+        
         self._protocol_fsm = InstrumentFSM(ProtocolStates, 
                                            ProtocolEvents, 
                                            ProtocolEvents.ENTER,
@@ -228,42 +246,39 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     # overridden superclass methods
     ########################################################################
 
-    def _send_wakeup(self):
+    def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
-        Send two newlines to attempt to wake the MAVS-4 device and get a response.
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
         """
-        self._connection.send(INSTRUMENT_NEWLINE + INSTRUMENT_NEWLINE)
 
-    def  _wakeup(self, timeout, delay=1):
-        """
-        _wakeup is overridden for this instrument to search for prompt strings at other than
-        just the end of the line.
-        
-        Clear buffers and send a wakeup command to the instrument
-        @param timeout The timeout to wake the device.
-        @param delay The time to wait between consecutive wakeups.
-        @throw InstrumentTimeoutException if the device could not be woken.
-        """
-        # Clear the prompt buffer.
+        # Get timeout and final response.
+        timeout = kwargs.get('timeout', 10)
+        expected_prompt = kwargs.get('expected_prompt', None)
+
+        # Clear line and prompt buffers for result.
+        self._linebuf = ''
         self._promptbuf = ''
-        
-        # Grab time for timeout.
-        starttime = time.time()
-        
-        while True:
-            # Send a line return and wait a sec.
-            log.debug('Sending wakeup.')
-            self._send_wakeup()
-            time.sleep(delay)
-            
-            for item in self._prompts.list():
-                if item in self._promptbuf:
-                    log.debug('wakeup got prompt: %s' % repr(item))
-                    return item
 
-            if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException()
-
+        # Send command.
+        log.debug('mavs4InstrumentProtocol._do_cmd_resp: %s, timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,' 
+                  %(repr(cmd), timeout, expected_prompt, expected_prompt.encode("hex")))
+        if cmd == InstrumentCmds.EXIT_SUB_MENU:
+            self._connection.send(cmd)
+        else:
+            for char in cmd:
+                self._connection.send(char)
+                # Wait for the character to be echoed, timeout exception
+                self._get_response(timeout, expected_prompt='%s'%char)
+            self._connection.send(INSTRUMENT_NEWLINE)
+        self._get_response(timeout, expected_prompt=expected_prompt)
+    
     def got_data(self, data):
         """
         Callback for receiving new data from the device.
@@ -279,7 +294,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         
         if len(data)>0:
             # Call the superclass to update line and prompt buffers.
-            CommandResponseInstrumentProtocol.got_data(self, data)
+            MenuInstrumentProtocol.got_data(self, data)
     
             # If in streaming mode, process the buffer for samples to publish.
             cur_state = self.get_current_state()
@@ -288,7 +303,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                     lines = self._linebuf.split(INSTRUMENT_NEWLINE)
                     self._linebuf = lines[-1]
                     for line in lines:
-                        self._extract_sample(line)                    
+                        self._extract_sample(line)  
+                        
+    def _go_to_root_menu(self):
+        self._do_cmd_resp(InstrumentCmds.EXIT_SUB_MENU, expected_prompt=InstrumentPrompts.MAIN_MENU, timeout=2)
+                          
                 
 
     ########################################################################
@@ -321,7 +340,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # try to wakeup the device using timeout if passed.
         timeout = kwargs.get('timeout', INSTRUMENT_TIMEOUT)
         try:
-            prompt = self._wakeup(timeout)
+            prompt = self._get_prompt(timeout)
         except InstrumentTimeoutException:
             # didn't get any command mode prompt, so...
             # might be in deployed mode and sending data or 
@@ -405,8 +424,13 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_state = None
         result = None
 
+        self._go_to_root_menu()
         # Issue start command and switch to autosample if successful.
-        self._do_cmd_no_resp('startnow', *args, **kwargs)
+        self._navigate_and_execute(InstrumentCmds.DEPLOY_GO, 
+                                   dest_submenu=SubMenues.DEPLOY, 
+                                   timeout=20, 
+                                   expected_prompt=InstrumentPrompts.DEPLOY,
+                                   *args, **kwargs)
                 
         next_state = ProtocolStates.AUTOSAMPLE        
         
@@ -465,8 +489,14 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_state = None
         result = None
 
-        # Wake up the device, continuing until CTRL-C prompt seen.
-        
+        # Issue stop command and switch to command if successful.
+        for i in range(10):
+            try:
+                self._go_to_root_menu()
+                break
+            except:
+                pass
+                        
         next_state = ProtocolStates.COMMAND
 
         return (next_state, result)
@@ -517,6 +547,38 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     # Private helpers.
     ########################################################################
         
+    def  _get_prompt(self, timeout, delay=1):
+        """
+        _wakeup is replaced by this method for this instrument to search for prompt strings at other than
+        just the end of the line.  There is no 'wakeup' for this instrument when it is in 'deployed' mode,
+        so the best that can be done is to see if it responds or not.
+        
+        Clear buffers and send some CRs to the instrument
+        @param timeout The timeout to wake the device.
+        @param delay The time to wait between consecutive wakeups.
+        @throw InstrumentTimeoutException if the device could not be woken.
+        """
+        # Clear the prompt buffer.
+        self._promptbuf = ''
+        
+        # Grab time for timeout.
+        starttime = time.time()
+        
+        while True:
+            # Send a line return and wait a sec.
+            log.debug('Sending 2 newlines to get a response from the instrument.')
+            # Send two newlines to attempt to wake the MAVS-4 device and get a response.
+            self._connection.send(INSTRUMENT_NEWLINE + INSTRUMENT_NEWLINE)
+            time.sleep(delay)
+            
+            for item in self._prompts.list():
+                if item in self._promptbuf:
+                    log.debug('wakeup got prompt: %s' % repr(item))
+                    return item
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException()
+
     def _extract_sample(self, line, publish=True):
         """
         Extract sample from a response line if present and publish to agent.

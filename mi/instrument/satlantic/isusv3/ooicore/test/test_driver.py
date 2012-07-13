@@ -100,6 +100,13 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
 )
 
+# Used to validate param config retrieved from driver.
+PARAMS = {
+    Parameter.BAUDRATE: int,
+    Parameter.DEPLOYMENT_COUNTER: int,
+    Parameter.DEPLOYMENT_MODE: str
+}
+
 #################################### RULES ####################################
 #                                                                             #
 # Common capabilities in the base class                                       #
@@ -269,6 +276,62 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
             Parameter.DEPLOYMENT_COUNTER
         ]
         reply = self.driver_client.cmd_dvr('get', params)
+
+        # DHE TEMPTEMP
+        print "DHE: test_driver: reply: " + str(reply)
+
+        self.assertParamDict(reply, True)
+
+        #
+        # DHE: Added set testing here to compare with original gets
+        # Remember the original subset.
+        orig_params = reply
+
+
+    #@unittest.skip('DHE: TESTTESTTEST')
+    def test_set(self):
+        """
+        Test device parameter access.
+        """
+
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, State.UNCONFIGURED_MODE)
+
+        reply = self.driver_client.cmd_dvr('discover')
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        # Currently using ROOT_MENU as "COMMAND" state
+        #self.assertEqual(state, State.MENU_MODE)
+        self.assertEqual(state, State.ROOT_MENU)
+
+        # Get all device parameters. Confirm all expected keys are retrived
+        # and have correct type.
+        reply = self.driver_client.cmd_dvr('get', Parameter.ALL)
+
+        # DHE TEMPTEMP
+        # This should get the list of all parameters supported by the driver
+        print "DHE: test_driver: reply to Parameter.ALL is: " + str(reply)
+
+        # Now test getting a specific parameter
+        params = {
+            #Parameter.BAUDRATE,
+            Parameter.DEPLOYMENT_COUNTER : 4
+        }
+        reply = self.driver_client.cmd_dvr('set', params)
 
         # DHE TEMPTEMP
         #print "DHE: test_driver: reply: " + str(reply)
