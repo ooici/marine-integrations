@@ -40,6 +40,7 @@ from prototype.sci_data.stream_defs import ctd_stream_definition
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
@@ -65,7 +66,240 @@ from ion.agents.instrument.instrument_agent import InstrumentAgentState
 
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
+# Device specific parameters.
+class TestInstrumentParameters(DriverParameter):
+    """
+    Device parameters for MAVS-4.
+    """
+    SYS_CLOCK = 'sys_clock'
+    BAUD_RATE = 'BaudRate'
+    VERSION_NUMBER = 'VersionNumber'
+    CONFIG_INITIALIZED = 'ConfigInitialized'
+    V_OFFSET_0 = 'V_offset_0'
+    V_OFFSET_1 = 'V_offset_1'
+    V_OFFSET_2 = 'V_offset_2'
+    V_OFFSET_3 = 'V_offset_3'
+    V_SCALE = 'V_scale'
+    ANALOG_OUT = 'AnalogOut'
+    COMPASS = 'Compass'
+    M0_OFFSET = 'M0_offset'
+    M1_OFFSET = 'M1_offset'
+    M2_OFFSET = 'M2_offset'
+    M0_SCALE = 'M0_scale'
+    M1_SCALE = 'M1_scale'
+    M2_SCALE = 'M2_scale'
+    TILT = 'Tilt'
+    TY_OFFSET = 'TY_offset'
+    TX_OFFSET = 'TX_offset'
+    TY_SCALE = 'TY_scale'
+    TX_SCALE = 'TX_scale'
+    TY_TEMPCO = 'TY_tempco'
+    TX_TEMPCO = 'TX_tempco'
+    FAST_SENSOR = 'FastSensor'
+    THERMISTOR = 'Thermistor'
+    TH_OFFSET = 'Th_offset'
+    PRESSURE = 'Pressure'
+    P_OFFSET = 'P_offset'
+    P_SCALE = 'P_scale'
+    P_MA = 'P_mA'
+    AUXILIARY1 = 'Auxiliary1'
+    A1_OFFSET = 'A1_offset'
+    A1_SCALE = 'A1_scale'
+    A1_MA = 'A1_mA'
+    AUXILIARY2 = 'Auxiliary2'
+    A2_OFFSET = 'A2_offset'
+    A2_SCALE = 'A2_scale'
+    A2_MA = 'A2_mA'
+    AUXILIARY3 = 'Auxiliary3'
+    A3_OFFSET = 'A3_offset'
+    A3_SCALE = 'A3_scale'
+    A3_MA = 'A3_mA'
+    SENSOR_ORIENTATION = 'SensorOrientation'
+    SERIAL_NUMBER = 'SerialNumber'
+    QUERY_CHARACTER = 'QueryCharacter'
+    POWER_UP_TIME_OUT = 'PowerUpTimeOut'
+    DEPLOY_INITIALIZED = 'DeployInitialized'
+    LINE1 = 'line1'
+    LINE2 = 'line2'
+    LINE3 = 'line3'
+    START_TIME = 'StartTime'
+    STOP_TIME = 'StopTime'
+    FRAME = 'FRAME'
+    DATA_MONITOR = 'DataMonitor'
+    INTERNAL_LOGGING = 'InternalLogging'
+    APPEND_MODE = 'AppendMode'
+    BYTES_PER_SAMPLE = 'BytesPerSample'
+    VERBOSE_MODE = 'VerboseMode'
+    QUERY_MODE = 'QueryMode'
+    EXTERNAL_POWER = 'ExternalPower'
+    MEASUREMENT_FREQUENCY = 'MeasurementFrequency'
+    MEASUREMENT_PERIOD_SECS = 'MeasurementPeriod.secs'
+    MEASUREMENT_PERIOD_TICKS = 'MeasurementPeriod.ticks'
+    MEASUREMENTS_PER_SAMPLE = 'MeasurementsPerSample'
+    SAMPLE_PERIOD_SECS = 'SamplePeriod.secs'
+    SAMPLE_PERIOD_TICKS = 'SamplePeriod.ticks'
+    SAMPLES_PER_BURST = 'SamplesPerBurst'
+    INTERVAL_BETWEEN_BURSTS = 'IntervalBetweenBursts'
+    BURSTS_PER_FILE = 'BurstsPerFile'
+    STORE_TIME = 'StoreTime'
+    STORE_FRACTIONAL_TIME = 'StoreFractionalTime'
+    STORE_RAW_PATHS = 'StoreRawPaths'
+    PATH_UNITS = 'PathUnits'
 
+# Used to validate param config retrieved from driver.
+parameter_types = {
+    InstrumentParameters.SYS_CLOCK : int,
+    InstrumentParameters.BAUD_RATE : int,
+    InstrumentParameters.VERSION_NUMBER : int,
+    InstrumentParameters.CONFIG_INITIALIZED : int,
+    InstrumentParameters.V_OFFSET_0 : int,
+    InstrumentParameters.V_OFFSET_1 : int,
+    InstrumentParameters.V_OFFSET_2 : int,
+    InstrumentParameters.V_OFFSET_3 : int,
+    InstrumentParameters.V_SCALE : float,
+    InstrumentParameters.ANALOG_OUT : int,
+    InstrumentParameters.COMPASS : int,
+    InstrumentParameters.M0_OFFSET : int,
+    InstrumentParameters.M1_OFFSET : int,
+    InstrumentParameters.M2_OFFSET : int,
+    InstrumentParameters.M0_SCALE : float,
+    InstrumentParameters.M1_SCALE : float,
+    InstrumentParameters.M2_SCALE : float,
+    InstrumentParameters.TILT : int,
+    InstrumentParameters.TY_OFFSET : int,
+    InstrumentParameters.TX_OFFSET : int,
+    InstrumentParameters.TY_SCALE : float,
+    InstrumentParameters.TX_SCALE : float,
+    InstrumentParameters.TY_TEMPCO : float,
+    InstrumentParameters.TX_TEMPCO : float,
+    InstrumentParameters.FAST_SENSOR : int,
+    InstrumentParameters.THERMISTOR : int,
+    InstrumentParameters.TH_OFFSET : float,
+    InstrumentParameters.PRESSURE : int,
+    InstrumentParameters.P_OFFSET : int,
+    InstrumentParameters.P_SCALE : float,
+    InstrumentParameters.P_MA : float,
+    InstrumentParameters.AUXILIARY1 : int,
+    InstrumentParameters.A1_OFFSET : int,
+    InstrumentParameters.A1_SCALE : float,
+    InstrumentParameters.A1_MA : float,
+    InstrumentParameters.AUXILIARY2 : int,
+    InstrumentParameters.A2_OFFSET : int,
+    InstrumentParameters.A2_SCALE : float,
+    InstrumentParameters.A2_MA : float,
+    InstrumentParameters.AUXILIARY3 : int,
+    InstrumentParameters.A3_OFFSET : int,
+    InstrumentParameters.A3_SCALE : float,
+    InstrumentParameters.A3_MA : float,
+    InstrumentParameters.SENSOR_ORIENTATION : int,
+    InstrumentParameters.SERIAL_NUMBER : int,
+    InstrumentParameters.QUERY_CHARACTER : str,
+    InstrumentParameters.POWER_UP_TIME_OUT : int,
+    InstrumentParameters.DEPLOY_INITIALIZED : int,
+    InstrumentParameters.LINE1 : str,
+    InstrumentParameters.LINE2 : str,
+    InstrumentParameters.LINE3 : str,
+    InstrumentParameters.START_TIME : int,
+    InstrumentParameters.STOP_TIME : int,
+    InstrumentParameters.FRAME : int,
+    InstrumentParameters.DATA_MONITOR : int,
+    InstrumentParameters.INTERNAL_LOGGING : int,
+    InstrumentParameters.APPEND_MODE : int,
+    InstrumentParameters.BYTES_PER_SAMPLE : int,
+    InstrumentParameters.VERBOSE_MODE : int,
+    InstrumentParameters.QUERY_MODE : int,
+    InstrumentParameters.EXTERNAL_POWER : int,
+    InstrumentParameters.MEASUREMENT_FREQUENCY : float,
+    InstrumentParameters.MEASUREMENT_PERIOD_SECS : int,
+    InstrumentParameters.MEASUREMENT_PERIOD_TICKS : int,
+    InstrumentParameters.MEASUREMENTS_PER_SAMPLE : int,
+    InstrumentParameters.SAMPLE_PERIOD_SECS : int,
+    InstrumentParameters.SAMPLE_PERIOD_TICKS : int,
+    InstrumentParameters.SAMPLES_PER_BURST : int,
+    InstrumentParameters.INTERVAL_BETWEEN_BURSTS : int,
+    InstrumentParameters.BURSTS_PER_FILE : int,
+    InstrumentParameters.STORE_TIME : int,
+    InstrumentParameters.STORE_FRACTIONAL_TIME : int,
+    InstrumentParameters.STORE_RAW_PATHS : int,
+    InstrumentParameters.PATH_UNITS : str
+}
+
+parameter_list = [
+    InstrumentParameters.SYS_CLOCK,
+    InstrumentParameters.BAUD_RATE,
+    InstrumentParameters.VERSION_NUMBER,
+    InstrumentParameters.CONFIG_INITIALIZED,
+    InstrumentParameters.V_OFFSET_0,
+    InstrumentParameters.V_OFFSET_1,
+    InstrumentParameters.V_OFFSET_2,
+    InstrumentParameters.V_OFFSET_3,
+    InstrumentParameters.V_SCALE,
+    InstrumentParameters.ANALOG_OUT,
+    InstrumentParameters.COMPASS,
+    InstrumentParameters.M0_OFFSET,
+    InstrumentParameters.M1_OFFSET,
+    InstrumentParameters.M2_OFFSET,
+    InstrumentParameters.M0_SCALE,
+    InstrumentParameters.M1_SCALE,
+    InstrumentParameters.M2_SCALE,
+    InstrumentParameters.TILT,
+    InstrumentParameters.TY_OFFSET,
+    InstrumentParameters.TX_OFFSET,
+    InstrumentParameters.TY_SCALE,
+    InstrumentParameters.TX_SCALE,
+    InstrumentParameters.TY_TEMPCO,
+    InstrumentParameters.TX_TEMPCO,
+    InstrumentParameters.FAST_SENSOR,
+    InstrumentParameters.THERMISTOR,
+    InstrumentParameters.TH_OFFSET,
+    InstrumentParameters.PRESSURE,
+    InstrumentParameters.P_OFFSET,
+    InstrumentParameters.P_SCALE,
+    InstrumentParameters.P_MA,
+    InstrumentParameters.AUXILIARY1,
+    InstrumentParameters.A1_OFFSET,
+    InstrumentParameters.A1_SCALE,
+    InstrumentParameters.A1_MA,
+    InstrumentParameters.AUXILIARY2,
+    InstrumentParameters.A2_OFFSET,
+    InstrumentParameters.A2_SCALE,
+    InstrumentParameters.A2_MA,
+    InstrumentParameters.AUXILIARY3,
+    InstrumentParameters.A3_OFFSET,
+    InstrumentParameters.A3_SCALE,
+    InstrumentParameters.A3_MA,
+    InstrumentParameters.SENSOR_ORIENTATION,
+    InstrumentParameters.SERIAL_NUMBER,
+    InstrumentParameters.QUERY_CHARACTER,
+    InstrumentParameters.POWER_UP_TIME_OUT,
+    InstrumentParameters.DEPLOY_INITIALIZED,
+    InstrumentParameters.LINE1,
+    InstrumentParameters.LINE2,
+    InstrumentParameters.LINE3,
+    InstrumentParameters.START_TIME,
+    InstrumentParameters.STOP_TIME,
+    InstrumentParameters.FRAME,
+    InstrumentParameters.DATA_MONITOR,
+    InstrumentParameters.INTERNAL_LOGGING,
+    InstrumentParameters.APPEND_MODE,
+    InstrumentParameters.BYTES_PER_SAMPLE,
+    InstrumentParameters.VERBOSE_MODE,
+    InstrumentParameters.QUERY_MODE,
+    InstrumentParameters.EXTERNAL_POWER,
+    InstrumentParameters.MEASUREMENT_FREQUENCY,
+    InstrumentParameters.MEASUREMENT_PERIOD_SECS,
+    InstrumentParameters.MEASUREMENT_PERIOD_TICKS,
+    InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
+    InstrumentParameters.SAMPLE_PERIOD_SECS,
+    InstrumentParameters.SAMPLE_PERIOD_TICKS,
+    InstrumentParameters.SAMPLES_PER_BURST,
+    InstrumentParameters.INTERVAL_BETWEEN_BURSTS,
+    InstrumentParameters.BURSTS_PER_FILE,
+    InstrumentParameters.STORE_TIME,
+    InstrumentParameters.STORE_FRACTIONAL_TIME,
+    InstrumentParameters.STORE_RAW_PATHS,
+    InstrumentParameters.PATH_UNITS]
+    
 ## Initialize the test configuration
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.nobska.mavs4.ooicore.driver',
@@ -224,12 +458,104 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         return 'mavs4InstrumentDriver'    
     
 
+    def assertParamDict(self, pd, all_params=False):
+        """
+        Verify all device parameters exist and are correct type.
+        """
+        if all_params:
+            self.assertEqual(set(pd.keys()), set(parameter_types.keys()),
+                             'not all parameters are present')
+            for (key, type_val) in parameter_types.iteritems():
+                self.assertTrue(isinstance(pd[key], type_val),
+                                'parameter %s not type %s' %(key, str(type_val)))
+        else:
+            for (key, val) in pd.iteritems():
+                self.assertTrue(parameter_types.has_key(key),
+                                'unexpected parameter %s' %key)
+                self.assertTrue(isinstance(val, parameter_types[key]),
+                                'parameter %s not type %s' %(key, str(parameter_types[key])))
+    
+    def assertParamList(self, pl):
+        """
+        Verify all device parameters.
+        """
+        self.assertEqual(pl, TestInstrumentParameters.list())
+    
     @unittest.skip("override & skip while in development")
     def test_driver_process(self):
         pass 
 
     
-    def test_instrumment_wakeup(self):
+    def Xtest_instrumment_wakeup(self):
+        """
+        @brief Test for instrument wakeup, expects instrument to be in 'command' state
+        """
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms and in disconnected state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Connect to instrument and transition to unknown.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, ProtocolStates.UNKNOWN)
+
+        # discover instrument state and transition to command.
+        reply = self.driver_client.cmd_dvr('discover')
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, ProtocolStates.COMMAND)
+                
+               
+    def test_get_set(self):
+        """
+        Test device parameter access.
+        """
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms and in disconnected state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Connect to instrument and transition to unknown.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, ProtocolStates.UNKNOWN)
+
+        # discover instrument state and transition to command.
+        reply = self.driver_client.cmd_dvr('discover')
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, ProtocolStates.COMMAND)
+
+        # get the list of device parameters
+        reply = self.driver_client.cmd_dvr('get_resource_params')
+        self.assertParamList(reply)
+
+        # Get all device parameters. Confirm all expected keys are retrieved
+        # and have correct type.
+        reply = self.driver_client.cmd_dvr('get', InstrumentParameters.ALL)
+        self.assertParamDict(reply, True)
+        log.debug("test_get_set: parameters:" )
+        for parameter in parameter_list:
+            log.debug("%s = %s" %(parameter, reply[parameter]))
+
+    def Xtest_instrumment_autosample(self):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' state
         """

@@ -230,7 +230,8 @@ class Mavs4ProtocolParameterDict(ProtocolParameterDict):
         @param value The parameter value.
         @raises KeyError if the name is invalid.
         """
-        self._param_dict[name] = self.f_getval(line)
+        log.debug("Mavs4ProtocolParameterDict.set(): name=%s, line=%s" %(name, line))
+        self._param_dict[name].value = self._param_dict[name].f_getval(line)
         
 
 ###
@@ -276,6 +277,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     """
     
     upload_parameter_list = [
+        'u',
+        '',
+        '#',
         InstrumentParameters.SYS_CLOCK,
         InstrumentParameters.BAUD_RATE,
         InstrumentParameters.VERSION_NUMBER,
@@ -323,6 +327,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         InstrumentParameters.SERIAL_NUMBER,
         InstrumentParameters.QUERY_CHARACTER,
         InstrumentParameters.POWER_UP_TIME_OUT,
+        '#',
         InstrumentParameters.DEPLOY_INITIALIZED,
         InstrumentParameters.LINE1,
         InstrumentParameters.LINE2,
@@ -349,7 +354,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         InstrumentParameters.STORE_TIME,
         InstrumentParameters.STORE_FRACTIONAL_TIME,
         InstrumentParameters.STORE_RAW_PATHS,
-        InstrumentParameters.PATH_UNITS]
+        InstrumentParameters.PATH_UNITS,
+        'DONE']
     
     def __init__(self, prompts, newline, driver_event):
         """
@@ -396,6 +402,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.TEST, self._handler_command_test)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.ENTER, self._handler_autosample_enter)
@@ -489,7 +496,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                         self._extract_sample(line)  
                         
     def _go_to_root_menu(self):
-        self._do_cmd_resp(InstrumentCmds.EXIT_SUB_MENU, expected_prompt=InstrumentPrompts.MAIN_MENU, timeout=2)
+        self._do_cmd_resp(InstrumentCmds.EXIT_SUB_MENU, expected_prompt=InstrumentPrompts.MAIN_MENU, timeout=4)
                           
                 
 
@@ -551,6 +558,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         """
         # Command device to update parameters and send a config change event.
         self._update_params()
+        
+        log.debug("parameters values are: %s" %str(self._param_dict.get_config()))
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -732,6 +741,47 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
 
     ########################################################################
+    # Common handlers.
+    ########################################################################
+
+    def _handler_get(self, *args, **kwargs):
+        """
+        Get device parameters from the parameter dict.
+        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
+        @throws InstrumentParameterException if missing or invalid parameter.
+        """
+        next_state = None
+        result = None
+
+        # Retrieve the required parameter, raise if not present.
+        try:
+            params = args[0]
+
+        except IndexError:
+            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
+
+        # If all params requested, retrieve config.
+        if params == DriverParameter.ALL:
+            result = self._param_dict.get_config()
+
+        # If not all params, confirm a list or tuple of params to retrieve.
+        # Raise if not a list or tuple.
+        # Retireve each key in the list, raise if any are invalid.
+        else:
+            if not isinstance(params, (list, tuple)):
+                raise InstrumentParameterException('Get argument not a list or tuple.')
+            result = {}
+            for key in params:
+                try:
+                    val = self._param_dict.get(key)
+                    result[key] = val
+
+                except KeyError:
+                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
+
+        return (next_state, result)
+
+    ########################################################################
     # Private helpers.
     ########################################################################
         
@@ -745,373 +795,373 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         
         # Add parameter handlers to parameter dict for instrument configuration parameters.
         self._param_dict.add(InstrumentParameters.SYS_CLOCK,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.BAUD_RATE,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.VERSION_NUMBER,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.CONFIG_INITIALIZED,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.V_OFFSET_0,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.V_OFFSET_1,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.V_OFFSET_2,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.V_OFFSET_3,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.V_SCALE,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.ANALOG_OUT,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.COMPASS,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.M0_OFFSET,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.M1_OFFSET,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.M2_OFFSET,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.M0_SCALE,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.M1_SCALE,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.M2_SCALE,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.TILT,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.TY_OFFSET,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.TX_OFFSET,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.TY_SCALE,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.TX_SCALE,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.TY_TEMPCO,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.TX_TEMPCO,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.FAST_SENSOR,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.THERMISTOR,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.TH_OFFSET,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.PRESSURE,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.P_OFFSET,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.P_SCALE,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.P_MA,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.AUXILIARY1,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.A1_OFFSET,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.A1_SCALE,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.A1_MA,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.AUXILIARY2,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.A2_OFFSET,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.A2_SCALE,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.A2_MA,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.AUXILIARY3,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.A3_OFFSET,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.A3_SCALE,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.A3_MA,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
         
         self._param_dict.add(InstrumentParameters.SENSOR_ORIENTATION,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.SERIAL_NUMBER,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         self._param_dict.add(InstrumentParameters.QUERY_CHARACTER,
-                             None, 
+                             '', 
                              lambda line : line,
                              lambda line : line)
         
         self._param_dict.add(InstrumentParameters.POWER_UP_TIME_OUT,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
         
         # Add parameter handlers to parameter dict for instrument deployment parameters.
         self._param_dict.add(InstrumentParameters.DEPLOY_INITIALIZED,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.LINE1,
-                             None, 
+                             '', 
                              lambda line : line,
                              lambda line : line)
 
         self._param_dict.add(InstrumentParameters.LINE2,
-                             None, 
+                             '', 
                              lambda line : line,
                              lambda line : line)
 
         self._param_dict.add(InstrumentParameters.LINE3,
-                             None, 
+                             '', 
                              lambda line : line,
                              lambda line : line)
 
         self._param_dict.add(InstrumentParameters.START_TIME,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.STOP_TIME,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.FRAME,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.DATA_MONITOR,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.INTERNAL_LOGGING,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.APPEND_MODE,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.BYTES_PER_SAMPLE,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.VERBOSE_MODE,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.QUERY_MODE,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.EXTERNAL_POWER,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.MEASUREMENT_FREQUENCY,
-                             None, 
+                             '', 
                              lambda line : float(line),
                              self._float_to_string)
 
         self._param_dict.add(InstrumentParameters.MEASUREMENT_PERIOD_SECS,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.MEASUREMENT_PERIOD_TICKS,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.SAMPLE_PERIOD_SECS,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.SAMPLE_PERIOD_TICKS,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.SAMPLES_PER_BURST,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.INTERVAL_BETWEEN_BURSTS,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.BURSTS_PER_FILE,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.STORE_TIME,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.STORE_FRACTIONAL_TIME,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.STORE_RAW_PATHS,
-                             None, 
+                             '', 
                              lambda line : int(line),
                              self._int_to_string)
 
         self._param_dict.add(InstrumentParameters.PATH_UNITS,
-                             None, 
+                             '', 
                              lambda line : line,
                              lambda line : line)
 
@@ -1170,21 +1220,31 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         old_config = self._param_dict.get_config()
 
         # go to root menu.
-        got_root_prompt = False
+        got_prompt = False
         for i in range(10):
             try:
                 self._go_to_root_menu()
-                got_root_prompt = True
+                got_prompt = True
                 break
             except:
                 pass
             
-        if not got_root_prompt:                
+        if not got_prompt:                
             raise InstrumentTimeoutException()
                                 
-        # Issue upload command 
-        self._do_cmd_resp(InstrumentCmds.UPLOAD,
-                          expected_prompt=InstrumentPrompts.UPLOAD)
+        # Issue upload command
+        for i in range(2):
+            try: 
+                self._do_cmd_resp(InstrumentCmds.UPLOAD,
+                                  expected_prompt=InstrumentPrompts.UPLOAD,
+                                  timeout=2)
+                got_prompt = True
+                break
+            except:
+                pass
+
+        if not got_prompt:                
+            raise InstrumentTimeoutException()
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
@@ -1201,9 +1261,15 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         """
         if prompt != InstrumentPrompts.UPLOAD:
             raise InstrumentProtocolException('upload command not recognized: %s.' % response)
+        
+        log.debug("_parse_upload_response: response=%s" %response)
 
         for name, line in zip(self.upload_parameter_list, response.split(INSTRUMENT_NEWLINE)):
-            self._param_dict.set(name, line)
+            #log.debug("_parse_upload_response: name=%s, line=%s" %(name, line))
+            if name == 'DONE':
+                break
+            if not line in ['u', '#', '']:
+                self._param_dict.set(name, line)
               
 
 
