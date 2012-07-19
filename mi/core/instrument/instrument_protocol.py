@@ -464,7 +464,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         #    SubMenues.SUB_MENU1   : [Directions("1", InstrumentPrompts.SUB_MENU1)],
         #    SubMenues.SUB_MENU2   : [Directions("2", InstrumentPrompts.SUB_MENU2)],
         #    SubMenues.SUB_MENU3   : [Directions(SubMenues.SUB_MENU2),
-        #                            Directions("2", InstrumentPrompts.SUB_MENU3)],
+        #                            Directions("2", InstrumentPrompts.SUB_MENU3, 20)],
         #    SubMenues.SUB_MENU4   : [Directions(SubMenues.SUB_MENU3),
         #                            Directions("d", InstrumentPrompts.SUB_MENU4)]
         #    })
@@ -482,7 +482,8 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         # for directions in directions_list:
         #     command = directions.get_command()
         #     response = directions.get_response()
-        #     do_cmd_reponse(command, expected_prompt = response)
+        #     timeout = directions.get_timeout()
+        #     do_cmd_reponse(command, expected_prompt = response, timeout = timeout)
         
 
         class Directions(object):

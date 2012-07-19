@@ -475,6 +475,16 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
                 self.assertTrue(isinstance(val, parameter_types[key]),
                                 'parameter %s not type %s' %(key, str(parameter_types[key])))
     
+    def assertParamVals(self, params, correct_params):
+        """
+        Verify parameters take the correct values.
+        """
+        self.assertEqual(set(params.keys()), set(correct_params.keys()),
+                         '%s != %s' %(params.keys(), correct_params.keys()))
+        for (key, val) in params.iteritems():
+            self.assertEqual(val, correct_params[key],
+                             '%s != %s' %(key, correct_params[key]))
+
     def assertParamList(self, pl):
         """
         Verify all device parameters.
@@ -551,9 +561,63 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         # and have correct type.
         reply = self.driver_client.cmd_dvr('get', InstrumentParameters.ALL)
         self.assertParamDict(reply, True)
+        """
         log.debug("test_get_set: parameters:" )
         for parameter in parameter_list:
             log.debug("%s = %s" %(parameter, reply[parameter]))
+        """
+        
+        # Remember original configuration.
+        orig_config = reply
+        
+        # Grab a subset of parameters.
+        params = [
+            InstrumentParameters.TY_OFFSET,
+            InstrumentParameters.TX_OFFSET,
+            InstrumentParameters.TY_SCALE,
+            InstrumentParameters.TX_SCALE
+            ]
+        reply = self.driver_client.cmd_dvr('get', params)
+        self.assertParamDict(reply)        
+
+        # Remember the original subset.
+        orig_params = reply
+        
+        # Construct new parameters to set.
+        new_params = {
+            InstrumentParameters.TY_OFFSET : orig_params[InstrumentParameters.TY_OFFSET] * 2,
+            InstrumentParameters.TX_OFFSET : orig_params[InstrumentParameters.TX_OFFSET] + 1,
+            InstrumentParameters.TY_SCALE : orig_params[InstrumentParameters.TY_SCALE] * 2,
+            InstrumentParameters.TX_SCALE : orig_params[InstrumentParameters.TX_SCALE] + 1
+        }
+
+        # Set parameters and verify.
+        reply = self.driver_client.cmd_dvr('set', new_params)
+        reply = self.driver_client.cmd_dvr('get', params)
+        self.assertParamVals(reply, new_params)
+        
+        # Restore original parameters and verify.
+        reply = self.driver_client.cmd_dvr('set', orig_params)
+        reply = self.driver_client.cmd_dvr('get', params)
+        self.assertParamVals(reply, orig_params)
+
+        # Retrieve the configuration and ensure it matches the original.
+        reply = self.driver_client.cmd_dvr('get', InstrumentParameters.ALL)
+        self.assertParamVals(reply, orig_config)
+
+        # Disconnect from the port agent.
+        reply = self.driver_client.cmd_dvr('disconnect')
+        
+        # Test the driver is disconnected.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+        
+        # Deconfigure the driver.
+        reply = self.driver_client.cmd_dvr('initialize')
+        
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)        
 
     def Xtest_instrumment_autosample(self):
         """

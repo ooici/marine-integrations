@@ -18,11 +18,13 @@ __license__ = 'Apache 2.0'
 import time
 import re
 import datetime
+import copy
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -63,13 +65,15 @@ class InstrumentPrompts(BaseEnum):
     DEPLOY    = '>>> <CTRL>-<C> to terminate deployment <<<'
     UPLOAD    = '\x04'    # EOT
     DOWNLOAD  = ' \a'
+    SET_DONE  = 'New parameters accepted.'
     
 class InstrumentCmds(BaseEnum):
-    EXIT_SUB_MENU = '\x03'   # CTRL-C
+    EXIT_SUB_MENU = '\x03'   # CTRL-C (end of text)
     DEPLOY_GO     = '\a'     # CTRL-G (bell)
     DEPLOY_MENU   = '6'
     UPLOAD        = 'u'
     DOWNLOAD      = 'b'
+    END_OF_TRANS  = '\x04'   # CTRL-D (end of transmission)
 
 class ProtocolStates(BaseEnum):
     """
@@ -223,16 +227,35 @@ PACKET_CONFIG = {
 
 class Mavs4ProtocolParameterDict(ProtocolParameterDict):
     
-    def set(self, name, line):
+    def set_from_string(self, name, line):
+        """
+        Set a parameter value in the dictionary.
+        @param name The parameter name.
+        @param line The parameter value as a string.
+        @raises KeyError if the name is invalid.
+        """
+        log.debug("Mavs4ProtocolParameterDict.set_from_string(): name=%s, line=%s" %(name, line))
+        self._param_dict[name].value = self._param_dict[name].f_getval(line)
+
+    def set_from_value(self, name, value):
         """
         Set a parameter value in the dictionary.
         @param name The parameter name.
         @param value The parameter value.
         @raises KeyError if the name is invalid.
         """
-        log.debug("Mavs4ProtocolParameterDict.set(): name=%s, line=%s" %(name, line))
-        self._param_dict[name].value = self._param_dict[name].f_getval(line)
+        log.debug("Mavs4ProtocolParameterDict.set_from_value(): name=%s, value=%s" %(name, value))
+        self._param_dict[name].value = value
         
+    def format_parameter(self, name):
+        """
+        Format the parameter for a set command.
+        @param name The name of the parameter.
+        @retval The value formatted as a string for writing to the device.
+        @raises InstrumentProtocolException if the value could not be formatted.
+        @raises KeyError if the parameter name is invalid.
+        """
+        return self._param_dict[name].f_format(self._param_dict[name].value)
 
 ###
 #   Driver for mavs4
@@ -276,7 +299,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     commands and a few set commands.
     """
     
-    upload_parameter_list = [
+    upload_download_parameter_list = [
         'u',
         '',
         '#',
@@ -498,6 +521,21 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _go_to_root_menu(self):
         self._do_cmd_resp(InstrumentCmds.EXIT_SUB_MENU, expected_prompt=InstrumentPrompts.MAIN_MENU, timeout=4)
                           
+    def _float_to_string(self, v):
+        """
+        Write a float value to string formatted for "generic" set operations.
+        Subclasses should overload this as needed for instrument-specific
+        formatting.
+        
+        @param v A float val.
+        @retval a float string formatted for "generic" set operations.
+        @throws InstrumentParameterException if value is not a float.
+        """
+
+        if not isinstance(v,float):
+            raise InstrumentParameterException('Value %s is not a float.' % v)
+        else:
+            return str(v)
                 
 
     ########################################################################
@@ -584,24 +622,82 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_state = None
         result = None
 
-        # Retrieve required parameter.
-        # Raise if no parameter provided, or not a dict.
+        # Retrieve required parameter from args.
+        # Raise exception if no parameter provided, or not a dict.
         try:
-            params = args[0]
-            
+            params_to_set = args[0]           
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
-
-        if not isinstance(params, dict):
-            raise InstrumentParameterException('Set parameters not a dict.')
-        
-        # For each key, val in the dict, issue set command to device.
-        # Raise if the command not understood.
         else:
+            if not isinstance(params_to_set, dict):
+                raise InstrumentParameterException('Set parameters not a dict.')
+        
+        parameters = copy.copy(self._param_dict)    # get copy of parameters to modify
+        
+        # For each key, value in the params_to_set list set the value in parameters copy.
+        try:
+            for (name, value) in params_to_set.iteritems():
+                log.debug('setting %s to %s' %(name, value))
+                parameters.set_from_value(name, value)
+        except Exception as ex:
+            raise InstrumentProtocolException('Unable to set parameter %s to %s: %s' %(name, value, ex))
             
-            for (key, val) in params.iteritems():
-                result = self._do_cmd_resp('set', key, val, **kwargs)
-            self._update_params()
+        output = self._create_set_output(parameters)
+        
+        # go to root menu.
+        got_prompt = False
+        for i in range(10):
+            try:
+                self._go_to_root_menu()
+                got_prompt = True
+                break
+            except:
+                pass
+            
+        if not got_prompt:                
+            raise InstrumentTimeoutException()
+                                
+        # Issue download command
+        for i in range(2):
+            try: 
+                self._do_cmd_resp(InstrumentCmds.DOWNLOAD,
+                                  expected_prompt=InstrumentPrompts.DOWNLOAD,
+                                  timeout=2)
+                got_prompt = True
+                break
+            except:
+                pass
+
+        if not got_prompt:                
+            raise InstrumentTimeoutException()
+
+        for line in output:
+            self._linebuf = ''
+            self._promptbuf = ''
+            self._connection.send(line + '\r')
+            self._get_response(timeout=5, expected_prompt='\r\n\r')
+            """
+            for char in line:
+                # Clear line and prompt buffers for result.
+                #self._linebuf = ''
+                #self._promptbuf = ''
+                log.debug('_handler_command_set: sending %s from %s' %(char, line))
+                self._connection.send(char)
+                # Wait for the character to be echoed, timeout exception
+                # use method that looks for the response only at the end of the _promptbuf
+                #self._get_response(timeout=2, expected_prompt='%s'%char)
+                time.sleep(.15)
+            self._linebuf = ''
+            self._promptbuf = ''
+            self._connection.send('\r')
+            CommandResponseInstrumentProtocol._get_response(self, timeout=2, expected_prompt='\r\n\r')
+            """
+            
+        result = self._do_cmd_resp(InstrumentCmds.END_OF_TRANS, 
+                                   expected_prompt=InstrumentPrompts.SET_DONE,
+                                   timeout=2)
+        
+        self._update_params()
             
         return (next_state, result)
 
@@ -1264,14 +1360,35 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         
         log.debug("_parse_upload_response: response=%s" %response)
 
-        for name, line in zip(self.upload_parameter_list, response.split(INSTRUMENT_NEWLINE)):
+        for name, line in zip(self.upload_download_parameter_list, response.split(INSTRUMENT_NEWLINE)):
             #log.debug("_parse_upload_response: name=%s, line=%s" %(name, line))
             if name == 'DONE':
                 break
             if not line in ['u', '#', '']:
-                self._param_dict.set(name, line)
+                self._param_dict.set_from_string(name, line)
               
-
+    def _create_set_output(self, parameters):
+        output = []
+        for name in self.upload_download_parameter_list:
+            if name == 'DONE':
+                break
+            if not name in ['u', '']:
+                if name == '#':
+                    output.append(name)
+                else:
+                    output.append(parameters.format_parameter(name))
+                              
+        checksum = 0
+        for item in output:
+            for char in item:
+                log.debug('c=%s, i=%s' %(char, item))
+                checksum = (checksum + ord(char)) % 255
+                
+        output.append('#')
+        output.append(str(checksum))
+        output.append('#')
+        
+        return output
 
 
 
