@@ -66,6 +66,13 @@ from ion.agents.instrument.instrument_agent import InstrumentAgentState
 
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
+# 'will echo' command sequence to be sent from DA telnet server
+# see RFCs 854 & 857
+WILL_ECHO_CMD = '\xff\xfd\x03\xff\xfb\x03\xff\xfb\x01'
+# 'do echo' command sequence to be sent back from telnet client
+DO_ECHO_CMD   = '\xff\xfb\x03\xff\xfd\x03\xff\xfd\x01'
+
+
 # Device specific parameters.
 class TestInstrumentParameters(DriverParameter):
     """
@@ -679,9 +686,9 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
     # Qualification tests live in the base class.  This class is extended
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.  
-    pass
 
 
+    @unittest.skip("skip for automatic tests")
     def test_direct_access_telnet_mode_manually(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -740,7 +747,8 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
         gevent.sleep(600)  # wait for manual telnet session to be run
 
 
-    def Xtest_direct_access_telnet_mode(self):
+    @unittest.skip("skip for now")
+    def test_direct_access_telnet_mode(self):
         """
         @brief This test verifies that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
@@ -809,6 +817,15 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
         # send the returned token
         s.send_data(retval.result['token'] + "\r\n", "1")
         
+        # look for and swallow telnet negotiation string
+        while s.peek_at_buffer().find(WILL_ECHO_CMD) == -1:
+            log.debug("WANT %s READ ==> %s" %(WILL_ECHO_CMD, str(s.peek_at_buffer())))
+            gevent.sleep(.1)
+            s.peek_at_buffer()
+        s.remove_from_buffer(WILL_ECHO_CMD)
+        # send the telnet negotiation response string
+        s.send_data(DO_ECHO_CMD, "1")
+
         # look for and swallow 'connected' indicator
         while s.peek_at_buffer().find("connected\n") == -1:
             log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
@@ -827,53 +844,4 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
             s.send_data("\r\n\r\n", "1")
             gevent.sleep(1)
             s.peek_at_buffer()
-       
-        """
-        pattern = re.compile("^([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9a-z]+),([ 0-9:]+)")
-
-        matches = 0
-        n = 0
-        while n < 100:
-            n = n + 1
-            gevent.sleep(1)
-            data = s.get_data()
-            log.debug("READ ==>" + str(repr(data)))
-            m = pattern.search(data)
-            if m != None:
-                matches = m.lastindex
-                if matches == 7:
-                    break
-
-        self.assertTrue(matches == 7) # need to have found 7 conformant fields.
-        """
-        
-###############################################################################
-# Auto generated code.  There should rarely be reason to edit anything below. #
-###############################################################################
-
-"""
-these cause nosetest to run all tests twice!
-class IntFromIDK(Testmavs4_INT):
-    #This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    #called from the IDK test_driver program
-    
-    @classmethod
-    def init_comm(cls):
-        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
-
-class UnitFromIDK(Testmavs4_UNIT):
-    #This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    #called from the IDK test_driver program
-
-    @classmethod
-    def init_comm(cls):
-        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
-
-class QualFromIDK(Testmavs4_QUAL):
-    #This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    #called from the IDK test_driver program
-
-    @classmethod
-    def init_comm(cls):
-        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
-"""
+               
