@@ -785,31 +785,35 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
     def _extract_sample(self, line, publish=True):
         """
-        Extract sample from a response line if present and publish to agent.
+        Extract sample from a response line if present and publish "raw" and
+        "parsed" sample events to agent.
+
         @param line string to match for sample.
-        @param publsih boolean to publish sample (default True).
-        @retval tuple of dictionaries (raw_sample, parsed_sample) if the line
-                can be parsed for a sample.
+        @param publish boolean to publish samples (default True). If True,
+               two different events are published: one to notify raw data and
+               the other to notify parsed data.
+
+        @retval dict of dicts {'parsed': parsed_sample, 'raw': raw_sample} if
+                the line can be parsed for a sample. Otherwise, None.
         """
-        raw_sample = None
-        parsed_sample = None
+        sample = None
         match = self._sample_regex.match(line)
         if match:
 
             # Driver timestamp.
             ts = time.time()
 
-            # generate "raw" sample
+            # prepate "raw" sample dict
             raw_sample = dict(
                 stream_name=STREAM_NAME_RAW,
                 time=[ts],
                 blob=[line]
             )
 
-            if self._driver_event:
+            if publish and self._driver_event:
                 self._driver_event(DriverAsyncEvent.SAMPLE, raw_sample)
 
-            # generate "parsed" sample
+            # prepare "parsed" sample dict
             parsed_sample = dict(
                 stream_name=STREAM_NAME_PARSED,
                 time=[ts],
@@ -818,10 +822,12 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                 p=[float(match.group(3))]
             )
 
-            if self._driver_event:
+            if publish and self._driver_event:
                 self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
 
-        return raw_sample, parsed_sample
+            sample = dict(parsed=parsed_sample, raw=raw_sample)
+
+        return sample
 
     def _build_param_dict(self):
         """
