@@ -18,6 +18,7 @@ import time
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.instrument_protocol import BaseProtocolEvent
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -46,6 +47,9 @@ TIMEOUT = 40
 #    'raw' : None
 #}
 
+class InstrumentCmds(BaseEnum):
+    SETSAMPLING = 'setsampling'
+
 class ProtocolState(BaseEnum):
     """
     Protocol states
@@ -58,24 +62,13 @@ class ProtocolState(BaseEnum):
     CALIBRATE = DriverProtocolState.CALIBRATE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
 
-class ProtocolEvent(BaseEnum):
+class ProtocolEvent(BaseProtocolEvent):
     """
     Protocol events
+    Should only have to define ones to ADD to the base class.  cannot remove from base class gracefully...
     """
-    ENTER = DriverEvent.ENTER
-    EXIT = DriverEvent.EXIT
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
-    DISCOVER = DriverEvent.DISCOVER
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    TEST = DriverEvent.TEST
-    RUN_TEST = DriverEvent.RUN_TEST
-    CALIBRATE = DriverEvent.CALIBRATE
-    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
+
+    SETSAMPLING = 'PROTOCOL_EVENT_SETSAMPLING' # it HAS to be defined there, OR!!! InstrumentFSM.on_event() CANNOT HANDLE IT. THIS SHOULD BE DOCUMENTED!!!!!!
 
 
 # Device specific parameters.
@@ -101,13 +94,15 @@ class Parameter(DriverParameter):
     STATUS = 'STATUS'
     CONDUCTIVITY = 'CONDUCTIVITY'
     USER_INFO = 'USER_INFO'
+
     TIDE_MEASUREMENT_INTERVAL = 'TIDE_MEASUREMENT_INTERVAL'
     TIDE_MEASUREMENT_DURATION = 'TIDE_MEASUREMENT_DURATION'
+
     QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER = 'QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER'
     QUARTZ_PREASURE_SENSOR_RANGE = 'QUARTZ_PREASURE_SENSOR_RANGE'
     WAVE_SAMPLES_PER_BURST = 'WAVE_SAMPLES_PER_BURST'
-    WAVE_SAMPLES_SCANS_PER_SECOND = 'WAVE_SAMPLES_SCANS_PER_SECOND'
-    WAVE_SAMPLES_DURATION_SECONDS ='WAVE_SAMPLES_DURATION_SECONDS'
+    #WAVE_SAMPLES_SCANS_PER_SECOND = 'WAVE_SAMPLES_SCANS_PER_SECOND'
+    #WAVE_SAMPLES_DURATION_SECONDS ='WAVE_SAMPLES_DURATION_SECONDS'
     LAST_SAMPLE_P = 'LAST_SAMPLE_P'
     LAST_SAMPLE_T = 'LAST_SAMPLE_T'
     LAST_SAMPLE_S = 'LAST_SAMPLE_S'
@@ -176,6 +171,8 @@ time out
 SBE 26plus
 S>
 """
+
+
 ###############################################################################
 # Driver
 ###############################################################################
@@ -197,6 +194,24 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     ########################################################################
     # Superclass overrides for resource query.
     ########################################################################
+
+    def setsampling(self, *args, **kwargs):
+        """
+        Set device parameters.
+        @param args[0] parameter : value dict of parameters to set.
+        @param timeout=timeout Optional command timeout.
+        @raises InstrumentParameterException if missing or invalid set parameters.
+        @raises InstrumentTimeoutException if could not wake device or no response.
+        @raises InstrumentProtocolException if set command not recognized.
+        @raises InstrumentStateException if command not allowed in current state.
+        @raises NotImplementedException if not implemented by subclass.
+        """
+        # Forward event and argument to the protocol FSM.
+        log.debug("ROGER GOT INTO InstrumentDriver.setsampling() " + str(ProtocolEvent.SETSAMPLING))
+        log.debug("args = " + str(args))
+        log.debug("kwargs = " + str(kwargs))
+
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.SETSAMPLING, *args, **kwargs)
 
     def get_resource_params(self):
         """
@@ -235,33 +250,35 @@ class Protocol(CommandResponseInstrumentProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build sbe26plus protocol state machine.
-        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
-            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent, ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_autosample_test_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST, self._handler_command_test)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_autosample_test_get)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.ENTER, self._handler_test_enter)
-        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.EXIT, self._handler_test_exit)
-        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.RUN_TEST, self._handler_test_run_tests)
-        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.GET, self._handler_command_autosample_test_get)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER,                  self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT,                   self._handler_unknown_exit)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER,               self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER,                  self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT,                   self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,         self._handler_command_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,       self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,                    self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)
+
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SETSAMPLING,            self._handler_command_setsampling)
+
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST,                   self._handler_command_test)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,     self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.ENTER,                     self._handler_test_enter)
+        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.EXIT,                      self._handler_test_exit)
+        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.RUN_TEST,                  self._handler_test_run_tests)
+        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.GET,                       self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,             self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT,   self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT,      self._handler_direct_access_stop_direct)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -278,14 +295,22 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler('tp', self._build_simple_command)
         self._add_build_handler('set', self._build_set_command)
 
+        self._add_build_handler(InstrumentCmds.SETSAMPLING, self._build_setsampling_command)
+
         # Add response handlers for device commands.
         self._add_response_handler('ds', self._parse_dsdc_response)
         self._add_response_handler('dc', self._parse_dsdc_response)
         self._add_response_handler('ts', self._parse_ts_response)
-        self._add_response_handler('set', self._parse_set_response)
         self._add_response_handler('tc', self._parse_test_response)
         self._add_response_handler('tt', self._parse_test_response)
         self._add_response_handler('tp', self._parse_test_response)
+
+        self._add_response_handler('set', self._parse_set_response)
+        self._add_response_handler(InstrumentCmds.SETSAMPLING, self._parse_setsampling_response)
+
+        # ts
+        # 14.4309  23.72 -272.3189 -1.02626   0.0000
+        # pressure, pressure temperature, temperature, and conductivity
 
         # Add sample handlers.
         self._sample_pattern = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'
@@ -407,6 +432,9 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
+
+
+
     def _handler_command_acquire_sample(self, *args, **kwargs):
         """
         Acquire sample from SBE26 Plus.
@@ -434,8 +462,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         # Assure the device is transmitting.
-        if not self._param_dict.get(Parameter.TXREALTIME):
-            self._do_cmd_resp('set', Parameter.TXREALTIME, True, **kwargs)
+        #if not self._param_dict.get(Parameter.TXREALTIME):
+        #    self._do_cmd_resp('set', Parameter.TXREALTIME, True, **kwargs)
 
         # Issue start command and switch to autosample if successful.
         self._do_cmd_no_resp('start', *args, **kwargs)
@@ -699,6 +727,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param cmd the simple sbe37 command to format.
         @retval The command to be sent to the device.
         """
+        log.debug("in _build_simple_command() cmd = " + str(cmd))
         return cmd + NEWLINE
 
     def _build_set_command(self, cmd, param, val):
@@ -707,6 +736,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         String val constructed by param dict formatting function.
         @param param the parameter key to set.
         @param val the parameter value to set.
+        @ retval The set command to be sent to the device.
         @ retval The set command to be sent to the device.
         @throws InstrumentProtocolException if the parameter is not valid or
         if the formatting function could not accept the value passed.
@@ -719,6 +749,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         except KeyError:
             raise InstrumentParameterException('Unknown driver parameter %s' % param)
 
+        log.debug("_build_set_command set_cmd = " + set_cmd)
         return set_cmd
 
     def _parse_set_response(self, response, prompt):
@@ -747,23 +778,54 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Need to tweek the input to contain one param per line.
         #
         """
-        SBE 26plus V 6.1e  SN 1328    11 Jul 2012  14:32:20
-        quartz pressure sensor: serial number = 123404, range = 100 psia
-        iop =  6.1 ma  vmain = 17.4 V  vlith =  9.0 V
-        last sample: p = -99.0000, t = -99.0000, s = -99.0000
-        tide measurement: interval = 10.000 minutes, duration = 30 seconds
-        4 wave samples/burst at 4.00 scans/sec, duration = 1 seconds
-        logging start time =  10 Jul 2012  17:38:10
-        logging stop time =  01 Jan 2100  01:01:01
+        *DONE* SBE 26plus V 6.1e  SN 1328    11 Jul 2012  14:32:20
+        *DONE* quartz pressure sensor: serial number = 123404, range = 100 psia
+        *DONE*iop =  6.1 ma  vmain = 17.4 V  vlith =  9.0 V
+        *DONE*last sample: p = -99.0000, t = -99.0000, s = -99.0000
+        *DONE*tide measurement: interval = 10.000 minutes, duration = 30 seconds
+        *DONE*4 wave samples/burst at 4.00 scans/sec, duration = 1 seconds
+
         """
 
         modified_response = ""
+
         for line in response.split(NEWLINE):
-            line = re.sub("SBE 26plus V ([0-9a-zA-Z\.]+) +SN (\d+) +(\d+ [a-zA-Z]{3} \d{4})  (\d+:\d\d:\d\d)",
+            """
+            This may not be the right approach
+            line = re.sub("SBE 26plus V ([0-9a-zA-Z\.]+) +SN (\d+) +(\d+ [a-zA-Z]{3} \d{4}) +(\d+:\d\d:\d\d)",
                 "SBE 26plus V - VERSION \\1" + NEWLINE +
                 "SBE 26plus V - SERIAL NUMBER \\2" + NEWLINE +
                 "SBE 26plus V - SERIAL NUMBER DATE \\3" + NEWLINE +
                 "SBE 26plus V - SERIAL NUMBER TIME \\4" + NEWLINE, line)
+
+            line = re.sub("quartz pressure sensor: serial number = (\d+), range = (\d+) psia",
+                "quartz pressure sensor serial number \\1" + NEWLINE +
+                "quartz pressure sensor range \\2 pisa" + NEWLINE, line)
+
+            line = re.sub("iop =  ([\d\.]+) ma  vmain = ([\d\.]+) V  vlith = +([\d\.]+) V",
+                "iop = \\1 ma" + NEWLINE +
+                "vmain = \\2 V" + NEWLINE +
+                "vlith = \\3 V" + NEWLINE, line)
+
+            line = re.sub("last sample: p = ([\d\.\-]+), t = ([\d\.\-]+), s = ([\d\.\-]+)",
+                "last sample: p = \\1" + NEWLINE +
+                "last sample: t = \\2" + NEWLINE +
+                "last sample: s = \\3" + NEWLINE, line)
+
+            line = re.sub("tide measurement: interval = ([\d\.]+) minutes, duration = (\d+) seconds",
+                "tide measurement: interval = \\1 minutes" + NEWLINE +
+                "tide measurement: duration = \\2 seconds" + NEWLINE, line)
+
+            line = re.sub("(\d+) wave samples/burst at (\d\.+) scans/sec, duration = (\d+) seconds",
+                "wave samples/burst = \\1 " + NEWLINE +
+                "scans/sec = \\2 " + NEWLINE +
+                "duration = \\3 seconds" + NEWLINE, line)
+
+            line = re.sub("logging start time =  10 Jul 2012  17:38:10",
+                "wave samples/burst = \\1 " + NEWLINE +
+                "scans/sec = \\2 " + NEWLINE +
+                "duration = \\3 seconds" + NEWLINE, line)
+            """
             # line = re.sub(" find ", " replacement ", line)
 
             modified_response = modified_response + line
@@ -887,6 +949,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         match = self._sample_regex.match(line)
         if match:
             sample = {}
+            #pressure, pressure temperature, temperature, and conductivity
             sample['t'] = [float(match.group(1))]
             sample['c'] = [float(match.group(2))]
             sample['p'] = [float(match.group(3))]
@@ -931,6 +994,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         (B)
         logging start time =  01 Jan 2100  01:01:01
         logging stop time =  01 Jan 2100  01:01:01
+        from datetime import datetime, date, time
+        dt = datetime.strptime("21 Jul 06 16:30:00", "%d %b %y %H:%M:%S")
 
         *DONE*tide samples/day = 144.000
         *DONE*wave bursts/day = 72.000
@@ -957,6 +1022,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         *DONE*status = logging started
         *DONE*logging = YES
 
+
+        *
+        **
+        ***
+        NEED TO INVENTORY BELOW, MAKE SURE NONE OF THE SPLIT UP LINES ARE
+        STILL PRESENT BELOW IN UNALTERED FORMAT
+        ***
+        **
+        *
 
         """
         # DS
@@ -1359,7 +1433,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval A yes/no string formatted for sbe37 set operations.
         @throws InstrumentParameterException if value not a bool.
         """
-        log.debug("************ in _true_false_to_string ")
+
         if not isinstance(v,bool):
             raise InstrumentParameterException('Value %s is not a bool.' % str(v))
         if v:
@@ -1375,7 +1449,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval an int string formatted for sbe37 set operations.
         @throws InstrumentParameterException if value not an int.
         """
-        log.debug("************ in _int_to_string ")
+
         if not isinstance(v,int):
             raise InstrumentParameterException('Value %s is not an int.' % str(v))
         else:
@@ -1389,7 +1463,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval a float string formatted for sbe37 set operations.
         @throws InstrumentParameterException if value is not a float.
         """
-        log.debug("************ in _float_to_string ")
+
 
         if not isinstance(v,float):
             raise InstrumentParameterException('Value %s is not a float.' % v)
@@ -1404,7 +1478,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval A date string formatted for sbe37 set operations.
         @throws InstrumentParameterException if date tuple is not valid.
         """
-        log.debug("************ in _date_to_string ")
+
         if not isinstance(v,(list,tuple)):
             raise InstrumentParameterException('Value %s is not a list, tuple.' % str(v))
 
@@ -1440,7 +1514,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentParameterException if datestr cannot be formatted to
         a date.
         """
-        log.debug("************ in _string_to_date ")
+
         if not isinstance(datestr,str):
             raise InstrumentParameterException('Value %s is not a string.' % str(datestr))
         try:
@@ -1452,3 +1526,95 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return date
 
+
+
+
+# EXPERIMENT EXPERIMENT EXPERIMENT BELOW
+    def _build_setsampling_command(self, *args, **kwargs):
+
+        """
+        Build handler for set commands. param=val followed by newline.
+        String val constructed by param dict formatting function.
+        @param param the parameter key to set.
+        @param val the parameter value to set.
+        @ retval The set command to be sent to the device.
+        @ retval The set command to be sent to the device.
+        @throws InstrumentProtocolException if the parameter is not valid or
+        if the formatting function could not accept the value passed.
+        """
+        log.debug(" *******************IN _build_define_command !!!!!!!!!!!!!!!!!!!!!!")
+        #try:
+        #    str_val = self._param_dict.format(param, val)
+        #    set_cmd = '%s=%s' % (param, str_val)
+        #    set_cmd = set_cmd + NEWLINE
+
+        #except KeyError:
+        #    raise InstrumentParameterException('Unknown driver parameter %s' % param)
+
+        #log.debug("_build_set_command set_cmd = " + set_cmd)
+        return "setsampling"  + NEWLINE
+
+
+    def _parse_setsampling_response(self, cmd, *args, **kwargs):
+        """
+        Parse handler for set command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if set command misunderstood.
+        """
+
+        log.debug("in _parse_setsampling_response()")
+        log.debug("PROMPT = " + str(prompt))
+        if prompt != Prompt.COMMAND:
+            raise InstrumentProtocolException('Set command not recognized: %s' % response)
+
+
+    def _handler_command_setsampling(self, *args, **kwargs):
+        """
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup and command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
+        log.debug(" *******************IN _handler_command_setsampling ")
+        next_state = None
+        result = None
+
+        result = self._do_cmd_resp('setsampling', *args, **kwargs)
+
+        return (next_state, result)
+
+        """
+        # Issue start command and switch to autosample if successful.
+        self._do_cmd_no_resp('startnow', *args, **kwargs)
+
+        return (next_state, result)
+
+        log.debug("ROGER ARGS = " + str(args))
+        log.debug("ROGER KARGS = " + str(kwargs))
+        print "ROGER ROGER ROGER"
+
+        log.debug("ROGER ***")
+        timeout = kwargs.get('timeout', TIMEOUT)
+
+        result = self._do_cmd_resp('setsampling' + NEWLINE, timeout=timeout, expected_prompt=', new value =')
+        result = self._do_cmd_resp('setsampling' + NEWLINE, timeout=timeout, expected_prompt='S>')
+        #for char in cmd_line:
+        #    self._connection.send(char)
+        #    time.sleep(write_delay)
+        #(prompt, result) = self._get_response(timeout, expected_prompt=', new value =')
+
+        next_state = None
+        result = None
+
+
+        log.debug("ROGER ARGS = " + str(args))
+        log.debug("ROGER KARGS = " + str(kwargs))
+
+
+        return (next_state, result)
+        """

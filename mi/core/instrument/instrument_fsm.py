@@ -12,6 +12,8 @@ __license__ = 'Apache 2.0'
 
 from mi.core.exceptions import InstrumentStateException
 
+from mi.core.log import get_logger,LoggerManager
+log = get_logger()
 
 class InstrumentFSM():
     """
@@ -27,6 +29,7 @@ class InstrumentFSM():
         @param exit_event The event that indicates a state is being exited
         @param err_unhandled The error code to return on unhandled event
         """
+
         self.states = states
         self.events = events
         self.state_handlers = {}
@@ -66,7 +69,7 @@ class InstrumentFSM():
         @param kwargs keyword arguments to pass to the handler.
         @retval True if successful, False otherwise.
         @raises Any exception raised by the enter handler.
-        """        
+        """
         if not self.states.has(state):
             return False
                 
@@ -86,18 +89,19 @@ class InstrumentFSM():
         @retval result from the handler executed by the current state/event pair.
         @raises InstrumentStateException if no handler for the event exists in current state.
         @raises Any exception raised by the handlers.
-        """        
+        """
         next_state = None
         result = None
-        
+
         if self.events.has(event):
             handler = self.state_handlers.get((self.current_state, event), None)
             if handler:
                 (next_state, result) = handler(*args, **kwargs)
             else:
                 raise InstrumentStateException('Command not handled in current state.')
-                
-        #if next_state in self.states:
+        else:
+            raise InstrumentStateException(str(event) + " was not handled by InstrumentFSM.on_event()")
+
         if self.states.has(next_state):
             self._on_transition(next_state, *args, **kwargs)
                 

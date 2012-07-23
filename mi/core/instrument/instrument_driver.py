@@ -19,6 +19,7 @@ from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.logger_client import LoggerClient
+from mi.core.instrument.instrument_protocol import BaseProtocolEvent
 
 from mi.core.log import get_logger,LoggerManager
 log = get_logger()
@@ -62,31 +63,16 @@ class DriverEvent(BaseEnum):
     Base events for driver state machines. Commands and other events
     are transformed into state machine events for handling.
     """
-    CONFIGURE = 'DRIVER_EVENT_CONFIGURE'
+    ENTER = 'DRIVER_EVENT_ENTER'
+    EXIT = 'DRIVER_EVENT_EXIT'
     INITIALIZE = 'DRIVER_EVENT_INITIALIZE'
+    CONFIGURE = 'DRIVER_EVENT_CONFIGURE'
     CONNECT = 'DRIVER_EVENT_CONNECT'
     CONNECTION_LOST = 'DRIVER_CONNECTION_LOST'
     DISCONNECT = 'DRIVER_EVENT_DISCONNECT'
-    SET = 'DRIVER_EVENT_SET'
-    GET = 'DRIVER_EVENT_GET'
-    DISCOVER = 'DRIVER_EVENT_DISCOVER'
-    EXECUTE = 'DRIVER_EVENT_EXECUTE'
-    ACQUIRE_SAMPLE = 'DRIVER_EVENT_ACQUIRE_SAMPLE'
-    START_AUTOSAMPLE = 'DRIVER_EVENT_START_AUTOSAMPLE'
-    STOP_AUTOSAMPLE = 'DRIVER_EVENT_STOP_AUTOSAMPLE'
-    TEST = 'DRIVER_EVENT_TEST'
-    RUN_TEST = 'DRIVER_EVENT_RUN_TEST'
-    STOP_TEST = 'DRIVER_EVENT_STOP_TEST'
-    CALIBRATE = 'DRIVER_EVENT_CALIBRATE'
-    RESET = 'DRIVER_EVENT_RESET'
-    ENTER = 'DRIVER_EVENT_ENTER'
-    EXIT = 'DRIVER_EVENT_EXIT'
-    UPDATE_PARAMS = 'DRIVER_EVENT_UPDATE_PARAMS'
-    BREAK = 'DRIVER_EVENT_BREAK'
-    EXECUTE_DIRECT = 'EXECUTE_DIRECT'    
-    START_DIRECT = 'DRIVER_EVENT_START_DIRECT'
-    STOP_DIRECT = 'DRIVER_EVENT_STOP_DIRECT'
-    PING_DRIVER = 'DRIVER_EVENT_PING_DRIVER'
+
+    DRIVER_PROTOCOL_PASSTHROUGH = 'DRIVER_PROTOCOL_PASSTHROUGH'  # New!
+
 class DriverAsyncEvent(BaseEnum):
     """
     Asynchronous driver event types.
@@ -403,38 +389,30 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
                                                 DriverEvent.EXIT)
         
         # Add handlers for all events.
-        self._connection_fsm.add_handler(DriverConnectionState.UNCONFIGURED, DriverEvent.ENTER, self._handler_unconfigured_enter)
-        self._connection_fsm.add_handler(DriverConnectionState.UNCONFIGURED, DriverEvent.EXIT, self._handler_unconfigured_exit)
-        self._connection_fsm.add_handler(DriverConnectionState.UNCONFIGURED, DriverEvent.INITIALIZE, self._handler_unconfigured_initialize)
-        self._connection_fsm.add_handler(DriverConnectionState.UNCONFIGURED, DriverEvent.CONFIGURE, self._handler_unconfigured_configure)
-        self._connection_fsm.add_handler(DriverConnectionState.DISCONNECTED, DriverEvent.ENTER, self._handler_disconnected_enter)
-        self._connection_fsm.add_handler(DriverConnectionState.DISCONNECTED, DriverEvent.EXIT, self._handler_disconnected_exit)
-        self._connection_fsm.add_handler(DriverConnectionState.DISCONNECTED, DriverEvent.INITIALIZE, self._handler_disconnected_initialize)
-        self._connection_fsm.add_handler(DriverConnectionState.DISCONNECTED, DriverEvent.CONFIGURE, self._handler_disconnected_configure)
-        self._connection_fsm.add_handler(DriverConnectionState.DISCONNECTED, DriverEvent.CONNECT, self._handler_disconnected_connect)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.ENTER, self._handler_connected_enter)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.EXIT, self._handler_connected_exit)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.DISCONNECT, self._handler_connected_disconnect)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.CONNECTION_LOST, self._handler_connected_connection_lost)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.DISCOVER, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.GET, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.SET, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.ACQUIRE_SAMPLE, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.START_AUTOSAMPLE, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.STOP_AUTOSAMPLE, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.TEST, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.CALIBRATE, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.EXECUTE_DIRECT, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.START_DIRECT, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.STOP_DIRECT, self._handler_connected_protocol_event)
-            
+        self._connection_fsm.add_handler(DriverConnectionState.UNCONFIGURED,    DriverEvent.ENTER,              self._handler_unconfigured_enter)
+        self._connection_fsm.add_handler(DriverConnectionState.UNCONFIGURED,    DriverEvent.EXIT,               self._handler_unconfigured_exit)
+        self._connection_fsm.add_handler(DriverConnectionState.UNCONFIGURED,    DriverEvent.INITIALIZE,         self._handler_unconfigured_initialize)
+        self._connection_fsm.add_handler(DriverConnectionState.UNCONFIGURED,    DriverEvent.CONFIGURE,          self._handler_unconfigured_configure)
+        self._connection_fsm.add_handler(DriverConnectionState.DISCONNECTED,    DriverEvent.ENTER,              self._handler_disconnected_enter)
+        self._connection_fsm.add_handler(DriverConnectionState.DISCONNECTED,    DriverEvent.EXIT,               self._handler_disconnected_exit)
+        self._connection_fsm.add_handler(DriverConnectionState.DISCONNECTED,    DriverEvent.INITIALIZE,         self._handler_disconnected_initialize)
+        self._connection_fsm.add_handler(DriverConnectionState.DISCONNECTED,    DriverEvent.CONFIGURE,          self._handler_disconnected_configure)
+        self._connection_fsm.add_handler(DriverConnectionState.DISCONNECTED,    DriverEvent.CONNECT,            self._handler_disconnected_connect)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,       DriverEvent.ENTER,              self._handler_connected_enter)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,       DriverEvent.EXIT,               self._handler_connected_exit)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,       DriverEvent.DISCONNECT,         self._handler_connected_disconnect)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,       DriverEvent.CONNECTION_LOST,    self._handler_connected_connection_lost)
+
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,       DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, self._handler_connected_protocol_event)
+
+
         # Start state machine.
         self._connection_fsm.start(DriverConnectionState.UNCONFIGURED)
                 
     #############################################################
     # Device connection interface.
     #############################################################
-    
+
     def initialize(self, *args, **kwargs):
         """
         Initialize driver connection, bringing communications parameters
@@ -490,7 +468,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.DISCOVER, DriverEvent.DISCOVER, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, BaseProtocolEvent.DISCOVER, *args, **kwargs)
 
     def get(self, *args, **kwargs):
         """
@@ -502,7 +480,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.                        
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.GET, DriverEvent.GET, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, BaseProtocolEvent.GET, *args, **kwargs)
 
     def set(self, *args, **kwargs):
         """
@@ -516,7 +494,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.                        
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.SET, DriverEvent.SET, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, BaseProtocolEvent.SET, *args, **kwargs)
 
     def execute_acquire_sample(self, *args, **kwargs):
         """
@@ -529,18 +507,18 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.                        
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.ACQUIRE_SAMPLE, DriverEvent.ACQUIRE_SAMPLE, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, BaseProtocolEvent.ACQUIRE_SAMPLE, *args, **kwargs)
 
     def execute_start_autosample(self, *args, **kwargs):
         """
         Switch to autosample mode.
-        @param timeout=timeout Optional command timeout.        
+        @param timeout=timeout Optional command timeout.
         @raises InstrumentTimeoutException if could not wake device or no response.
         @raises InstrumentStateException if command not allowed in current state.
-        @raises NotImplementedException if not implemented by subclass.                        
+        @raises NotImplementedException if not implemented by subclass.
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.START_AUTOSAMPLE, DriverEvent.START_AUTOSAMPLE, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, BaseProtocolEvent.START_AUTOSAMPLE, *args, **kwargs)
 
     def execute_stop_autosample(self, *args, **kwargs):
         """
@@ -552,7 +530,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.                        
          """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.STOP_AUTOSAMPLE, DriverEvent.STOP_AUTOSAMPLE, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, BaseProtocolEvent.STOP_AUTOSAMPLE, *args, **kwargs)
 
     def execute_test(self, *args, **kwargs):
         """
@@ -565,7 +543,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.                        
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.TEST, DriverEvent.TEST, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, BaseProtocolEvent.TEST, *args, **kwargs)
 
     def execute_calibrate(self, *args, **kwargs):
         """
@@ -578,7 +556,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.                        
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.CALIBRATE, DriverEvent.CALIBRATE, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, BaseProtocolEvent.CALIBRATE, *args, **kwargs)
 
     def execute_start_direct_access(self, *args, **kwargs):
         """
@@ -587,7 +565,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises StateError if command not allowed in current state.
         @raises NotImplementedError if not implemented by subclass.                
         """
-        return self._connection_fsm.on_event(DriverEvent.START_DIRECT, DriverEvent.START_DIRECT, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, BaseProtocolEvent.START_DIRECT, *args, **kwargs)
 
     def execute_direct_access(self, *args, **kwargs):
         """
@@ -596,7 +574,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises StateError if command not allowed in current state.
         @raises NotImplementedError if not implemented by subclass.                
         """
-        return self._connection_fsm.on_event(DriverEvent.EXECUTE_DIRECT, DriverEvent.EXECUTE_DIRECT, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, BaseProtocolEvent.EXECUTE_DIRECT, *args, **kwargs)
 
     def execute_stop_direct_access(self, *args, **kwargs):
         """
@@ -606,7 +584,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises StateError if command not allowed in current state.
         @raises NotImplementedError if not implemented by subclass.                
         """
-        return self._connection_fsm.on_event(DriverEvent.STOP_DIRECT, DriverEvent.STOP_DIRECT, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, BaseProtocolEvent.STOP_DIRECT, *args, **kwargs)
 
 
 
@@ -815,6 +793,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @param kwargs keyword arguments to pass on.
         @retval (next_state, result) tuple, (None, protocol result).
         """
+
         next_state = None
         result = self._protocol._protocol_fsm.on_event(event, *args, **kwargs)
         
