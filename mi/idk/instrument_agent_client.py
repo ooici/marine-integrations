@@ -36,6 +36,8 @@ from pyon.event.event import EventSubscriber, EventPublisher
 
 from interface.objects import StreamQuery
 
+from ion.agents.instrument.taxy_factory import get_taxonomy
+
 DEFAULT_DEPLOY = 'res/deploy/r2deploy.yml'
 
 class FakeProcess(LocalContextMixin):
@@ -302,19 +304,28 @@ class InstrumentAgentDataSubscribers(object):
                 self.async_data_result.set()
 
         # Create a stream subscriber registrar to create subscribers.
-        subscriber_registrar = StreamSubscriberRegistrar(process=self.container, node=self.container.node)
+        subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
+                                                         container=self.container)
 
         # Create streams and subscriptions for each stream named in driver.
         self.stream_config = {}
         self.data_subscribers = []
-        for (stream_name, val) in packet_config.iteritems():
+#        for (stream_name, val) in packet_config.iteritems():
+        for stream_name in packet_config:
             stream_def_id = pubsub_client.create_stream_definition(container=stream_definition)
             stream_id = pubsub_client.create_stream(
                 name=stream_name,
                 stream_definition_id=stream_def_id,
                 original=original,
                 encoding=encoding)
-            self.stream_config[stream_name] = stream_id
+
+            taxy = get_taxonomy(stream_name)
+            stream_config = dict(
+                id=stream_id,
+                taxonomy=taxy.dump()
+            )
+            self.stream_config[stream_name] = stream_config
+#            self.stream_config[stream_name] = stream_id
 
             # Create subscriptions for each stream.
             exchange_name = '%s_queue' % stream_name
@@ -354,6 +365,7 @@ class InstrumentAgentEventSubscribers(object):
                 self.async_event_result.set()
 
         event_sub = EventSubscriber(event_type="DeviceEvent", callback=consume_event)
+        event_sub.initialize()
         event_sub.activate()
         self.event_subscribers.append(event_sub)
 
