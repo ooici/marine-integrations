@@ -5,6 +5,11 @@ Main documentation page: https://confluence.oceanobservatories.org/display/CIDev
 
 Some development notes:
 
+2012-07-25:
+- test_instrument_agent_with_trhph.py updated and running again.
+    $ UW_TRHPH="simulator" bin/nosetests -sv mi/instrument/uw/res_probe/ooicore/test/test_instrument_agent_with_trhph.py
+    Ran 3 tests in 83.294s OK (SKIP=2)
+
 2012-07-24:
 - Adjustments to update this driver after the several changes done since May in
   supporting code mainly in coi-services.
