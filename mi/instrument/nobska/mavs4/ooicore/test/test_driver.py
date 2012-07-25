@@ -804,6 +804,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
         while s.peek_at_buffer().find("Username: ") == -1:
             log.debug("WANT 'Username:' READ ==>" + str(s.peek_at_buffer()))
             gevent.sleep(1)
+            try_count += 1
             if try_count > 10:
                 raise Timeout('It took longer than 10 seconds to get a Username: prompt')
         s.remove_from_buffer("Username: ")
@@ -815,6 +816,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
         while s.peek_at_buffer().find("token: ") == -1:
             log.debug("WANT 'token: ' READ ==>" + str(s.peek_at_buffer()))
             gevent.sleep(1)
+            try_count += 1
             if try_count > 10:
                 raise Timeout('It took longer than 10 seconds to get a token: prompt')
         s.remove_from_buffer("token: ")
@@ -826,6 +828,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
         while s.peek_at_buffer().find(WILL_ECHO_CMD) == -1:
             log.debug("WANT %s READ ==> %s" %(WILL_ECHO_CMD, str(s.peek_at_buffer())))
             gevent.sleep(1)
+            try_count += 1
             if try_count > 10:
                 raise Timeout('It took longer than 10 seconds to get the telnet negotiation string')
         s.remove_from_buffer(WILL_ECHO_CMD)
@@ -837,6 +840,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
         while s.peek_at_buffer().find("connected\r\n") == -1:
             log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
             gevent.sleep(1)
+            try_count += 1
             if try_count > 10:
                 raise Timeout('It took longer than 10 seconds to get a connected prompt')
         s.remove_from_buffer("connected\r\n")
