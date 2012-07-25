@@ -3,10 +3,10 @@
 """
 @package mi.instrument.uw.res_probe.ooicore.test.test_instrument_agent_with_trhph
 @file    mi/instrument/uw/res_probe/ooicore/test/test_instrument_agent_with_trhph.py
-@author Carlos Rueda
-@brief R2 instrument agent tests with the TRHPH driver.
-    Adapted from mi.core.instrument.test.test_instrument_agent, which is
-    for the SBE37 driver.
+@author  Carlos Rueda
+@brief   R2 instrument agent tests with the TRHPH driver.
+         Adapted from ion.agents.instrument.test.test_instrument_agent,
+         which is for the SBE37 driver.
 """
 
 __author__ = 'Carlos Rueda'
@@ -23,6 +23,7 @@ import gevent
 from nose.plugins.attrib import attr
 from mock import patch
 
+# ION imports.
 from interface.objects import StreamQuery
 from interface.services.icontainer_agent import ContainerAgentClient
 from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
@@ -34,16 +35,24 @@ from pyon.util.int_test import IonIntegrationTestCase
 from pyon.util.context import LocalContextMixin
 from pyon.public import CFG
 from pyon.event.event import EventSubscriber, EventPublisher
-
+from ion.agents.instrument.exceptions import InstrumentParameterException
 from pyon.core.exception import InstParameterError
 
-from mi.instrument.uw.res_probe.ooicore.test import TrhphTestCase
-from mi.instrument.uw.res_probe.ooicore.common import TrhphParameter
-from mi.instrument.uw.res_probe.ooicore.common import TrhphMetadataParameter
 from ion.agents.port.logger_process import EthernetDeviceLogger
-from mi.core.instrument.instrument_agent import InstrumentAgentState
-from mi.core.instrument.instrument_driver import DriverParameter
+from ion.agents.instrument.instrument_agent import InstrumentAgentState
+from ion.agents.instrument.driver_int_test_support import DriverIntegrationTestSupport
+from ion.agents.instrument.taxy_factory import get_taxonomy
 
+# MI imports.
+from mi.instrument.uw.res_probe.ooicore.common import TrhphParameter
+from mi.instrument.uw.res_probe.ooicore.trhph_driver import PACKET_CONFIG
+from mi.core.instrument.instrument_driver import DriverParameter
+from mi.instrument.uw.res_probe.ooicore.test import TrhphTestCase
+
+
+
+DRV_MOD = 'mi.instrument.uw.res_probe.ooicore.trhph_driver'
+DRV_CLS = 'TrhphInstrumentDriver'
 
 # Work dir and logger delimiter.
 WORK_DIR = '/tmp/'
@@ -52,20 +61,18 @@ DELIM = ['<<','>>']
 # Driver config.
 # DVR_CONFIG['comms_config']['port'] is set by the setup.
 
-# TODO define PACKET_CONFIG properly
-PACKET_CONFIG = {}
-
 DVR_CONFIG = {
-    'dvr_mod' : 'mi.instrument.uw.res_probe.ooicore.trhph_driver',
-    'dvr_cls' : 'TrhphInstrumentDriver',
-    'workdir' : '/tmp/',
+    'dvr_mod' : DRV_MOD,
+    'dvr_cls' : DRV_CLS,
+    'workdir' : WORK_DIR,
+    'process_type' : ('ZMQPyClassDriverLauncher',)
 }
 
 # Agent parameters.
 # TODO any rules to set this ID and name for the agent?
-IA_RESOURCE_ID = '123trhph'
-IA_NAME = 'InstrAgent_TRHPH'
-IA_MOD = 'mi.core.instrument.instrument_agent'
+IA_RESOURCE_ID = '123xyz'
+IA_NAME = 'Agent007'
+IA_MOD = 'ion.agents.instrument.instrument_agent'
 IA_CLS = 'InstrumentAgent'
 
 
@@ -99,16 +106,22 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
 
         TrhphTestCase.setUp(self)
 
+        self._support = DriverIntegrationTestSupport(DRV_MOD,
+                                                     DRV_CLS,
+                                                     self.device_address,
+                                                     self.device_port,
+                                                     DELIM,
+                                                     WORK_DIR)
         # Start port agent, add stop to cleanup.
         self._pagent = None
         self._start_pagent()
-        self.addCleanup(self._stop_pagent)
+        self.addCleanup(self._support.stop_pagent)
 
         # Start container.
         self._start_container()
 
         # Bring up services in a deploy file (no need to message)
-        self.container.start_rel_from_url('res/deploy/r2dm.yml')
+        self.container.start_rel_from_url('res/deploy/r2deploy.yml')
 
         # Start data suscribers, add stop to cleanup.
         # Define stream_config.
@@ -141,9 +154,11 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         self._ia_pid = None
         log.debug("TestInstrumentAgentWithTrhph.setup(): starting IA.")
         container_client = ContainerAgentClient(node=self.container.node,
-                                                      name=self.container.name)
+                                                name=self.container.name)
         self._ia_pid = container_client.spawn_process(name=IA_NAME,
-                                module=IA_MOD, cls=IA_CLS, config=agent_config)
+                                                      module=IA_MOD,
+                                                      cls=IA_CLS,
+                                                      config=agent_config)
         log.info('Agent pid=%s.', str(self._ia_pid))
 
         # Start a resource agent client to talk with the instrument agent.
@@ -154,45 +169,13 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         """
         Construct and start the port agent.
         """
-
-        # Create port agent object.
-        this_pid = os.getpid()
-        self._pagent = EthernetDeviceLogger.launch_process(self.device_address,
-                                                           self.device_port,
-                                                           WORK_DIR,
-                                                           DELIM,
-                                                           this_pid)
-
-        # Get the pid and port agent server port number.
-        pid = self._pagent.get_pid()
-        while not pid:
-            gevent.sleep(.1)
-            pid = self._pagent.get_pid()
-        port = self._pagent.get_port()
-        while not port:
-            gevent.sleep(.1)
-            port = self._pagent.get_port()
+        port = self._support.start_pagent()
 
         # Configure driver to use port agent port number.
         DVR_CONFIG['comms_config'] = {
             'addr' : 'localhost',
             'port' : port
         }
-
-        # Report.
-        log.info('Started port agent pid %d listening at port %d.', pid, port)
-
-    def _stop_pagent(self):
-        """
-        Stop the port agent.
-        """
-        if self._pagent:
-            pid = self._pagent.get_pid()
-            if pid:
-                log.info('Stopping pagent pid %i.', pid)
-                self._pagent.stop()
-            else:
-                log.warning('No port agent running.')
 
     def _start_data_subscribers(self):
         """
@@ -209,12 +192,12 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
 
         # Create a stream subscriber registrar to create subscribers.
         subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
-                                                node=self.container.node)
+                                                         container=self.container)
 
         # Create streams and subscriptions for each stream named in driver.
         self._stream_config = {}
         self._data_subscribers = []
-        for (stream_name, val) in PACKET_CONFIG.iteritems():
+        for stream_name in PACKET_CONFIG:
             stream_def = ctd_stream_definition(stream_id=None)
             stream_def_id = pubsub_client.create_stream_definition(
                                                     container=stream_def)
@@ -223,7 +206,13 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
                         stream_definition_id=stream_def_id,
                         original=True,
                         encoding='ION R2')
-            self._stream_config[stream_name] = stream_id
+
+            taxy = get_taxonomy(stream_name)
+            stream_config = dict(
+                id=stream_id,
+                taxonomy=taxy.dump()
+            )
+            self._stream_config[stream_name] = stream_config
 
             # Create subscriptions for each stream.
             exchange_name = '%s_queue' % stream_name
@@ -232,8 +221,9 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
             self._listen(sub)
             self._data_subscribers.append(sub)
             query = StreamQuery(stream_ids=[stream_id])
-            sub_id = pubsub_client.create_subscription(\
-                                query=query, exchange_name=exchange_name)
+            sub_id = pubsub_client.create_subscription(
+                                query=query, exchange_name=exchange_name,
+                                exchange_point='science_data')
             pubsub_client.activate_subscription(sub_id)
 
     def _listen(self, sub):
@@ -259,13 +249,14 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         Create subscribers for agent and driver events.
         """
         def consume_event(*args, **kwargs):
-            log.info('Test recieved ION event: args=%s  kwargs=%s.', str(args), str(kwargs))
+            log.info('Test recieved ION event: args=%s, kwargs=%s, event=%s.',
+                     str(args), str(kwargs), str(args[0]))
             self._events_received.append(args[0])
             if self._no_events and self._no_events == len(self._event_received):
                 self._async_event_result.set()
 
         event_sub = EventSubscriber(event_type="DeviceEvent", callback=consume_event)
-        event_sub.activate()
+        event_sub.start()
         self._event_subscribers.append(event_sub)
 
     def _stop_event_subscribers(self):
@@ -273,7 +264,7 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         Stop event subscribers on cleanup.
         """
         for sub in self._event_subscribers:
-            sub.deactivate()
+            sub.stop()
 
     def _test_01_initialize(self):
         """
@@ -432,7 +423,7 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
 
         return result
 
-    def _test_15_get_params(self):
+    def test_15_get_params(self):
         """
         -- INSTR-AGENT/TRHPH: get valid and invalid params
         """
@@ -444,7 +435,7 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         p2 = TrhphParameter.VERBOSE_MODE
         self._get_params([p1, p2])
 
-        with self.assertRaises(InstParameterError):
+        with self.assertRaises(InstrumentParameterException):
             self._get_params(['bad-param'])
 
     def _set_params(self, params):
@@ -512,7 +503,7 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
 
         invalid_params = {p1: new_seconds, "bad-param": "dummy-value"}
 
-        with self.assertRaises(InstParameterError):
+        with self.assertRaises(InstrumentParameterException):
             self._set_params(invalid_params)
 
     def _test_25_get_set_params(self):
