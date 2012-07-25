@@ -44,7 +44,7 @@ from mi.core.log import get_logger
 log = get_logger()
 
 # TODO define Packet config for TRHPH data granules.
-PACKET_CONFIG = {}
+PACKET_CONFIG = []
 
 
 class TrhphDriverState(BaseEnum):
