@@ -342,7 +342,6 @@ class TcpClient():
             self.buf = self.buf[1:]
         else:
             c = None
-
         return c
 
     def peek_at_buffer(self):
@@ -354,7 +353,6 @@ class TcpClient():
                 """
                 Ignore this exception, its harmless
                 """
-
         return self.buf
 
     def remove_from_buffer(self, remove):
@@ -747,7 +745,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
         gevent.sleep(600)  # wait for manual telnet session to be run
 
 
-    @unittest.skip("skip for now")
+    #@unittest.skip("skip for now")
     def test_direct_access_telnet_mode(self):
         """
         @brief This test verifies that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -802,46 +800,54 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
         s = TcpClient(retval.result['ip_address'], retval.result['port'])
 
         # look for and swallow 'Username' prompt
+        try_count = 0
         while s.peek_at_buffer().find("Username: ") == -1:
             log.debug("WANT 'Username:' READ ==>" + str(s.peek_at_buffer()))
             gevent.sleep(1)
+            if try_count > 10:
+                raise Timeout('It took longer than 10 seconds to get a Username: prompt')
         s.remove_from_buffer("Username: ")
         # send some username string
         s.send_data("bob\r\n", "1")
         
         # look for and swallow 'token' prompt
+        try_count = 0
         while s.peek_at_buffer().find("token: ") == -1:
             log.debug("WANT 'token: ' READ ==>" + str(s.peek_at_buffer()))
             gevent.sleep(1)
+            if try_count > 10:
+                raise Timeout('It took longer than 10 seconds to get a token: prompt')
         s.remove_from_buffer("token: ")
         # send the returned token
         s.send_data(retval.result['token'] + "\r\n", "1")
         
         # look for and swallow telnet negotiation string
+        try_count = 0
         while s.peek_at_buffer().find(WILL_ECHO_CMD) == -1:
             log.debug("WANT %s READ ==> %s" %(WILL_ECHO_CMD, str(s.peek_at_buffer())))
-            gevent.sleep(.1)
-            s.peek_at_buffer()
+            gevent.sleep(1)
+            if try_count > 10:
+                raise Timeout('It took longer than 10 seconds to get the telnet negotiation string')
         s.remove_from_buffer(WILL_ECHO_CMD)
         # send the telnet negotiation response string
         s.send_data(DO_ECHO_CMD, "1")
 
         # look for and swallow 'connected' indicator
-        while s.peek_at_buffer().find("connected\n") == -1:
+        try_count = 0
+        while s.peek_at_buffer().find("connected\r\n") == -1:
             log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
             gevent.sleep(1)
-            s.peek_at_buffer()
-        s.remove_from_buffer("connected\n")
+            if try_count > 10:
+                raise Timeout('It took longer than 10 seconds to get a connected prompt')
+        s.remove_from_buffer("connected\r\n")
         
-        # try to wake the instrument up from its sleep mode
-        n = 0
-        s.send_data("\r\n\r\n", "1")
-        gevent.sleep(1)
-        while s.peek_at_buffer().find("Enter <CTRL>-<C> now to wake up") == -1:
-            self.assertNotEqual(n, 5)
-            n += 1
-            log.debug("WANT 'Enter <CTRL>-<C> now to wake up' READ ==>" + str(s.peek_at_buffer()))
+        # try to interact with the instrument 
+        try_count = 0
+        while ((s.peek_at_buffer().find("Enter <CTRL>-<C> now to wake up") == -1) and
+              (s.peek_at_buffer().find("Main Menu") == -1)):
+            self.assertNotEqual(try_count, 5)
+            try_count += 1
+            log.debug("WANT %s or %s; READ ==> %s" %("'Enter <CTRL>-<C> now to wake up'", "'Main Menu'", str(s.peek_at_buffer())))
             s.send_data("\r\n\r\n", "1")
-            gevent.sleep(1)
-            s.peek_at_buffer()
+            gevent.sleep(2)
                
