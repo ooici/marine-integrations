@@ -161,6 +161,9 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         self._ia_client = ResourceAgentClient(IA_RESOURCE_ID, process=FakeProcess())
         log.info('Got ia client %s.', str(self._ia_client))
 
+        # make sure the driver is stopped
+        self.addCleanup(self._reset)
+
     def addCleanup(self, f):
         IonIntegrationTestCase.addCleanup(self, f)
 
@@ -273,30 +276,51 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         for sub in self._event_subscribers:
             sub.stop()
 
-    def test_all(self):
-        #
-        # NOTE: Aggregating ALL tests in the same sequence to avoid issue
-        # about the launch of increasing number of python processes in the
-        # same nose session.
-        # TODO: Do proper clean-up to be able to run the individual tests
-        # in a cleaner way.
-        #
+    def _initialize_and_run(self):
+        """
+        Called explicitly by the tests that do regular operations.
+        """
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
-        self._test_01_initialize()
-        self._test_10_states()
+        cmd = AgentCommand(command='initialize')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
 
-        # the following need a _initialize_and_run
-        self._initialize_and_run()
-        self._test_15_get_params(False)
-        self._test_20_set_params_valid(False)
-        self._test_25_get_set_params(False)
-        self._test_60_execute_stop_autosample(False)
-        self._test_70_execute_get_metadata(False)
-        self._test_80_execute_diagnostics(False)
-        self._test_90_execute_get_power_statuses(False)
-        self._test_99_execute_start_autosample(False)
+        cmd = AgentCommand(command='go_active')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
 
-    def _test_01_initialize(self):
+        cmd = AgentCommand(command='run')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+
+    def _reset(self):
+        """
+        Set as a clean-up to make sure the agent is reset after each test,
+        so the driver is stopped.
+        """
+        log.info("_reset called: sending 'reset' command to agent")
+        cmd = AgentCommand(command='reset')
+        retval = self._ia_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_current_state')
+        retval = self._ia_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+    def test_01_initialize(self):
         cmd = AgentCommand(command='get_current_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
@@ -318,7 +342,7 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
-    def _test_10_states(self):
+    def test_10_states(self):
         cmd = AgentCommand(command='get_current_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
@@ -394,33 +418,6 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
-    def _initialize_and_run(self):
-        cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command='initialize')
-        retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
-
-        cmd = AgentCommand(command='go_active')
-        retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
-
-        cmd = AgentCommand(command='run')
-        retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self._ia_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
-
     def _get_params(self, params):
 
         result = self._ia_client.get_param(params)
@@ -446,9 +443,8 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
 
         return result
 
-    def _test_15_get_params(self, inr=True):
-        if inr:
-            self._initialize_and_run()
+    def test_15_get_params(self):
+        self._initialize_and_run()
 
         self._get_params(DriverParameter.ALL)
 
@@ -494,9 +490,8 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         else:
             return 0 == random.randint(0, 1)
 
-    def _test_20_set_params_valid(self, inr=True):
-        if inr:
-            self._initialize_and_run()
+    def test_20_set_params_valid(self):
+        self._initialize_and_run()
 
         p1 = TrhphParameter.TIME_BETWEEN_BURSTS
         new_seconds = random.randint(15, 60)
@@ -508,9 +503,8 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
 
         self._set_params(valid_params)
 
-    def _test_25_get_set_params(self, inr=True):
-        if inr:
-            self._initialize_and_run()
+    def test_25_get_set_params(self):
+        self._initialize_and_run()
 
         p1 = TrhphParameter.TIME_BETWEEN_BURSTS
         result = self._get_params([p1])
@@ -536,9 +530,8 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         verbose = result[p2]
         self.assertEqual(verbose, new_verbose)
 
-    def _test_60_execute_stop_autosample(self, inr=True):
-        if inr:
-            self._initialize_and_run()
+    def test_60_execute_stop_autosample(self):
+        self._initialize_and_run()
 
         log.info("stopping autosample")
         cmd = AgentCommand(command='stop_autosample',
@@ -546,9 +539,8 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         reply = self._ia_client.execute(cmd)
         log.info("stop_autosample reply = %s" % str(reply))
 
-    def _test_70_execute_get_metadata(self, inr=True):
-        if inr:
-            self._initialize_and_run()
+    def test_70_execute_get_metadata(self):
+        self._initialize_and_run()
 
         log.info("getting metadata")
         cmd = AgentCommand(command='get_metadata',
@@ -557,9 +549,8 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         log.info("get_metadata reply = %s" % str(reply))
         self.assertTrue(isinstance(reply.result, dict))
 
-    def _test_80_execute_diagnostics(self, inr=True):
-        if inr:
-            self._initialize_and_run()
+    def test_80_execute_diagnostics(self):
+        self._initialize_and_run()
 
         log.info("executing diagnostics")
         num_scans = 11
@@ -570,9 +561,8 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         self.assertTrue(isinstance(reply.result, list))
         self.assertEqual(len(reply.result), num_scans)
 
-    def _test_90_execute_get_power_statuses(self, inr=True):
-        if inr:
-            self._initialize_and_run()
+    def test_90_execute_get_power_statuses(self):
+        self._initialize_and_run()
 
         log.info("executing get_power_statuses")
         cmd = AgentCommand(command='get_power_statuses',
@@ -581,9 +571,8 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         log.info("get_power_statuses reply = %s" % str(reply))
         self.assertTrue(isinstance(reply.result, dict))
 
-    def _test_99_execute_start_autosample(self, inr=True):
-        if inr:
-            self._initialize_and_run()
+    def test_99_execute_start_autosample(self):
+        self._initialize_and_run()
 
         log.info("executing start_autosample")
         cmd = AgentCommand(command='start_autosample',
@@ -592,16 +581,14 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         log.info("start_autosample reply = %s" % str(reply))
 
     @unittest.skip('Not running after code updates in other places')
-    def test_get_params_invalid(self, inr=True):
-        if inr:
-            self._initialize_and_run()
+    def test_get_params_invalid(self):
+        self._initialize_and_run()
         with self.assertRaises(InstParameterError):
             self._get_params(['bad-param'])
 
     @unittest.skip('Not running after code updates in other places')
-    def test_set_params_invalid(self, inr=True):
-        if inr:
-            self._initialize_and_run()
+    def test_set_params_invalid(self):
+        self._initialize_and_run()
         p1 = TrhphParameter.TIME_BETWEEN_BURSTS
         new_seconds = random.randint(15, 60)
         invalid_params = {p1: new_seconds, "bad-param": "dummy-value"}

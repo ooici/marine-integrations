@@ -620,7 +620,7 @@ class TrhphClient(object):
         cmds = []
 
         if State.SYSTEM_PARAM_MENU == state:
-            cmds.append(('3', 'return to main menu'))
+            cmds.append(('9', 'return to main menu'))
         elif State.DIAGNOSTICS_INFO == state:
             cmds.append(('\r', 'return to main menu'))
         elif State.SYSTEM_INFO == state:

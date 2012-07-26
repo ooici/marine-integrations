@@ -6,9 +6,21 @@ Main documentation page: https://confluence.oceanobservatories.org/display/CIDev
 Some development notes:
 
 2012-07-25:
-- test_instrument_agent_with_trhph.py updated and running again.
+- test_instrument_agent_with_trhph.py updated and running again. Fixed
+  outstanding issue of processes not properly stopped after each test completed
+  (there was a missing 'reset' command to the agent so the driver was not stopped).
+
     $ UW_TRHPH="simulator" bin/nosetests -sv mi/instrument/uw/res_probe/ooicore/test/test_instrument_agent_with_trhph.py
-    Ran 3 tests in 83.294s OK (SKIP=2)
+    Ran 12 tests in 271.338s OK (SKIP=2)
+
+- Tests with real instrument via "raw" port 2101 also running:
+    $ UW_TRHPH="10.180.80.172:2101" bin/nosetests -sv mi/instrument/uw/res_probe/ooicore/test/test_instrument_agent_with_trhph.py
+    Ran 12 tests in 324.051s OK (SKIP=2)
+  Although the tests were all ok in multiple runs, I saw one test failing to
+  break the streaming mode (porbably some concurrent access?), so this will
+  needs further testing and eventual adjustments to make it more robust.
+
+
 
 2012-07-24:
 - Adjustments to update this driver after the several changes done since May in

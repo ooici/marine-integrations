@@ -174,7 +174,7 @@ class TrhphInstrumentDriver(InstrumentDriver):
                     log.info("_data_listener: sample = %s" % str(sample))
 
                 host = addr
-                outfile = file('trhph_output.txt', 'w')
+                outfile = file('trhph_output.txt', 'a')
                 log.info("setting TrhphClient to connect to %s:%s" % (host, port))
                 self.trhph_client = TrhphClient(host, port, outfile, True)
                 self.trhph_client.set_data_listener(_data_listener)
