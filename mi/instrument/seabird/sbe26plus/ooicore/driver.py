@@ -48,7 +48,23 @@ TIMEOUT = 40
 #}
 
 class InstrumentCmds(BaseEnum):
+    """
+    Instrument Commands
+    These are the commands that according to the science profile must be supported.
+    """
     SETSAMPLING = 'setsampling'
+    DISPLAY_STATUS = 'ds'
+    QUIT_SESSION = 'qs'
+    DISPLAY_CALIBRATION = 'dc'
+    START_LOGGING = 'start'
+    STOP_LOGGING = 'stop'
+    UPLOAD_DATA_ASCII_FORMAT = 'dd'
+    UPLOAD_DATA_BINARY_FORMAT = 'DBbaud,b,e'
+    GET_BYTE_COUNT = 'ByteCount'
+    SET_BYTE_COUNT = '*ByteCount'
+    SET = 'set' # Unofficial
+
+
 
 class ProtocolState(BaseEnum):
     """
@@ -75,45 +91,61 @@ class ProtocolEvent(BaseProtocolEvent):
 class Parameter(DriverParameter):
     """
     Device parameters
+
+    S>ds
+SBE 26plus V 6.1e  SN 1328    26 Jul 2012  14:03:50
+
+    USER_INFO = 'USER_INFO' # String
+    QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER = 'QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER' # String/Int
+    QUARTZ_PREASURE_SENSOR_RANGE = 'QUARTZ_PREASURE_SENSOR_RANGE' # Int
+    TEMPERATURE_SENSOR = 'TEMPERATURE_SENSOR' # String
+    CONDUCTIVITY = 'CONDUCTIVITY' # Boolean
+    IOP_MA = 'IOP_MA' # Float
+    VMAIN_V = 'VMAIN_V' # Float
+    VLITH_V = 'VLITH_V' # Float
+    LAST_SAMPLE_P = 'LAST_SAMPLE_P' # Float
+    LAST_SAMPLE_T = 'LAST_SAMPLE_T' # Float
+    LAST_SAMPLE_S = 'LAST_SAMPLE_S' # Float
+
+    TIDE_MEASUREMENT_INTERVAL = 'TIDE_MEASUREMENT_INTERVAL' # float
+    TIDE_MEASUREMENT_DURATION = 'TIDE_MEASUREMENT_DURATION' # int
+    TIDE_SAMPLES_BETWEEN_WAVE_MEASUREMENTS = 'TIDE_SAMPLES_BETWEEN_WAVE_MEASUREMENTS' #int
+51708 wave samples/burst at 4.00 scans/sec, duration = 12927 seconds
+    WAVE_SAMPLES_PER_BURST = 'WAVE_SAMPLES_PER_BURST'
+    WAVE_SAMPLE_DURATION = 'WAVE_SAMPLE_DURATION' # 1/WAVE_SAMPLE_DURATION = scans per second
+
     """
+
+    #IGNORE# logging start time = do not use start time
+    #IGNORE# logging stop time = do not use stop time
+    TIDE_SAMPLES_PER_DAY = 'TIDE_SAMPLES_PER_DAY' # float
+    WAVE_BURSTS_PER_DAY = 'WAVE_BURSTS_PER_DAY' # float
+    MEMORY_ENDURANCE = 'MEMORY_ENDURANCE' # float
+    NOMINAL_ALKALINE_BATTERY_ENDURANCE = 'NOMINAL_ALKALINE_BATTERY_ENDURANCE' # float
+    TOTAL_RECORDED_TIDE_MEASUREMENTS = 'TOTAL_RECORDED_TIDE_MEASUREMENTS' # int
+    TOTAL_RECORDED_WAVE_BURSTS = 'TOTAL_RECORDED_WAVE_BURSTS' # int
+    TIDE_MEASUREMENTS_SINCE_LAST_START = 'TIDE_MEASUREMENTS_SINCE_LAST_START' # int
+    WAVE_BURSTS_SINCE_LAST_START = 'WAVE_BURSTS_SINCE_LAST_START' # int
+    TRANSMIT_REAL_TIME_TIDE_DATA = 'TRANSMIT_REAL_TIME_TIDE_DATA' # Boolean
+    TRANSMIT_REAL_TIME_WAVE_BURST_DATA = 'TRANSMIT_REAL_TIME_WAVE_BURST_DATA' # Boolean
+    TRANSMIT_REAL_TIME_WAVE_STATS = 'TRANSMIT_REAL_TIME_WAVE_STATS' # Boolean
+    STATUS = 'STATUS' # String
+    LOGGING = 'LOGGING' # Boolean
+
 
     # DS
     TXREALTIME = 'TXREALTIME'
     TXWAVEBURST = 'TXWAVEBURST'
     TXWAVESTATS = 'TXWAVESTATS'
-    TIDE_SAMPLES_PER_DAY = 'TIDE_SAMPLES_PER_DAY'
-    WAVE_BURSTS_PER_DAY = 'WAVE_BURSTS_PER_DAY'
-    MEMORY_ENDURANCE_DAYS = 'MEMORY_ENDURANCE_DAYS'
-    NOMINAL_ALKALINE_BATTERY_ENDURANCE_DAYS = 'NOMINAL_ALKALINE_BATTERY_ENDURANCE_DAYS'
-    TOTAL_RECORDED_TIDE_MEASUREMENTS = 'TOTAL_RECORDED_TIDE_MEASUREMENTS'
-    TOTAL_RECORDED_WAVE_BURSTS = 'TOTAL_RECORDED_WAVE_BURSTS'
-    TIDE_MEASUREMENTS_SINCE_LAST_START = 'TIDE_MEASUREMENTS_SINCE_LAST_START'
-    WAVE_BURSTS_SINCE_LAST_START = 'WAVE_BURSTS_SINCE_LAST_START'
+
     TIDE_SAMPLES_BETWEEN_WAVE_MEASUREMENTS = 'TIDE_SAMPLES_BETWEEN_WAVE_MEASUREMENTS'
-    LOGGING = 'LOGGING'
-    STATUS = 'STATUS'
-    CONDUCTIVITY = 'CONDUCTIVITY'
-    USER_INFO = 'USER_INFO'
 
-    TIDE_MEASUREMENT_INTERVAL = 'TIDE_MEASUREMENT_INTERVAL'
-    TIDE_MEASUREMENT_DURATION = 'TIDE_MEASUREMENT_DURATION'
 
-    QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER = 'QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER'
-    QUARTZ_PREASURE_SENSOR_RANGE = 'QUARTZ_PREASURE_SENSOR_RANGE'
-    WAVE_SAMPLES_PER_BURST = 'WAVE_SAMPLES_PER_BURST'
-    #WAVE_SAMPLES_SCANS_PER_SECOND = 'WAVE_SAMPLES_SCANS_PER_SECOND'
-    #WAVE_SAMPLES_DURATION_SECONDS ='WAVE_SAMPLES_DURATION_SECONDS'
-    LAST_SAMPLE_P = 'LAST_SAMPLE_P'
-    LAST_SAMPLE_T = 'LAST_SAMPLE_T'
-    LAST_SAMPLE_S = 'LAST_SAMPLE_S'
-    IOP_MA = 'IOP_MA'
-    VMAIN_V = 'VMAIN_V'
-    VLITH_V = 'VLITH_V'
+
+
 
     # DC
     PCALDATE = 'PCALDATE'
-    TCALDATE = 'TCALDATE'
-    CCALDATE = 'CCALDATE'
     PU0 = 'PU0'
     PY1 = 'PY1'
     PY2 = 'PY2'
@@ -127,23 +159,15 @@ class Parameter(DriverParameter):
     PT2 = 'PT2'
     PT3 = 'PT3'
     PT4 = 'PT4'
-    PA0 = 'PA0'
-    PA1 = 'PA1'
-    PA2 = 'PA2'
-    #PTCA0 = 'PTCA0'
-    #PTCA1 = 'PTCA1'
-    #PTCA2 = 'PTCA2'
-    PTCB0 = 'PTCB0'
-    PTCB1 = 'PTCB1'
-    PTCB2 = 'PTCB2'
-    #PTEMPA0 = 'PTEMPA0'
-    #PTEMPA1 = 'PTEMPA1'
-    #PTEMPA2 = 'PTEMPA2'
+    FACTORY_M = 'FACTORY_M'
+    FACTORY_B = 'FACTORY_B'
     POFFSET = 'POFFSET'
+    TCALDATE = 'TCALDATE'
     TA0 = 'TA0'
     TA1 = 'TA1'
     TA2 = 'TA2'
     TA3 = 'TA3'
+    CCALDATE = 'CCALDATE'
     CG = 'CG'
     CH = 'CH'
     CI = 'CI'
@@ -151,8 +175,20 @@ class Parameter(DriverParameter):
     CTCOR = 'CTCOR'
     CPCOR = 'CPCOR'
     CSLOPE = 'CSLOPE'
-    FACTORY_M = 'FACTORY_M'
-    FACTORY_B = 'FACTORY_B'
+
+    # Alternate preasure values we dont care about.
+    #PA0 = 'PA0'
+    #PA1 = 'PA1'
+    #PA2 = 'PA2'
+    #PTCA0 = 'PTCA0'
+    #PTCA1 = 'PTCA1'
+    #PTCA2 = 'PTCA2'
+    #PTCB0 = 'PTCB0'
+    #PTCB1 = 'PTCB1'
+    #PTCB2 = 'PTCB2'
+    #PTEMPA0 = 'PTEMPA0'
+    #PTEMPA1 = 'PTEMPA1'
+    #PTEMPA2 = 'PTEMPA2'
 
 
 # Device prompts.
@@ -284,29 +320,62 @@ class Protocol(CommandResponseInstrumentProtocol):
         # current parameter values, and set formatting functions.
         self._build_param_dict()
 
-        # Add build handlers for device commands.
-        self._add_build_handler('ds', self._build_simple_command)
-        self._add_build_handler('dc', self._build_simple_command)
-        self._add_build_handler('ts', self._build_simple_command)
-        self._add_build_handler('start', self._build_simple_command)
-        self._add_build_handler('stop', self._build_simple_command)
-        self._add_build_handler('tc', self._build_simple_command)
-        self._add_build_handler('tt', self._build_simple_command)
-        self._add_build_handler('tp', self._build_simple_command)
-        self._add_build_handler('set', self._build_set_command)
 
-        self._add_build_handler(InstrumentCmds.SETSAMPLING, self._build_setsampling_command)
+
+
+
+
+
+
+
+
+
+        # Add build handlers for device commands.
+        self._add_build_handler(InstrumentCmds.SETSAMPLING,                 self._build_setsampling_command)
+        self._add_build_handler(InstrumentCmds.DISPLAY_STATUS,              self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.QUIT_SESSION,                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DISPLAY_CALIBRATION,         self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.START_LOGGING,               self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.STOP_LOGGING,                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT,    self._build_XXXXXXXXXXXXXX_command)
+        self._add_build_handler(InstrumentCmds.UPLOAD_DATA_BINARY_FORMAT,   self._build_XXXXXXXXXXXXXX_command)
+        self._add_build_handler(InstrumentCmds.GET_BYTE_COUNT,              self._build_XXXXXXXXXXXXXX_command)
+        self._add_build_handler(InstrumentCmds.SET_BYTE_COUNT,              self._build_XXXXXXXXXXXXXX_command)
+        self._add_build_handler(InstrumentCmds.SET,                         self._build_set_command)
+
+        #self._add_build_handler('ts', self._build_simple_command)
+        #self._add_build_handler('tc', self._build_simple_command) #NO SUCH COMMAND
+        #self._add_build_handler('tt', self._build_simple_command)
+        #self._add_build_handler('tp', self._build_simple_command)
+
 
         # Add response handlers for device commands.
-        self._add_response_handler('ds', self._parse_dsdc_response)
-        self._add_response_handler('dc', self._parse_dsdc_response)
-        self._add_response_handler('ts', self._parse_ts_response)
-        self._add_response_handler('tc', self._parse_test_response)
-        self._add_response_handler('tt', self._parse_test_response)
-        self._add_response_handler('tp', self._parse_test_response)
+        self._add_response_handler(InstrumentCmds.SETSAMPLING,                  self._parse_setsampling_response)
+        self._add_response_handler(InstrumentCmds.DISPLAY_STATUS,               self._parse_dsdc_response)
+        self._add_response_handler(InstrumentCmds.QUIT_SESSION,                 self._parse_XXXXXXXXXXXXX)
+        self._add_response_handler(InstrumentCmds.DISPLAY_CALIBRATION,          self._parse_dsdc_response)
+        self._add_response_handler(InstrumentCmds.START_LOGGING,                self._parse_XXXXXXXXXXXXX)
+        self._add_response_handler(InstrumentCmds.STOP_LOGGING,                 self._parse_XXXXXXXXXXXXX)
+        self._add_response_handler(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT,     self._parse_XXXXXXXXXXXXX)
+        self._add_response_handler(InstrumentCmds.UPLOAD_DATA_BINARY_FORMAT,    self._parse_XXXXXXXXXXXXX)
+        self._add_response_handler(InstrumentCmds.GET_BYTE_COUNT,               self._parse_XXXXXXXXXXXXX)
+        self._add_response_handler(InstrumentCmds.SET_BYTE_COUNT,               self._parse_XXXXXXXXXXXXX)
+        self._add_response_handler(InstrumentCmds.SET,                          self._parse_set_response)
 
-        self._add_response_handler('set', self._parse_set_response)
-        self._add_response_handler(InstrumentCmds.SETSAMPLING, self._parse_setsampling_response)
+
+        #self._add_response_handler('ts', self._parse_ts_response)
+        #self._add_response_handler('tc', self._parse_test_response) #NO SUCH COMMAND
+        #self._add_response_handler('tt', self._parse_test_response)
+        #self._add_response_handler('tp', self._parse_test_response)
+
+
+
+
+
+
+
+
+
 
         # ts
         # 14.4309  23.72 -272.3189 -1.02626   0.0000
@@ -427,7 +496,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         else:
 
             for (key, val) in params.iteritems():
-                result = self._do_cmd_resp('set', key, val, **kwargs)
+                result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
             self._update_params()
 
         return (next_state, result)
@@ -461,12 +530,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        # Assure the device is transmitting.
-        #if not self._param_dict.get(Parameter.TXREALTIME):
-        #    self._do_cmd_resp('set', Parameter.TXREALTIME, True, **kwargs)
 
         # Issue start command and switch to autosample if successful.
-        self._do_cmd_no_resp('start', *args, **kwargs)
+        self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, *args, **kwargs)
 
         next_state = ProtocolState.AUTOSAMPLE
 
@@ -529,7 +595,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._wakeup_until(timeout, Prompt.AUTOSAMPLE)
 
         # Issue the stop command.
-        self._do_cmd_resp('stop', *args, **kwargs)
+        self._do_cmd_resp(InstrumentCmds.STOP_LOGGING, *args, **kwargs)
 
         # Prompt device until command prompt is seen.
         self._wakeup_until(timeout, Prompt.COMMAND)
@@ -712,8 +778,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Issue display commands and parse results.
         timeout = kwargs.get('timeout', TIMEOUT)
-        self._do_cmd_resp('ds',timeout=timeout)
-        self._do_cmd_resp('dc',timeout=timeout)
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS,timeout=timeout)
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION,timeout=timeout)
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
@@ -761,7 +827,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         log.debug("PROMPT = " + str(prompt))
         if prompt != Prompt.COMMAND:
-            raise InstrumentProtocolException('Set command not recognized: %s' % response)
+            raise InstrumentProtocolException('1 Set command not recognized: %s' % response)
 
     def _parse_dsdc_response(self, response, prompt):
         """
@@ -837,63 +903,63 @@ class Protocol(CommandResponseInstrumentProtocol):
 
 
 
-    def _parse_ts_response(self, response, prompt):
-        """
-        Response handler for ts command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @retval sample dictionary containig c, t, d values.
-        @throws InstrumentProtocolException if ts command misunderstood.
-        @throws InstrumentSampleException if response did not contain a sample
-        """
-        log.debug("************ in _parse_ts_response ")
-        """
-        S>ts
-        ts
-           14.6343  22.99  22.7395 -1.02527   0.0000
-        (pressure psia, pressure temperature C, temperature C, conductivity S/m, and salinity psu)
-        """
+#    def _parse_ts_response(self, response, prompt):
+#        """
+#        Response handler for ts command.
+#        @param response command response string.
+#        @param prompt prompt following command response.
+#        @retval sample dictionary containig c, t, d values.
+#        @throws InstrumentProtocolException if ts command misunderstood.
+#        @throws InstrumentSampleException if response did not contain a sample
+#        """
+#        log.debug("************ in _parse_ts_response ")
+#        """
+#        S>ts
+#        ts
+#           14.6343  22.99  22.7395 -1.02527   0.0000
+#        (pressure psia, pressure temperature C, temperature C, conductivity S/m, and salinity psu)
+#        """
+#
+#        log.debug("PROMPT = " + str(prompt) + " WANTED " + str(Prompt.COMMAND))
+#        if prompt != Prompt.COMMAND:
+#            raise InstrumentProtocolException('ts command not recognized: %s', response)
+#
+#
+#        sample = None
+#        for line in response.split(NEWLINE):
+#            sample = self._extract_sample(line, True)
+#            if sample:
+#                break
+#
+#        if not sample:
+#            raise SampleException('Response did not contain sample: %s' % repr(response))
+#
+#        return sample
 
-        log.debug("PROMPT = " + str(prompt) + " WANTED " + str(Prompt.COMMAND))
-        if prompt != Prompt.COMMAND:
-            raise InstrumentProtocolException('ts command not recognized: %s', response)
-
-
-        sample = None
-        for line in response.split(NEWLINE):
-            sample = self._extract_sample(line, True)
-            if sample:
-                break
-
-        if not sample:
-            raise SampleException('Response did not contain sample: %s' % repr(response))
-
-        return sample
-
-    def _parse_test_response(self, response, prompt):
-        """
-        Do minimal checking of test outputs.
-        @param response command response string.
-        @param promnpt prompt following command response.
-        @retval tuple of pass/fail boolean followed by response
-        """
-        log.debug("************ in _parse_test_response ")
-        success = False
-        lines = response.split()
-        if len(lines)>2:
-            data = lines[1:-1]
-            bad_count = 0
-            for item in data:
-                try:
-                    float(item)
-
-                except ValueError:
-                    bad_count += 1
-
-            if bad_count == 0:
-                success = True
-
-        return (success, response)
+#    def _parse_test_response(self, response, prompt):
+#        """
+#        Do minimal checking of test outputs.
+#        @param response command response string.
+#        @param promnpt prompt following command response.
+#        @retval tuple of pass/fail boolean followed by response
+#        """
+#        log.debug("************ in _parse_test_response ")
+#        success = False
+#        lines = response.split()
+#        if len(lines)>2:
+#            data = lines[1:-1]
+#            bad_count = 0
+#            for item in data:
+#                try:
+#                    float(item)
+#
+#                except ValueError:
+#                    bad_count += 1
+#
+#            if bad_count == 0:
+#                success = True
+#
+#        return (success, response)
 
     def got_data(self, data):
         """
@@ -1391,10 +1457,10 @@ class Protocol(CommandResponseInstrumentProtocol):
             lambda match : float(match.group(1)),
             self._float_to_string)
 
-        self._param_dict.add(Parameter.PA0,
-            r' +PA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-            lambda match : float(match.group(1)),
-            self._float_to_string)
+        #self._param_dict.add(Parameter.PA0,
+        #    r' +PA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
+        #    lambda match : float(match.group(1)),
+        #    self._float_to_string)
 
         self._param_dict.add(Parameter.PA1,
             r' +PA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
@@ -1426,6 +1492,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
 
     @staticmethod
+    # Should be renamed boolen_to_string for consistency
     def _true_false_to_string(v):
         """
         Write a boolean value to string formatted for sbe37 set operations.
@@ -1543,6 +1610,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         if the formatting function could not accept the value passed.
         """
         log.debug(" *******************IN _build_define_command !!!!!!!!!!!!!!!!!!!!!!")
+
+        # SHOULD STASH THE ARGS INTO SELF.SAMPLING_ARGS OR SOME SUCH.
+        self._sampling_args = args[0]
+        for (key, val) in self._sampling_args.iteritems():
+            log.debug("PROOF THAT KEY(" + str(key) + ") = VAL(" + str(val) + ") made it into _build_setsampling_command")
+
         #try:
         #    str_val = self._param_dict.format(param, val)
         #    set_cmd = '%s=%s' % (param, str_val)
@@ -1552,21 +1625,67 @@ class Protocol(CommandResponseInstrumentProtocol):
         #    raise InstrumentParameterException('Unknown driver parameter %s' % param)
 
         #log.debug("_build_set_command set_cmd = " + set_cmd)
-        return "setsampling"  + NEWLINE
+        return InstrumentCmds.SETSAMPLING  + NEWLINE
 
 
-    def _parse_setsampling_response(self, cmd, *args, **kwargs):
+    def _parse_setsampling_response(self, response, prompt): #(self, cmd, *args, **kwargs):
         """
         Parse handler for set command.
         @param response command response string.
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if set command misunderstood.
-        """
 
-        log.debug("in _parse_setsampling_response()")
-        log.debug("PROMPT = " + str(prompt))
-        if prompt != Prompt.COMMAND:
-            raise InstrumentProtocolException('Set command not recognized: %s' % response)
+        S>setsampling
+        tide interval (integer minutes) = 4, new value = 4
+        tide measurement duration (seconds) = 10, new value = 40
+        measure wave burst after every N tide samples: N = 1, new value =
+        number of wave samples per burst (multiple of 4) = 4, new value =
+        wave Sample duration (0.25, 0.50, 0.75, 1.0) seconds = 0.25, new value =
+        use start time (y/n) = n, new value =
+        use stop time (y/n) = n, new value =
+        TXWAVESTATS (real-time wave statistics) (y/n) = n, new value =
+        S>
+        """
+        desired_prompt = ", new value = "
+        completion_prompt = "S>"
+        error_prompt = "? cmd S>"
+
+        debug_count = 0
+        done = False
+        while not done:
+            debug_count = debug_count + 1
+            log.debug(str(debug_count) + " times through")
+            log.debug("response = '" + str(response) + "'")
+            log.debug("prompt = '" + str(prompt) + "'")
+            if prompt == completion_prompt:
+                done = True
+            elif prompt == desired_prompt:
+                log.debug("GOT A PROMPT INDICATING MORE INPUT IS NEEDED -- " + prompt)
+
+                if "tide interval (integer minutes) " in response:
+                    self._connection.send(self._int_to_string(self._sampling_args['TIDE_INTERVAL']) + NEWLINE)
+                elif "tide measurement duration (seconds)" in response:
+                    self._connection.send(self._int_to_string(self._sampling_args['TIDE_MEASUREMENT_DURATION']) + NEWLINE)
+                elif "measure wave burst after every N tide samples" in response:
+                    self._connection.send(self._int_to_string(self._sampling_args['TIDE_MEASUREMENT_DURATION']) + NEWLINE)
+                elif "number of wave samples per burst (multiple of 4)" in response:
+                    self._connection.send(self._int_to_string(self._sampling_args['NUMBER_OF_WAVE_SAMPLES_PER_BURST']) + NEWLINE)
+                elif "wave Sample duration (0.25, 0.50, 0.75, 1.0) seconds" in response:
+                    self._connection.send(self._float_to_string(self._sampling_args['WAVE_SAMPLE_DURATION']) + NEWLINE)
+                elif "use start time (y/n)" in response:
+                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_START_TIME']) + NEWLINE)
+                elif "use stop time (y/n)" in response:
+                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_STOP_TIME']) + NEWLINE)
+                elif "TXWAVESTATS (real-time wave statistics) (y/n)" in response:
+                    self._connection.send(self._true_false_to_string(self._sampling_args['TRANSMIT_REAL_TIME_WAVE_STATS']) + NEWLINE)
+                else:
+                    raise InstrumentProtocolException('HOW DID I GET HERE! %s' % str(response) + str(prompt))
+                    done = True
+            (prompt, response) = self._get_response(expected_prompt=desired_prompt)
+        else:
+            done = True
+            raise InstrumentProtocolException('SETSAMPLING command not recognized: %s' % str(response) + str(prompt))
+
 
 
     def _handler_command_setsampling(self, *args, **kwargs):
@@ -1584,6 +1703,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
+        kwargs['expected_prompt'] = ", new value = "
         result = self._do_cmd_resp('setsampling', *args, **kwargs)
 
         return (next_state, result)

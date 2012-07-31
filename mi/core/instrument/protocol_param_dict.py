@@ -184,9 +184,7 @@ class ProtocolParameterDict(object):
         @retval The name that was successfully updated, None if not updated
         """
         for (name, val) in self._param_dict.iteritems():
-            log.debug("NAME/VAL = " + str(name) + "/" + str(val))
             if val.update(input):
-                log.debug("RETURNING NAME = " + str(name))
                 return name
         return False
     

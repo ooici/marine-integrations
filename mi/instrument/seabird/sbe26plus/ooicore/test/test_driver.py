@@ -143,7 +143,7 @@ PARAMS = {
     Parameter.PT2 : float,
     Parameter.PT3 : float,
     Parameter.PT4 : float,
-    Parameter.PA0 : float,
+    #Parameter.PA0 : float,
     Parameter.PA1 : float,
     Parameter.PA2 : float,
     #Parameter.PTCA0 : float,
@@ -273,7 +273,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         # Set parameters and verify.
         state = self.driver_client.cmd_dvr('get_current_state')
         #self.assertEqual(state, ProtocolState.COMMAND)
-        #reply = self.driver_client.cmd_dvr('setsampling', define_params)
+        reply = self.driver_client.cmd_dvr('setsampling', define_params)
 
 
         log.warn("REPLY ===================================================== " + str(reply))

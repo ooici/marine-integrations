@@ -265,7 +265,11 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @throw InstrumentProtocolExecption on timeout
         """
         # Grab time for timeout and wait for prompt.
+
         starttime = time.time()
+        log.debug("##################################################")
+        log.debug("##################prompt buff = " + str(self._promptbuf) + "##################" + str(self._linebuf))
+        log.debug("##################################################")
                 
         if expected_prompt == None:
             prompt_list = self._prompts.list()
@@ -274,12 +278,21 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             prompt_list = [expected_prompt]            
         while True:
             for item in prompt_list:
+                log.debug("**PROMPTBUFF** = " + repr(self._promptbuf))
                 if self._promptbuf.endswith(item):
                     return (item, self._linebuf)
                 else:
                     time.sleep(.1)
             if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException()
+                """
+                log.debug("##################################################")
+                log.debug("##################prompt buff = " + str(self._promptbuf) + "##################" + str(self._linebuf))
+                log.debug("################################################## should have.... raise InstrumentTimeoutException(in _get_response())")
+                return (item, self._linebuf) # trying to work out where this wants to return to.
+                """
+
+
+                raise InstrumentTimeoutException("in _get_response()")
                
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
@@ -318,7 +331,9 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                         (repr(cmd_line), timeout, write_delay, expected_prompt))
         if (write_delay == 0):
             self._connection.send(cmd_line)
+            log.debug("_do_cmd_resp sent '" + repr(cmd_line) + "' to device")
         else:
+            log.debug("_do_cmd_resp sent '" + repr(cmd_line) + "' to device (char by char)")
             for char in cmd_line:
                 self._connection.send(char)
                 time.sleep(write_delay)
@@ -326,6 +341,8 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         # Wait for the prompt, prepare result and return, timeout exception
         (prompt, result) = self._get_response(timeout,
                                               expected_prompt=expected_prompt)
+        log.debug("_do_cmd_resp prompt = '" + repr(prompt) + "'")
+        log.debug("_do_cmd_resp result = '" + repr(result) + "'")
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
             self._response_handlers.get(cmd, None)
         resp_result = None
@@ -432,7 +449,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                     return item
 
             if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException()
+                raise InstrumentTimeoutException("in _wakeup()")
 
     def _wakeup_until(self, timeout, desired_prompt, delay=1, no_tries=5):
         """
@@ -613,7 +630,9 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         # Grab time for timeout and wait for prompt.
         starttime = time.time()
-                
+        log.debug("_get_response expected_prompt = " + repr(expected_prompt))
+        log.debug("_get_response timeout = " + str(timeout))
+
         if expected_prompt == None:
             prompt_list = self._prompts.list()
         else:
@@ -631,7 +650,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
                     time.sleep(.1)
             if time.time() > starttime + timeout:
                 #print "------->> get_response DHE TIMEOUT!!!!"
-                raise InstrumentTimeoutException()
+                raise InstrumentTimeoutException("in _get_response()")
                
     # DHE Added
     def _navigate_and_execute(self, cmd, **kwargs):
