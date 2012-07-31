@@ -511,7 +511,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         #    SubMenues.SUB_MENU1   : [Directions("1", InstrumentPrompts.SUB_MENU1)],
         #    SubMenues.SUB_MENU2   : [Directions("2", InstrumentPrompts.SUB_MENU2)],
         #    SubMenues.SUB_MENU3   : [Directions(SubMenues.SUB_MENU2),
-        #                            Directions("2", InstrumentPrompts.SUB_MENU3)],
+        #                            Directions("2", InstrumentPrompts.SUB_MENU3, 20)],
         #    SubMenues.SUB_MENU4   : [Directions(SubMenues.SUB_MENU3),
         #                            Directions("d", InstrumentPrompts.SUB_MENU4)]
         #    })
@@ -529,7 +529,8 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         # for directions in directions_list:
         #     command = directions.get_command()
         #     response = directions.get_response()
-        #     do_cmd_reponse(command, expected_prompt = response)
+        #     timeout = directions.get_timeout()
+        #     do_cmd_reponse(command, expected_prompt = response, timeout = timeout)
         
 
         class Directions(object):
@@ -628,6 +629,8 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         presented by this string
         @throw InstrumentProtocolExecption on timeout
         """
+        log.debug('MenuInstrumentProtocol._get_response: timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,' 
+                  %(timeout, expected_prompt, expected_prompt.encode("hex")))
         # Grab time for timeout and wait for prompt.
         starttime = time.time()
         log.debug("_get_response expected_prompt = " + repr(expected_prompt))
@@ -671,12 +674,6 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         if dest_submenu == None:
             raise InstrumentProtocolException('_navigate_and_execute(): dest_submenu parameter missing')
 
-        # Get timeout and initialize response.
-        timeout = kwargs.get('timeout', 10)
-        expected_prompt = kwargs.get('expected_prompt', None)
-        write_delay = kwargs.get('write_delay', 0)
-        retval = None
-        
         # iterate through the directions 
         directions_list = self._menu.get_directions(dest_submenu)
         for directions in directions_list:
@@ -686,6 +683,12 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             timeout = directions.get_timeout()
             self._do_cmd_resp(command, expected_prompt = response, timeout = timeout)
 
+        # Get timeout and initialize response.
+        expected_timeout = kwargs.get('timeout', 10)
+        expected_prompt = kwargs.get('expected_prompt', None)
+        write_delay = kwargs.get('write_delay', 0)
+        retval = None
+        
         value = kwargs.get('value', None)
         #
         # DHE: this is a kludge; need a way to send a parameter as a "command."  We can't expect to look
@@ -697,7 +700,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             self._connection.send(cmd_line)
         else:
             #print "-----> DHE: sending command: " + str(cmd) + " + value: " + str(value) + " to do_cmd_resp()"
-            resp_result = self._do_cmd_resp(cmd, value = value, expected_prompt = expected_prompt, timeout = timeout)
+            resp_result = self._do_cmd_resp(cmd, value = value, expected_prompt = expected_prompt, timeout = expected_timeout)
  
         return resp_result
 

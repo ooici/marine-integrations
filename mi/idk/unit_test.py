@@ -523,7 +523,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
-
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
@@ -531,12 +530,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         cmd = AgentCommand(command='power_up')
         retval = self.instrument_agent_client.execute_agent(cmd)
-
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
@@ -559,7 +552,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         cmd = AgentCommand(command='go_inactive')
         retval = self.instrument_agent_client.execute_agent(cmd)
-
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
@@ -572,7 +564,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
-
 
         cmd = AgentCommand(command='run')
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -598,19 +589,14 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
 
-
         # go direct access
         cmd = AgentCommand(command='go_direct_access',
                            kwargs={'session_type':DirectAccessTypes.telnet,
                            #kwargs={'session_type':DirectAccessTypes.vsp,
                                    'session_timeout':600,
                                    'inactivity_timeout':600})
-
-
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("5***** go_direct_access retval=" + str(retval.result))
-        # 5***** go_direct_access retval={'token': '3AE880EF-27FE-4DE8-BFFF-C078640A3090', 'ip_address': 'REDACTED.local', 'port': 8000}
-
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
@@ -684,15 +670,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         log.debug("IA client = " + str(self.instrument_agent_client))
 
-
-
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
-
-
-
-
-
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
@@ -700,12 +679,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         cmd = AgentCommand(command='power_up')
         retval = self.instrument_agent_client.execute_agent(cmd)
-
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
@@ -909,8 +882,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                     'session_timeout':600,
                     'inactivity_timeout':600})
         retval = self.instrument_agent_client.execute_agent(cmd)
-
         log.debug("RETVAL = " + str(retval))
+
         # Halt DA.
         cmd = AgentCommand(command='go_observatory')
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -974,12 +947,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                On a seabird sbe37 this results in a ds and dc command being sent.
         """
 
-
-
-
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
@@ -992,7 +961,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         log.debug("AFTER GO_ACTIVE")
 
         # Test the driver is configured for comms.
-
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
@@ -1022,7 +990,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
@@ -1030,7 +997,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         cmd = AgentCommand(command='reset')
         retval = self.instrument_agent_client.execute_agent(cmd)
-
         cmd = AgentCommand(command='get_current_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result

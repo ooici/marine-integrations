@@ -69,7 +69,7 @@ class TrhphClientTest(TrhphTestCase):
         host = self.device_address
         port = self.device_port
         self._samples_recd = 0
-        outfile = file('trhph_output.txt', 'w')
+        outfile = file('trhph_output.txt', 'a')
         prefix_state = True
         _client = TrhphClient(host, port, outfile, prefix_state)
 

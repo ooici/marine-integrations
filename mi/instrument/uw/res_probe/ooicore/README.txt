@@ -5,6 +5,48 @@ Main documentation page: https://confluence.oceanobservatories.org/display/CIDev
 
 Some development notes:
 
+2012-07-25:
+- test_instrument_agent_with_trhph.py updated and running again. Fixed
+  outstanding issue of processes not properly stopped after each test completed
+  (there was a missing 'reset' command to the agent so the driver was not stopped).
+
+    $ UW_TRHPH="simulator" bin/nosetests -sv mi/instrument/uw/res_probe/ooicore/test/test_instrument_agent_with_trhph.py
+    Ran 12 tests in 271.338s OK (SKIP=2)
+
+- Tests with real instrument via "raw" port 2101 also running:
+    $ UW_TRHPH="10.180.80.172:2101" bin/nosetests -sv mi/instrument/uw/res_probe/ooicore/test/test_instrument_agent_with_trhph.py
+    Ran 12 tests in 324.051s OK (SKIP=2)
+  Although the tests were all ok in multiple runs, I saw one test failing to
+  break the streaming mode (porbably some concurrent access?), so this will
+  needs further testing and eventual adjustments to make it more robust.
+
+
+
+2012-07-24:
+- Adjustments to update this driver after the several changes done since May in
+  supporting code mainly in coi-services.
+
+    TrhphClient supporting class didn't require any updates:
+        $ UW_TRHPH="simulator" run_it= bin/nosetests -v mi/instrument/uw/res_probe/ooicore/test/test_trhph_client.py
+        Ran 9 tests in 151.787s OK
+        $ UW_TRHPH="10.180.80.172:2001" run_it= bin/nosetests -v mi/instrument/uw/res_probe/ooicore/test/test_trhph_client.py
+        Ran 9 tests in 244.029s OK
+
+    TrhphInstrumentDriver directly, no updated needed:
+        $ UW_TRHPH="simulator" run_it= bin/nosetests -v mi/instrument/uw/res_probe/ooicore/test/test_trhph_driver.py
+        Ran 11 tests in 94.816s OK
+        $ UW_TRHPH="10.180.80.172:2001" run_it= bin/nosetests -v mi/instrument/uw/res_probe/ooicore/test/test_trhph_driver.py
+        Ran 11 tests in 189.621s OK
+
+    TrhphInstrumentDriver launched as an external process:
+        Fixed errors related with several changes in DriverIntegrationTestSupport.
+        $ UW_TRHPH="simulator" run_it= bin/nosetests -v mi/instrument/uw/res_probe/ooicore/test/test_trhph_driver_proc.py
+        Ran 11 tests in 291.799s OK
+        $ UW_TRHPH="10.180.80.172:2001" run_it= bin/nosetests -v mi/instrument/uw/res_probe/ooicore/test/test_trhph_driver_proc.py
+        Ran 11 tests in 280.923s OK
+
+    test_instrument_agent_with_trhph.py: partially updated.
+
 2012-05-29:
 - Systematic renamings to adjust paths and imports in the mi repo.
 - All tests passing as before *except* test_instrument_agent_with_trhph.py,
