@@ -18,17 +18,24 @@ __license__ = 'Apache 2.0'
 import time
 import re
 import datetime
+import copy
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.exceptions import InstrumentTimeoutException, InstrumentParameterException, InstrumentProtocolException
+from mi.core.exceptions import InstrumentTimeoutException, \
+                               InstrumentParameterException, \
+                               InstrumentProtocolException, \
+                               InstrumentStateException
+from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
+from mi.core.common import InstErrorCode
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -56,11 +63,17 @@ class InstrumentPrompts(BaseEnum):
     SLEEPING  = 'Sleeping . . .'
     WAKEUP    = 'Enter <CTRL>-<C> now to wake up?'
     DEPLOY    = '>>> <CTRL>-<C> to terminate deployment <<<'
+    UPLOAD    = '\x04'    # EOT
+    DOWNLOAD  = ' \a'
+    SET_DONE  = 'New parameters accepted.'
     
 class InstrumentCmds(BaseEnum):
-    EXIT_SUB_MENU = '\x03'     # CTRL-C
-    DEPLOY_GO     = '\a'     # CTRL-G (bell) + NL
+    EXIT_SUB_MENU = '\x03'   # CTRL-C (end of text)
+    DEPLOY_GO     = '\a'     # CTRL-G (bell)
     DEPLOY_MENU   = '6'
+    UPLOAD        = 'u'
+    DOWNLOAD      = 'b'
+    END_OF_TRANS  = '\x04'   # CTRL-D (end of transmission)
 
 class ProtocolStates(BaseEnum):
     """
@@ -96,7 +109,80 @@ class InstrumentParameters(DriverParameter):
     """
     Device parameters for MAVS-4.
     """
-    OUTPUTSAL = 'OUTPUTSAL'
+    SYS_CLOCK = 'sys_clock'
+    BAUD_RATE = 'BaudRate'
+    VERSION_NUMBER = 'VersionNumber'
+    CONFIG_INITIALIZED = 'ConfigInitialized'
+    V_OFFSET_0 = 'V_offset_0'
+    V_OFFSET_1 = 'V_offset_1'
+    V_OFFSET_2 = 'V_offset_2'
+    V_OFFSET_3 = 'V_offset_3'
+    V_SCALE = 'V_scale'
+    ANALOG_OUT = 'AnalogOut'
+    COMPASS = 'Compass'
+    M0_OFFSET = 'M0_offset'
+    M1_OFFSET = 'M1_offset'
+    M2_OFFSET = 'M2_offset'
+    M0_SCALE = 'M0_scale'
+    M1_SCALE = 'M1_scale'
+    M2_SCALE = 'M2_scale'
+    TILT = 'Tilt'
+    TY_OFFSET = 'TY_offset'
+    TX_OFFSET = 'TX_offset'
+    TY_SCALE = 'TY_scale'
+    TX_SCALE = 'TX_scale'
+    TY_TEMPCO = 'TY_tempco'
+    TX_TEMPCO = 'TX_tempco'
+    FAST_SENSOR = 'FastSensor'
+    THERMISTOR = 'Thermistor'
+    TH_OFFSET = 'Th_offset'
+    PRESSURE = 'Pressure'
+    P_OFFSET = 'P_offset'
+    P_SCALE = 'P_scale'
+    P_MA = 'P_mA'
+    AUXILIARY1 = 'Auxiliary1'
+    A1_OFFSET = 'A1_offset'
+    A1_SCALE = 'A1_scale'
+    A1_MA = 'A1_mA'
+    AUXILIARY2 = 'Auxiliary2'
+    A2_OFFSET = 'A2_offset'
+    A2_SCALE = 'A2_scale'
+    A2_MA = 'A2_mA'
+    AUXILIARY3 = 'Auxiliary3'
+    A3_OFFSET = 'A3_offset'
+    A3_SCALE = 'A3_scale'
+    A3_MA = 'A3_mA'
+    SENSOR_ORIENTATION = 'SensorOrientation'
+    SERIAL_NUMBER = 'SerialNumber'
+    QUERY_CHARACTER = 'QueryCharacter'
+    POWER_UP_TIME_OUT = 'PowerUpTimeOut'
+    DEPLOY_INITIALIZED = 'DeployInitialized'
+    LINE1 = 'line1'
+    LINE2 = 'line2'
+    LINE3 = 'line3'
+    START_TIME = 'StartTime'
+    STOP_TIME = 'StopTime'
+    FRAME = 'FRAME'
+    DATA_MONITOR = 'DataMonitor'
+    INTERNAL_LOGGING = 'InternalLogging'
+    APPEND_MODE = 'AppendMode'
+    BYTES_PER_SAMPLE = 'BytesPerSample'
+    VERBOSE_MODE = 'VerboseMode'
+    QUERY_MODE = 'QueryMode'
+    EXTERNAL_POWER = 'ExternalPower'
+    MEASUREMENT_FREQUENCY = 'MeasurementFrequency'
+    MEASUREMENT_PERIOD_SECS = 'MeasurementPeriod.secs'
+    MEASUREMENT_PERIOD_TICKS = 'MeasurementPeriod.ticks'
+    MEASUREMENTS_PER_SAMPLE = 'MeasurementsPerSample'
+    SAMPLE_PERIOD_SECS = 'SamplePeriod.secs'
+    SAMPLE_PERIOD_TICKS = 'SamplePeriod.ticks'
+    SAMPLES_PER_BURST = 'SamplesPerBurst'
+    INTERVAL_BETWEEN_BURSTS = 'IntervalBetweenBursts'
+    BURSTS_PER_FILE = 'BurstsPerFile'
+    STORE_TIME = 'StoreTime'
+    STORE_FRACTIONAL_TIME = 'StoreFractionalTime'
+    STORE_RAW_PATHS = 'StoreRawPaths'
+    PATH_UNITS = 'PathUnits'
 
 class Channel(BaseEnum):
     """
@@ -138,6 +224,38 @@ PACKET_CONFIG = {
         'adcp_parsed' : ('prototype.sci_data.stream_defs', 'ctd_stream_packet'),
         'adcp_raw' : None            
 }
+
+class Mavs4ProtocolParameterDict(ProtocolParameterDict):
+    
+    def set_from_string(self, name, line):
+        """
+        Set a parameter value in the dictionary.
+        @param name The parameter name.
+        @param line The parameter value as a string.
+        @raises KeyError if the name is invalid.
+        """
+        log.debug("Mavs4ProtocolParameterDict.set_from_string(): name=%s, line=%s" %(name, line))
+        self._param_dict[name].value = self._param_dict[name].f_getval(line)
+
+    def set_from_value(self, name, value):
+        """
+        Set a parameter value in the dictionary.
+        @param name The parameter name.
+        @param value The parameter value.
+        @raises KeyError if the name is invalid.
+        """
+        log.debug("Mavs4ProtocolParameterDict.set_from_value(): name=%s, value=%s" %(name, value))
+        self._param_dict[name].value = value
+        
+    def format_parameter(self, name):
+        """
+        Format the parameter for a set command.
+        @param name The name of the parameter.
+        @retval The value formatted as a string for writing to the device.
+        @raises InstrumentProtocolException if the value could not be formatted.
+        @raises KeyError if the parameter name is invalid.
+        """
+        return self._param_dict[name].f_format(self._param_dict[name].value)
 
 ###
 #   Driver for mavs4
@@ -181,6 +299,87 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     commands and a few set commands.
     """
     
+    upload_download_parameter_list = [
+        'u',
+        '',
+        '#',
+        InstrumentParameters.SYS_CLOCK,
+        InstrumentParameters.BAUD_RATE,
+        InstrumentParameters.VERSION_NUMBER,
+        InstrumentParameters.CONFIG_INITIALIZED,
+        InstrumentParameters.V_OFFSET_0,
+        InstrumentParameters.V_OFFSET_1,
+        InstrumentParameters.V_OFFSET_2,
+        InstrumentParameters.V_OFFSET_3,
+        InstrumentParameters.V_SCALE,
+        InstrumentParameters.ANALOG_OUT,
+        InstrumentParameters.COMPASS,
+        InstrumentParameters.M0_OFFSET,
+        InstrumentParameters.M1_OFFSET,
+        InstrumentParameters.M2_OFFSET,
+        InstrumentParameters.M0_SCALE,
+        InstrumentParameters.M1_SCALE,
+        InstrumentParameters.M2_SCALE,
+        InstrumentParameters.TILT,
+        InstrumentParameters.TY_OFFSET,
+        InstrumentParameters.TX_OFFSET,
+        InstrumentParameters.TY_SCALE,
+        InstrumentParameters.TX_SCALE,
+        InstrumentParameters.TY_TEMPCO,
+        InstrumentParameters.TX_TEMPCO,
+        InstrumentParameters.FAST_SENSOR,
+        InstrumentParameters.THERMISTOR,
+        InstrumentParameters.TH_OFFSET,
+        InstrumentParameters.PRESSURE,
+        InstrumentParameters.P_OFFSET,
+        InstrumentParameters.P_SCALE,
+        InstrumentParameters.P_MA,
+        InstrumentParameters.AUXILIARY1,
+        InstrumentParameters.A1_OFFSET,
+        InstrumentParameters.A1_SCALE,
+        InstrumentParameters.A1_MA,
+        InstrumentParameters.AUXILIARY2,
+        InstrumentParameters.A2_OFFSET,
+        InstrumentParameters.A2_SCALE,
+        InstrumentParameters.A2_MA,
+        InstrumentParameters.AUXILIARY3,
+        InstrumentParameters.A3_OFFSET,
+        InstrumentParameters.A3_SCALE,
+        InstrumentParameters.A3_MA,
+        InstrumentParameters.SENSOR_ORIENTATION,
+        InstrumentParameters.SERIAL_NUMBER,
+        InstrumentParameters.QUERY_CHARACTER,
+        InstrumentParameters.POWER_UP_TIME_OUT,
+        '#',
+        InstrumentParameters.DEPLOY_INITIALIZED,
+        InstrumentParameters.LINE1,
+        InstrumentParameters.LINE2,
+        InstrumentParameters.LINE3,
+        InstrumentParameters.START_TIME,
+        InstrumentParameters.STOP_TIME,
+        InstrumentParameters.FRAME,
+        InstrumentParameters.DATA_MONITOR,
+        InstrumentParameters.INTERNAL_LOGGING,
+        InstrumentParameters.APPEND_MODE,
+        InstrumentParameters.BYTES_PER_SAMPLE,
+        InstrumentParameters.VERBOSE_MODE,
+        InstrumentParameters.QUERY_MODE,
+        InstrumentParameters.EXTERNAL_POWER,
+        InstrumentParameters.MEASUREMENT_FREQUENCY,
+        InstrumentParameters.MEASUREMENT_PERIOD_SECS,
+        InstrumentParameters.MEASUREMENT_PERIOD_TICKS,
+        InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
+        InstrumentParameters.SAMPLE_PERIOD_SECS,
+        InstrumentParameters.SAMPLE_PERIOD_TICKS,
+        InstrumentParameters.SAMPLES_PER_BURST,
+        InstrumentParameters.INTERVAL_BETWEEN_BURSTS,
+        InstrumentParameters.BURSTS_PER_FILE,
+        InstrumentParameters.STORE_TIME,
+        InstrumentParameters.STORE_FRACTIONAL_TIME,
+        InstrumentParameters.STORE_RAW_PATHS,
+        InstrumentParameters.PATH_UNITS,
+        'DONE']
+    
     def __init__(self, prompts, newline, driver_event):
         """
         """
@@ -208,7 +407,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.EXIT_SUB_MENU, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.UPLOAD, self._build_simple_command)
         
+        # Add response handlers for device commands.
+        self._add_response_handler(InstrumentCmds.UPLOAD, self._parse_upload_response)
+
         self._protocol_fsm = InstrumentFSM(ProtocolStates, 
                                            ProtocolEvents, 
                                            ProtocolEvents.ENTER,
@@ -222,21 +425,20 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.TEST, self._handler_command_test)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
-        """
-        self._protocol_fsm.add_handler(ProtocolStates.TEST, ProtocolEvents.ENTER, self._handler_test_enter)
-        self._protocol_fsm.add_handler(ProtocolStates.TEST, ProtocolEvents.EXIT, self._handler_test_exit)
-        self._protocol_fsm.add_handler(ProtocolStates.TEST, ProtocolEvents.RUN_TEST, self._handler_test_run_tests)
-        self._protocol_fsm.add_handler(ProtocolStates.TEST, ProtocolEvents.GET, self._handler_command_autosample_test_get)
-        """
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.EXIT, self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.STOP_DIRECT, self._handler_direct_access_stop_direct)
+
+        # Construct the parameter dictionary containing device parameters,
+        # current parameter values, and set formatting functions.
+        self._build_param_dict()
 
         # Set state machine in UNKNOWN state. 
         self._protocol_fsm.start(ProtocolStates.UNKNOWN)
@@ -277,8 +479,13 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 # Wait for the character to be echoed, timeout exception
                 self._get_response(timeout, expected_prompt='%s'%char)
             self._connection.send(INSTRUMENT_NEWLINE)
-        self._get_response(timeout, expected_prompt=expected_prompt)
-    
+        (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
+        resp_handler = self._response_handlers.get(cmd, None)
+        resp_result = None
+        if resp_handler:
+            resp_result = resp_handler(result, prompt)
+        return resp_result
+   
     def got_data(self, data):
         """
         Callback for receiving new data from the device.
@@ -306,8 +513,23 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                         self._extract_sample(line)  
                         
     def _go_to_root_menu(self):
-        self._do_cmd_resp(InstrumentCmds.EXIT_SUB_MENU, expected_prompt=InstrumentPrompts.MAIN_MENU, timeout=2)
+        self._do_cmd_resp(InstrumentCmds.EXIT_SUB_MENU, expected_prompt=InstrumentPrompts.MAIN_MENU, timeout=4)
                           
+    def _float_to_string(self, v):
+        """
+        Write a float value to string formatted for "generic" set operations.
+        Subclasses should overload this as needed for instrument-specific
+        formatting.
+        
+        @param v A float val.
+        @retval a float string formatted for "generic" set operations.
+        @throws InstrumentParameterException if value is not a float.
+        """
+
+        if not isinstance(v,float):
+            raise InstrumentParameterException('Value %s is not a float.' % v)
+        else:
+            return str(v)
                 
 
     ########################################################################
@@ -367,7 +589,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
         # Command device to update parameters and send a config change event.
-        #self._update_params()
+        self._update_params()
+        
+        log.debug("parameters values are: %s" %str(self._param_dict.get_config()))
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -392,24 +616,82 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_state = None
         result = None
 
-        # Retrieve required parameter.
-        # Raise if no parameter provided, or not a dict.
+        # Retrieve required parameter from args.
+        # Raise exception if no parameter provided, or not a dict.
         try:
-            params = args[0]
-            
+            params_to_set = args[0]           
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
-
-        if not isinstance(params, dict):
-            raise InstrumentParameterException('Set parameters not a dict.')
-        
-        # For each key, val in the dict, issue set command to device.
-        # Raise if the command not understood.
         else:
+            if not isinstance(params_to_set, dict):
+                raise InstrumentParameterException('Set parameters not a dict.')
+        
+        parameters = copy.copy(self._param_dict)    # get copy of parameters to modify
+        
+        # For each key, value in the params_to_set list set the value in parameters copy.
+        try:
+            for (name, value) in params_to_set.iteritems():
+                log.debug('setting %s to %s' %(name, value))
+                parameters.set_from_value(name, value)
+        except Exception as ex:
+            raise InstrumentProtocolException('Unable to set parameter %s to %s: %s' %(name, value, ex))
             
-            for (key, val) in params.iteritems():
-                result = self._do_cmd_resp('set', key, val, **kwargs)
-            self._update_params()
+        output = self._create_set_output(parameters)
+        
+        # go to root menu.
+        got_prompt = False
+        for i in range(10):
+            try:
+                self._go_to_root_menu()
+                got_prompt = True
+                break
+            except:
+                pass
+            
+        if not got_prompt:                
+            raise InstrumentTimeoutException()
+                                
+        # Issue download command
+        for i in range(2):
+            try: 
+                self._do_cmd_resp(InstrumentCmds.DOWNLOAD,
+                                  expected_prompt=InstrumentPrompts.DOWNLOAD,
+                                  timeout=2)
+                got_prompt = True
+                break
+            except:
+                pass
+
+        if not got_prompt:                
+            raise InstrumentTimeoutException()
+
+        for line in output:
+            self._linebuf = ''
+            self._promptbuf = ''
+            self._connection.send(line + '\r')
+            self._get_response(timeout=5, expected_prompt='\r\n\r')
+            """
+            for char in line:
+                # Clear line and prompt buffers for result.
+                #self._linebuf = ''
+                #self._promptbuf = ''
+                log.debug('_handler_command_set: sending %s from %s' %(char, line))
+                self._connection.send(char)
+                # Wait for the character to be echoed, timeout exception
+                # use method that looks for the response only at the end of the _promptbuf
+                #self._get_response(timeout=2, expected_prompt='%s'%char)
+                time.sleep(.15)
+            self._linebuf = ''
+            self._promptbuf = ''
+            self._connection.send('\r')
+            CommandResponseInstrumentProtocol._get_response(self, timeout=2, expected_prompt='\r\n\r')
+            """
+            
+        result = self._do_cmd_resp(InstrumentCmds.END_OF_TRANS, 
+                                   expected_prompt=InstrumentPrompts.SET_DONE,
+                                   timeout=2)
+        
+        self._update_params()
             
         return (next_state, result)
 
@@ -490,13 +772,18 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         result = None
 
         # Issue stop command and switch to command if successful.
+        got_root_prompt = False
         for i in range(10):
             try:
                 self._go_to_root_menu()
+                got_root_prompt = True
                 break
             except:
                 pass
-                        
+            
+        if not got_root_prompt:                
+            raise InstrumentTimeoutException()
+        
         next_state = ProtocolStates.COMMAND
 
         return (next_state, result)
@@ -544,9 +831,430 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
 
     ########################################################################
+    # Common handlers.
+    ########################################################################
+
+    def _handler_get(self, *args, **kwargs):
+        """
+        Get device parameters from the parameter dict.
+        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
+        @throws InstrumentParameterException if missing or invalid parameter.
+        """
+        next_state = None
+        result = None
+
+        # Retrieve the required parameter, raise if not present.
+        try:
+            params = args[0]
+
+        except IndexError:
+            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
+
+        # If all params requested, retrieve config.
+        if params == DriverParameter.ALL:
+            result = self._param_dict.get_config()
+
+        # If not all params, confirm a list or tuple of params to retrieve.
+        # Raise if not a list or tuple.
+        # Retireve each key in the list, raise if any are invalid.
+        else:
+            if not isinstance(params, (list, tuple)):
+                raise InstrumentParameterException('Get argument not a list or tuple.')
+            result = {}
+            for key in params:
+                try:
+                    val = self._param_dict.get(key)
+                    result[key] = val
+
+                except KeyError:
+                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
+
+        return (next_state, result)
+
+    ########################################################################
     # Private helpers.
     ########################################################################
         
+    def _build_param_dict(self):
+        """
+        Populate the parameter dictionary with MAVS4 parameters.
+        For each parameter key add value formatting function for set commands.
+        """
+        # The parameter dictionary.
+        self._param_dict = Mavs4ProtocolParameterDict()
+        
+        # Add parameter handlers to parameter dict for instrument configuration parameters.
+        self._param_dict.add(InstrumentParameters.SYS_CLOCK,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.BAUD_RATE,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.VERSION_NUMBER,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.CONFIG_INITIALIZED,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.V_OFFSET_0,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.V_OFFSET_1,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.V_OFFSET_2,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.V_OFFSET_3,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.V_SCALE,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.ANALOG_OUT,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.COMPASS,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.M0_OFFSET,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.M1_OFFSET,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.M2_OFFSET,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.M0_SCALE,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.M1_SCALE,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.M2_SCALE,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.TILT,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.TY_OFFSET,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.TX_OFFSET,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.TY_SCALE,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.TX_SCALE,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.TY_TEMPCO,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.TX_TEMPCO,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.FAST_SENSOR,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.THERMISTOR,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.TH_OFFSET,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.PRESSURE,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.P_OFFSET,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.P_SCALE,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.P_MA,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.AUXILIARY1,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.A1_OFFSET,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.A1_SCALE,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.A1_MA,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.AUXILIARY2,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.A2_OFFSET,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.A2_SCALE,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.A2_MA,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.AUXILIARY3,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.A3_OFFSET,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.A3_SCALE,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.A3_MA,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+        
+        self._param_dict.add(InstrumentParameters.SENSOR_ORIENTATION,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.SERIAL_NUMBER,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        self._param_dict.add(InstrumentParameters.QUERY_CHARACTER,
+                             '', 
+                             lambda line : line,
+                             lambda line : line)
+        
+        self._param_dict.add(InstrumentParameters.POWER_UP_TIME_OUT,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+        
+        # Add parameter handlers to parameter dict for instrument deployment parameters.
+        self._param_dict.add(InstrumentParameters.DEPLOY_INITIALIZED,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.LINE1,
+                             '', 
+                             lambda line : line,
+                             lambda line : line)
+
+        self._param_dict.add(InstrumentParameters.LINE2,
+                             '', 
+                             lambda line : line,
+                             lambda line : line)
+
+        self._param_dict.add(InstrumentParameters.LINE3,
+                             '', 
+                             lambda line : line,
+                             lambda line : line)
+
+        self._param_dict.add(InstrumentParameters.START_TIME,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.STOP_TIME,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.FRAME,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.DATA_MONITOR,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.INTERNAL_LOGGING,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.APPEND_MODE,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.BYTES_PER_SAMPLE,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.VERBOSE_MODE,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.QUERY_MODE,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.EXTERNAL_POWER,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.MEASUREMENT_FREQUENCY,
+                             '', 
+                             lambda line : float(line),
+                             self._float_to_string)
+
+        self._param_dict.add(InstrumentParameters.MEASUREMENT_PERIOD_SECS,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.MEASUREMENT_PERIOD_TICKS,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.SAMPLE_PERIOD_SECS,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.SAMPLE_PERIOD_TICKS,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.SAMPLES_PER_BURST,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.INTERVAL_BETWEEN_BURSTS,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.BURSTS_PER_FILE,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.STORE_TIME,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.STORE_FRACTIONAL_TIME,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.STORE_RAW_PATHS,
+                             '', 
+                             lambda line : int(line),
+                             self._int_to_string)
+
+        self._param_dict.add(InstrumentParameters.PATH_UNITS,
+                             '', 
+                             lambda line : line,
+                             lambda line : line)
+
     def  _get_prompt(self, timeout, delay=1):
         """
         _wakeup is replaced by this method for this instrument to search for prompt strings at other than
@@ -587,25 +1295,94 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @retval Sample dictionary if present or None.
         """
         return  # TODO remove this when sample format is known
-        sample = None
-        match = self._sample_regex.match(line)
-        if match:
-            sample = {}
-            sample['t'] = [float(match.group(1))]
-            sample['c'] = [float(match.group(2))]
-            sample['p'] = [float(match.group(3))]
-
-            # Driver timestamp.
-            sample['time'] = [time.time()]
-            sample['stream_name'] = 'ctd_parsed'
-
-            if self._driver_event:
-                self._driver_event(DriverAsyncEvent.SAMPLE, sample)
-
-        return             
         
-                
+    def _update_params(self, *args, **kwargs):
+        """
+        Update the parameter dictionary. Issue the upload command. The response
+        needs to be interated through a line at a time and valuse saved.
+        @throws InstrumentTimeoutException if device cannot be timely woken.
+        @throws InstrumentProtocolException if ds/dc misunderstood.
+        """
+        if self.get_current_state() != ProtocolStates.COMMAND:
+            raise InstrumentStateException('Can not perform update of parameters when not in command state',
+                                           error_code=InstErrorCode.INCORRECT_STATE)
+        # Get old param dict config.
+        old_config = self._param_dict.get_config()
 
+        # go to root menu.
+        got_prompt = False
+        for i in range(10):
+            try:
+                self._go_to_root_menu()
+                got_prompt = True
+                break
+            except:
+                pass
+            
+        if not got_prompt:                
+            raise InstrumentTimeoutException()
+                                
+        # Issue upload command
+        for i in range(2):
+            try: 
+                self._do_cmd_resp(InstrumentCmds.UPLOAD,
+                                  expected_prompt=InstrumentPrompts.UPLOAD,
+                                  timeout=2)
+                got_prompt = True
+                break
+            except:
+                pass
+
+        if not got_prompt:                
+            raise InstrumentTimeoutException()
+
+        # Get new param dict config. If it differs from the old config,
+        # tell driver superclass to publish a config change event.
+        new_config = self._param_dict.get_config()
+        if new_config != old_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
+    def _parse_upload_response(self, response, prompt):
+        """
+        Parse handler for upload command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if upload command misunderstood.
+        """
+        if prompt != InstrumentPrompts.UPLOAD:
+            raise InstrumentProtocolException('upload command not recognized: %s.' % response)
+        
+        log.debug("_parse_upload_response: response=%s" %response)
+
+        for name, line in zip(self.upload_download_parameter_list, response.split(INSTRUMENT_NEWLINE)):
+            #log.debug("_parse_upload_response: name=%s, line=%s" %(name, line))
+            if name == 'DONE':
+                break
+            if not line in ['u', '#', '']:
+                self._param_dict.set_from_string(name, line)
+              
+    def _create_set_output(self, parameters):
+        output = []
+        for name in self.upload_download_parameter_list:
+            if name == 'DONE':
+                break
+            if not name in ['u', '']:
+                if name == '#':
+                    output.append(name)
+                else:
+                    output.append(parameters.format_parameter(name))
+                              
+        checksum = 0
+        for item in output:
+            for char in item:
+                log.debug('c=%s, i=%s' %(char, item))
+                checksum = (checksum + ord(char)) % 255
+                
+        output.append('#')
+        output.append(str(checksum))
+        output.append('#')
+        
+        return output
 
 
 
