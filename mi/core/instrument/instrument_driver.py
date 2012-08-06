@@ -74,6 +74,7 @@ class DriverEvent(BaseEnum):
     ACQUIRE_SAMPLE = 'DRIVER_EVENT_ACQUIRE_SAMPLE'
     START_AUTOSAMPLE = 'DRIVER_EVENT_START_AUTOSAMPLE'
     STOP_AUTOSAMPLE = 'DRIVER_EVENT_STOP_AUTOSAMPLE'
+    TEST_AUTOSAMPLE = 'DRIVER_EVENT_TEST_AUTOSAMPLE'
     TEST = 'DRIVER_EVENT_TEST'
     RUN_TEST = 'DRIVER_EVENT_RUN_TEST'
     STOP_TEST = 'DRIVER_EVENT_STOP_TEST'
@@ -422,6 +423,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.ACQUIRE_SAMPLE, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.START_AUTOSAMPLE, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.STOP_AUTOSAMPLE, self._handler_connected_protocol_event)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.TEST_AUTOSAMPLE, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.TEST, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.CALIBRATE, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.EXECUTE_DIRECT, self._handler_connected_protocol_event)
@@ -553,6 +555,20 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
          """
         # Forward event and argument to the protocol FSM.
         return self._connection_fsm.on_event(DriverEvent.STOP_AUTOSAMPLE, DriverEvent.STOP_AUTOSAMPLE, *args, **kwargs)
+
+    def execute_test_autosample(self, *args, **kwargs):
+        """
+        Force driver into autosample state for the purposes of unit testing 
+        sample handling (fragments, invalid data, etc.)
+        @param timeout=timeout Optional command timeout (for wakeup only --
+        device specific timeouts for internal test commands).
+        @raises InstrumentTimeoutException if could not wake device or no response.
+        @raises InstrumentProtocolException if test commands not recognized.
+        @raises InstrumentStateException if command not allowed in current state.
+        @raises NotImplementedException if not implemented by subclass.                        
+        """
+        # Forward event and argument to the protocol FSM.
+        return self._connection_fsm.on_event(DriverEvent.TEST, DriverEvent.TEST_AUTOSAMPLE, *args, **kwargs)
 
     def execute_test(self, *args, **kwargs):
         """
@@ -840,7 +856,14 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
                   self._connection
 
         @throws InstrumentParameterException Invalid configuration.
+
         """
+        if 'mock_port_agent' in config:
+            mock_port_agent = config['mock_port_agent']
+            # check for validity here...
+            if (mock_port_agent is not None):
+                print "TEMPTEMP mock is NOT NONE"
+                return mock_port_agent
         try:
             addr = config['addr']
             port = config['port']

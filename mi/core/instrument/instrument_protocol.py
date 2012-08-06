@@ -643,6 +643,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         # up all possible values in the build_handlers
         #
         if cmd is None:
+            #print "-----> DHE: building command line for value: " + value
             cmd_line = self._build_simple_command(value) 
             #print "-----> DHE: sending value: " + cmd_line + " to connection.send()"
             self._connection.send(cmd_line)

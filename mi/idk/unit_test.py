@@ -294,12 +294,90 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         }
 
 
-
-
 class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     """
     Base class for instrument driver unit tests
     """
+    @classmethod
+    def setUpClass(cls):
+        cls.init_port_agent()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.stop_port_agent()
+
+    def setUp(self):
+        """
+        @brief Setup test cases.
+        """
+        InstrumentDriverTestCase.setUp(self)
+        self.port_agent = self.test_config.port_agent
+
+        log.debug("InstrumentDriverIntegrationTestCase setUp")
+        self.init_driver_process_client()
+
+    def tearDown(self):
+        """
+        @brief Test teardown
+        """
+        log.debug("InstrumentDriverIntegrationTestCase tearDown")
+        self.stop_driver_process_client()
+
+        InstrumentDriverTestCase.tearDown(self)
+
+    def test_driver_process(self):
+        """
+        @Brief Test for correct launch of driver process and communications, including asynchronous driver events.
+        """
+
+        log.info("Ensuring driver process was started properly ...")
+        
+        # Verify processes exist.
+        self.assertNotEqual(self.driver_process, None)
+        drv_pid = self.driver_process.getpid()
+        self.assertTrue(isinstance(drv_pid, int))
+        
+        self.assertNotEqual(self.port_agent, None)
+        pagent_pid = self.port_agent.get_pid()
+        self.assertTrue(isinstance(pagent_pid, int))
+        
+        # Send a test message to the process interface, confirm result.
+        msg = 'I am a ZMQ message going to the process.'
+        reply = self.driver_client.cmd_dvr('process_echo', msg)
+        self.assertEqual(reply,'process_echo: '+msg)
+        
+        # Test the driver is in state unconfigured.
+        # TODO: Add this test back in after driver code is merged from coi-services
+        #state = self.driver_client.cmd_dvr('get_current_state')
+        #self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+        
+        # Send a test message to the driver interface, confirm result.
+        msg = 'I am a ZMQ message going to the driver.'
+        reply = self.driver_client.cmd_dvr('driver_echo', msg)
+        self.assertEqual(reply, 'driver_echo: '+msg)
+        
+        # Test the event thread publishes and client side picks up events.
+        events = [
+            'I am important event #1!',
+            'And I am important event #2!'
+            ]
+        reply = self.driver_client.cmd_dvr('test_events', events=events)
+        gevent.sleep(1)
+        
+        # Confirm the events received are as expected.
+        self.assertEqual(self.events, events)
+
+        # Test the exception mechanism.
+        with self.assertRaises(InstrumentException):
+            exception_str = 'Oh no, something bad happened!'
+            reply = self.driver_client.cmd_dvr('test_exceptions', exception_str)
+
+        # Verify we received a driver error event.
+        gevent.sleep(1)
+        error_events = [evt for evt in self.events if isinstance(evt, dict) and evt['type']==DriverAsyncEvent.ERROR]
+        self.assertTrue(len(error_events) == 1)
+
+
 
 class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must inherit from here to get _start_container
     @classmethod
