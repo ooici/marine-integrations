@@ -49,7 +49,7 @@ log = get_logger()
 ###
 #   Module wide values
 ###
-INSTRUMENT_NEWLINE = '\n'
+INSTRUMENT_NEWLINE = '\r\n'
 WRITE_DELAY = 0
 RESET_DELAY = 25
 #EOLN = "\r\n"
@@ -458,6 +458,14 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         #self._add_response_handler(Command.DEPLOYMENT_MODE_NO[0], self._parse_deployment_mode_response)
         #self._add_response_handler(Command.DEPLOYMENT_MODE_CMD[0], self._parse_deployment_mode_response)
         self._add_response_handler(Command.OPERATIONAL_MODE_CMD[0], self._parse_deployment_mode_response)
+        
+        # Add sample handlers.
+        self._sample_pattern = r'^SAT(.{3}).{4},(.{4,7}),(.{,9})'
+        #self._sample_pattern += r'(, *(-?\d+\.\d+))?(, *(-?\d+\.\d+))?'
+        #self._sample_pattern += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'
+        #self._sample_pattern += r'(, *(\d+)-(\d+)-(\d+), *(\d+):(\d+):(\d+))?'        
+        self._sample_regex = re.compile(self._sample_pattern)
+
 
         # Construct the parameter dictionary
         self._build_param_dict()
@@ -937,7 +945,12 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
                     lines = self._linebuf.split(INSTRUMENT_NEWLINE)
                     self._linebuf = lines[-1]
                     for line in lines:
-                        self._extract_sample(line)
+                        """
+                        The above split will leave a zero-length line in list,
+                        so only call extract_sample if len greater than zero
+                        """
+                        if len(line) > 0:
+                            self._extract_sample(line)
 
 
     def _extract_sample(self, line, publish=True):
@@ -954,11 +967,10 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
                 the line can be parsed for a sample. Otherwise, None.
         """
         sample = None
-        #match = self._sample_regex.match(line)
+        match = self._sample_regex.match(line)
         """
         DHE TEMPTEMPTEMP
         """
-        match = True
         if match:
 
             # Driver timestamp.
@@ -980,26 +992,18 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
             """
             
             # prepare "parsed" sample dict
-            #parsed_sample = dict(
-            #    stream_name=STREAM_NAME_PARSED,
-            #    time=[ts],
-            #    t=[float(match.group(1))],
-            #    c=[float(match.group(2))],
-            #    p=[float(match.group(3))]
-            #)
-
-            # prepare "parsed" sample dict
             parsed_sample = dict(
                 stream_name=STREAM_NAME_PARSED,
                 time=[ts],
-                parsed="NO PARSED SAMPLE YET FOR ISUSV3"
+                inst_frame_type=(match.group(1)),
+                inst_samp_date=(match.group(2)),
+                inst_samp_time=(match.group(3)),
             )
 
             if publish and self._driver_event:
                 self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
 
-            #sample = dict(parsed=parsed_sample, raw=raw_sample)
-            sample = dict(parsed="NO PARSED SAMPLE YET FOR ISUSV3", raw=raw_sample)
+            sample = dict(parsed=parsed_sample, raw=raw_sample)
 
         return sample
 
