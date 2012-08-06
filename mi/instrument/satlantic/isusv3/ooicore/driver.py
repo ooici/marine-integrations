@@ -56,10 +56,9 @@ RESET_DELAY = 25
 EOLN = "\n"
 
 # Packet config for ISUSV3 data granules.
-PACKET_CONFIG = {
-        'ctd_parsed' : ('prototype.sci_data.stream_defs', 'ctd_stream_packet'),
-        'ctd_raw' : None
-}
+STREAM_NAME_PARSED = 'parsed'
+STREAM_NAME_RAW = 'raw'
+PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
 
 # @todo May need some regex(s) for data format returned...at least to confirm
 # that it is data.
@@ -71,13 +70,17 @@ class State(BaseEnum):
     """
     Enumerated driver states.  Your driver will likly only support a subset of these.
     """
-    UNCONFIGURED_MODE = DriverProtocolState.UNKNOWN
-    BENCHTOP_MODE = "ISUS_STATE_BENCHTOP"
-    TRIGGERED_MODE =  DriverProtocolState.POLL
+    #UNCONFIGURED_MODE = DriverProtocolState.UNKNOWN
+    UNKNOWN = DriverProtocolState.UNKNOWN
+    #BENCHTOP_MODE = "ISUS_STATE_BENCHTOP"
+    POLL =  DriverProtocolState.POLL
+    #TRIGGERED_MODE =  DriverProtocolState.POLL
     CONTINUOUS_MODE =  "ISUS_STATE_CONTINUOUS"
-    FIXEDTIME_MODE = "ISUS_STATE_FIXEDTIME"
+    AUTOSAMPLE=  DriverProtocolState.AUTOSAMPLE
+    #FIXEDTIME_MODE = "ISUS_STATE_FIXEDTIME"
     SCHEDULED_MODE = "ISUS_STATE_SCHEDULED"
-    MENU_MODE =  DriverProtocolState.COMMAND
+    #MENU_MODE =  DriverProtocolState.COMMAND
+    COMMAND =  DriverProtocolState.COMMAND
     FILE_UPLOADING = "ISUS_STATE_FILE_UPLOADING"
     ROOT_MENU = "ISUS_STATE_ROOT_MENU"
     CONFIG_MENU = "ISUS_STATE_CONFIG_MENU"
@@ -110,6 +113,7 @@ class Event(BaseEnum):
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+    TEST_AUTOSAMPLE = DriverEvent.TEST_AUTOSAMPLE
     #TEST = DriverEvent.TEST
     #STOP_TEST = DriverEvent.STOP_TEST
     #CALIBRATE = DriverEvent.CALIBRATE
@@ -244,7 +248,8 @@ class Command(object):
     """
 
     # Main menu commands
-    NO = ('no', 'N')
+    DEPLOYMENT_MODE_YES = ('deployment_mode_yes', 'Y')
+    DEPLOYMENT_MODE_NO = ('deployment_mode_no', 'N')
     CONFIG_MENU_CMD = ('config_menu_cmd', 'C')
     SHOW_CONFIG_CMD = ('show_config_cmd', 'S')
     BAUD_RATE_CMD = ('baud_rate_cmd', 'B')
@@ -282,7 +287,7 @@ class Prompt(BaseEnum):
     #REPLACE_SETTINGS = "Replace existing setting by current? [N] ?"
     REPLACE_SETTINGS = "Replace existing setting by current?"
     MODIFY = "Modify?  [N]" 
-    ENTER_CHOICE = "Enter number to assign new value [5] ?"
+    ENTER_CHOICE = "Enter number to assign new value"
     ENTER_DEPLOYMENT_COUNTER = "Enter deployment counter. ?"
 
 class Parameter(DriverParameter):
@@ -342,6 +347,7 @@ class SubMenues(BaseEnum):
     DEPLOYMENT_COUNTER_MENU = 'deployment_counter_menu'
     DEPLOYMENT_MODE_MENU = 'deployment_mode_menu'
     OPERATIONAL_MODE_MENU = 'operational_mode_menu'
+    OPERATIONAL_MODE_SET= 'operational_mode_set'
 
 class InstrumentPrompts(BaseEnum):
     MAIN_MENU = "ISUS> [H] ?"
@@ -360,19 +366,6 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         """
         directions = self.MenuTree.Directions
 
-        """
-        DHE Trying new tuple method for commands
-        menu = self.MenuTree({
-            SubMenues.CONFIG_MENU: [directions(Event.CONFIG_MENU, Prompt.CONFIG_MENU)],
-            SubMenues.SETUP_MENU: [directions(Event.SETUP_MENU, Prompt.SETUP_MENU)],
-            SubMenues.SHOW_CONFIG_MENU: [directions(SubMenues.CONFIG_MENU)],
-            SubMenues.DEPLOYMENT_COUNTER_MENU: [directions(SubMenues.CONFIG_MENU),
-                                                directions(Event.DEPLOYMENT_COUNTER, Prompt.ENTER_DEPLOYMENT_COUNTER)],
-            SubMenues.DEPLOYMENT_MODE_MENU: [directions(SubMenues.SETUP_MENU),
-                                             directions(Event.DEPLOYMENT_SETUP_MENU, Prompt.SETUP_DEPLOY_MENU)]
-        })
-        """
-
         # DHE NEW METHOD
         # It seems to me that the "command" or "intent" object should contain everything necessary for its
         # execution.  For now, the is no command object.  It was just a string (character).  
@@ -386,7 +379,9 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
             SubMenues.DEPLOYMENT_MODE_MENU: [directions(SubMenues.SETUP_MENU),
                                              directions(Command.DEPLOYMENT_MODE_CMD, Prompt.SETUP_DEPLOY_MENU)],
             SubMenues.OPERATIONAL_MODE_MENU: [directions(SubMenues.DEPLOYMENT_MODE_MENU),
-                                             directions(Command.OPERATIONAL_MODE_CMD, Prompt.MODIFY)]
+                                             directions(Command.OPERATIONAL_MODE_CMD, Prompt.MODIFY)],
+            SubMenues.OPERATIONAL_MODE_SET: [directions(SubMenues.OPERATIONAL_MODE_MENU),
+                                             directions(Command.DEPLOYMENT_MODE_YES, Prompt.ENTER_CHOICE)]
         })
 
         MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event) 
@@ -397,10 +392,12 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         ##### Setup the state machine
         self._protocol_fsm = InstrumentFSM(State, Event, Event.ENTER, Event.EXIT)
         
-        self._protocol_fsm.add_handler(State.UNCONFIGURED_MODE, Event.INITIALIZE,
+        self._protocol_fsm.add_handler(State.UNKNOWN, Event.INITIALIZE,
                               self._handler_initialize) 
-        self._protocol_fsm.add_handler(State.UNCONFIGURED_MODE, Event.DISCOVER,
+        self._protocol_fsm.add_handler(State.UNKNOWN, Event.DISCOVER,
                               self._handler_unknown_discover) 
+        self._protocol_fsm.add_handler(State.UNKNOWN, Event.TEST_AUTOSAMPLE,
+                              self._handler_unknown_test_autosample) 
         self._protocol_fsm.add_handler(State.CONTINUOUS_MODE, Event.MENU_CMD,
                               self._handler_continuous_menu) 
         self._protocol_fsm.add_handler(State.CONTINUOUS_MODE, Event.GO_CMD,
@@ -411,22 +408,32 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         # ... and so on with the operation handler listings...
         # In general, naming is _handler_currentstate_eventreceived
 
-        self._protocol_fsm.add_handler(State.ROOT_MENU, Event.ENTER,
+        self._protocol_fsm.add_handler(State.COMMAND, Event.ENTER,
                               self._handler_root_menu_enter) 
-        self._protocol_fsm.add_handler(State.ROOT_MENU, Event.CONFIG_MENU,
+        self._protocol_fsm.add_handler(State.COMMAND, Event.CONFIG_MENU,
                               self._handler_root_config) 
-        self._protocol_fsm.add_handler(State.ROOT_MENU, Event.SETUP_MENU,
+        self._protocol_fsm.add_handler(State.COMMAND, Event.SETUP_MENU,
                               self._handler_root_setup) 
-        self._protocol_fsm.add_handler(State.ROOT_MENU, Event.FILE_MENU,
+        self._protocol_fsm.add_handler(State.COMMAND, Event.FILE_MENU,
                               self._handler_root_file) 
         #
         # DHE added
         #
-        self._protocol_fsm.add_handler(State.ROOT_MENU, Event.GET,
+        self._protocol_fsm.add_handler(State.COMMAND, Event.GET,
                               self._handler_command_get) 
         
-        self._protocol_fsm.add_handler(State.ROOT_MENU, Event.SET,
+        self._protocol_fsm.add_handler(State.COMMAND, Event.SET,
                               self._handler_command_set) 
+
+        # Not handled right now; there is no single acquire sample for the ISUS
+        # in "command mode."  It could be simulated by going into triggered mode
+        # and starting and stopping, but the state machine needs triggered mode
+        # which it doesn't have right now.
+        #self._protocol_fsm.add_handler(State.COMMAND, Event.ACQUIRE_SAMPLE,
+        #                      self._handler_command_acquire_sample) 
+        
+        self._protocol_fsm.add_handler(State.COMMAND, Event.START_AUTOSAMPLE,
+                              self._handler_command_start_autosample) 
         
         # @todo ... and so on with the menu handler listings...
         # these build handlers will be called by the base class during the
@@ -443,17 +450,21 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         self._add_build_handler(Command.SETUP_MENU_CMD[0], self._build_simple_command)
         self._add_build_handler(Command.OPERATIONAL_MODE_CMD[0], self._build_simple_command)
         self._add_build_handler(Command.DEPLOYMENT_MODE_CMD[0], self._build_simple_command)
-        self._add_build_handler(Command.NO[0], self._build_simple_command)
+        self._add_build_handler(Command.DEPLOYMENT_MODE_YES[0], self._build_simple_command)
+        self._add_build_handler(Command.DEPLOYMENT_MODE_NO[0], self._build_simple_command)
 
         # Add response handlers for parsing command responses
-        #self._add_response_handler(Event.SHOW_CONFIG, self._parse_show_config_menu_response)
-        self._add_response_handler(Command.SHOW_CONFIG_CMD[1], self._parse_show_config_menu_response)
+        self._add_response_handler(Command.SHOW_CONFIG_CMD[0], self._parse_show_config_menu_response)
+        #self._add_response_handler(Command.DEPLOYMENT_MODE_NO[0], self._parse_deployment_mode_response)
+        #self._add_response_handler(Command.DEPLOYMENT_MODE_CMD[0], self._parse_deployment_mode_response)
+        self._add_response_handler(Command.OPERATIONAL_MODE_CMD[0], self._parse_deployment_mode_response)
 
         # Construct the parameter dictionary
         self._build_param_dict()
 
         # State state machine in UNCONFIGURED state.
-        self._protocol_fsm.start(State.UNCONFIGURED_MODE)
+        #self._protocol_fsm.start(State.UNCONFIGURED_MODE)
+        self._protocol_fsm.start(State.UNKNOWN)
 
         """
         @todo ... and so on, continuing with these additional parameters (and any that
@@ -520,8 +531,19 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         except InstrumentTimeoutException:
             raise InstrumentProtocolException('Instrument timed out going to root menu.')
         else:
-            next_state = State.ROOT_MENU
-            result = State.ROOT_MENU
+            next_state = State.COMMAND
+            result = State.COMMAND
+        
+        return (next_state, result)
+
+    #
+    # DHE ADDED
+    #
+    def _handler_unknown_test_autosample(self, *args, **kwargs):
+        """
+        """
+        next_state = State.AUTOSAMPLE
+        result = State.AUTOSAMPLE
         
         return (next_state, result)
 
@@ -599,7 +621,9 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
 
         return (next_state, result)
         
-
+    #
+    # DHE Added
+    #
     def _handler_command_set(self, *args, **kwargs):
         """
         Perform a set command.
@@ -648,7 +672,35 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
 
         return (next_state, result)
 
+    #
+    # DHE Added
+    #
+    def _handler_command_start_autosample(self, *args, **kwargs):
+        """Handle a start autosample command event from root menu.
+        
+        """
 
+        #
+        # DHE: We need to either put the instrument into continuous mode or triggered mode.  If
+        # triggered mode, then we need our own scheduler to cause the periodic sampling that would
+        # be simulate autosample.
+        #
+        #self._navigate_and_execute(Command.DEPLOYMENT_MODE_YES, dest_submenu=SubMenues.OPERATIONAL_MODE_MENU, 
+        #    expected_prompt=Prompt.SETUP_DEPLOY_MENU, 
+        #    timeout=5)
+        self._go_to_root_menu()
+        self._navigate_and_execute(None, value = '0', dest_submenu=SubMenues.OPERATIONAL_MODE_SET, 
+            expected_prompt=Prompt.SETUP_DEPLOY_MENU,
+            timeout=5)
+        self._go_to_root_menu()
+        #
+        # DHE: NEED TO REBOOT HERE IN ORDER FOR THE CHANGE TO TAKE EFFECT!!!!
+
+        next_state = State.AUTOSAMPLE 
+        result = State.AUTOSAMPLE 
+
+        return (next_state, result)
+        
     def _handler_root_menu_enter(self, *args, **kwargs):
         """Entry event for the command state
         """
@@ -727,6 +779,25 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
             print "------> DHE: passing line <" + line + "> to _param_dict.update()"
             self._param_dict.update(line)
 
+    # DHE Added
+    def _parse_deployment_mode_response(self, response, prompt):
+        """
+        Parse handler for config menu response.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if config_menu command misunderstood.
+        """
+
+        print "------------> DHE: in _parse_deployment_mode_response: prompt is: " + \
+            prompt + ". Response is: " + response
+
+        #if prompt != Prompt.DEPLOYMENT_MODE:
+        #    raise InstrumentProtocolException('_parse_deployment_mode_response: command not recognized: %s.' % response)
+
+        for line in response.split(self.eoln):
+            print "------> DHE: parse_deployment_mode passing line <" + line + "> to _param_dict.update()"
+            self._param_dict.update(line)
+
 
     ######################
     # Translation routines
@@ -788,8 +859,7 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         # DHE Trying to get DEPLOYMENT_MODE
         print "--->>> DHE Trying to get DEPLOYMENT_MODE"
         self._go_to_root_menu()
-        #self._navigate_and_execute(Command.OPERATIONAL_MODE_CMD, dest_submenu=SubMenues.OPERATIONAL_MODE_MENU, timeout=5)
-        self._navigate_and_execute(Command.NO, dest_submenu=SubMenues.OPERATIONAL_MODE_MENU, 
+        self._navigate_and_execute(Command.DEPLOYMENT_MODE_NO, dest_submenu=SubMenues.OPERATIONAL_MODE_MENU, 
             expected_prompt=Prompt.SETUP_DEPLOY_MENU, 
             timeout=5)
         self._go_to_root_menu()
@@ -861,13 +931,77 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
             MenuInstrumentProtocol.got_data(self, data)
 
             # If in streaming mode, process the buffer for samples to publish.
-            #cur_state = self.get_current_state()
-            #if cur_state == SBE37ProtocolState.AUTOSAMPLE:
-            #    if SBE37_NEWLINE in self._linebuf:
-            #        lines = self._linebuf.split(SBE37_NEWLINE)
-            #        self._linebuf = lines[-1]
-            #        for line in lines:
-            #            self._extract_sample(line)
+            cur_state = self.get_current_state()
+            if cur_state == State.AUTOSAMPLE:
+                if INSTRUMENT_NEWLINE in self._linebuf:
+                    lines = self._linebuf.split(INSTRUMENT_NEWLINE)
+                    self._linebuf = lines[-1]
+                    for line in lines:
+                        self._extract_sample(line)
+
+
+    def _extract_sample(self, line, publish=True):
+        """
+        Extract sample from a response line if present and publish "raw" and
+        "parsed" sample events to agent.
+
+        @param line string to match for sample.
+        @param publish boolean to publish samples (default True). If True,
+               two different events are published: one to notify raw data and
+               the other to notify parsed data.
+
+        @retval dict of dicts {'parsed': parsed_sample, 'raw': raw_sample} if
+                the line can be parsed for a sample. Otherwise, None.
+        """
+        sample = None
+        #match = self._sample_regex.match(line)
+        """
+        DHE TEMPTEMPTEMP
+        """
+        match = True
+        if match:
+
+            # Driver timestamp.
+            ts = time.time()
+
+            # prepate "raw" sample dict
+            raw_sample = dict(
+                stream_name=STREAM_NAME_RAW,
+                time=[ts],
+                blob=[line]
+            )
+
+            if publish and self._driver_event:
+                self._driver_event(DriverAsyncEvent.SAMPLE, raw_sample)
+
+            """
+            DHE: Need to know what the parsed will look like.  So for now, 
+            the following are commented out.
+            """
+            
+            # prepare "parsed" sample dict
+            #parsed_sample = dict(
+            #    stream_name=STREAM_NAME_PARSED,
+            #    time=[ts],
+            #    t=[float(match.group(1))],
+            #    c=[float(match.group(2))],
+            #    p=[float(match.group(3))]
+            #)
+
+            # prepare "parsed" sample dict
+            parsed_sample = dict(
+                stream_name=STREAM_NAME_PARSED,
+                time=[ts],
+                parsed="NO PARSED SAMPLE YET FOR ISUSV3"
+            )
+
+            if publish and self._driver_event:
+                self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
+
+            #sample = dict(parsed=parsed_sample, raw=raw_sample)
+            sample = dict(parsed="NO PARSED SAMPLE YET FOR ISUSV3", raw=raw_sample)
+
+        return sample
 
 
     #
@@ -953,7 +1087,7 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
 
         self._param_dict.add(Parameter.DEPLOYMENT_MODE,
                              r'OpMode = (SCHEDULED|CONTINUOUS|FIXEDTIME|FIXEDTIMEISUS|BENCHTOP|TRIGGERED)',
-                             lambda match : int(match.group(1)),
+                             lambda match : str(match.group(1)),
                              self._opmode_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              menu_path_read=SubMenues.DEPLOYMENT_MODE_MENU,
