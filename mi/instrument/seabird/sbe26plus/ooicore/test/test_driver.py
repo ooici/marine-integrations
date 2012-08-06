@@ -52,84 +52,68 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config = {},
     instrument_agent_stream_definition = {}
 )
-"""
-Parameter.OUTPUTSAL : bool,
-Parameter.OUTPUTSV : bool,
-Parameter.NAVG : int,
-Parameter.SAMPLENUM : int,
-Parameter.INTERVAL : int,
-Parameter.STORETIME : bool,
-Parameter.TXREALTIME : bool,
-Parameter.SYNCMODE : bool,
-Parameter.SYNCWAIT : int,
-Parameter.TCALDATE : tuple,
-Parameter.TA0 : float,
-Parameter.TA1 : float,
-Parameter.TA2 : float,
-Parameter.TA3 : float,
-Parameter.CCALDATE : tuple,
-Parameter.CG : float,
-Parameter.CH : float,
-Parameter.CI : float,
-Parameter.CJ : float,
-Parameter.WBOTC : float,
-Parameter.CTCOR : float,
-Parameter.CPCOR : float,
-Parameter.PCALDATE : tuple,
-Parameter.PA0 : float,
-Parameter.PA1 : float,
-Parameter.PA2 : float,
-#Parameter.PTCA0 : float,
-#Parameter.PTCA1 : float,
-#Parameter.PTCA2 : float,
-Parameter.PTCB0 : float,
-Parameter.PTCB1 : float,
-Parameter.PTCB2 : float,
-Parameter.POFFSET : float,
-Parameter.RCALDATE : tuple,
-Parameter.RTCA0 : float,
-Parameter.RTCA1 : float,
-Parameter.RTCA2 : float
-ABOVE IS EXAMPLE
 
-NEED TO VERIFY ALL OF BELOW ARE SPECIFIED CORRECTLY AND IT IS A MASTER LIST,
-AS IT WAS DONE BEFORE THE LIST WAS FINALIZED
-"""
 PARAMS = {
-    Parameter.TXREALTIME : bool,
-    Parameter.TXWAVEBURST : bool,
-    Parameter.TXWAVESTATS : bool,
-    Parameter.TIDE_SAMPLES_PER_DAY : float,
-    Parameter.WAVE_BURSTS_PER_DAY : float,
-    Parameter.MEMORY_ENDURANCE_DAYS : float,
-    Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE_DAYS : float,
-    Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS : float,
-    Parameter.TOTAL_RECORDED_WAVE_BURSTS : float,
-    Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START : float,
-    Parameter.WAVE_BURSTS_SINCE_LAST_START : float,
-    Parameter.TIDE_SAMPLES_BETWEEN_WAVE_MEASUREMENTS : float,
-    Parameter.LOGGING : float,
-    Parameter.STATUS : float,
-    Parameter.CONDUCTIVITY : bool,
+    # DS # parameters - contains all setsampling parameters
+    Parameter.DEVICE_VERSION : str,
+    Parameter.SERIAL_NUMBER : str,
+    Parameter.DS_DEVICE_DATE_TIME : str, # long, # ntp 4 64 bit timestamp http://stackoverflow.com/questions/8244204/ntp-timestamps-in-python
+
     Parameter.USER_INFO : str,
-    Parameter.TIDE_MEASUREMENT_INTERVAL : float,
-    Parameter.TIDE_MEASUREMENT_DURATION : float,
     Parameter.QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER : float,
     Parameter.QUARTZ_PREASURE_SENSOR_RANGE : float,
-    Parameter.WAVE_SAMPLES_PER_BURST : float,
-    #Parameter.WAVE_SAMPLES_SCANS_PER_SECOND : float,
-    #Parameter.WAVE_SAMPLES_DURATION_SECONDS : float,
-    Parameter.LAST_SAMPLE_P : float,
-    Parameter.LAST_SAMPLE_T : float,
-    Parameter.LAST_SAMPLE_S : float,
+
+    Parameter.TEMPERATURE_SENSOR : str,
+
+    Parameter.CONDUCTIVITY : bool,
+
     Parameter.IOP_MA : float,
     Parameter.VMAIN_V : float,
     Parameter.VLITH_V : float,
 
-    # DC
+    Parameter.LAST_SAMPLE_P : float,
+    Parameter.LAST_SAMPLE_T : float,
+    Parameter.LAST_SAMPLE_S : float,
+
+    Parameter.TIDE_INTERVAL : int,
+    Parameter.TIDE_MEASUREMENT_DURATION : int,
+
+    Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : int,
+
+    Parameter.WAVE_SAMPLES_PER_BURST : int,
+    Parameter.WAVE_SAMPLES_SCANS_PER_SECOND : float,
+    Parameter.WAVE_SAMPLE_DURATION : float,
+
+    Parameter.USE_START_TIME : bool,
+    Parameter.START_TIME : long, # ntp 4 64 bit timestamp http://stackoverflow.com/questions/8244204/ntp-timestamps-in-python
+    Parameter.USE_STOP_TIME : bool,
+    Parameter.STOP_TIME : long, # ntp 4 64 bit timestamp http://stackoverflow.com/questions/8244204/ntp-timestamps-in-python
+
+    Parameter.TIDE_SAMPLES_PER_DAY : float,
+    Parameter.WAVE_BURSTS_PER_DAY : float,
+    Parameter.MEMORY_ENDURANCE : float,
+    Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE : float,
+    Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS : float,
+    Parameter.TOTAL_RECORDED_WAVE_BURSTS : float,
+    Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START : float,
+    Parameter.WAVE_BURSTS_SINCE_LAST_START : float,
+    Parameter.TXREALTIME : bool,
+    Parameter.TXWAVEBURST : bool,
+    Parameter.TXWAVESTATS : bool,
+    Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS : int,
+    Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC : bool,
+    Parameter.PREASURE_SENSOR_HEIGHT_FROM_BOTTOM : float,
+    Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND : int,
+    Parameter.MIN_ALLOWABLE_ATTENUATION : float,
+    Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : float,
+    Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM : float,
+    Parameter.HANNING_WINDOW_CUTOFF : float,
+    Parameter.SHOW_PROGRESS_MESSAGES : bool,
+    Parameter.STATUS : str,
+    Parameter.LOGGING : bool,
+
+# DC # parameters verified to match 1:1 to DC output
     Parameter.PCALDATE : tuple,
-    Parameter.TCALDATE : tuple,
-    Parameter.CCALDATE : tuple,
     Parameter.PU0 : float,
     Parameter.PY1 : float,
     Parameter.PY2 : float,
@@ -143,23 +127,16 @@ PARAMS = {
     Parameter.PT2 : float,
     Parameter.PT3 : float,
     Parameter.PT4 : float,
-    #Parameter.PA0 : float,
-    Parameter.PA1 : float,
-    Parameter.PA2 : float,
-    #Parameter.PTCA0 : float,
-    #Parameter.PTCA1 : float,
-    #Parameter.PTCA2 : float,
-    Parameter.PTCB0 : float,
-    Parameter.PTCB1 : float,
-    Parameter.PTCB2 : float,
-    #Parameter.PTEMPA0 : float,
-    #Parameter.PTEMPA1 : float,
-    #Parameter.PTEMPA2 : float,
+    Parameter.FACTORY_M : float,
+    Parameter.FACTORY_B : float,
     Parameter.POFFSET : float,
+    Parameter.TCALDATE : tuple,
     Parameter.TA0 : float,
     Parameter.TA1 : float,
     Parameter.TA2 : float,
     Parameter.TA3 : float,
+
+    Parameter.CCALDATE : tuple,
     Parameter.CG : float,
     Parameter.CH : float,
     Parameter.CI : float,
@@ -167,8 +144,8 @@ PARAMS = {
     Parameter.CTCOR : float,
     Parameter.CPCOR : float,
     Parameter.CSLOPE : float,
-    Parameter.FACTORY_M : float,
-    Parameter.FACTORY_B : float
+
+    # End of DC
 }
 #################################### RULES ####################################
 #                                                                             #
@@ -220,19 +197,140 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         """
         if all_params:
             self.assertEqual(set(pd.keys()), set(PARAMS.keys()))
+            log.debug("assertParamDict *********" + str(pd.keys()))
             for (key, type_val) in PARAMS.iteritems():
                 log.debug(key + " is " + str(pd[key]) + " an instance of " + str(type_val) + " = " + str(isinstance(pd[key], type_val)))
-                #self.assertTrue(isinstance(pd[key], type_val))
-        #else:
-            #for (key, val) in pd.iteritems():
-                #self.assertTrue(PARAMS.has_key(key))
-                #self.assertTrue(isinstance(val, PARAMS[key]))
+                self.assertTrue(isinstance(pd[key], type_val))
+        else:
+            for (key, val) in pd.iteritems():
+                self.assertTrue(PARAMS.has_key(key))
+                self.assertTrue(isinstance(val, PARAMS[key]))
 
-    def test_get_set(self):
+    def test_log(self):
+        log.debug("****************************** LOG TEST ")
+        log.debug("****************************** LOG TEST ")
+        log.debug("****************************** LOG TEST ")
+        log.debug("****************************** LOG TEST ")
+        log.debug("****************************** LOG TEST ")
+        log.debug("****************************** LOG TEST ")
+        log.debug("****************************** LOG TEST ")
+        log.debug("****************************** LOG TEST ")
+        log.debug("****************************** LOG TEST ")
+        log.debug("****************************** LOG TEST ")
+        log.debug("****************************** LOG TEST ")
+        log.debug("****************************** LOG TEST ")
+        log.debug("****************************** LOG TEST ")
+        log.debug("****************************** LOG TEST ")
+
+    def test_get_set2(self):
         """
         Test device parameter access.
         """
 
+
+
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        #state = self.driver_client.cmd_dvr('get_current_state')
+        #self.assertEqual(state, ProtocolState.UNKNOWN)
+
+        reply = self.driver_client.cmd_dvr('discover')
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, ProtocolState.COMMAND)
+
+
+        new_params = {
+            Parameter.TA0 : float(1.2),
+            Parameter.PC2 : float(1.0),
+            Parameter.PU0 : float(5.1),
+            Parameter.PY1 : float(-3910.859),
+            Parameter.PY2 : float(-10708.25),
+            Parameter.PY3 : float(0.0),
+            Parameter.PC1 : float(607.2786),
+            Parameter.PC2 : float(1.0),
+            Parameter.PC3 : float(-1024.374),
+            Parameter.PD1 : float(0.02928),
+            Parameter.PD2 : float(0.0),
+            Parameter.PT1 : float(27.83369),
+            Parameter.PT2 : float(0.607202),
+            Parameter.PT3 : float(18.21885),
+            Parameter.PT4 : float(27.90597),
+            Parameter.POFFSET : float(-0.1374),
+            Parameter.TCALDATE : (2, 4, 2013),
+            Parameter.TA0 : float(1.2),
+            Parameter.TA1 : float(0.0002558291),
+            Parameter.TA2 : float(-2.073449e-06),
+            Parameter.TA3 : float(1.640089e-07),
+            Parameter.CCALDATE : (28, 3, 2012),
+            Parameter.CG : float(-10.25348),
+            Parameter.CH : float(1.557569),
+            Parameter.CI : float(-0.001737222),
+            Parameter.CJ : float(0.0002268556),
+            Parameter.CTCOR : float(3.25e-06),
+            Parameter.CPCOR : float(-9.57e-08),
+            Parameter.CSLOPE : float(1.0)
+        }
+
+        reply = self.driver_client.cmd_dvr('set', new_params)
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, ProtocolState.COMMAND)
+
+        params = [
+            Parameter.TA0,
+            Parameter.PC2,
+            Parameter.PU0,
+            Parameter.PY1,
+            Parameter.PY2,
+            Parameter.PY3,
+            Parameter.PC1,
+            Parameter.PC2,
+            Parameter.PC3,
+            Parameter.PD1,
+            Parameter.PD2,
+            Parameter.PT1,
+            Parameter.PT2,
+            Parameter.PT3,
+            Parameter.PT4,
+            Parameter.FACTORY_M,
+            Parameter.FACTORY_B,
+            Parameter.POFFSET,
+            Parameter.TCALDATE,
+            Parameter.TA0,
+            Parameter.TA1,
+            Parameter.TA2,
+            Parameter.TA3,
+            Parameter.CCALDATE,
+            Parameter.CG,
+            Parameter.CH,
+            Parameter.CI,
+            Parameter.CJ,
+            Parameter.CTCOR,
+            Parameter.CPCOR,
+            Parameter.CSLOPE
+        ]
+
+        reply = self.driver_client.cmd_dvr('get', params)
+        log.debug("******************************TEST1*****************************")
+        self.assertParamDict(reply)
+        log.debug("******************************TEST2*****************************")
+
+
+    def test_set_sampling(self):
+        """
+        Test device parameter access.
+        """
         # Test the driver is in state unconfigured.
         state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
@@ -254,33 +352,46 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, ProtocolState.COMMAND)
 
-
-        new_params = {
-            Parameter.TA0 : float(1.2),
-            Parameter.PC2 : float(1.0)
-        }
-
-        reply = self.driver_client.cmd_dvr('set', new_params)
-        state = self.driver_client.cmd_dvr('get_current_state')
-        #self.assertEqual(state, ProtocolState.COMMAND)
-
-        log.warn("BEFORE DEFINE====================================================vvvvvv")
-
-        define_params = {
-            Parameter.TA0 : float(1.0)
+        sampling_params = {
+            Parameter.TIDE_INTERVAL : 1,
+            Parameter.TIDE_MEASUREMENT_DURATION : 1,
+            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : 1,
+            Parameter.WAVE_SAMPLES_PER_BURST : 1,
+            Parameter.WAVE_SAMPLE_DURATION : float(1.0),
+            Parameter.USE_START_TIME : False,
+            Parameter.USE_STOP_TIME : False,
+            Parameter.TXWAVESTATS : False
         }
 
         # Set parameters and verify.
         state = self.driver_client.cmd_dvr('get_current_state')
-        #self.assertEqual(state, ProtocolState.COMMAND)
-        reply = self.driver_client.cmd_dvr('setsampling', define_params)
+        self.assertEqual(state, ProtocolState.COMMAND)
+        reply = self.driver_client.cmd_dvr('setsampling', sampling_params)
 
+        sampling_params2 = {
+            Parameter.TIDE_INTERVAL : 5,
+            Parameter.TIDE_MEASUREMENT_DURATION : 5,
+            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : 5,
+            Parameter.WAVE_SAMPLES_PER_BURST : 5,
+            Parameter.WAVE_SAMPLE_DURATION : float(0.25),
+            Parameter.USE_START_TIME : True,
+            Parameter.USE_STOP_TIME : True,
+            Parameter.TXWAVESTATS : True,
 
-        log.warn("REPLY ===================================================== " + str(reply))
-
-
-
-        #reply = self.driver_client.cmd_dvr('set', new_params)
+            Parameter.SHOW_PROGRESS_MESSAGES : True,
+            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS : 1,
+            Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC : True,
+            Parameter.PREASURE_SENSOR_HEIGHT_FROM_BOTTOM: 1.0,
+            Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND : 1,
+            Parameter.MIN_ALLOWABLE_ATTENUATION : 1.0,
+            Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : 1.0,
+            Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM : 1.0,
+            Parameter.HANNING_WINDOW_CUTOFF : 1.0
+        }
+        # Set parameters and verify.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, ProtocolState.COMMAND)
+        reply = self.driver_client.cmd_dvr('setsampling', sampling_params2)
 
 
 

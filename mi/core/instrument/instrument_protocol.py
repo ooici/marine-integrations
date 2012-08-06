@@ -267,9 +267,9 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         # Grab time for timeout and wait for prompt.
 
         starttime = time.time()
-        log.debug("##################################################")
-        log.debug("##################prompt buff = " + str(self._promptbuf) + "##################" + str(self._linebuf))
-        log.debug("##################################################")
+        #log.debug("##################################################")
+        #log.debug("##################prompt buff = " + str(self._promptbuf) + "##################" + str(self._linebuf))
+        #log.debug("##################################################")
                 
         if expected_prompt == None:
             prompt_list = self._prompts.list()
@@ -277,9 +277,11 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             assert isinstance(expected_prompt, str)
             prompt_list = [expected_prompt]            
         while True:
+            #log.debug("PROMPT_LIST = " + str(prompt_list))
             for item in prompt_list:
-                log.debug("**PROMPTBUFF** = " + repr(self._promptbuf))
+                #log.debug("*******************PROMPTBUFF** = " + repr(self._promptbuf))
                 if self._promptbuf.endswith(item):
+                    #log.debug("***************** PROMPTBUFF MATCHED by ENDING with an item")
                     return (item, self._linebuf)
                 else:
                     time.sleep(.1)
@@ -444,6 +446,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             time.sleep(delay)
             
             for item in self._prompts.list():
+                log.debug("GOT " + repr(self._promptbuf))
                 if self._promptbuf.endswith(item):
                     log.debug('wakeup got prompt: %s' % repr(item))
                     return item
