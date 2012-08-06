@@ -35,8 +35,11 @@ import time
 from nose.plugins.attrib import attr
 from mock import Mock
 
+from mi.core.instrument.logger_client import LoggerClient
+
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverProtocolState
 
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
@@ -49,9 +52,11 @@ from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
+
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
 
+from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreInstrumentDriver
 from mi.instrument.satlantic.isusv3.ooicore.driver import State
 from mi.instrument.satlantic.isusv3.ooicore.driver import Parameter
 from mi.instrument.satlantic.isusv3.ooicore.driver import PACKET_CONFIG
@@ -125,19 +130,68 @@ PARAMS = {
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
 ###############################################################################
-
+def my_callback(event):
+    print str(event)
+    
 @attr('UNIT', group='mi')
 class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
     """Unit Test Container"""
     #pass
-    
-    def test_isus_config(self):
+    def test_sample(self):
         # instantiate a mock object for port agent client
         # not sure doing that here is that helpful...
+
+        """
+        Currently passing mocked port agent client.  To test fragmentation,
+        I should be able to call the got_data method directly.
+        """
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=LoggerClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = ooicoreInstrumentDriver(my_callback)
         
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+        current_state = test_driver.get_current_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+        current_state = test_driver.get_current_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_current_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+        
+        #test_driver.discover()
+        #current_state = test_driver.get_current_state()
+        #print "DHE: DriverConnectionState: " + str(current_state)
+        #self.assertEqual(current_state, DriverProtocolState.COMMAND)
+        
+        test_driver.execute_test_autosample()
+        current_state = test_driver.get_current_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        test_data = "this is a big test\n"
+        test_driver._protocol.got_data(test_data)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
