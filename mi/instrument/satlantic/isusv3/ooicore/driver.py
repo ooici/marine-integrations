@@ -113,7 +113,7 @@ class Event(BaseEnum):
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    TEST_AUTOSAMPLE = DriverEvent.TEST_AUTOSAMPLE
+    FORCE_STATE = DriverEvent.FORCE_STATE
     #TEST = DriverEvent.TEST
     #STOP_TEST = DriverEvent.STOP_TEST
     #CALIBRATE = DriverEvent.CALIBRATE
@@ -396,8 +396,8 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
                               self._handler_initialize) 
         self._protocol_fsm.add_handler(State.UNKNOWN, Event.DISCOVER,
                               self._handler_unknown_discover) 
-        self._protocol_fsm.add_handler(State.UNKNOWN, Event.TEST_AUTOSAMPLE,
-                              self._handler_unknown_test_autosample) 
+        self._protocol_fsm.add_handler(State.UNKNOWN, Event.FORCE_STATE,
+                              self._handler_unknown_force_state) 
         self._protocol_fsm.add_handler(State.CONTINUOUS_MODE, Event.MENU_CMD,
                               self._handler_continuous_menu) 
         self._protocol_fsm.add_handler(State.CONTINUOUS_MODE, Event.GO_CMD,
@@ -547,11 +547,19 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
     #
     # DHE ADDED
     #
-    def _handler_unknown_test_autosample(self, *args, **kwargs):
+    def _handler_unknown_force_state(self, *args, **kwargs):
         """
+        Force driver into a given state for the purposes of unit testing 
+        @param state=desired_state Required desired state to transition to.
+        @raises InstrumentParameterException if no state parameter.
         """
-        next_state = State.AUTOSAMPLE
-        result = State.AUTOSAMPLE
+
+        state = kwargs.get('state', None)  # via kwargs
+        if state is None:
+            raise InstrumentParameterException('Missing state parameter.')
+
+        next_state = state
+        result = state
         
         return (next_state, result)
 

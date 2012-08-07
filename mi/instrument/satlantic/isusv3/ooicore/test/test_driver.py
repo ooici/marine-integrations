@@ -191,7 +191,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
         
-        test_driver.execute_test_autosample()
+        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_current_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)

@@ -74,7 +74,6 @@ class DriverEvent(BaseEnum):
     ACQUIRE_SAMPLE = 'DRIVER_EVENT_ACQUIRE_SAMPLE'
     START_AUTOSAMPLE = 'DRIVER_EVENT_START_AUTOSAMPLE'
     STOP_AUTOSAMPLE = 'DRIVER_EVENT_STOP_AUTOSAMPLE'
-    TEST_AUTOSAMPLE = 'DRIVER_EVENT_TEST_AUTOSAMPLE'
     TEST = 'DRIVER_EVENT_TEST'
     RUN_TEST = 'DRIVER_EVENT_RUN_TEST'
     STOP_TEST = 'DRIVER_EVENT_STOP_TEST'
@@ -88,6 +87,8 @@ class DriverEvent(BaseEnum):
     START_DIRECT = 'DRIVER_EVENT_START_DIRECT'
     STOP_DIRECT = 'DRIVER_EVENT_STOP_DIRECT'
     PING_DRIVER = 'DRIVER_EVENT_PING_DRIVER'
+    FORCE_STATE = 'DRIVER_FORCE_STATE_TRANSITION'
+    
 class DriverAsyncEvent(BaseEnum):
     """
     Asynchronous driver event types.
@@ -423,12 +424,12 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.ACQUIRE_SAMPLE, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.START_AUTOSAMPLE, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.STOP_AUTOSAMPLE, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.TEST_AUTOSAMPLE, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.TEST, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.CALIBRATE, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.EXECUTE_DIRECT, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.START_DIRECT, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.STOP_DIRECT, self._handler_connected_protocol_event)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.FORCE_STATE, self._handler_connected_protocol_event)
             
         # Start state machine.
         self._connection_fsm.start(DriverConnectionState.UNCONFIGURED)
@@ -556,19 +557,22 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         # Forward event and argument to the protocol FSM.
         return self._connection_fsm.on_event(DriverEvent.STOP_AUTOSAMPLE, DriverEvent.STOP_AUTOSAMPLE, *args, **kwargs)
 
-    def execute_test_autosample(self, *args, **kwargs):
+    def execute_force_state(self, *args, **kwargs):
         """
-        Force driver into autosample state for the purposes of unit testing 
-        sample handling (fragments, invalid data, etc.)
-        @param timeout=timeout Optional command timeout (for wakeup only --
-        device specific timeouts for internal test commands).
-        @raises InstrumentTimeoutException if could not wake device or no response.
-        @raises InstrumentProtocolException if test commands not recognized.
+        Force driver into a given state for the purposes of unit testing 
+        @param state=desired_state Required desired state to transition to.
+        @raises InstrumentParameterException if no state parameter.
         @raises InstrumentStateException if command not allowed in current state.
         @raises NotImplementedException if not implemented by subclass.                        
         """
+
+       # Get the required param 
+        state = kwargs.get('state', None)  # via kwargs
+        if state is None:
+            raise InstrumentParameterException('Missing state parameter.')
+
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.TEST, DriverEvent.TEST_AUTOSAMPLE, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.TEST, DriverEvent.FORCE_STATE, *args, **kwargs)
 
     def execute_test(self, *args, **kwargs):
         """
