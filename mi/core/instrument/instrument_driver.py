@@ -12,6 +12,10 @@ __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
 import time
+from json import dumps
+import datetime
+from base64 import standard_b64encode
+from struct import pack
 
 from mi.core.common import BaseEnum
 from mi.core.exceptions import NotImplementedException 
@@ -22,6 +26,11 @@ from mi.core.instrument.logger_client import LoggerClient
 
 from mi.core.log import get_logger,LoggerManager
 log = get_logger()
+
+# Basic time math from the ntplib project
+SYSTEM_EPOCH = datetime.date(*time.gmtime(0)[0:3])
+NTP_EPOCH = datetime.date(1900, 1, 1)
+NTP_DELTA = (SYSTEM_EPOCH - NTP_EPOCH).days * 24 * 3600
 
 class DriverState(BaseEnum):
     """Common driver state enum"""
@@ -87,6 +96,7 @@ class DriverEvent(BaseEnum):
     START_DIRECT = 'DRIVER_EVENT_START_DIRECT'
     STOP_DIRECT = 'DRIVER_EVENT_STOP_DIRECT'
     PING_DRIVER = 'DRIVER_EVENT_PING_DRIVER'
+    
 class DriverAsyncEvent(BaseEnum):
     """
     Asynchronous driver event types.
@@ -97,6 +107,41 @@ class DriverAsyncEvent(BaseEnum):
     ERROR = 'DRIVER_ASYNC_EVENT_ERROR'
     TEST_RESULT = 'DRIVER_ASYNC_TEST_RESULT'
     DIRECT_ACCESS = 'DRIVER_ASYNC_EVENT_DIRECT_ACCESS'
+    
+class DriverDataPublishKey(BaseEnum):
+    """
+    An enum for the keys being returned in the driver data publish set
+    """
+    PKT_FORMAT_ID = "pkt_format_id"
+    PKT_VER = "pkt_version"
+    TYPE = "datatype"
+    INST_ID = "instrument_id"
+    INT_TIME = "internal_timestamp"
+    PORT_TIME = "port_timestamp"
+    DRIVER_TIME = "driver_timestamp"
+    PREF_TIME = "preferred_timestamp"
+    QUALITY = "quality_flag"
+    VALUES = "values"
+    VALUE_ID = "value_id"
+    VALUE = "value"
+    BINARY = "binary"
+    
+class DriverDataPublishValue(BaseEnum):
+    """
+    Some standard values for the driver data publishing format
+    """
+    JSON_DATA = "JSON_Data"
+    QUALITY_OK = "ok"
+    QUALITY_CHECKSUM_FAIL = "checksum_failed"
+    QUALITY_RANGE_FAIL = "out_of_range"
+    QUALITY_INVALID = "invalid"
+    QUALITY_QUESTIONABLE = "questionable"
+    TYPE_PARSED = "parsed"
+    TYPE_RAW = "raw"
+    TYPE_ENG = "eng"
+    TIME_INTERNAL = "internal"
+    TIME_PORT = "port"
+    TIME_DRIVER = "driver"
 
 class DriverParameter(BaseEnum):
     """
@@ -338,7 +383,7 @@ class InstrumentDriver(object):
             self._send_event(event)
         
         elif type == DriverAsyncEvent.SAMPLE:
-            event['value'] = val
+            event['value'] = dumps(val)
             self._send_event(event)
             
         elif type == DriverAsyncEvent.ERROR:
@@ -352,7 +397,7 @@ class InstrumentDriver(object):
         elif type == DriverAsyncEvent.DIRECT_ACCESS:
             event['value'] = val
             self._send_event(event)
-
+        
     ########################################################################
     # Test interface.
     ########################################################################
@@ -373,7 +418,62 @@ class InstrumentDriver(object):
         @raises InstrumentExeption always.
         """
         raise InstrumentException(msg)
+
         
+    ########################################################################
+    # Helper routines
+    ########################################################################
+
+    def _time_to_int(self, date):
+        """ Return the integral part of a timestamp
+        
+        From ntplib 0.1.9 code
+        @param date A count in (possibly fractional) seconds since some time (presumably
+        from 1900 as NTP likes
+        @return The integer part of the timestamp
+        """
+        return int(date)
+
+    def _time_to_frac(self, date, n=32):
+        """ Return the fractional part of a timestamp
+
+        From ntplib 0.1.9 code        
+        @param n The number of bits of the fractional part
+        @param date A count in (possibly fractional) seconds since some time (presumably
+        from 1900 as NTP likes
+        @return The fractional part of the timestamp
+        """
+        return int(abs(date - self._time_to_int(date)) * 2**n)
+    
+    def _to_timestamp(self, integer, fraction, n=32):
+        """ Build a timestamp from an integral and fractional part
+
+        From ntplib 0.1.9 code                
+        @param integer The integer part of the time
+        @param fraction The fractional part of the time
+        @param n The number of bits of the fractional part"""
+        return integer + float(fraction)/2**n
+    
+    def _system_to_ntp_time(self, date):
+        """ Convert a system time to a NTP time structure
+        
+        @param date A count in (possibly fractional) seconds since the system
+        epoch
+        @return The 64-bit NTP structure corresponding with the supplied system
+        epoch time
+        """
+        ntptime = date + NTP_DELTA
+        return self._to_timestamp(self._time_to_int(ntptime), self._time_to_frac(ntptime))
+    
+    def _ascii_ntp_time(self, date):
+        """ Convert a given system time into a base64 encoded 64-bit NTP time
+        
+        @param date The system time to be converted to NTP and wrapped up
+        @return the base64 encoded NTP time
+        """
+        time = self._system_to_ntp_time(date)
+        return standard_b64encode(pack('d',time))
+    
 class SingleConnectionInstrumentDriver(InstrumentDriver):
     """
     Base class for instrument drivers with a single device connection.
