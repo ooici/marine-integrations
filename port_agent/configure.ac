@@ -1,5 +1,5 @@
 AC_INIT( [ooi], [1.0], [wfrench@ucsd.edu] )
-AM_INIT_AUTOMAKE([-Wall -Wno-extra-portability -Werror foreign])
+AM_INIT_AUTOMAKE([subdir-objects -Wall -Wno-extra-portability -Werror foreign])
 
 # Check for programs 
 AC_PROG_CC

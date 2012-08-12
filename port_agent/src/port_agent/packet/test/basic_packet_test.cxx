@@ -45,27 +45,27 @@ TEST_F(PortAgentPacketTest, CTOR) {
     EXPECT_TRUE(packet.packet());
         
     // Check the sync sequence
-    EXPECT_EQ(byteToUnsignedInt(packetBuffer[0]), 0x7A);
+    EXPECT_EQ(byteToUnsignedInt(packetBuffer[0]), 0xA3);
     EXPECT_EQ(byteToUnsignedInt(packetBuffer[1]), 0x9D);
-    EXPECT_EQ(byteToUnsignedInt(packetBuffer[2]), 0xA3);
+    EXPECT_EQ(byteToUnsignedInt(packetBuffer[2]), 0x7A);
 
     // Check the message type
     EXPECT_EQ(byteToUnsignedInt(packetBuffer[3]), 0x02);
 
     // Check the packetBuffer size
-    EXPECT_EQ(byteToUnsignedInt(packetBuffer[4]), 0x12);
-    EXPECT_EQ(byteToUnsignedInt(packetBuffer[5]), 0x00);
+    EXPECT_EQ(byteToUnsignedInt(packetBuffer[4]), 0x00);
+    EXPECT_EQ(byteToUnsignedInt(packetBuffer[5]), 0x12);
 
     // Check the checksum
-    EXPECT_EQ(byteToUnsignedInt(packetBuffer[6]), 0x14);
-    EXPECT_EQ(byteToUnsignedInt(packetBuffer[7]), 0x00);
+    EXPECT_EQ(byteToUnsignedInt(packetBuffer[6]), 0x00);
+    EXPECT_EQ(byteToUnsignedInt(packetBuffer[7]), 0x14);
 
     // Check the timestamp
     EXPECT_EQ(byteToUnsignedInt(packetBuffer[8]),  0x00);
     EXPECT_EQ(byteToUnsignedInt(packetBuffer[9]),  0x00);
     EXPECT_EQ(byteToUnsignedInt(packetBuffer[10]), 0x00);
-    EXPECT_EQ(byteToUnsignedInt(packetBuffer[11]), 0x80);
-    EXPECT_EQ(byteToUnsignedInt(packetBuffer[12]), 0x01);
+    EXPECT_EQ(byteToUnsignedInt(packetBuffer[11]), 0x01);
+    EXPECT_EQ(byteToUnsignedInt(packetBuffer[12]), 0x80);
     EXPECT_EQ(byteToUnsignedInt(packetBuffer[13]), 0x00);
     EXPECT_EQ(byteToUnsignedInt(packetBuffer[14]), 0x00);
     EXPECT_EQ(byteToUnsignedInt(packetBuffer[15]), 0x00);

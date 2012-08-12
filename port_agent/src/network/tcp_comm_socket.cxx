@@ -13,6 +13,15 @@
 #include "common/logger.h"
 #include "common/exception.h"
 
+#include <netinet/in.h>
+#include <netdb.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 using namespace std;
 using namespace logger;
 using namespace network;
@@ -67,8 +76,52 @@ TCPCommSocket & TCPCommSocket::operator=(const TCPCommSocket &rhs) {
  * Exceptions:
  *   SocketMissingConfig
  ******************************************************************************/
-bool TCPCommSocket::connect() {
+bool TCPCommSocket::initialize() {
+	int fflags;
+	struct sockaddr_in serv_addr;
+	struct hostent *server;
+
+	LOG(DEBUG) << "TCP Port Agent init_comms_device()";
+
+	if(!isConfigured())
+		throw SocketMissingConfig();
+
+	LOG(DEBUG2) << "Creating INET socket";
+	m_pSocketFD = socket(AF_INET, SOCK_STREAM, 0);
+
+	if(!m_pSocketFD)
+		throw SocketCreateFailure(strerror(errno));
+
+	fcntl(m_pSocketFD, F_SETFL, O_NONBLOCK);
+
+	LOG(DEBUG2) << "Looking up server name";
+	server = gethostbyname(m_sHostname.c_str());
+
+	if(!server)
+		throw SocketHostFailure(strerror(errno));
+
+	bzero((char *) &serv_addr, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+	bcopy((char *)server->h_addr,
+		 (char *)&serv_addr.sin_addr.s_addr,
+		 server->h_length);
+	serv_addr.sin_port = htons(m_iPort);
+
+	LOG(DEBUG2) << "Connecting to server";
+	int retval = connect(m_pSocketFD,(struct sockaddr *) &serv_addr,sizeof(serv_addr));
+	if (retval < 0)
+		if(errno != EINPROGRESS ) // ignore EINPROGRESS error because we are NON-Blocking
+            throw(SocketConnectFailure(strerror(errno)));
+
+	LOG(DEBUG3) << "Connect result: " << retval;
+
 	return true;
 }
 
-
+/******************************************************************************
+ * Method: isConfigured
+ * Description: Does this class have enough config info?
+ ******************************************************************************/
+bool TCPCommSocket::isConfigured() {
+    return m_sHostname.length() && m_iPort > 0;
+}

@@ -13,6 +13,14 @@
 #include "common/logger.h"
 #include "common/exception.h"
 
+#include <netinet/in.h>
+#include <netdb.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 using namespace std;
 using namespace logger;
@@ -27,7 +35,7 @@ using namespace network;
  * Description: Default constructor.
  ******************************************************************************/
 CommSocket::CommSocket() {
-    m_pSocketFD = NULL;
+    m_pSocketFD = 0;
 }
 
 
@@ -66,12 +74,12 @@ CommSocket & CommSocket::operator=(const CommSocket &rhs) {
  * Return:
  *   returns true if the socket wasn't open or it closed successfully.
  ******************************************************************************/
-bool CommSocket::close() {
-    if(m_pSocketFD == NULL)
+bool CommSocket::disconnect() {
+    if(!m_pSocketFD)
         return true;
 
-    fclose(m_pSocketFD);
-    m_pSocketFD = NULL;
+    close(m_pSocketFD);
+    m_pSocketFD = 0;
 
     return true;
 }
@@ -79,6 +87,7 @@ bool CommSocket::close() {
 /******************************************************************************
  *   PROTECTED METHODS
  ******************************************************************************/
+
 /******************************************************************************
  * Method: write
  * Description: write a number of bytes to the socket connection.  Currently we
@@ -94,23 +103,65 @@ bool CommSocket::close() {
  *   SocketNotConnected
  *   SocketWriteFailure
  ******************************************************************************/
-uint32_t CommSocket::write(const char *buffer, const uint32_t size) {
+uint32_t CommSocket::writeData(const char *buffer, const uint32_t size) {
+    int bytesWritten = 0;
+	int bytesRemaining = size;
     int count;
-    int total = 0;
 
-    if(m_pSocketFD == NULL)
-        throw SocketNotConnected();
+	while( bytesRemaining > 0 ) {
+        LOG(DEBUG) << "WRITE DEVICE: " << buffer;
+        count = write(m_pSocketFD, buffer + bytesWritten, bytesRemaining );
+        LOG(DEBUG1) << "bytes written: " << count << " remaining: " << bytesRemaining;
+        if(count < 0) {
+            LOG(ERROR) << strerror(errno) << "(errno: " << errno << ")";
+            throw(SocketWriteFailure(strerror(errno)));
+        }
 
-    // Try to write data three times.  Throw an error if we fail.
-    for( int i = 0; i < 3 && total < size; i++) {
-            total += fwrite(buffer + total, 1, size - total, m_pSocketFD);
+        bytesWritten += count;
+        bytesRemaining -= count;
+
+        LOG(DEBUG2) << "wrote bytes: " << count << " bytes remaining: " << bytesRemaining;
     }
 
-    if(total != size)
-            throw SocketWriteFailure();
-
-    return true;
+	return bytesWritten;
 }
 
+
+/******************************************************************************
+ * Method: read
+ * Description: read a number of bytes to the socket connection.
+ *
+ * Parameters:
+ *   buffer - where to store the read data
+ *   size - max number of bytes to read
+ * Return:
+ *   returns the actual number of bytes read.
+ * Exceptions:
+ *   SocketNotConnected
+ *   SocketReadFailure
+ ******************************************************************************/
+uint32_t CommSocket::readData(char *buffer, const uint32_t size) {
+	int bytesRead;
+
+    if ((bytesRead = read(m_pSocketFD, buffer, size)) <= 0) {
+        if(errno != EAGAIN && errno != EINPROGRESS) {
+            LOG(ERROR) << "read_device: " << strerror(errno) << "(errno: " << errno << ")";
+            throw(SocketReadFailure(strerror(errno)));
+        }
+        if(errno == EAGAIN || errno == EINPROGRESS) {
+            LOG(DEBUG2) << "Error Ignored: " << strerror(errno);
+        }
+
+        LOG(DEBUG2) << "read bytes: " << bytesRead;
+    }
+    else if(bytesRead == 0) {
+        LOG(INFO) << " -- Device connection closed. zero bytes recv.";
+        disconnect();
+    }
+    else
+        LOG(DEBUG) << "READ DEVICE: " << buffer;
+
+    return bytesRead;
+}
 
 

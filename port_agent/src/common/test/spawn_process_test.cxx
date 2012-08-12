@@ -8,6 +8,7 @@
 #define OUTFILE "/tmp/data.out"
 
 using namespace logger;
+using namespace std;
 
 class SpawnProcessTest : public testing::Test {
     

@@ -43,8 +43,12 @@ double Timestamp::asDouble(){
 }
 
 uint64_t Timestamp::asBinary(){
-    uint64_t ntpts;
-    ntpts = (((uint64_t)m_seconds) << 32) + m_fraction;
+    // convert to big-endian
+	uint64_t ntpts;
+
+    ntpts = htonl(m_fraction);
+    ntpts = ntpts << 32 | htonl(m_seconds);
+
     return ntpts;
 }
 
@@ -56,7 +60,7 @@ string Timestamp::asNumber(){
 
 string Timestamp::asHex() {
     stringstream out;
-    out << hex << setfill('0') << setw(8) << m_seconds << setw(8) << m_fraction;
+    out << hex << setfill('0') << setw(16) << asBinary();
     return out.str();
 }
 

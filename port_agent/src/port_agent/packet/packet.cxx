@@ -283,11 +283,16 @@ string Packet::pretty() {
  ******************************************************************************/
 char* Packet::packet() {
     uint64_t ts = m_oTimestamp.asBinary();
-    
+    uint32_t sync = htonl(SYNC) >> 8;
+    uint16_t size = htons(m_iPacketSize);
+    uint16_t checksum;
+
+    LOG(DEBUG) << "PACKET: " << hex << setfill('0') << setw(8) << sync;
+
     if(m_pPacket) {
-        memcpy(m_pPacket, &SYNC, 3);
+        memcpy(m_pPacket, &sync, 3);
         m_pPacket[3] = m_tPacketType;
-        memcpy(m_pPacket + 4, &m_iPacketSize, 2);
+        memcpy(m_pPacket + 4, &size, 2);
         memcpy(m_pPacket + 8, &ts, 8);
 
         // For the base class recalculating the checksum may be a waste of time,
@@ -295,7 +300,8 @@ char* Packet::packet() {
         // won't use the base packet in production taking the cycle hit seems worth
         // missing a recalculation in derived classes.
         m_iChecksum = calculateChecksum();
-        memcpy(m_pPacket + 6, &m_iChecksum, 2);
+        checksum = htons(m_iChecksum);
+        memcpy(m_pPacket + 6, &checksum, 2);
     }
     
     return m_pPacket;

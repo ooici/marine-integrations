@@ -36,19 +36,20 @@ namespace network {
             virtual CommSocket & operator=(const CommSocket &rhs);
 
             /* Accessors */
-            FILE * socket() { return m_pSocketFD; }
+            int getFD() { return m_pSocketFD; }
             
             // Connect, must be overloaded in the derived class
-            virtual bool connect() = 0;
+            virtual bool initialize() = 0;
 
             // close
-            virtual bool close();
+            virtual bool disconnect();
 
-            virtual uint32_t write(const char *buffer, uint32_t size);
+            virtual uint32_t writeData(const char *buffer, uint32_t size);
+            virtual uint32_t readData(char *buffer, uint32_t size);
 
         protected:
 
-            void setSocket(FILE * fd) { m_pSocketFD = fd; }
+            void setSocket(int fd) { m_pSocketFD = fd; }
 
         private:
         
@@ -57,9 +58,9 @@ namespace network {
          ********************/
         
         protected:
+            int m_pSocketFD;
             
         private:
-            FILE * m_pSocketFD;
 
     };
 }

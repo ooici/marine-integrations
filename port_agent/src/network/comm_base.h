@@ -35,6 +35,10 @@ namespace network {
 
             /* Accessors */
             
+            /* Methods */
+
+
+
         protected:
 
         private:

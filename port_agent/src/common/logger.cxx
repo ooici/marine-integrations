@@ -53,6 +53,7 @@
 
 #include <sstream>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <stdio.h>
 #include <stdlib.h>
@@ -101,9 +102,9 @@ Logger::~Logger() {
 void Logger::close()
 {
     if(m_sLogfileStream) {
-	m_sLogfileStream->close();
-	delete m_sLogfileStream;
-	m_sLogfileStream = NULL;
+    	//m_sLogfileStream->close();
+	    delete m_sLogfileStream;
+	    m_sLogfileStream = NULL;
     }
 }
 

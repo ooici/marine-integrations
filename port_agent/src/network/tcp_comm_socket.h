@@ -35,16 +35,17 @@ namespace network {
 
             /* Accessors */
             
-            // Connect
-            bool connect();
+            // Connect to the network host
+            bool initialize();
 
             void setHostname(const string &hostname) { m_sHostname = hostname; }
             void setPort(const uint16_t port) { m_iPort = port; }
 
         protected:
 
-
         private:
+            // Does this object have a complete configuration?
+            bool isConfigured();
 
         /********************
          *      MEMBERS     *
