@@ -276,6 +276,8 @@ string Packet::pretty() {
  * Method: packet
  * Description: Reconstruct the packet header in the buffer.
  *
+ * Make sure we have converted everything to big-endian!
+ *
  * Return:
  *   copy - return a pointer to the actual data buffer.  Note that this is only
  *          a pointer so if this object goes out of scope the buffer will be
@@ -286,8 +288,6 @@ char* Packet::packet() {
     uint32_t sync = htonl(SYNC) >> 8;
     uint16_t size = htons(m_iPacketSize);
     uint16_t checksum;
-
-    LOG(DEBUG) << "PACKET: " << hex << setfill('0') << setw(8) << sync;
 
     if(m_pPacket) {
         memcpy(m_pPacket, &sync, 3);

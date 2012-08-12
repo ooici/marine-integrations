@@ -37,9 +37,13 @@ class PublisherTest : public testing::Test {
         }
 
         bool rawCompare(char *lhs, char *rhs, int size) {
+            LOG(INFO) << "Start raw compare, size: " << size;
+
         	for(int i = 0; i < size; i++)
                 if( rhs[i] != lhs[i] ) {
-                	LOG(ERROR) << "byte " << i << " mismatch";
+                	LOG(ERROR) << "byte " << i << " mismatch: "
+                			   << hex << byteToUnsignedInt(rhs[i]) << " != "
+                			   << hex << byteToUnsignedInt(lhs[i]);
                 	return false;
                 }
 
@@ -67,8 +71,8 @@ class FilePointerPublisherTest : public PublisherTest {
 
 	    // Build a string that we would expect to see from a binary packet publish
 	    virtual size_t expectedBinaryPacket(char *buffer, const TPacketType &type) {
-	        char expected[20] = { 0x7a, 0x9d, 0xa3,  type, 0x14,  0x00, 0xeb,  0x00,  0x00,  0x00,
-	        		              0x00, 0x80,  0x01, 0x00,  0x00,  0x00, 0x64, 0x61, 0x74, 0x61 };
+	        char expected[20] = { 0xa3, 0x9d, 0x7a,  type, 0x00,  0x14, 0x00,  0x00,  0x00,  0x00,
+	        		              0x00, 0x01,  0x80, 0x00,  0x00,  0x00, 0x64, 0x61, 0x74, 0x61 };
 
 	        uint16_t checksum = 0;
 
@@ -78,6 +82,8 @@ class FilePointerPublisherTest : public PublisherTest {
 
 	        	buffer[i] = expected[i];
 	        }
+
+	        checksum = htons(checksum);
 
 	        memcpy(buffer + 6, &checksum, 2);
 
@@ -128,7 +134,7 @@ class FilePointerPublisherTest : public PublisherTest {
 
 	    	if(publisher.error()) {
 	    	    string err = publisher.error()->what();
-	    		LOG(ERROR) << err;
+	    		LOG(ERROR) << "Publish Packet Error: " << err;
 	    		return false;
 	    	}
 

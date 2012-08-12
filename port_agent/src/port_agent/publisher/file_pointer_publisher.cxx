@@ -19,6 +19,7 @@
 
 #include <sstream>
 #include <string>
+#include <errno.h>
 
 #include <stdio.h>
 
@@ -87,8 +88,10 @@ bool FilePointerPublisher::write(const char *buffer, uint32_t size) {
 		total += fwrite(buffer + total, 1, size - total, m_pFilePointer);
 	}
 
-	if(total != size)
-		throw PacketPublishFailure("HERE");
+	if(total != size) {
+		LOG(INFO) << "Publish failed.  Intended bytes: " << size << " actual write: " << total;
+ 		throw PacketPublishFailure(strerror(errno));
+	}
 
 	return true;
 }
