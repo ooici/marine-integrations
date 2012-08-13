@@ -130,7 +130,6 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         test_driver = ${driver_name}${driver_class}(self.my_event_callback)
         
         current_state = test_driver.get_current_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
         """
@@ -166,12 +165,230 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         - Verify that raw and parsed streams have been received
         """
         self.reset_test_vars()
-        test_sample = "Insert sample here with approriate line terminator"
+        test_sample = "Insert sample here with appropriate line terminator"
 
         test_driver._protocol.got_data(test_sample)
         
         self.assertTrue(self.raw_stream_received)
         self.assertTrue(self.parsed_stream_received)
+
+    @unittest.skip('Instrument Driver Developer: test_invalid_sample skipped: please complete this test!')
+    def test_invalid_complete_sample(self):
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=LoggerClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """       
+        test_driver = ${driver_name}${driver_class}(self.my_event_callback)
+        
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to the DISCONNECTED state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Force the driver into AUTOSAMPLE state so that it will parse and 
+        publish samples
+        """        
+        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        """
+        - Reset test verification variables.
+        - Construct a complete sample
+        - Pass to got_data()
+        - Verify that raw and parsed streams have been received
+        """
+        self.reset_test_vars()
+        test_sample = "Invalid Sample"
+
+        test_driver._protocol.got_data(test_sample)
+        
+        self.assertFalse(self.raw_stream_received)
+        self.assertFalse(self.parsed_stream_received)
+
+    @unittest.skip('Instrument Driver Developer: test_fragmented_complete_sample skipped: please complete this test!')
+    def test_fragmented_complete_sample(self):
+        """
+        Simulate a complete sample that arrives in separate invocations of got_data();
+        result should be a complete sample published 
+        """
+        
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=LoggerClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = ${driver_name}${driver_class}(self.my_event_callback)
+        
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Force the driver into AUTOSAMPLE state so that it will parse and 
+        publish samples
+        """        
+        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        """
+        - Reset test verification variables.
+        - Construct a fragment of a sample stream
+        - Pass to got_data()
+        - Verify that raw and parsed streams have NOT been received
+        """
+        self.reset_test_vars()
+        test_sample = "Insert a fragment of a sample here, i.e., the beginning " + \
+        	"of a sample, but not a complete sample.  The remainder will be " + \
+        	"sent in a separate message."
+
+        test_driver._protocol.got_data(test_sample)
+        
+        self.assertFalse(self.raw_stream_received)
+        self.assertFalse(self.parsed_stream_received)
+
+        """
+        - Construct the remaining fragment of the sample stream
+        - Pass to got_data()
+        - Verify that raw and parsed streams have been received
+        """
+        test_sample = "Insert a remainder of the above sample here"
+
+        test_driver._protocol.got_data(test_sample)
+        
+        self.assertTrue(self.raw_stream_received)
+        self.assertTrue(self.parsed_stream_received)
+                
+    @unittest.skip('Instrument Driver Developer: test_concatenated_fragmented_sample skipped: please complete this test!')
+    def test_concatenated_fragmented_sample(self):
+        """
+        Simulate a complete sample that arrives in with a fragment concatenated.  The concatenated fragment
+        should have have a terminator.  A separate invocations of got_data() will have the remainder;
+        result should be a complete sample published 
+        """
+        
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=LoggerClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = ${driver_name}${driver_class}(self.my_event_callback)
+        
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Force the driver into AUTOSAMPLE state so that it will parse and 
+        publish samples
+        """        
+        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        """
+        - Reset test verification variables.
+        - Construct a sample stream with a concatenated fragment
+        - Pass to got_data()
+        - Verify that raw and parsed streams have been received
+        - Later, when the final fragment has been send, verify that raw and
+          parsed streams have been received.
+        """
+        self.reset_test_vars()
+        test_sample = "Insert a complete sample here."
+
+        """
+        - Add the beginning of another sample stream
+        - Pass to got_data()
+        """
+        test_sample += "Add the beginning of another sample stream here, but just a fragment: the rest will come" + \
+            "in another message." 
+
+        test_driver._protocol.got_data(test_sample)
+        
+        self.assertTrue(self.raw_stream_received)
+        self.assertTrue(self.parsed_stream_received)
+
+        """
+        - Reset test verification variables
+        - Construct the final fragment of a sample stream
+        - Pass to got_data()
+        - Verify that raw and parsed streams have been received
+        """
+        self.reset_test_vars()
+        test_sample = \
+            "Insert the remainder of the fragmented sample that was added to the stream above."
+
+        test_driver._protocol.got_data(test_sample)
+        
+        self.assertTrue(self.raw_stream_received)
+        self.assertTrue(self.parsed_stream_received)
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
