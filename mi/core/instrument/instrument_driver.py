@@ -572,7 +572,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
             raise InstrumentParameterException('Missing state parameter.')
 
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.TEST, DriverEvent.FORCE_STATE, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.FORCE_STATE, DriverEvent.FORCE_STATE, *args, **kwargs)
 
     def execute_test(self, *args, **kwargs):
         """
