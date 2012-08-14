@@ -866,7 +866,6 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
             mock_port_agent = config['mock_port_agent']
             # check for validity here...
             if (mock_port_agent is not None):
-                print "TEMPTEMP mock is NOT NONE"
                 return mock_port_agent
         try:
             addr = config['addr']
