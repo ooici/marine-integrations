@@ -950,14 +950,23 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
             cur_state = self.get_current_state()
             if cur_state == State.AUTOSAMPLE:
                 if INSTRUMENT_NEWLINE in self._linebuf:
-                    lines = self._linebuf.split(INSTRUMENT_NEWLINE)
+                    lines = self._linebuf.splitlines(1)
+                    """
+                    Make the _linebuf variable equal to the last item in the 
+                    list created by the above split.  It will either be a 
+                    null string or the beginning of a new fragment, which we
+                    want to save.
+                    """
                     self._linebuf = lines[-1]
                     for line in lines:
                         """
-                        The above split will leave a zero-length line in list,
-                        so only call extract_sample if len greater than zero
+                        The above split can leave a zero-length line in list,
+                        so only call extract_sample if len greater than zero.
+                        Also, we could have the beginning fragment of a sample,
+                        which we don't want to parse yet, so only extract_sample
+                        if the line ends lith the instrument terminator.
                         """
-                        if len(line) > 0:
+                        if len(line) > 0 and line.endswith(INSTRUMENT_NEWLINE):
                             self._extract_sample(line)
 
 

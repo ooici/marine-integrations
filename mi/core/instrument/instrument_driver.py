@@ -517,8 +517,24 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.                        
         """
         # Forward event and argument to the protocol FSM.
-        
         return self._connection_fsm.on_event(DriverEvent.EXECUTE, resource_cmd, *args, **kwargs)
+
+    def execute_force_state(self, *args, **kwargs):
+        """
+        Force driver into a given state for the purposes of unit testing 
+        @param state=desired_state Required desired state to transition to.
+        @raises InstrumentParameterException if no state parameter.
+        @raises InstrumentStateException if command not allowed in current state.
+        @raises NotImplementedException if not implemented by subclass.                        
+        """
+
+       # Get the required param 
+        state = kwargs.get('state', None)  # via kwargs
+        if state is None:
+            raise InstrumentParameterException('Missing state parameter.')
+
+        # Forward event and argument to the protocol FSM.
+        return self._connection_fsm.on_event(DriverEvent.FORCE_STATE, DriverEvent.FORCE_STATE, *args, **kwargs)
 
     ########################################################################
     # Unconfigured handlers.
@@ -735,6 +751,14 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
 
         @throws InstrumentParameterException Invalid configuration.
         """
+<<<<<<< HEAD
+=======
+        if 'mock_port_agent' in config:
+            mock_port_agent = config['mock_port_agent']
+            # check for validity here...
+            if (mock_port_agent is not None):
+                return mock_port_agent
+>>>>>>> master
         try:
             addr = config['addr']
             port = config['port']
