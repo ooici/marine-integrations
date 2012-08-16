@@ -46,10 +46,9 @@ NEWLINE = '\r\n'
 TIMEOUT = 40
 
 # Packet config
-#PACKET_CONFIG = {
-#    'parsed' : None,
-#    'raw' : None
-#}
+STREAM_NAME_PARSED = 'parsed'
+STREAM_NAME_RAW = 'raw'
+PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
 
 class InstrumentCmds(BaseEnum):
     """
@@ -63,11 +62,12 @@ class InstrumentCmds(BaseEnum):
     START_LOGGING = 'start'
     STOP_LOGGING = 'stop'
     UPLOAD_DATA_ASCII_FORMAT = 'dd'
-    UPLOAD_DATA_BINARY_FORMAT = 'DBbaud,b,e'
     GET_BYTE_COUNT = 'ByteCount'
     SET_BYTE_COUNT = '*ByteCount'
-    SET = 'set' # Unofficial
-
+    SET = 'set'
+    GET = 'get'
+    BAUD = 'baud'
+    TAKE_SAMPLE = 'ts'
 
 
 class ProtocolState(BaseEnum):
@@ -89,7 +89,9 @@ class ProtocolEvent(BaseProtocolEvent):
     """
 
     SETSAMPLING = 'PROTOCOL_EVENT_SETSAMPLING' # it HAS to be defined there, OR!!! InstrumentFSM.on_event() CANNOT HANDLE IT. THIS SHOULD BE DOCUMENTED!!!!!!
-
+    BAUD = 'PROTOCOL_EVENT_BAUD'
+    UPLOAD_ASCII = 'PROTOCOL_EVENT_UPLOAD_ASCII'
+    QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -102,7 +104,7 @@ class Parameter(DriverParameter):
     SERIAL_NUMBER = 'SERIAL_NUMBER' # str,
     DS_DEVICE_DATE_TIME = 'DS_DEVICE_DATE_TIME' # ntp 4 64 bit timestamp http://stackoverflow.com/questions/8244204/ntp-timestamps-in-python,
 
-    USER_INFO = 'USER_INFO' # str,
+    USER_INFO = 'USERINFO' # str,
     QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER = 'QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER' # float,
     QUARTZ_PREASURE_SENSOR_RANGE = 'QUARTZ_PREASURE_SENSOR_RANGE' # float,
 
@@ -127,10 +129,10 @@ class Parameter(DriverParameter):
     WAVE_SAMPLES_SCANS_PER_SECOND = 'WAVE_SAMPLES_SCANS_PER_SECOND' # float, <--- May be new
     WAVE_SAMPLE_DURATION = 'WAVE_SAMPLE_DURATION' # float, <--- Renamed (... 1/WAVE_SAMPLE_DURATION = scans per second)
 
-    USE_START_TIME = 'USE_START_TIME' # bool,
-    START_TIME = 'START_TIME' # ntp 4 64 bit timestamp http://stackoverflow.com/questions/8244204/ntp-timestamps-in-python, <-- new
-    USE_STOP_TIME = 'USE_STOP_TIME' # bool,
-    STOP_TIME = 'STOP_TIME' # ntp 4 64 bit timestamp http://stackoverflow.com/questions/8244204/ntp-timestamps-in-python, <-- new
+    #USE_START_TIME = 'USE_START_TIME' # bool,
+    #START_TIME = 'START_TIME' # ntp 4 64 bit timestamp http://stackoverflow.com/questions/8244204/ntp-timestamps-in-python, <-- new
+    #USE_STOP_TIME = 'USE_STOP_TIME' # bool,
+    #STOP_TIME = 'STOP_TIME' # ntp 4 64 bit timestamp http://stackoverflow.com/questions/8244204/ntp-timestamps-in-python, <-- new
 
     TIDE_SAMPLES_PER_DAY = 'TIDE_SAMPLES_PER_DAY' # float,
     WAVE_BURSTS_PER_DAY = 'WAVE_BURSTS_PER_DAY' # float,
@@ -143,7 +145,7 @@ class Parameter(DriverParameter):
     TXREALTIME = 'TXREALTIME' # bool, <-- renamed from TRANSMIT_REAL_TIME_TIDE_DATA, TXREALTIME
     TXWAVEBURST = 'TXWAVEBURST' # bool, <-- renamed from TRANSMIT_REAL_TIME_WAVE_BURST_DATA, TXWAVEBURST
     TXWAVESTATS = 'TXWAVESTATS' # bool, <-- renamed from TRANSMIT_REAL_TIME_WAVE_STATS, TXWAVESTATS
-    NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' # int,
+    #REDUNDANT# NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' # int,
     USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' # bool,
     PREASURE_SENSOR_HEIGHT_FROM_BOTTOM = 'PREASURE_SENSOR_HEIGHT_FROM_BOTTOM' # float,
     SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND = 'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND' # int, <-- renamed from SPECIAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND
@@ -245,6 +247,57 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 
         return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.SETSAMPLING, *args, **kwargs)
 
+    def start(self, *args, **kwargs):
+        """
+        Set device parameters.
+        @param args[0] parameter : value dict of parameters to set.
+        @param timeout=timeout Optional command timeout.
+        @raises InstrumentParameterException if missing or invalid set parameters.
+        @raises InstrumentTimeoutException if could not wake device or no response.
+        @raises InstrumentProtocolException if set command not recognized.
+        @raises InstrumentStateException if command not allowed in current state.
+        @raises NotImplementedException if not implemented by subclass.
+        """
+        # Forward event and argument to the protocol FSM.
+        log.debug("ROGER GOT INTO InstrumentDriver.start() " + str(ProtocolEvent.SETSAMPLING))
+        log.debug("args = " + str(args))
+        log.debug("kwargs = " + str(kwargs))
+
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.START_AUTOSAMPLE, *args, **kwargs)
+
+
+    def dd(self, *args, **kwargs):
+        """
+        Is this what i need?
+        """
+        log.debug("ROGER GOT INTO InstrumentDriver.dd() " + str(ProtocolEvent.UPLOAD_ASCII))
+        log.debug("args = " + str(args))
+        log.debug("kwargs = " + str(kwargs))
+
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.UPLOAD_ASCII, *args, **kwargs)
+
+    def baud(self, *args, **kwargs):
+        """
+        Is this what i need?
+        """
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.BAUD, *args, **kwargs)
+
+    def ts(self, *args, **kwargs):
+        """
+        Is this what i need?
+        """
+        log.debug("ROGER GOT INTO ts")
+        kwargs['timeout'] = 120
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.ACQUIRE_SAMPLE, *args, **kwargs)
+
+    def qs(self, *args, **kwargs):
+        """
+        Forward quit session event to the protocol FSM.
+        """
+        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.QUIT_SESSION, *args, **kwargs)
+
+
+
     def get_resource_params(self):
         """
         Return list of device parameters available.
@@ -271,6 +324,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     Instrument protocol class for sbe26plus driver.
     Subclasses CommandResponseInstrumentProtocol
     """
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -296,6 +350,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SETSAMPLING,            self._handler_command_setsampling)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.BAUD,                   self._handler_command_baud)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.UPLOAD_ASCII,           self._handler_command_upload_ascii)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION,           self._handler_command_quit_session)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST,                   self._handler_command_test)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
@@ -322,10 +379,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
 
 
-
-
-
-
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCmds.SETSAMPLING,                 self._build_setsampling_command)
         self._add_build_handler(InstrumentCmds.DISPLAY_STATUS,              self._build_simple_command)
@@ -333,13 +386,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.DISPLAY_CALIBRATION,         self._build_simple_command)
         self._add_build_handler(InstrumentCmds.START_LOGGING,               self._build_simple_command)
         self._add_build_handler(InstrumentCmds.STOP_LOGGING,                self._build_simple_command)
-        #self._add_build_handler(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT,    self._build_XXXXXXXXXXXXXX_command)
-        #self._add_build_handler(InstrumentCmds.UPLOAD_DATA_BINARY_FORMAT,   self._build_XXXXXXXXXXXXXX_command)
+        self._add_build_handler(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT,    self._build_dd_command)
+        self._add_build_handler(InstrumentCmds.BAUD,                        self._build_baud_command)
+
         #self._add_build_handler(InstrumentCmds.GET_BYTE_COUNT,              self._build_XXXXXXXXXXXXXX_command)
         #self._add_build_handler(InstrumentCmds.SET_BYTE_COUNT,              self._build_XXXXXXXXXXXXXX_command)
         self._add_build_handler(InstrumentCmds.SET,                         self._build_set_command)
 
-        #self._add_build_handler('ts', self._build_simple_command)
+
+        self._add_build_handler('ts', self._build_simple_command)
         #self._add_build_handler('tc', self._build_simple_command) #NO SUCH COMMAND
         #self._add_build_handler('tt', self._build_simple_command)
         #self._add_build_handler('tp', self._build_simple_command)
@@ -349,17 +404,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.SETSAMPLING,                  self._parse_setsampling_response)
         self._add_response_handler(InstrumentCmds.DISPLAY_STATUS,               self._parse_ds_response)
         self._add_response_handler(InstrumentCmds.DISPLAY_CALIBRATION,          self._parse_dc_response)
-        #self._add_response_handler(InstrumentCmds.QUIT_SESSION,                 self._parse_XXXXXXXXXXXXX)
-        #self._add_response_handler(InstrumentCmds.START_LOGGING,                self._parse_XXXXXXXXXXXXX)
+        self._add_response_handler(InstrumentCmds.START_LOGGING,                self._parse_logging_response)
         #self._add_response_handler(InstrumentCmds.STOP_LOGGING,                 self._parse_XXXXXXXXXXXXX)
-        #self._add_response_handler(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT,     self._parse_XXXXXXXXXXXXX)
-        #self._add_response_handler(InstrumentCmds.UPLOAD_DATA_BINARY_FORMAT,    self._parse_XXXXXXXXXXXXX)
+        self._add_response_handler(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT,     self._parse_uplaad_data_ascii_response)
+        self._add_response_handler(InstrumentCmds.BAUD,                         self._parse_baud_response)
         #self._add_response_handler(InstrumentCmds.GET_BYTE_COUNT,               self._parse_XXXXXXXXXXXXX)
         #self._add_response_handler(InstrumentCmds.SET_BYTE_COUNT,               self._parse_XXXXXXXXXXXXX)
         self._add_response_handler(InstrumentCmds.SET,                          self._parse_set_response)
 
 
-        #self._add_response_handler('ts', self._parse_ts_response)
+        self._add_response_handler(InstrumentCmds.TAKE_SAMPLE, self._parse_ts_response)
         #self._add_response_handler('tc', self._parse_test_response) #NO SUCH COMMAND
         #self._add_response_handler('tt', self._parse_test_response)
         #self._add_response_handler('tp', self._parse_test_response)
@@ -373,16 +427,137 @@ class Protocol(CommandResponseInstrumentProtocol):
 
 
 
-        # ts
-        # 14.4309  23.72 -272.3189 -1.02626   0.0000
-        # pressure, pressure temperature, temperature, and conductivity
 
         # Add sample handlers.
-        self._sample_pattern = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'
-        self._sample_pattern += r'(, *(-?\d+\.\d+))?(, *(-?\d+\.\d+))?'
-        self._sample_pattern += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'
-        self._sample_pattern += r'(, *(\d+)-(\d+)-(\d+), *(\d+):(\d+):(\d+))?'
-        self._sample_regex = re.compile(self._sample_pattern)
+
+        self.parsed_sample = {}
+        self.raw_sample = ''
+
+        self._sample_regexs = {
+            re.compile(r'tide: start time = +(\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+), p = +([\-\d.]+), pt = +([\-\d.]+), t = +([\-\d.]+), c = +([\-\d.]+), s = +([\-\d.]+)') :
+                (['tide_sample_timestamp', 'p', 'pt', 't', 'c', 's'],
+
+                 {'publish' : True,
+                  'list' : False}
+                ),
+            re.compile(r'wave: ptfreq = ([\d.e+-]+)') : # 171785.812
+                (['wave_ptfreq',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+            re.compile(r'^([\d.e+-]+)$') : # -153.3697
+                (['wave_burst_sample',],
+
+                 {'publish' : False,
+                  'list' : True}
+                ),
+            re.compile(r'depth = +([\d.e+-]+), temperature = +([\d.e+-]+), salinity = +([\d.e+-]+), density = +([\d.e+-]+)') : # depth =    0.000, temperature = 32.821, salinity =  0.000, density = 994.765
+                (['depth', 'temperature', 'salinity', 'density',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+
+            # Auto-Spectrum Statistics:
+            re.compile(r'   nAvgBand = (\d+)') : # 1
+                (['nAvgBand',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+            re.compile(r'   total variance = ([\d.e+-]+)') : # 8.2414e-10
+                (['total_variance',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+            re.compile(r'   total energy = ([\d.e+-]+)') : # 8.0397e-06
+                (['total_energy',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+            re.compile(r'   significant period = ([\d.e+-]+)') : # 1.0000e+00
+                (['significant_period',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+            re.compile(r'   significant wave height = ([\d.e+-]+)') : # 1.1483e-04
+                (['significant_wave_height',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+
+            # Time Series Statistics:
+            re.compile(r'   wave integration time = (\d+)') : # 128
+                (['wave_integration_time',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+            re.compile(r'   number of waves = (\d+)') : # 0
+                (['number_of_waves',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+            re.compile(r'   total variance = ([\d.e+-]+)') : # 0.0000e+00
+                (['total_variance',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+            re.compile(r'   total energy = ([\d.e+-]+)') : # 0.0000e+00
+                (['total_energy',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+            re.compile(r'   average wave height = ([\d.e+-]+)') : # 0.0000e+00
+                (['average_wave_height',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+            re.compile(r'   average wave period = ([\d.e+-]+)') : # 0.0000e+00
+                (['average_wave_period',],
+                        {'publish' : False,
+                         'list' : False}
+                    ),
+            re.compile(r'   maximum wave height = ([\d.e+-]+)') : # 0.0000e+00
+                (['maximum_wave_height',],
+                        {'publish' : False,
+                         'list' : False}
+                    ),
+            re.compile(r'   significant wave height = ([\d.e+-]+)') : # 0.0000e+00
+                (['significant_wave_height',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+            re.compile(r'   significant wave period = ([\d.e+-]+)') : # 0.0000e+00
+                (['significant_wave_period',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+            re.compile(r'   H1/10 = ([\d.e+-]+)') : # 0.0000e+00
+                (['height_highest_10_percent_waves',],
+
+                 {'publish' : False,
+                  'list' : False}
+                ),
+            re.compile(r'   H1/100 = ([\d.e+-]+)') : # 0.0000e+00
+                (['height_highest_1_percent_waves',],
+
+                 {'publish' : True,
+                  'list' : False}
+                ),
+        }
+
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -510,6 +685,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         @throws SampleException if a sample could not be extracted from result.
         """
+        log.debug("**************************************** in _handler_command_acquire_sample")
         next_state = None
         result = None
 
@@ -623,17 +799,21 @@ class Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentParameterException('Get command requires a parameter list or tuple.')
 
         # If all params requested, retrieve config.
-        if params == DriverParameter.ALL:
+        if params == DriverParameter.ALL or DriverParameter.ALL in params:
+            log.debug("in _handler_command_autosample_test_get wanting DriverParameter.ALL")
             result = self._param_dict.get_config()
 
         # If not all params, confirm a list or tuple of params to retrieve.
         # Raise if not a list or tuple.
         # Retireve each key in the list, raise if any are invalid.
+
         else:
+            log.debug("in _handler_command_autosample_test_get")
             if not isinstance(params, (list, tuple)):
                 raise InstrumentParameterException('Get argument not a list or tuple.')
             result = {}
             for key in params:
+                log.debug(" -- wanting key = " + str(key))
                 try:
                     val = self._param_dict.get(key)
                     result[key] = val
@@ -785,6 +965,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
+
+
     def _build_simple_command(self, cmd):
         """
         Build handler for basic sbe26plus commands.
@@ -792,6 +974,27 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval The command to be sent to the device.
         """
         log.debug("in _build_simple_command() cmd = " + str(cmd))
+        return cmd + NEWLINE
+
+
+    def _build_baud_command(self, cmd, *args):
+        """
+        Build handler for basic sbe26plus commands.
+        @param cmd the simple sbe37 command to format.
+        @retval The command to be sent to the device.
+        """
+        log.debug("in _build_baud_command() cmd = " + str(cmd) + " param = " + str(args[0]))
+
+        return cmd + '=' + str(args[0]) + NEWLINE
+
+    def _build_dd_command(self, cmd, *args):
+        """
+        Build handler for basic sbe26plus commands.
+        @param cmd the simple sbe37 command to format.
+        @retval The command to be sent to the device.
+        """
+        log.debug("in _build_dd_command() cmd = " + str(cmd))
+
         return cmd + NEWLINE
 
     def _build_set_command(self, cmd, param, val):
@@ -829,6 +1032,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException('1 Set command not recognized: %s' % response)
 
     def _parse_ds_response(self, response, prompt):
+        log.debug("################################ in _parse_ds_response ")
         if prompt != Prompt.COMMAND:
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
@@ -840,6 +1044,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
 
     def _parse_dc_response(self, response, prompt):
+        log.debug("################################ in _parse_dc_response ")
         if prompt != Prompt.COMMAND:
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
@@ -855,44 +1060,47 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if dsdc command misunderstood.
         """
-        if prompt != SBE37Prompt.COMMAND:
+        log.debug("################################ in _parse_dsdc_response ")
+        if prompt != Prompt.COMMAND:
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
-        for line in response.split(SBE37_NEWLINE):
+        for line in response.split(NEWLINE):
+
             self._param_dict.update(line)
 
-#    def _parse_ts_response(self, response, prompt):
-#        """
-#        Response handler for ts command.
-#        @param response command response string.
-#        @param prompt prompt following command response.
-#        @retval sample dictionary containig c, t, d values.
-#        @throws InstrumentProtocolException if ts command misunderstood.
-#        @throws InstrumentSampleException if response did not contain a sample
-#        """
-#        log.debug("************ in _parse_ts_response ")
-#        """
-#        S>ts
-#        ts
-#           14.6343  22.99  22.7395 -1.02527   0.0000
-#        (pressure psia, pressure temperature C, temperature C, conductivity S/m, and salinity psu)
-#        """
-#
-#        log.debug("PROMPT = " + str(prompt) + " WANTED " + str(Prompt.COMMAND))
-#        if prompt != Prompt.COMMAND:
-#            raise InstrumentProtocolException('ts command not recognized: %s', response)
-#
-#
-#        sample = None
-#        for line in response.split(NEWLINE):
-#            sample = self._extract_sample(line, True)
-#            if sample:
-#                break
-#
-#        if not sample:
-#            raise SampleException('Response did not contain sample: %s' % repr(response))
-#
-#        return sample
+    def _parse_ts_response(self, response, prompt):
+        """
+        Response handler for ts command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @retval sample dictionary containig c, t, d values.
+        @throws InstrumentProtocolException if ts command misunderstood.
+        @throws InstrumentSampleException if response did not contain a sample
+        """
+        log.debug("************ in _parse_ts_response ")
+        """
+        S>ts
+        ts
+           14.6343  22.99  22.7395 -1.02527   0.0000
+        (pressure psia, pressure temperature C, temperature C, conductivity S/m, and salinity psu)
+        """
+
+        log.debug("PROMPT = " + str(prompt) + " WANTED " + str(Prompt.COMMAND))
+        if prompt != Prompt.COMMAND:
+            raise InstrumentProtocolException('ts command not recognized: %s', response)
+
+
+        sample = None
+        for line in response.split(NEWLINE):
+            sample = self._extract_sample(line, True)
+            log.debug("sample = " + str(sample))
+            if sample:
+                break
+
+        if not sample:
+            raise SampleException('Response did not contain sample: %s' % repr(response))
+
+        return sample
 
 #    def _parse_test_response(self, response, prompt):
 #        """
@@ -962,30 +1170,63 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval Sample dictionary if present or None.
         """
 
+        if repr(line) != "''":
+            matched = False
+            for (pattern_regex, pattern_info) in self._sample_regexs.iteritems():
+                match = pattern_regex.match(line)
+                if match:
+                    self.raw_sample = self.raw_sample + NEWLINE + line
+                    (pattern_names, pattern_details) = pattern_info
+                    count = 0
+                    #log.debug("populating " + repr(pattern_names))
+                    for val in match.groups():
+                        #log.debug("####=> " + pattern_names[count] + " = " + str(val))
+
+                        if True == pattern_details['list']:
+                            if False == self.parsed_sample.has_key(pattern_names[count]):
+                                self.parsed_sample[pattern_names[count]] = []
+                            self.parsed_sample[pattern_names[count]].append(val)
+                        else:
+                            self.parsed_sample[pattern_names[count]] = val
+                        #log.debug("####====> "  + pattern_names[count] + " = " +  str(self.sample[pattern_names[count]]))
+                        count = count + 1
+                    matched = True
 
 
-        """
-        tide: start time = 11 Jul 2012 12:53:51, p = 14.6398, pt = 23.321, t = 23.0060, c = -1.02527, s = 0.0000
-        tide: start time = 11 Jul 2012 13:01:45, p = 14.6384, pt = 23.251, t = 22.9377, c = -1.02527, s = 0.0000
-        """
-        log.debug("************ in _extract_sample GOT LINE => " + repr(line))
-        sample = None
-        match = self._sample_regex.match(line)
-        if match:
-            sample = {}
-            #pressure, pressure temperature, temperature, and conductivity
-            sample['t'] = [float(match.group(1))]
-            sample['c'] = [float(match.group(2))]
-            sample['p'] = [float(match.group(3))]
+                    if True == pattern_details['publish']:
+                        # Driver timestamp.
+                        ts = time.time()
 
-            # Driver timestamp.
-            sample['time'] = [time.time()]
-            sample['stream_name'] = 'ctd_parsed'
 
-            if self._driver_event:
-                self._driver_event(DriverAsyncEvent.SAMPLE, sample)
 
-        return sample
+                        raw_sample = dict(
+                            stream_name=STREAM_NAME_RAW,
+                            time=[ts],
+                            blob=self.raw_sample
+                        )
+
+                        parsed_sample = dict(
+                            stream_name=STREAM_NAME_PARSED,
+                            time=[ts],
+                            parsed=self.parsed_sample
+                        )
+
+                        self.parsed_sample = {}
+                        self.raw_sample = ""
+
+                        if publish and self._driver_event:
+                            log.debug("BEFORE PUBLISH")
+                            self._driver_event(DriverAsyncEvent.SAMPLE, raw_sample)
+                            self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
+                            log.debug("AFTER PUBLISH")
+                        ret_sample = dict(parsed=parsed_sample, raw=raw_sample)
+
+                        log.debug("RETURNING TOMATO =>" + str(ret_sample))
+                        return ret_sample
+
+            if False == match:
+                log.debug("NOT USING LINE => " + repr(line))
+
 
     def _build_param_dict(self):
         """
@@ -1045,6 +1286,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         #
         # Next 2 work together to pull 2 values out of a single line.
         #
+
         self._param_dict.add(Parameter.DEVICE_VERSION,
             ds_line_01,
             lambda match : string.upper(match.group(1)),
@@ -1169,6 +1411,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._float_to_string,
             multi_match=True)
 
+        """
         self._param_dict.add(Parameter.START_TIME,
             ds_line_11,
             lambda match : string.upper(match.group(1)),
@@ -1178,6 +1421,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             ds_line_12,
             lambda match : string.upper(match.group(1)),
             self._string_to_string) # will need to make this a date time once that is sorted out
+        """
 
         self._param_dict.add(Parameter.TIDE_SAMPLES_PER_DAY,
             ds_line_13,
@@ -1575,38 +1819,15 @@ class Protocol(CommandResponseInstrumentProtocol):
 
 
 
-# EXPERIMENT EXPERIMENT EXPERIMENT BELOW
+
     def _build_setsampling_command(self, foo, *args, **kwargs):
+        """
+        Build handler for setsampling command.
+        @param args[0] is a dict of the values to change
+        """
 
-        """
-        Build handler for set commands. param=val followed by newline.
-        String val constructed by param dict formatting function.
-        @param param the parameter key to set.
-        @param val the parameter value to set.
-        @ retval The set command to be sent to the device.
-        @ retval The set command to be sent to the device.
-        @throws InstrumentProtocolException if the parameter is not valid or
-        if the formatting function could not accept the value passed.
-        """
-        log.debug(" *******************IN _build_setsampling_command !!!!!!!!!!!!!!!!!!!!!!")
-        log.debug("args = " + str(args))
-        log.debug("kwargs = " + str(kwargs))
-        log.debug("TA0 = " + str(args[0]) )
-        # SHOULD STASH THE ARGS INTO SELF.SAMPLING_ARGS OR SOME SUCH.
-        #log.debug(str(args{'setsampling'}))
         self._sampling_args = args[0]
-        #for (key, val) in self._sampling_args.iteritems():
-        #    log.debug("PROOF THAT KEY(" + str(key) + ") = VAL(" + str(val) + ") made it into _build_setsampling_command")
 
-        #try:
-        #    str_val = self._param_dict.format(param, val)
-        #    set_cmd = '%s=%s' % (param, str_val)
-        #    set_cmd = set_cmd + NEWLINE
-
-        #except KeyError:
-        #    raise InstrumentParameterException('Unknown driver parameter %s' % param)
-
-        #log.debug("_build_set_command set_cmd = " + set_cmd)
         return InstrumentCmds.SETSAMPLING  + NEWLINE
 
 
@@ -1616,34 +1837,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param response command response string.
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if set command misunderstood.
-
-        S>setsampling
-        tide interval (integer minutes) = 4, new value = 4
-        tide measurement duration (seconds) = 10, new value = 40
-        measure wave burst after every N tide samples: N = 1, new value =
-        number of wave samples per burst (multiple of 4) = 4, new value =
-        wave Sample duration (0.25, 0.50, 0.75, 1.0) seconds = 0.25, new value =
-        use start time (y/n) = n, new value =
-        use stop time (y/n) = n, new value =
-        TXWAVESTATS (real-time wave statistics) (y/n) = n, new value =
-        S>
         """
 
-
         desired_prompt = ", new value = "
-        debug_count = 0
         done = False
         while not done:
             (prompt, response) = self._get_response(expected_prompt=desired_prompt)
             self._promptbuf = ''
             self._linebuf = ''
             time.sleep(0.1)
-            #debug_count = debug_count + 1
-            #log.debug(str(debug_count) + " times through")
-            #log.debug("GOT A PROMPT -- '" + prompt + "'")
-            #log.debug("GOT A RESPONSE  -- '" + response + "'")
 
-
+            log.debug(response)
             if "tide interval (integer minutes) " in response:
                 if 'TIDE_INTERVAL' in self._sampling_args:
                     self._connection.send(self._int_to_string(self._sampling_args['TIDE_INTERVAL']) + NEWLINE)
@@ -1747,7 +1951,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 resetting number of samples to use for wave statistics to 512
                 """
             else:
-                log.debug("ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR")
+
                 raise InstrumentProtocolException('HOW DID I GET HERE! %s' % str(response) + str(prompt))
 
 
@@ -1759,8 +1963,16 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.debug("SILENTLY GOBBLING " + repr(response))
 
 
+    def _parse_logging_response(self, response, prompt): #(self, cmd, *args, **kwargs):
+        """
 
-
+        """
+        log.debug("****************** _parse_logging_response DO I EVER GET HERE?")
+        desired_prompt = NEWLINE
+        done = False
+        while not done:
+            (prompt, response) = self._get_response(expected_prompt=desired_prompt)
+            log.debug("response = " + repr(response) + "prompt = " + repr(prompt))
 
     def _handler_command_setsampling(self, *args, **kwargs):
         """
@@ -1782,33 +1994,93 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
+    def _handler_command_baud(self, *args, **kwargs):
         """
-        # Issue start command and switch to autosample if successful.
-        self._do_cmd_no_resp('startnow', *args, **kwargs)
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup and command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
 
+        next_state = None
+        result = None
+
+        kwargs['expected_prompt'] = "S>"
+        result = self._do_cmd_resp('baud', *args, **kwargs)
         return (next_state, result)
 
-        log.debug("ROGER ARGS = " + str(args))
-        log.debug("ROGER KARGS = " + str(kwargs))
-        print "ROGER ROGER ROGER"
 
-        log.debug("ROGER ***")
-        timeout = kwargs.get('timeout', TIMEOUT)
-
-        result = self._do_cmd_resp('setsampling' + NEWLINE, timeout=timeout, expected_prompt=', new value =')
-        result = self._do_cmd_resp('setsampling' + NEWLINE, timeout=timeout, expected_prompt='S>')
-        #for char in cmd_line:
-        #    self._connection.send(char)
-        #    time.sleep(write_delay)
-        #(prompt, result) = self._get_response(timeout, expected_prompt=', new value =')
+    def _handler_command_upload_ascii(self, *args, **kwargs):
+        """
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup and command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
 
         next_state = None
         result = None
 
 
-        log.debug("ROGER ARGS = " + str(args))
-        log.debug("ROGER KARGS = " + str(kwargs))
-
-
+        log.debug("WANT " + repr(kwargs['expected_prompt']))
+        result = self._do_cmd_resp(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT, *args, **kwargs)
         return (next_state, result)
+
+    def _handler_command_quit_session(self, *args, **kwargs):
         """
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup and command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
+
+        next_state = None
+        result = None
+
+        result = self._do_cmd_no_resp(InstrumentCmds.QUIT_SESSION, *args, **kwargs)
+        return (next_state, result)
+
+
+    def _parse_baud_response(self, response, prompt): #(self, cmd, *args, **kwargs):
+        """
+        Parse handler for baud command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if set command misunderstood.
+        """
+
+        if "changing baud rate to " not in response:
+            raise InstrumentProtocolException('BAUD command not recognized: %s' % response)
+        if prompt != Prompt.COMMAND:
+            raise InstrumentProtocolException('BAUD command not recognized: %s' % response)
+
+        return True
+
+
+
+    def _parse_uplaad_data_ascii_response(self, response, prompt): #(self, cmd, *args, **kwargs):
+        """
+
+        """
+        output = ""
+
+        (prompt, response) = self._get_line_of_response(timeout=10, line_delimiter=NEWLINE)
+        while True:
+            (prompt, response) = self._get_line_of_response(timeout=10, line_delimiter=NEWLINE, expected_prompt="S>")
+            if prompt == "S>":
+                return output
+            else:
+                output = output + response
+

@@ -267,9 +267,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         # Grab time for timeout and wait for prompt.
 
         starttime = time.time()
-        #log.debug("##################################################")
-        #log.debug("##################prompt buff = " + str(self._promptbuf) + "##################" + str(self._linebuf))
-        #log.debug("##################################################")
+
                 
         if expected_prompt == None:
             prompt_list = self._prompts.list()
@@ -277,25 +275,33 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             assert isinstance(expected_prompt, str)
             prompt_list = [expected_prompt]            
         while True:
-            #log.debug("PROMPT_LIST = " + str(prompt_list))
             for item in prompt_list:
-                #log.debug("*******************PROMPTBUFF** = " + repr(self._promptbuf))
                 if self._promptbuf.endswith(item):
-                    #log.debug("***************** PROMPTBUFF MATCHED by ENDING with an item")
                     return (item, self._linebuf)
                 else:
                     time.sleep(.1)
             if time.time() > starttime + timeout:
-                """
-                log.debug("##################################################")
-                log.debug("##################prompt buff = " + str(self._promptbuf) + "##################" + str(self._linebuf))
-                log.debug("################################################## should have.... raise InstrumentTimeoutException(in _get_response())")
-                return (item, self._linebuf) # trying to work out where this wants to return to.
-                """
-
-
                 raise InstrumentTimeoutException("in _get_response()")
-               
+
+
+    def _get_line_of_response(self, timeout=10, line_delimiter='\r\n', expected_prompt=None):
+        starttime = time.time()
+        while True:
+            if line_delimiter in self._linebuf:
+                (chunk, pat, remainder) = self._linebuf.partition(line_delimiter)
+                self._linebuf = remainder
+                return(None, chunk + pat)
+
+            elif self._promptbuf.endswith(expected_prompt):
+                (chunk, pat, remainder) = self._linebuf.partition(expected_prompt)
+                return(pat, None)
+
+            else:
+                time.sleep(.1)
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException("in _get_line_of_response()")
+
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
         Perform a command-response on the device.
@@ -343,8 +349,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         # Wait for the prompt, prepare result and return, timeout exception
         (prompt, result) = self._get_response(timeout,
                                               expected_prompt=expected_prompt)
-        log.debug("_do_cmd_resp prompt = '" + repr(prompt) + "'")
-        log.debug("_do_cmd_resp result = '" + repr(result) + "'")
+
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
             self._response_handlers.get(cmd, None)
         resp_result = None
