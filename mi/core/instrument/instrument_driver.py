@@ -129,6 +129,7 @@ class DriverEvent(BaseEnum):
     START_DIRECT = 'DRIVER_EVENT_START_DIRECT'
     STOP_DIRECT = 'DRIVER_EVENT_STOP_DIRECT'
     PING_DRIVER = 'DRIVER_EVENT_PING_DRIVER'
+    FORCE_STATE = 'DRIVER_FORCE_STATE'
     
 class DriverAsyncEvent(BaseEnum):
     """
@@ -751,14 +752,11 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
 
         @throws InstrumentParameterException Invalid configuration.
         """
-<<<<<<< HEAD
-=======
         if 'mock_port_agent' in config:
             mock_port_agent = config['mock_port_agent']
             # check for validity here...
             if (mock_port_agent is not None):
                 return mock_port_agent
->>>>>>> master
         try:
             addr = config['addr']
             port = config['port']

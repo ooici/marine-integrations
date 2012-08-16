@@ -21,17 +21,17 @@ import logging
 import unittest
 from nose.plugins.attrib import attr
 from mock import Mock
-from ion.services.mi.common import BaseEnum
-from ion.services.mi.common import InstErrorCode
+from mi.core.common import BaseEnum
+from mi.core.common import InstErrorCode
 #from ion.services.mi.common import DriverAnnouncement
-from ion.services.mi.exceptions import InstrumentParameterException
-from ion.services.mi.instrument_protocol import InstrumentProtocol
-from ion.services.mi.instrument_driver import DriverState
-from ion.services.mi.instrument_driver import InstrumentDriver
+from mi.core.exceptions import InstrumentParameterException
+from mi.core.instrument.instrument_protocol import InstrumentProtocol
+from mi.core.instrument.instrument_driver import DriverState
+from mi.core.instrument.instrument_driver import InstrumentDriver
 #from ion.services.mi.instrument_driver import DriverChannel
-from ion.services.mi.instrument_driver import DriverState, DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverState, DriverConnectionState
 
-import ion.services.mi.mi_logger
+import mi.core.mi_logger
 mi_logger = logging.getLogger('mi_logger')
 
 

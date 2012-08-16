@@ -845,7 +845,7 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.COMMAND)
 
-        reply = self.driver_client.cmd_dvr('execute_resource', Event.START_AUTOSAMPLE')
+        reply = self.driver_client.cmd_dvr('execute_resource', Event.START_AUTOSAMPLE)
 
         # Test the driver is in autosample mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
