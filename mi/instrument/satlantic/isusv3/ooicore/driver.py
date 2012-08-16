@@ -1277,13 +1277,7 @@ class ooicoreInstrumentDriver(SingleConnectionInstrumentDriver):
     """
     def __init__(self, evt_callback):
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-    
-    def driver_echo(self, msg):
-        """
-        @brief Sample driver command. 
-        """
-        echo = 'driver_echo: %s' % msg
-        return echo
+
 
     # DHE Added
     ########################################################################

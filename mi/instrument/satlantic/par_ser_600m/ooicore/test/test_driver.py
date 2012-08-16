@@ -247,7 +247,7 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
             except InstrumentStateError:
                 # no biggie if we are already in cmd mode
                 pass
-            reply = self.driver_client.cmd_dvr('set',
+            reply = self.driver_client.cmd_dvr('set_resource',
                                              {Parameter.MAXRATE:1},
                                               timeout=20)
             self._disconnect()
@@ -262,28 +262,28 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         time.sleep(1)
 
     def _connect(self):
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(DriverState.UNCONFIGURED, reply)
         configs = self.config_params
         reply = self.driver_client.cmd_dvr('configure', configs)
         self.assertEqual(reply, None)
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(DriverState.DISCONNECTED, reply)
         reply = self.driver_client.cmd_dvr('connect')
         self.assertEqual(reply, None)
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(DriverProtocolState.UNKNOWN, reply)
 
         self._initialize()
         
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
 
         time.sleep(1)
 
     def _disconnect(self):
         reply = self.driver_client.cmd_dvr('disconnect')
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(DriverState.DISCONNECTED, reply)
         time.sleep(1)
 
@@ -291,19 +291,19 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         """Wrap the steps and asserts for going into and out of auto sample.
         May be used in multiple test cases.
         """
-        reply = self.driver_client.cmd_dvr('execute_start_autosample')
+        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.AUTOSAMPLE)
 
         time.sleep(5)
         
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.AUTOSAMPLE_MODE, reply)
         
         # @todo check samples arriving here
         # @todo check publishing samples from here
         
-        reply = self.driver_client.cmd_dvr('execute_stop_autosample')
+        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP')
                 
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
 
     def test_connect_disconnect(self):
@@ -335,8 +335,9 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         
     def test_get(self):
         # Should default to command mode
-        reply = self.driver_client.cmd_dvr('get', [Parameter.TELBAUD,
-                                                   Parameter.MAXRATE],
+        reply = self.driver_client.cmd_dvr('get_resource',
+                                           [Parameter.TELBAUD,
+                                            Parameter.MAXRATE],
                                            timeout=20)
         self.assertEquals(reply, {Parameter.TELBAUD:19200,
                                   Parameter.MAXRATE:1})
@@ -351,16 +352,16 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         config_B = {config_key:1}
         
         # Should default to command mode
-        reply = self.driver_client.cmd_dvr('set', config_A, timeout=20)
+        reply = self.driver_client.cmd_dvr('set_resource', config_A, timeout=20)
         self.assertEquals(reply[config_key], 2)
                  
-        reply = self.driver_client.cmd_dvr('get', [config_key], timeout=20)
+        reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=20)
         self.assertEquals(reply, config_A)
         
-        reply = self.driver_client.cmd_dvr('set', config_B, timeout=20)
+        reply = self.driver_client.cmd_dvr('set_resource', config_B, timeout=20)
         self.assertEquals(reply[config_key], 1)
          
-        reply = self.driver_client.cmd_dvr('get', [config_key], timeout=20)
+        reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=20)
         self.assertEquals(reply, config_B)
         
     def test_get_from_wrong_state(self):
@@ -368,25 +369,25 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         
         @todo Fix this to handle exceptions/errors across the zmq boundry
         """
-        self.driver_client.cmd_dvr('execute_start_autosample')
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.AUTOSAMPLE)
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.AUTOSAMPLE_MODE, reply)
 
-        self.assertRaises(InstrumentStateException,
+        self.assertRaises(InstrumentStateException,,
                           self.driver_client.cmd_dvr,
-                          'get', [Parameter.MAXRATE])
+                          'get_resource', [Parameter.MAXRATE])
 
     def test_set_from_wrong_state(self):
         """Test set() from wrong state
         @todo exception across thread
         """
-        self.driver_client.cmd_dvr('execute_start_autosample')
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.AUTOSAMPLE)
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.AUTOSAMPLE_MODE, reply)
 
         self.assertRaises(InstrumentStateException,
                           self.driver_client.cmd_dvr,
-                          'set', {Parameter.MAXRATE:10})
+                          'set_resource', {Parameter.MAXRATE:10})
 
     def test_get_config(self):
         """
@@ -398,8 +399,8 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assertEquals(reply[Parameter.MAXRATE], 1)
 
         # Put in the wrong mode, then try it
-        reply = self.driver_client.cmd_dvr('execute_start_autosample')
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.AUTOSAMPLE)
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.AUTOSAMPLE_MODE, reply)
 
         self.assertRaises(InstrumentStateException,
@@ -429,8 +430,8 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assertEquals(config[Parameter.MAXRATE], 1)
 
         # test from wrong state
-        reply = self.driver_client.cmd_dvr('execute_start_autosample')
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.AUTOSAMPLE)
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.AUTOSAMPLE_MODE, reply)
 
         self.assertRaises(InstrumentStateException,
@@ -439,22 +440,22 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
 
     def test_break_from_slow_autosample(self):
         # test break from autosample at low data rates
-        reply = self.driver_client.cmd_dvr('execute_start_autosample')
+        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.AUTOSAMPLE)
         time.sleep(5)
         reply = self.driver_client.cmd_dvr('execute_break')
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
 
     def test_break_from_fast_autosample(self):
         # test break from autosample at high data rates
-        reply = self.driver_client.cmd_dvr('set',
+        reply = self.driver_client.cmd_dvr('set_resource',
                                            {Parameter.MAXRATE:12},
                                            timeout=20)
 
-        reply = self.driver_client.cmd_dvr('execute_start_autosample')
+        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.AUTOSAMPLE)
         time.sleep(5)
         reply = self.driver_client.cmd_dvr('execute_break')
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
 
 
@@ -469,7 +470,7 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
                   'execute_poll')
         
         reply = self.driver_client.cmd_dvr('execute_break')        
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
     
     """
@@ -485,15 +486,15 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
     """
     def test_get_sample_from_cmd_mode(self):
         """Get some samples directly from command mode"""
-        reply_1 = self.driver_client.cmd_dvr('execute_acquire_sample')
-        self.assertTrue(sample_regex.match(reply_1))        
+        reply_1 = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.SAMPLE)
+        self.assertTrue(sample_regex.match(reply_1[1]))        
     
         # Get data
-        reply_2 = self.driver_client.cmd_dvr('execute_acquire_sample')
-        self.assertTrue(sample_regex.match(reply_2))
-        self.assertNotEqual(reply_1, reply_2)
+        reply_2 = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.SAMPLE)
+        self.assertTrue(sample_regex.match(reply_2[1]))
+        self.assertNotEqual(reply_1[1], reply_2[1])
         
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
         
     def test_double_poll_mode(self):
@@ -501,41 +502,41 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         @todo Finish this out...is the transition right for getting into poll mode?
         """
         self.driver_client.cmd_dvr('execute_poll')
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.POLL_MODE, reply)
         
         # Get data
-        result = self.driver_client.cmd_dvr('execute_acquire_sample')        
-        self.assertTrue(sample_regex.match(result))
+        result = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.SAMPLE)        
+        self.assertTrue(sample_regex.match(result[1]))
         
     def test_get_data_sample_via_poll_mode(self):
         """Mainly check the format of the manual sample that comes out
         @todo Finish this out...is the transition right for getting into poll mode?
         """
         self.driver_client.cmd_dvr('execute_poll')
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.POLL_MODE, reply)
         
         # Get data
-        reply_1 = self.driver_client.cmd_dvr('execute_acquire_sample')
+        reply_1 = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.SAMPLE)
         
-        self.assertTrue(sample_regex.match(reply_1))        
+        self.assertTrue(sample_regex.match(reply_1[1]))        
     
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.POLL_MODE, reply)
 
         # Get data
-        reply_2 = self.driver_client.cmd_dvr('execute_acquire_sample')
+        reply_2 = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.SAMPLE)
         
-        self.assertTrue(sample_regex.match(reply_2))
-        self.assertNotEqual(reply_1, reply_2)
+        self.assertTrue(sample_regex.match(reply_2[1]))
+        self.assertNotEqual(reply_1[1], reply_2[1])
 
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.POLL_MODE, reply)
         
         self.driver_client.cmd_dvr('execute_break')
         
-        reply = self.driver_client.cmd_dvr('get_current_state')
+        reply = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
         
     '''
@@ -550,11 +551,11 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         config_B = {config_key:1}
         
         # get max rate value
-        reply = self.driver_client.cmd_dvr('get', [config_key], timeout=10)
+        reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=10)
         self.assertEquals(reply, config_B)
         
         # change it to something else, save, reset
-        reply = self.driver_client.cmd_dvr('set', config_A, timeout=10)
+        reply = self.driver_client.cmd_dvr('set_resource', config_A, timeout=10)
         self.assertEquals(reply, config_A)
         reply = self.driver_client.cmd_dvr('execute_exit_and_reset',
                                            timeout=20)
@@ -562,13 +563,13 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
                                            timeout=20)
         
         # get max rate value, verify equal to saved value
-        reply = self.driver_client.cmd_dvr('get', [config_key], timeout=10)
+        reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=10)
         self.assertEquals(reply, config_A)
         
         # change maxrate value, do NOT save, reset and check
-        reply = self.driver_client.cmd_dvr('set', config_B, timeout=10)
+        reply = self.driver_client.cmd_dvr('set_resource', config_B, timeout=10)
         self.assertEquals(reply, config_B)
-        reply = self.driver_client.cmd_dvr('get', [config_key], timeout=10)
+        reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=10)
         self.assertEquals(reply, config_B)
         reply = self.driver_client.cmd_dvr('execute_exit_and_reset',
                                            timeout=20)
@@ -576,7 +577,7 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
                                            timeout=20)
         
         # get max rate value, verify equal to saved value
-        reply = self.driver_client.cmd_dvr('get', [config_key], timeout=10)
+        reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=10)
         self.assertEquals(reply, config_B)
         
 @attr('UNIT', group='mi')
