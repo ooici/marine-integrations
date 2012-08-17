@@ -501,7 +501,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         pass 
 
     
-    def Xtest_instrumment_wakeup(self):
+    def Xtest_instrument_wakeup(self):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' state
         """

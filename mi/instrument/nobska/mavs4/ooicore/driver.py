@@ -1257,8 +1257,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
     def  _get_prompt(self, timeout, delay=1):
         """
-        _wakeup is replaced by this method for this instrument to search for prompt strings at other than
-        just the end of the line.  There is no 'wakeup' for this instrument when it is in 'deployed' mode,
+        _wakeup is replaced by this method for this instrument to search for 
+        prompt strings at other than just the end of the line.  There is no 
+        'wakeup' for this instrument when it is in 'deployed' mode,
         so the best that can be done is to see if it responds or not.
         
         Clear buffers and send some CRs to the instrument
@@ -1299,7 +1300,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _update_params(self, *args, **kwargs):
         """
         Update the parameter dictionary. Issue the upload command. The response
-        needs to be interated through a line at a time and valuse saved.
+        needs to be iterated through a line at a time and valuse saved.
         @throws InstrumentTimeoutException if device cannot be timely woken.
         @throws InstrumentProtocolException if ds/dc misunderstood.
         """
