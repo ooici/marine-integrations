@@ -126,6 +126,87 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         # Test the driver is in command mode or auto-sample mode.
         state = self.driver_client.cmd_dvr('get_current_state')
         self.assertTrue((state == ProtocolState.COMMAND) or (state == ProtocolState.AUTOSAMPLE))
+
+    def test_instrument_start_autosample(self):
+        """
+        @brief Test for putting instrument in 'auto-sample' state
+        """
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms and in disconnected state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Connect to instrument and transition to unknown.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, ProtocolState.UNKNOWN)
+
+        # discover instrument state and transition to command.
+        reply = self.driver_client.cmd_dvr('discover')
+
+        # Test the driver is in command mode or auto-sample mode.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertTrue((state == ProtocolState.COMMAND) or (state == ProtocolState.AUTOSAMPLE))
+        
+        if state == ProtocolState.AUTOSAMPLE:
+            # stop auto-sample.
+            reply = self.driver_client.cmd_dvr('execute_stop_autosample')    
+            # Test the driver is in command mode.
+            state = self.driver_client.cmd_dvr('get_current_state')
+            self.assertEqual(state, ProtocolState.COMMAND)
+        # command the instrument to auto-sample mode.
+        reply = self.driver_client.cmd_dvr('execute_start_autosample')
+        # Test the driver is in auto-sample mode.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, ProtocolState.AUTOSAMPLE)
+           
+    def test_instrument_stop_autosample(self):
+        """
+        @brief Test for taking instrument out of 'auto-sample' state
+        """
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms and in disconnected state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Connect to instrument and transition to unknown.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, ProtocolState.UNKNOWN)
+
+        # discover instrument state and transition to command.
+        reply = self.driver_client.cmd_dvr('discover')
+
+        # Test the driver is in command mode or auto-sample mode.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertTrue((state == ProtocolState.COMMAND) or (state == ProtocolState.AUTOSAMPLE))
+        
+        if state == ProtocolState.COMMAND:
+            # start auto-sample.
+            reply = self.driver_client.cmd_dvr('execute_start_autosample')    
+            # Test the driver is in command mode.
+            state = self.driver_client.cmd_dvr('get_current_state')
+            self.assertEqual(state, ProtocolState.AUTOSAMPLE)
+        # command the instrument out of auto-sample mode.
+        reply = self.driver_client.cmd_dvr('execute_stop_autosample')
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, ProtocolState.COMMAND)
+           
                 
                
 ###############################################################################

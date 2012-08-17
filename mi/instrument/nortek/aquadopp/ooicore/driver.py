@@ -56,13 +56,16 @@ class InstrumentPrompts(BaseEnum):
 
     
 class InstrumentCmds(BaseEnum):
-    CMD_WHAT_MODE         = 'II'   
-    SAMPLE_WHAT_MODE      = 'I'   
-    POWER_DOWN            = 'PD'     
-    IDENTIFY              = 'ID'
-    CONFIRMATION          = 'MC'
-    SAMPLE_AVG_TIME       = 'A'
-    SAMPLE_INTERVAL_TIME  = 'M'
+    SOFT_BREAK_FIRST_HALF              = '@@@@@@'
+    SOFT_BREAK_SECOND_HALF             = 'K1W%!Q'
+    CMD_WHAT_MODE                      = 'II'   
+    SAMPLE_WHAT_MODE                   = 'I'   
+    POWER_DOWN                         = 'PD'     
+    IDENTIFY                           = 'ID'
+    CONFIRMATION                       = 'MC'
+    SAMPLE_AVG_TIME                    = 'A'
+    SAMPLE_INTERVAL_TIME               = 'M'
+    START_MEASUREMENT_WITHOUT_RECORDER = 'ST'
     
 class InstrumentModes(BaseEnum):
     FIRMWARE_UPGRADE = '\x00\x00\x06\x06'
@@ -171,7 +174,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
@@ -180,8 +187,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
-
-        # Add build handlers for device commands.
 
         # Add response handlers for device commands.
 
@@ -221,6 +226,67 @@ class Protocol(CommandResponseInstrumentProtocol):
                     for line in lines:
                         self._extract_sample(line)  
 
+    def _get_response(self, timeout=5, expected_prompt=None):
+        """
+        Get a response from the instrument
+        @param timeout The timeout in seconds
+        @param expected_prompt Only consider the specific expected prompt as
+        presented by this string
+        @throw InstrumentProtocolExecption on timeout
+        """
+        # Grab time for timeout and wait for prompt.
+        starttime = time.time()
+                
+        if expected_prompt == None:
+            prompt_list = self._prompts.list()
+        else:
+            assert isinstance(expected_prompt, str)
+            prompt_list = [expected_prompt]            
+        while True:
+            for item in prompt_list:
+                if item in self._promptbuf:
+                    return (item, self._linebuf)
+                else:
+                    time.sleep(.1)
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException()
+
+    def _do_cmd_resp(self, cmd, *args, **kwargs):
+        """
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
+        
+        # Get timeout and initialize response.
+        timeout = kwargs.get('timeout', 5)
+        expected_prompt = kwargs.get('expected_prompt', None)
+                            
+        # Clear line and prompt buffers for result.
+        self._linebuf = ''
+        self._promptbuf = ''
+
+        # Send command.
+        log.debug('_do_cmd_resp: %s, timeout=%s, expected_prompt=%s (%s),' %
+                        (repr(cmd), timeout, expected_prompt, expected_prompt.encode("hex")))
+        self._connection.send(cmd)
+
+        # Wait for the prompt, prepare result and return, timeout exception
+        (prompt, result) = self._get_response(timeout,
+                                              expected_prompt=expected_prompt)
+        resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
+            self._response_handlers.get(cmd, None)
+        resp_result = None
+        if resp_handler:
+            resp_result = resp_handler(result, prompt)
+        
+        return resp_result
+            
     ########################################################################
     # Unknown handlers.
     ########################################################################
@@ -257,7 +323,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             next_state = ProtocolState.AUTOSAMPLE
             result = ProtocolState.AUTOSAMPLE
         elif prompt == InstrumentPrompts.Z_ACK:
-            log.debug('_handler_unknown_discover: promptbuf = \n%s\n%s' %(self._promptbuf, self._promptbuf.encode("hex")))
+            log.debug('_handler_unknown_discover: promptbuf=%s (%s)' %(self._promptbuf, self._promptbuf.encode("hex")))
             if InstrumentModes.COMMAND in self._promptbuf:
                 next_state = ProtocolState.COMMAND
                 result = ProtocolState.COMMAND
@@ -295,6 +361,25 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         pass
 
+    def _handler_command_start_autosample(self, *args, **kwargs):
+        """
+        Switch into autosample mode.
+        @retval (next_state, result) tuple, (SBE37ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        next_state = None
+        result = None
+
+        # Issue start command and switch to autosample if successful.
+        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, 
+                                   expected_prompt = InstrumentPrompts.Z_ACK, *args, **kwargs)
+                
+        next_state = ProtocolState.AUTOSAMPLE        
+        
+        return (next_state, result)
+
     def _handler_command_start_direct(self):
         """
         """
@@ -302,6 +387,50 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         next_state = ProtocolState.DIRECT_ACCESS
+
+        return (next_state, result)
+
+    ########################################################################
+    # Autosample handlers.
+    ########################################################################
+
+    def _handler_autosample_enter(self, *args, **kwargs):
+        """
+        Enter autosample state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_autosample_exit(self, *args, **kwargs):
+        """
+        Exit autosample state.
+        """
+        pass
+
+    def _handler_autosample_stop_autosample(self, *args, **kwargs):
+        """
+        Stop autosample and switch back to command mode.
+        @retval (next_state, result) tuple, (SBE37ProtocolState.COMMAND,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command misunderstood or
+        incorrect prompt received.
+        """
+        next_state = None
+        result = None
+
+        # send soft break
+        self._connection.send(InstrumentCmds.SOFT_BREAK_FIRST_HALF)
+        time.sleep(.1)
+        self._do_cmd_resp(InstrumentCmds.SOFT_BREAK_SECOND_HALF,
+                          expected_prompt = InstrumentPrompts.CONFIRMATION, *args, **kwargs)
+        
+        # Issue the confirmation command.
+        self._do_cmd_resp(InstrumentCmds.CONFIRMATION, 
+                          expected_prompt = InstrumentPrompts.Z_ACK, *args, **kwargs)
+
+        next_state = ProtocolState.COMMAND
 
         return (next_state, result)
 
