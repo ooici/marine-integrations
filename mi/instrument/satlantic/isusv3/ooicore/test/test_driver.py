@@ -236,7 +236,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         
         """
         Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to that state
+        that the driver transitions to the DISCONNECTED state
         """
         config = {'mock_port_agent' : mock_port_agent}
         test_driver.configure(config = config)
