@@ -778,6 +778,18 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{USER_OFFSET+22}(.{2}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._int_to_string)
+        self._param_dict.add(Parameter.A1_1,
+                             r'^.{USER_OFFSET+24}(.{2}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        self._param_dict.add(Parameter.B0_1,
+                             r'^.{USER_OFFSET+26}(.{2}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        self._param_dict.add(Parameter.B1_1,
+                             r'^.{USER_OFFSET+28}(.{2}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
         self._param_dict.add(Parameter.COMPASS_UPDATE_RATE,
                              r'^.{USER_OFFSET+30}(.{2}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
@@ -846,6 +858,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{USER_OFFSET+72}(.{2}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._int_to_string)
+        self._param_dict.add(Parameter.USER_SPARE1,
+                             r'^.{USER_OFFSET+454}(.{2}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
         self._param_dict.add(Parameter.VELOCITY_ADJ_TABLE,
                              r'^.{USER_OFFSET+76}(.{180}).*',
                              lambda match : match.group(1),
@@ -878,6 +894,22 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{USER_OFFSET+446}(.{2}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._int_to_string)
+        self._param_dict.add(Parameter.A1_2,
+                             r'^.{USER_OFFSET+448}(.{2}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        self._param_dict.add(Parameter.B0_2,
+                             r'^.{USER_OFFSET+450}(.{2}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        self._param_dict.add(Parameter.B1_2,
+                             r'^.{USER_OFFSET+452}(.{2}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        self._param_dict.add(Parameter.USER_SPARE2,
+                             r'^.{USER_OFFSET+454}(.{2}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
         self._param_dict.add(Parameter.ANALOG_OUTPUT_SCALE,
                              r'^.{USER_OFFSET+456}(.{2}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
@@ -886,10 +918,18 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{USER_OFFSET+458}(.{2}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._int_to_string)
+        self._param_dict.add(Parameter.USER_SPARE3,
+                             r'^.{USER_OFFSET+460}(.{2}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
         self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH,
-                             r'^.{USER_OFFSET+462}(.{2}).*',
+                             r'^.{USER_OFFSET+462}(.{30}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._int_to_string)
+        self._param_dict.add(Parameter.USER_SPARE4,
+                             r'^.{USER_OFFSET+464}(.{2}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
         self._param_dict.add(Parameter.QUAL_CONSTANTS,
                              r'^.{USER_OFFSET+494}(.{2}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
