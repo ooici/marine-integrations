@@ -117,6 +117,7 @@ class Parameter(DriverParameter):
     HW_REVISION = "HwRevision"
     REC_SIZE = "RecorderSize"
     STATUS = "Status"
+    HW_SPARE = 'HwSpare'
     FW_VERSION = "FirmwareVersion"
     
     # head configuration
@@ -124,6 +125,8 @@ class Parameter(DriverParameter):
     HEAD_FREQUENCY = "HeadFrequency"
     HEAD_TYPE = "HeadType"
     HEAD_SERIAL_NUMBER = "HeadSerialNumber"
+    HEAD_SYSTEM = 'HeadSystemData'
+    HEAD_SPARE = 'HeadSpare'
     HEAD_NUMBER_BEAMS = "HeadNumberOfBeams"
     
     # user configuration
@@ -137,6 +140,9 @@ class Parameter(DriverParameter):
     USER_NUMBER_BEAMS = "UserNumberOfBeams" 
     TIMING_CONTROL_REGISTER = "TimingControlRegister"
     POWER_CONTROL_REGISTER = "PowerControlRegister"
+    A1_1 = 'A1_1'
+    B0_1 = 'B0_1'
+    B1_1 = 'B1_1'
     COMPASS_UPDATE_RATE ="CompassUpdateRate"  
     COORDINATE_SYSTEM = "CoordinateSystem"
     NUMBER_BINS = "NumberOfBins"      # number of cells
@@ -154,6 +160,7 @@ class Parameter(DriverParameter):
     MODE_TEST = 'ModeTest'
     ANALOG_INPUT_ADDR = 'AnalogInputAddress'
     SW_VERSION = 'SwVersion'
+    USER_SPARE1 = 'UserSpare1'
     VELOCITY_ADJ_TABLE = 'VelocityAdjTable'
     COMMENTS = 'Comments'
     WAVE_MEASUREMENT_MODE = 'WaveMeasurementMode'
@@ -162,9 +169,15 @@ class Parameter(DriverParameter):
     WAVE_BLANKING_DISTANCE = 'WaveBlankingDistance'
     WAVE_CELL_SIZE = 'WaveCellSize'
     NUMBER_DIAG_SAMPLES = 'NumberDiagnosticSamples'
+    A1_2 = 'A1_2'
+    B0_2 = 'B0_2'
+    B1_2 = 'B1_2'
+    USER_SPARE2 = 'UserSpare2'
     ANALOG_OUTPUT_SCALE = 'AnalogOutputScale'
     COORELATION_THRESHOLD = 'CoorelationThreshold'
+    USER_SPARE3 = 'UserSpare3'
     TRANSMIT_PULSE_LENGTH = 'TransmitPulseWidth'
+    USER_SPARE4 = 'UserSpare4'
     QUAL_CONSTANTS = 'StageMatchFilterConstants'
     
     
@@ -685,6 +698,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{28}(.{2}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._int_to_string)
+        self._param_dict.add(Parameter.HW_SPARE,
+                             r'^.{30}(.{12}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
         self._param_dict.add(Parameter.FW_VERSION,
                              r'^.{42}(.{4}).*',
                              lambda match : match.group(1),
@@ -705,6 +722,14 @@ class Protocol(CommandResponseInstrumentProtocol):
                              self._int_to_string)
         self._param_dict.add(Parameter.HEAD_SERIAL_NUMBER,
                              r'^.{HEAD_OFFSET+10}(.{12}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        self._param_dict.add(Parameter.HEAD_SYSTEM,
+                             r'^.{HEAD_OFFSET+22}(.{176}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        self._param_dict.add(Parameter.HEAD_SPARE,
+                             r'^.{HEAD_OFFSET+198}(.{22 }).*',
                              lambda match : match.group(1),
                              lambda string : string)
         self._param_dict.add(Parameter.HEAD_NUMBER_BEAMS,
