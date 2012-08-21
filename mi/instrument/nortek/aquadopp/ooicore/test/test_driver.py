@@ -206,8 +206,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, ProtocolState.COMMAND)
-           
-                
+                        
                
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

@@ -13,6 +13,7 @@ __license__ = 'Apache 2.0'
 
 import time
 import string
+import re
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
@@ -26,6 +27,8 @@ from mi.core.exceptions import InstrumentTimeoutException, \
                                InstrumentParameterException, \
                                InstrumentProtocolException, \
                                InstrumentStateException
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import ParameterDictVal
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.common import InstErrorCode
 
@@ -37,6 +40,8 @@ NEWLINE = '\n\r'
 
 # default timeout.
 TIMEOUT = 10
+
+CONFIGURATION_RESPONSE_LENGTH = 786
 
 # Packet config
 PACKET_CONFIG = {
@@ -66,6 +71,7 @@ class InstrumentCmds(BaseEnum):
     SAMPLE_AVG_TIME                    = 'A'
     SAMPLE_INTERVAL_TIME               = 'M'
     START_MEASUREMENT_WITHOUT_RECORDER = 'ST'
+    GET_ALL_CONFIGURATIONS             = 'GA'
     
 class InstrumentModes(BaseEnum):
     FIRMWARE_UPGRADE = '\x00\x00\x06\x06'
@@ -103,6 +109,156 @@ class Parameter(DriverParameter):
     """
     Device parameters
     """
+    # hardware configuration
+    HW_SERIAL_NUMBER = "HwSerialNumber"
+    HW_CONFIG = "HwConfig"
+    HW_FREQUENCY = "HwFrequency"
+    PIC_VERSION = "PicCodeVerNumber"
+    HW_REVISION = "HwRevision"
+    REC_SIZE = "RecorderSize"
+    STATUS = "Status"
+    FW_VERSION = "FirmwareVersion"
+    
+    # head configuration
+    HEAD_CONFIG = "HeadConfig"
+    HEAD_FREQUENCY = "HeadFrequency"
+    HEAD_TYPE = "HeadType"
+    HEAD_SERIAL_NUMBER = "HeadSerialNumber"
+    HEAD_NUMBER_BEAMS = "HeadNumberOfBeams"
+    
+    # user configuration
+    TRANSMIT_PULSE_LENGTH = "TransmitPulseLength"                # T1
+    BLANKING_DISTANCE = "BlankingDistance"                       # T2
+    RECEIVE_LENGTH = "ReceiveLength"                             # T3
+    TIME_BETWEEN_PINGS = "TimeBetweenPings"                      # T4
+    TIME_BETWEEN_BURST_SEQUENCES = "TimeBetweenBurstSequences"   # T5 
+    NUMMBER_PINGS = "NumberPings"     # number of beam sequences per burst
+    AVG_INTERVAL = "AvgInterval"
+    USER_NUMBER_BEAMS = "UserNumberOfBeams" 
+    TIMING_CONTROL_REGISTER = "TimingControlRegister"
+    POWER_CONTROL_REGISTER = "PowerControlRegister"
+    COMPASS_UPDATE_RATE ="CompassUpdateRate"  
+    COORDINATE_SYSTEM = "CoordinateSystem"
+    NUMBER_BINS = "NumberOfBins"      # number of cells
+    BIN_LENGTH = "BinLength"          # cell size
+    MEASUREMENT_INTERVAL = "MeasurementInterval"
+    DEPLOYMENT_NAME = "DeploymentName"
+    WRAP_MODE = "WrapMode"
+    CLOCK_DEPLOY = "ClockDeploy"      # deployment stgart time
+    DIAGNOSTIC_INTERVAL = "DiagnosticInterval"
+    MODE = "Mode"
+    ADJUSTMENT_SOUND_SPEED = 'AdjustmentSoundSpeed'
+    NUMBER_SAMPLES_DIAGNOSTIC = 'NumberSamplesInDiagMode'
+    NUMBER_BEAMS_CELL_DIAGNOSTIC = 'NumberBeamsPerCellInDiagMode'
+    NUMBER_PINGS_DIAGNOSTIC = 'NumberPingsInDiagMode'
+    MODE_TEST = 'ModeTest'
+    ANALOG_INPUT_ADDR = 'AnalogInputAddress'
+    SW_VERSION = 'SwVersion'
+    VELOCITY_ADJ_TABLE = 'VelocityAdjTable'
+    COMMENTS = 'Comments'
+    WAVE_MEASUREMENT_MODE = 'WaveMeasurementMode'
+    DYN_PERCENTAGE_POSITION = 'PercentageForCellPositioning'
+    WAVE_TRANSMIT_PULSE = 'WaveTransmitPulse'
+    WAVE_BLANKING_DISTANCE = 'WaveBlankingDistance'
+    WAVE_CELL_SIZE = 'WaveCellSize'
+    NUMBER_DIAG_SAMPLES = 'NumberDiagnosticSamples'
+    ANALOG_OUTPUT_SCALE = 'AnalogOutputScale'
+    COORELATION_THRESHOLD = 'CoorelationThreshold'
+    TRANSMIT_PULSE_LENGTH = 'TransmitPulseWidth'
+    QUAL_CONSTANTS = 'StageMatchFilterConstants'
+    
+    
+class BinaryParameterDictVal(ParameterDictVal):
+    
+    def __init__(self, name, pattern, f_getval, f_format, value=None,
+                 visibility=ParameterDictVisibility.READ_WRITE,
+                 menu_path_read=None,
+                 submenu_read=None,
+                 menu_path_write=None,
+                 submenu_write=None):
+        """
+        Parameter value constructor.
+        @param name The parameter name.
+        @param pattern The regex that matches the parameter in line output.
+        @param f_getval The fuction that extracts the value from a regex match.
+        @param f_format The function that formats the parameter value for a set command.
+        @param visibility The ParameterDictVisibility value that indicates what
+        the access to this parameter is
+        @param menu_path The path of menu options required to get to the parameter
+        value display when presented in a menu-based instrument
+        @param value The parameter value (initializes to None).
+        """
+        self.name = name
+        self.pattern = pattern
+        self.regex = re.compile(pattern, re.DOTALL)
+        self.f_getval = f_getval
+        self.f_format = f_format
+        self.value = value
+        self.menu_path_read = menu_path_read
+        self.submenu_read = submenu_read
+        self.menu_path_write = menu_path_write
+        self.submenu_write = submenu_write
+        self.visibility = visibility
+
+    def update(self, input):
+        """
+        Attempt to udpate a parameter value. If the input string matches the
+        value regex, extract and update the dictionary value.
+        @param input A string possibly containing the parameter value.
+        @retval True if an update was successful, False otherwise.
+        """
+        match = self.regex.match(input)
+        log.debug('BinaryParameterDictVal.update(): match=<%s>', match.group(1).encode('hex'))
+        if match:
+            self.value = self.f_getval(match)
+            log.debug('BinaryParameterDictVal.update(): updated parameter %s=<%s>', self.name, str(self.value))
+            return True
+        else:
+            log.debug('BinaryParameterDictVal.update(): failed to update parameter %s', self.name)
+            return False
+        
+
+class BinaryProtocolParameterDict(ProtocolParameterDict):   
+    
+    def add(self, name, pattern, f_getval, f_format, value=None,
+            visibility=ParameterDictVisibility.READ_WRITE,
+            menu_path_read=None, submenu_read=None,
+            menu_path_write=None, submenu_write=None):
+        """
+        Add a parameter object to the dictionary.
+        @param name The parameter name.
+        @param pattern The regex that matches the parameter in line output.
+        @param f_getval The fuction that extracts the value from a regex match.
+        @param f_format The function that formats the parameter value for a set command.
+        @param visibility The ParameterDictVisibility value that indicates what
+        the access to this parameter is
+        @param menu_path The path of menu options required to get to the parameter
+        value display when presented in a menu-based instrument
+        @param value The parameter value (initializes to None).        
+        """
+        val = BinaryParameterDictVal(name, pattern, f_getval, f_format,
+                                     value=value,
+                                     visibility=visibility,
+                                     menu_path_read=menu_path_read,
+                                     submenu_read=submenu_read,
+                                     menu_path_write=menu_path_write,
+                                     submenu_write=submenu_write)
+        self._param_dict[name] = val
+        
+    def update(self, input):
+        """
+        Update the dictionary with an input. Iterate through all objects
+        and attempt to match and update all parameter.s
+        @param input A string to match to a dictionary object.
+        @retval A boolean to indicate that update was successfully, false if update failed
+        """
+        log.debug('BinaryProtocolParameterDict.update(): input=%s' %input.encode('hex'))
+        for (name, val) in self._param_dict.iteritems():
+            if not val.update(input):
+                log.debug("BinaryProtocolParameterDict.update(): update of %s failed" %name) 
+                return False
+        return True
+    
 
 
 ###############################################################################
@@ -481,6 +637,9 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Private helpers.
     ########################################################################
+    
+    def _convert_word_to_int(self, word):
+        return ord(word[0]) + (0x10 * ord(word[1]))
         
     def _build_param_dict(self):
         """
@@ -488,7 +647,228 @@ class Protocol(CommandResponseInstrumentProtocol):
         For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
         """
+        
+        HEAD_OFFSET = 48
+        USER_OFFSET = HEAD_OFFSET + 224
+        
+        # The parameter dictionary.
+        self._param_dict = BinaryProtocolParameterDict()
+
         # Add parameter handlers to parameter dict.
+        
+        # hardware config
+        self._param_dict.add(Parameter.HW_SERIAL_NUMBER,
+                             r'^.{4}(.{14}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        self._param_dict.add(Parameter.HW_CONFIG,
+                             r'^.{18}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.HW_FREQUENCY,
+                             r'^.{20}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.PIC_VERSION,
+                             r'^.{22}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.HW_REVISION,
+                             r'^.{24}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.REC_SIZE,
+                             r'^.{26}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.STATUS,
+                             r'^.{28}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.FW_VERSION,
+                             r'^.{42}(.{4}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        
+        # head config
+        self._param_dict.add(Parameter.HEAD_CONFIG,
+                             r'^.{HEAD_OFFSET+4}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.HEAD_FREQUENCY,
+                             r'^.{HEAD_OFFSET+6}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.HEAD_TYPE,
+                             r'^.{HEAD_OFFSET+8}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.HEAD_SERIAL_NUMBER,
+                             r'^.{HEAD_OFFSET+10}(.{12}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        self._param_dict.add(Parameter.HEAD_NUMBER_BEAMS,
+                             r'^.{HEAD_OFFSET+220}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        
+        # user config
+        self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH,
+                             r'^.{USER_OFFSET+4}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.BLANKING_DISTANCE,
+                             r'^.{USER_OFFSET+6}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.RECEIVE_LENGTH,
+                             r'^.{USER_OFFSET+8}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.TIME_BETWEEN_PINGS,
+                             r'^.{USER_OFFSET+10}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.TIME_BETWEEN_BURST_SEQUENCES,
+                             r'^.{USER_OFFSET+12}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.NUMMBER_PINGS,
+                             r'^.{USER_OFFSET+14}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.AVG_INTERVAL,
+                             r'^.{USER_OFFSET+16}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.USER_NUMBER_BEAMS,
+                             r'^.{USER_OFFSET+18}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.TIMING_CONTROL_REGISTER,
+                             r'^.{USER_OFFSET+20}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.POWER_CONTROL_REGISTER,
+                             r'^.{USER_OFFSET+22}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.COMPASS_UPDATE_RATE,
+                             r'^.{USER_OFFSET+30}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.COORDINATE_SYSTEM,
+                             r'^.{USER_OFFSET+32}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.NUMBER_BINS,
+                             r'^.{USER_OFFSET+34}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.BIN_LENGTH,
+                             r'^.{USER_OFFSET+36}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.MEASUREMENT_INTERVAL,
+                             r'^.{USER_OFFSET+38}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.DEPLOYMENT_NAME,
+                             r'^.{USER_OFFSET+40}(.{6}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        self._param_dict.add(Parameter.WRAP_MODE,
+                             r'^.{USER_OFFSET+46}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.CLOCK_DEPLOY,
+                             r'^.{USER_OFFSET+48}(.{6}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        self._param_dict.add(Parameter.DIAGNOSTIC_INTERVAL,
+                             r'^.{USER_OFFSET+54}(.{4}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        self._param_dict.add(Parameter.MODE,
+                             r'^.{USER_OFFSET+58}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.ADJUSTMENT_SOUND_SPEED,
+                             r'^.{USER_OFFSET+60}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
+                             r'^.{USER_OFFSET+62}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC,
+                             r'^.{USER_OFFSET+64}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.NUMBER_PINGS_DIAGNOSTIC,
+                             r'^.{USER_OFFSET+66}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.MODE_TEST,
+                             r'^.{USER_OFFSET+68}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.ANALOG_INPUT_ADDR,
+                             r'^.{USER_OFFSET+70}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.SW_VERSION,
+                             r'^.{USER_OFFSET+72}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.VELOCITY_ADJ_TABLE,
+                             r'^.{USER_OFFSET+76}(.{180}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        self._param_dict.add(Parameter.COMMENTS,
+                             r'^.{USER_OFFSET+256}(.{180}).*',
+                             lambda match : match.group(1),
+                             lambda string : string)
+        self._param_dict.add(Parameter.WAVE_MEASUREMENT_MODE,
+                             r'^.{USER_OFFSET+436}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.DYN_PERCENTAGE_POSITION,
+                             r'^.{USER_OFFSET+438}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.WAVE_TRANSMIT_PULSE,
+                             r'^.{USER_OFFSET+440}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.WAVE_BLANKING_DISTANCE,
+                             r'^.{USER_OFFSET+442}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.WAVE_CELL_SIZE,
+                             r'^.{USER_OFFSET+444}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.NUMBER_DIAG_SAMPLES,
+                             r'^.{USER_OFFSET+446}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.ANALOG_OUTPUT_SCALE,
+                             r'^.{USER_OFFSET+456}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.COORELATION_THRESHOLD,
+                             r'^.{USER_OFFSET+458}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH,
+                             r'^.{USER_OFFSET+462}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
+        self._param_dict.add(Parameter.QUAL_CONSTANTS,
+                             r'^.{USER_OFFSET+494}(.{2}).*',
+                             lambda match : self._convert_word_to_int(match.group(1)),
+                             self._int_to_string)
 
     def _update_params(self, *args, **kwargs):
         """
@@ -502,7 +882,36 @@ class Protocol(CommandResponseInstrumentProtocol):
                                            error_code=InstErrorCode.INCORRECT_STATE)
         # Get old param dict config.
         old_config = self._param_dict.get_config()
-        # TODO: get params from the instrument
+        
+        # Grab time for timeout.
+        starttime = time.time()
+        timeout = 6
+
+        # get params from the instrument
+        while True:
+            # Clear the prompt buffer.
+            self._promptbuf = ''
+
+            log.debug('Sending get_all_configurations command to the instrument.')
+            # Send what_mode command to attempt to get a response.
+            self._connection.send(InstrumentCmds.GET_ALL_CONFIGURATIONS)
+            for i in range(20):
+                if len(self._promptbuf) == CONFIGURATION_RESPONSE_LENGTH:
+                    self._param_dict.update(self._promptbuf)
+                    # Get new param dict config. If it differs from the old config,
+                    # tell driver superclass to publish a config change event.
+                    new_config = self._param_dict.get_config()
+                    if new_config != old_config:
+                        self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+                    return
+                time.sleep(.1)
+            log.debug('_update_params: response not right length %d, %s' % (len(self._promptbuf), self._promptbuf.encode("hex")))
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException()
+            
+            continue
+        
 
     def _extract_sample(self, line, publish=True):
         """
