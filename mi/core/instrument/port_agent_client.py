@@ -34,16 +34,19 @@ class PortAgentPacket():
     def attach_data(self, data):
         self.data = data
                         
-    def calculate_checksum(self):
+    def verify_checksum(self):
         checksum = 0
         for i in range(HEADER_SIZE):
             if i < 6 or i > 7:
-                #checksum += int(self.header[i], 16)
                 checksum += struct.unpack_from('B', self.header[i])[0]
                 
         for i in range(self.length):
-            #checksum += int(self.data[i])
             checksum += struct.unpack_from('B', self.data[i])[0]
+            
+        if checksum == self.checksum:
+            self.isValid = True
+        else:
+            self.isValid = False
             
         log.info('checksum: %i.' %(checksum))
                 
@@ -115,7 +118,7 @@ class PortAgentClient(object):
         A packet has been received from the port agent.  The packet is 
         contained in a packet object.  
         """
-        paPacket.calculate_checksum()
+        paPacket.verify_checksum()
         self.user_callback(paPacket)
         
     def send(self, data):
@@ -193,10 +196,9 @@ class Listener(threading.Thread):
                         received_header = True
                         print "RECEIVED HEADER!"
                         paPacket = PortAgentPacket(header)         
-                        #data_size = int(up_header[4]) - HEADER_SIZE
                         data_size = paPacket.length
                         bytes_left = data_size
-                    elif bytes_left == HEADER_SIZE:
+                    elif len(header) == 0:
                         log.error('Zero bytes received from port_agent socket')
                         self._done = True
                 
@@ -206,9 +208,8 @@ class Listener(threading.Thread):
                     bytes_left -= len(data)
                     if bytes_left == 0:
                         received_data = True
-                        # Attach the data to the port agent object
                         paPacket.attach_data(data)
-                    elif bytes_left == data_size:
+                    elif len(data) == 0:
                         log.error('Zero bytes received from port_agent socket')
                         self._done = True
 

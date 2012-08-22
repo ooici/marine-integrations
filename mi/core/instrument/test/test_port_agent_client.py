@@ -30,7 +30,12 @@ class TestPortAgentClient():
         self.port  = 4000
     
     def myGotData(self, paPacket):
-        print "Got data of length " + str(paPacket.length) + " bytes: " + str(paPacket.data)
+        if paPacket.isValid:
+            validity = "valid"
+        else:
+            validity = "invalid"
+            
+        print "Got " + validity + " port agent packet with data length " + str(paPacket.length) + ": " + str(paPacket.data)
         
     #@unittest.skip('not finished yet')
     def test_port_agent(self):
