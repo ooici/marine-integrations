@@ -342,20 +342,17 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         self.assertTrue(isinstance(pagent_pid, int))
         
         # Send a test message to the process interface, confirm result.
-        msg = 'I am a ZMQ message going to the process.'
-        reply = self.driver_client.cmd_dvr('process_echo', msg)
-        self.assertEqual(reply,'process_echo: '+msg)
+        reply = self.driver_client.cmd_dvr('process_echo')
+        self.assert_(reply.startswith('ping from resource ppid:'))
+
+        reply = self.driver_client.cmd_dvr('driver_ping', 'foo')
+        self.assert_(reply.startswith('driver_ping: foo'))
         
         # Test the driver is in state unconfigured.
         # TODO: Add this test back in after driver code is merged from coi-services
         #state = self.driver_client.cmd_dvr('get_current_state')
         #self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-        
-        # Send a test message to the driver interface, confirm result.
-        msg = 'I am a ZMQ message going to the driver.'
-        reply = self.driver_client.cmd_dvr('driver_echo', msg)
-        self.assertEqual(reply, 'driver_echo: '+msg)
-        
+                
         # Test the event thread publishes and client side picks up events.
         events = [
             'I am important event #1!',
@@ -371,12 +368,6 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         with self.assertRaises(InstrumentException):
             exception_str = 'Oh no, something bad happened!'
             reply = self.driver_client.cmd_dvr('test_exceptions', exception_str)
-
-        # Verify we received a driver error event.
-        gevent.sleep(1)
-        error_events = [evt for evt in self.events if isinstance(evt, dict) and evt['type']==DriverAsyncEvent.ERROR]
-        self.assertTrue(len(error_events) == 1)
-
 
 
 class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must inherit from here to get _start_container
@@ -424,20 +415,17 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         self.assertTrue(isinstance(pagent_pid, int))
         
         # Send a test message to the process interface, confirm result.
-        msg = 'I am a ZMQ message going to the process.'
-        reply = self.driver_client.cmd_dvr('process_echo', msg)
-        self.assertEqual(reply,'process_echo: '+msg)
-        
+        reply = self.driver_client.cmd_dvr('process_echo')
+        self.assert_(reply.startswith('ping from resource ppid:'))
+
+        reply = self.driver_client.cmd_dvr('driver_ping', 'foo')
+        self.assert_(reply.startswith('driver_ping: foo'))
+
         # Test the driver is in state unconfigured.
         # TODO: Add this test back in after driver code is merged from coi-services
         #state = self.driver_client.cmd_dvr('get_current_state')
         #self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-        
-        # Send a test message to the driver interface, confirm result.
-        msg = 'I am a ZMQ message going to the driver.'
-        reply = self.driver_client.cmd_dvr('driver_echo', msg)
-        self.assertEqual(reply, 'driver_echo: '+msg)
-        
+                
         # Test the event thread publishes and client side picks up events.
         events = [
             'I am important event #1!',
@@ -453,11 +441,6 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         with self.assertRaises(InstrumentException):
             exception_str = 'Oh no, something bad happened!'
             reply = self.driver_client.cmd_dvr('test_exceptions', exception_str)
-
-        # Verify we received a driver error event.
-        gevent.sleep(1)
-        error_events = [evt for evt in self.events if isinstance(evt, dict) and evt['type']==DriverAsyncEvent.ERROR]
-        self.assertTrue(len(error_events) == 1)
 
 
 class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
@@ -570,7 +553,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                * go_streaming               -> STREAMING
                * go_direct_access           -> DIRECT_ACCESS
                * go_observatory             -> OBSERVATORY
-               * get_current_state          -> gives current state.
+               * get_resource_state          -> gives current state.
                * start_transaction (NA)
                * end_transaction (NA)
 
@@ -597,28 +580,28 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
 
         cmd = AgentCommand(command='power_up')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
 
         cmd = AgentCommand(command='go_active')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
@@ -626,7 +609,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         cmd = AgentCommand(command='go_inactive')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
@@ -634,14 +617,14 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # ...and put it back to where it should be...
         cmd = AgentCommand(command='go_active')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
 
         cmd = AgentCommand(command='run')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
@@ -649,7 +632,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # Begin streaming.
         cmd = AgentCommand(command='go_streaming')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.STREAMING)
@@ -658,7 +641,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # Halt streaming.
         cmd = AgentCommand(command='go_observatory')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
@@ -671,7 +654,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                                    'inactivity_timeout':600})
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("5***** go_direct_access retval=" + str(retval.result))
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.DIRECT_ACCESS)
@@ -679,56 +662,56 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # Halt DA.
         cmd = AgentCommand(command='go_observatory')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
 
         cmd = AgentCommand(command='pause')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.STOPPED)
 
         cmd = AgentCommand(command='resume')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
 
         cmd = AgentCommand(command='clear')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
 
         cmd = AgentCommand(command='run')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
 
         cmd = AgentCommand(command='pause')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.STOPPED)
 
         cmd = AgentCommand(command='clear')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
 
         cmd = AgentCommand(command='reset')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
@@ -746,27 +729,27 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
 
         cmd = AgentCommand(command='power_up')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
 
         cmd = AgentCommand(command='go_layer_ping')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.LAYER_PING)
@@ -782,7 +765,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         cmd = AgentCommand(command='go_inactive')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         log.debug("***** retval2 = " + str(retval))
@@ -1023,7 +1006,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
@@ -1031,7 +1014,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         cmd = AgentCommand(command='go_active')
         retval = self.instrument_agent_client.execute_agent(cmd)
         # Test the driver is configured for comms.
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
@@ -1053,21 +1036,21 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         driver process and transition to inactive.
         """
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
 
         cmd = AgentCommand(command='reset')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)

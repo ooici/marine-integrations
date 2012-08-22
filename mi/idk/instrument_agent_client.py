@@ -276,9 +276,11 @@ class InstrumentAgentDataSubscribers(object):
     """
     Setup Instrument Agent Publishers
     """
-    def __init__(self, packet_config = {}, stream_definition = None, original = True, encoding = "ION R2"):
+    def __init__(self, packet_config = None, stream_definition = None, original = True, encoding = "ION R2"):
         log.info("Start data subscribers")
 
+        if packet_config == None:
+            packet_config = {}
         self.no_samples = None
         self.async_data_result = AsyncResult()
 
@@ -302,7 +304,8 @@ class InstrumentAgentDataSubscribers(object):
                 self.async_data_result.set()
 
         # Create a stream subscriber registrar to create subscribers.
-        subscriber_registrar = StreamSubscriberRegistrar(process=self.container, node=self.container.node)
+        subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
+                                                         container=self.container)
 
         # Create streams and subscriptions for each stream named in driver.
         self.stream_config = {}

@@ -158,7 +158,7 @@ class TestInstrumentAgent(IonIntegrationTestCase):
 
         # Create a stream subscriber registrar to create subscribers.
         subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
-                                                node=self.container.node)
+                                                         container=self.container)
 
         self.subs = []
 

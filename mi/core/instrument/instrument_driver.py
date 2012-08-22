@@ -23,6 +23,48 @@ from mi.core.instrument.logger_client import LoggerClient
 from mi.core.log import get_logger,LoggerManager
 log = get_logger()
 
+# This is a copy since we can't import from pyon.
+class ResourceAgentState(BaseEnum):
+    """
+    Resource agent common states.
+    """
+    POWERED_DOWN = 'RESOURCE_AGENT_STATE_POWERED_DOWN'
+    UNINITIALIZED = 'RESOURCE_AGENT_STATE_UNINITIALIZED'
+    INACTIVE = 'RESOURCE_AGENT_STATE_INACTIVE'
+    IDLE = 'RESOURCE_AGENT_STATE_IDLE'
+    STOPPED = 'RESOURCE_AGENT_STATE_STOPPED'
+    COMMAND = 'RESOURCE_AGENT_STATE_COMMAND'
+    STREAMING = 'RESOURCE_AGENT_STATE_STREAMING'
+    TEST = 'RESOURCE_AGENT_STATE_TEST'
+    CALIBRATE = 'RESOURCE_AGENT_STATE_CALIBRATE'
+    DIRECT_ACCESS = 'RESOUCE_AGENT_STATE_DIRECT_ACCESS'
+    BUSY = 'RESOURCE_AGENT_STATE_BUSY'
+    
+class ResourceAgentEvent(BaseEnum):
+    """
+    Resource agent common events.
+    """
+    ENTER = 'RESOURCE_AGENT_EVENT_ENTER'
+    EXIT = 'RESOURCE_AGENT_EVENT_EXIT'
+    POWER_UP = 'RESOURCE_AGENT_EVENT_POWER_UP'
+    POWER_DOWN = 'RESOURCE_AGENT_EVENT_POWER_DOWN'
+    INITIALIZE = 'RESOURCE_AGENT_EVENT_INITIALIZE'
+    RESET = 'RESOURCE_AGENT_EVENT_RESET'
+    GO_ACTIVE = 'RESOURCE_AGENT_EVENT_GO_ACTIVE'
+    GO_INACTIVE = 'RESOURCE_AGENT_EVENT_GO_INACTIVE'
+    RUN = 'RESOURCE_AGENT_EVENT_RUN'
+    CLEAR = 'RESOURCE_AGENT_EVENT_CLEAR'
+    PAUSE = 'RESOURCE_AGENT_EVENT_PAUSE'
+    RESUME = 'RESOURCE_AGENT_EVENT_RESUME'
+    GO_COMMAND = 'RESOURCE_AGENT_EVENT_GO_COMMAND'
+    GO_DIRECT_ACCESS = 'RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS'
+    GET_RESOURCE = 'RESOURCE_AGENT_EVENT_GET_RESOURCE'
+    SET_RESOURCE = 'RESOURCE_AGENT_EVENT_SET_RESOURCE'
+    EXECUTE_RESOURCE = 'RESOURCE_AGENT_EVENT_EXECUTE_RESOURCE'
+    GET_RESOURCE_STATE = 'RESOURCE_AGENT_EVENT_GET_RESOURCE_STATE'
+    GET_RESOURCE_CAPABILITIES = 'RESOURCE_AGENT_EVENT_GET_RESOURCE_CAPABILITIES'
+    DONE = 'RESOURCE_AGENT_EVENT_DONE'    
+    
 class DriverState(BaseEnum):
     """Common driver state enum"""
 
@@ -87,7 +129,7 @@ class DriverEvent(BaseEnum):
     START_DIRECT = 'DRIVER_EVENT_START_DIRECT'
     STOP_DIRECT = 'DRIVER_EVENT_STOP_DIRECT'
     PING_DRIVER = 'DRIVER_EVENT_PING_DRIVER'
-    FORCE_STATE = 'DRIVER_FORCE_STATE_TRANSITION'
+    FORCE_STATE = 'DRIVER_FORCE_STATE'
     
 class DriverAsyncEvent(BaseEnum):
     """
@@ -97,8 +139,9 @@ class DriverAsyncEvent(BaseEnum):
     CONFIG_CHANGE = 'DRIVER_ASYNC_EVENT_CONFIG_CHANGE'
     SAMPLE = 'DRIVER_ASYNC_EVENT_SAMPLE'
     ERROR = 'DRIVER_ASYNC_EVENT_ERROR'
-    TEST_RESULT = 'DRIVER_ASYNC_TEST_RESULT'
+    RESULT = 'DRIVER_ASYNC_RESULT'
     DIRECT_ACCESS = 'DRIVER_ASYNC_EVENT_DIRECT_ACCESS'
+    AGENT_EVENT = 'DRIVER_ASYNC_EVENT_AGENT_EVENT'
 
 class DriverParameter(BaseEnum):
     """
@@ -111,7 +154,7 @@ class InstrumentDriver(object):
     """
     Base class for instrument drivers.
     """
-    
+        
     def __init__(self, event_callback):
         """
         Constructor.
@@ -167,7 +210,7 @@ class InstrumentDriver(object):
     # Command and control interface.
     #############################################################
 
-    def discover(self, *args, **kwargs):
+    def discover_state(self, *args, **kwargs):
         """
         Determine initial state upon establishing communications.
         @param timeout=timeout Optional command timeout.        
@@ -177,9 +220,28 @@ class InstrumentDriver(object):
         device state not recognized.
         @raises NotImplementedException if not implemented by subclass.
         """
-        raise NotImplementedException('discover() is not implemented.')
+        raise NotImplementedException('discover_state() is not implemented.')
 
-    def get(self, *args, **kwargs):
+    def get_resource_capabilities(self, *args, **kwargs):
+        """
+        Return driver commands and parameters.
+        @param current_state True to retrieve commands available in current
+        state, otherwise reutrn all commands.
+        @retval list of AgentCapability objects representing the drivers
+        capabilities.
+        @raises NotImplementedException if not implemented by subclass.        
+        """
+        raise NotImplementedException('get_resource_capabilities() is not implemented.')
+        
+    def get_resource_state(self, *args, **kwargs):
+        """
+        Return the current state of the driver.
+        @retval str current driver state.
+        @raises NotImplementedException if not implemented by subclass.        
+        """
+        raise NotImplementedException('get_resource_state() is not implemented.')        
+
+    def get_resource(self, *args, **kwargs):
         """
         Retrieve device parameters.
         @param args[0] DriverParameter.ALL or a list of parameters to retrive.
@@ -188,9 +250,9 @@ class InstrumentDriver(object):
         @raises InstrumentStateException if command not allowed in current state
         @raises NotImplementedException if not implemented by subclass.
         """
-        raise NotImplementedException('get() is not implemented.')
+        raise NotImplementedException('get_resource() is not implemented.')
 
-    def set(self, *args, **kwargs):
+    def set_resource(self, *args, **kwargs):
         """
         Set device parameters.
         @param args[0] parameter : value dict of parameters to set.
@@ -201,118 +263,19 @@ class InstrumentDriver(object):
         @raises InstrumentStateException if command not allowed in current state.
         @raises NotImplementedException if not implemented by subclass.
         """
-        raise NotImplementedException('set() not implemented.')
+        raise NotImplementedException('set_resource() not implemented.')
 
-    def execute_acquire_sample(self, *args, **kwargs):
+    def execute_resource(self, *args, **kwargs):
         """
-        Poll for a sample.
+        Execute a driver command.
         @param timeout=timeout Optional command timeout.        
-        @ retval Device sample dict.
+        @ retval Command specific.
         @raises InstrumentTimeoutException if could not wake device or no response.
-        @raises InstrumentProtocolException if acquire command not recognized.
+        @raises InstrumentProtocolException if command not recognized.
         @raises InstrumentStateException if command not allowed in current state.
         @raises NotImplementedException if not implemented by subclass.        
         """
-        raise NotImplementedException('execute_acquire_sample() not implemented.')
-
-    def execute_start_autosample(self, *args, **kwargs):
-        """
-        Switch to autosample mode.
-        @param timeout=timeout Optional command timeout.        
-        @raises InstrumentTimeoutException if could not wake device or no response.
-        @raises InstrumentStateException if command not allowed in current state.
-        @raises NotImplementedException if not implemented by subclass.                
-        """
-        raise NotImplementedException('execute_start_autosample() not implemented.')
-
-    def execute_stop_autosample(self, *args, **kwargs):
-        """
-        Leave autosample mode.
-        @param timeout=timeout Optional command timeout.        
-        @raises InstrumentTimeoutException if could not wake device or no response.
-        @raises InstrumentProtocolException if stop command not recognized.
-        @raises InstrumentStateException if command not allowed in current state.
-        @raises NotImplementedException if not implemented by subclass.                
-        """
-        raise NotImplementedException('execute_stop_autosample() not implemented.')
-
-    def execute_test(self, *args, **kwargs):
-        """
-        Execute device tests.
-        @param timeout=timeout Optional command timeout (for wakeup only --
-        device specific timeouts for internal test commands).
-        @raises InstrumentTimeoutException if could not wake device or no response.
-        @raises InstrumentProtocolException if test commands not recognized.
-        @raises InstrumentStateException if command not allowed in current state.
-        @raises NotImplementedException if not implemented by subclass.                        
-        """
-        raise NotImplementedException('execute_test() not implemented.')
-
-    def execute_calibrate(self, *args, **kwargs):
-        """
-        Execute device calibration.
-        @param timeout=timeout Optional command timeout (for wakeup only --
-        device specific timeouts for internal calibration commands).
-        @raises InstrumentTimeoutException if could not wake device or no response.
-        @raises InstrumentProtocolException if test commands not recognized.
-        @raises InstrumentStateException if command not allowed in current state.
-        @raises NotImplementedException if not implemented by subclass.                        
-        """
-        raise NotImplementedException('execute_calibrate() not implemented.')
-
-    def execute_start_direct_access(self, *args, **kwargs):
-        """
-        Switch to direct access mode.
-        @raises TimeoutError if could not wake device or no response.
-        @raises StateError if command not allowed in current state.
-        @raises NotImplementedError if not implemented by subclass.                
-        """
-        raise NotImplementedException('execute_start_direct_access() not implemented.')
-
-    def execute_direct_access(self, *args, **kwargs):
-        """
-        output direct access data to device.
-        @raises TimeoutError if could not wake device or no response.
-        @raises StateError if command not allowed in current state.
-        @raises NotImplementedError if not implemented by subclass.                
-        """
-        raise NotImplementedException('execute_direct_access() not implemented.')
-
-    def execute_stop_direct_access(self, *args, **kwargs):
-        """
-        Leave direct access mode.
-        @raises TimeoutError if could not wake device or no response.
-        @raises ProtocolError if stop command not recognized.
-        @raises StateError if command not allowed in current state.
-        @raises NotImplementedError if not implemented by subclass.                
-        """
-        raise NotImplementedException('execute_stop_direct_access() not implemented.')
-
-    ########################################################################
-    # Resource query interface.
-    ########################################################################    
-
-    def get_resource_commands(self):
-        """
-        Return list of device execute commands available.
-        """
-        cmds = [cmd for cmd in dir(self) if cmd.startswith('execute_')]
-        cmds = [item.replace('execute_','') for item in cmds]
-        return cmds
-    
-    def get_resource_params(self):
-        """
-        Return list of device parameters available. Implemented in
-        device specific subclass.
-        """
-        raise NotImplementedError('get_resource_params() is not implemented.')
-
-    def get_current_state(self):
-        """
-        Return current device state. Implemented in connection specific
-        subclasses.
-        """
-        raise NotImplementedException('get_current_state() is not implemented.')
+        raise NotImplementedException('execute_resource() not implemented.')
 
     ########################################################################
     # Event interface.
@@ -330,12 +293,12 @@ class InstrumentDriver(object):
             'time' : time.time()
         }
         if type == DriverAsyncEvent.STATE_CHANGE:
-            state = self.get_current_state()
+            state = self.get_resource_state()
             event['value'] = state
             self._send_event(event)
             
         elif type == DriverAsyncEvent.CONFIG_CHANGE:
-            config = self.get(DriverParameter.ALL)
+            config = self.get_resource(DriverParameter.ALL)
             event['value'] = config
             self._send_event(event)
         
@@ -344,10 +307,10 @@ class InstrumentDriver(object):
             self._send_event(event)
             
         elif type == DriverAsyncEvent.ERROR:
-            # Error caught at driver process level.
+            # Notify agent of async driver error.
             pass
 
-        elif type == DriverAsyncEvent.TEST_RESULT:
+        elif type == DriverAsyncEvent.RESULT:
             event['value'] = val
             self._send_event(event)
 
@@ -355,16 +318,20 @@ class InstrumentDriver(object):
             event['value'] = val
             self._send_event(event)
 
+        elif type == DriverAsyncEvent.AGENT_EVENT:
+            event['value'] = val
+            self._send_event(event)
+
     ########################################################################
     # Test interface.
     ########################################################################
 
-    def driver_echo(self, msg):
+    def driver_ping(self, msg):
         """
         Echo a message.
         @param msg the message to prepend and echo back to the caller.
         """
-        reply = 'driver_echo: '+msg
+        reply = 'driver_ping: '+msg
         return reply
     
     def test_exceptions(self, msg):
@@ -421,15 +388,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.DISCOVER, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.GET, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.SET, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.ACQUIRE_SAMPLE, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.START_AUTOSAMPLE, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.STOP_AUTOSAMPLE, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.TEST, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.CALIBRATE, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.EXECUTE_DIRECT, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.START_DIRECT, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.STOP_DIRECT, self._handler_connected_protocol_event)
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.FORCE_STATE, self._handler_connected_protocol_event)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.EXECUTE, self._handler_connected_protocol_event)
             
         # Start state machine.
         self._connection_fsm.start(DriverConnectionState.UNCONFIGURED)
@@ -455,8 +414,6 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises InstrumentStateException if command not allowed in current state        
         @throws InstrumentParameterException if missing comms or invalid config dict.
         """
-
-
         # Forward event and argument to the connection FSM.
         return self._connection_fsm.on_event(DriverEvent.CONFIGURE, *args, **kwargs)
         
@@ -482,7 +439,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
     # Commande and control interface.
     #############################################################
 
-    def discover(self, *args, **kwargs):
+    def discover_state(self, *args, **kwargs):
         """
         Determine initial state upon establishing communications.
         @param timeout=timeout Optional command timeout.        
@@ -495,7 +452,36 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         # Forward event and argument to the protocol FSM.
         return self._connection_fsm.on_event(DriverEvent.DISCOVER, DriverEvent.DISCOVER, *args, **kwargs)
 
-    def get(self, *args, **kwargs):
+    def get_resource_capabilities(self, current_state=True, *args, **kwargs):
+        """
+        Return driver commands and parameters.
+        @param current_state True to retrieve commands available in current
+        state, otherwise reutrn all commands.
+        @retval list of AgentCapability objects representing the drivers
+        capabilities.
+        @raises NotImplementedException if not implemented by subclass.        
+        """
+
+        if self._protocol:
+            return self._protocol.get_resource_capabilities(current_state)
+        
+        else:
+            return [[], []]
+
+                
+    def get_resource_state(self, *args, **kwargs):
+        """
+        Return the current state of the driver.
+        @retval str current driver state.
+        @raises NotImplementedException if not implemented by subclass.        
+        """
+        connection_state = self._connection_fsm.get_current_state()
+        if connection_state == DriverConnectionState.CONNECTED:
+            return self._protocol.get_current_state()
+        else:
+            return connection_state
+
+    def get_resource(self, *args, **kwargs):
         """
         Retrieve device parameters.
         @param args[0] DriverParameter.ALL or a list of parameters to retrive.
@@ -507,7 +493,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         # Forward event and argument to the protocol FSM.
         return self._connection_fsm.on_event(DriverEvent.GET, DriverEvent.GET, *args, **kwargs)
 
-    def set(self, *args, **kwargs):
+    def set_resource(self, *args, **kwargs):
         """
         Set device parameters.
         @param args[0] parameter : value dict of parameters to set.
@@ -521,7 +507,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         # Forward event and argument to the protocol FSM.
         return self._connection_fsm.on_event(DriverEvent.SET, DriverEvent.SET, *args, **kwargs)
 
-    def execute_acquire_sample(self, *args, **kwargs):
+    def execute_resource(self, resource_cmd, *args, **kwargs):
         """
         Poll for a sample.
         @param timeout=timeout Optional command timeout.        
@@ -532,30 +518,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.                        
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.ACQUIRE_SAMPLE, DriverEvent.ACQUIRE_SAMPLE, *args, **kwargs)
-
-    def execute_start_autosample(self, *args, **kwargs):
-        """
-        Switch to autosample mode.
-        @param timeout=timeout Optional command timeout.        
-        @raises InstrumentTimeoutException if could not wake device or no response.
-        @raises InstrumentStateException if command not allowed in current state.
-        @raises NotImplementedException if not implemented by subclass.                        
-        """
-        # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.START_AUTOSAMPLE, DriverEvent.START_AUTOSAMPLE, *args, **kwargs)
-
-    def execute_stop_autosample(self, *args, **kwargs):
-        """
-        Leave autosample mode.
-        @param timeout=timeout Optional command timeout.        
-        @raises InstrumentTimeoutException if could not wake device or no response.
-        @raises InstrumentProtocolException if stop command not recognized.
-        @raises InstrumentStateException if command not allowed in current state.
-        @raises NotImplementedException if not implemented by subclass.                        
-         """
-        # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.STOP_AUTOSAMPLE, DriverEvent.STOP_AUTOSAMPLE, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.EXECUTE, resource_cmd, *args, **kwargs)
 
     def execute_force_state(self, *args, **kwargs):
         """
@@ -573,77 +536,6 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
 
         # Forward event and argument to the protocol FSM.
         return self._connection_fsm.on_event(DriverEvent.FORCE_STATE, DriverEvent.FORCE_STATE, *args, **kwargs)
-
-    def execute_test(self, *args, **kwargs):
-        """
-        Execute device tests.
-        @param timeout=timeout Optional command timeout (for wakeup only --
-        device specific timeouts for internal test commands).
-        @raises InstrumentTimeoutException if could not wake device or no response.
-        @raises InstrumentProtocolException if test commands not recognized.
-        @raises InstrumentStateException if command not allowed in current state.
-        @raises NotImplementedException if not implemented by subclass.                        
-        """
-        # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.TEST, DriverEvent.TEST, *args, **kwargs)
-
-    def execute_calibrate(self, *args, **kwargs):
-        """
-        Execute device calibration.
-        @param timeout=timeout Optional command timeout (for wakeup only --
-        device specific timeouts for internal calibration commands).
-        @raises InstrumentTimeoutException if could not wake device or no response.
-        @raises InstrumentProtocolException if test commands not recognized.
-        @raises InstrumentStateException if command not allowed in current state.
-        @raises NotImplementedException if not implemented by subclass.                        
-        """
-        # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.CALIBRATE, DriverEvent.CALIBRATE, *args, **kwargs)
-
-    def execute_start_direct_access(self, *args, **kwargs):
-        """
-        Switch to direct access mode.
-        @raises TimeoutError if could not wake device or no response.
-        @raises StateError if command not allowed in current state.
-        @raises NotImplementedError if not implemented by subclass.                
-        """
-        return self._connection_fsm.on_event(DriverEvent.START_DIRECT, DriverEvent.START_DIRECT, *args, **kwargs)
-
-    def execute_direct_access(self, *args, **kwargs):
-        """
-        output direct access data to device.
-        @raises TimeoutError if could not wake device or no response.
-        @raises StateError if command not allowed in current state.
-        @raises NotImplementedError if not implemented by subclass.                
-        """
-        return self._connection_fsm.on_event(DriverEvent.EXECUTE_DIRECT, DriverEvent.EXECUTE_DIRECT, *args, **kwargs)
-
-    def execute_stop_direct_access(self, *args, **kwargs):
-        """
-        Leave direct access mode.
-        @raises TimeoutError if could not wake device or no response.
-        @raises ProtocolError if stop command not recognized.
-        @raises StateError if command not allowed in current state.
-        @raises NotImplementedError if not implemented by subclass.                
-        """
-        return self._connection_fsm.on_event(DriverEvent.STOP_DIRECT, DriverEvent.STOP_DIRECT, *args, **kwargs)
-
-
-
-    ########################################################################
-    # Resource query interface.
-    ########################################################################
-
-    def get_current_state(self):
-        """
-        Return current device state. For single connection devices, return
-        a single connection state if not connected, and protocol state if connected.
-        """
-        connection_state = self._connection_fsm.get_current_state()
-        if connection_state == DriverConnectionState.CONNECTED:
-            return self._protocol.get_current_state()
-        else:
-            return connection_state
 
     ########################################################################
     # Unconfigured handlers.
@@ -682,7 +574,6 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         """
         next_state = None
         result = None
-
 
         # Get the required param dict.
         config = kwargs.get('config', None)  # via kwargs
@@ -844,7 +735,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
     ########################################################################
     # Helpers.
     ########################################################################
-
+    
     def _build_connection(self, config):
         """
         Constructs and returns a Connection object according to the given
@@ -860,7 +751,6 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
                   self._connection
 
         @throws InstrumentParameterException Invalid configuration.
-
         """
         if 'mock_port_agent' in config:
             mock_port_agent = config['mock_port_agent']

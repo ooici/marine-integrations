@@ -227,7 +227,7 @@ class TrhphInstrumentDriver(InstrumentDriver):
     # Command and control interface.
     #############################################################
 
-    def get(self, *args, **kwargs):
+    def get_resource(self, *args, **kwargs):
         """
         Retrieve device parameters.
 
@@ -293,7 +293,7 @@ class TrhphInstrumentDriver(InstrumentDriver):
         except TrhphClientException, e:
             raise InstrumentException(str(e))
 
-    def set(self, *args, **kwargs):
+    def set_resource(self, *args, **kwargs):
         """
         Set device parameters.
 
@@ -562,7 +562,7 @@ class TrhphInstrumentDriver(InstrumentDriver):
         """
         Return list of device parameters available.
         """
-        return self.get(DriverParameter.ALL)
+        return self.get_resource(DriverParameter.ALL)
 
     def get_current_state(self):
         """
@@ -592,7 +592,7 @@ class TrhphInstrumentDriver(InstrumentDriver):
             self._send_event(event)
 
         elif type == DriverAsyncEvent.CONFIG_CHANGE:
-            config = self.get(DriverParameter.ALL)
+            config = self.get_resource(DriverParameter.ALL)
             event['value'] = config
             self._send_event(event)
 
@@ -611,14 +611,6 @@ class TrhphInstrumentDriver(InstrumentDriver):
     ########################################################################
     # Test interface.
     ########################################################################
-
-    def driver_echo(self, msg):
-        """
-        Echo a message.
-        @param msg the message to prepend and echo back to the caller.
-        """
-        reply = 'driver_echo: %s' % msg
-        return reply
 
     def test_exceptions(self, msg):
         """

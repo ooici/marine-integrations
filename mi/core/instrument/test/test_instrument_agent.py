@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.test.test_instrument_agent
-@file ion/services/mi/test_instrument_agent.py
+@package mi.core.instrument.test.test_instrument_agent
+@file mi/core/instrument/test/test_instrument_agent.py
 @author Edward Hunter
 @brief Test cases for R2 instrument agent.
 """
@@ -48,11 +48,11 @@ from pyon.core.exception import InstParameterError
 
 
 # MI imports.
-from ion.services.mi.driver_int_test_support import DriverIntegrationTestSupport
-from ion.services.mi.logger_process import EthernetDeviceLogger
-from ion.services.mi.instrument_agent import InstrumentAgentState
-from ion.services.mi.drivers.sbe37.sbe37_driver import SBE37Parameter
-from ion.services.mi.drivers.sbe37.sbe37_driver import PACKET_CONFIG
+from ion.agents.instrument.driver_int_test_support import DriverIntegrationTestSupport
+from ion.agents.port.logger_process import EthernetDeviceLogger
+from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
+from mi.instrument.seabird.sbe37smb.ooicore.driver import PACKET_CONFIG
 
 # bin/nosetests -s -v ion/services/mi/test/test_instrument_agent.py:TestInstrumentAgent.test_initialize
 # bin/nosetests -s -v ion/services/mi/test/test_instrument_agent.py:TestInstrumentAgent.test_states
@@ -71,7 +71,7 @@ DEV_PORT = CFG.device.sbe37.port
 #DEV_PORT = 4001 # Moxa port or simulator random data.
 #DEV_PORT = 4002 # Simulator sine data.
 
-DRV_MOD = 'ion.services.mi.drivers.sbe37_driver'
+DRV_MOD = 'mi.instrument.seabird.sbe37smb.ooicore.driver'
 DRV_CLS = 'SBE37Driver'
 
 # Work dir and logger delimiter.
@@ -147,7 +147,7 @@ CMDS = [
 AGT_CMDS = [
     'clear',
     'end_transaction',
-    'get_current_state',
+    'get_agent_state',
     'go_active',
     'go_direct_access',
     'go_inactive',
@@ -274,7 +274,7 @@ class TestInstrumentAgent(IonIntegrationTestCase):
                 
         # Create a stream subscriber registrar to create subscribers.
         subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
-                                                node=self.container.node)
+                                                         container=self.container)
 
         # Create streams and subscriptions for each stream named in driver.
         self._stream_config = {}
@@ -406,105 +406,105 @@ class TestInstrumentAgent(IonIntegrationTestCase):
         driver process and transition to inactive.
         """
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
     
         cmd = AgentCommand(command='initialize')
         retval = self._ia_client.execute_agent(cmd)
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         cmd = AgentCommand(command='reset')
         retval = self._ia_client.execute_agent(cmd)
                 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
     
     def test_states(self):
         """
         Test agent state transitions.
         """
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
     
         cmd = AgentCommand(command='initialize')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         cmd = AgentCommand(command='go_active')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
+        self.assertEqual(state, ResourceAgentState.IDLE)
         
         cmd = AgentCommand(command='run')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
                 
         cmd = AgentCommand(command='pause')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.STOPPED)
+        self.assertEqual(state, ResourceAgentState.STOPPED)
  
         cmd = AgentCommand(command='resume')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
  
         cmd = AgentCommand(command='clear')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
+        self.assertEqual(state, ResourceAgentState.IDLE)
 
         cmd = AgentCommand(command='run')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command='pause')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.STOPPED)
+        self.assertEqual(state, ResourceAgentState.STOPPED)
 
         cmd = AgentCommand(command='clear')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
+        self.assertEqual(state, ResourceAgentState.IDLE)
 
         cmd = AgentCommand(command='reset')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
         log.info("L4-CI-SA-RQ-221")
 
@@ -512,31 +512,31 @@ class TestInstrumentAgent(IonIntegrationTestCase):
         """
         Test instrument driver get and set interface.
         """
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
     
         cmd = AgentCommand(command='initialize')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         cmd = AgentCommand(command='go_active')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
+        self.assertEqual(state, ResourceAgentState.IDLE)
         
         cmd = AgentCommand(command='run')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
         # Retrieve all resource parameters.                
         reply = self._ia_client.get_param(SBE37Parameter.ALL)
@@ -572,42 +572,42 @@ class TestInstrumentAgent(IonIntegrationTestCase):
 
         cmd = AgentCommand(command='reset')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
     def test_poll(self):
         """
         Test observatory polling function.
         """
         
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
     
         cmd = AgentCommand(command='initialize')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         cmd = AgentCommand(command='go_active')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
+        self.assertEqual(state, ResourceAgentState.IDLE)
         
         cmd = AgentCommand(command='run')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
         
         # Lets get 3 samples.
         self._no_samples = 3
@@ -632,41 +632,41 @@ class TestInstrumentAgent(IonIntegrationTestCase):
 
         cmd = AgentCommand(command='reset')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)        
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)        
         
     def test_autosample(self):
         """
         Test instrument driver execute interface to start and stop streaming
         mode.
         """
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
     
         cmd = AgentCommand(command='initialize')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         cmd = AgentCommand(command='go_active')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
+        self.assertEqual(state, ResourceAgentState.IDLE)
         
         cmd = AgentCommand(command='run')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
         # Make sure the sampling rate and transmission are sane.                
         params = {
@@ -681,10 +681,10 @@ class TestInstrumentAgent(IonIntegrationTestCase):
         # Begin streaming.                
         cmd = AgentCommand(command='go_streaming')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.STREAMING)
+        self.assertEqual(state, ResourceAgentState.STREAMING)
  
         # Wait for some samples to roll in.
         gevent.sleep(15)
@@ -692,10 +692,10 @@ class TestInstrumentAgent(IonIntegrationTestCase):
         # Halt streaming.
         cmd = AgentCommand(command='go_observatory')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
         # Assert we got some samples.
         self._async_data_result.get(timeout=10)
@@ -703,10 +703,10 @@ class TestInstrumentAgent(IonIntegrationTestCase):
 
         cmd = AgentCommand(command='reset')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
     def test_capabilities(self):
         """
@@ -719,17 +719,17 @@ class TestInstrumentAgent(IonIntegrationTestCase):
         apars = self._ia_client.get_capabilities(['AGT_PAR'])
         apars = [item[1] for item in apars]
         
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
     
         cmd = AgentCommand(command='initialize')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
         
         rcmds = self._ia_client.get_capabilities(['RES_CMD'])
         rcmds = [item[1] for item in rcmds]
@@ -741,20 +741,20 @@ class TestInstrumentAgent(IonIntegrationTestCase):
                 
         cmd = AgentCommand(command='reset')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
     
     @unittest.skip('Never written')
     def test_errors(self):
         """
         Test illegal behavior and replies.
         """
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
         # Can't go active in unitialized state.
         # Status 660 is state error.
@@ -770,24 +770,24 @@ class TestInstrumentAgent(IonIntegrationTestCase):
         
         cmd = AgentCommand(command='initialize')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         cmd = AgentCommand(command='go_active')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
+        self.assertEqual(state, ResourceAgentState.IDLE)
         
         cmd = AgentCommand(command='run')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
         # OK, I can do this now.        
         cmd = AgentCommand(command='acquire_sample')
@@ -810,10 +810,10 @@ class TestInstrumentAgent(IonIntegrationTestCase):
 
         cmd = AgentCommand(command='reset')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
         
         
     @unittest.skip('Direct access test to be finished by adding the telnet client, manual for now.')
@@ -822,39 +822,39 @@ class TestInstrumentAgent(IonIntegrationTestCase):
         Test agent direct_access command. This causes creation of
         driver process and transition to direct access.
         """
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
     
         cmd = AgentCommand(command='initialize')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         cmd = AgentCommand(command='go_active')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
+        self.assertEqual(state, ResourceAgentState.IDLE)
         
         cmd = AgentCommand(command='run')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command='go_direct_access', kwargs={'session_timeout':50,'inactivity_timeout':20})
         retval = self._ia_client.execute_agent(cmd)
         print("go_direct_access retval=" + str(retval))       
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.DIRECT_ACCESS)
+        self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
 
         # sleep to let tester run telnet client manually
         print "test sleeping to run telnet client"
@@ -863,16 +863,16 @@ class TestInstrumentAgent(IonIntegrationTestCase):
         # Halt DA.
         cmd = AgentCommand(command='go_observatory')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command='reset')
         retval = self._ia_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self._ia_client.execute_agent(cmd)
         state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
 
