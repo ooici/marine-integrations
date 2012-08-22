@@ -21,6 +21,34 @@ from mi.core.exceptions import InstrumentConnectionException
 
 HEADER_SIZE = 16
 
+class PortAgentPacket():
+    
+    def __init__(self, header):
+        
+        self.header = header
+        up_header = struct.unpack_from('>BBBBHHLL', header)
+        self.type = up_header[3]
+        self.length = int(up_header[4]) - HEADER_SIZE
+        self.checksum  = int(up_header[5])
+
+    def attach_data(self, data):
+        self.data = data
+                        
+    def calculate_checksum(self):
+        checksum = 0
+        for i in range(HEADER_SIZE):
+            if i < 6 or i > 7:
+                #checksum += int(self.header[i], 16)
+                checksum += struct.unpack_from('B', self.header[i])[0]
+                
+        for i in range(self.length):
+            #checksum += int(self.data[i])
+            checksum += struct.unpack_from('B', self.data[i])[0]
+            
+        log.info('checksum: %i.' %(checksum))
+                
+                    
+
 class PortAgentClient(object):
     """
     A port agent process client class to abstract the TCP interface to the 
@@ -82,16 +110,13 @@ class PortAgentClient(object):
         """
         self.stop_comms()
 
-    def callback(self, pa_header, data):
+    def callback(self, paPacket):
         """
-        A packet has been received from the port agent.  This method will parse
-        the packet and route it according to the packet type.  
+        A packet has been received from the port agent.  The packet is 
+        contained in a packet object.  
         """
-        type   = int(pa_header[3])
-        length = int(pa_header[4])
-        cksum  = int(pa_header[5])
-        
-        self.user_callback(data)
+        paPacket.calculate_checksum()
+        self.user_callback(paPacket)
         
     def send(self, data):
         """
@@ -128,8 +153,8 @@ class Listener(threading.Thread):
         self.delim = delim
         
         if callback:
-            def fn_callback(header, data):
-                callback(header, data)            
+            def fn_callback(paPacket):
+                callback(paPacket)            
             self.callback = fn_callback
         else:
             self.callback = None
@@ -166,35 +191,33 @@ class Listener(threading.Thread):
                     bytes_left -= len(header)
                     if bytes_left == 0:
                         received_header = True
-                        print "RECEIVED HEADER!"         
-                        up_header = struct.unpack_from('>BBBBHHLL', header)
-                        data_size = int(up_header[4]) - HEADER_SIZE
+                        print "RECEIVED HEADER!"
+                        paPacket = PortAgentPacket(header)         
+                        #data_size = int(up_header[4]) - HEADER_SIZE
+                        data_size = paPacket.length
                         bytes_left = data_size
                     elif bytes_left == HEADER_SIZE:
                         log.error('Zero bytes received from port_agent socket')
                         self._done = True
                 
-                """
-                DHE NOTE: I'm thinking it's not a good idea to call the user
-                callback directly from here; rather, call the port_agent_client
-                callback, where an object will be constructed.
-                """  
                 received_data = False
                 while not received_data and not self._done: 
                     data = self.sock.recv(bytes_left)
                     bytes_left -= len(data)
                     if bytes_left == 0:
                         received_data = True
+                        # Attach the data to the port agent object
+                        paPacket.attach_data(data)
                     elif bytes_left == data_size:
                         log.error('Zero bytes received from port_agent socket')
                         self._done = True
 
                 if not self._done:
                     """
-                    Should have received data from port agent.
+                    Should have complete port agent packet.
                     """
                     if self.callback:
-                        self.callback(up_header, data)
+                        self.callback(paPacket)
                     else:
                         log.error('No callback registered')
 

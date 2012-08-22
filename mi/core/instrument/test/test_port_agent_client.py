@@ -15,7 +15,7 @@ import unittest
 import re
 from nose.plugins.attrib import attr
 from mock import Mock
-from mi.core.instrument.port_agent_client import PortAgentClient
+from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacket
 
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
@@ -29,8 +29,8 @@ class TestPortAgentClient():
         self.ipaddr = "67.58.49.194"
         self.port  = 4000
     
-    def myGotData(self, data):
-        print "GOT DATA!: " + str(data)
+    def myGotData(self, paPacket):
+        print "Got data of length " + str(paPacket.length) + " bytes: " + str(paPacket.data)
         
     #@unittest.skip('not finished yet')
     def test_port_agent(self):
