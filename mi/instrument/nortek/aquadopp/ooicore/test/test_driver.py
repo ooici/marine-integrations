@@ -38,6 +38,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.core.instrument.instrument_driver import DriverConnectionState
 
 from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolState
+from mi.instrument.nortek.aquadopp.ooicore.driver import Parameter
 
 from interface.objects import AgentCommand
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
@@ -99,6 +100,55 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
     ###
     #    Add instrument specific integration tests
     ###
+    def test_instrument_set(self):
+        """
+        @brief Test for instrument wakeup, expects instrument to be in 'command' or 'auto-sample' state
+        """
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms and in disconnected state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Connect to instrument and transition to unknown.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertEqual(state, ProtocolState.UNKNOWN)
+
+        # discover instrument state and transition to command.
+        reply = self.driver_client.cmd_dvr('discover')
+
+        # Test the driver is in command mode or auto-sample mode.
+        state = self.driver_client.cmd_dvr('get_current_state')
+        self.assertTrue(state == ProtocolState.COMMAND)
+
+        # Grab a subset of parameters.
+        params = [
+            Parameter.HEAD_SPARE
+            ]
+        reply = self.driver_client.cmd_dvr('get', params)
+        #self.assertParamDict(reply)        
+
+        # Remember the original subset.
+        orig_params = reply
+        
+        # Construct new parameters to set.
+        new_params = {
+            Parameter.HEAD_SPARE : orig_params[Parameter.HEAD_SPARE] * 2
+        }
+        
+        # Set parameters and verify.
+        reply = self.driver_client.cmd_dvr('set', new_params)
+
+# Set parameters and verify.
+        reply = self.driver_client.cmd_dvr('set', new_params)
+
     def test_instrument_wakeup(self):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' or 'auto-sample' state
