@@ -25,31 +25,39 @@ class PortAgentPacket():
     
     def __init__(self, header):
         
-        self.header = header
+        self.__header = header
         up_header = struct.unpack_from('>BBBBHHLL', header)
-        self.type = up_header[3]
-        self.length = int(up_header[4]) - HEADER_SIZE
-        self.checksum  = int(up_header[5])
+        self.__type = up_header[3]
+        self.__length = int(up_header[4]) - HEADER_SIZE
+        self.__checksum  = int(up_header[5])
 
     def attach_data(self, data):
-        self.data = data
+        self.__data = data
                         
     def verify_checksum(self):
         checksum = 0
         for i in range(HEADER_SIZE):
             if i < 6 or i > 7:
-                checksum += struct.unpack_from('B', self.header[i])[0]
+                checksum += struct.unpack_from('B', self.__header[i])[0]
                 
-        for i in range(self.length):
-            checksum += struct.unpack_from('B', self.data[i])[0]
+        for i in range(self.__length):
+            checksum += struct.unpack_from('B', self.__data[i])[0]
             
-        if checksum == self.checksum:
-            self.isValid = True
+        if checksum == self.__checksum:
+            self.__isValid = True
         else:
-            self.isValid = False
+            self.__isValid = False
             
         log.info('checksum: %i.' %(checksum))
-                
+
+    def get_data_size(self):
+        return self.__length
+    
+    def get_data(self):
+        return self.__data
+    
+    def is_valid(self):
+        return self.__isValid
                     
 
 class PortAgentClient(object):
@@ -196,7 +204,7 @@ class Listener(threading.Thread):
                         received_header = True
                         print "RECEIVED HEADER!"
                         paPacket = PortAgentPacket(header)         
-                        data_size = paPacket.length
+                        data_size = paPacket.get_data_size()
                         bytes_left = data_size
                     elif len(header) == 0:
                         log.error('Zero bytes received from port_agent socket')

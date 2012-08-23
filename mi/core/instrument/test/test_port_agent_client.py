@@ -30,15 +30,15 @@ class TestPortAgentClient():
         self.port  = 4000
     
     def myGotData(self, paPacket):
-        if paPacket.isValid:
+        if paPacket.is_valid():
             validity = "valid"
         else:
             validity = "invalid"
             
-        print "Got " + validity + " port agent packet with data length " + str(paPacket.length) + ": " + str(paPacket.data)
+        print "Got " + validity + " port agent packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
         
     #@unittest.skip('not finished yet')
-    def test_port_agent(self):
+    def test_port_agent_client_receive(self):
         ipaddr = "67.58.49.194"
         port  = 4000
         paClient = PortAgentClient(self.ipaddr, self.port)
@@ -48,4 +48,4 @@ class TestPortAgentClient():
 if __name__ == '__main__':
     app = TestPortAgent()
     app.setUp
-    app.test_port_agent()
+    app.test_port_agent_client_receive()
