@@ -29,7 +29,9 @@ using namespace network;
  * Description: Default constructor.
  ******************************************************************************/
 CommBase::CommBase() {
-
+    // Default behavior for sockets is non-blocking
+    m_bBlocking = false;
+    m_bConnected = false;
 }
 
 

@@ -22,6 +22,8 @@ class SpawnProcess {
         
         string cmd_as_string();
         
+        bool is_running();
+        
         bool run();
         
     private:

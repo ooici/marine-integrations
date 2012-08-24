@@ -19,11 +19,13 @@
 #                 stdout after it is read.
 #
 
-import socket 
+import socket
+import fcntl
 import errno 
 import sys
 import argparse
 import time
+import os
 
 DEFAULT_TIMEOUT = 30
 DEFAULT_PORT    = 40000
@@ -41,27 +43,7 @@ def parseArgs():
     return parser.parse_args()
 
 
-def run_server(opts):
-    ##let's set up some constants
-    hostname = ''    #we are the host
-    portnum = opts.port    #arbitrary port not currently in use
-    address = (hostname,portnum)    #we need a tuple for the address
-    buffer_size = 1    #reasonably sized buffer for data
-    timeout = opts.timeout         # Socket timeout
-
-    ## now we create a new socket object (serv)
-    ## see the python docs for more information on the socket types/flags
-    serv = socket.socket( socket.AF_INET,socket.SOCK_STREAM)    
-     
-    ##bind our socket to the address
-    serv.bind((address))    #the double parens are to create a tuple with one element
-    print("listening")
-    serv.listen(5)
-    print("ready for connections")
-
-    if(timeout):
-        serv.settimeout(timeout)
-    
+def run_server(serv, opts):
     conn,addr = serv.accept() #accept the connection
     print("client connected");
     
@@ -69,8 +51,13 @@ def run_server(opts):
     if(opts.stdout): print data
     send_tcp(conn, data)
 
+    # Do a final read to handle echoing clients (for tests)
+    data = read_tcp(conn, opts.delay);
+
     try:
+        print "closing connection"
         conn.close()
+        
     except Exception, e:
         raise e
 
@@ -84,6 +71,7 @@ def read_tcp(conn, read_delay):
     result = ""
     print("read data from client")
 
+    conn.settimeout(0.1);
     while True:
         try:
             data = conn.recv(1)
@@ -92,20 +80,25 @@ def read_tcp(conn, read_delay):
                 print("READ: " + data)
                 result = result + data
             else:
+                print "read complete";
                 break
-
+        except socket.timeout:
+            print("socket timeout.  read done")
+            break
+        
         except socket.error as e:
             # [Errno 35] Resource temporarily unavailable.
             if e.errno == errno.EAGAIN:
                 print("eagain")
                 pass
+            
             # [Errno 54] Connection reset by peer.  Because we are reading a single
             # byte at a time we read until we fail.
             elif e.errno == errno.ECONNRESET:
                 print("connection reset")
                 pass
             else:
-                print("read/write error")
+                print("read/write error (errno: %d)" % e.errno)
                 raise e
 
     return result
@@ -113,7 +106,29 @@ def read_tcp(conn, read_delay):
 
 
 opts = parseArgs()
+
+##let's set up some constants
+hostname = ''    #we are the host
+portnum = opts.port    #arbitrary port not currently in use
+address = (hostname,portnum)    #we need a tuple for the address
+buffer_size = 1    #reasonably sized buffer for data
+timeout = opts.timeout         # Socket timeout
+
+## now we create a new socket object (serv)
+## see the python docs for more information on the socket types/flags
+serv = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+serv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+##bind our socket to the address
+serv.bind((address))    #the double parens are to create a tuple with one element
+print("listening")
+serv.listen(5)
+print("ready for connections")
+
+if(timeout):
+    serv.settimeout(timeout)
+        
 while(1):
-    run_server(opts)
+    run_server(serv, opts)
     if opts.single:
         break

@@ -34,7 +34,19 @@ namespace network {
             virtual CommListener & operator=(const CommListener &rhs);
 
             /* Accessors */
-            
+            bool listening() { return m_pServerFD > 0; }
+            bool connected() { return m_pClientFD > 0; }
+	    
+	    int serverFD() { return m_pServerFD; }
+	    int clientFD() { return m_pClientFD; }
+	    
+	    uint16_t getListenPort();
+	    
+	    /* Commands */
+	    bool disconnect();
+	    
+	    bool acceptClient();
+	    
         protected:
 
         private:
@@ -44,6 +56,10 @@ namespace network {
          ********************/
         
         protected:
+            uint16_t m_iPort;
+	    
+	    int m_pServerFD;
+	    int m_pClientFD;
             
     };
 }

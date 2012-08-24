@@ -34,8 +34,12 @@ namespace network {
             virtual CommBase & operator=(const CommBase &rhs);
 
             /* Accessors */
+            bool blocking() {return m_bBlocking;}
+            
+            bool connected() {return m_bConnected;}
             
             /* Methods */
+            void setBlocking(bool block) {m_bBlocking = block;}
 
 
 
@@ -47,7 +51,11 @@ namespace network {
          *      MEMBERS     *
          ********************/
         
+        private:
+            bool m_bBlocking;
+            
         protected:
+            bool m_bConnected;
             
     };
 }

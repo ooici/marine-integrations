@@ -36,7 +36,7 @@ namespace network {
             virtual CommSocket & operator=(const CommSocket &rhs);
 
             /* Accessors */
-            int getFD() { return m_pSocketFD; }
+            int getSocketFD() { return m_pSocketFD; }
             
             // Connect, must be overloaded in the derived class
             virtual bool initialize() = 0;

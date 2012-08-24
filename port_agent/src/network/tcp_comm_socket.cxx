@@ -84,21 +84,19 @@ bool TCPCommSocket::initialize() {
 	LOG(DEBUG) << "TCP Port Agent init_comms_device()";
 
 	if(!isConfigured())
-		throw SocketMissingConfig();
+		throw SocketMissingConfig("missing port or hostname");
 
 	LOG(DEBUG2) << "Creating INET socket";
 	m_pSocketFD = socket(AF_INET, SOCK_STREAM, 0);
 
 	if(!m_pSocketFD)
-		throw SocketCreateFailure(strerror(errno));
-
-	fcntl(m_pSocketFD, F_SETFL, O_NONBLOCK);
+		throw SocketCreateFailure("socket create failure");
 
 	LOG(DEBUG2) << "Looking up server name";
 	server = gethostbyname(m_sHostname.c_str());
 
 	if(!server)
-		throw SocketHostFailure(strerror(errno));
+		throw SocketHostFailure(m_sHostname.c_str());
 
 	bzero((char *) &serv_addr, sizeof(serv_addr));
 	serv_addr.sin_family = AF_INET;
@@ -110,11 +108,18 @@ bool TCPCommSocket::initialize() {
 	LOG(DEBUG2) << "Connecting to server";
 	int retval = connect(m_pSocketFD,(struct sockaddr *) &serv_addr,sizeof(serv_addr));
 	if (retval < 0)
-		if(errno != EINPROGRESS ) // ignore EINPROGRESS error because we are NON-Blocking
-            throw(SocketConnectFailure(strerror(errno)));
+	    if(errno != EINPROGRESS ) // ignore EINPROGRESS error because we are NON-Blocking
+                throw(SocketConnectFailure(strerror(errno)));
 
 	LOG(DEBUG3) << "Connect result: " << retval;
+	
+	if(! blocking()) {
+		LOG(DEBUG3) << "set socket non-blocking";
+		fcntl(m_pSocketFD, F_SETFL, O_NONBLOCK);
+	}
 
+	m_bConnected = true;
+	
 	return true;
 }
 

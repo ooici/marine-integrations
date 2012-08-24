@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 
 #include <iostream>
@@ -66,6 +67,21 @@ string SpawnProcess::cmd_as_string() {
     return cmd.str();
 }
 
+bool SpawnProcess::is_running() {
+    int retval;
+    int status = -1;
+
+    if(! m_pid)
+        return false;
+    
+    int wpid = waitpid(m_pid, &status, WNOHANG);
+    LOG(DEBUG) << "PID: " << m_pid
+               << " pid ret: " << wpid 
+               << " status: " << status; 
+    
+    return wpid == 0 ? true : false;
+}
+
 bool SpawnProcess::run() {
     int pid;
     char **argv = new char*[m_cmd_argv.size()+2];
@@ -105,7 +121,7 @@ bool SpawnProcess::run() {
     result = posix_spawn_file_actions_addclose(&file_actions, 0);
     LOG(DEBUG) << "addclose result: " << result;
     
-    result = posix_spawn(&pid, m_cmd.c_str(), &file_actions, NULL, argv, NULL);
+    result = posix_spawnp(&pid, m_cmd.c_str(), &file_actions, NULL, argv, NULL);
     LOG(DEBUG) << "posix_spawn result: " << result << " PID: " << m_pid;
     
     if(result == 0) 

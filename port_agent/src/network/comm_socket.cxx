@@ -78,9 +78,16 @@ bool CommSocket::disconnect() {
     if(!m_pSocketFD)
         return true;
 
+    LOG(DEBUG) << "Shutdown socket";
+    shutdown(m_pSocketFD, 1);
+    
+    LOG(DEBUG) << "Close socket";
     close(m_pSocketFD);
+    
     m_pSocketFD = 0;
 
+    m_bConnected = false;
+    
     return true;
 }
 
@@ -105,10 +112,13 @@ bool CommSocket::disconnect() {
  ******************************************************************************/
 uint32_t CommSocket::writeData(const char *buffer, const uint32_t size) {
     int bytesWritten = 0;
-	int bytesRemaining = size;
+    int bytesRemaining = size;
     int count;
 
-	while( bytesRemaining > 0 ) {
+    if(! connected())
+        throw(SocketWriteFailure("not connected"));
+    
+    while( bytesRemaining > 0 ) {
         LOG(DEBUG) << "WRITE DEVICE: " << buffer;
         count = write(m_pSocketFD, buffer + bytesWritten, bytesRemaining );
         LOG(DEBUG1) << "bytes written: " << count << " remaining: " << bytesRemaining;
@@ -123,7 +133,7 @@ uint32_t CommSocket::writeData(const char *buffer, const uint32_t size) {
         LOG(DEBUG2) << "wrote bytes: " << count << " bytes remaining: " << bytesRemaining;
     }
 
-	return bytesWritten;
+    return bytesWritten;
 }
 
 
@@ -141,8 +151,11 @@ uint32_t CommSocket::writeData(const char *buffer, const uint32_t size) {
  *   SocketReadFailure
  ******************************************************************************/
 uint32_t CommSocket::readData(char *buffer, const uint32_t size) {
-	int bytesRead;
+    int bytesRead = 0;
 
+    if(! connected())
+        throw(SocketReadFailure("not connected"));
+    
     if ((bytesRead = read(m_pSocketFD, buffer, size)) <= 0) {
         if(errno != EAGAIN && errno != EINPROGRESS) {
             LOG(ERROR) << "read_device: " << strerror(errno) << "(errno: " << errno << ")";
@@ -161,7 +174,7 @@ uint32_t CommSocket::readData(char *buffer, const uint32_t size) {
     else
         LOG(DEBUG) << "READ DEVICE: " << buffer;
 
-    return bytesRead;
+    return bytesRead < 0 ? 0 : bytesRead;
 }
 
 

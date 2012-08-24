@@ -47,7 +47,7 @@ class SpawnProcessTest : public testing::Test {
 };
 
 /* Test default ctor */
-TEST_F(SpawnProcessTest, SpawnProcessCtor) {
+TEST_F(SpawnProcessTest, DISABLED_SpawnProcessCtor) {
     SpawnProcess process;
     process.set_output_file(OUTFILE);
     
@@ -57,7 +57,7 @@ TEST_F(SpawnProcessTest, SpawnProcessCtor) {
 }
 
 /* Test ctor cmd only */
-TEST_F(SpawnProcessTest, SpawnProcessSingleCmd) {
+TEST_F(SpawnProcessTest, DISABLED_SpawnProcessSingleCmd) {
     SpawnProcess process(LS);
     process.set_output_file(OUTFILE);
     process.run();
@@ -67,8 +67,22 @@ TEST_F(SpawnProcessTest, SpawnProcessSingleCmd) {
     EXPECT_EQ(process.cmd(), LS);
 }
 
+
+/* Test is running method */
+TEST_F(SpawnProcessTest, SpawnProcessIsRunning) {
+    SpawnProcess process("/bin/sleep", 1, "1");
+    
+    process.run();
+    EXPECT_TRUE(process.is_running());
+    
+    LOG(DEBUG) << "Waiting for process " << process.pid() << " to die";
+    sleep(2);
+    
+    EXPECT_FALSE(process.is_running());
+}
+
 /* Test ctor cmd with args */
-TEST_F(SpawnProcessTest, SpawnProcessCmdWithArgs) {
+TEST_F(SpawnProcessTest, DISABLED_SpawnProcessCmdWithArgs) {
     SpawnProcess process(LS, 1, "-h");
     process.set_output_file(OUTFILE);
     stringstream cmd;
@@ -76,6 +90,8 @@ TEST_F(SpawnProcessTest, SpawnProcessCmdWithArgs) {
     
     process.run();
     sleep(1);
+    
+    EXPECT_FALSE(process.is_running());
     
     string output = read_file(OUTFILE);
     LOG(DEBUG) << "OUTPUT: " << output;
@@ -87,7 +103,7 @@ TEST_F(SpawnProcessTest, SpawnProcessCmdWithArgs) {
 }
 
 /* Test ctor cmd with array args */
-TEST_F(SpawnProcessTest, SpawnProcessCmdWithArrayArgs) {
+TEST_F(SpawnProcessTest, DISABLED_SpawnProcessCmdWithArrayArgs) {
     char *args[] = {"-h"};
     SpawnProcess process(LS, 1, args);
     
@@ -111,7 +127,7 @@ TEST_F(SpawnProcessTest, SpawnProcessCmdWithArrayArgs) {
 }
 
 /* Test command line args to echo */
-TEST_F(SpawnProcessTest, SpawnProcessCmdEcho) {
+TEST_F(SpawnProcessTest, DISABLED_SpawnProcessCmdEcho) {
     SpawnProcess process(ECHO, 2, "testing", ">boo");
     process.set_output_file(OUTFILE);
     
@@ -127,7 +143,7 @@ TEST_F(SpawnProcessTest, SpawnProcessCmdEcho) {
 }
 
 /* Test command line args to echo with array*/
-TEST_F(SpawnProcessTest, SpawnProcessCmdEchoArray) {
+TEST_F(SpawnProcessTest, DISABLED_SpawnProcessCmdEchoArray) {
     char *args[] = {"testing", ">boo"};
     SpawnProcess process(ECHO, 2, args);
     process.set_output_file(OUTFILE);
@@ -144,7 +160,7 @@ TEST_F(SpawnProcessTest, SpawnProcessCmdEchoArray) {
 }
 
 /* Test missing command */
-TEST_F(SpawnProcessTest, SpawnProcessMissingCmd) {
+TEST_F(SpawnProcessTest, DISABLED_SpawnProcessMissingCmd) {
     SpawnProcess process;
     process.set_output_file(OUTFILE);
     
@@ -161,7 +177,7 @@ TEST_F(SpawnProcessTest, SpawnProcessMissingCmd) {
 }
 
 /* Test command not found */
-TEST_F(SpawnProcessTest, SpawnProcessFailedCmd) {
+TEST_F(SpawnProcessTest, DISABLED_SpawnProcessFailedCmd) {
     SpawnProcess process("/bin/foo", 1, "-h");
     process.set_output_file(OUTFILE);
     

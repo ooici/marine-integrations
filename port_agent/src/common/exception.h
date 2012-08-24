@@ -130,6 +130,7 @@ class SocketConnectFailure : public OOIException {
         OOIException("Failed Socket Connect:", 304, msg) {}
 };
 
+
 class SocketReadFailure : public OOIException {
     public: SocketReadFailure(const char* msg = "") :
         OOIException("Failed Socket Read:", 305, msg) {}
@@ -142,12 +143,22 @@ class SocketWriteFailure : public OOIException {
 
 class SocketMissingConfig : public OOIException {
     public: SocketMissingConfig(const char* msg = "") :
-        OOIException("Failed Socket Write:", 307, msg) {}
+        OOIException("Failed Socket Misconfigured:", 307, msg) {}
 };
 
 class SocketNotConnected : public OOIException {
     public: SocketNotConnected(const char* msg = "") :
         OOIException("Failed Socket Write:", 308, msg) {}
+};
+
+class SocketAlreadyConnected : public OOIException {
+    public: SocketAlreadyConnected(const char* msg = "") :
+        OOIException("Socket Already Connected:", 309, msg) {}
+};
+
+class SocketNotInitialized : public OOIException {
+    public: SocketNotInitialized(const char* msg = "") :
+        OOIException("Socket Not Initialized:", 310, msg) {}
 };
 
 /*******************************************************************************
