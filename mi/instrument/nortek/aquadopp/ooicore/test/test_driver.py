@@ -130,7 +130,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # Grab a subset of parameters.
         params = [
-            Parameter.HEAD_SPARE
+            Parameter.STATUS
             ]
         reply = self.driver_client.cmd_dvr('get', params)
         #self.assertParamDict(reply)        
@@ -140,14 +140,12 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         
         # Construct new parameters to set.
         new_params = {
-            Parameter.HEAD_SPARE : orig_params[Parameter.HEAD_SPARE] * 2
+            Parameter.STATUS : orig_params[Parameter.STATUS] * 2
         }
         
         # Set parameters and verify.
         reply = self.driver_client.cmd_dvr('set', new_params)
 
-# Set parameters and verify.
-        reply = self.driver_client.cmd_dvr('set', new_params)
 
     def test_instrument_wakeup(self):
         """

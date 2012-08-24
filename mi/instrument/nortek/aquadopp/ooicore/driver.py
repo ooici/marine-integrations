@@ -73,6 +73,7 @@ class InstrumentCmds(BaseEnum):
     SAMPLE_INTERVAL_TIME               = 'M'
     START_MEASUREMENT_WITHOUT_RECORDER = 'ST'
     GET_ALL_CONFIGURATIONS             = 'GA'
+    GET_USER_CONFIGURATION             = 'GC'
     CONFIGURE_INSTRUMENT               = 'CC'
     
 class InstrumentModes(BaseEnum):
@@ -99,6 +100,8 @@ class ProtocolEvent(BaseEnum):
     """
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
+    GET = DriverEvent.GET
+    SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
@@ -111,16 +114,18 @@ class Parameter(DriverParameter):
     """
     Device parameters
     """
+    """
+    # these are read only and not included for now
     # hardware configuration
-    HW_SERIAL_NUMBER = "HwSerialNumber"
-    HW_CONFIG = "HwConfig"
-    HW_FREQUENCY = "HwFrequency"
-    PIC_VERSION = "PicCodeVerNumber"
-    HW_REVISION = "HwRevision"
-    REC_SIZE = "RecorderSize"
-    STATUS = "Status"
-    HW_SPARE = 'HwSpare'
-    FW_VERSION = "FirmwareVersion"
+    HW_SERIAL_NUMBER = "HardwareSerialNumber"
+    HW_CONFIG = "HardwareConfig"
+    HW_FREQUENCY = "HardwareFrequency"
+    PIC_VERSION = "HardwarePicCodeVerNumber"
+    HW_REVISION = "HardwareRevision"
+    REC_SIZE = "HardwareRecorderSize"
+    STATUS = "HardwareStatus"
+    HW_SPARE = 'HardwareSpare'
+    FW_VERSION = "HardwareFirmwareVersion"
     
     # head configuration
     HEAD_CONFIG = "HeadConfig"
@@ -130,6 +135,7 @@ class Parameter(DriverParameter):
     HEAD_SYSTEM = 'HeadSystemData'
     HEAD_SPARE = 'HeadSpare'
     HEAD_NUMBER_BEAMS = "HeadNumberOfBeams"
+    """
     
     # user configuration
     TRANSMIT_PULSE_LENGTH = "TransmitPulseLength"                # T1
@@ -142,9 +148,9 @@ class Parameter(DriverParameter):
     USER_NUMBER_BEAMS = "UserNumberOfBeams" 
     TIMING_CONTROL_REGISTER = "TimingControlRegister"
     POWER_CONTROL_REGISTER = "PowerControlRegister"
-    A1_1 = 'A1_1'
-    B0_1 = 'B0_1'
-    B1_1 = 'B1_1'
+    A1_1_SPARE = 'A1_1Spare'
+    B0_1_SPARE = 'B0_1Spare'
+    B1_1_SPARE = 'B1_1Spare'
     COMPASS_UPDATE_RATE ="CompassUpdateRate"  
     COORDINATE_SYSTEM = "CoordinateSystem"
     NUMBER_BINS = "NumberOfBins"      # number of cells
@@ -162,7 +168,7 @@ class Parameter(DriverParameter):
     MODE_TEST = 'ModeTest'
     ANALOG_INPUT_ADDR = 'AnalogInputAddress'
     SW_VERSION = 'SwVersion'
-    USER_SPARE1 = 'UserSpare1'
+    USER_1_SPARE = 'User1Spare'
     VELOCITY_ADJ_TABLE = 'VelocityAdjTable'
     COMMENTS = 'Comments'
     WAVE_MEASUREMENT_MODE = 'WaveMeasurementMode'
@@ -171,15 +177,15 @@ class Parameter(DriverParameter):
     WAVE_BLANKING_DISTANCE = 'WaveBlankingDistance'
     WAVE_CELL_SIZE = 'WaveCellSize'
     NUMBER_DIAG_SAMPLES = 'NumberDiagnosticSamples'
-    A1_2 = 'A1_2'
-    B0_2 = 'B0_2'
-    B1_2 = 'B1_2'
-    USER_SPARE2 = 'UserSpare2'
+    A1_2_SPARE = 'A1_2Spare'
+    B0_2_SPARE = 'B0_2Spare'
+    B1_2_SPARE = 'B1_2Spare'
+    USER_2_SPARE = 'User2Spare'
     ANALOG_OUTPUT_SCALE = 'AnalogOutputScale'
     COORELATION_THRESHOLD = 'CoorelationThreshold'
-    USER_SPARE3 = 'UserSpare3'
-    TRANSMIT_PULSE_LENGTH = 'TransmitPulseWidth'
-    USER_SPARE4 = 'UserSpare4'
+    USER_3_SPARE = 'User3Spare'
+    TRANSMIT_PULSE_LENGTH_SECOND_LAG = 'TransmitPulseLengthSecondLag'
+    USER_4_SPARE = 'User4Spare'
     QUAL_CONSTANTS = 'StageMatchFilterConstants'
     
     
@@ -327,9 +333,13 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 
     def get_resource_params(self):
         """
-        Return list of device parameters available.
+        Return list of device parameters available.  These are a subset of all the parameters
         """
-        return Parameter.list()
+        list = []
+        for param in Parameter:
+            if not param.endswith('Spare'):
+                list.append(param) 
+        return list
 
     ########################################################################
     # Protocol builder.
@@ -363,9 +373,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         Parameter.USER_NUMBER_BEAMS, 
         Parameter.TIMING_CONTROL_REGISTER,
         Parameter.POWER_CONTROL_REGISTER,
-        Parameter.A1_1,
-        Parameter.B0_1,
-        Parameter.B1_1,
+        Parameter.A1_1_SPARE,
+        Parameter.B0_1_SPARE,
+        Parameter.B1_1_SPARE,
         Parameter.COMPASS_UPDATE_RATE,  
         Parameter.COORDINATE_SYSTEM,
         Parameter.NUMBER_BINS,
@@ -383,7 +393,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Parameter.MODE_TEST,
         Parameter.ANALOG_INPUT_ADDR,
         Parameter.SW_VERSION,
-        Parameter.USER_SPARE1,
+        Parameter.USER_1_SPARE,
         Parameter.VELOCITY_ADJ_TABLE,
         Parameter.COMMENTS,
         Parameter.WAVE_MEASUREMENT_MODE,
@@ -392,15 +402,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         Parameter.WAVE_BLANKING_DISTANCE,
         Parameter.WAVE_CELL_SIZE,
         Parameter.NUMBER_DIAG_SAMPLES,
-        Parameter.A1_2,
-        Parameter.B0_2,
-        Parameter.B1_2,
-        Parameter.USER_SPARE2,
+        Parameter.A1_2_SPARE,
+        Parameter.B0_2_SPARE,
+        Parameter.B1_2_SPARE,
+        Parameter.USER_2_SPARE,
         Parameter.ANALOG_OUTPUT_SCALE,
         Parameter.COORELATION_THRESHOLD,
-        Parameter.USER_SPARE3,
-        Parameter.TRANSMIT_PULSE_LENGTH,
-        Parameter.USER_SPARE4,
+        Parameter.USER_3_SPARE,
+        Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
+        Parameter.USER_4_SPARE,
         Parameter.QUAL_CONSTANTS,
         ]
     
@@ -430,6 +440,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
@@ -440,10 +452,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
 
         # set up configuration indexing constants
+        """  only user config returned for now
         self.HEAD_OFFSET = 48
         self.USER_OFFSET = self.HEAD_OFFSET + 224
+        """
+        self.USER_OFFSET = 0
         self.ACK_OFFSET = self.USER_OFFSET + 512
-        
+        self.CONFIGURATION_RESPONSE_LENGTH = self.ACK_OFFSET + 2 
+               
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
@@ -659,6 +675,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._connection.send(InstrumentCmds.CONFIGURE_INSTRUMENT)
         self._connection.send(output)
 
+        # Clear the prompt buffer.
+        self._promptbuf = ''
         self._get_response(timeout=5, expected_prompt=InstrumentPrompts.Z_ACK)
 
         self._update_params()
@@ -783,6 +801,47 @@ class Protocol(CommandResponseInstrumentProtocol):
         return (next_state, result)
 
     ########################################################################
+    # Common handlers.
+    ########################################################################
+
+    def _handler_get(self, *args, **kwargs):
+        """
+        Get device parameters from the parameter dict.
+        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
+        @throws InstrumentParameterException if missing or invalid parameter.
+        """
+        next_state = None
+        result = None
+
+        # Retrieve the required parameter, raise if not present.
+        try:
+            params = args[0]
+
+        except IndexError:
+            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
+
+        # If all params requested, retrieve config.
+        if params == DriverParameter.ALL:
+            result = self._param_dict.get_config()
+
+        # If not all params, confirm a list or tuple of params to retrieve.
+        # Raise if not a list or tuple.
+        # Retrieve each key in the list, raise if any are invalid.
+        else:
+            if not isinstance(params, (list, tuple)):
+                raise InstrumentParameterException('Get argument not a list or tuple.')
+            result = {}
+            for key in params:
+                try:
+                    val = self._param_dict.get(key)
+                    result[key] = val
+
+                except KeyError:
+                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
+
+        return (next_state, result)
+
+    ########################################################################
     # Private helpers.
     ########################################################################
     
@@ -794,8 +853,8 @@ class Protocol(CommandResponseInstrumentProtocol):
     
     def _word_to_string(self, value):
         low_byte = value & 0xff
-        high_byte = (value & 0xff) >> 8
-        return chr(high_byte) + chr(low_byte)
+        high_byte = (value & 0xff00) >> 8
+        return chr(low_byte) + chr(high_byte)
         
     def _build_param_dict(self):
         """
@@ -809,73 +868,92 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add parameter handlers to parameter dict.
         
+        """
+        These are read only parameters and not processed for now
         # hardware config
         self._param_dict.add(Parameter.HW_SERIAL_NUMBER,
                              r'^.{4}(.{14}).*',
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HW_CONFIG,
                              r'^.{18}(.{2}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HW_FREQUENCY,
                              r'^.{20}(.{2}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PIC_VERSION,
                              r'^.{22}(.{2}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HW_REVISION,
                              r'^.{24}(.{2}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.REC_SIZE,
                              r'^.{26}(.{2}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.STATUS,
                              r'^.{28}(.{2}).*',
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HW_SPARE,
                              r'^.{30}(.{12}).*',
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.FW_VERSION,
                              r'^.{42}(.{4}).*',
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         
         # head config
         self._param_dict.add(Parameter.HEAD_CONFIG,
                              r'^.{%s}(.{2}).*' % str(self.HEAD_OFFSET+4),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HEAD_FREQUENCY,
                              r'^.{%s}(.{2}).*' % str(self.HEAD_OFFSET+6),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HEAD_TYPE,
                              r'^.{%s}(.{2}).*' % str(self.HEAD_OFFSET+8),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HEAD_SERIAL_NUMBER,
                              r'^.{%s}(.{12}).*' % str(self.HEAD_OFFSET+10),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HEAD_SYSTEM,
                              r'^.{%s}(.{176}).*' % str(self.HEAD_OFFSET+22),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HEAD_SPARE,
                              r'^.{%s}(.{22}).*' % str(self.HEAD_OFFSET+198),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HEAD_NUMBER_BEAMS,
                              r'^.{%s}(.{2}).*' % str(self.HEAD_OFFSET+220),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
+        """
         
         # user config
         self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH,
@@ -1062,25 +1140,24 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+460),
                              lambda match : match.group(1),
                              lambda string : string)
-        self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH,
-                             r'^.{%s}(.{30}).*' % str(self.USER_OFFSET+462),
+        self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
+                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+462),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string)
         self._param_dict.add(Parameter.USER_SPARE4,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+464),
+                             r'^.{%s}(.{30}).*' % str(self.USER_OFFSET+464),
                              lambda match : match.group(1),
                              lambda string : string)
         self._param_dict.add(Parameter.QUAL_CONSTANTS,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+494),
-                             lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             r'^.{%s}(.{16}).*' % str(self.USER_OFFSET+494),
+                             lambda match : match.group(1),
+                             lambda string : string)
         
-    def _dump_config(self, input):
+    def _dump_user_config(self, input):
         # dump user section
-        for byte_index in range(self.USER_OFFSET, self.ACK_OFFSET):
-            byte_number = byte_index - self.USER_OFFSET
-            if byte_number % 0x10 == 0:
-                print('\n%03x  ' % byte_number),
+        for byte_index in range(0, len(input)):
+            if byte_index % 0x10 == 0:
+                print('\n%03x  ' % byte_index),
             print('%02x ' % ord(input[byte_index])),
         print('')
     
@@ -1090,7 +1167,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         USER_SYNC_BYTES = '\xa5\x00\x00\x01'
         
         log.debug('_check_configuration: user config=\n')
-        self._dump_config(input)
+        self._dump_user_config(input[self.USER_OFFSET:self.ACK_OFFSET])
         # check for ACK bytes
         if input[self.ACK_OFFSET:self.ACK_OFFSET+2] != InstrumentPrompts.Z_ACK:
             log.debug('_check_configuration: ACK bytes in error %s != %s' 
@@ -1098,6 +1175,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             return False
         
         # check the sync bytes for each of the configuration groups
+        """
         if input[0:4] != HW_SYNC_BYTES:
             log.debug('_check_configuration: hardware sync bytes in error %s!=%s' 
                       %(input[0:3], HW_SYNC_BYTES))
@@ -1106,6 +1184,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.debug('_check_configuration: head sync bytes in error %s != %s' 
                       %(input[self.HEAD_OFFSET:self.HEAD_OFFSET+4], HD_SYNC_BYTES))
             return False
+        """
         if input[self.USER_OFFSET:self.USER_OFFSET+4] != USER_SYNC_BYTES:
             log.debug('_check_configuration: hardware sync bytes in error %s != %s' 
                       %(input[self.USER_OFFSET:self.USER_OFFSET+4], USER_SYNC_BYTES))
@@ -1114,6 +1193,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # check checksum bytes
         
         # check hardware checksum
+        """
         calculated_checksum = self.CHECK_SUM_SEED
         for word_index in range(0, self.HEAD_OFFSET-2, 2):
             word_value = self._convert_word_to_int(input[word_index:word_index+2])
@@ -1136,6 +1216,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.debug('_check_configuration: head checksum in error %s != %s' 
                       %(calculated_checksum, sent_checksum))
             return False        
+        """
         
         # check user checksum
         calculated_checksum = self.CHECK_SUM_SEED
@@ -1176,9 +1257,9 @@ class Protocol(CommandResponseInstrumentProtocol):
 
             log.debug('Sending get_all_configurations command to the instrument.')
             # Send what_mode command to attempt to get a response.
-            self._connection.send(InstrumentCmds.GET_ALL_CONFIGURATIONS)
+            self._connection.send(InstrumentCmds.GET_USER_CONFIGURATION)
             for i in range(20):
-                if len(self._promptbuf) == CONFIGURATION_RESPONSE_LENGTH:
+                if len(self._promptbuf) == self.CONFIGURATION_RESPONSE_LENGTH:
                     if self._check_configuration(self._promptbuf):                    
                         self._param_dict.update(self._promptbuf)
                         # Get new param dict config. If it differs from the old config,
@@ -1236,18 +1317,18 @@ class Protocol(CommandResponseInstrumentProtocol):
                 raise InstrumentTimeoutException()
 
     def _create_set_output(self, parameters):
-        output = ''
+        output = '\xa5\x00\x00\x01'
         for name in self.UserParameters:
             output += parameters.format_parameter(name)
-                              
+        
         checksum = self.CHECK_SUM_SEED
         for word_index in range(0, len(output), 2):
             word_value = self._convert_word_to_int(output[word_index:word_index+2])
             checksum = (checksum + word_value) % 0x10000
             #log.debug('w_i=%d, c_c=%d' %(word_index, calculated_checksum))
         log.debug('_create_set_output: user checksum = %s' % checksum)
-                
-        output += str(checksum)
-        output += '\x06\x06'
+
+        output += self._word_to_string(checksum)
+        self._dump_user_config(output)                      
         
         return output
