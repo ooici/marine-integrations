@@ -130,7 +130,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # Grab a subset of parameters.
         params = [
-            Parameter.STATUS
+            Parameter.TRANSMIT_PULSE_LENGTH
             ]
         reply = self.driver_client.cmd_dvr('get', params)
         #self.assertParamDict(reply)        
@@ -140,7 +140,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         
         # Construct new parameters to set.
         new_params = {
-            Parameter.STATUS : orig_params[Parameter.STATUS] * 2
+            Parameter.TRANSMIT_PULSE_LENGTH : orig_params[Parameter.TRANSMIT_PULSE_LENGTH]
         }
         
         # Set parameters and verify.

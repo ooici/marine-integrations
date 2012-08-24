@@ -996,15 +996,15 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+22),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string)
-        self._param_dict.add(Parameter.A1_1,
+        self._param_dict.add(Parameter.A1_1_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+24),
                              lambda match : match.group(1),
                              lambda string : string)
-        self._param_dict.add(Parameter.B0_1,
+        self._param_dict.add(Parameter.B0_1_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+26),
                              lambda match : match.group(1),
                              lambda string : string)
-        self._param_dict.add(Parameter.B1_1,
+        self._param_dict.add(Parameter.B1_1_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+28),
                              lambda match : match.group(1),
                              lambda string : string)
@@ -1076,7 +1076,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+72),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string)
-        self._param_dict.add(Parameter.USER_SPARE1,
+        self._param_dict.add(Parameter.USER_1_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+74),
                              lambda match : match.group(1),
                              lambda string : string)
@@ -1112,19 +1112,19 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+446),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string)
-        self._param_dict.add(Parameter.A1_2,
+        self._param_dict.add(Parameter.A1_2_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+448),
                              lambda match : match.group(1),
                              lambda string : string)
-        self._param_dict.add(Parameter.B0_2,
+        self._param_dict.add(Parameter.B0_2_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+450),
                              lambda match : match.group(1),
                              lambda string : string)
-        self._param_dict.add(Parameter.B1_2,
+        self._param_dict.add(Parameter.B1_2_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+452),
                              lambda match : match.group(1),
                              lambda string : string)
-        self._param_dict.add(Parameter.USER_SPARE2,
+        self._param_dict.add(Parameter.USER_2_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+454),
                              lambda match : match.group(1),
                              lambda string : string)
@@ -1136,7 +1136,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+458),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string)
-        self._param_dict.add(Parameter.USER_SPARE3,
+        self._param_dict.add(Parameter.USER_3_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+460),
                              lambda match : match.group(1),
                              lambda string : string)
@@ -1144,7 +1144,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+462),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string)
-        self._param_dict.add(Parameter.USER_SPARE4,
+        self._param_dict.add(Parameter.USER_4_SPARE,
                              r'^.{%s}(.{30}).*' % str(self.USER_OFFSET+464),
                              lambda match : match.group(1),
                              lambda string : string)
