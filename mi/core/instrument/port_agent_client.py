@@ -21,29 +21,86 @@ from mi.core.exceptions import InstrumentConnectionException
 
 HEADER_SIZE = 16
 
+"""
+Offsets into the packed header fields
+"""
+OFFSET_P_CHECKSUM_LOW = 6
+OFFSET_P_CHECKSUM_HIGH = 7
+
+"""
+Offsets into the unpacked header fields
+"""
+OFFSET_UP_TYPE = 3
+OFFSET_UP_LENGTH = 4
+OFFSET_UP_CHECKSUM = 5
+
 class PortAgentPacket():
+    """
+    An object that encapsulates the details packets that are sent to and
+    received from the port agent.  
+    """
     
-    def __init__(self, header):
+    def __init__(self):
+        self.__header = None
+        slef.__data = None
+        self.__type = None
+        self.__length = None
+        self.__timestamp_low = None
+        self.__timestamp_high = None
+        self.__recv_checksum  = None
+        self.__checksum = None
         
+    def unpack_header(self, header):
         self.__header = header
         up_header = struct.unpack_from('>BBBBHHLL', header)
-        self.__type = up_header[3]
-        self.__length = int(up_header[4]) - HEADER_SIZE
-        self.__checksum  = int(up_header[5])
+        self.__type = up_header[OFFSET_UP_TYPE]
+        self.__length = int(up_header[OFFSET_UP_LENGTH]) - HEADER_SIZE
+        self.__recv_checksum  = int(up_header[OFFSET_UP_CHECKSUM])
 
+    def pack_header(self, packet_type):
+        """
+        Given a type and length, pack a header to be sent to the port agent.
+        """
+        if self.__data == None:
+            log.error('pack_header: no data!')
+            """
+            TODO: throw an exception here?
+            """
+        else:
+            self.__type = packet_type
+            self.__length = len(__data) + HEADER_SIZE
+            
+            """
+            do the checksum last, since the checksum needs to include the
+            populated header fields
+            """
+            self.__checksum = self.calculate_checksum()
+        
     def attach_data(self, data):
         self.__data = data
-                        
-    def verify_checksum(self):
+
+    def calculate_checksum(self):
         checksum = 0
         for i in range(HEADER_SIZE):
-            if i < 6 or i > 7:
+            if i < OFFSET_P_CHECKSUM_LOW or i > OFFSET_P_CHECKSUM_HIGH:
                 checksum += struct.unpack_from('B', self.__header[i])[0]
                 
         for i in range(self.__length):
             checksum += struct.unpack_from('B', self.__data[i])[0]
             
-        if checksum == self.__checksum:
+        return checksum
+            
+                                
+    def verify_checksum(self):
+        checksum = 0
+        for i in range(HEADER_SIZE):
+            if i < OFFSET_P_CHECKSUM_LOW or i > OFFSET_P_CHECKSUM_HIGH:
+                checksum += struct.unpack_from('B', self.__header[i])[0]
+                
+        for i in range(self.__length):
+            checksum += struct.unpack_from('B', self.__data[i])[0]
+            
+        if checksum == self.__recv_checksum:
             self.__isValid = True
         else:
             self.__isValid = False
@@ -129,10 +186,14 @@ class PortAgentClient(object):
         paPacket.verify_checksum()
         self.user_callback(paPacket)
         
-    def send(self, data):
+    def send(self, packet_type, data):
         """
-        Send data to the device logger, retrying until all is sent.
+        Send data to the port agent.  (Instantiate a PortAgentPacket object and
+        send the object to the port agent.)
         """
+        paPacket = PortAgentPacket()
+        paPacket.attach_data(data)
+        paPacket.pack_header(packet_type)
         
         if self.sock:
             while len(data) > 0:
@@ -203,7 +264,8 @@ class Listener(threading.Thread):
                     if bytes_left == 0:
                         received_header = True
                         print "RECEIVED HEADER!"
-                        paPacket = PortAgentPacket(header)         
+                        paPacket = PortAgentPacket()         
+                        paPacket.unpack_header(header)         
                         data_size = paPacket.get_data_size()
                         bytes_left = data_size
                     elif len(header) == 0:
