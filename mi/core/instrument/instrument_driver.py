@@ -389,6 +389,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.GET, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.SET, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.EXECUTE, self._handler_connected_protocol_event)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.FORCE_STATE, self._handler_connected_protocol_event)
             
         # Start state machine.
         self._connection_fsm.start(DriverConnectionState.UNCONFIGURED)

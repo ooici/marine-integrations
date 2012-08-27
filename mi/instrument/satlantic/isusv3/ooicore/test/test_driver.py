@@ -138,7 +138,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         self.raw_stream_received = False
         self.parsed_stream_received = False
         
-    def test_event_callback(self, event):
+    def my_event_callback(self, event):
         event_type = event['type']
         print str(event)
         if event_type == DriverAsyncEvent.SAMPLE:
@@ -159,9 +159,9 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.test_event_callback)
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
         
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
@@ -171,7 +171,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         """
         config = {'mock_port_agent' : mock_port_agent}
         test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
         
@@ -181,7 +181,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         (which means that the FSM should now be reporting the ProtocolState).
         """
         test_driver.connect()
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
@@ -190,7 +190,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         publish samples
         """        
         test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -229,9 +229,9 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.test_event_callback)
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
         
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
@@ -241,7 +241,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         """
         config = {'mock_port_agent' : mock_port_agent}
         test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
         
@@ -251,7 +251,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         (which means that the FSM should now be reporting the ProtocolState).
         """
         test_driver.connect()
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
@@ -260,7 +260,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         publish samples
         """        
         test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -311,7 +311,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.test_event_callback)
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
         
         current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
@@ -371,9 +371,9 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.test_event_callback)
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
         
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
@@ -383,7 +383,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         """
         config = {'mock_port_agent' : mock_port_agent}
         test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
         
@@ -393,7 +393,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         (which means that the FSM should now be reporting the ProtocolState).
         """
         test_driver.connect()
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
@@ -402,7 +402,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         publish samples
         """        
         test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -459,9 +459,9 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.test_event_callback)
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
         
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
@@ -471,7 +471,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         """
         config = {'mock_port_agent' : mock_port_agent}
         test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
         
@@ -481,7 +481,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         (which means that the FSM should now be reporting the ProtocolState).
         """
         test_driver.connect()
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
@@ -490,7 +490,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         publish samples
         """        
         test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -637,7 +637,7 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
         self.assertEqual(state, State.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover_state')
 
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.COMMAND)
