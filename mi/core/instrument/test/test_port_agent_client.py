@@ -45,6 +45,15 @@ class TestPortAgentClient():
         #paClient = PortAgentClient(ipaddr, port)
         paClient.init_comms(self.myGotData)
         
+    def test_port_agent_client_send(self):
+        ipaddr = "67.58.49.194"
+        port  = 4000
+        paClient = PortAgentClient(self.ipaddr, self.port)
+        #paClient = PortAgentClient(ipaddr, port)
+        paClient.init_comms(self.myGotData)
+        
+        paClient.send('this is a test\n')
+        
 if __name__ == '__main__':
     app = TestPortAgent()
     app.setUp
