@@ -678,7 +678,7 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.UNKNOWN)
 
-        reply = self.driver_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover_state')
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
@@ -730,7 +730,7 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.UNKNOWN)
 
-        reply = self.driver_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover_state')
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
