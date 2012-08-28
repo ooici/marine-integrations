@@ -598,14 +598,15 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         presented by this string
         @throw InstrumentProtocolExecption on timeout
         """
-        log.debug('MenuInstrumentProtocol._get_response: timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,' 
-                  %(timeout, expected_prompt, expected_prompt.encode("hex")))
+
         # Grab time for timeout and wait for prompt.
         starttime = time.time()
                 
         if expected_prompt == None:
             prompt_list = self._prompts.list()
         else:
+            log.debug('MenuInstrumentProtocol._get_response: timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,' 
+                  %(timeout, expected_prompt, expected_prompt.encode("hex")))
             assert isinstance(expected_prompt, str)
             prompt_list = [expected_prompt]            
         while True:
