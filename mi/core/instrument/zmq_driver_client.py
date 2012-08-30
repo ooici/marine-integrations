@@ -152,7 +152,6 @@ class ZmqDriverClient(DriverClient):
             try:
                 # Attempt reply recv. Retry if necessary.
                 reply = self.zmq_cmd_socket.recv_pyobj(flags=zmq.NOBLOCK)
-
                 # Reply recieved, break and return.
                 break
 

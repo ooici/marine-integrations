@@ -199,7 +199,7 @@ class ProtocolParameterDict(object):
                 continue
             #log.debug("NAME = " + name + " multi = " + str(val.multi_match))
             if val.update(input):
-                log.debug("MATCH ***************************** " + name + " = " + str(val.value))
+                #log.debug("MATCH ***************************** " + name + " = " + str(val.value))
                 if False == val.multi_match:
                     return
                     # return name # Nothing uses this return, so making it a generic return

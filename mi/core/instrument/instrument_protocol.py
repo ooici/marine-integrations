@@ -268,12 +268,12 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
 
         starttime = time.time()
 
-                
         if expected_prompt == None:
             prompt_list = self._prompts.list()
         else:
             assert isinstance(expected_prompt, str)
-            prompt_list = [expected_prompt]            
+            prompt_list = [expected_prompt]
+
         while True:
             for item in prompt_list:
                 if self._promptbuf.endswith(item):
@@ -339,9 +339,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                         (repr(cmd_line), timeout, write_delay, expected_prompt))
         if (write_delay == 0):
             self._connection.send(cmd_line)
-            log.debug("_do_cmd_resp sent '" + repr(cmd_line) + "' to device")
         else:
-            log.debug("_do_cmd_resp sent '" + repr(cmd_line) + "' to device (char by char)")
             for char in cmd_line:
                 self._connection.send(char)
                 time.sleep(write_delay)
@@ -349,6 +347,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         # Wait for the prompt, prepare result and return, timeout exception
         (prompt, result) = self._get_response(timeout,
                                               expected_prompt=expected_prompt)
+
 
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
             self._response_handlers.get(cmd, None)
@@ -641,8 +640,6 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
                   %(timeout, expected_prompt, expected_prompt.encode("hex")))
         # Grab time for timeout and wait for prompt.
         starttime = time.time()
-        log.debug("_get_response expected_prompt = " + repr(expected_prompt))
-        log.debug("_get_response timeout = " + str(timeout))
 
         if expected_prompt == None:
             prompt_list = self._prompts.list()
