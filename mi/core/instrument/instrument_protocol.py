@@ -588,8 +588,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._last_data_receive_timestamp = None
         
-    # DHE Added
-    def _get_response(self, timeout=10, expected_prompt=None):
+    def _get_response(self, timeout=10, expected_prompt=None, **kwargs):
         """
         Get a response from the instrument
         @todo Consider cases with no prompt
@@ -599,9 +598,28 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throw InstrumentProtocolExecption on timeout
         """
 
+        """
+        Because the output of the instrument does not generate events, do_cmd_rsp 
+        jumps right in here looking for a response, and often it is before the 
+        complete response has arrived, so we can miss it.  The read delay
+        is to alleviate that problem.
+        """
+        read_delay = kwargs.get('read_delay', None)
+        if read_delay is not None:
+            time.sleep(read_delay)
+            
         # Grab time for timeout and wait for prompt.
         starttime = time.time()
-                
+        
+        """
+        DHE: It doesn't seem right to go through the list of prompts
+        because one wasn't given.  Seems like if you have an expected 
+        response, provide it.  The could be a large list of responses
+        to go through on the chance that you might accidentally find
+        it?  This seems like a candidate for a required parameter; if
+        it's a don't care, then that should be explicitly stated.
+        Maybe some instrument behavior requires this?
+        """        
         if expected_prompt == None:
             prompt_list = self._prompts.list()
         else:
@@ -613,62 +631,79 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             for item in prompt_list:
                 # DHE: this doesn't work well; changing for now.
                 #if self._promptbuf.endswith(item):
-                #print "---> DHE: get_response looking for item: " + str(item) + " in promptbuf: " + str(self._promptbuf)
+                log.debug('MenuInstrumentProtocol._get_response: looking for item: %s in promptbuf: %s' 
+                          %(item, self._promptbuf))
                 if item in self._promptbuf:
-                    #print "---> get_response DHE: FOUND IT!"
+                    log.debug('MenuInstrumentProtocol._get_response: FOUND IT!') 
                     return (item, self._linebuf)
                 else:
                     time.sleep(.1)
             if time.time() > starttime + timeout:
-                #print "------->> get_response DHE TIMEOUT!!!!"
+                log.error('MenuInstrumentProtocol._get_response TIMEOUT waiting for item: %s in promptbuf!' 
+                          %(item))
                 raise InstrumentTimeoutException()
                
-    # DHE Added
     def _navigate_and_execute(self, cmd, **kwargs):
         """
         Navigate to a sub-menu and execute a command.  
         @param cmd The command to execute.
+        @param expected_prompt optional kwarg passed through to do_cmd_resp.
         @param timeout=timeout optional wakeup and command timeout.
-        @retval resp_result The (possibly parsed) response result.
+        @param write_delay optional kwarg passed through to do_cmd_resp.
+        @param read_delay optional kwarg passed through to do_cmd_resp.
         @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
+
+        # TEMPTEMP
+        print "---------> DHE: nav_and_ex kwargs: " + str(kwargs)
         
         resp_result = None
 
         # Get dest_submenu arg
-        dest_submenu = kwargs.get('dest_submenu', None)
+        dest_submenu = kwargs.pop('dest_submenu', None)
         if dest_submenu == None:
             raise InstrumentProtocolException('_navigate_and_execute(): dest_submenu parameter missing')
 
         # iterate through the directions 
         directions_list = self._menu.get_directions(dest_submenu)
         for directions in directions_list:
-            #print "--------> DHE: nav_and_ex: directions: " + str(directions)
+            print "--------> DHE: nav_and_ex: directions: " + str(directions)
             command = directions.get_command()
             response = directions.get_response()
             timeout = directions.get_timeout()
             self._do_cmd_resp(command, expected_prompt = response, timeout = timeout)
 
         # Get timeout and initialize response.
+        """
+        DHE removing these and just passing **kwargs to do_cmd_resp
+        
         expected_timeout = kwargs.get('timeout', 10)
         expected_prompt = kwargs.get('expected_prompt', None)
         write_delay = kwargs.get('write_delay', 0)
-        retval = None
+        """
+
+        """
+        DHE: this is a kludge; need a way to send a parameter as a "command."  We can't expect to look
+        up all possible values in the build_handlers
+        """
         
-        value = kwargs.get('value', None)
-        #
-        # DHE: this is a kludge; need a way to send a parameter as a "command."  We can't expect to look
-        # up all possible values in the build_handlers
-        #
+        value = kwargs.pop('value', None)
         if cmd is None:
             cmd_line = self._build_simple_command(value) 
-            #print "-----> DHE: sending value: " + cmd_line + " to connection.send()"
+            """
+            UNCOMMENTING THESE TWO PRINTS MAKES IT WORK!
+            """
+            print "-----> DHE: sending value: " + cmd_line + " to connection.send()"
             self._connection.send(cmd_line)
         else:
-            #print "-----> DHE: sending command: " + str(cmd) + " + value: " + str(value) + " to do_cmd_resp()"
-            resp_result = self._do_cmd_resp(cmd, value = value, expected_prompt = expected_prompt, timeout = expected_timeout)
+            """
+            UNCOMMENTING THESE TWO PRINTS MAKES IT WORK!
+            """
+            #print "-----> DHE: sending command: " + str(cmd) + " + value: " + str(value) + " expected_prompt: " + str(expected_prompt) + " to do_cmd_resp()"
+            #resp_result = self._do_cmd_resp(cmd, value = value, expected_prompt = expected_prompt, timeout = expected_timeout)
+            resp_result = self._do_cmd_resp(cmd, **kwargs)
  
         return resp_result
 
@@ -676,19 +711,25 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         Perform a command-response on the device.
         @param cmd The command to execute.
+        @param expected_prompt optional kwarg passed through to _get_response.
         @param timeout=timeout optional wakeup and command timeout.
-        @retval resp_result The (possibly parsed) response result.
+        @param write_delay optional kwarg for inter-character transmit delay.
+        @param read_delay optional kwarg passed through to _get_response.
         @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
 
-        #print "-----> DHE: do_cmd_resp sending cmd: " + str(cmd[0])
+        # TEMPTEMP
+        print "---------> DHE: do_cmd_resp: kwargs: " + str(kwargs)
+        
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', 10)
         expected_prompt = kwargs.get('expected_prompt', None)
-        write_delay = kwargs.get('write_delay', 0)
-        retval = None
+        read_delay = kwargs.get('read_delay', None)
+        
+        # Pop off the write_delay; it doesn't get passed on in **kwargs
+        write_delay = kwargs.pop('write_delay', 0)
 
         # Get the value
         value = kwargs.get('value', None)
@@ -698,22 +739,17 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         if not build_handler:
             raise InstrumentProtocolException('Cannot build command: %s' % cmd[0])
 
-        # DHE taking out args; if we need them we'll use kwargs
-        #cmd_line = build_handler(cmd, *args)
-        #
-        # DHE: Should this really be like this: intent.format_input()?  This way the "command"
-        # or "intent" object contains the build instructions?  This seems strange to me to 
-        # do it this way.
-        # (passing the actual command to this instead of the unique name, because the command
-        # overlaps sometimes.
+        """
+        DHE: The cmd for menu-driven instruments needs to be an object.  Need to refactor
+        """
         cmd_line = build_handler(cmd[1])
 
         # Clear line and prompt buffers for result.
         self._linebuf = ''
         self._promptbuf = ''
 
-        log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
-                        (repr(cmd_line), timeout, write_delay, expected_prompt))
+        log.debug('_do_cmd_resp: cmd=%s, timeout=%s, write_delay=%s, read_delay=%s, expected_prompt=%s,' %
+                        (repr(cmd_line), timeout, write_delay, read_delay, expected_prompt))
         if (write_delay == 0):
             self._connection.send(cmd_line)
         else:
@@ -723,17 +759,18 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
                 time.sleep(write_delay)
 
         # Wait for the prompt, prepare result and return, timeout exception
-        (prompt, result) = self._get_response(timeout,
+        (prompt, result) = self._get_response(timeout, read_delay=read_delay, 
                                               expected_prompt=expected_prompt)
 
-        # DHE TEMP
-        #print "----->>> DHE: looking for response handler for: " + str(cmd[0])
+        log.debug('_do_cmd_resp: looking for response handler for: %s"' %(cmd[0]))
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd[0]), None) or \
             self._response_handlers.get(cmd[0], None)
         resp_result = None
         if resp_handler:
-            #print "--->>> DHE:  calling response handler: " + str(resp_handler)
+            log.debug('_do_cmd_resp: calling response handler: %s' %(resp_handler))
             resp_result = resp_handler(result, prompt)
+        else:
+            log.debug('_do_cmd_resp: no response handler for cmd: %s' %(cmd[0]))
 
         return resp_result
     

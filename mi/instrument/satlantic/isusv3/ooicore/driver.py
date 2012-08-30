@@ -51,6 +51,7 @@ log = get_logger()
 ###
 INSTRUMENT_NEWLINE = '\r\n'
 WRITE_DELAY = 0
+READ_DELAY = .25
 RESET_DELAY = 25
 #EOLN = "\r\n"
 EOLN = "\n"
@@ -220,56 +221,9 @@ class Event(BaseEnum):
     REBOOT = "REBOOT"
 
 
-#class Command(BaseEnum):
-class Command(object):
-    """
-    DHE: Commenting these out for now..
-    REBOOT = "REBOOT"
-    GENERATE_DUMP_FILE = 'GENERATE_DUMP_FILE'
-    FILE_LIST_PROGRAM = "LP"
-    FILE_LIST_COEFFICIENT = "LC"
-    FILE_LIST_LOG = "LL"
-    FILE_LIST_DATA = "LD"
-    FILE_OUTPUT_EXTINCT = "OE"
-    FILE_OUTPUT_WAVELENGTH = "OW"
-    FILE_OUTPUT_SCHEDULE = "OS"
-    FILE_OUTPUT_LOG = "OL"
-    FILE_OUTPUT_DATA = "OD"
-    FILE_UPLOAD_SCHEDULE = "US"
-    FILE_UPLOAD_EXTINCT = "UE"
-    FILE_UPLOAD_PROGRAM = "UP"
-    FILE_ERASE_EXTINCT = "EE"
-    FILE_ERASE_LOG = "EL"
-    FILE_ERASE_DATA = "ED"
-    FILE_ERASE_ALL_DATA = "EAD"
-    #SUBMIT_SCHEDULE = "SUBMIT_SCHEDULE"
-    #SUBMIT_CALIBRATION = "SUBMIT_CALIBRATION"
-    #GET_CALIBRATION = "GET_CALIBRATION"
-    """
 
-    # Main menu commands
-    DEPLOYMENT_MODE_YES = ('deployment_mode_yes', 'Y')
-    DEPLOYMENT_MODE_NO = ('deployment_mode_no', 'N')
-    CONFIG_MENU_CMD = ('config_menu_cmd', 'C')
-    SHOW_CONFIG_CMD = ('show_config_cmd', 'S')
-    BAUD_RATE_CMD = ('baud_rate_cmd', 'B')
-    SETUP_MENU_CMD = ('setup_menu_cmd', 'S')
-    DEPLOYMENT_COUNTER_CMD = ('deployment_counter_cmd', 'D')
-    DEPLOYMENT_MODE_CMD = ('deployment_mode_cmd', 'D')
-    OPERATIONAL_MODE_CMD = ('operational_mode_cmd', 'O')
-
-
-    #FILE_MENU_CMD = 'F'
-    #INFO_MENU_CMD = 'I'
-    #UP_MENU_LEVEL_CMD = 'Q'
-    #OUTPUT_SETUP_MENU_CMD = 'O'
-    #DEPLOYMENT_SETUP_MENU_CMD = 'D'
-    #SPECTROMETER_SETUP_MENU_CMD = 'S'
-    #LAMP_SETUP_MENU_CMD = 'L'
-    
-    
 class Prompt(BaseEnum):
-    ROOT_MENU = "ISUS> [H] ?"
+    ROOT_MENU = "ISUS> [H]"
     CONFIG_MENU_1 = "ISUS Configuration Menu (<H> for Help)"
     #CONFIG_MENU = "ISUS_CONFIG> [H] ?"
     # DHE This is bogus; seems to timeout looking for this sometimes.
@@ -322,7 +276,58 @@ class Parameter(DriverParameter):
     FITTING_RANGE = "FITTING_RANGE" # DA
     BASELINE_ORDER = "BASELINE_ORDER" # DA
     SEAWATER_DARK_SAMPLES = "SEAWATER_DARK_SAMPLES" # DA
+
+#class Command(BaseEnum):
+class Command(object):
+    """
+    DHE: Commenting these out for now..
+    REBOOT = "REBOOT"
+    GENERATE_DUMP_FILE = 'GENERATE_DUMP_FILE'
+    FILE_LIST_PROGRAM = "LP"
+    FILE_LIST_COEFFICIENT = "LC"
+    FILE_LIST_LOG = "LL"
+    FILE_LIST_DATA = "LD"
+    FILE_OUTPUT_EXTINCT = "OE"
+    FILE_OUTPUT_WAVELENGTH = "OW"
+    FILE_OUTPUT_SCHEDULE = "OS"
+    FILE_OUTPUT_LOG = "OL"
+    FILE_OUTPUT_DATA = "OD"
+    FILE_UPLOAD_SCHEDULE = "US"
+    FILE_UPLOAD_EXTINCT = "UE"
+    FILE_UPLOAD_PROGRAM = "UP"
+    FILE_ERASE_EXTINCT = "EE"
+    FILE_ERASE_LOG = "EL"
+    FILE_ERASE_DATA = "ED"
+    FILE_ERASE_ALL_DATA = "EAD"
+    #SUBMIT_SCHEDULE = "SUBMIT_SCHEDULE"
+    #SUBMIT_CALIBRATION = "SUBMIT_CALIBRATION"
+    #GET_CALIBRATION = "GET_CALIBRATION"
+    """
+
+    # Main menu commands
+    DEPLOYMENT_MODE_YES = ('deployment_mode_yes', 'Y')
+    DEPLOYMENT_MODE_NO = ('deployment_mode_no', 'N')
+    CONFIG_MENU_CMD = ('config_menu_cmd', 'C')
+    """
+    DHE: Need to include an expected response
+    """
+    SHOW_CONFIG_CMD = ('show_config_cmd', 'S', Prompt.CONFIG_MENU)
+    BAUD_RATE_CMD = ('baud_rate_cmd', 'B')
+    SETUP_MENU_CMD = ('setup_menu_cmd', 'S')
+    DEPLOYMENT_COUNTER_CMD = ('deployment_counter_cmd', 'D')
+    DEPLOYMENT_MODE_CMD = ('deployment_mode_cmd', 'D')
+    OPERATIONAL_MODE_CMD = ('operational_mode_cmd', 'O')
+
+
+    #FILE_MENU_CMD = 'F'
+    #INFO_MENU_CMD = 'I'
+    #UP_MENU_LEVEL_CMD = 'Q'
+    #OUTPUT_SETUP_MENU_CMD = 'O'
+    #DEPLOYMENT_SETUP_MENU_CMD = 'D'
+    #SPECTROMETER_SETUP_MENU_CMD = 'S'
+    #LAMP_SETUP_MENU_CMD = 'L'
     
+        
 class Status(BaseEnum):
     """ Values that are real-time/transient/in-flux, read-only """
     TRANSFER_FRAME_MODE = "TRANSFER_FRAME_MODE"
@@ -683,7 +688,7 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
             for (key, val) in params.iteritems():
                 dest_submenu = self._param_dict.get_menu_path_write(key)
                 command = self._param_dict.get_submenu_write(key)
-                self._navigate_and_execute(None, value=val, dest_submenu=dest_submenu, timeout=5)
+                self._navigate_and_execute(None, value=val, dest_submenu=dest_submenu, read_delay=READ_DELAY, timeout=5)
             self._update_params()
 
         return (next_state, result)
@@ -706,7 +711,7 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         #    timeout=5)
         self._go_to_root_menu()
         self._navigate_and_execute(None, value = '0', dest_submenu=SubMenues.OPERATIONAL_MODE_SET, 
-            expected_prompt=Prompt.SETUP_DEPLOY_MENU,
+            expected_prompt=Prompt.SETUP_DEPLOY_MENU, read_delay=READ_DELAY, 
             timeout=5)
         self._go_to_root_menu()
         #
@@ -871,12 +876,18 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
 
         self._go_to_root_menu()
         #self._navigate_and_execute(Event.SHOW_CONFIG, dest_submenu=SubMenues.SHOW_CONFIG_MENU, timeout=5)
-        self._navigate_and_execute(Command.SHOW_CONFIG_CMD, dest_submenu=SubMenues.SHOW_CONFIG_MENU, timeout=5)
+        if len(Command.SHOW_CONFIG_CMD) > 2:
+            expected_response = Command.SHOW_CONFIG_CMD[2]
+        else:
+            expected_response = None
+        self._navigate_and_execute(Command.SHOW_CONFIG_CMD, expected_response = expected_response, 
+                                   dest_submenu=SubMenues.SHOW_CONFIG_MENU, 
+                                   read_delay=READ_DELAY, timeout=5)
         # DHE Trying to get DEPLOYMENT_MODE
         print "--->>> DHE Trying to get DEPLOYMENT_MODE"
         self._go_to_root_menu()
         self._navigate_and_execute(Command.DEPLOYMENT_MODE_NO, dest_submenu=SubMenues.OPERATIONAL_MODE_MENU, 
-            expected_prompt=Prompt.SETUP_DEPLOY_MENU, 
+            expected_prompt=Prompt.SETUP_DEPLOY_MENU, read_delay=READ_DELAY, 
             timeout=5)
         self._go_to_root_menu()
 
@@ -1048,6 +1059,10 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         # Grab time for timeout.
         starttime = time.time()
 
+        """
+        Sleep for a bit to let the instrument complete the prompt.
+        """
+        time.sleep(delay)
         while Prompt.ROOT_MENU not in self._promptbuf:
             # Clear the prompt buffer.
             self._promptbuf = ''
