@@ -389,7 +389,7 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
                                              directions(Command.DEPLOYMENT_MODE_YES, Prompt.ENTER_CHOICE)]
         })
 
-        MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event) 
+        MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event, read_delay=READ_DELAY) 
         self.write_delay = WRITE_DELAY
         self._last_data_timestamp = None
         self.eoln = EOLN
@@ -688,7 +688,7 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
             for (key, val) in params.iteritems():
                 dest_submenu = self._param_dict.get_menu_path_write(key)
                 command = self._param_dict.get_submenu_write(key)
-                self._navigate_and_execute(None, value=val, dest_submenu=dest_submenu, read_delay=READ_DELAY, timeout=5)
+                self._navigate_and_execute(None, value=val, dest_submenu=dest_submenu, timeout=5)
             self._update_params()
 
         return (next_state, result)
@@ -711,8 +711,7 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         #    timeout=5)
         self._go_to_root_menu()
         self._navigate_and_execute(None, value = '0', dest_submenu=SubMenues.OPERATIONAL_MODE_SET, 
-            expected_prompt=Prompt.SETUP_DEPLOY_MENU, read_delay=READ_DELAY, 
-            timeout=5)
+            expected_prompt=Prompt.SETUP_DEPLOY_MENU, timeout=5)
         self._go_to_root_menu()
         #
         # DHE: NEED TO REBOOT HERE IN ORDER FOR THE CHANGE TO TAKE EFFECT!!!!
@@ -881,14 +880,12 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         else:
             expected_response = None
         self._navigate_and_execute(Command.SHOW_CONFIG_CMD, expected_response = expected_response, 
-                                   dest_submenu=SubMenues.SHOW_CONFIG_MENU, 
-                                   read_delay=READ_DELAY, timeout=5)
+                                   dest_submenu=SubMenues.SHOW_CONFIG_MENU, timeout=5)
         # DHE Trying to get DEPLOYMENT_MODE
         print "--->>> DHE Trying to get DEPLOYMENT_MODE"
         self._go_to_root_menu()
         self._navigate_and_execute(Command.DEPLOYMENT_MODE_NO, dest_submenu=SubMenues.OPERATIONAL_MODE_MENU, 
-            expected_prompt=Prompt.SETUP_DEPLOY_MENU, read_delay=READ_DELAY, 
-            timeout=5)
+            expected_prompt=Prompt.SETUP_DEPLOY_MENU, timeout=5)
         self._go_to_root_menu()
 
         new_config = self._param_dict.get_config()            

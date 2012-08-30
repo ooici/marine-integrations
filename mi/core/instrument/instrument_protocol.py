@@ -551,13 +551,16 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             return directions
         
            
-    def __init__(self, menu, prompts, newline, driver_event):
+    def __init__(self, menu, prompts, newline, driver_event, **kwargs):
         """
         Constructor.
         @param prompts Enum class containing possible device prompts used for
         menu system.
         @param newline The device newline.
-        @driver_event The callback for asynchronous driver events.
+        @param driver_event The callback for asynchronous driver events.
+        @param read_delay optional kwarg specifying amount of time to delay before
+               attempting to read response from instrument (in _get_response).
+
         """
         
         # Construct superclass.
@@ -588,6 +591,10 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._last_data_receive_timestamp = None
         
+        # Initialize read_delay
+        self._read_delay = kwargs.get('read_delay', None)
+        
+
     def _get_response(self, timeout=10, expected_prompt=None, **kwargs):
         """
         Get a response from the instrument
@@ -604,9 +611,8 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         complete response has arrived, so we can miss it.  The read delay
         is to alleviate that problem.
         """
-        read_delay = kwargs.get('read_delay', None)
-        if read_delay is not None:
-            time.sleep(read_delay)
+        if self._read_delay is not None:
+            time.sleep(self._read_delay)
             
         # Grab time for timeout and wait for prompt.
         starttime = time.time()
@@ -650,15 +656,11 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param expected_prompt optional kwarg passed through to do_cmd_resp.
         @param timeout=timeout optional wakeup and command timeout.
         @param write_delay optional kwarg passed through to do_cmd_resp.
-        @param read_delay optional kwarg passed through to do_cmd_resp.
         @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
 
-        # TEMPTEMP
-        print "---------> DHE: nav_and_ex kwargs: " + str(kwargs)
-        
         resp_result = None
 
         # Get dest_submenu arg
@@ -669,40 +671,23 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         # iterate through the directions 
         directions_list = self._menu.get_directions(dest_submenu)
         for directions in directions_list:
-            print "--------> DHE: nav_and_ex: directions: " + str(directions)
+            log.debug('_navigate_and_execute: directions: %s' %(directions))
             command = directions.get_command()
             response = directions.get_response()
             timeout = directions.get_timeout()
             self._do_cmd_resp(command, expected_prompt = response, timeout = timeout)
 
-        # Get timeout and initialize response.
-        """
-        DHE removing these and just passing **kwargs to do_cmd_resp
-        
-        expected_timeout = kwargs.get('timeout', 10)
-        expected_prompt = kwargs.get('expected_prompt', None)
-        write_delay = kwargs.get('write_delay', 0)
-        """
-
         """
         DHE: this is a kludge; need a way to send a parameter as a "command."  We can't expect to look
         up all possible values in the build_handlers
         """
-        
         value = kwargs.pop('value', None)
         if cmd is None:
             cmd_line = self._build_simple_command(value) 
-            """
-            UNCOMMENTING THESE TWO PRINTS MAKES IT WORK!
-            """
-            print "-----> DHE: sending value: " + cmd_line + " to connection.send()"
+            log.debug('_navigate_and_execute: sending value: %s to connection.send.' %(cmd_line))
             self._connection.send(cmd_line)
         else:
-            """
-            UNCOMMENTING THESE TWO PRINTS MAKES IT WORK!
-            """
-            #print "-----> DHE: sending command: " + str(cmd) + " + value: " + str(value) + " expected_prompt: " + str(expected_prompt) + " to do_cmd_resp()"
-            #resp_result = self._do_cmd_resp(cmd, value = value, expected_prompt = expected_prompt, timeout = expected_timeout)
+            log.debug('_navigate_and_execute: sending cmd: %s with kwargs: %s to _do_cmd_resp.' %(cmd_line, kwargs))
             resp_result = self._do_cmd_resp(cmd, **kwargs)
  
         return resp_result
@@ -714,19 +699,14 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param expected_prompt optional kwarg passed through to _get_response.
         @param timeout=timeout optional wakeup and command timeout.
         @param write_delay optional kwarg for inter-character transmit delay.
-        @param read_delay optional kwarg passed through to _get_response.
         @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
 
-        # TEMPTEMP
-        print "---------> DHE: do_cmd_resp: kwargs: " + str(kwargs)
-        
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', 10)
         expected_prompt = kwargs.get('expected_prompt', None)
-        read_delay = kwargs.get('read_delay', None)
         
         # Pop off the write_delay; it doesn't get passed on in **kwargs
         write_delay = kwargs.pop('write_delay', 0)
@@ -748,8 +728,8 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._linebuf = ''
         self._promptbuf = ''
 
-        log.debug('_do_cmd_resp: cmd=%s, timeout=%s, write_delay=%s, read_delay=%s, expected_prompt=%s,' %
-                        (repr(cmd_line), timeout, write_delay, read_delay, expected_prompt))
+        log.debug('_do_cmd_resp: cmd=%s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
+                        (repr(cmd_line), timeout, write_delay, expected_prompt))
         if (write_delay == 0):
             self._connection.send(cmd_line)
         else:
@@ -759,8 +739,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
                 time.sleep(write_delay)
 
         # Wait for the prompt, prepare result and return, timeout exception
-        (prompt, result) = self._get_response(timeout, read_delay=read_delay, 
-                                              expected_prompt=expected_prompt)
+        (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
 
         log.debug('_do_cmd_resp: looking for response handler for: %s"' %(cmd[0]))
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd[0]), None) or \
