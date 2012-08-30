@@ -687,7 +687,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             log.debug('_navigate_and_execute: sending value: %s to connection.send.' %(cmd_line))
             self._connection.send(cmd_line)
         else:
-            log.debug('_navigate_and_execute: sending cmd: %s with kwargs: %s to _do_cmd_resp.' %(cmd_line, kwargs))
+            log.debug('_navigate_and_execute: sending cmd: %s with kwargs: %s to _do_cmd_resp.' %(cmd, kwargs))
             resp_result = self._do_cmd_resp(cmd, **kwargs)
  
         return resp_result
