@@ -1084,6 +1084,7 @@ class SatlanticPARInstrumentDriver(SingleConnectionInstrumentDriver):
         """ Construct driver protocol state machine """
         self._protocol = SatlanticPARInstrumentProtocol(self._driver_event)
 
+    # @TODO Collapse these execute_ routines into an execute_resource event system
     def execute_exit(self, *args, **kwargs):
         return self._protocol.execute_exit(*args, **kwargs)
         

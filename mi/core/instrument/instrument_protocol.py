@@ -65,6 +65,7 @@ class BaseProtocolEvent(BaseEnum):
 
 class InstrumentProtocol(object):
     """
+        
     Base instrument protocol class.
     """    
     def __init__(self, driver_event):
@@ -99,6 +100,21 @@ class InstrumentProtocol(object):
         Return current state of the protocol FSM.
         """
         return self._protocol_fsm.get_current_state()
+
+    def get_resource_capabilities(self, current_state=True):
+        """
+        """
+        
+        res_cmds = self._protocol_fsm.get_events(current_state)
+        res_cmds = self._filter_capabilities(res_cmds)        
+        res_params = self._param_dict.get_keys()
+        
+        return [res_cmds, res_params]
+
+    def _filter_capabilities(self, events):
+        """
+        """
+        return events
 
     ########################################################################
     # Command build and response parse handlers.
@@ -636,14 +652,15 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         presented by this string
         @throw InstrumentProtocolExecption on timeout
         """
-        log.debug('MenuInstrumentProtocol._get_response: timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,' 
-                  %(timeout, expected_prompt, expected_prompt.encode("hex")))
+
         # Grab time for timeout and wait for prompt.
         starttime = time.time()
 
         if expected_prompt == None:
             prompt_list = self._prompts.list()
         else:
+            log.debug('MenuInstrumentProtocol._get_response: timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,' 
+                  %(timeout, expected_prompt, expected_prompt.encode("hex")))
             assert isinstance(expected_prompt, str)
             prompt_list = [expected_prompt]            
         while True:
@@ -700,7 +717,6 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         # up all possible values in the build_handlers
         #
         if cmd is None:
-            #print "-----> DHE: building command line for value: " + value
             cmd_line = self._build_simple_command(value) 
             #print "-----> DHE: sending value: " + cmd_line + " to connection.send()"
             self._connection.send(cmd_line)

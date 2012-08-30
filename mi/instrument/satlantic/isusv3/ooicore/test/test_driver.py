@@ -58,6 +58,7 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreInstrumentDriver
 from mi.instrument.satlantic.isusv3.ooicore.driver import State
+from mi.instrument.satlantic.isusv3.ooicore.driver import Event
 from mi.instrument.satlantic.isusv3.ooicore.driver import Parameter
 from mi.instrument.satlantic.isusv3.ooicore.driver import PACKET_CONFIG
 #from mi.instrument.satlantic.isusv3.ooicore.driver import Event
@@ -137,7 +138,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         self.raw_stream_received = False
         self.parsed_stream_received = False
         
-    def test_event_callback(self, event):
+    def my_event_callback(self, event):
         event_type = event['type']
         print str(event)
         if event_type == DriverAsyncEvent.SAMPLE:
@@ -158,9 +159,9 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.test_event_callback)
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
         
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
@@ -170,7 +171,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         """
         config = {'mock_port_agent' : mock_port_agent}
         test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
         
@@ -180,7 +181,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         (which means that the FSM should now be reporting the ProtocolState).
         """
         test_driver.connect()
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
@@ -189,7 +190,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         publish samples
         """        
         test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -228,19 +229,19 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.test_event_callback)
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
         
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
         """
         Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to that state
+        that the driver transitions to the DISCONNECTED state
         """
         config = {'mock_port_agent' : mock_port_agent}
         test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
         
@@ -250,7 +251,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         (which means that the FSM should now be reporting the ProtocolState).
         """
         test_driver.connect()
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
@@ -259,7 +260,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         publish samples
         """        
         test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -310,9 +311,9 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.test_event_callback)
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
         
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
@@ -322,7 +323,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         """
         config = {'mock_port_agent' : mock_port_agent}
         test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
         
@@ -332,12 +333,12 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         (which means that the FSM should now be reporting the ProtocolState).
         """
         test_driver.connect()
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
         
         test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -370,9 +371,9 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.test_event_callback)
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
         
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
@@ -382,7 +383,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         """
         config = {'mock_port_agent' : mock_port_agent}
         test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
         
@@ -392,7 +393,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         (which means that the FSM should now be reporting the ProtocolState).
         """
         test_driver.connect()
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
@@ -401,7 +402,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         publish samples
         """        
         test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -458,9 +459,9 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.test_event_callback)
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
         
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
@@ -470,7 +471,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         """
         config = {'mock_port_agent' : mock_port_agent}
         test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
         
@@ -480,7 +481,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         (which means that the FSM should now be reporting the ProtocolState).
         """
         test_driver.connect()
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
@@ -489,7 +490,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         publish samples
         """        
         test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
+        current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -592,21 +593,21 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
         """
 
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Initialize the driver and transition to unconfigured.
         reply = self.driver_client.cmd_dvr('initialize')
 
         # Test the driver returned state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
 
@@ -618,41 +619,41 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
         log.info("test_connect test started")
 
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover_state')
 
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.COMMAND)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('disconnect')
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Initialize the driver and transition to unconfigured.
         reply = self.driver_client.cmd_dvr('initialize')
 
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
     #@unittest.skip('DHE: TESTTESTTEST')
@@ -662,30 +663,30 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
         """
 
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.UNKNOWN)
 
-        reply = self.driver_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover_state')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.COMMAND)
 
         # Get all device parameters. Confirm all expected keys are retrived
         # and have correct type.
-        reply = self.driver_client.cmd_dvr('get', Parameter.ALL)
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
 
         # DHE TEMPTEMP
         # This should get the list of all parameters supported by the driver
@@ -697,7 +698,7 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
             Parameter.DEPLOYMENT_COUNTER,
             Parameter.DEPLOYMENT_MODE
         ]
-        reply = self.driver_client.cmd_dvr('get', params)
+        reply = self.driver_client.cmd_dvr('get_resource', params)
 
         self.assertParamDict(reply, True)
 
@@ -714,30 +715,30 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
         """
 
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.UNKNOWN)
 
-        reply = self.driver_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover_state')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.COMMAND)
 
         # Get all device parameters. Confirm all expected keys are retrived
         # and have correct type.
-        reply = self.driver_client.cmd_dvr('get', Parameter.ALL)
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
 
         # DHE TEMPTEMP
         # This should get the list of all parameters supported by the driver
@@ -748,7 +749,7 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
             #Parameter.BAUDRATE,
             Parameter.DEPLOYMENT_COUNTER : 4
         }
-        reply = self.driver_client.cmd_dvr('set', params)
+        reply = self.driver_client.cmd_dvr('set_resource', params)
 
         # DHE TEMPTEMP
         #print "DHE: test_driver: reply: " + str(reply)
@@ -763,38 +764,38 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
         """
 
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.UNKNOWN)
 
         reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.COMMAND)
 
         # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_acquire_sample')
-        self.assertSampleDict(reply)
+        reply = self.driver_client.cmd_dvr('execute_resource', Event.ACQUIRE_SAMPLE)
+        self.assertSampleDict(reply[1])
 
         # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_acquire_sample')
-        self.assertSampleDict(reply)
+        reply = self.driver_client.cmd_dvr('execute_resource', Event.ACQUIRE_SAMPLE)
+        self.assertSampleDict(reply[1])
 
         # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_acquire_sample')
-        self.assertSampleDict(reply)
+        reply = self.driver_client.cmd_dvr('execute_resource', Event.ACQUIRE_SAMPLE)
+        self.assertSampleDict(reply[1])
 
         # Confirm that 3 samples arrived as published events.
         gevent.sleep(1)
@@ -805,14 +806,14 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('disconnect')
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Deconfigure the driver.
         reply = self.driver_client.cmd_dvr('initialize')
 
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
 
@@ -823,45 +824,45 @@ class ISUS3IntTestCase(InstrumentDriverIntegrationTestCase):
         """
 
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.UNKNOWN)
 
         reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.COMMAND)
 
-        reply = self.driver_client.cmd_dvr('execute_start_autosample')
+        reply = self.driver_client.cmd_dvr('execute_resource', Event.START_AUTOSAMPLE)
 
         # Test the driver is in autosample mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, State.AUTOSAMPLE)
 
         # Disconnect from the port agent.
         reply = self.driver_client.cmd_dvr('disconnect')
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Deconfigure the driver.
         reply = self.driver_client.cmd_dvr('initialize')
 
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
 
@@ -968,7 +969,7 @@ class Testooicore_HW(InstrumentDriverTestCase):
                 # no biggie if we are already in cmd mode
                 pass
             # clean up our parameters?
-            #reply = self._dvr_client.cmd_dvr('set',
+            #reply = self._dvr_client.cmd_dvr('set_resource',
             #                                 {Parameter.MAXRATE:1},
             #                                  timeout=20)
             self._disconnect()
@@ -984,28 +985,28 @@ class Testooicore_HW(InstrumentDriverTestCase):
         time.sleep(1)
 
     def _connect(self):
-        reply = self._dvr_client.cmd_dvr('get_current_state')
+        reply = self._dvr_client.cmd_dvr('get_resource_state')
         self.assertEqual(DriverState.UNCONFIGURED, reply)
         configs = self.config_params
         reply = self._dvr_client.cmd_dvr('configure', configs)
         self.assertEqual(reply, None)
-        reply = self._dvr_client.cmd_dvr('get_current_state')
+        reply = self._dvr_client.cmd_dvr('get_resource_state')
         self.assertEqual(DriverState.DISCONNECTED, reply)
         reply = self._dvr_client.cmd_dvr('connect')
         self.assertEqual(reply, None)
-        reply = self._dvr_client.cmd_dvr('get_current_state')
+        reply = self._dvr_client.cmd_dvr('get_resource_state')
         self.assertEqual(DriverProtocolState.UNKNOWN, reply)
 
         self._initialize()
         
-        reply = self._dvr_client.cmd_dvr('get_current_state')
+        reply = self._dvr_client.cmd_dvr('get_resource_state')
         self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
 
         time.sleep(1)
 
     def _disconnect(self):
         reply = self._dvr_client.cmd_dvr('disconnect')
-        reply = self._dvr_client.cmd_dvr('get_current_state')
+        reply = self._dvr_client.cmd_dvr('get_resource_state')
         self.assertEqual(DriverState.DISCONNECTED, reply)
         time.sleep(1)
 
@@ -1016,7 +1017,7 @@ class Testooicore_HW(InstrumentDriverTestCase):
     
     def test_get_RW_param(self):
         """ Test getting a read-write parameter """
-        reply = self._dvr_client.cmd_dvr('get', [Parameter.INITIAL_DELAY,
+        reply = self._dvr_client.cmd_dvr('get_resource', [Parameter.INITIAL_DELAY,
                                                  Parameter.STATUS_MESSSAGES])
 
     def test_get_RO_param(self):

@@ -282,14 +282,6 @@ class mavs4InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         return InstrumentParameters.list()        
 
-    def driver_echo(self, msg):
-        """
-        @brief Sample driver command. 
-        """
-        echo = 'driver_echo: %s' % msg
-        return echo
-
-
 ###
 #   Protocol for mavs4
 ###
