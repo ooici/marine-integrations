@@ -665,31 +665,39 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if not got_prompt:                
             raise InstrumentTimeoutException()
 
+        # for debugging
+        #file = open("upload.txt", "w")
+
+        done = False
+        
         for line in output:
-            self._linebuf = ''
-            self._promptbuf = ''
-            self._connection.send(line + '\r')
-            self._get_response(timeout=5, expected_prompt='\r\n\r')
-            """
             for char in line:
+                if char == InstrumentCmds.END_OF_TRANS:
+                    # don't send newline after last '#'
+                    done = True
+                    break
                 # Clear line and prompt buffers for result.
-                #self._linebuf = ''
-                #self._promptbuf = ''
+                self._linebuf = ''
+                self._promptbuf = ''
                 log.debug('_handler_command_set: sending %s from %s' %(char, line))
                 self._connection.send(char)
+                #file.write(char)
                 # Wait for the character to be echoed, timeout exception
                 # use method that looks for the response only at the end of the _promptbuf
-                #self._get_response(timeout=2, expected_prompt='%s'%char)
-                time.sleep(.15)
+                self._get_response(timeout=2, expected_prompt='%s'%char)
+            if done == True:
+                break
             self._linebuf = ''
             self._promptbuf = ''
-            self._connection.send('\r')
-            CommandResponseInstrumentProtocol._get_response(self, timeout=2, expected_prompt='\r\n\r')
-            """
-            
+            self._connection.send('\n')
+            #file.write('\n')
+            CommandResponseInstrumentProtocol._get_response(self, timeout=2, expected_prompt='\n')
+             
+        #file.close()
+
         result = self._do_cmd_resp(InstrumentCmds.END_OF_TRANS, 
                                    expected_prompt=InstrumentPrompts.SET_DONE,
-                                   timeout=2)
+                                   timeout=5)
         
         self._update_params()
             
@@ -1128,17 +1136,17 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.LINE1,
                              '', 
                              lambda line : line,
-                             lambda line : line)
+                             lambda line : line[:-1])
 
         self._param_dict.add(InstrumentParameters.LINE2,
                              '', 
                              lambda line : line,
-                             lambda line : line)
+                             lambda line : line[:-1])
 
         self._param_dict.add(InstrumentParameters.LINE3,
                              '', 
                              lambda line : line,
-                             lambda line : line)
+                             lambda line : line[:-1])
 
         self._param_dict.add(InstrumentParameters.START_TIME,
                              '', 
@@ -1371,7 +1379,13 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 if name == '#':
                     output.append(name)
                 else:
-                    output.append(parameters.format_parameter(name))
+                    if name in [InstrumentParameters.DEPLOY_INITIALIZED, 
+                                InstrumentParameters.LINE1,
+                                InstrumentParameters.LINE2,
+                                InstrumentParameters.LINE3]:
+                        output.append(parameters.format_parameter(name) + '\r')
+                    else:
+                        output.append(parameters.format_parameter(name))
                               
         checksum = 0
         for item in output:
@@ -1380,8 +1394,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 checksum = (checksum + ord(char)) % 255
                 
         output.append('#')
-        output.append(str(checksum))
-        output.append('#')
+        checksum_str = "{:02X}".format(checksum)
+        output.append(checksum_str)
+        output.append('#' + InstrumentCmds.END_OF_TRANS)  # EOT to signal end of output
         
         return output
 

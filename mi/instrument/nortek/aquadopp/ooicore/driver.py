@@ -75,6 +75,11 @@ class InstrumentCmds(BaseEnum):
     GET_ALL_CONFIGURATIONS             = 'GA'
     GET_USER_CONFIGURATION             = 'GC'
     CONFIGURE_INSTRUMENT               = 'CC'
+    READ_CLOCK                         = 'RC'
+    SET_CLOCK                          = 'SC'
+    READ_BATTERY_VOLTAGE               = 'BV'
+    READ_REAL_TIME_CLOCK               = 'RC'
+    SET_REAL_TIME_CLOCK                = 'SC'
     
 class InstrumentModes(BaseEnum):
     FIRMWARE_UPGRADE = '\x00\x00\x06\x06'
@@ -136,6 +141,9 @@ class Parameter(DriverParameter):
     HEAD_SPARE = 'HeadSpare'
     HEAD_NUMBER_BEAMS = "HeadNumberOfBeams"
     """
+    REAL_TIME_CLOCK = "RealTimeClock"
+    BATTERY_VOLTAGE = "BatteryVoltage"
+    IDENTIFICATION_STRING = "IdentificationString"
     
     # user configuration
     TRANSMIT_PULSE_LENGTH = "TransmitPulseLength"                # T1
