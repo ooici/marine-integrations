@@ -15,6 +15,7 @@ from gevent import monkey; monkey.patch_all()
 import gevent
 import socket
 import re
+import json
 
 # Standard lib imports
 import time
@@ -35,12 +36,14 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
 from mi.instrument.seabird.sbe37smb.ooicore.driver import PACKET_CONFIG
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DataParticle
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Driver
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolEvent
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Capability
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
@@ -233,37 +236,27 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
     def assertSampleDict(self, val):
         """
-        Verify the value is a sample dictionary for the sbe37.
+        Verify the value is an SBE37DataParticle with a few key fields
         """
-        """
-         {'raw': {'stream_name': 'raw',
-                  'blob': ['75.7700,89.52572, 267.477, 1.1204, 1505.952, 01 Feb 2001, 01:01:00'],
-                  'time': [1344869727.188089]},
-          'parsed': {'stream_name': 'parsed',
-                     'p': [267.477],
-                     'c': [89.52572],
-                     't': [75.77],
-                     'time': [1344869727.188089]}}
-        """
-        self.assertTrue(isinstance(val, dict))
-        self.assertTrue(isinstance(val['parsed'], dict))
-        log.debug("*** Asserting with: %s", val['parsed'])
-        self.assertTrue(val['parsed'].has_key('c'))
-        self.assertTrue(val['parsed'].has_key('t'))
-        self.assertTrue(val['parsed'].has_key('p'))
-        self.assertTrue(val['parsed'].has_key('time'))
-        c = val['parsed']['c'][0]
-        t = val['parsed']['t'][0]
-        p = val['parsed']['p'][0]
-        time = val['parsed']['time'][0]
-    
-        self.assertTrue(isinstance(c, float))
-        self.assertTrue(isinstance(t, float))
-        self.assertTrue(isinstance(p, float))
-        self.assertTrue(isinstance(time, float))
+        self.assertTrue(isinstance(val, SBE37DataParticle))
+        raw_dict = json.loads(val.generate_raw())
+        self.assertTrue(raw_dict[DataParticleKey.STREAM_NAME],
+                        DataParticleValue.RAW)
+        self.assertTrue(raw_dict[DataParticleKey.PKT_FORMAT_ID],
+                        DataParticleValue.JSON_DATA)
+        self.assertTrue(raw_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(raw_dict[DataParticleKey.VALUES],
+                        list))
         
-        return True
-
+        parsed_dict = json.loads(val.generate_parsed())
+        self.assertTrue(parsed_dict[DataParticleKey.STREAM_NAME],
+                        DataParticleValue.PARSED)
+        self.assertTrue(parsed_dict[DataParticleKey.PKT_FORMAT_ID],
+                        DataParticleValue.JSON_DATA)
+        self.assertTrue(parsed_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(parsed_dict[DataParticleKey.VALUES],
+                        list))
+        
     def assertParamDict(self, pd, all_params=False):
         """
         Verify all device parameters exist and are correct type.

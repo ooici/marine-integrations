@@ -10,6 +10,7 @@
 __author__ = 'Edward Hunter'
 __license__ = 'Apache 2.0'
 
+import base64
 import logging
 import time
 import re
@@ -27,6 +28,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import ResourceAgentEvent
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
@@ -134,9 +136,15 @@ SBE37_NEWLINE = '\r\n'
 # SBE37 default timeout.
 SBE37_TIMEOUT = 10
 
+SAMPLE_PATTERN = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'
+SAMPLE_PATTERN += r'(, *(-?\d+\.\d+))?(, *(-?\d+\.\d+))?'
+SAMPLE_PATTERN += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'
+SAMPLE_PATTERN += r'(, *(\d+)-(\d+)-(\d+), *(\d+):(\d+):(\d+))?'
+SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
+        
 # Packet config for SBE37 data granules.
-STREAM_NAME_PARSED = 'parsed'
-STREAM_NAME_RAW = 'raw'
+STREAM_NAME_PARSED = DataParticleValue.PARSED
+STREAM_NAME_RAW = DataParticleValue.RAW
 PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
 
 # TODO: remove this old definition:
@@ -177,6 +185,46 @@ class SBE37Driver(SingleConnectionInstrumentDriver):
         Construct the driver protocol state machine.
         """
         self._protocol = SBE37Protocol(SBE37Prompt, SBE37_NEWLINE, self._driver_event)
+
+class SBE37DataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    def _build_parsed_values(self):
+        """
+        Take something in the autosample/TS format and split it into
+        C, T, and D values (with appropriate tags)
+        
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = SAMPLE_REGEX.match(self.raw_data)
+        
+        if not match:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+            
+        temperature = float(match.group(1))
+        conductivity = float(match.group(2))
+        depth = float(match.group(3))
+        
+        if not temperature:
+            raise SampleException("No temperature value parsed")
+        if not conductivity:
+            raise SampleException("No conductivity value parsed")
+        if not depth:
+            raise SampleException("No depth value parsed")
+        
+        
+        #TODO:  Get 'temp', 'cond', and 'depth' from a paramdict
+        result = [{DataParticleKey.VALUE_ID: "temp",
+                   DataParticleKey.VALUE: temperature},
+                  {DataParticleKey.VALUE_ID: "cond",
+                   DataParticleKey.VALUE: conductivity},
+                  {DataParticleKey.VALUE_ID: "depth",
+                    DataParticleKey.VALUE: depth}]
+        
+        return result
 
 ###############################################################################
 # Seabird Electronics 37-SMP MicroCAT protocol.
@@ -251,17 +299,17 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._add_response_handler('tp', self._parse_test_response)
 
        # Add sample handlers.
-        self._sample_pattern = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'
-        self._sample_pattern += r'(, *(-?\d+\.\d+))?(, *(-?\d+\.\d+))?'
-        self._sample_pattern += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'
-        self._sample_pattern += r'(, *(\d+)-(\d+)-(\d+), *(\d+):(\d+):(\d+))?'
-        self._sample_regex = re.compile(self._sample_pattern)
+
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(SBE37ProtocolState.UNKNOWN)
 
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
+        
+        #TODO: Fix this to get it from the Driver or otherwise get it into
+        # the particle
+        self.instrument_id = "ABC-123"
 
     def _filter_capabilities(self, events):
         """
@@ -835,38 +883,26 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         @retval dict of dicts {'parsed': parsed_sample, 'raw': raw_sample} if
                 the line can be parsed for a sample. Otherwise, None.
+        @todo Figure out how the agent wants the results for a single poll
+            and return them that way from here
         """
         sample = None
-        match = self._sample_regex.match(line)
-        if match:
-
-            # Driver timestamp.
-            ts = time.time()
-
-            # prepate "raw" sample dict
-            raw_sample = dict(
-                stream_name=STREAM_NAME_RAW,
-                time=[ts],
-                blob=[line]
-            )
-
+        if SAMPLE_REGEX.match(line):
+        
+            particle = SBE37DataParticle(self.instrument_id, line,
+                preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
+            
+            raw_sample = particle.generate_raw()
+            parsed_sample = particle.generate_parsed()
+            
             if publish and self._driver_event:
                 self._driver_event(DriverAsyncEvent.SAMPLE, raw_sample)
-
-            # prepare "parsed" sample dict
-            parsed_sample = dict(
-                stream_name=STREAM_NAME_PARSED,
-                time=[ts],
-                t=[float(match.group(1))],
-                c=[float(match.group(2))],
-                p=[float(match.group(3))]
-            )
-
+    
             if publish and self._driver_event:
                 self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
-
+    
             sample = dict(parsed=parsed_sample, raw=raw_sample)
-
+            return particle
         return sample
 
     def _build_param_dict(self):
