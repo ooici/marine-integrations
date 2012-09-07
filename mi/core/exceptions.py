@@ -71,6 +71,12 @@ class NotImplementedException(InstrumentException):
     """
     pass
 
+class ReadOnlyException(InstrumentException):
+    """
+    A driver function is not implemented.
+    """
+    pass
+
 class SampleException(InstrumentException):
     """
     An expected sample could not be extracted.

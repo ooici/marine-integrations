@@ -51,6 +51,7 @@ from mi.core.exceptions import InstrumentCommandException
 from mi.instrument.nobska.mavs4.ooicore.driver import PACKET_CONFIG
 from mi.instrument.nobska.mavs4.ooicore.driver import mavs4InstrumentDriver
 from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolStates
+from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolEvents
 from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentParameters
 
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -505,28 +506,28 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' state
         """
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms and in disconnected state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Connect to instrument and transition to unknown.
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.UNKNOWN)
 
         # discover instrument state and transition to command.
         reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.COMMAND)
                 
                
@@ -534,28 +535,28 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         """
         Test device parameter access.
         """
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms and in disconnected state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Connect to instrument and transition to unknown.
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.UNKNOWN)
 
         # discover instrument state and transition to command.
         reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.COMMAND)
 
         # get the list of device parameters
@@ -564,7 +565,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
 
         # Get all device parameters. Confirm all expected keys are retrieved
         # and have correct type.
-        reply = self.driver_client.cmd_dvr('get', InstrumentParameters.ALL)
+        reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
         self.assertParamDict(reply, True)
         """
         log.debug("test_get_set: parameters:" )
@@ -582,7 +583,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
             InstrumentParameters.TY_SCALE,
             InstrumentParameters.TX_SCALE
             ]
-        reply = self.driver_client.cmd_dvr('get', params)
+        reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertParamDict(reply)        
 
         # Remember the original subset.
@@ -597,73 +598,73 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         }
 
         # Set parameters and verify.
-        reply = self.driver_client.cmd_dvr('set', new_params)
-        reply = self.driver_client.cmd_dvr('get', params)
+        reply = self.driver_client.cmd_dvr('set_resource', new_params)
+        reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertParamVals(reply, new_params)
         
         # Restore original parameters and verify.
-        reply = self.driver_client.cmd_dvr('set', orig_params)
-        reply = self.driver_client.cmd_dvr('get', params)
+        reply = self.driver_client.cmd_dvr('set_resource', orig_params)
+        reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertParamVals(reply, orig_params)
 
         # Retrieve the configuration and ensure it matches the original.
-        reply = self.driver_client.cmd_dvr('get', InstrumentParameters.ALL)
+        reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
         self.assertParamVals(reply, orig_config)
 
         # Disconnect from the port agent.
         reply = self.driver_client.cmd_dvr('disconnect')
         
         # Test the driver is disconnected.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
         
         # Deconfigure the driver.
         reply = self.driver_client.cmd_dvr('initialize')
         
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)        
 
     def Xtest_instrumment_autosample(self):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' state
         """
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms and in disconnected state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Connect to instrument and transition to unknown.
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.UNKNOWN)
 
         # discover instrument state and transition to command.
         reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.COMMAND)
                 
         # start auto-sample.
-        reply = self.driver_client.cmd_dvr('execute_start_autosample')
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvents.START_AUTOSAMPLE')
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_current_state')
         self.assertEqual(state, ProtocolStates.AUTOSAMPLE)
                 
         # stop auto-sample.
-        reply = self.driver_client.cmd_dvr('execute_stop_autosample')
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvents.STOP_AUTOSAMPLE')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.COMMAND)
                 
 
@@ -693,7 +694,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
         """
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         print("sent power_down; IA state = %s" %str(retval.result))
@@ -701,7 +702,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command='power_up')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         print("sent power_up; IA state = %s" %str(retval.result))
@@ -709,7 +710,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         print("sent initialize; IA state = %s" %str(retval.result))
@@ -717,7 +718,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command='go_active')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         print("sent go_active; IA state = %s" %str(retval.result))
@@ -725,7 +726,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command='run')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         print("sent run; IA state = %s" %str(retval.result))
@@ -752,35 +753,35 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
         """
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
 
         cmd = AgentCommand(command='power_up')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
 
         cmd = AgentCommand(command='go_active')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
 
         cmd = AgentCommand(command='run')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)

@@ -54,31 +54,31 @@ class DriverTestMixin(object):
         self._connect()
 
     def _assert_driver_unconfigured(self):
-        state = self.driver.get_current_state()
+        state = self.driver.get_resource_state()
         log.info("driver connected -> %s" % str(state))
         self.assertEqual(TrhphDriverState.UNCONFIGURED, state)
 
     def _initialize(self):
         self.driver.initialize()
-        state = self.driver.get_current_state()
+        state = self.driver.get_resource_state()
         log.info("intitialize -> %s" % str(state))
         self.assertEqual(TrhphDriverState.UNCONFIGURED, state)
 
     def _configure(self):
         self.driver.configure(config=self.comms_config)
-        state = self.driver.get_current_state()
+        state = self.driver.get_resource_state()
         log.info("configure -> %s" % str(state))
         self.assertEqual(TrhphDriverState.DISCONNECTED, state)
 
     def _connect(self):
         self.driver.connect()
-        state = self.driver.get_current_state()
+        state = self.driver.get_resource_state()
         log.info("connect -> %s" % str(state))
         self.assertEqual(TrhphDriverState.CONNECTED, state)
 
     def _disconnect(self):
         self.driver.disconnect()
-        state = self.driver.get_current_state()
+        state = self.driver.get_resource_state()
         log.info("disconnect -> %s" % str(state))
         self.assertEqual(TrhphDriverState.DISCONNECTED, state)
 
@@ -96,7 +96,7 @@ class DriverTestMixin(object):
 
             params = valid_params + invalid_params
 
-        result = self.driver.get(params=params, timeout=self._timeout)
+        result = self.driver.get_resource(params=params, timeout=self._timeout)
         log.info("get result = %s" % str(result))
         self.assertTrue(isinstance(result, dict))
 
@@ -127,7 +127,7 @@ class DriverTestMixin(object):
 
     def _get_params(self, params):
 
-        result = self.driver.get(params=params, timeout=self._timeout)
+        result = self.driver.get_resource(params=params, timeout=self._timeout)
         log.info("get result = %s" % str(result))
         self.assertTrue(isinstance(result, dict))
 
@@ -193,7 +193,7 @@ class DriverTestMixin(object):
         invalid_params = invalid_params or {}
         params = dict(valid_params.items() + invalid_params.items())
 
-        result = self.driver.set(params=params, timeout=self._timeout)
+        result = self.driver.set_resource(params=params, timeout=self._timeout)
         log.info("set result = %s" % str(result))
         assert isinstance(result, dict)
 
@@ -209,7 +209,7 @@ class DriverTestMixin(object):
         """
         Sets the given parameters, which are assumed to be all valid.
         """
-        result = self.driver.set(params=params, timeout=self._timeout)
+        result = self.driver.set_resource(params=params, timeout=self._timeout)
         log.info("set result = %s" % str(result))
         assert isinstance(result, dict)
 

@@ -33,5 +33,5 @@ class WhichDriver():
 
 
 if __name__ == '__main__':
-    app = SwitchDriver()
+    app = WitchDriver()
     app.run()

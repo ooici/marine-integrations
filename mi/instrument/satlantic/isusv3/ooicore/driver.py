@@ -26,6 +26,8 @@ import datetime
 
 from mi.core.common import BaseEnum
 
+from mi.core.instrument.port_agent_client import PortAgentPacket
+
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
 #from mi.core.instrument.instrument_driver import InstrumentDriver
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -51,6 +53,7 @@ log = get_logger()
 ###
 INSTRUMENT_NEWLINE = '\r\n'
 WRITE_DELAY = 0
+READ_DELAY = .25
 RESET_DELAY = 25
 #EOLN = "\r\n"
 EOLN = "\n"
@@ -220,56 +223,9 @@ class Event(BaseEnum):
     REBOOT = "REBOOT"
 
 
-#class Command(BaseEnum):
-class Command(object):
-    """
-    DHE: Commenting these out for now..
-    REBOOT = "REBOOT"
-    GENERATE_DUMP_FILE = 'GENERATE_DUMP_FILE'
-    FILE_LIST_PROGRAM = "LP"
-    FILE_LIST_COEFFICIENT = "LC"
-    FILE_LIST_LOG = "LL"
-    FILE_LIST_DATA = "LD"
-    FILE_OUTPUT_EXTINCT = "OE"
-    FILE_OUTPUT_WAVELENGTH = "OW"
-    FILE_OUTPUT_SCHEDULE = "OS"
-    FILE_OUTPUT_LOG = "OL"
-    FILE_OUTPUT_DATA = "OD"
-    FILE_UPLOAD_SCHEDULE = "US"
-    FILE_UPLOAD_EXTINCT = "UE"
-    FILE_UPLOAD_PROGRAM = "UP"
-    FILE_ERASE_EXTINCT = "EE"
-    FILE_ERASE_LOG = "EL"
-    FILE_ERASE_DATA = "ED"
-    FILE_ERASE_ALL_DATA = "EAD"
-    #SUBMIT_SCHEDULE = "SUBMIT_SCHEDULE"
-    #SUBMIT_CALIBRATION = "SUBMIT_CALIBRATION"
-    #GET_CALIBRATION = "GET_CALIBRATION"
-    """
 
-    # Main menu commands
-    DEPLOYMENT_MODE_YES = ('deployment_mode_yes', 'Y')
-    DEPLOYMENT_MODE_NO = ('deployment_mode_no', 'N')
-    CONFIG_MENU_CMD = ('config_menu_cmd', 'C')
-    SHOW_CONFIG_CMD = ('show_config_cmd', 'S')
-    BAUD_RATE_CMD = ('baud_rate_cmd', 'B')
-    SETUP_MENU_CMD = ('setup_menu_cmd', 'S')
-    DEPLOYMENT_COUNTER_CMD = ('deployment_counter_cmd', 'D')
-    DEPLOYMENT_MODE_CMD = ('deployment_mode_cmd', 'D')
-    OPERATIONAL_MODE_CMD = ('operational_mode_cmd', 'O')
-
-
-    #FILE_MENU_CMD = 'F'
-    #INFO_MENU_CMD = 'I'
-    #UP_MENU_LEVEL_CMD = 'Q'
-    #OUTPUT_SETUP_MENU_CMD = 'O'
-    #DEPLOYMENT_SETUP_MENU_CMD = 'D'
-    #SPECTROMETER_SETUP_MENU_CMD = 'S'
-    #LAMP_SETUP_MENU_CMD = 'L'
-    
-    
 class Prompt(BaseEnum):
-    ROOT_MENU = "ISUS> [H] ?"
+    ROOT_MENU = "ISUS> [H]"
     CONFIG_MENU_1 = "ISUS Configuration Menu (<H> for Help)"
     #CONFIG_MENU = "ISUS_CONFIG> [H] ?"
     # DHE This is bogus; seems to timeout looking for this sometimes.
@@ -322,7 +278,58 @@ class Parameter(DriverParameter):
     FITTING_RANGE = "FITTING_RANGE" # DA
     BASELINE_ORDER = "BASELINE_ORDER" # DA
     SEAWATER_DARK_SAMPLES = "SEAWATER_DARK_SAMPLES" # DA
+
+#class Command(BaseEnum):
+class Command(object):
+    """
+    DHE: Commenting these out for now..
+    REBOOT = "REBOOT"
+    GENERATE_DUMP_FILE = 'GENERATE_DUMP_FILE'
+    FILE_LIST_PROGRAM = "LP"
+    FILE_LIST_COEFFICIENT = "LC"
+    FILE_LIST_LOG = "LL"
+    FILE_LIST_DATA = "LD"
+    FILE_OUTPUT_EXTINCT = "OE"
+    FILE_OUTPUT_WAVELENGTH = "OW"
+    FILE_OUTPUT_SCHEDULE = "OS"
+    FILE_OUTPUT_LOG = "OL"
+    FILE_OUTPUT_DATA = "OD"
+    FILE_UPLOAD_SCHEDULE = "US"
+    FILE_UPLOAD_EXTINCT = "UE"
+    FILE_UPLOAD_PROGRAM = "UP"
+    FILE_ERASE_EXTINCT = "EE"
+    FILE_ERASE_LOG = "EL"
+    FILE_ERASE_DATA = "ED"
+    FILE_ERASE_ALL_DATA = "EAD"
+    #SUBMIT_SCHEDULE = "SUBMIT_SCHEDULE"
+    #SUBMIT_CALIBRATION = "SUBMIT_CALIBRATION"
+    #GET_CALIBRATION = "GET_CALIBRATION"
+    """
+
+    # Main menu commands
+    DEPLOYMENT_MODE_YES = ('deployment_mode_yes', 'Y')
+    DEPLOYMENT_MODE_NO = ('deployment_mode_no', 'N')
+    CONFIG_MENU_CMD = ('config_menu_cmd', 'C')
+    """
+    DHE: Need to include an expected response
+    """
+    SHOW_CONFIG_CMD = ('show_config_cmd', 'S', Prompt.CONFIG_MENU)
+    BAUD_RATE_CMD = ('baud_rate_cmd', 'B')
+    SETUP_MENU_CMD = ('setup_menu_cmd', 'S')
+    DEPLOYMENT_COUNTER_CMD = ('deployment_counter_cmd', 'D')
+    DEPLOYMENT_MODE_CMD = ('deployment_mode_cmd', 'D')
+    OPERATIONAL_MODE_CMD = ('operational_mode_cmd', 'O')
+
+
+    #FILE_MENU_CMD = 'F'
+    #INFO_MENU_CMD = 'I'
+    #UP_MENU_LEVEL_CMD = 'Q'
+    #OUTPUT_SETUP_MENU_CMD = 'O'
+    #DEPLOYMENT_SETUP_MENU_CMD = 'D'
+    #SPECTROMETER_SETUP_MENU_CMD = 'S'
+    #LAMP_SETUP_MENU_CMD = 'L'
     
+        
 class Status(BaseEnum):
     """ Values that are real-time/transient/in-flux, read-only """
     TRANSFER_FRAME_MODE = "TRANSFER_FRAME_MODE"
@@ -384,7 +391,7 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
                                              directions(Command.DEPLOYMENT_MODE_YES, Prompt.ENTER_CHOICE)]
         })
 
-        MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event) 
+        MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event, read_delay=READ_DELAY) 
         self.write_delay = WRITE_DELAY
         self._last_data_timestamp = None
         self.eoln = EOLN
@@ -706,8 +713,7 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         #    timeout=5)
         self._go_to_root_menu()
         self._navigate_and_execute(None, value = '0', dest_submenu=SubMenues.OPERATIONAL_MODE_SET, 
-            expected_prompt=Prompt.SETUP_DEPLOY_MENU,
-            timeout=5)
+            expected_prompt=Prompt.SETUP_DEPLOY_MENU, timeout=5)
         self._go_to_root_menu()
         #
         # DHE: NEED TO REBOOT HERE IN ORDER FOR THE CHANGE TO TAKE EFFECT!!!!
@@ -871,13 +877,17 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
 
         self._go_to_root_menu()
         #self._navigate_and_execute(Event.SHOW_CONFIG, dest_submenu=SubMenues.SHOW_CONFIG_MENU, timeout=5)
-        self._navigate_and_execute(Command.SHOW_CONFIG_CMD, dest_submenu=SubMenues.SHOW_CONFIG_MENU, timeout=5)
+        if len(Command.SHOW_CONFIG_CMD) > 2:
+            expected_response = Command.SHOW_CONFIG_CMD[2]
+        else:
+            expected_response = None
+        self._navigate_and_execute(Command.SHOW_CONFIG_CMD, expected_response = expected_response, 
+                                   dest_submenu=SubMenues.SHOW_CONFIG_MENU, timeout=5)
         # DHE Trying to get DEPLOYMENT_MODE
         print "--->>> DHE Trying to get DEPLOYMENT_MODE"
         self._go_to_root_menu()
         self._navigate_and_execute(Command.DEPLOYMENT_MODE_NO, dest_submenu=SubMenues.OPERATIONAL_MODE_MENU, 
-            expected_prompt=Prompt.SETUP_DEPLOY_MENU, 
-            timeout=5)
+            expected_prompt=Prompt.SETUP_DEPLOY_MENU, timeout=5)
         self._go_to_root_menu()
 
         new_config = self._param_dict.get_config()            
@@ -945,6 +955,58 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         if len(data) > 0:
             # Call the superclass to update line and prompt buffers.
             MenuInstrumentProtocol.got_data(self, data)
+
+            # If in streaming mode, process the buffer for samples to publish.
+            cur_state = self.get_current_state()
+            if cur_state == State.AUTOSAMPLE:
+                if INSTRUMENT_NEWLINE in self._linebuf:
+                    lines = self._linebuf.splitlines(1)
+                    """
+                    Make the _linebuf variable equal to the last item in the 
+                    list created by the above split.  It will either be a 
+                    null string or the beginning of a new fragment, which we
+                    want to save.
+                    """
+                    self._linebuf = lines[-1]
+                    for line in lines:
+                        """
+                        The above split can leave a zero-length line in list,
+                        so only call extract_sample if len greater than zero.
+                        Also, we could have the beginning fragment of a sample,
+                        which we don't want to parse yet, so only extract_sample
+                        if the line ends lith the instrument terminator.
+                        """
+                        if len(line) > 0 and line.endswith(INSTRUMENT_NEWLINE):
+                            self._extract_sample(line)
+
+
+    def got_pa_packet(self, paPacket):
+        """
+        Callback for receiving new data from the device.
+        """
+        #if self.get_current_state() == State.DIRECT_ACCESS:
+        #    # direct access mode
+        #    if len(data) > 0:
+        #        #mi_logger.debug("ooicoreInstrumentProtocol.got_data(): <" + data + ">")
+        #        # check for echoed commands from instrument (TODO: this should only be done for telnet?)
+        #        if len(self._sent_cmds) > 0:
+        #            # there are sent commands that need to have there echoes filtered out
+        #            oldest_sent_cmd = self._sent_cmds[0]
+        #            if string.count(data, oldest_sent_cmd) > 0:
+        #                # found a command echo, so remove it from data and delete the command form list
+        #                data = string.replace(data, oldest_sent_cmd, "", 1)
+        #                self._sent_cmds.pop(0)
+        #        if len(data) > 0 and self._driver_event:
+        #            self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
+        #            # TODO: what about logging this as an event?
+        #    return
+
+        paLength = paPacket.get_data_size()
+        paData = paPacket.get_data()
+        
+        if paLength > 0:
+            # Call the superclass to update line and prompt buffers.
+            MenuInstrumentProtocol.got_data(self, paData)
 
             # If in streaming mode, process the buffer for samples to publish.
             cur_state = self.get_current_state()
@@ -1048,6 +1110,10 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         # Grab time for timeout.
         starttime = time.time()
 
+        """
+        Sleep for a bit to let the instrument complete the prompt.
+        """
+        time.sleep(delay)
         while Prompt.ROOT_MENU not in self._promptbuf:
             # Clear the prompt buffer.
             self._promptbuf = ''
@@ -1286,13 +1352,7 @@ class ooicoreInstrumentDriver(SingleConnectionInstrumentDriver):
     """
     def __init__(self, evt_callback):
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-    
-    def driver_echo(self, msg):
-        """
-        @brief Sample driver command. 
-        """
-        echo = 'driver_echo: %s' % msg
-        return echo
+
 
     # DHE Added
     ########################################################################

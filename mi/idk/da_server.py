@@ -206,35 +206,35 @@ class DirectAccessServer():
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_resource_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
 
         cmd = AgentCommand(command='power_up')
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_resource_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_resource_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
 
         cmd = AgentCommand(command='go_active')
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_resource_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
 
         cmd = AgentCommand(command='run')
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_resource_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
 
@@ -249,7 +249,7 @@ class DirectAccessServer():
         port= retval.result['port']
         token= retval.result['token']
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_resource_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
 
@@ -262,7 +262,7 @@ class DirectAccessServer():
                 print "Token: %s" % token
 
             while ia_state == InstrumentAgentState.DIRECT_ACCESS:
-                cmd = AgentCommand(command='get_current_state')
+                cmd = AgentCommand(command='get_resource_state')
                 retval = self.instrument_agent_client.execute_agent(cmd)
 
                 ia_state = retval.result

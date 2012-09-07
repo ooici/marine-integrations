@@ -158,7 +158,7 @@ class TrhphDriverProxy(InstrumentDriver):
         self._dvr_proc.stop()
 
     def get_current_state(self, *args, **kwargs):
-        state = self._dvr_client.cmd_dvr('get_current_state',
+        state = self._dvr_client.cmd_dvr('get_resource_state',
                                          *args,
                                          **kwargs)
         mi_logger.info("get_current_state = %s" % state)
@@ -190,15 +190,15 @@ class TrhphDriverProxy(InstrumentDriver):
         mi_logger.info("disconnect reply = %s" % reply)
         return reply
 
-    def get(self, *args, **kwargs):
-        reply = self._dvr_client.cmd_dvr('get',
+    def get_resource(self, *args, **kwargs):
+        reply = self._dvr_client.cmd_dvr('get_resource',
                                          *args,
                                          **kwargs)
         mi_logger.info("get reply = %s" % reply)
         return reply
 
-    def set(self, *args, **kwargs):
-        reply = self._dvr_client.cmd_dvr('set',
+    def set_resource(self, *args, **kwargs):
+        reply = self._dvr_client.cmd_dvr('set_resource',
                                          *args,
                                          **kwargs)
         mi_logger.info("set reply = %s" % reply)
