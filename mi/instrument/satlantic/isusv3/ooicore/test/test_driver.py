@@ -35,6 +35,8 @@ import time
 from nose.plugins.attrib import attr
 from mock import Mock
 
+from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacket
+
 from mi.core.instrument.logger_client import LoggerClient
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -148,6 +150,93 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
                 self.raw_stream_received = True
             elif stream_type == 'parsed':
                 self.parsed_stream_received = True
+
+
+    """
+    This version of the test creates a PortAgentPacket object and passes it to
+    the driver's got_data() method (NOTE: it actually invokes a special got_data
+    method that is aware of the PortAgentPacket).
+    """
+    def test_port_agent_packet_object(self):
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=LoggerClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        
+        current_state = test_driver.get_resource_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+        current_state = test_driver.get_resource_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Force the driver into AUTOSAMPLE state so that it will parse and 
+        publish samples
+        """        
+        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_resource_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        """
+        - Reset test verification variables.
+        - Construct a sample dark full frame stream
+        - Pass to got_data()
+        - Verify that raw and parsed streams have been received
+        """
+        self.reset_test_vars()
+        test_sample = "SATNDF0196,2012219,18.770632,0.00,0.00,0.00,0.00,0.000000,24.38,23.31,18.53,255095,19.41,12.04," + \
+            "4.95,11.57,1087.36,217.87,929.20,951.43,933,939,929,921,924,926,919,933,934,923,925,913,910,933,922,930," + \
+            "914,918,919,925,930,919,929,926,927,921,949,922,932,924,929,931,929,943,921,938,921,914,933,913,920,929," + \
+            "931,922,929,927,926,934,923,945,938,941,929,933,920,926,919,931,935,953,939,936,953,947,956,942,941,931," + \
+            "935,938,951,943,921,936,934,949,933,933,938,953,949,939,942,944,951,929,935,935,945,949,938,937,948,952," + \
+            "945,950,952,961,946,954,945,954,957,941,948,939,948,938,937,939,933,945,926,940,953,949,933,948,923,925," + \
+            "941,954,947,955,965,951,965,937,949,939,929,955,958,954,970,967,973,976,979,985,993,970,966,973,988,966," + \
+            "964,978,970,991,981,983,994,990,980,985,981,978,971,974,974,987,985,982,977,980,953,953,964,964,959,954," + \
+            "947,966,950,963,961,967,964,977,973,974,979,977,984,966,960,957,948,970,968,980,967,979,984,970,967,979," + \
+            "963,961,969,963,988,979,989,991,977,982,977,969,965,971,961,978,972,984,977,971,979,987,965,964,970,973," + \
+            "949,938,945,953,959,951,957,976,952,953,953,949,949,951,945,961,945,953,949,956,970,974,973,957,948,954," + \
+            "956,957,946,948,946,946,247\r\n"
+
+        """
+        Create a PortAgentPacket object and pass the header in.  (This is usually the job of the PortAgentClient, but
+        we need to pass a PortAgentPacket object to the got_data method.)
+        """
+        paPacket = PortAgentPacket()         
+        paHeader = "\xa3\x9d\x7a\x02\x00\x29\x0b\x2e\x00\x00\x00\x01\x80\x00\x00\x00"
+        paPacket.unpack_header(paHeader)
+        
+        paPacket.attach_data(test_sample)
+
+        test_driver._protocol.got_pa_packet(paPacket)
+        
+        self.assertTrue(self.raw_stream_received)
+        self.assertTrue(self.parsed_stream_received)
+        
     
     def test_valid_complete_dark_sample(self):
         """
