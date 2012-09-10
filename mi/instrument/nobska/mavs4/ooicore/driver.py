@@ -67,12 +67,16 @@ class InstrumentPrompts(BaseEnum):
     DOWNLOAD    = ' \a'
     SET_DONE    = 'New parameters accepted.'
     SET_FAILED  = 'Invalid entry'
-    CHANGE_TIME = 'Change time & data (Yes/No)'
+    SET_TIME    = '] ?\a\b'
+    GET_TIME    = 'Enter correct time ['
+    CHANGE_TIME = 'Change time & date (Yes/No) [N] ?\a\b'
     
 class InstrumentCmds(BaseEnum):
     EXIT_SUB_MENU = '\x03'   # CTRL-C (end of text)
     DEPLOY_GO     = '\a'     # CTRL-G (bell)
     SET_TIME      = '1'
+    ENTER_TIME    = ''
+    ANSWER_YES    = 'y'
     DEPLOY_MENU   = '6'
     UPLOAD        = 'u'
     DOWNLOAD      = 'b'
@@ -173,7 +177,11 @@ class Mavs4ProtocolParameterDict(ProtocolParameterDict):
         @raises KeyError if the name is invalid.
         """
         log.debug("Mavs4ProtocolParameterDict.set_from_string(): name=%s, line=%s" %(name, line))
-        self._param_dict[name].value = self._param_dict[name].f_getval(line)
+        try:
+            param = self._param_dict[name]
+        except:
+            return
+        param.value = param.f_getval(line)
 
     def set_from_value(self, name, value):
         """
@@ -194,6 +202,9 @@ class Mavs4ProtocolParameterDict(ProtocolParameterDict):
         @raises KeyError if the parameter name is invalid.
         """
         return self._param_dict[name].f_format(self._param_dict[name].value)
+    
+    def update(self, name, response):
+        self.param_dict[name].update(response)
 
 ###
 #   Driver for mavs4
@@ -229,87 +240,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     commands and a few set commands.
     """
     
-    upload_download_parameter_list = [
-        'u',
-        '',
-        '#',
-        InstrumentParameters.SYS_CLOCK,
-        InstrumentParameters.BAUD_RATE,
-        InstrumentParameters.VERSION_NUMBER,
-        InstrumentParameters.CONFIG_INITIALIZED,
-        InstrumentParameters.V_OFFSET_0,
-        InstrumentParameters.V_OFFSET_1,
-        InstrumentParameters.V_OFFSET_2,
-        InstrumentParameters.V_OFFSET_3,
-        InstrumentParameters.V_SCALE,
-        InstrumentParameters.ANALOG_OUT,
-        InstrumentParameters.COMPASS,
-        InstrumentParameters.M0_OFFSET,
-        InstrumentParameters.M1_OFFSET,
-        InstrumentParameters.M2_OFFSET,
-        InstrumentParameters.M0_SCALE,
-        InstrumentParameters.M1_SCALE,
-        InstrumentParameters.M2_SCALE,
-        InstrumentParameters.TILT,
-        InstrumentParameters.TY_OFFSET,
-        InstrumentParameters.TX_OFFSET,
-        InstrumentParameters.TY_SCALE,
-        InstrumentParameters.TX_SCALE,
-        InstrumentParameters.TY_TEMPCO,
-        InstrumentParameters.TX_TEMPCO,
-        InstrumentParameters.FAST_SENSOR,
-        InstrumentParameters.THERMISTOR,
-        InstrumentParameters.TH_OFFSET,
-        InstrumentParameters.PRESSURE,
-        InstrumentParameters.P_OFFSET,
-        InstrumentParameters.P_SCALE,
-        InstrumentParameters.P_MA,
-        InstrumentParameters.AUXILIARY1,
-        InstrumentParameters.A1_OFFSET,
-        InstrumentParameters.A1_SCALE,
-        InstrumentParameters.A1_MA,
-        InstrumentParameters.AUXILIARY2,
-        InstrumentParameters.A2_OFFSET,
-        InstrumentParameters.A2_SCALE,
-        InstrumentParameters.A2_MA,
-        InstrumentParameters.AUXILIARY3,
-        InstrumentParameters.A3_OFFSET,
-        InstrumentParameters.A3_SCALE,
-        InstrumentParameters.A3_MA,
-        InstrumentParameters.SENSOR_ORIENTATION,
-        InstrumentParameters.SERIAL_NUMBER,
-        InstrumentParameters.QUERY_CHARACTER,
-        InstrumentParameters.POWER_UP_TIME_OUT,
-        '#',
-        InstrumentParameters.DEPLOY_INITIALIZED,
-        InstrumentParameters.LINE1,
-        InstrumentParameters.LINE2,
-        InstrumentParameters.LINE3,
-        InstrumentParameters.START_TIME,
-        InstrumentParameters.STOP_TIME,
-        InstrumentParameters.FRAME,
-        InstrumentParameters.DATA_MONITOR,
-        InstrumentParameters.INTERNAL_LOGGING,
-        InstrumentParameters.APPEND_MODE,
-        InstrumentParameters.BYTES_PER_SAMPLE,
-        InstrumentParameters.VERBOSE_MODE,
-        InstrumentParameters.QUERY_MODE,
-        InstrumentParameters.EXTERNAL_POWER,
-        InstrumentParameters.MEASUREMENT_FREQUENCY,
-        InstrumentParameters.MEASUREMENT_PERIOD_SECS,
-        InstrumentParameters.MEASUREMENT_PERIOD_TICKS,
-        InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
-        InstrumentParameters.SAMPLE_PERIOD_SECS,
-        InstrumentParameters.SAMPLE_PERIOD_TICKS,
-        InstrumentParameters.SAMPLES_PER_BURST,
-        InstrumentParameters.INTERVAL_BETWEEN_BURSTS,
-        InstrumentParameters.BURSTS_PER_FILE,
-        InstrumentParameters.STORE_TIME,
-        InstrumentParameters.STORE_FRACTIONAL_TIME,
-        InstrumentParameters.STORE_RAW_PATHS,
-        InstrumentParameters.PATH_UNITS,
-        'DONE']
-    
     def __init__(self, prompts, newline, driver_event):
         """
         """
@@ -323,24 +253,21 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # create MenuTree object
         menu = MenuInstrumentProtocol.MenuTree({
             SubMenues.ROOT       : [],
-            SubMenues.SET_TIME   : [Directions("1", InstrumentPrompts.SUB_MENU)],
-            SubMenues.FLASH_CARD : [Directions("2", InstrumentPrompts.SUB_MENU)],
-            SubMenues.DEPLOY     : [Directions(InstrumentCmds.DEPLOY_MENU, InstrumentPrompts.SUB_MENU, 20)],
-            SubMenues.PICO_DOS   : [Directions(SubMenues.FLASH_CARD),
-                                    Directions("2", InstrumentPrompts.SUB_MENU)]
+            SubMenues.SET_TIME   : [Directions(InstrumentCmds.SET_TIME, InstrumentPrompts.SET_TIME)],
+            SubMenues.DEPLOY     : [Directions(InstrumentCmds.DEPLOY_MENU, InstrumentPrompts.SUB_MENU, 20)]
             })
         
         MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event)
                 
         # these build handlers will be called by the base class during the
         # navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.SET_TIME, self._build_time_command)
         self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.EXIT_SUB_MENU, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.UPLOAD, self._build_simple_command)
         
         # Add response handlers for device commands.
-        self._add_response_handler(InstrumentCmds.UPLOAD, self._parse_upload_response)
+        self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
 
         self._protocol_fsm = InstrumentFSM(ProtocolStates, 
                                            ProtocolEvents, 
@@ -377,6 +304,40 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     ########################################################################
     # overridden superclass methods
     ########################################################################
+
+    def _navigate_and_execute(self, cmds, **kwargs):
+        """
+        Navigate to a sub-menu and execute a list of commands.  
+        @param cmds The list of commands to execute.
+        @param expected_prompt optional kwarg passed through to do_cmd_resp.
+        @param timeout=timeout optional wakeup and command timeout.
+        @param write_delay optional kwarg passed through to do_cmd_resp.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
+
+        resp_result = None
+
+        # Get dest_submenu 
+        dest_submenu = kwargs.pop('dest_submenu', None)
+        if dest_submenu == None:
+            raise InstrumentProtocolException('_navigate_and_execute(): dest_submenu parameter missing')
+
+        # iterate through the directions 
+        directions_list = self._menu.get_directions(dest_submenu)
+        for directions in directions_list:
+            log.debug('_navigate_and_execute: directions: %s' %(directions))
+            command = directions.get_command()
+            response = directions.get_response()
+            timeout = directions.get_timeout()
+            self._do_cmd_resp(command, expected_prompt = response, timeout = timeout)
+
+        for (command, response) in cmds.iteritems():
+            log.debug('_navigate_and_execute: sending cmd: %s with kwargs: %s to _do_cmd_resp.' %(command, kwargs))
+            resp_result = self._do_cmd_resp(command, expected_prompt = response, **kwargs)
+ 
+        return resp_result
 
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
@@ -556,79 +517,24 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             if not isinstance(params_to_set, dict):
                 raise InstrumentParameterException('Set parameters not a dict.')
         
-        parameters = copy.copy(self._param_dict)    # get copy of parameters to modify
-        
-        # For each key, value in the params_to_set list set the value in parameters copy.
-        try:
-            for (name, value) in params_to_set.iteritems():
-                log.debug('setting %s to %s' %(name, value))
-                parameters.set_from_value(name, value)
-        except Exception as ex:
-            raise InstrumentProtocolException('Unable to set parameter %s to %s: %s' %(name, value, ex))
-            
-        output = self._create_set_output(parameters)
-        
-        # go to root menu.
-        got_prompt = False
-        for i in range(10):
-            try:
-                self._go_to_root_menu()
-                got_prompt = True
-                break
-            except:
-                pass
-            
-        if not got_prompt:                
-            raise InstrumentTimeoutException()
-                                
-        # Issue download command
-        for i in range(2):
-            try: 
-                self._do_cmd_resp(InstrumentCmds.DOWNLOAD,
-                                  expected_prompt=InstrumentPrompts.DOWNLOAD,
-                                  timeout=2)
-                got_prompt = True
-                break
-            except:
-                pass
-
-        if not got_prompt:                
-            raise InstrumentTimeoutException()
-
-        # for debugging
-        #file = open("upload.txt", "w")
-
-        done = False
-        
-        for line in output:
-            for char in line:
-                if char == InstrumentCmds.END_OF_TRANS:
-                    # don't send newline after last '#'
-                    done = True
+        for (key, val) in params_to_set.iteritems():
+            # go to root menu.
+            got_prompt = False
+            for i in range(10):
+                try:
+                    self._go_to_root_menu()
+                    got_prompt = True
                     break
-                # Clear line and prompt buffers for result.
-                self._linebuf = ''
-                self._promptbuf = ''
-                log.debug('_handler_command_set: sending %s from %s' %(char, line))
-                self._connection.send(char)
-                #file.write(char)
-                # Wait for the character to be echoed, timeout exception
-                # use method that looks for the response only at the end of the _promptbuf
-                self._get_response(timeout=2, expected_prompt='%s'%char)
-            if done == True:
-                break
-            self._linebuf = ''
-            self._promptbuf = ''
-            self._connection.send('\n')
-            #file.write('\n')
-            CommandResponseInstrumentProtocol._get_response(self, timeout=2, expected_prompt='\n')
-             
-        #file.close()
+                except:
+                    pass
+                
+            if not got_prompt:                
+                raise InstrumentTimeoutException()
+                                    
+            dest_submenu = self._param_dict.get_menu_path_write(key)
+            commands = self._param_dict.get_submenu_write(key)
+            self._navigate_and_execute(None, commands, dest_submenu=dest_submenu, timeout=5)
 
-        result = self._do_cmd_resp(InstrumentCmds.END_OF_TRANS, 
-                                   expected_prompt=InstrumentPrompts.SET_DONE,
-                                   timeout=5)
-        
         self._update_params()
             
         return (next_state, result)
@@ -821,13 +727,16 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # The parameter dictionary.
         self._param_dict = Mavs4ProtocolParameterDict()
         
-        # Add parameter handlers to parameter dict for instrument configuration parameters.
+        # Add parameter handlers to parameter dictionary for instrument configuration parameters.
         self._param_dict.add(InstrumentParameters.SYS_CLOCK,
-                             '', 
-                             lambda line : int(line),
-                             self._int_to_string)
-        
-                             lambda line : line[:-1])
+                             r'*[(*)]*', 
+                             lambda line : line,
+                             lambda string : string,
+                             menu_path_read=SubMenues.ROOT,
+                             submenu_read=[[InstrumentCmds.SET_TIME, InstrumentPrompts.SET_TIME]],
+                             menu_path_write=SubMenues.SET_TIME,
+                             submenu_write=[[InstrumentCmds.ENTER_TIME, InstrumentPrompts.SET_TIME],
+                                            [InstrumentCmds.ANSWER_YES, InstrumentPrompts.SET_TIME]])
 
         self._param_dict.add(InstrumentParameters.DATA_MONITOR,
                              '', 
@@ -923,33 +832,27 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                                            error_code=InstErrorCode.INCORRECT_STATE)
         # Get old param dict config.
         old_config = self._param_dict.get_config()
+        
+        params_to_get = [InstrumentParameters.SYS_CLOCK]
 
-        # go to root menu.
-        got_prompt = False
-        for i in range(10):
-            try:
-                self._go_to_root_menu()
-                got_prompt = True
-                break
-            except:
-                pass
-            
-        if not got_prompt:                
-            raise InstrumentTimeoutException()
-                                
-        # Issue upload command
-        for i in range(2):
-            try: 
-                self._do_cmd_resp(InstrumentCmds.UPLOAD,
-                                  expected_prompt=InstrumentPrompts.UPLOAD,
-                                  timeout=2)
-                got_prompt = True
-                break
-            except:
-                pass
+        for key in params_to_get:
+            # go to root menu.
+            got_prompt = False
+            for i in range(10):
+                try:
+                    self._go_to_root_menu()
+                    got_prompt = True
+                    break
+                except:
+                    pass
+                
+            if not got_prompt:                
+                raise InstrumentTimeoutException()
+                                    
+            dest_submenu = self._param_dict.get_menu_path_read(key)
+            commands = self._param_dict.get_submenu_read(key)
+            self._navigate_and_execute(None, commands, dest_submenu=dest_submenu, timeout=5)
 
-        if not got_prompt:                
-            raise InstrumentTimeoutException()
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
@@ -957,54 +860,35 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
-    def _parse_upload_response(self, response, prompt):
+    def _build_time_command(self, val):
+        """
+        Build handler for time set command 
+        String cmd constructed by param dict formatting function.
+        @param val the parameter value to set.
+        @ retval The set command to be sent to the device.
+        @throws InstrumentProtocolException if the formatting function could not accept the value passed.
+        """
+        try:
+            # TODO: check that val passed in is correct format for instrument
+            cmd = self._param_dict.format(InstrumentParameters.SYS_CLOCK, val)
+ 
+        except KeyError:
+            raise InstrumentParameterException('Incorrect clock value %s' % val)
+
+        return cmd
+
+    def _parse_time_response(self, response, prompt):
         """
         Parse handler for upload command.
         @param response command response string.
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if upload command misunderstood.
         """
-        if prompt != InstrumentPrompts.UPLOAD:
-            raise InstrumentProtocolException('upload command not recognized: %s.' % response)
+        if not InstrumentPrompts.GET_TIME in response:
+            raise InstrumentProtocolException('get time command not recognized: %s.' % response)
         
-        log.debug("_parse_upload_response: response=%s" %response)
+        log.debug("_parse_time_response: response=%s" %response)
 
-        for name, line in zip(self.upload_download_parameter_list, response.split(INSTRUMENT_NEWLINE)):
-            #log.debug("_parse_upload_response: name=%s, line=%s" %(name, line))
-            if name == 'DONE':
-                break
-            if not line in ['u', '#', '']:
-                self._param_dict.set_from_string(name, line)
+        self._param_dict.update(InstrumentParameters.SYS_CLOCK, response)
               
-    def _create_set_output(self, parameters):
-        output = []
-        for name in self.upload_download_parameter_list:
-            if name == 'DONE':
-                break
-            if not name in ['u', '']:
-                if name == '#':
-                    output.append(name)
-                else:
-                    if name in [InstrumentParameters.DEPLOY_INITIALIZED, 
-                                InstrumentParameters.LINE1,
-                                InstrumentParameters.LINE2,
-                                InstrumentParameters.LINE3]:
-                        output.append(parameters.format_parameter(name) + '\r')
-                    else:
-                        output.append(parameters.format_parameter(name))
-                              
-        checksum = 0
-        for item in output:
-            for char in item:
-                log.debug('c=%s, i=%s' %(char, item))
-                checksum = (checksum + ord(char)) % 255
-                
-        output.append('#')
-        checksum_str = "{:02X}".format(checksum)
-        output.append(checksum_str)
-        output.append('#' + InstrumentCmds.END_OF_TRANS)  # EOT to signal end of output
-        
-        return output
-
-
 

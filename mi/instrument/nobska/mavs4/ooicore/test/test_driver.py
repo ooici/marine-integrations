@@ -577,31 +577,24 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         orig_config = reply
         
         # Grab a subset of parameters.
-        params = [
-            InstrumentParameters.TY_OFFSET,
-            InstrumentParameters.TX_OFFSET,
-            InstrumentParameters.TY_SCALE,
-            InstrumentParameters.TX_SCALE
-            ]
+        params = [InstrumentParameters.SYS_CLOCK]
         reply = self.driver_client.cmd_dvr('get_resource', params)
-        self.assertParamDict(reply)        
+        self.assertParamDict(reply)
+        for (name, value) in reply.iteritems():
+            log.debug('parameter %s=%s' %(name, value))        
 
         # Remember the original subset.
         orig_params = reply
         
         # Construct new parameters to set.
-        new_params = {
-            InstrumentParameters.TY_OFFSET : orig_params[InstrumentParameters.TY_OFFSET] * 2,
-            InstrumentParameters.TX_OFFSET : orig_params[InstrumentParameters.TX_OFFSET] + 1,
-            InstrumentParameters.TY_SCALE : orig_params[InstrumentParameters.TY_SCALE] * 2,
-            InstrumentParameters.TX_SCALE : orig_params[InstrumentParameters.TX_SCALE] + 1
-        }
+        new_params = {InstrumentParameters.SYS_CLOCK : '03/29/2002 11:11:42'}
 
         # Set parameters and verify.
         reply = self.driver_client.cmd_dvr('set_resource', new_params)
         reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertParamVals(reply, new_params)
         
+        """
         # Restore original parameters and verify.
         reply = self.driver_client.cmd_dvr('set_resource', orig_params)
         reply = self.driver_client.cmd_dvr('get_resource', params)
@@ -623,7 +616,8 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         
         # Test the driver is in state unconfigured.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)        
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED) 
+        """       
 
     def Xtest_instrumment_autosample(self):
         """
