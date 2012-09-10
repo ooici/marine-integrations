@@ -61,6 +61,8 @@ namespace network {
     	    TCPCommListener(const TCPCommListener &rhs);
             virtual ~TCPCommListener();
             
+	    virtual CommBase *copy();
+            
             /* Operators */
             virtual TCPCommListener & operator=(const TCPCommListener &rhs);
 

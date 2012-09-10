@@ -33,6 +33,27 @@ using namespace publisher;
  ******************************************************************************/
 
 /******************************************************************************
+ * Method: Constructor
+ * Description: Set the comm object
+ * Parameter:
+ *    CommBase* pointer to a comm object
+ ******************************************************************************/
+void FilePointerPublisher::FilePointerPublisher(CommBase* comm) {
+    m_pFilePointer = NULL;
+    setFilePointer(comm);
+}
+
+/******************************************************************************
+ * Method: setFilePointer
+ * Description: Set the private file pointer (deep copy)
+ * Parameter:
+ *    FILE* referencing a file descriptor.
+ ******************************************************************************/
+void FilePointerPublisher::setCommObject(CommBase* comm) {
+    m_CommSocket = comm->copy();
+}
+
+/******************************************************************************
  * Method: setFilePointer
  * Description: Set the private file pointer
  * Parameter:

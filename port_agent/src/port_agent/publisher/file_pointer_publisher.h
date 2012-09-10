@@ -16,6 +16,7 @@
 #define __FILE_POINTER_PUBLISHER_H_
 
 #include "publisher.h"
+#include "network/comm_base.h"
 #include "common/log_file.h"
 
 using namespace std;
@@ -29,10 +30,11 @@ namespace publisher {
         
         public:
 
-        	FilePointerPublisher() : m_pFilePointer(NULL) {}
+           FilePointerPublisher() : m_pFilePointer(NULL), m_CommBase(NULL) {}
+	   FilePointerPublisher(const CommSocket *socket);
 
-            // Explicitly set the output file
-            void setFilePointer(FILE *fd);
+           // Explicitly set the output file
+           void setFilePointer(FILE *fd);
 
         protected:
 
@@ -57,6 +59,8 @@ namespace publisher {
             
         private:
             FILE* m_pFilePointer;
+	    
+	    CommBase* m_CommBase;
     };
 }
 

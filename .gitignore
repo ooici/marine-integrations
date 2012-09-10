@@ -48,7 +48,6 @@ couchdb.stdout
 erl_crash.dump
 .deps/
 Makefile
-Makefile.in
 config.status
 autom4te.cache
 

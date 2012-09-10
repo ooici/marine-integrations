@@ -30,6 +30,8 @@ namespace network {
             CommBase(const CommBase &rhs);
             virtual ~CommBase();
             
+            virtual CommBase *copy() = 0;
+            
             /* Operators */
             virtual CommBase & operator=(const CommBase &rhs);
 

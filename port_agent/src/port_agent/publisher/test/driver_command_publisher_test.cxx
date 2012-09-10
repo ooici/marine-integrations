@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 #include "publisher_test.h"
 #include "driver_command_publisher.h"
+#include "network/tcp_comm_socket.h"
 
 
 #include <sstream>
@@ -60,4 +61,16 @@ TEST_F(DriverCommandPublisherTest, SingleBinaryOut) {
 TEST_F(DriverCommandPublisherTest, FailureNoFile) {
 	DriverCommandPublisher publisher;
 	EXPECT_TRUE(testPublishFailure(publisher, INSTRUMENT_COMMAND));
+}
+
+/* Test with a tcp comm socket */
+TEST_F(DriverCommandPublisherTest, CommSocketWrite) {
+	
+	TCPCommSocket socket;
+	socket.setHostname("localhost");
+	socket.setPort(4001);
+	
+	DriverCommandPublisher publisher(&socket);
+	
+	EXPECT_TRUE(testPublishCommSocket(publisher, DATA_FROM_DRIVER));
 }

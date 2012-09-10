@@ -69,6 +69,14 @@ TCPCommSocket & TCPCommSocket::operator=(const TCPCommSocket &rhs) {
 	return *this;
 }
 
+/******************************************************************************
+ * Method: copy
+ * Description: return a new object deep copied.
+ ******************************************************************************/
+CommBase * TCPCommSocket::copy() {
+	return new TCPCommSocket(*this);
+}
+
 
 /******************************************************************************
  * Method: connect

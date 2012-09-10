@@ -86,6 +86,14 @@ TCPCommListener::TCPCommListener(const TCPCommListener &rhs) {
 TCPCommListener::~TCPCommListener() {
 }
 
+/******************************************************************************
+ * Method: copy
+ * Description: return a new object deep copied.
+ ******************************************************************************/
+CommBase * TCPCommListener::copy() {
+	return new TCPCommListener(*this);
+}
+
 
 /******************************************************************************
  * Method: assignment operator

@@ -46,6 +46,14 @@ SerialCommSocket::SerialCommSocket(const SerialCommSocket &rhs) {
 SerialCommSocket::~SerialCommSocket() {
 }
 
+/******************************************************************************
+ * Method: copy
+ * Description: return a new object deep copied.
+ ******************************************************************************/
+CommBase * SerialCommSocket::copy() {
+	return new SerialCommSocket(*this);
+}
+
 
 /******************************************************************************
  * Method: assignment operator

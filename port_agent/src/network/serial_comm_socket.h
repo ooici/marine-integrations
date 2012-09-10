@@ -19,7 +19,7 @@ using namespace logger;
 using namespace network;
 
 namespace network {
-    class SerialCommSocket {
+    class SerialCommSocket : public CommBase {
         /********************
          *      METHODS     *
          ********************/
@@ -30,6 +30,13 @@ namespace network {
     	    SerialCommSocket();
     	    SerialCommSocket(const SerialCommSocket &rhs);
             virtual ~SerialCommSocket();
+            
+	    virtual CommBase *copy();
+	    
+            virtual bool initialize() { return false; }
+	    
+            virtual uint32_t writeData(const char *buffer, uint32_t size) { return 0; }
+            virtual uint32_t readData(char *buffer, uint32_t size) { return 0; }
             
             /* Operators */
             virtual SerialCommSocket & operator=(const SerialCommSocket &rhs);

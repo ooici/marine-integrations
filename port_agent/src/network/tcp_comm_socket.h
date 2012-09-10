@@ -30,6 +30,8 @@ namespace network {
     	    TCPCommSocket(const TCPCommSocket &rhs);
             virtual ~TCPCommSocket();
             
+	    virtual CommBase *copy();
+            
             /* Operators */
             virtual TCPCommSocket & operator=(const TCPCommSocket &rhs);
 
