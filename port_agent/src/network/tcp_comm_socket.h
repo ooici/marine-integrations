@@ -34,18 +34,21 @@ namespace network {
             virtual TCPCommSocket & operator=(const TCPCommSocket &rhs);
 
             /* Accessors */
+            void setHostname(const string &hostname) {m_sHostname = hostname;}
+            void setPort(const uint16_t port) {m_iPort = port;}
+	    
+	    uint16_t port() { return m_iPort; }
+	    const string & hostname() { return m_sHostname; }
             
             // Connect to the network host
             bool initialize();
 
-            void setHostname(const string &hostname) { m_sHostname = hostname; }
-            void setPort(const uint16_t port) { m_iPort = port; }
-
+            // Does this object have a complete configuration?
+            bool isConfigured();
+	    
         protected:
 
         private:
-            // Does this object have a complete configuration?
-            bool isConfigured();
 
         /********************
          *      MEMBERS     *

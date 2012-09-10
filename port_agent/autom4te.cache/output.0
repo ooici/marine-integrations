@@ -3915,7 +3915,7 @@ fi
 # AC_CONFIG_HEADERS([config.h])
 
 # Our configuration files
-ac_config_files="$ac_config_files Makefile src/Makefile src/network/Makefile src/network/test/Makefile src/common/Makefile src/common/test/Makefile src/port_agent/Makefile src/port_agent/config/Makefile src/port_agent/config/test/Makefile src/port_agent/packet/Makefile src/port_agent/packet/test/Makefile src/port_agent/publisher/Makefile src/port_agent/publisher/test/Makefile"
+ac_config_files="$ac_config_files Makefile src/Makefile src/network/Makefile src/network/test/Makefile src/common/Makefile src/common/test/Makefile src/port_agent/Makefile src/port_agent/test/Makefile src/port_agent/config/Makefile src/port_agent/config/test/Makefile src/port_agent/packet/Makefile src/port_agent/packet/test/Makefile src/port_agent/connection/Makefile src/port_agent/connection/test/Makefile src/port_agent/publisher/Makefile src/port_agent/publisher/test/Makefile"
 
 
 # GoogleTest in the testing framework we use.  The google test checks
@@ -5045,10 +5045,13 @@ do
     "src/common/Makefile") CONFIG_FILES="$CONFIG_FILES src/common/Makefile" ;;
     "src/common/test/Makefile") CONFIG_FILES="$CONFIG_FILES src/common/test/Makefile" ;;
     "src/port_agent/Makefile") CONFIG_FILES="$CONFIG_FILES src/port_agent/Makefile" ;;
+    "src/port_agent/test/Makefile") CONFIG_FILES="$CONFIG_FILES src/port_agent/test/Makefile" ;;
     "src/port_agent/config/Makefile") CONFIG_FILES="$CONFIG_FILES src/port_agent/config/Makefile" ;;
     "src/port_agent/config/test/Makefile") CONFIG_FILES="$CONFIG_FILES src/port_agent/config/test/Makefile" ;;
     "src/port_agent/packet/Makefile") CONFIG_FILES="$CONFIG_FILES src/port_agent/packet/Makefile" ;;
     "src/port_agent/packet/test/Makefile") CONFIG_FILES="$CONFIG_FILES src/port_agent/packet/test/Makefile" ;;
+    "src/port_agent/connection/Makefile") CONFIG_FILES="$CONFIG_FILES src/port_agent/connection/Makefile" ;;
+    "src/port_agent/connection/test/Makefile") CONFIG_FILES="$CONFIG_FILES src/port_agent/connection/test/Makefile" ;;
     "src/port_agent/publisher/Makefile") CONFIG_FILES="$CONFIG_FILES src/port_agent/publisher/Makefile" ;;
     "src/port_agent/publisher/test/Makefile") CONFIG_FILES="$CONFIG_FILES src/port_agent/publisher/test/Makefile" ;;
 

@@ -82,6 +82,10 @@ class DuplicateProcess : public OOIException {
         OOIException("Duplicate Process Detected", 107, msg) {}
 };
 
+class NotImplemented : public OOIException {
+    public: NotImplemented(const char* msg = "") :
+        OOIException("Command Not Implmented", 108, msg) {}
+};
 
 /*******************************************************************************
  * Logger Exceptions
@@ -217,5 +221,22 @@ class PacketPublishFailure : public OOIException {
         OOIException("failed to publish packet", 702, msg) {}
 };
 
+class UnknownPublisherType : public OOIException {
+    public: UnknownPublisherType(const char* msg = "") :
+        OOIException("unknown publisher type", 703, msg) {}
+};
+
+/*******************************************************************************
+ * Port Agent Exceptions
+ ******************************************************************************/
+class UnknownState : public OOIException {
+    public: UnknownState(const char* msg = "") :
+        OOIException("We have landed in an unknown state ... kaboom!", 801, msg) {}
+};
+
+class NotInitialized : public OOIException {
+    public: NotInitialized(const char* msg = "") :
+        OOIException("Uninitialized socket operation", 802, msg) {}
+};
 
 #endif //EXCEPTION_H_

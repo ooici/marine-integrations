@@ -7,6 +7,9 @@ $(top_builddir)/src/network/libnetwork_comm.a:
 $(top_builddir)/src/port_agent/config/libport_agent_config.a:
 	cd $(top_builddir)/src/port_agent/config && $(MAKE) $(MFLAGS) libport_agent_config.a
 
+$(top_builddir)/src/port_agent/connection/libport_agent_connection.a:
+	cd $(top_builddir)/src/port_agent/connection && $(MAKE) $(MFLAGS) libport_agent_connection.a
+
 $(top_builddir)/src/port_agent/libport_agent.a:
 	cd $(top_builddir)/src/port_agent && $(MAKE) $(MFLAGS) libport_agent.a
 

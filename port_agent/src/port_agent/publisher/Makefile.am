@@ -8,6 +8,7 @@ DEPLIBS = $(top_builddir)/src/common/libcommon.a \
 noinst_LIBRARIES= libport_agent_publisher.a
 
 libport_agent_publisher_a_SOURCES = publisher.cxx publisher.h \
+                                    publisher_list.cxx publisher_list.h \
                                     file_publisher.cxx file_publisher.h \
                                     file_pointer_publisher.cxx file_pointer_publisher.h \
                                     instrument_publisher.cxx instrument_publisher.h \

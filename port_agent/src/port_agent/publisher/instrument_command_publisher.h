@@ -27,6 +27,8 @@ namespace publisher {
         public:
         	InstrumentCommandPublisher();
 
+	    const PublisherType publisherType() { return PUBLISHER_INSTRUMENT_COMMAND; }
+
         protected:
             virtual bool handleInstrumentCommand(Packet *packet);
 

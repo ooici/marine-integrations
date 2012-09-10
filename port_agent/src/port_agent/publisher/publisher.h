@@ -52,6 +52,17 @@ using namespace packet;
 
 
 namespace publisher {
+    typedef enum PublisherType {
+	UNKNOWN,
+        PUBLISHER_DRIVER_COMMAND,
+        PUBLISHER_DRIVER_DATA,
+        PUBLISHER_INSTRUMENT_COMMAND,
+        PUBLISHER_INSTRUMENT_DATA,
+        PUBLISHER_FILE,
+        PUBLISHER_UDP,
+        PUBLISHER_TCP
+    } PulisherType;
+    
     class Publisher {
         /********************
          *      METHODS     *
@@ -74,6 +85,8 @@ namespace publisher {
             virtual bool publish(Packet *packet);
 
             /* Accessors */
+	    
+	    virtual const PublisherType publisherType() = 0;
 
             // Get the error from the last publish call
             OOIException * error();

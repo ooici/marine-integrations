@@ -62,6 +62,8 @@ namespace publisher {
             // Explicitly close the log file
             void close() { m_oLogger.close(); }
 
+	    const PublisherType publisherType() { return PUBLISHER_FILE; }
+
         protected:
 
             LogFile &logger() { return m_oLogger; }

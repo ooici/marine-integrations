@@ -27,6 +27,8 @@ namespace publisher {
         public:
         	InstrumentDataPublisher();
 
+	    const PublisherType publisherType() { return PUBLISHER_INSTRUMENT_DATA; }
+
         protected:
             virtual bool handleDriverData(Packet *packet);
 

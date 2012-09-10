@@ -82,7 +82,7 @@ namespace logger {
 		virtual ~Logger();
 
 		// Get a reference to an ostringstream object to store the log message in
-		ostringstream& Get(TLogLevel level = DEFAULT_LOG_LEVEL);
+		ostringstream& Get(TLogLevel level, const string &file, int line);
 
 		// Return the generated logfile name.  If m_sLogFileName is set then
 		// use that, otherwise try to generate a log file name from the base.
@@ -90,6 +90,8 @@ namespace logger {
 
 		// Explicitly close the log file handle.  Mostly used for testing.
 		void close();
+                
+                void setCaller(const char *file, const char *function, int linenum);
 
 
 		/******************
@@ -145,12 +147,22 @@ namespace logger {
 		static void Reset();
 
 
+		// Get the log level from a string.
+		TLogLevel levelFromString(const string& level);
+
+		// Get the log level from the enum.
+		string levelToString(const TLogLevel level);
+
 	protected:
 		static Logger* m_pInstance;
 
 		ostringstream* m_sLogoutStream;
 		ofstream* m_sLogfileStream;
 
+                string m_sCallerFile;
+                string m_sCallerFunction;
+                int m_iCallerLine;
+                
 		TLogLevel m_tLogLevel;
 		string m_sLogFileBase;
 		string m_sLogFileName;
@@ -170,12 +182,6 @@ namespace logger {
 		// Reset the error field.
 		void clearError();
 
-		// Get the log level from a string.
-		TLogLevel levelFromString(const string& level);
-
-		// Get the log level from the enum.
-		string levelToString(const TLogLevel level);
-
 		// Get / Create a ofstream object to write the log file.
 		ofstream* getLogStream();
 
@@ -184,6 +190,7 @@ namespace logger {
 
 		// Return a formatted date for the log file name.
 		int fileDate();
+                
 	};
 }
 
@@ -191,7 +198,7 @@ namespace logger {
 
 #define LOG(level) \
     if (level > logger::Logger::GetLogLevel()) ; \
-    else logger::Logger().Get(level)
+    else logger::Logger().Get(level, __FILE__, __LINE__)
 
 #endif //__LOGGER_H__
     

@@ -65,8 +65,6 @@ namespace network {
             virtual TCPCommListener & operator=(const TCPCommListener &rhs);
 
             /* Accessors */
-            
-            void setPort(const uint16_t port) { m_iPort = port; }
 
             /* Commands */
 	    
@@ -76,11 +74,11 @@ namespace network {
 	    virtual uint32_t writeData(const char *buffer, uint32_t size);
             virtual uint32_t readData(char *buffer, uint32_t size);
 
+            // Does this object have a complete configuration?
+            bool isConfigured();
         protected:
 
         private:
-            // Does this object have a complete configuration?
-            bool isConfigured();
 
         /********************
          *      MEMBERS     *

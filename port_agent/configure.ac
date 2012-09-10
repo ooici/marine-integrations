@@ -19,10 +19,13 @@ AC_CONFIG_FILES([
   src/common/Makefile
   src/common/test/Makefile
   src/port_agent/Makefile
+  src/port_agent/test/Makefile
   src/port_agent/config/Makefile
   src/port_agent/config/test/Makefile
   src/port_agent/packet/Makefile
   src/port_agent/packet/test/Makefile
+  src/port_agent/connection/Makefile
+  src/port_agent/connection/test/Makefile
   src/port_agent/publisher/Makefile
   src/port_agent/publisher/test/Makefile
 ])

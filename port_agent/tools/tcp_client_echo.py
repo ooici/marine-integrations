@@ -45,6 +45,8 @@ cli.settimeout(CONNECT_TIMEOUT)
 
 cli.connect((ADDR))
 
+print "Connect to %s %d" % ADDR
+
 if(options.data):
     if(options.write_delay):
         time.sleep(options.write_delay)

@@ -6,10 +6,14 @@ DEPLIBS = $(top_builddir)/src/network/libnetwork_comm.a \
 #    Test Definitions
 ####
 noinst_PROGRAMS = tcp_comm_socket_test \
+                  udp_comm_socket_test \
                   tcp_comm_listen_test
 
 tcp_comm_socket_test_SOURCES = tcp_comm_socket_test.cxx 
 tcp_comm_socket_test_LDADD = $(DEPLIBS)
+
+udp_comm_socket_test_SOURCES = udp_comm_socket_test.cxx 
+udp_comm_socket_test_LDADD = $(DEPLIBS)
 
 tcp_comm_listen_test_SOURCES = tcp_comm_listen_test.cxx 
 tcp_comm_listen_test_LDADD = $(DEPLIBS)

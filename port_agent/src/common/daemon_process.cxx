@@ -121,8 +121,7 @@ bool DaemonProcess::run() {
 }
 
 void DaemonProcess::duplicate_check() {
-    int pid = read_pidfile();
-    if(pid)
+    if(is_running())
         throw DuplicateProcess(pid_file().c_str());
 }
 
@@ -193,16 +192,29 @@ int DaemonProcess::kill_process() {
         
         server_pid = NULL;
         
-        running = kill(pid, 0);
-        LOG(DEBUG) << "Is process still running: " << running;
-        
-        if(running < 0)
+        if(! is_running())
             remove_pidfile();
         
         return result;
     }
     
     return 0;
+}
+
+bool DaemonProcess::is_running() {
+    int running;
+    int pid = read_pidfile();
+    
+    if(pid){
+        running = kill(pid, 0);
+        LOG(DEBUG) << "Is process " << pid << "still running: " << running;
+        
+        if(running >= 0)
+            return true;
+    }
+        
+    return false;
+    
 }
 
 int DaemonProcess::read_pidfile() {

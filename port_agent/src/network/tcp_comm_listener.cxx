@@ -6,6 +6,37 @@
  *
  * Manage a TCP listener.
  *
+ * Usage:
+ *
+ * TCPCommListener ts;
+ *
+ * // Statically assign the port.  If not assigned then us a random port.
+ * ts.setPort(1024);
+ *
+ * // Enable blocking connections. Default is non-blocking
+ * ts.setBlocking(true);
+ *
+ * // Initialize the server
+ * ts.initalize();
+ *
+ * // Get the port the server is actually listening on.  Useful when using
+ * // random ports.
+ * uint16_t port = ts.getListenPort();
+ * 
+ * // Accept client connections
+ * ts.acceptClient();
+ *
+ * // Read data from the client. Honors the blocking flag set earlier.
+ * char buffer[128];
+ * int bytes_read = ts.readData(buffer, 128);
+ *
+ * // Write data to the client.
+ * int bytes_written = ts.writeData("Hello World", strlen("Hello World"));
+ *
+ * // When using non-blocking you may want to use a select read loop to monitor
+ * // the file descriptors.  They are exposed via accessors
+ * int serverFD = ts.getServerFD();
+ * int clientFD = ts.getServerFD();
  ******************************************************************************/
 
 #include "tcp_comm_listener.h"
@@ -209,7 +240,10 @@ uint32_t TCPCommListener::readData(char *buffer, const uint32_t size) {
     if ((bytesRead = read(m_pClientFD, buffer, size)) <= 0) {
         if(errno == EAGAIN || errno == EINPROGRESS) {
             LOG(DEBUG2) << "Error Ignored: " << strerror(errno);
-        } else {
+	} else if( errno = ETIMEDOUT ) {
+            LOG(DEBUG) << " -- socket read timeout. disconnecting client.";
+            disconnectClient();
+	} else {
             LOG(ERROR) << "read_device: " << strerror(errno) << "(errno: " << errno << ")";
             throw(SocketReadFailure(strerror(errno)));
         }
@@ -218,7 +252,7 @@ uint32_t TCPCommListener::readData(char *buffer, const uint32_t size) {
     }
     else if(bytesRead == 0) {
         LOG(INFO) << " -- Device connection closed. zero bytes recv.";
-        disconnect();
+        disconnectClient();
     }
     else
         LOG(DEBUG) << "READ DEVICE: " << buffer;

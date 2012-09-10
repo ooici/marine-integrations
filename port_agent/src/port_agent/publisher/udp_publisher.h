@@ -28,6 +28,8 @@ namespace publisher {
 
     	    UDPPublisher();
 
+	    const PublisherType publisherType() { return PUBLISHER_UDP; }
+
         protected:
 
         private:

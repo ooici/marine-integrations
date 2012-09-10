@@ -24,8 +24,10 @@ namespace publisher {
          ********************/
         
         public:
-        	DriverCommandPublisher();
+           DriverCommandPublisher();
 
+	   const PublisherType publisherType() { return PUBLISHER_DRIVER_COMMAND; }
+	   
         protected:
             virtual bool handleInstrumentData(Packet *packet)     { return logPacket(packet); }
             virtual bool handleDriverData(Packet *packet)         { return logPacket(packet); }

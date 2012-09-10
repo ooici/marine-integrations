@@ -81,15 +81,15 @@ TEST_F(TCPSocketTest, BlockingConnection) {
     string testData = "Test";
     char buffer[128];
     uint16_t writeCount, readCount;
-    TCPCommSocket socket;
-    socket.setBlocking(true);
-
-    // Configure the socket
-    socket.setHostname(TEST_HOST);
-    socket.setPort(TEST_PORT);
-
     
     try{
+        TCPCommSocket socket;
+        socket.setBlocking(true);
+
+        // Configure the socket
+        socket.setHostname(TEST_HOST);
+        socket.setPort(TEST_PORT);
+    
     	// Set connection information
         EXPECT_TRUE(socket.initialize());
         EXPECT_TRUE(socket.connected());
@@ -108,6 +108,9 @@ TEST_F(TCPSocketTest, BlockingConnection) {
             EXPECT_EQ(readCount, 4);
             EXPECT_EQ(testData, buffer);
         }
+    
+        socket.disconnect();
+        EXPECT_FALSE(socket.connected());
     }
     catch(exception &e) {
     	string msg = e.what();
@@ -118,8 +121,6 @@ TEST_F(TCPSocketTest, BlockingConnection) {
     	EXPECT_EQ(msg, "");
     };
 
-    socket.disconnect();
-    EXPECT_FALSE(socket.connected());
 }
 
 /* Test the non blocking connection */

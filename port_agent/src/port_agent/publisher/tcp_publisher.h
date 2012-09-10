@@ -28,6 +28,8 @@ namespace publisher {
 
     	    TCPPublisher();
 
+	    const PublisherType publisherType() { return PUBLISHER_TCP; }
+
         protected:
 
         private:

@@ -9,6 +9,7 @@
 from optparse import OptionParser
 from socket import *
 import sys
+import time
  
 usage = \
 """
@@ -29,6 +30,8 @@ ADDR = (HOST,PORT)
  
 cli = socket( AF_INET,SOCK_STREAM)
 cli.connect((ADDR))
+
+time.sleep(1);
 
 while(1):
 	line = sys.stdin.readline()

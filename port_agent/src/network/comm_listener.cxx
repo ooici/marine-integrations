@@ -86,18 +86,28 @@ CommListener & CommListener::operator=(const CommListener &rhs) {
 bool CommListener::disconnect() {
     LOG(DEBUG) << "Shutdown server";
     
-    if(connected()) {
-        LOG(DEBUG2) << "Disconnecting client";
-	shutdown(m_pClientFD,2);
-	close(m_pClientFD);
-	m_pClientFD = 0;
-    }
+    disconnectClient();
     
     if(listening()) {
         LOG(DEBUG2) << "Closing server connection";
 	shutdown(m_pServerFD,2);
 	close(m_pServerFD);
 	m_pServerFD = 0;
+    }
+    
+    return true;
+}
+
+/******************************************************************************
+ * Method: disconnectClient
+ * Description: Disconnect a client
+ ******************************************************************************/
+bool CommListener::disconnectClient() {
+    if(connected()) {
+        LOG(DEBUG2) << "Disconnecting client";
+	shutdown(m_pClientFD,2);
+	close(m_pClientFD);
+	m_pClientFD = 0;
     }
     
     return true;
@@ -161,8 +171,12 @@ uint16_t CommListener::getListenPort() {
     struct sockaddr_in sin;
     socklen_t len = sizeof(sin);
     
+    LOG(DEBUG) << "Fetch listen port";
+    
     if(!listening())
         throw SocketNotInitialized();
+
+    LOG(DEBUG2) << "get port from FD " << m_pServerFD;
 
     if (getsockname(m_pServerFD, (struct sockaddr *)&sin, &len) == -1)
         throw SocketConnectFailure(strerror(errno));

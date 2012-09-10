@@ -35,11 +35,17 @@ namespace network {
 
             /* Accessors */
             bool blocking() {return m_bBlocking;}
-            
-            bool connected() {return m_bConnected;}
+            virtual bool connected() {return m_bConnected;}
             
             /* Methods */
             void setBlocking(bool block) {m_bBlocking = block;}
+            virtual bool initialize() = 0;
+	    
+            virtual uint32_t writeData(const char *buffer, uint32_t size) = 0;
+            virtual uint32_t readData(char *buffer, uint32_t size) = 0;
+            
+            virtual uint16_t getListenPort() { return 0; }
+
 
 
 

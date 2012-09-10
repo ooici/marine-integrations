@@ -345,16 +345,19 @@ OOIException* Logger::GetError() {
  *              DEBUG messages get indented.
  * Parameters:
  *   TLogLevel level - Log level of the current message
- * Return:
+ *   file - filename of caller
+ *   fun - function name of caller
+ *   line - line number of caller
+ * Return:^^
  *   ostringstream object with the message buffered.
  ******************************************************************************/
-ostringstream& Logger::Get(TLogLevel level)
+ostringstream& Logger::Get(TLogLevel level, const string &file, int line)
 {
     Logger* instance = Logger::Instance();
     ostringstream *os = instance->m_sLogoutStream;
     
     if(level <= GetLogLevel()) {
-        *os << instance->nowTime();
+        *os << instance->nowTime() << " " << file << " " << " [" << line << "] ";
         *os << " " << instance->levelToString(level) << ": ";
     
         // Indent debug messages
@@ -536,4 +539,11 @@ TLogLevel Logger::levelFromString(const string& level)
     }
 
     return WARNING;
+}
+
+void Logger::setCaller(const char *file, const char *function, int lineno) {
+    m_sCallerFile = file;
+    m_sCallerFunction = function;
+    m_iCallerLine = lineno;
+    
 }

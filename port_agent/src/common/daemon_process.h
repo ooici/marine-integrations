@@ -36,6 +36,7 @@ class DaemonProcess {
         bool start();
         int launch_process();
         int kill_process();
+        bool is_running();
         
     protected:
         bool daemonize();
