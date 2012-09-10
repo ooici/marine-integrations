@@ -38,9 +38,20 @@ using namespace publisher;
  * Parameter:
  *    CommBase* pointer to a comm object
  ******************************************************************************/
-void FilePointerPublisher::FilePointerPublisher(CommBase* comm) {
+FilePointerPublisher::FilePointerPublisher() {
     m_pFilePointer = NULL;
-    setFilePointer(comm);
+    m_oCommSocket = NULL;
+}
+
+/******************************************************************************
+ * Method: Constructor
+ * Description: Set the comm object
+ * Parameter:
+ *    CommBase* pointer to a comm object
+ ******************************************************************************/
+FilePointerPublisher::FilePointerPublisher(CommBase* comm) {
+    m_pFilePointer = NULL;
+    setCommObject(comm);
 }
 
 /******************************************************************************
@@ -50,7 +61,7 @@ void FilePointerPublisher::FilePointerPublisher(CommBase* comm) {
  *    FILE* referencing a file descriptor.
  ******************************************************************************/
 void FilePointerPublisher::setCommObject(CommBase* comm) {
-    m_CommSocket = comm->copy();
+    m_oCommSocket = comm->copy();
 }
 
 /******************************************************************************

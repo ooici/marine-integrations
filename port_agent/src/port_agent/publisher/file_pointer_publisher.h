@@ -21,6 +21,7 @@
 
 using namespace std;
 using namespace logger;
+using namespace network;
 
 namespace publisher {
     class FilePointerPublisher : public Publisher {
@@ -30,9 +31,11 @@ namespace publisher {
         
         public:
 
-           FilePointerPublisher() : m_pFilePointer(NULL), m_CommBase(NULL) {}
-	   FilePointerPublisher(const CommSocket *socket);
+           FilePointerPublisher();
+	   FilePointerPublisher(CommBase *socket);
 
+           void setCommObject(CommBase *socket);
+	   
            // Explicitly set the output file
            void setFilePointer(FILE *fd);
 
@@ -56,11 +59,11 @@ namespace publisher {
          ********************/
         
         protected:
+	    CommBase* m_oCommSocket;
             
         private:
             FILE* m_pFilePointer;
 	    
-	    CommBase* m_CommBase;
     };
 }
 

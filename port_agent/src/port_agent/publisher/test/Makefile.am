@@ -1,5 +1,6 @@
 AM_CXXFLAGS = -I$(top_builddir)/src -I.. -Wno-write-strings 
 DEPLIBS = $(top_builddir)/src/common/libcommon.a \
+          $(top_builddir)/src/network/libnetwork_comm.a \
           $(top_builddir)/src/port_agent/packet/libport_agent_packet.a \
           $(top_builddir)/src/port_agent/publisher/libport_agent_publisher.a \
           $(GTEST_MAIN)
