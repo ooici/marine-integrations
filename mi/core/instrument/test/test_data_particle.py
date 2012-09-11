@@ -20,7 +20,6 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 
-TEST_INST_ID = "CTD-123"
 TEST_PARTICLE_VERSION = 1
 
 @attr('UNIT', group='mi')
@@ -57,8 +56,7 @@ class TestUnitDataParticle(IonUnitTestCase):
         self.sample_internal_timestamp = 3555423719.711772
         self.sample_raw_data = "SATPAR0229,10.01,2206748544,234"
 
-        self.parsed_test_particle = self.TestDataParticle(TEST_INST_ID,
-                                    self.sample_raw_data,
+        self.parsed_test_particle = self.TestDataParticle(self.sample_raw_data,
                                     port_timestamp=self.sample_port_timestamp,
                                     quality_flag=DataParticleValue.INVALID,
                                     preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
@@ -66,7 +64,6 @@ class TestUnitDataParticle(IonUnitTestCase):
                                 DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
                                 DataParticleKey.PKT_VERSION: TEST_PARTICLE_VERSION,
                                 DataParticleKey.STREAM_NAME: DataParticleValue.PARSED,
-                                DataParticleKey.INSTRUMENT_ID: TEST_INST_ID,
                                 DataParticleKey.PORT_TIMESTAMP: self.sample_port_timestamp,
                                 DataParticleKey.DRIVER_TIMESTAMP: self.sample_driver_timestamp,
                                 DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.DRIVER_TIMESTAMP,
@@ -81,15 +78,13 @@ class TestUnitDataParticle(IonUnitTestCase):
                                     ]
                                 }
 
-        self.raw_test_particle = self.TestDataParticle(TEST_INST_ID,
-                                    self.sample_raw_data,
+        self.raw_test_particle = self.TestDataParticle(self.sample_raw_data,
                                     port_timestamp=self.sample_port_timestamp,
                                     internal_timestamp=self.sample_internal_timestamp)
         self.sample_raw_particle = {
                                DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
                                DataParticleKey.PKT_VERSION: TEST_PARTICLE_VERSION,
                                DataParticleKey.STREAM_NAME: DataParticleValue.RAW,
-                               DataParticleKey.INSTRUMENT_ID: TEST_INST_ID,
                                DataParticleKey.INTERNAL_TIMESTAMP: self.sample_internal_timestamp,
                                DataParticleKey.PORT_TIMESTAMP: self.sample_port_timestamp,
                                DataParticleKey.DRIVER_TIMESTAMP: self.sample_driver_timestamp,
@@ -144,8 +139,7 @@ class TestUnitDataParticle(IonUnitTestCase):
         """
         Test bad timestamp configurations
         """
-        test_particle = self.TestDataParticle(TEST_INST_ID,
-            self.sample_raw_data,
+        test_particle = self.TestDataParticle(self.sample_raw_data,
             preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
             internal_timestamp=self.sample_internal_timestamp)
 
@@ -155,8 +149,7 @@ class TestUnitDataParticle(IonUnitTestCase):
         """
         Test setting values after creation
         """
-        test_particle = self.TestDataParticle(TEST_INST_ID,
-            self.sample_raw_data,
+        test_particle = self.TestDataParticle(self.sample_raw_data,
             preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
             internal_timestamp=self.sample_internal_timestamp)
         

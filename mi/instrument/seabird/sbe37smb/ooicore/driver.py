@@ -307,10 +307,6 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
         
-        #TODO: Fix this to get it from the Driver or otherwise get it into
-        # the particle
-        self.instrument_id = "ABC-123"
-
     def _filter_capabilities(self, events):
         """
         """ 
@@ -889,7 +885,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         sample = None
         if SAMPLE_REGEX.match(line):
         
-            particle = SBE37DataParticle(self.instrument_id, line,
+            particle = SBE37DataParticle(line,
                 preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
             
             raw_sample = particle.generate_raw()
