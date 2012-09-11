@@ -67,7 +67,7 @@ class InstrumentPrompts(BaseEnum):
     DOWNLOAD    = ' \a'
     SET_DONE    = 'New parameters accepted.'
     SET_FAILED  = 'Invalid entry'
-    SET_TIME    = '] ?\a\b'
+    SET_TIME    = '] ? \a\b'
     GET_TIME    = 'Enter correct time ['
     CHANGE_TIME = 'Change time & date (Yes/No) [N] ?\a\b'
     
@@ -204,7 +204,8 @@ class Mavs4ProtocolParameterDict(ProtocolParameterDict):
         return self._param_dict[name].f_format(self._param_dict[name].value)
     
     def update(self, name, response):
-        self.param_dict[name].update(response)
+        log.debug('Mavs4ProtocolParameterDict.update(): set %s from %s' %(name, response))
+        return self._param_dict[name].update(response)
 
 ###
 #   Driver for mavs4
@@ -261,10 +262,12 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 
         # these build handlers will be called by the base class during the
         # navigate_and_execute sequence.        
-        self._add_build_handler(InstrumentCmds.SET_TIME, self._build_time_command)
-        self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.EXIT_SUB_MENU, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.ENTER_TIME, self._build_time_command)
+        self._add_build_handler(InstrumentCmds.SET_TIME, self._build_keypress_command)
+        self._add_build_handler(InstrumentCmds.ANSWER_YES, self._build_keypress_command)
+        self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_keypress_command)
+        self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_keypress_command)
+        self._add_build_handler(InstrumentCmds.EXIT_SUB_MENU, self._build_keypress_command)
         
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
@@ -333,8 +336,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             timeout = directions.get_timeout()
             self._do_cmd_resp(command, expected_prompt = response, timeout = timeout)
 
-        for (command, response) in cmds.iteritems():
-            log.debug('_navigate_and_execute: sending cmd: %s with kwargs: %s to _do_cmd_resp.' %(command, kwargs))
+        for interaction in cmds:
+            command = interaction[0]
+            response = interaction[1]
+            log.debug('_navigate_and_execute: sending cmd: %s with expected response %s and kwargs: %s to _do_cmd_resp.' 
+                      %(command, response, kwargs))
             resp_result = self._do_cmd_resp(command, expected_prompt = response, **kwargs)
  
         return resp_result
@@ -355,17 +361,24 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         timeout = kwargs.get('timeout', 10)
         expected_prompt = kwargs.get('expected_prompt', None)
 
-        # Clear line and prompt buffers for result.
-        self._linebuf = ''
-        self._promptbuf = ''
+        # Get the build handler.
+        build_handler = self._build_handlers.get(cmd, None)
+        if not build_handler:
+            raise InstrumentProtocolException('_do_cmd_resp: Cannot build command: %s' % cmd)
+        
+        value = kwargs.get('value', None)
 
+        cmd_line = build_handler(cmd, value)
+        
         # Send command.
         log.debug('mavs4InstrumentProtocol._do_cmd_resp: %s, timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,' 
-                  %(repr(cmd), timeout, expected_prompt, expected_prompt.encode("hex")))
-        if cmd == InstrumentCmds.EXIT_SUB_MENU:
-            self._connection.send(cmd)
+                  %(cmd_line, timeout, expected_prompt, expected_prompt.encode("hex")))
+        if cmd_line == InstrumentCmds.EXIT_SUB_MENU:
+            self._connection.send(cmd_line)
         else:
-            for char in cmd:
+            for char in cmd_line:        # Clear line and prompt buffers for result.
+                self._linebuf = ''
+                self._promptbuf = ''
                 self._connection.send(char)
                 # Wait for the character to be echoed, timeout exception
                 self._get_response(timeout, expected_prompt='%s'%char)
@@ -533,7 +546,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                                     
             dest_submenu = self._param_dict.get_menu_path_write(key)
             commands = self._param_dict.get_submenu_write(key)
-            self._navigate_and_execute(None, commands, dest_submenu=dest_submenu, timeout=5)
+            self._navigate_and_execute(commands, value=val, dest_submenu=dest_submenu, timeout=5)
 
         self._update_params()
             
@@ -729,9 +742,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         
         # Add parameter handlers to parameter dictionary for instrument configuration parameters.
         self._param_dict.add(InstrumentParameters.SYS_CLOCK,
-                             r'*[(*)]*', 
-                             lambda line : line,
+                             r'.*\[(.*)\].*', 
+                             lambda match : match.group(1),
                              lambda string : string,
+                             value='',
                              menu_path_read=SubMenues.ROOT,
                              submenu_read=[[InstrumentCmds.SET_TIME, InstrumentPrompts.SET_TIME]],
                              menu_path_write=SubMenues.SET_TIME,
@@ -741,42 +755,50 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.DATA_MONITOR,
                              '', 
                              lambda line : int(line),
-                             self._int_to_string)
+                             self._int_to_string,
+                             value=0)
 
         self._param_dict.add(InstrumentParameters.QUERY_MODE,
                              '', 
                              lambda line : int(line),
-                             self._int_to_string)
+                             self._int_to_string,
+                             value=0)
 
         self._param_dict.add(InstrumentParameters.MEASUREMENT_FREQUENCY,
                              '', 
                              lambda line : float(line),
-                             self._float_to_string)
+                             self._float_to_string,
+                             value=0.0)
 
         self._param_dict.add(InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
                              '', 
                              lambda line : int(line),
-                             self._int_to_string)
+                             self._int_to_string,
+                             value=0)
 
         self._param_dict.add(InstrumentParameters.SAMPLE_PERIOD_SECS,
                              '', 
                              lambda line : int(line),
-                             self._int_to_string)
+                             self._int_to_string,
+                             value=0)
 
         self._param_dict.add(InstrumentParameters.SAMPLE_PERIOD_TICKS,
                              '', 
                              lambda line : int(line),
-                             self._int_to_string)
+                             self._int_to_string,
+                             value=0)
 
         self._param_dict.add(InstrumentParameters.SAMPLES_PER_BURST,
                              '', 
                              lambda line : int(line),
-                             self._int_to_string)
+                             self._int_to_string,
+                             value=0)
 
         self._param_dict.add(InstrumentParameters.INTERVAL_BETWEEN_BURSTS,
                              '', 
                              lambda line : int(line),
-                             self._int_to_string)
+                             self._int_to_string,
+                             value=0)
 
     def  _get_prompt(self, timeout, delay=1):
         """
@@ -851,7 +873,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                                     
             dest_submenu = self._param_dict.get_menu_path_read(key)
             commands = self._param_dict.get_submenu_read(key)
-            self._navigate_and_execute(None, commands, dest_submenu=dest_submenu, timeout=5)
+            self._navigate_and_execute(commands, dest_submenu=dest_submenu, timeout=5)
 
 
         # Get new param dict config. If it differs from the old config,
@@ -860,21 +882,15 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
-    def _build_time_command(self, val):
+    def _build_time_command(self, throw_away, val):
         """
         Build handler for time set command 
         String cmd constructed by param dict formatting function.
-        @param val the parameter value to set.
         @ retval The set command to be sent to the device.
-        @throws InstrumentProtocolException if the formatting function could not accept the value passed.
         """
-        try:
-            # TODO: check that val passed in is correct format for instrument
-            cmd = self._param_dict.format(InstrumentParameters.SYS_CLOCK, val)
+        cmd = self._param_dict.format(InstrumentParameters.SYS_CLOCK, val)
  
-        except KeyError:
-            raise InstrumentParameterException('Incorrect clock value %s' % val)
-
+        log.debug("_build_time_command: cmd=%s" %cmd)
         return cmd
 
     def _parse_time_response(self, response, prompt):
@@ -889,6 +905,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         
         log.debug("_parse_time_response: response=%s" %response)
 
-        self._param_dict.update(InstrumentParameters.SYS_CLOCK, response)
+        if not self._param_dict.update(InstrumentParameters.SYS_CLOCK, response.splitlines()[-1]):
+            log.debug('_parse_time_response: Failed to parse %s' %InstrumentParameters.SYS_CLOCK)
               
 
