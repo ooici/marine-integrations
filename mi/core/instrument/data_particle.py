@@ -26,7 +26,6 @@ class DataParticleKey(BaseEnum):
     PKT_FORMAT_ID = "pkt_format_id"
     PKT_VERSION = "pkt_version"
     STREAM_NAME = "stream_name"
-    INSTRUMENT_ID = "instrument_id"
     INTERNAL_TIMESTAMP = "internal_timestamp"
     PORT_TIMESTAMP = "port_timestamp"
     DRIVER_TIMESTAMP = "driver_timestamp"
@@ -60,21 +59,18 @@ class DataParticle(object):
     code be called by the child class with just values overridden as needed.
     """
 
-    def __init__(self, instrument_id, raw_data,
+    def __init__(self, raw_data,
                  port_timestamp=None,
                  internal_timestamp=None,
                  preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
                  quality_flag=DataParticleValue.OK):
         """ Build a particle seeded with appropriate information
         
-        @param instrument_id The the instrument id that the instrument
-            is using in ION so we can build appropriate packets.
         @param raw_data The raw data used in the particle
         """
         self.contents = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.INSTRUMENT_ID: instrument_id,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.INTERNAL_TIMESTAMP: internal_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: ntplib.system_to_ntp_time(time.time()),
