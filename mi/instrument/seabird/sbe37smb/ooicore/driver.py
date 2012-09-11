@@ -219,7 +219,7 @@ class SBE37DataParticle(DataParticle):
         #TODO:  Get 'temp', 'cond', and 'depth' from a paramdict
         result = [{DataParticleKey.VALUE_ID: "temp",
                    DataParticleKey.VALUE: temperature},
-                  {DataParticleKey.VALUE_ID: "cond",
+                  {DataParticleKey.VALUE_ID: "conductivity",
                    DataParticleKey.VALUE: conductivity},
                   {DataParticleKey.VALUE_ID: "depth",
                     DataParticleKey.VALUE: depth}]
