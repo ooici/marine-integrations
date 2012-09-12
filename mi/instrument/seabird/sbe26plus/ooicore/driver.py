@@ -72,7 +72,7 @@ class InstrumentCmds(BaseEnum):
     SET_BYTE_COUNT = '*ByteCount'
     SET = 'set'
     GET = 'get'
-    BAUD = 'baud'
+    #BAUD = 'baud'
     TAKE_SAMPLE = 'ts'
     INIT_LOGGING = 'initlogging'
     SET_TIME = "settime"
@@ -98,7 +98,7 @@ class ProtocolEvent(BaseProtocolEvent):
 
     SETSAMPLING = 'PROTOCOL_EVENT_SETSAMPLING' # it HAS to be defined there, OR!!! InstrumentFSM.on_event() CANNOT HANDLE IT. THIS SHOULD BE DOCUMENTED!!!!!!
     SET_TIME = 'PROTOCOL_EVENT_SET_TIME'
-    BAUD = 'PROTOCOL_EVENT_BAUD'
+    #BAUD = 'PROTOCOL_EVENT_BAUD'
     UPLOAD_ASCII = 'PROTOCOL_EVENT_UPLOAD_ASCII'
     QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
     INIT_LOGGING = 'PROTOCOL_EVENT_INIT_LOGGING'
@@ -248,7 +248,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         # Forward event and argument to the protocol FSM.
 
-        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.SETSAMPLING, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.EXECUTE, ProtocolEvent.SETSAMPLING, *args, **kwargs)
 
     def settime(self, *args, **kwargs):
         """
@@ -262,7 +262,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         # Forward event and argument to the protocol FSM.
 
-        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.SET_TIME, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.EXECUTE, ProtocolEvent.SET_TIME, *args, **kwargs)
 
     def start(self, *args, **kwargs):
         """
@@ -278,7 +278,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 
         # Forward event and argument to the protocol FSM.
 
-        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.START_AUTOSAMPLE, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.EXECUTE, ProtocolEvent.START_AUTOSAMPLE, *args, **kwargs)
 
 
     def dd(self, *args, **kwargs):
@@ -292,8 +292,9 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.
         """
 
-        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.UPLOAD_ASCII, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.EXECUTE, ProtocolEvent.UPLOAD_ASCII, *args, **kwargs)
 
+    '''
     def baud(self, *args, **kwargs):
         """
         Set device baud.
@@ -305,7 +306,8 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         @raises InstrumentStateException if command not allowed in current state.
         @raises NotImplementedException if not implemented by subclass.
         """
-        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.BAUD, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.EXECUTE, ProtocolEvent.BAUD, *args, **kwargs)
+    '''
 
     def ts(self, *args, **kwargs):
         """
@@ -318,7 +320,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.
         """
 
-        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.ACQUIRE_SAMPLE, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.EXECUTE, ProtocolEvent.ACQUIRE_SAMPLE, *args, **kwargs)
 
     def qs(self, *args, **kwargs):
         """
@@ -330,7 +332,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.
         """
 
-        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.QUIT_SESSION, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.EXECUTE, ProtocolEvent.QUIT_SESSION, *args, **kwargs)
 
     def initlogging(self, *args, **kwargs):
         """
@@ -342,7 +344,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.
         """
 
-        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, ProtocolEvent.INIT_LOGGING, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.EXECUTE, ProtocolEvent.INIT_LOGGING, *args, **kwargs)
 
     def get_resource_params(self):
         """
@@ -397,7 +399,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET_TIME,               self._handler_command_set_time)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SETSAMPLING,            self._handler_command_setsampling)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.BAUD,                   self._handler_command_baud)
+        #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.BAUD,                   self._handler_command_baud)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.UPLOAD_ASCII,           self._handler_command_upload_ascii)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION,           self._handler_command_quit_session)
 
@@ -433,8 +435,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.DISPLAY_CALIBRATION,         self._build_simple_command)
         self._add_build_handler(InstrumentCmds.START_LOGGING,               self._build_simple_command)
         self._add_build_handler(InstrumentCmds.STOP_LOGGING,                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT,    self._build_dd_command)
-        self._add_build_handler(InstrumentCmds.BAUD,                        self._build_baud_command)
+        self._add_build_handler(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT,    self._build_simple_command)
+        #self._add_build_handler(InstrumentCmds.BAUD,                        self._build_baud_command)
         self._add_build_handler(InstrumentCmds.SET,                         self._build_set_command)
         self._add_build_handler(InstrumentCmds.TAKE_SAMPLE,                 self._build_simple_command)
         self._add_build_handler(InstrumentCmds.INIT_LOGGING,                self._build_simple_command)
@@ -448,7 +450,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         #self._add_response_handler(InstrumentCmds.START_LOGGING,                self._parse_logging_response)
         #self._add_response_handler(InstrumentCmds.STOP_LOGGING,                 self._parse_XXXXXXXXXXXXX)
         self._add_response_handler(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT,     self._parse_uplaad_data_ascii_response)
-        self._add_response_handler(InstrumentCmds.BAUD,                         self._parse_baud_response)
+        #self._add_response_handler(InstrumentCmds.BAUD,                         self._parse_baud_response)
         self._add_response_handler(InstrumentCmds.SET,                          self._parse_set_response)
         self._add_response_handler(InstrumentCmds.TAKE_SAMPLE,                  self._parse_ts_response)
         self._add_response_handler(InstrumentCmds.INIT_LOGGING,                 self._parse_init_logging_response)
@@ -462,6 +464,21 @@ class Protocol(CommandResponseInstrumentProtocol):
         self.raw_sample = ''
 
         self._sample_regexs = {
+            # pressure, pressure temperature, temperature, and optional conductivity, salinity
+            # ts output = -152.7778 -8395.33  -3.2164 -1.02535   0.0000
+            re.compile(r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)') :
+                (['p', 'pt', 't', 'c', 's'],
+                     {'publish' : True,
+                      'list' : False}
+                    ),
+            # pressure, pressure temperature, temperature
+            # ts output = -152.7778 -8395.33  -3.2164
+            re.compile(r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)') :
+                (['p', 'pt', 't'],
+                     {'publish' : True,
+                      'list' : False}
+                    ),
+
             re.compile(r'tide: start time = +(\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+), p = +([\-\d.]+), pt = +([\-\d.]+), t = +([\-\d.]+), c = +([\-\d.]+), s = +([\-\d.]+)') :
                 (['tide_sample_timestamp', 'p', 'pt', 't', 'c', 's'],
 
@@ -594,30 +611,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._sent_cmds = []
 
 
-        """
-        Redundant. Remove.....
-        #
-        # Define parameter ranges where known
-        self.ranges = {}
-        self.ranges['TIDE_INTERVAL'] = Range(Type=int, Min=1, Max=720)
-        self.ranges['TIDE_MEASUREMENT_DURATION'] = Range(Type=int, Min=10, Max=43200)
-        self.ranges['TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS'] = Range(Type=int, Min=1, Max=10000)
-        self.ranges['WAVE_SAMPLES_PER_BURST'] = Range(Type=int, Min=4, Max=60000)
-        self.ranges['USE_START_TIME'] = Range(Type=bool)
-        self.ranges['USE_STOP_TIME'] = Range(Type=bool)
-        self.ranges['TXWAVESTATS'] = Range(Type=bool)
-        self.ranges['SHOW_PROGRESS_MESSAGES'] = Range(Type=bool)
-        self.ranges['NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS'] = Range(Type=int, Min=512) # Must be power of 2. no upper bound....
-        self.ranges['USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC'] = Range(Type=bool)
-        self.ranges['PREASURE_SENSOR_HEIGHT_FROM_BOTTOM'] = Range(Type=float)
-        self.ranges['SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND'] = Range(Type=int)
-        self.ranges['MIN_ALLOWABLE_ATTENUATION'] = Range(Type=float)
-        self.ranges['MIN_PERIOD_IN_AUTO_SPECTRUM'] = Range(Type=float)
-        self.ranges['MAX_PERIOD_IN_AUTO_SPECTRUM'] = Range(Type=float)
-        self.ranges['HANNING_WINDOW_CUTOFF'] = Range(Type=float)
 
-        """
-        ########################################################################
+    ########################################################################
     # Unknown handlers.
     ########################################################################
 
@@ -752,7 +747,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("**************************************** in _handler_command_acquire_sample")
         next_state = None
         result = None
-
+        kwargs['timeout'] = 30
         result = self._do_cmd_resp('ts', *args, **kwargs)
 
         return (next_state, result)
@@ -1040,6 +1035,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         return cmd + NEWLINE
 
 
+    '''
     def _build_baud_command(self, cmd, *args):
         """
         Build handler for basic sbe26plus commands.
@@ -1049,16 +1045,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("in _build_baud_command() cmd = " + str(cmd) + " param = " + str(args[0]))
 
         return cmd + '=' + str(args[0]) + NEWLINE
-
-    def _build_dd_command(self, cmd, *args):
-        """
-        Build handler for basic sbe26plus commands.
-        @param cmd the simple sbe37 command to format.
-        @retval The command to be sent to the device.
-        """
-        log.debug("in _build_dd_command() cmd = " + str(cmd))
-
-        return cmd + NEWLINE
+    '''
 
     def _build_set_command(self, cmd, param, val):
         """
@@ -1145,6 +1132,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         log.debug("************ in _parse_ts_response ")
         """
+        'ts
+         -152.7916 -8395.21  -3.2164 -1.02535   0.0000
+        S>'", None)
         S>ts
         ts
            14.6343  22.99  22.7395 -1.02527   0.0000
@@ -1239,6 +1229,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval Sample dictionary if present or None.
         """
 
+        log.debug("IN _extract_sample line = " + repr(line))
         if repr(line) != "''":
             matched = False
             #log.debug(repr(line))
@@ -1334,6 +1325,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         ds_line_14 = r'wave bursts/day = (\d+.\d+)'
         ds_line_15 = r'memory endurance = (\d+.\d+) days'
         ds_line_16 = r'nominal alkaline battery endurance = (\d+.\d+) days'
+        ds_line_16_b = r'deployments longer than 2 years are not recommended with alkaline batteries'
         ds_line_17 = r'total recorded tide measurements = ([\d.\-]+)'
         ds_line_18 = r'total recorded wave bursts = ([\d.\-]+)'
         ds_line_19 = r'tide measurements since last start = ([\d.\-]+)'
@@ -2169,21 +2161,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         prompt = ""
         while prompt != Prompt.COMMAND:
             (prompt, response) = self._get_response(expected_prompt=Prompt.COMMAND)
-            for x in range(0,30):
-                log.debug("*********************************")
+
             log.debug("WARNING!!! UNEXPECTED RESPONSE " + repr(response))
-            for x in range(0,30):
-                log.debug("*********************************")
+
             #raise InstrumentProtocolException("UNEXPECTED RESPONSE " + repr(response))
 
         # Update params after changing them.
-        log.debug("***************")
-        log.debug("***************")
-        log.debug("***************")
-        log.debug("*************** UPDATING PARAMS AFTER SETTING THEM")
-        log.debug("***************")
-        log.debug("***************")
-        log.debug("***************")
+
         self._update_params()
 
         # Verify that paramaters set via set are matching in the latest parameter scan.
@@ -2276,6 +2260,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
+    '''
     def _handler_command_baud(self, *args, **kwargs):
         """
         Perform a command-response on the device.
@@ -2294,7 +2279,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         kwargs['expected_prompt'] = "S>"
         result = self._do_cmd_resp('baud', *args, **kwargs)
         return (next_state, result)
-
+    '''
 
     def _handler_command_upload_ascii(self, *args, **kwargs):
         """
@@ -2311,9 +2296,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        kwargs['expected_prompt'] = NEWLINE
-        log.debug("WANT " + repr(kwargs['expected_prompt']))
+        kwargs['expected_prompt'] = [NEWLINE, 'S>']
         result = self._do_cmd_resp(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT, *args, **kwargs)
+
         return (next_state, result)
 
     def _handler_command_quit_session(self, *args, **kwargs):
@@ -2347,6 +2332,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
+    '''
     def _parse_baud_response(self, response, prompt): #(self, cmd, *args, **kwargs):
         """
         Parse handler for baud command.
@@ -2361,7 +2347,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException('BAUD command not recognized: %s' % response)
 
         return True
-
+    '''
 
 
     def _parse_uplaad_data_ascii_response(self, response, prompt): #(self, cmd, *args, **kwargs):
@@ -2371,6 +2357,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.
         """
         output = ""
+
 
         (prompt, response) = self._get_line_of_response(timeout=10, line_delimiter=NEWLINE)
         while True:

@@ -454,7 +454,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, BaseProtocolEvent.DISCOVER, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.DISCOVER, BaseProtocolEvent.DISCOVER, *args, **kwargs)
 
     def get_resource_capabilities(self, current_state=True, *args, **kwargs):
         """
@@ -495,7 +495,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.                        
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, BaseProtocolEvent.GET, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.GET, BaseProtocolEvent.GET, *args, **kwargs)
 
     def set_resource(self, *args, **kwargs):
         """
@@ -509,7 +509,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.                        
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.DRIVER_PROTOCOL_PASSTHROUGH, BaseProtocolEvent.SET, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.SET, BaseProtocolEvent.SET, *args, **kwargs)
 
     def execute_resource(self, resource_cmd, *args, **kwargs):
         """

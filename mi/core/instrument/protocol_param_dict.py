@@ -206,7 +206,7 @@ class ProtocolParameterDict(object):
                 else:
                     multi_mode = True
         if False == multi_mode and input <> "":
-            log.debug("UNMATCHCHED ***************************** " + input)
+            log.debug("protocol_param_dict.py UNMATCHCHED ***************************** " + input)
         #return False
     
     def get_config(self):
