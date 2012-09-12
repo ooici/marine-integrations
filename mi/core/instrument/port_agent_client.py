@@ -282,7 +282,7 @@ class Listener(threading.Thread):
         NOTE (DHE): I've noticed in my testing that if my test server
         (simulating the port agent) goes away, the client socket (ours)
         goes into a CLOSE_WAIT condition and stays there for a long time. 
-        When that happens, this method loop furiously and for a long time. 
+        When that happens, this method loops furiously and for a long time. 
         I have not had the patience to wait it out, so I don't know how long
         it will last.  When it happens though, 0 bytes are received, which
         should never happen unless something is wrong.  So if that happens,

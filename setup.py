@@ -38,5 +38,7 @@ setup(  name = 'marine-integrations',
         },
         install_requires = [
 		'gitpy==0.6.0',
+		'snakefood==1.4',
+		'ntplib>=0.1.9',
         ],
      )
