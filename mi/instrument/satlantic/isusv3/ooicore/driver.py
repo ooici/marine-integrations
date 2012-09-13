@@ -30,6 +30,7 @@ from mi.core.instrument.port_agent_client import PortAgentPacket
 
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
 #from mi.core.instrument.instrument_driver import InstrumentDriver
+from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -55,13 +56,20 @@ INSTRUMENT_NEWLINE = '\r\n'
 WRITE_DELAY = 0
 READ_DELAY = .25
 RESET_DELAY = 25
-#EOLN = "\r\n"
 EOLN = "\n"
 
 # Packet config for ISUSV3 data granules.
 STREAM_NAME_PARSED = 'parsed'
 STREAM_NAME_RAW = 'raw'
-PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
+
+"""
+DHE: Using ctd values right now; not sure what to use for isus yet.
+"""
+PACKET_CONFIG = {
+        'parsed' : ('prototype.sci_data.stream_defs', 'ctd_stream_packet'),
+        'raw' : None            
+}
+
 
 # @todo May need some regex(s) for data format returned...at least to confirm
 # that it is data.
@@ -541,13 +549,23 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
         next_state = None
         result = None
 
-        try:
-            self._go_to_root_menu()
-        except InstrumentTimeoutException:
-            raise InstrumentProtocolException('Instrument timed out going to root menu.')
-        else:
-            next_state = State.COMMAND
-            result = State.COMMAND
+        current_state = self._protocol_fsm.get_current_state()
+        
+        # Driver can only be started in streaming, command or unknown.
+        if current_state == State.AUTOSAMPLE:
+            result = ResourceAgentState.STREAMING
+        
+        elif current_state == State.COMMAND:
+            result = ResourceAgentState.IDLE
+        
+        elif current_state == State.UNKNOWN:
+            try:
+                self._go_to_root_menu()
+            except InstrumentTimeoutException:
+                raise InstrumentStateException('Unknown state: Instrument timed out going to root menu.')
+            else:
+                next_state = State.COMMAND
+                result = ResourceAgentState.IDLE
         
         return (next_state, result)
 
