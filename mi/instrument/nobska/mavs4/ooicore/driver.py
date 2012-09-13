@@ -14,7 +14,6 @@ __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
 
-#import logging
 import time
 import re
 import datetime
