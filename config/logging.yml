@@ -1,6 +1,6 @@
 # DEFAULT LOGGING CONFIGURATION FOR MARINE INTEGRATION PROJECT
 #
-# NOTE: this file may not be used!
+# NOTE: this file might not be used!
 #       this file is a backup packaged with marine-integrations
 #       only in the case res/config/mi-logging.yml is not found.
 #       this guarantees the logging will not be completely disabled if the environment is not configured properly.
@@ -9,15 +9,13 @@
 #       if we are using this file at all, we don't know how the environment has been configured and
 #       don't want to assume there is a log/ subdirectory.
 
-### BOILERPLATE -- do not alter
-#
 version: 1
 formatters:
   brief:
     format: '%(asctime)s %(levelname)-8s %(name)-15s %(message)s'
   default:
-    format: '%(asctime)s %(levelname)-8s %(threadName)s %(name)-15s:%(lineno)d %(message)s'
-    datefmt: '%Y-%m-%d %H:%M:%S'
+    (): 'ooi.logging.format.StackFormatter'
+    format: '%(asctime)s %(levelname)s %(threadName)s %(name)s:%(lineno)d %(message)s'
 handlers:
   console:
     class: logging.StreamHandler
@@ -33,31 +31,12 @@ handlers:
     maxBytes: 1024000
     backupCount: 3
 
-### change log levels below:
+### default for all loggers not otherwise specified
+root:
+  handlers: [console, file]
+  level: WARNING
+
+
 loggers:
-  pyon:
-    handlers: [console, file]
-    level: WARNING
-
-  prototype:
-    handlers: [console]
-    level: WARNING
-
-  ion:
-    handlers: [console, file]
-    level: WARNING
-
-  examples:
-    handlers: [console, file]
-    level: WARNING
-
-  prototype:
-    handlers: [console, file]
-    level: WARNING
-
   mi:
-    handlers: [console, file]
     level: INFO
-
-#  mi.example.module:
-#    level: DEBUG
