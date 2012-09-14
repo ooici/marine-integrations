@@ -396,7 +396,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if self.get_current_state() == ProtocolStates.DIRECT_ACCESS:
             # direct access mode
             if len(data) > 0:
-                log.debug("mavs4InstrumentProtocol._got_data(): <" + data + ">") 
+                log.debug("mavs4InstrumentProtocol.got_data(): <" + data + ">") 
                 if self._driver_event:
                     self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
                     # TODO: what about logging this as an event?

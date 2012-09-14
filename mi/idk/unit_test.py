@@ -472,7 +472,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             encoding=self.test_config.instrument_agent_stream_encoding,
             stream_definition=self.test_config.instrument_agent_stream_definition
         )
-        self.event_subscribers = InstrumentAgentEventSubscribers()
+        #self.event_subscribers = InstrumentAgentEventSubscribers()
 
         self.init_instrument_agent_client()
 
