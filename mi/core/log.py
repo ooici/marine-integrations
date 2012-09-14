@@ -2,7 +2,8 @@
 MI logging can be configured using a combination of two of four files.
 there is first a "base" configuration, and then a "local" set of overrides.
 
-the base configuration is res/config/mi-logging.yml (ie, users can set MI-specific configuration for drivers run from pycc container)
+the base configuration is from the file specified in the environment variable MI_LOGGING_CONFIG
+or res/config/mi-logging.yml (ie, users can set MI-specific configuration for drivers run from pycc container)
 or config/logging.yml from within the MI egg (default to use if no mi-logging.yml was created)
 
 then the local override may be res/config/mi-logging.local.yml (for overrides specific to MI),
@@ -28,6 +29,8 @@ import pkg_resources
 from mi.core.common import Singleton
 from ooi.logging import config, log
 
+LOGGING_CONFIG_ENVIRONMENT_VARIABLE="MI_LOGGING_CONFIG"
+
 LOGGING_PRIMARY_FROM_FILE='res/config/mi-logging.yml'
 LOGGING_PRIMARY_FROM_EGG='logging.yml'
 LOGGING_MI_OVERRIDE='res/config/mi-logging.local.yml'
@@ -39,11 +42,24 @@ class LoggerManager(Singleton):
     """
     def init(self):
         """Initialize logging for MI.  Because this is a singleton it will only be initialized once."""
-        if os.path.isfile(LOGGING_PRIMARY_FROM_FILE):
+        print 'starting log init'
+        path = os.environ[LOGGING_CONFIG_ENVIRONMENT_VARIABLE] if LOGGING_CONFIG_ENVIRONMENT_VARIABLE in os.environ else None
+        print 'env path %r' % path
+        haveenv = path and os.path.isfile(path)
+        print 'have env %r' % haveenv
+        if path and not haveenv:
+            print 'WARNING: %s was set but %s was not found (using default configuration files instead)' % (LOGGING_CONFIG_ENVIRONMENT_VARIABLE, path)
+        if path and haveenv:
+            print 'about to use env path'
+            config.replace_configuration(path)
+            print 'configured from ' + path
+        elif os.path.isfile(LOGGING_PRIMARY_FROM_FILE):
             config.replace_configuration(LOGGING_PRIMARY_FROM_FILE)
+            print 'configured from ' + LOGGING_PRIMARY_FROM_FILE
         else:
             path = pkg_resources.resource_filename('config', LOGGING_PRIMARY_FROM_EGG)
             config.replace_configuration(path)
+            print 'configured from ' + path
 
         if os.path.isfile(LOGGING_MI_OVERRIDE):
             config.add_configuration(LOGGING_MI_OVERRIDE)
