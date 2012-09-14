@@ -19,6 +19,13 @@ import gevent
 
 from mi.core.log import get_logger ; log = get_logger()
 
+# Set testing to false because the capability container tries to clear out
+# couchdb if we are testing. Since we don't care about couchdb for the most
+# part we can ignore this. See initialize_ion_int_tests() for implementation.
+# If you DO care about couch content make sure you do a force_clean when needed.
+from pyon.core import bootstrap
+bootstrap.testing = False;
+
 from mi.idk.config import Config
 
 from mi.idk.exceptions import TestNoDeployFile
