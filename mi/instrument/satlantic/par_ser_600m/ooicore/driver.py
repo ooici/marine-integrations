@@ -8,10 +8,9 @@
 with the Satlantic PAR sensor (PARAD in RSN nomenclature).
 """
 
-__author__ = 'Steve Foley'
+__author__ = 'Steve Foley & Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
-import logging
 import time
 import re
 
@@ -23,14 +22,17 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.common import InstErrorCode
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentDataException
+from mi.core.exceptions import InstrumentParameterException
 
-mi_logger = logging.getLogger('mi_logger')
+from mi.core.log import get_logger
+log = get_logger()
 
 ####################################################################
 # Module-wide values
@@ -46,6 +48,11 @@ init_regex = re.compile(init_pattern)
 WRITE_DELAY = 0.2
 RESET_DELAY = 6
 EOLN = "\r\n"
+
+class PARSpecificDriverEvents(BaseEnum):
+    START_POLL = 'START_POLL'
+    STOP_POLL = 'STOP_POLL'
+    RESET = "RESET"
         
 ####################################################################
 # Static enumerations for this class
@@ -57,31 +64,48 @@ class Command(BaseEnum):
     EXIT_AND_RESET = 'exit!'
     GET = 'show'
     SET = 'set'
-    RESET = 0x12
-    BREAK = 0x03
-    STOP = 0x13
-    AUTOSAMPLE = 0x01
-    SAMPLE = 0x0D
+    RESET = 0x12                # CTRL-R
+    BREAK = 0x03                # CTRL-C
+    SWITCH_TO_POLL = 0x13       # CTRL-S
+    SWITCH_TO_AUTOSAMPLE = 0x01 # CTRL-A
+    SAMPLE = 0x0D               # CR
 
 class PARProtocolState(BaseEnum):
-    COMMAND_MODE = DriverProtocolState.COMMAND
-    POLL_MODE = DriverProtocolState.POLL
-    AUTOSAMPLE_MODE = DriverProtocolState.AUTOSAMPLE
+    COMMAND = DriverProtocolState.COMMAND
+    POLL = DriverProtocolState.POLL
+    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     UNKNOWN = DriverProtocolState.UNKNOWN
+    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
 
 class PARProtocolEvent(BaseEnum):
-    RESET = DriverEvent.RESET
-    BREAK = DriverEvent.BREAK
-    STOP = DriverEvent.STOP_AUTOSAMPLE
-    AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    POLL = 'POLL_MODE'
-    SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    COMMAND = DriverEvent.EXECUTE
-    EXIT_STATE = DriverEvent.EXIT
-    ENTER_STATE = DriverEvent.ENTER
-    INITIALIZE = DriverEvent.INITIALIZE
+    ENTER = DriverEvent.ENTER
+    EXIT = DriverEvent.EXIT
     GET = DriverEvent.GET
     SET = DriverEvent.SET
+    DISCOVER = DriverEvent.DISCOVER
+    START_POLL = PARSpecificDriverEvents.START_POLL
+    STOP_POLL = PARSpecificDriverEvents.STOP_POLL
+    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+    TEST = DriverEvent.TEST
+    RUN_TEST = DriverEvent.RUN_TEST
+    CALIBRATE = DriverEvent.CALIBRATE
+    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    START_DIRECT = DriverEvent.START_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
+    RESET = PARSpecificDriverEvents.RESET
+
+class PARCapability(BaseEnum):
+    """
+    Protocol events that should be exposed to users (subset of above).
+    """
+    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+    START_POLL = PARSpecificDriverEvents.START_POLL
+    STOP_POLL = PARSpecificDriverEvents.STOP_POLL
+    RESET = PARSpecificDriverEvents.RESET
 
 class Parameter(BaseEnum):
     TELBAUD = 'telbaud'
@@ -100,15 +124,37 @@ class PARProtocolError(BaseEnum):
 class KwargsKey(BaseEnum):
     COMMAND = 'command'
 
+###############################################################################
+# Satlantic PAR Sensor Driver.
+###############################################################################
+
+class SatlanticPARInstrumentDriver(SingleConnectionInstrumentDriver):
+    """
+    The InstrumentDriver class for the Satlantic PAR sensor PARAD.
+    @note If using this via Ethernet, must use a delayed send
+    or commands may not make it to the PAR successfully. A delay of 0.1
+    appears to be sufficient for most 19200 baud operations (0.5 is more
+    reliable), more may be needed for 9600. Note that control commands
+    should not be delayed.
+    """
+
+    def __init__(self, evt_callback):
+        """Instrument-specific enums
+        @param evt_callback The callback function to use for events
+        """
+        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+        
+    def _build_protocol(self):
+        """ Construct driver protocol state machine """
+        self._protocol = SatlanticPARInstrumentProtocol(self._driver_event)
+        
 ####################################################################
-# Protocol
+# Satlantic PAR Sensor Protocol
 ####################################################################
 class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
     """The instrument protocol classes to deal with a Satlantic PAR sensor.
-    
     The protocol is a very simple command/response protocol with a few show
     commands and a few set commands.
-    
     Note protocol state machine must be called "self._protocol_fsm"
     
     @todo Check for valid state transitions and handle requests appropriately
@@ -123,48 +169,29 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._last_data_timestamp = None
         self.eoln = EOLN
         
-        self._protocol_fsm = InstrumentFSM(PARProtocolState, PARProtocolEvent, PARProtocolEvent.ENTER_STATE,
-                                  PARProtocolEvent.EXIT_STATE)
-        self._protocol_fsm.add_handler(PARProtocolState.COMMAND_MODE, PARProtocolEvent.AUTOSAMPLE,
-                              self._handler_command_autosample)
-        self._protocol_fsm.add_handler(PARProtocolState.COMMAND_MODE, PARProtocolEvent.COMMAND,
-                              self._handler_command_command)
-        self._protocol_fsm.add_handler(PARProtocolState.COMMAND_MODE, PARProtocolEvent.ENTER_STATE,
-                              self._handler_command_enter_state)
-        self._protocol_fsm.add_handler(PARProtocolState.COMMAND_MODE, PARProtocolEvent.GET,
-                              self._handler_command_get)    
-        self._protocol_fsm.add_handler(PARProtocolState.COMMAND_MODE, PARProtocolEvent.SET,
-                              self._handler_command_set)
-        self._protocol_fsm.add_handler(PARProtocolState.COMMAND_MODE, PARProtocolEvent.POLL,
-                              self._handler_command_poll)
-        #self._protocol_fsm.add_handler(PARProtocolState.COMMAND_MODE, PARProtocolEvent.SAMPLE,
-        #                      self._handler_command_sample)
-        self._protocol_fsm.add_handler(PARProtocolState.COMMAND_MODE, PARProtocolEvent.BREAK,
-                              self._handler_noop)
-        self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE_MODE, PARProtocolEvent.BREAK,
-                              self._handler_autosample_break)
-        self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE_MODE, PARProtocolEvent.STOP,
-                              self._handler_autosample_stop)
-        self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE_MODE, PARProtocolEvent.RESET,
-                              self._handler_reset)
-        self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE_MODE, PARProtocolEvent.COMMAND,
-                              self._handler_autosample_command)
-        self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE_MODE, PARProtocolEvent.ENTER_STATE,
-                              self._handler_autosample_enter_state)
-        self._protocol_fsm.add_handler(PARProtocolState.POLL_MODE, PARProtocolEvent.AUTOSAMPLE,
-                              self._handler_poll_autosample)
-        self._protocol_fsm.add_handler(PARProtocolState.POLL_MODE, PARProtocolEvent.RESET,
-                              self._handler_reset)
-        self._protocol_fsm.add_handler(PARProtocolState.POLL_MODE, PARProtocolEvent.BREAK,
-                              self._handler_poll_break)
-        self._protocol_fsm.add_handler(PARProtocolState.POLL_MODE, PARProtocolEvent.SAMPLE,
-                              self._handler_poll_sample)
-        self._protocol_fsm.add_handler(PARProtocolState.POLL_MODE, PARProtocolEvent.COMMAND,
-                              self._handler_poll_command)
-        self._protocol_fsm.add_handler(PARProtocolState.POLL_MODE, PARProtocolEvent.ENTER_STATE,
-                              self._handler_poll_enter_state)
-        self._protocol_fsm.add_handler(PARProtocolState.UNKNOWN, PARProtocolEvent.INITIALIZE,
-                              self._handler_initialize)
+        self._protocol_fsm = InstrumentFSM(PARProtocolState, PARProtocolEvent, PARProtocolEvent.ENTER, PARProtocolEvent.EXIT)
+        
+        self._protocol_fsm.add_handler(PARProtocolState.UNKNOWN, PARProtocolEvent.ENTER, self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(PARProtocolState.UNKNOWN, PARProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.GET, self._handler_command_get)
+        self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.START_POLL, self._handler_command_start_poll)
+        self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE, PARProtocolEvent.ENTER, self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE, PARProtocolEvent.START_POLL, self._handler_autosample_start_poll)
+        self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE, PARProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE, PARProtocolEvent.RESET, self._handler_autosample_reset)
+        self._protocol_fsm.add_handler(PARProtocolState.POLL, PARProtocolEvent.ENTER, self._handler_poll_enter)
+        self._protocol_fsm.add_handler(PARProtocolState.POLL, PARProtocolEvent.START_AUTOSAMPLE, self._handler_poll_start_autosample)
+        self._protocol_fsm.add_handler(PARProtocolState.POLL, PARProtocolEvent.STOP_POLL, self._handler_poll_stop_poll)
+        self._protocol_fsm.add_handler(PARProtocolState.POLL, PARProtocolEvent.ACQUIRE_SAMPLE, self._handler_poll_acquire_sample)
+        self._protocol_fsm.add_handler(PARProtocolState.POLL, PARProtocolEvent.RESET, self._handler_poll_reset)
+        self._protocol_fsm.add_handler(PARProtocolState.DIRECT_ACCESS, PARProtocolEvent.ENTER, self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(PARProtocolState.DIRECT_ACCESS, PARProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(PARProtocolState.DIRECT_ACCESS, PARProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
+
         self._protocol_fsm.start(PARProtocolState.UNKNOWN)
 
         self._add_build_handler(Command.SET, self._build_set_command)
@@ -172,23 +199,23 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(Command.SAVE, self._build_exec_command)
         self._add_build_handler(Command.EXIT, self._build_exec_command)
         self._add_build_handler(Command.EXIT_AND_RESET, self._build_exec_command)
-        self._add_build_handler(Command.AUTOSAMPLE, self._build_multi_control_command)
+        self._add_build_handler(Command.SWITCH_TO_AUTOSAMPLE, self._build_multi_control_command)
         self._add_build_handler(Command.RESET, self._build_control_command)
         self._add_build_handler(Command.BREAK, self._build_multi_control_command)
         self._add_build_handler(Command.SAMPLE, self._build_control_command)
-        self._add_build_handler(Command.STOP, self._build_multi_control_command)
+        self._add_build_handler(Command.SWITCH_TO_POLL, self._build_multi_control_command)
 
         self._add_response_handler(Command.GET, self._parse_get_response)
         self._add_response_handler(Command.SET, self._parse_set_response)
-        self._add_response_handler(Command.STOP, self._parse_silent_response)
-        self._add_response_handler(Command.SAMPLE, self._parse_sample_poll_response, PARProtocolState.POLL_MODE)
-        self._add_response_handler(Command.SAMPLE, self._parse_cmd_prompt_response, PARProtocolState.COMMAND_MODE)
-        self._add_response_handler(Command.BREAK, self._parse_silent_response, PARProtocolState.COMMAND_MODE)
-        self._add_response_handler(Command.BREAK, self._parse_header_response, PARProtocolState.POLL_MODE)
-        self._add_response_handler(Command.BREAK, self._parse_header_response, PARProtocolState.AUTOSAMPLE_MODE)        
-        self._add_response_handler(Command.RESET, self._parse_silent_response, PARProtocolState.COMMAND_MODE)
-        self._add_response_handler(Command.RESET, self._parse_reset_response, PARProtocolState.POLL_MODE)
-        self._add_response_handler(Command.RESET, self._parse_reset_response, PARProtocolState.AUTOSAMPLE_MODE)
+        self._add_response_handler(Command.SWITCH_TO_POLL, self._parse_silent_response)
+        self._add_response_handler(Command.SAMPLE, self._parse_sample_poll_response, PARProtocolState.POLL)
+        self._add_response_handler(Command.SAMPLE, self._parse_cmd_prompt_response, PARProtocolState.COMMAND)
+        self._add_response_handler(Command.BREAK, self._parse_silent_response, PARProtocolState.COMMAND)
+        self._add_response_handler(Command.BREAK, self._parse_header_response, PARProtocolState.POLL)
+        self._add_response_handler(Command.BREAK, self._parse_header_response, PARProtocolState.AUTOSAMPLE)        
+        self._add_response_handler(Command.RESET, self._parse_silent_response, PARProtocolState.COMMAND)
+        self._add_response_handler(Command.RESET, self._parse_reset_response, PARProtocolState.POLL)
+        self._add_response_handler(Command.RESET, self._parse_reset_response, PARProtocolState.AUTOSAMPLE)
 
         self._param_dict.add(Parameter.TELBAUD,
                              r'Telemetry Baud Rate:\s+(\d+) bps',
@@ -200,88 +227,11 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                              lambda match : int(match.group(1)),
                              self._int_to_string)
     
-    def execute_exit(self, *args, **kwargs):
-        """ Execute the exit command
-
-        @retval None if nothing was done, otherwise result of FSM event handle
-        @throws InstrumentProtocolException On invalid command or missing
+    def _filter_capabilities(self, events):
         """
-        kwargs.update({KwargsKey.COMMAND:Command.EXIT})
-        return self._protocol_fsm.on_event(PARProtocolEvent.COMMAND, *args, **kwargs)
-        
-    def execute_exit_and_reset(self, *args, **kwargs):
-        """ Execute the exit and reset command
-
-        @retval None if nothing was done, otherwise result of FSM event handle
-        @throws InstrumentProtocolException On invalid command or missing
-        """
-        kwargs.update({KwargsKey.COMMAND:Command.EXIT_AND_RESET})
-        return self._protocol_fsm.on_event(PARProtocolEvent.COMMAND, *args, **kwargs)
-    
-    def execute_poll(self, *args, **kwargs):
-        """ Enter manual poll mode
-
-        @retval None if nothing was done, otherwise result of FSM event handle
-        @throws InstrumentProtocolException On invalid command or missing
-        @todo fix this to handle change to poll mode from different states
-        """
-        return self._protocol_fsm.on_event(PARProtocolEvent.POLL, *args, **kwargs)
-        
-    def execute_sample(self, *args, **kwargs):
-        """ Try to get a sample. Should only be successful once in poll mode,
-        will leave the instrument in poll mode, so an exit may be required to
-        get back to command mode.
-
-        @retval None if nothing was done, otherwise result of FSM event handle
-        @throws InstrumentProtocolException On invalid command or missing
-        @todo fix this to handle change to poll mode from different states
-        """
-        return self._protocol_fsm.on_event(PARProtocolEvent.SAMPLE, *args, **kwargs)
-        
-    def execute_reset(self, *args, **kwargs):
-        """ Execute the reset command
-
-        @retval None if nothing was done, otherwise result of FSM event handle
-        @throws InstrumentProtocolException On invalid command or missing
-        """
-        return self._protocol_fsm.on_event(PARProtocolEvent.RESET, *args, **kwargs)
-    
-    def execute_break(self, *args, **kwargs):
-        """ Execute the break command
-
-        @retval None if nothing was done, otherwise result of FSM event handle
-        @throws InstrumentProtocolException On invalid command or missing
-        """
-        return self._protocol_fsm.on_event(PARProtocolEvent.BREAK, *args, **kwargs)
-    
-    def execute_stop(self, *args, **kwargs):
-        """ Execute the stop command
-
-        @retval None if nothing was done, otherwise result of FSM event handle
-        @throws InstrumentProtocolException On invalid command or missing
-        """
-        return self._protocol_fsm.on_event(PARProtocolEvent.STOP, *args, **kwargs)
-    
-    def execute_stop_autosample(self, *args, **kwargs):
-        """
-        Leave autosample mode, back to command mode
-        @param timeout=timeout Optional command timeout.        
-        @throws InstrumentTimeoutException if could not wake device or no response.
-        @throws InstrumentProtocolException if stop command not recognized.
-        @throws InstrumentStateException if command not allowed in current state.
-         """
-        # Forward event and argument to the protocol FSM.
-        return self._protocol_fsm.on_event(PARProtocolEvent.BREAK, *args, **kwargs)
-
-    def execute_init_device(self, *args, **kwargs):
-        """ Transition the device to a know, ready-to-respond, command prompt
-        and bring the state machine from unknown state to a known one
-        (hopefully COMMAND mode)
-        
-        @retval None if nothing was done, otherwise result of FSM event handle
-        @throws InstrumentProtocolException On invalid command or missing
-        """
-        return self._protocol_fsm.on_event(PARProtocolEvent.INITIALIZE, *args, **kwargs)
+        """ 
+        events_out = [x for x in events if PARCapability.has(x)]
+        return events_out
     
     def get_config(self, *args, **kwargs):
         """ Get the entire configuration for the instrument
@@ -297,6 +247,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         assert (config.has_key(Parameter.MAXRATE))
         
         # Make sure we get these
+        # TODO: endless loops seem like really bad idea
         while config[Parameter.TELBAUD] == InstErrorCode.HARDWARE_ERROR:
             config[Parameter.TELBAUD] = self._protocol_fsm.on_event(PARProtocolEvent.GET, [Parameter.TELBAUD])
             
@@ -305,244 +256,56 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
   
         return config
         
-    def restore_config(self, config=None, *args, **kwargs):
-        """ Apply a complete configuration.
-        
-        In this instrument, it is simply a compound set that must contain all
-        of the parameters.
-        @throws InstrumentProtocolException on missing or bad config
+    ########################################################################
+    # Unknown handlers.
+    ########################################################################
+
+    def _handler_unknown_enter(self, *args, **kwargs):
         """
-        if (config == None):
-            raise InstrumentParameterException()
-        
-        if ((config.has_key(Parameter.TELBAUD))
-            and (config.has_key(Parameter.MAXRATE))):  
-            assert (isinstance(config, dict))
-            assert (len(config) == 2)
-            return self._protocol_fsm.on_event(PARProtocolEvent.SET, config, **kwargs)
-        else:
-            raise InstrumentParameterException()
-    
-    ################
-    # State handlers
-    ################
-    def _handler_initialize(self, *args, **kwargs):
-        """Handle transition from UNKNOWN state to a known one.
-        
-        This method determines what state the device is in or gets it to a
-        known state so that the instrument and protocol are in sync.
-        @param params Parameters to pass to the state
-        @retval return (next state, result)
-        @todo fix this to only do break when connected
+        Enter unknown state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_unknown_discover(self, *args, **kwargs):
+        """
+        Discover current state; can be COMMAND or AUTOSAMPLE.
+        @retval (next_state, result), (SBE37ProtocolState.COMMAND or
+        SBE37State.AUTOSAMPLE, None) if successful.
+        @throws InstrumentTimeoutException if the device cannot be woken.
+        @throws InstrumentStateException if the device response does not correspond to
+        an expected state.
         """
         next_state = None
         result = None
-        
+
         # Break to command mode, then set next state to command mode
         # If we are doing this, we must be connected
         self._send_break()
 
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        next_state = PARProtocolState.COMMAND_MODE            
-  
+        next_state = PARProtocolState.COMMAND            
+        result = ResourceAgentState.IDLE
+
         return (next_state, result)
-                
-    def _handler_reset(self, *args, **kwargs):
-        """Handle reset condition for all states.
-        
-        @param params Parameters to pass to the state
-        @retval return (next state, result)
+
+    ########################################################################
+    # Command handlers.
+    ########################################################################
+
+    def _handler_command_enter(self, *args, **kwargs):
         """
-        next_state = None
-        
-        self._send_reset()
+        Enter command state.
+        @throws InstrumentTimeoutException if the device cannot be woken.
+        @throws InstrumentProtocolException if the update commands and not recognized.
+        """
+        # Command device to update parameters and send a config change event.
+        self._update_params(timeout=3)
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        next_state = PARProtocolState.AUTOSAMPLE_MODE
-            
-        return (next_state, None)
-        
-    def _handler_autosample_enter_state(self, *args, **kwargs):
-        """ Handle PARProtocolState.AUTOSAMPLE_MODE PARProtocolEvent.ENTER
-
-        @param params Parameters to pass to the state
-        @retval return (next state, result)
-        @throw InstrumentProtocolException For hardware error
-        """
-        next_state = None
-        result = None
-        
-        if not self._confirm_autosample_mode:
-            raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
-                                              msg="Not in the correct mode!")
-        
-        return (next_state, result)
-        
-    def _handler_autosample_break(self, *args, **kwargs):
-        """Handle PARProtocolState.AUTOSAMPLE_MODE PARProtocolEvent.BREAK
-        
-        @param params Parameters to pass to the state
-        @retval return (next state, result)
-        @throw InstrumentProtocolException For hardware error
-        """
-        next_state = None
-        result = None
-        
-        try:
-            self._send_break()
-            self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-            next_state = PARProtocolState.COMMAND_MODE
-        except InstrumentException:
-            raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
-                                              msg="Could not break from autosample!")
-            
-        return (next_state, result)
-        
-    def _handler_autosample_stop(self, *args, **kwargs):
-        """Handle PARProtocolState.AUTOSAMPLE_MODE PARProtocolEvent.STOP
-        
-        @param params Parameters to pass to the state
-        @retval return (next state, result)
-        @throw InstrumentProtocolException For hardware error
-        """
-        next_state = None
-        
-        try:
-            self._send_stop()
-            # Give the instrument a bit to keep up. 1 sec is not enough!
-            time.sleep(5)
-            
-            self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-            next_state = PARProtocolState.POLL_MODE
-        except InstrumentException:
-            raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
-                                              msg="Could not stop autosample!")                
-        return (next_state, None)
-
-    def _handler_autosample_command(self, *args, **kwargs):
-        """Handle PARProtocolState.AUTOSAMPLE_MODE PARProtocolEvent.COMMAND transition
-        
-        @param params Dict with "command" enum and "params" of the parameters to
-        pass to the state
-        @retval return (next state, result)
-        @throw InstrumentProtocolException For invalid parameter
-        """
-        next_state = None
-        result = None
-                    
-        cmd = kwargs.get(KwargsKey.COMMAND, None)
-
-        if (cmd == Command.BREAK):
-            result = self._protocol_fsm.on_event(PARProtocolEvent.BREAK, *args, **kwargs)
-        elif (cmd == Command.STOP):
-            result = self._protocol_fsm.on_event(PARProtocolEvent.STOP, *args, **kwargs)
-        elif (cmd == Command.RESET):
-            result = self._protocol_fsm.on_event(PARProtocolEvent.RESET, *args, **kwargs)
-        else:
-            raise InstrumentProtocolException(error_code=InstErrorCode.INVALID_COMMAND)
-        
-        mi_logger.debug("next: %s, result: %s", next_state, result) 
-        return (next_state, result)
-
-    def _handler_command_enter_state(self, *args, **kwargs):
-        """Handle PARProtocolState.COMMAND_MODE PARProtocolEvent.ENTER_STATE transition
-        
-        @param params Dict with "command" enum and "params" of the parameters to
-        pass to the state
-        @retval return (next state, result)
-        @throw InstrumentProtocolException For invalid parameter'
-        @todo Make this only active when we are connected.
-        """
-        # Just update parameters, no state change
-        
-        try:
-            # dont do anything for now
-            # pass
-            self._update_params(timeout=3)
-        except InstrumentTimeoutException:
-            #squelch the error if we timeout...best effort update
-            pass
-        return (None, None)
-
-    def _handler_command_command(self, *args, **kwargs):
-        """Handle PARProtocolState.COMMAND_MODE PARProtocolEvent.COMMAND transition
-        
-        @param params Dict with "command" enum and "params" of the parameters to
-        pass to the state
-        @retval return (next state, result)
-        @throw InstrumentProtocolException For invalid parameter'
-        @todo Fix this funky on_event logic...should just feed one on_event call
-        """
-        next_state = None
-        result = None
-        cmd = kwargs.get(KwargsKey.COMMAND, None)
-
-        mi_logger.info("Handling command event [%s] in command mode...", cmd)
-        if cmd == Command.EXIT:
-            result = self._do_cmd_resp(Command.EXIT, None,
-                                       write_delay=self.write_delay)
-            if result:
-                self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-                next_state = PARProtocolState.POLL_MODE
-            
-        elif cmd == Command.EXIT_AND_RESET:
-            self._do_cmd_no_resp(Command.EXIT_AND_RESET, None,
-                                          write_delay=self.write_delay)
-            time.sleep(RESET_DELAY)
-            self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-            next_state = PARProtocolState.AUTOSAMPLE_MODE
-            
-        elif cmd == Command.SAVE:
-            # Sadly, instrument never gives confirmation of a save in any way
-            self._do_cmd_no_resp(Command.SAVE, None,
-                                          write_delay=self.write_delay)
-        else:
-            raise InstrumentProtocolException(error_code=InstErrorCode.INVALID_COMMAND)
-        
-        mi_logger.debug("next: %s, result: %s", next_state, result) 
-        return (next_state, result)
-
-    def _handler_command_poll(self, *args, **kwargs):
-        """Handle getting a POLL event when in command mode. This should move
-        the state machine into poll mode via autosample mode
-        
-        @retval return (next state, result)
-        @throw InstrumentProtocolException For invalid parameter
-        """
-        next_state = None
-        result = None
-        
-        try:
-            # get into auto-sample mode guaranteed, then stop and sample
-            kwargs.update({KwargsKey.COMMAND:Command.EXIT_AND_RESET})
-            result = self._protocol_fsm.on_event(PARProtocolEvent.COMMAND, *args, **kwargs)
-            result = self._protocol_fsm.on_event(PARProtocolEvent.STOP, *args, **kwargs)
-            next_state = PARProtocolState.POLL_MODE
-            self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        except (InstrumentTimeoutException, InstrumentProtocolException) as e:
-            mi_logger.debug("Caught exception while moving to manual poll mode: %s", e)
-            if self._protocol_fsm.current_state == PARProtocolState.AUTOSAMPLE_MODE:
-                result = self._protocol_fsm.on_event(PARProtocolEvent.BREAK, *args, **kwargs)
-                raise e
-            elif (self._protocol_fsm.current_state == PARProtocolState.POLL_MODE):
-                result = self._protocol_fsm.on_event(PARProtocolEvent.AUTOSAMPLE, *args, **kwargs)
-                result = self._protocol_fsm.on_event(PARProtocolEvent.BREAK, *args, **kwargs)
-                raise e
-
-        return (next_state, result)
-
-    def _handler_command_autosample(self, params=None, *args, **kwargs):
-        """Handle getting an autosample event when in command mode
-        @param params List of the parameters to pass to the state
-        @retval return (next state, result)
-        @throw InstrumentProtocolException For invalid parameter
-        """
-        next_state = None
-        result = None
-
-        result = self.execute_exit_and_reset(*args, **kwargs)
-
-        return (next_state, result)
 
     def _handler_command_get(self, params=None, *args, **kwargs):
         """Handle getting data from command mode
@@ -570,7 +333,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                                                    write_delay=self.write_delay)
         result = result_vals
             
-        mi_logger.debug("Get finished, next: %s, result: %s", next_state, result) 
+        log.debug("Get finished, next: %s, result: %s", next_state, result) 
         return (next_state, result)
 
     def _handler_command_set(self, params, *args, **kwargs):
@@ -605,11 +368,158 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         """@todo raise a parameter error if there was a bad value"""
         result = result_vals
             
-        mi_logger.debug("next: %s, result: %s", next_state, result) 
+        log.debug("next: %s, result: %s", next_state, result) 
         return (next_state, result)
 
-    def _handler_poll_enter_state(self, *args, **kwargs):
-        """ Handle PARProtocolState.POLL_MODE PARProtocolEvent.ENTER
+    def _handler_command_start_autosample(self, params=None, *args, **kwargs):
+        """
+        Handle getting an start autosample event when in command mode
+        @param params List of the parameters to pass to the state
+        @retval return (next state, result)
+        @throw InstrumentProtocolException For invalid parameter
+        """
+        next_state = None
+        result = None
+
+        self._do_cmd_no_resp(Command.EXIT_AND_RESET, None, write_delay=self.write_delay)
+        time.sleep(RESET_DELAY)
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        next_state = PARProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_start_poll(self, *args, **kwargs):
+        """Handle getting a POLL event when in command mode. This should move
+        the state machine into poll mode via autosample mode
+        
+        @retval return (next state, result)
+        @throw InstrumentProtocolException For invalid parameter
+        """
+        next_state = None
+        result = None
+        
+        try:
+            # get into auto-sample mode guaranteed, then switch to poll mode
+            self._do_cmd_no_resp(Command.EXIT_AND_RESET, None, write_delay=self.write_delay)
+            time.sleep(RESET_DELAY)
+            self._switch_to_poll()
+            # Give the instrument a bit to keep up. 1 sec is not enough!
+            time.sleep(5)
+            next_state = PARProtocolState.POLL
+            self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        except (InstrumentTimeoutException, InstrumentProtocolException) as e:
+            log.debug("Caught exception while switching to poll mode: %s", e)
+
+        return (next_state, result)
+
+    def _handler_command_start_direct(self):
+        """
+        """
+        next_state = None
+        result = None
+
+        next_state = PARProtocolState.DIRECT_ACCESS
+        next_agent_state = ResourceAgentState.DIRECT_ACCESS
+
+        log.debug("_handler_command_start_direct: entering DA mode")
+        return (next_state, (next_agent_state, result))
+
+    ########################################################################
+    # Autosample handlers.
+    ########################################################################
+
+    def _handler_autosample_enter(self, *args, **kwargs):
+        """ Handle PARProtocolState.AUTOSAMPLE PARProtocolEvent.ENTER
+
+        @param params Parameters to pass to the state
+        @retval return (next state, result)
+        @throw InstrumentProtocolException For hardware error
+        """
+        next_state = None
+        result = None
+        
+        if not self._confirm_autosample_mode:
+            raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
+                                              msg="Not in the correct mode!")
+        
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        return (next_state, result)
+        
+    def _handler_autosample_stop_autosample(self, *args, **kwargs):
+        """Handle PARProtocolState.AUTOSAMPLE stop
+        
+        @param params Parameters to pass to the state
+        @retval return (next state, result)
+        @throw InstrumentProtocolException For hardware error
+        """
+        next_state = None
+        result = None
+        
+        try:
+            self._send_break()
+            self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+            next_state = PARProtocolState.COMMAND
+            next_agent_state = ResourceAgentState.COMMAND
+        except InstrumentException:
+            raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
+                                              msg="Could not break from autosample!")
+        
+        return (next_state, (next_agent_state, result))
+        
+    def _handler_autosample_start_poll(self, *args, **kwargs):
+        """Handle PARProtocolState.AUTOSAMPLE start poll
+        
+        @param params Parameters to pass to the state
+        @retval return (next state, result)
+        @throw InstrumentProtocolException For hardware error
+        """
+        next_state = None
+        result = None
+        
+        try:
+            self._switch_to_poll()
+            # Give the instrument a bit to keep up. 1 sec is not enough!
+            time.sleep(5)
+            
+            self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+            next_state = PARProtocolState.POLL
+        except InstrumentException:
+            raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
+                                              msg="Could not stop autosample!")                
+        return (next_state, None)
+
+    def _handler_autosample_reset(self, *args, **kwargs):
+        """Handle PARProtocolState.AUTOSAMPLE reset
+        
+        @param params Dict with "command" enum and "params" of the parameters to
+        pass to the state
+        @retval return (next state, result)
+        @throw InstrumentProtocolException For invalid parameter
+        """
+        next_state = None
+        result = None
+                    
+        try:
+            self._send_reset()
+            time.sleep(RESET_DELAY)
+            
+            self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+            next_state = PARProtocolState.AUTOSAMPLE
+        except InstrumentException:
+            raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
+                                              msg="Could not reset autosample!")                
+        
+        log.debug("next: %s, result: %s", next_state, result) 
+        return (next_state, result)
+
+    ########################################################################
+    # Poll handlers.
+    ########################################################################
+
+    def _handler_poll_enter(self, *args, **kwargs):
+        """ Handle PARProtocolState.POLL PARProtocolEvent.ENTER
 
         @param params Parameters to pass to the state
         @retval return (next state, result)
@@ -624,8 +534,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         
         return (next_state, result)
 
-    def _handler_poll_sample(self, *args, **kwargs):
-        """Handle PARProtocolState.POLL_MODE PARProtocolEvent.SAMPLE
+    def _handler_poll_acquire_sample(self, *args, **kwargs):
+        """Handle PARProtocolState.POLL PARProtocolEvent.ACQUIRE_SAMPLE
         
         @retval return (next state, result)
         @throw InstrumentProtocolException For invalid command
@@ -640,45 +550,49 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    expected_prompt=Prompt.NULL,
                                    write_delay=delay)    
         
-        mi_logger.debug("Polled sample: %s", result)
+        log.debug("Polled sample: %s", result)
         
         if (result):
             self._driver_event(DriverAsyncEvent.SAMPLE, result) 
         
         return (next_state, result)
     
-    def _handler_poll_break(self, *args, **kwargs):
-        """Handle PARProtocolState.POLL_MODE, PARProtocolEvent.BREAK
+    def _handler_poll_stop_poll(self, *args, **kwargs):
+        """Handle PARProtocolState.POLL, PARProtocolEvent.STOP_POLL
         
         @retval return (next state, result)
         @throw InstrumentProtocolException For invalid command
         """
         next_state = None
         result = None
-        mi_logger.debug("Breaking from poll mode...")
+        
+        log.debug("Breaking from poll mode...")
         try:
             self._send_break()
-            next_state = PARProtocolState.COMMAND_MODE
+            next_state = PARProtocolState.COMMAND
+            next_agent_state = ResourceAgentState.COMMAND
         except InstrumentException:
             raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
                                               msg="Could not interrupt hardware!")
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
-    def _handler_poll_autosample(self, *args, **kwargs):
-        """Handle PARProtocolState.POLL_MODE PARProtocolEvent.AUTOSAMPLE
+    def _handler_poll_start_autosample(self, *args, **kwargs):
+        """Handle PARProtocolState.POLL PARProtocolEvent.START_AUTOSAMPLE
         
         @retval return (success/fail code, next state, result)
         """
         next_state = None
+        result = None
                 
-        self._do_cmd_no_resp(Command.AUTOSAMPLE, None)
+        self._do_cmd_no_resp(Command.SWITCH_TO_AUTOSAMPLE, None)
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        next_state = PARProtocolState.AUTOSAMPLE_MODE
+        next_state = PARProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
                         
-        return (next_state, None)
+        return (next_state, (next_agent_state, result))
         
-    def _handler_poll_command(self, *args, **kwargs):
-        """Handle PARProtocolState.POLL_MODE PARProtocolEvent.COMMAND transition
+    def _handler_poll_reset(self, *args, **kwargs):
+        """Handle PARProtocolState.POLL PARProtocolEvent.reset
         
         @param params Dict with "command" enum and "params" of the parameters to
         pass to the state
@@ -688,27 +602,68 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
         
-        cmd = kwargs.get(KwargsKey.COMMAND, None)
-
-        if (cmd == Command.AUTOSAMPLE):
-            result = self._protocol_fsm.on_event(PARProtocolEvent.AUTOSAMPLE, *args, **kwargs)
-        elif (cmd == Command.RESET):
-            result = self._protocol_fsm.on_event(PARProtocolEvent.RESET, *args, **kwargs)
-        elif (cmd == Command.SAMPLE):
-            result = self._protocol_fsm.on_event(PARProtocolEvent.SAMPLE, *args, **kwargs)
-        elif (cmd == Command.BREAK):
-            result = self._protocol_fsm.on_event(PARProtocolEvent.BREAK, *args, **kwargs)
-        else:
-            raise InstrumentProtocolException(error_code=InstErrorCode.INVALID_COMMAND)
+        next_state = None
+        result = None
+                    
+        try:
+            self._send_reset()
+            time.sleep(RESET_DELAY)
+            
+            self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+            next_state = PARProtocolState.AUTOSAMPLE
+        except InstrumentException:
+            raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
+                                              msg="Could not reset poll!")                
         
-        mi_logger.debug("next: %s, result: %s", next_state, result) 
+        
+        log.debug("next: %s, result: %s", next_state, result) 
         return (next_state, result)
-    
-    def _handler_noop(self, *args, **kwargs):
-        """ Do nothing as a handler...for when an event is acceptable, but
-        not worth acting on.
+
+    ########################################################################
+    # Direct access handlers.
+    ########################################################################
+
+    def _handler_direct_access_enter(self, *args, **kwargs):
         """
-        return (None, None)
+        Enter direct access state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        self._sent_cmds = []
+
+    def _handler_direct_access_exit(self, *args, **kwargs):
+        """
+        Exit direct access state.
+        """
+        pass
+
+    def _handler_direct_access_execute_direct(self, data):
+        """
+        """
+        next_state = None
+        result = None
+        next_agent_state = None
+        
+        self._do_cmd_direct(data)
+
+        # add sent command to list for 'echo' filtering in callback
+        self._sent_cmds.append(data)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_direct_access_stop_direct(self):
+        """
+        @throw InstrumentProtocolException on invalid command
+        """
+        next_state = None
+        result = None
+ 
+        next_state = PARProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        return (next_state, (next_agent_state, result))
 
     ###################################################################
     # Builders
@@ -799,6 +754,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         if (len(split_response) < 2) or (split_response[-1] != Prompt.COMMAND):
             return InstErrorCode.HARDWARE_ERROR
         name = self._param_dict.update(split_response[-2])
+        log.debug("parameter %s set to %s" %(name, self._param_dict.get(name)))
         return self._param_dict.get(name)
         
     def _parse_silent_response(self, response, prompt):
@@ -808,7 +764,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param prompt The prompt that was returned from the device
         @retval return An InstErrorCode value
         """
-        mi_logger.debug("Parsing silent response of [%s] with prompt [%s]",
+        log.debug("Parsing silent response of [%s] with prompt [%s]",
                         response, prompt)
         if ((response == "") or (response == prompt)) and \
            ((prompt == Prompt.NULL) or (prompt == Prompt.COMMAND)):
@@ -823,7 +779,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param prompt The prompt that was returned from the device
         @retval return An InstErrorCode value
         """
-        mi_logger.debug("Parsing header response of [%s] with prompt [%s]",
+        log.debug("Parsing header response of [%s] with prompt [%s]",
                         response, prompt)
         if header_regex.search(response):
             return InstErrorCode.OK        
@@ -838,7 +794,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param prompt The prompt that was returned from the device
         @retval return An InstErrorCode value
         """        
-        mi_logger.debug("Parsing reset response of [%s] with prompt [%s]",
+        log.debug("Parsing reset response of [%s] with prompt [%s]",
                         response, prompt)
         
         lines = response.split(self.eoln)        
@@ -856,7 +812,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param prompt The prompt that was returned from the device
         @retval return An InstErrorCode value
         """
-        mi_logger.debug("Parsing command prompt response of [%s] with prompt [%s]",
+        log.debug("Parsing command prompt response of [%s] with prompt [%s]",
                         response, prompt)
         if (response == Prompt.COMMAND):
             # yank out the command we sent, split at the self.eoln
@@ -874,10 +830,10 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param prompt The prompt that was returned from the device
         @retval return The sample string
         """
-        mi_logger.debug("Parsing sample poll response of [%s] with prompt [%s]",
+        log.debug("Parsing sample poll response of [%s] with prompt [%s]",
                         response, prompt)
         if (prompt == ""):
-             # strip the eoln, check for regex, report data,
+            # strip the eoln, check for regex, report data,
             # and leave it in the buffer for return via execute_poll
             if self.eoln in response:
                 lines = response.split(self.eoln)
@@ -911,7 +867,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException
         @throws InstrumentTimeoutException
         """
-        mi_logger.debug("Updating parameter dict")
+        log.debug("Updating parameter dict")
         old_config = self._param_dict.get_config()
         self.get_config()
         new_config = self._param_dict.get_config()            
@@ -926,11 +882,12 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @todo handle errors correctly here, deal with repeats at high sample rate
         """
         write_delay = 0.2
-        mi_logger.debug("Sending reset chars")
+        log.debug("Sending reset chars")
 
-        if self._protocol_fsm.get_current_state() == PARProtocolState.COMMAND_MODE:
+        if self._protocol_fsm.get_current_state() == PARProtocolState.COMMAND:
             return InstErrorCode.OK
         
+        # TODO: infinite loop bad idea
         while True:
             self._do_cmd_no_resp(Command.RESET, timeout=timeout,
                                  write_delay=write_delay)
@@ -938,8 +895,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             if self._confirm_autosample_mode():
                 break
                 
-    def _send_stop(self, timeout=10):
-        """Send a stop command out to the device
+    def _switch_to_poll(self, timeout=10):
+        """Send a switch_to_poll command out to the device
         
         @retval return InstErrorCode.OK for success or no-op, error code on
         failure
@@ -948,13 +905,14 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @todo handle errors correctly here, deal with repeats at high sample rate
         """
         write_delay = 0.2
-        mi_logger.debug("Sending stop chars")
+        log.debug("Sending switch_to_poll char")
 
-        if self._protocol_fsm.get_current_state() == PARProtocolState.COMMAND_MODE:
+        if self._protocol_fsm.get_current_state() == PARProtocolState.COMMAND:
             return InstErrorCode.OK
 
+        # TODO: infinite loop bad idea
         while True:
-            self._do_cmd_no_resp(Command.STOP, timeout=timeout,
+            self._do_cmd_no_resp(Command.SWITCH_TO_POLL, timeout=timeout,
                                  write_delay=write_delay)
             
             if self._confirm_poll_mode():
@@ -968,12 +926,13 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @todo handle errors correctly here, deal with repeats at high sample rate
         """
         write_delay = 0.2
-        mi_logger.debug("Sending break char")
+        log.debug("Sending break char")
         # do the magic sequence of sending lots of characters really fast...
         # but not too fast
-        if self._protocol_fsm.get_current_state() == PARProtocolState.COMMAND_MODE:
+        if self._protocol_fsm.get_current_state() == PARProtocolState.COMMAND:
             return
         
+        # TODO: infinite loop bad idea
         while True:
             self._do_cmd_no_resp(Command.BREAK, timeout=timeout,
                                  expected_prompt=Prompt.COMMAND,
@@ -981,23 +940,34 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             if self._confirm_command_mode():
                 break  
             
-    def _got_data(self, data):
-        """ The comms object fires this when data is received
-        
+    def got_data(self, data):
+        """ 
+        Callback for receiving new data from the device.
+        The comms object fires this when data is received
         @param data The chunk of data that was received
         """
-        CommandResponseInstrumentProtocol._got_data(self, data)
+        if self.get_current_state() == PARProtocolState.DIRECT_ACCESS:
+            # direct access mode
+            if len(data) > 0:
+                log.debug("SatlanticPARInstrumentProtocol.got_data(): <" + data + ">") 
+                if self._driver_event:
+                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
+                    # TODO: what about logging this as an event?
+            return
         
-        # If we are streaming, process the line buffer for samples, but it
-        # could have header stuff come out if you just got a break!
-        if self._protocol_fsm.get_current_state() == PARProtocolState.AUTOSAMPLE_MODE:
-            if self.eoln in self._linebuf:
-                lines = self._linebuf.split(self.eoln)
-                for line in lines:
-                    if sample_regex.match(line):
-                        self._last_data_timestamp = time.time()
-                        self._driver_event(DriverAsyncEvent.SAMPLE, line)
-                        self._linebuf = self._linebuf.replace(line+self.eoln, "") # been processed
+        if len(data)>0:
+            CommandResponseInstrumentProtocol.got_data(self, data)
+            
+            # If we are streaming, process the line buffer for samples, but it
+            # could have header stuff come out if you just got a break!
+            if self._protocol_fsm.get_current_state() == PARProtocolState.AUTOSAMPLE:
+                if self.eoln in self._linebuf:
+                    lines = self._linebuf.split(self.eoln)
+                    for line in lines:
+                        if sample_regex.match(line):
+                            self._last_data_timestamp = time.time()
+                            self._driver_event(DriverAsyncEvent.SAMPLE, line)
+                            self._linebuf = self._linebuf.replace(line+self.eoln, "") # been processed
 
     def _confirm_autosample_mode(self):
         """Confirm we are in autosample mode
@@ -1006,7 +976,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         it does or does not.
         @retval True if in autosample mode, False if not
         """
-        mi_logger.debug("Confirming autosample mode...")
+        log.debug("Confirming autosample mode...")
         # timestamp now,
         start_time = self._last_data_timestamp
         # wait a sample period,
@@ -1024,15 +994,15 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         Time depends on max data rate
         @retval True if in poll mode, False if not
         """
-        mi_logger.debug("Confirming poll mode...")
+        log.debug("Confirming poll mode...")
         
-        autosample_mode = self._confirm_autosample_mode()
+        AUTOSAMPLE = self._confirm_autosample_mode()
         cmd_mode = self._confirm_command_mode()
-        if (not autosample_mode) and (not cmd_mode):
-            mi_logger.debug("Confirmed in poll mode")
+        if (not AUTOSAMPLE) and (not cmd_mode):
+            log.debug("Confirmed in poll mode")
             return True
         else:
-            mi_logger.debug("Confirmed NOT in poll mode")
+            log.debug("Confirmed NOT in poll mode")
             return False
                     
     def _confirm_command_mode(self):
@@ -1041,7 +1011,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         This is done by issuing a bogus command and getting a prompt
         @retval True if in command mode, False if not
         """
-        mi_logger.debug("Confirming command mode...")
+        log.debug("Confirming command mode...")
         try:
             # suspend our belief that we are in another state, and behave
             # as if we are in command mode long enough to confirm or deny it
@@ -1052,79 +1022,18 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         except InstrumentTimeoutException:
             # If we timed out, its because we never got our $ prompt and must
             # not be in command mode (probably got a data value in POLL mode)
-            mi_logger.debug("Confirmed NOT in command mode via timeout")
+            log.debug("Confirmed NOT in command mode via timeout")
             return False
         except InstrumentProtocolException:
-            mi_logger.debug("Confirmed NOT in command mode via protocol exception")
+            log.debug("Confirmed NOT in command mode via protocol exception")
             return False
 
         # made it this far
-        mi_logger.debug("Confirmed in command mode")
+        log.debug("Confirmed in command mode")
         time.sleep(0.5)
 
         return True
 
-class SatlanticPARInstrumentDriver(SingleConnectionInstrumentDriver):
-    """
-    The InstrumentDriver class for the Satlantic PAR sensor PARAD.
-    @note If using this via Ethernet, must use a delayed send
-    or commands may not make it to the PAR successfully. A delay of 0.1
-    appears to be sufficient for most 19200 baud operations (0.5 is more
-    reliable), more may be needed for 9600. Note that control commands
-    should not be delayed.
-    """
-
-    def __init__(self, evt_callback):
-        """Instrument-specific enums
-        @param evt_callback The callback function to use for events
-        """
-        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-        
-    def _build_protocol(self):
-        """ Construct driver protocol state machine """
-        self._protocol = SatlanticPARInstrumentProtocol(self._driver_event)
-
-    # @TODO Collapse these execute_ routines into an execute_resource event system
-    def execute_exit(self, *args, **kwargs):
-        return self._protocol.execute_exit(*args, **kwargs)
-        
-    def execute_exit_and_reset(self, *args, **kwargs):
-        return self._protocol.execute_exit_and_reset(*args, **kwargs)
-        
-    def execute_poll(self, *args, **kwargs):
-        return self._protocol.execute_poll(*args, **kwargs)
-        
-    def execute_reset(self, *args, **kwargs):
-        return self._protocol.execute_reset(*args, **kwargs)
-        
-    def execute_break(self, *args, **kwargs):
-        return self._protocol.execute_break(*args, **kwargs)
-        
-    def execute_stop(self, *args, **kwargs):
-        return self._protocol.execute_stop(*args, **kwargs)
-        
-    def execute_stop_autosample(self, *args, **kwargs):
-        return self._protocol.execute_stop_autosample(*args, **kwargs)    
-        
-    def execute_acquire_sample(self, *args, **kwargs):
-        if (self._protocol.get_current_state() == PARProtocolState.COMMAND_MODE):
-            self._protocol.execute_poll(*args, **kwargs)
-            result = self._protocol.execute_sample(*args, **kwargs)
-            self._protocol.execute_break(*args, **kwargs)  
-        if (self._protocol.get_current_state() == PARProtocolState.POLL_MODE):
-            result = self._protocol.execute_sample(*args, **kwargs)
-
-        return result
-        
-    def execute_init_device(self, *args, **kwargs):
-        return self._protocol.execute_init_device(*args, **kwargs)
-        
-    def get_config(self, *args, **kwargs):
-        return self._protocol.get_config([Parameter.TELBAUD, Parameter.MAXRATE], *args, **kwargs)
-        
-    def restore_config(self, config, *args, **kwargs):
-        return self._protocol.restore_config(config, *args, **kwargs)
-        
 class SatlanticChecksumDecorator(ChecksumDecorator):
     """Checks the data checksum for the Satlantic PAR sensor"""
     
