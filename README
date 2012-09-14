@@ -15,6 +15,26 @@ independantly of other ION releases.
 
 To develop drivers you must install ION and the Instrument Development Kit.  
 
+INSTALL prequisite software for COI-services
+============================================
+- homebrew
+    /usr/bin/ruby <(curl -fsSkL raw.github.com/mxcl/homebrew/go)
+    brew doctor
+- git 1.7.7: Use brew or download the Mac or Linux installer and run it
+- libevent libyaml zeromq couchdb python rabbitmq hdf5 pkg-config netcdf freetype, if not already present:
+    brew install libevent libyaml zeromq couchdb python rabbitmq hdf5 pkg-config netcdf freetype
+- pip
+    easy_install pip
+- virtualenv
+    easy_install --upgrade virtualenv
+    easy_install --upgrade virtualenvwrapper
+- modify ~/.bash_profile
+    add this to the end:
+       export WORKON_HOME=$HOME/OOICI/virtenvs
+       . /usr/local/share/python/virtualenvwrapper.sh
+- setup a virtual environment to work in.
+    mkvirtualenv --no-site-packages --python=python2.7 ooi
+
 INSTALL
 =======
 
@@ -36,6 +56,11 @@ $ git submodule update --init
 $ python bootstrap.py
 $ bin/buildout
 $ bin/generate_interfaces
+
+
+** If matplot lib fails to build due to not finding the free type headers, try:
+    if /usr/X11/lib/pkgconfig has a file named freetype2.pc, then add the following line to your .bash_profile
+    export PKG_CONFIG_PATH=/usr/X11/lib/pkgconfig
 
 
 ####
