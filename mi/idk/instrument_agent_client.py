@@ -52,7 +52,7 @@ class InstrumentAgentClient(object):
     """
     container = Container.instance
 
-    def start_client(self, name, module, cls, config, resource_id, deploy_file = DEFAULT_DEPLOY):
+    def start_client(self, name, module, cls, config, resource_id, deploy_file = DEFAULT_DEPLOY, message_headers=None):
         """
         @brief Start up the instrument agent client
         """
@@ -67,7 +67,8 @@ class InstrumentAgentClient(object):
             name=name,
             module=module,
             cls=cls,
-            config=config)
+            config=config,
+            headers=message_headers)
         log.info('Agent pid=%s.', instrument_agent_pid)
 
         ia_client = ResourceAgentClient(resource_id, process=FakeProcess())
@@ -141,6 +142,7 @@ class InstrumentAgentClient(object):
         @brief Start the instrument agent
         """
         # Do nothing if rabbit is already running
+        log.debug("****************************STARTING COUCHDB****************************")
         pid = self._read_pidfile(self._pid_filename("couchdb"))
         if pid:
             return
@@ -281,6 +283,7 @@ class InstrumentAgentDataSubscribers(object):
 
         if packet_config == None:
             packet_config = {}
+
         self.no_samples = None
         self.async_data_result = AsyncResult()
 
@@ -297,7 +300,7 @@ class InstrumentAgentDataSubscribers(object):
 
         # A callback for processing subscribed-to data.
         def consume_data(message, headers):
-            log.info('Subscriber received data message: %s.', str(message))
+            log.info('#**#**# Data Subscriber (consume_data) received data message: %s   %s.', str(message), str(headers))
 
             self.samples_received.append(message)
             if self.no_samples and self.no_samples == len(self.samples_received):
@@ -310,23 +313,21 @@ class InstrumentAgentDataSubscribers(object):
         # Create streams and subscriptions for each stream named in driver.
         self.stream_config = {}
         self.data_subscribers = []
-        for (stream_name, val) in packet_config.iteritems():
-            stream_def_id = pubsub_client.create_stream_definition(container=stream_definition)
-            stream_id = pubsub_client.create_stream(
-                name=stream_name,
-                stream_definition_id=stream_def_id,
-                original=original,
-                encoding=encoding)
-            self.stream_config[stream_name] = stream_id
+
+        for (stream_name, stream_config) in self.stream_config.iteritems():
+            stream_id = stream_config['id']
 
             # Create subscriptions for each stream.
             exchange_name = '%s_queue' % stream_name
-            sub = subscriber_registrar.create_subscriber(exchange_name=exchange_name, callback=consume_data)
-            self._listen(sub)
+            sub = subscriber_registrar.create_subscriber(
+                exchange_name=exchange_name, callback=consume_data)
+            self.listen_data(sub)
             self.data_subscribers.append(sub)
             query = StreamQuery(stream_ids=[stream_id])
-            sub_id = pubsub_client.create_subscription(query=query, exchange_name=exchange_name)
+            sub_id = pubsub_client.create_subscription(query=query, exchange_name=exchange_name, exchange_point='science_data')
             pubsub_client.activate_subscription(sub_id)
+
+
 
     def _listen(self, sub):
         """
@@ -342,21 +343,22 @@ class InstrumentAgentEventSubscribers(object):
     Create subscribers for agent and driver events.
     """
     log.info("Start event subscribers")
-    def __init__(self):
+    def __init__(self, instrument_agent_resource_id = None):
         # Start event subscribers, add stop to cleanup.
         self.no_events = None
-        self.async_event_result = AsyncResult()
         self.events_received = []
+        self.async_event_result = AsyncResult()
         self.event_subscribers = []
 
         def consume_event(*args, **kwargs):
-            log.info('Test recieved ION event: args=%s, kwargs=%s, event=%s.',
+            log.info('#**#**# Event subscriber (consume_event) recieved ION event: args=%s, kwargs=%s, event=%s.',
                 str(args), str(kwargs), str(args[0]))
             self.events_received.append(args[0])
             if self.no_events and self.no_events == len(self.event_received):
                 self.async_event_result.set()
 
-        event_sub = EventSubscriber(event_type="DeviceEvent", callback=consume_event)
-        event_sub.activate()
-        self.event_subscribers.append(event_sub)
-
+        self.event_sub = EventSubscriber(
+            event_type='ResourceAgentEvent', callback=consume_event,
+            origin=instrument_agent_resource_id)
+        self.event_sub.start()
+        self.event_sub._ready_event.wait(timeout=5)
