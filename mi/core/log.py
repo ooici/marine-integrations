@@ -48,7 +48,7 @@ class LoggerManager(Singleton):
         if os.path.isfile(LOGGING_MI_OVERRIDE):
             config.add_configuration(LOGGING_MI_OVERRIDE)
         elif os.path.isfile(LOGGING_CONTAINER_OVERRIDE):
-            config.add_configuration(LOGGING_MI_OVERRIDE)
+            config.add_configuration(LOGGING_CONTAINER_OVERRIDE)
 
 def get_logger():
     return log
