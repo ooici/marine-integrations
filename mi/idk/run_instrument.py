@@ -59,8 +59,11 @@ DEV_PORT = 2101
 #DEV_ADDR = '67.58.40.195'
 #DEV_PORT = 2001
 
-DRV_MOD = 'mi.instrument.seabird.sbe37smb.ooicore.driver'
-DRV_CLS = 'SBE37Driver'
+DRV_MOD = 'mi.instrument.satlantic.par_ser_600m.ooicore.driver'
+DRV_CLS = 'SatlanticPARInstrumentDriver'
+
+#DRV_MOD = 'mi.instrument.seabird.sbe37smb.ooicore.driver'
+#DRV_CLS = 'SBE37Driver'
 
 #DRV_MOD = 'mi.instrument.satlantic.isusv3.ooicore.driver'
 #DRV_CLS = 'ooicoreInstrumentDriver'
