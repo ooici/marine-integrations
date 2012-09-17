@@ -1,8 +1,11 @@
 """
-@file coi-services/mi.idk/run_instrument.py
+@file marine-integration/mi/idk/run_instrument.py
 @author David Everett
 @brief Main script class for communicating with an instrument
 """
+
+from pyon.public import CFG
+from ooi.logging import config
 
 from os.path import exists, join, isdir
 from os import listdir
@@ -45,10 +48,23 @@ from mi.idk import prompt
 from prototype.sci_data.stream_defs import ctd_stream_definition
 from mi.instrument.satlantic.isusv3.ooicore.driver import PACKET_CONFIG
 
-DEV_ADDR = '67.58.40.195'
-DEV_PORT = 2001
-DRV_MOD = 'mi.instrument.satlantic.isusv3.ooicore.driver'
-DRV_CLS = 'ooicoreInstrumentDriver'
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolEvent
+
+DEV_ADDR = "10.180.80.179"
+DEV_PORT = 2101
+
+#DEV_ADDR = CFG.device.sbe37.host
+#DEV_PORT = CFG.device.sbe37.port
+
+#DEV_ADDR = '67.58.40.195'
+#DEV_PORT = 2001
+
+DRV_MOD = 'mi.instrument.seabird.sbe37smb.ooicore.driver'
+DRV_CLS = 'SBE37Driver'
+
+#DRV_MOD = 'mi.instrument.satlantic.isusv3.ooicore.driver'
+#DRV_CLS = 'ooicoreInstrumentDriver'
+
 WORK_DIR = '/tmp/'
 DELIM = ['<<','>>']
 
@@ -88,7 +104,7 @@ class RunInstrument(IonIntegrationTestCase):
         
         self._cleanups = []
 
-    def setUp(self):
+    def _initialize(self):
         """
         Set up driver integration support.
         Start port agent, add port agent cleanup.
@@ -97,7 +113,6 @@ class RunInstrument(IonIntegrationTestCase):
         Define agent config, start agent.
         Start agent client.
         """
-        
         log.info('Creating driver integration test support:')
         log.info('driver module: %s', DRV_MOD)
         log.info('driver class: %s', DRV_CLS)
@@ -114,6 +129,8 @@ class RunInstrument(IonIntegrationTestCase):
         
         # Start port agent, add stop to cleanup.
         self._start_pagent()
+        
+        #config.replace_configuration('config/logging.run_instrument.yml')
         
         """
         DHE: Added self._cleanups
@@ -155,7 +172,9 @@ class RunInstrument(IonIntegrationTestCase):
         self._ia_client = None
         self._ia_client = ResourceAgentClient(IA_RESOURCE_ID,
                                               process=FakeProcess())
-        log.info('Got ia client %s.', str(self._ia_client))        
+        log.info('Got ia client %s.', str(self._ia_client))
+
+        
         
     ###############################################################################
     # Port agent helpers.
@@ -226,6 +245,7 @@ class RunInstrument(IonIntegrationTestCase):
 
         # A callback for processing subscribed-to data.
         def consume_data(message, headers):
+            print "RECEIVED MESSAGE"
             log.info('Subscriber received data message: %s   %s.',
                      str(message), str(headers))
             self._samples_received.append(message)
@@ -363,6 +383,11 @@ class RunInstrument(IonIntegrationTestCase):
         #self.assertEqual(res_state, DriverProtocolState.COMMAND)
         print "DriverProtocolState: " + str(state)
 
+        #cmd = AgentCommand(command = SBE37ProtocolEvent.START_AUTOSAMPLE)
+        #print "AgentCommand: " + str(cmd)
+        #retval = self._ia_client.execute_resource(cmd)
+        #print "Results of command: " + str(retval)
+
         """
         something's not working...
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
@@ -387,7 +412,48 @@ class RunInstrument(IonIntegrationTestCase):
     ###############################################################################
     # RunInstrument helpers.
     ###############################################################################
-                                                
+    def get_capabilities(self):
+        # Get exposed capabilities in current state.
+        retval = self._ia_client.get_capabilities()
+        
+        # Validate capabilities for state UNINITIALIZED.
+        self.agt_cmds = [x.name for x in retval if x.cap_type==CapabilityType.AGT_CMD]
+        self.agt_pars = [x.name for x in retval if x.cap_type==CapabilityType.AGT_PAR]
+        self.res_cmds = [x.name for x in retval if x.cap_type==CapabilityType.RES_CMD]
+        self.res_pars = [x.name for x in retval if x.cap_type==CapabilityType.RES_PAR]
+        
+        print "Agent Commands: " + str(self.agt_cmds)
+        print "Agent Parameters: " + str(self.agt_pars)
+        print "Resource Commands: " + str(self.res_cmds)
+        print "Resource Parameters: " + str(self.res_pars)
+
+    def send_command(self, command):
+        print "Input command: " + str(command)
+        #cmd = AgentCommand(command = ResourceAgentEvent.RUN)
+        #cmd = AgentCommand(command = SBE37ProtocolEvent.START_AUTOSAMPLE)
+        cmd = AgentCommand(command = command)
+        retval = self._ia_client.execute_resource(cmd)
+        print "Results of command: " + str(retval)
+
+    def _get_param(self):
+        _all_params = self._ia_client.get_resource('DRIVER_PARAMETER_ALL')
+        print "Parameters are: " + str(_all_params)
+        _param_valid = False
+        while _param_valid is False:
+            _param = prompt.text('\nEnter parameter')
+            if _param in _all_params:
+                _param_valid = True
+            else:
+                print 'Invalid parameter: ' + _param 
+                
+        #reply = self._ia_client.get_resource(_param)
+        reply = self._ia_client.get_resource(['PA1'])
+        print 'Reply is :' + str(reply)
+                                                                    
+    def _set_param(self):
+        reply = self._ia_client.set_resource('test')
+        orig_params = reply
+                                                                    
     def fetch_metadata(self):
         """
         @brief collect metadata from the user
@@ -399,6 +465,10 @@ class RunInstrument(IonIntegrationTestCase):
 
         self.metadata = Metadata(self.driver_make, self.driver_model, self.driver_name)
 
+    def get_user_command(self, text='Enter command'):
+            command = prompt.text(text)
+            return command
+            
     def fetch_comm_config(self):
         """
         @brief collect connection information for the logger from the user
@@ -413,57 +483,26 @@ class RunInstrument(IonIntegrationTestCase):
         """
         print( "*** Starting RunInstrument ***" )
 
-        self.setUp()
-        #self.fetch_metadata()
+        self._initialize()
 
-        #if not exists(self.metadata.driver_dir()):
-        #    raise DriverDoesNotExist( "%s/%s/$%s" % (self.metadata.driver_make,
-        #                                             self.metadata.driver_model,
-        #                                             self.driver_name))
-        #self.fetch_comm_config()
-        #self.metadata.link_current_metadata()
-        
-        #self.test_initialize()
         self.test_resource_states()
+        self.get_capabilities()
 
-    @staticmethod
-    def list_drivers():
-        driver_dir = join(Config().get("working_repo"), 'mi', 'instrument')
-        log.debug("Driver Dir: %s", driver_dir)
-
-        drivers = SwitchDriver.get_drivers()
-
-        for make in sorted(drivers.keys()):
-            for model in sorted(drivers[make].keys()):
-                for name in sorted(drivers[make][model].keys()):
-                    for version in sorted(drivers[make][model][name]):
-                        print "%s %s %s %s" % (make, model, name, version)
-
-
-    @staticmethod
-    def get_drivers():
-        driver_dir = join(Config().get("working_repo"), 'mi', 'instrument')
-        log.debug("Driver Dir: %s", driver_dir)
-
-        drivers = {}
-
-        for make in listdir(driver_dir):
-            make_dir = join(driver_dir, make)
-            if isdir(make_dir) and not make == 'test':
-                for model in listdir(make_dir):
-                    model_dir = join(make_dir, model)
-                    if isdir(model_dir) and not model == 'test':
-                        for name in listdir(model_dir):
-                            name_dir = join(model_dir, name)
-                            if isdir(name_dir) and not name == 'test':
-                                log.debug("found driver: %s %s %s", make, model, name)
-                                if not drivers.get(make): drivers[make] = {}
-                                if not drivers[make].get(model): drivers[make][model] = {}
-                                drivers[make][model][name] = SwitchDriver.get_versions(make,model,name)
-
-        return drivers
-
-    @staticmethod
-    def get_versions(make, model, name):
-        return ['master']
+        text = 'Enter command'
+        continuing = True
+        while continuing:
+            command = self.get_user_command(text)
+            if command == 'quit':
+                continuing = False
+            elif command in self.agt_cmds or command in self.res_cmds:
+                self.send_command(command)
+                text = 'Enter command'
+            elif command == 'get':
+                self._get_param()
+            elif command == 'set':
+                self._set_param()
+                
+            else:
+                text = 'Invalid Command: ' + command + '.\nEnter command'
+                
 
