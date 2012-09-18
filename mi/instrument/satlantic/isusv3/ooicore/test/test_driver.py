@@ -58,7 +58,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
 
-from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreInstrumentDriver
+from mi.instrument.satlantic.isusv3.ooicore.driver import InstrumentDriver
 from mi.instrument.satlantic.isusv3.ooicore.driver import State
 from mi.instrument.satlantic.isusv3.ooicore.driver import Event
 from mi.instrument.satlantic.isusv3.ooicore.driver import Parameter
@@ -101,7 +101,7 @@ from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreParameter
 ## Initialize the test parameters
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.satlantic.isusv3.ooicore.driver',
-    driver_class="ooicoreInstrumentDriver",
+    driver_class="InstrumentDriver",
 
     instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'Agent007',
