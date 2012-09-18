@@ -17,6 +17,7 @@ import re
 import datetime
 from threading import Timer
 import string
+import json
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
@@ -145,7 +146,14 @@ SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
 # Packet config for SBE37 data granules.
 STREAM_NAME_PARSED = DataParticleValue.PARSED
 STREAM_NAME_RAW = DataParticleValue.RAW
-PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
+#PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
+
+
+# TODO: Where are the param dict definitions kept and related to driver versions?
+PACKET_CONFIG = {
+    STREAM_NAME_PARSED : 'ctd_parsed_param_dict',
+    STREAM_NAME_RAW : 'ctd_raw_param_dict'
+}
 
 # TODO: remove this old definition:
 #PACKET_CONFIG = {
@@ -897,8 +905,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
             if publish and self._driver_event:
                 self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
     
-            sample = dict(parsed=parsed_sample, raw=raw_sample)
-            return particle
+            sample = dict(parsed=json.loads(parsed_sample), raw=json.loads(raw_sample))
+            return sample
         return sample
 
     def _build_param_dict(self):
