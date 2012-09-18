@@ -364,8 +364,8 @@ class InstrumentAgentEventSubscribers(object):
             if self.no_events and self.no_events == len(self.event_received):
                 self.async_event_result.set()
 
-        self.event_sub = EventSubscriber(
+        self.event_subscribers = EventSubscriber(
             event_type='ResourceAgentEvent', callback=consume_event,
             origin=instrument_agent_resource_id)
-        self.event_sub.start()
-        self.event_sub._ready_event.wait(timeout=5)
+        self.event_subscribers.start()
+        self.event_subscribers._ready_event.wait(timeout=5)
