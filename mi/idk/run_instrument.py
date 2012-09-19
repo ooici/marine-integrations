@@ -17,7 +17,6 @@ from mi.idk.exceptions import DriverDoesNotExist
 
 # Pyon unittest support.
 from pyon.util.int_test import IonIntegrationTestCase
-from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
 
 # Agent imports.
 from pyon.util.context import LocalContextMixin
@@ -36,10 +35,10 @@ from ion.agents.instrument.taxy_factory import get_taxonomy
 
 # Objects and clients.
 from interface.objects import AgentCommand
-from interface.objects import StreamQuery
 from interface.objects import CapabilityType
-
+from interface.objects import AgentCapability
 from interface.services.icontainer_agent import ContainerAgentClient
+from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -237,19 +236,13 @@ class RunInstrument(IonIntegrationTestCase):
         for stream_name in PACKET_CONFIG:
             
             # Create stream_id from stream_name.
-            stream_def = ctd_stream_definition(stream_id=None)
-            stream_def_id = pubsub_client.create_stream_definition(
-                                                    container=stream_def)        
-            stream_id = pubsub_client.create_stream(
-                        name=stream_name,
-                        stream_definition_id=stream_def_id,
-                        original=True,
-                        encoding='ION R2')
+            stream_id, stream_route = pubsub_client.create_stream(name=stream_name, exchange_point='science_data')
 
             # Create stream config from taxonomy and id.
             taxy = get_taxonomy(stream_name)
             stream_config = dict(
                 id=stream_id,
+                route=stream_route,
                 taxonomy=taxy.dump()
             )
             self._stream_config[stream_name] = stream_config        
@@ -260,10 +253,6 @@ class RunInstrument(IonIntegrationTestCase):
         # Create a pubsub client to create streams.
         pubsub_client = PubsubManagementServiceClient(node=self.container.node)
                 
-        # Create a stream subscriber registrar to create subscribers.
-        subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
-                                                container=self.container)
-
         # Create streams and subscriptions for each stream named in driver.
         self._data_subscribers = []
         self._data_greenlets = []
@@ -271,10 +260,8 @@ class RunInstrument(IonIntegrationTestCase):
         self._async_sample_result = AsyncResult()
 
         # A callback for processing subscribed-to data.
-        def consume_data(message, headers):
-            print "RECEIVED MESSAGE"
-            log.info('Subscriber received data message: %s   %s.',
-                     str(message), str(headers))
+        def recv_data(message, stream_route, stream_id):
+            log.info('Received message on %s (%s,%s)', stream_id, stream_route.exchange_point, stream_route.routing_key)
             self._samples_received.append(message)
             if len(self._samples_received) == count:
                 self._async_sample_result.set()
@@ -284,33 +271,31 @@ class RunInstrument(IonIntegrationTestCase):
             stream_id = stream_config['id']
             
             # Create subscriptions for each stream.
+
             exchange_name = '%s_queue' % stream_name
-            sub = subscriber_registrar.create_subscriber(
-                exchange_name=exchange_name, callback=consume_data)
-            self._listen_data(sub)
+            self._purge_queue(exchange_name)
+            sub = StandaloneStreamSubscriber(exchange_name, recv_data)
+            sub.start()
             self._data_subscribers.append(sub)
-            query = StreamQuery(stream_ids=[stream_id])
-            sub_id = pubsub_client.create_subscription(query=query,
-                    exchange_name=exchange_name, exchange_point='science_data')
+            print 'stream_id: %s' % stream_id
+            sub_id = pubsub_client.create_subscription(name=exchange_name, stream_ids=[stream_id])
             pubsub_client.activate_subscription(sub_id)
+            sub.subscription_id = sub_id # Bind the subscription to the standalone subscriber (easier cleanup, not good in real practice)
+
+    def _purge_queue(self, queue):
+        xn = self.container.ex_manager.create_xn_queue(queue)
+        xn.purge()
  
-    def _listen_data(self, sub):
-        """
-        Pass in a subscriber here, this will make it listen in a background greenlet.
-        """
-        gl = spawn(sub.listen)
-        self._data_greenlets.append(gl)
-        sub._ready_event.wait(timeout=5)
-        return gl
-                                 
     def _stop_data_subscribers(self):
-        """
-        Stop the data subscribers on cleanup.
-        """
-        for sub in self._data_subscribers:
-            sub.stop()
-        for gl in self._data_greenlets:
-            gl.kill()
+        for subscriber in self._data_subscribers:
+            pubsub_client = PubsubManagementServiceClient()
+            if hasattr(subscriber,'subscription_id'):
+                try:
+                    pubsub_client.deactivate_subscription(subscriber.subscription_id)
+                except:
+                    pass
+                pubsub_client.delete_subscription(subscriber.subscription_id)
+            subscriber.stop()
 
     def bring_instrument_active(self):
         """
@@ -404,7 +389,6 @@ class RunInstrument(IonIntegrationTestCase):
             else:
                 print 'Invalid parameter: ' + _param 
                 
-        #reply = self._ia_client.get_resource(_param)
         reply = self._ia_client.get_resource([_param])
         print 'Reply is :' + str(reply)
                                                                     
@@ -413,7 +397,20 @@ class RunInstrument(IonIntegrationTestCase):
         @brief Set a single parameter
         """
         
-        reply = self._ia_client.set_resource('test')
+        _all_params = self._ia_client.get_resource('DRIVER_PARAMETER_ALL')
+        print "Parameters you can set are: " + str(_all_params)
+        _param_valid = False
+        while _param_valid is False:
+            _param = prompt.text('\nEnter a single parameter')
+            if _param in _all_params:
+                _param_valid = True
+            else:
+                print 'Invalid parameter: ' + _param 
+
+        _value = prompt.text('Enter value')
+                
+        param_dict = {_param: _value}
+        reply = self._ia_client.set_resource(param_dict)
         orig_params = reply
                                                                     
     def fetch_metadata(self):
@@ -480,11 +477,14 @@ class RunInstrument(IonIntegrationTestCase):
         self._initialize()
 
         self.bring_instrument_active()
-        self.get_capabilities()
 
         text = 'Enter command'
         continuing = True
         while continuing:
+            """
+            Get a list of the currently available capabilities
+            """
+            self.get_capabilities()
             command = self.get_user_command(text)
             text = 'Enter command'
             if command == 'quit':
