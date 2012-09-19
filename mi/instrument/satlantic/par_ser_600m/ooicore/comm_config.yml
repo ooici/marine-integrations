@@ -2,5 +2,3 @@ comm:
   device_addr: 10.180.80.179
   device_port: 2101
   method: ethernet
-  server_addr: localhost
-  server_port: 1012

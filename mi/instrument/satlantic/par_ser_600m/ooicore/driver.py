@@ -106,6 +106,8 @@ class PARCapability(BaseEnum):
     START_POLL = PARSpecificDriverEvents.START_POLL
     STOP_POLL = PARSpecificDriverEvents.STOP_POLL
     RESET = PARSpecificDriverEvents.RESET
+    GET = DriverEvent.GET
+    SET = DriverEvent.SET
 
 class Parameter(BaseEnum):
     TELBAUD = 'telbaud'
@@ -128,7 +130,7 @@ class KwargsKey(BaseEnum):
 # Satlantic PAR Sensor Driver.
 ###############################################################################
 
-class SatlanticPARInstrumentDriver(SingleConnectionInstrumentDriver):
+class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     The InstrumentDriver class for the Satlantic PAR sensor PARAD.
     @note If using this via Ethernet, must use a delayed send
@@ -717,9 +719,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Check to make sure all parameters are valid up front
         assert Parameter.has(param)
         assert cmd == Command.SET
-        return "%s %s %s%s" % (Command.SET, param,
-                               self._param_dict.format(param, value),
-                               self.eoln)
+        return "%s %s %s%s" % (Command.SET, param, value, self.eoln)
         
     def _build_param_fetch_command(self, cmd, param):
         """
