@@ -262,7 +262,7 @@ class CommConfigEthernet(CommConfig):
     def display_config(self):
         CommConfig.display_config(self)
         print( "Device Address: " + self.device_addr )
-        print( "Device Port: " + self.device_port )
+        print( "Device Port: " + str(self.device_port ))
 
     def _config_dictionary(self):
         config = CommConfig._config_dictionary(self)
