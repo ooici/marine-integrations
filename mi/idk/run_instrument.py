@@ -29,6 +29,7 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 from ion.agents.instrument.driver_int_test_support import DriverIntegrationTestSupport
 from ion.agents.port.logger_process import EthernetDeviceLogger
 from ion.agents.instrument.driver_process import DriverProcessType
+from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from ion.agents.instrument.taxy_factory import get_taxonomy
@@ -365,13 +366,19 @@ class RunInstrument(IonIntegrationTestCase):
 
     def send_command(self, command):
         """
-        @brief Send a command to the instrument through the instrument agent
+        @brief Send a command to the instrument through the instrument agent.
+        First determine whether it's a get or set, which are handled separately.
         """
-        
-        print "Input command: " + str(command)
-        cmd = AgentCommand(command = command)
-        retval = self._ia_client.execute_resource(cmd)
-        print "Results of command: " + str(retval)
+
+        if command == DriverEvent.GET:
+            self._get_param()
+        elif command == DriverEvent.SET:
+            self._set_param()
+        else:
+            print "Input command: " + str(command)
+            cmd = AgentCommand(command = command)
+            retval = self._ia_client.execute_resource(cmd)
+            print "Results of command: " + str(retval)
 
     def _get_param(self):
         """
@@ -491,10 +498,6 @@ class RunInstrument(IonIntegrationTestCase):
                 continuing = False
             elif command in self.agt_cmds or command in self.res_cmds:
                 self.send_command(command)
-            elif command == 'get':
-                self._get_param()
-            elif command == 'set':
-                self._set_param()
             else:
                 text = 'Invalid Command: ' + command + '.\nEnter command'
                 
