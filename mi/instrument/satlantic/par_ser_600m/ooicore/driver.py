@@ -521,10 +521,11 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             
             self._driver_event(DriverAsyncEvent.STATE_CHANGE)
             next_state = PARProtocolState.POLL
+            next_agent_state = ResourceAgentState.COMMAND
         except InstrumentException:
             raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
                                               msg="Could not stop autosample!")                
-        return (next_state, None)
+        return (next_state, (next_agent_state, result))
 
     def _handler_autosample_reset(self, *args, **kwargs):
         """Handle PARProtocolState.AUTOSAMPLE reset
@@ -584,16 +585,12 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         # This sometimes takes a few seconds, so stall after our sample cmd
         # and before the read/parse
         delay = self.write_delay + 2
-        result = self._do_cmd_resp(Command.SAMPLE, None,
-                                   expected_prompt=Prompt.NULL,
-                                   write_delay=delay)    
+        self._do_cmd_no_resp(Command.SAMPLE, write_delay=delay)
         
         log.debug("Polled sample: %s", result)
+        next_agent_state = ResourceAgentState.COMMAND
         
-        if (result):
-            self._driver_event(DriverAsyncEvent.SAMPLE, result) 
-        
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
     
     def _handler_poll_stop_poll(self, *args, **kwargs):
         """Handle PARProtocolState.POLL, PARProtocolEvent.STOP_POLL
@@ -996,7 +993,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             
             # If we are streaming, process the line buffer for samples, but it
             # could have header stuff come out if you just got a break!
-            if self._protocol_fsm.get_current_state() == PARProtocolState.AUTOSAMPLE:
+            if (self._protocol_fsm.get_current_state() == PARProtocolState.AUTOSAMPLE or
+                self._protocol_fsm.get_current_state() == PARProtocolState.POLL):
                 if self.eoln in self._linebuf:
                     lines = self._linebuf.split(self.eoln)
                     for line in lines:
