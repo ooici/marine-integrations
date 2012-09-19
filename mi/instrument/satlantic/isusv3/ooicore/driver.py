@@ -370,7 +370,7 @@ class InstrumentPrompts(BaseEnum):
 ###
 #   Protocol for ooicore
 ###
-class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
+class Protocol(MenuInstrumentProtocol):
     """
     The protocol is a very simple command/response protocol with a few show
     commands and a few set commands.
@@ -1365,7 +1365,7 @@ class ooicoreInstrumentProtocol(MenuInstrumentProtocol):
 #   Driver for ooicore
 ###
 #class ooicoreInstrumentDriver(InstrumentDriver):
-class ooicoreInstrumentDriver(SingleConnectionInstrumentDriver):
+class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     """
     def __init__(self, evt_callback):
@@ -1393,6 +1393,6 @@ class ooicoreInstrumentDriver(SingleConnectionInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = ooicoreInstrumentProtocol(Prompt, INSTRUMENT_NEWLINE, self._driver_event) 
+        self._protocol = Protocol(Prompt, INSTRUMENT_NEWLINE, self._driver_event) 
 
 

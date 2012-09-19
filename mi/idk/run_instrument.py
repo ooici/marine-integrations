@@ -50,14 +50,14 @@ from mi.instrument.satlantic.isusv3.ooicore.driver import PACKET_CONFIG
 
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolEvent
 
-DEV_ADDR = "10.180.80.179"
-DEV_PORT = 2101
+#DEV_ADDR = "10.180.80.179"
+#DEV_PORT = 2101
 
 #DEV_ADDR = CFG.device.sbe37.host
 #DEV_PORT = CFG.device.sbe37.port
 
-#DEV_ADDR = '67.58.40.195'
-#DEV_PORT = 2001
+DEV_ADDR = '67.58.40.195'
+DEV_PORT = 2001
 
 DRV_MOD = 'mi.instrument.satlantic.par_ser_600m.ooicore.driver'
 DRV_CLS = 'SatlanticPARInstrumentDriver'
@@ -72,17 +72,21 @@ WORK_DIR = '/tmp/'
 DELIM = ['<<','>>']
 
 DVR_CONFIG = {
-    'dvr_mod' : DRV_MOD,
-    'dvr_cls' : DRV_CLS,
-    'workdir' : WORK_DIR,
-    'process_type' : ('ZMQPyClassDriverLauncher',)
+  'workdir' : WORK_DIR,
+  'process_type' : ('ZMQPyClassDriverLauncher',)
 }
+
+# Driver parameters
+DRIVER_CLASS = 'InstrumentDriver'
+DRIVER_MODULE_ROOT = 'mi.instrument.'
+DRIVER_MODULE_LEAF = '.driver'
 
 # Agent parameters.
 IA_RESOURCE_ID = '123xyz'
 IA_NAME = 'Agent007'
 IA_MOD = 'ion.agents.instrument.instrument_agent'
 IA_CLS = 'InstrumentAgent'
+
 
 
 class FakeProcess(LocalContextMixin):
@@ -99,44 +103,65 @@ class RunInstrument(IonIntegrationTestCase):
     Main class for communicating with an instrument
     """
 
-    def __init__(self, make=None, model=None, name=None, version=None):
+    def __init__(self, make=None, model=None, name=None, driver_class=None, ip_address=None, port=None, version=None):
         self.driver_make = make
         self.driver_model = model
         self.driver_name = name
+        self.driver_class = driver_class
+        if not self.driver_class:
+            self.driver_class = DRIVER_CLASS
+        self.ip_address = ip_address
+        self.port = port
         self.driver_version = version
         
         self._cleanups = []
 
     def _initialize(self):
         """
-        Set up driver integration support.
         Start port agent, add port agent cleanup.
         Start container.
         Start deploy services.
         Define agent config, start agent.
         Start agent client.
         """
-        log.info('Creating driver integration test support:')
-        log.info('driver module: %s', DRV_MOD)
-        log.info('driver class: %s', DRV_CLS)
-        log.info('device address: %s', DEV_ADDR)
-        log.info('device port: %s', DEV_PORT)
+
+        """
+        Get the information for the driver.  This can be read from the yml
+        files; the user can run switch_driver to change the current driver.
+        """ 
+        self.fetch_metadata()
+        self.fetch_driver_class()
+        self.fetch_comm_config()
+
+        if not exists(self.metadata.driver_dir()):
+            raise DriverDoesNotExist( "%s/%s/$%s" % (self.metadata.driver_make,
+                                                     self.metadata.driver_model,
+                                                     self.driver_name))        
+        
+        driver_module = DRIVER_MODULE_ROOT + self.metadata.driver_make + '.' + self.metadata.driver_model + '.' + self.metadata.driver_name + DRIVER_MODULE_LEAF
+        
+        log.info('driver module: %s', driver_module)
+        log.info('driver class: %s', self.driver_class)
+        log.info('device address: %s', self.ip_address)
+        log.info('device port: %s', self.port)
         log.info('log delimiter: %s', DELIM)
         log.info('work dir: %s', WORK_DIR)
-        self._support = DriverIntegrationTestSupport(DRV_MOD,
-                                                     DRV_CLS,
-                                                     DEV_ADDR,
-                                                     DEV_PORT,
+
+        DVR_CONFIG.update({'dvr_mod' : driver_module, 'dvr_cls' : self.driver_class})
+
+        
+        self._support = DriverIntegrationTestSupport(driver_module,
+                                                     self.driver_class,
+                                                     self.ip_address,
+                                                     self.port,
                                                      DELIM,
                                                      WORK_DIR)
         
         # Start port agent, add stop to cleanup.
         self._start_pagent()
         
-        #config.replace_configuration('config/logging.run_instrument.yml')
-        
         """
-        DHE: Added self._cleanups
+        DHE: Added self._cleanups to make base classes happy
         """
         self.addCleanup(self._support.stop_pagent)    
         
@@ -177,7 +202,6 @@ class RunInstrument(IonIntegrationTestCase):
                                               process=FakeProcess())
         log.info('Got ia client %s.', str(self._ia_client))
 
-        
         
     ###############################################################################
     # Port agent helpers.
@@ -288,57 +312,9 @@ class RunInstrument(IonIntegrationTestCase):
         for gl in self._data_greenlets:
             gl.kill()
 
-
-    ###############################################################################
-    # Tests.
-    ###############################################################################
-
-    def test_initialize(self):
+    def bring_instrument_active(self):
         """
-        Test agent initialize command. This causes creation of
-        driver process and transition to inactive.
-        """
-        
-        # We start in uninitialized state.
-        # In this state there is no driver process.
-        state = self._ia_client.get_agent_state()
-        #self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-        print "ResourceAgentState: " + str(state)
-        
-        # Ping the agent.
-        retval = self._ia_client.ping_agent()
-        log.info(retval)
-        print "Ping to agent returned: " + str(retval)
-
-        # Initialize the agent.
-        # The agent is spawned with a driver config, but you can pass one in
-        # optinally with the initialize command. This validates the driver
-        # config, launches a driver process and connects to it via messaging.
-        # If successful, we switch to the inactive state.
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self._ia_client.execute_agent(cmd)
-        state = self._ia_client.get_agent_state()
-        #self.assertEqual(state, ResourceAgentState.INACTIVE)
-        print "ResourceAgentState: " + str(state)
-
-        # Ping the driver proc.
-        retval = self._ia_client.ping_resource()
-        log.info(retval)
-        print "Ping to agent returned: " + str(retval)
-
-        # Reset the agent. This causes the driver messaging to be stopped,
-        # the driver process to end and switches us back to uninitialized.
-        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self._ia_client.execute_agent(cmd)
-        state = self._ia_client.get_agent_state()
-        #self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-        print "ResourceAgentState: " + str(state)
-        
-    def test_resource_states(self):
-        """
-        Bring the agent up, through COMMAND state, and reset to UNINITIALIZED,
-        verifying the resource state at each step. Verify
-        ResourceAgentResourceStateEvents are published.
+        @brief Bring the agent up to COMMAND state, 
         """
 
         """
@@ -350,73 +326,45 @@ class RunInstrument(IonIntegrationTestCase):
         """    
 
         state = self._ia_client.get_agent_state()
-#        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
         print "ResourceAgentState: " + str(state)
-    
-        #with self.assertRaises(Conflict):
-        #res_state = self._ia_client.get_resource_state()
-        #print "ResourceState: " + str(state)
     
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self._ia_client.execute_agent(cmd)
         state = self._ia_client.get_agent_state()
-        #self.assertEqual(state, ResourceAgentState.INACTIVE)
         
         res_state = self._ia_client.get_resource_state()
-        #self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
         print "DriverConnectionState: " + str(state)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self._ia_client.execute_agent(cmd)
         state = self._ia_client.get_agent_state()
-        #self.assertEqual(state, ResourceAgentState.IDLE)
         print "ResourceAgentState: " + str(state)
 
         res_state = self._ia_client.get_resource_state()
-        #self.assertEqual(res_state, DriverProtocolState.COMMAND)
         print "DriverProtocolState: " + str(state)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RUN)
         retval = self._ia_client.execute_agent(cmd)
         state = self._ia_client.get_agent_state()
-        #self.assertEqual(state, ResourceAgentState.COMMAND)        
         print "ResourceAgentState: " + str(state)
         
         res_state = self._ia_client.get_resource_state()
-        #self.assertEqual(res_state, DriverProtocolState.COMMAND)
         print "DriverProtocolState: " + str(state)
 
-        #cmd = AgentCommand(command = SBE37ProtocolEvent.START_AUTOSAMPLE)
-        #print "AgentCommand: " + str(cmd)
-        #retval = self._ia_client.execute_resource(cmd)
-        #print "Results of command: " + str(retval)
-
-        """
-        something's not working...
-        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self._ia_client.execute_agent(cmd)
-        state = self._ia_client.get_agent_state()
-        #self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-        print "ResourceAgentState: " + str(state)
-        """
-        
-        #with self.assertRaises(Conflict):
-        #res_state = self._ia_client.get_resource_state()
-        #print "ResourceState: " + str(state)
-        
         """
         DHE: Don't have an event subscriber yet so we've received no events.
         self._async_event_result.get(timeout=2)
-        #self.assertGreaterEqual(len(self._events_received), 6)
         print "Received: " + str(len(self._events_received)) + " events."
         """
                 
-        
     ###############################################################################
     # RunInstrument helpers.
     ###############################################################################
     def get_capabilities(self):
-        # Get exposed capabilities in current state.
+        """
+        @brief Get exposed capabilities in current state.
+        """
+        
         retval = self._ia_client.get_capabilities()
         
         # Validate capabilities for state UNINITIALIZED.
@@ -431,29 +379,40 @@ class RunInstrument(IonIntegrationTestCase):
         print "Resource Parameters: " + str(self.res_pars)
 
     def send_command(self, command):
+        """
+        @brief Send a command to the instrument through the instrument agent
+        """
+        
         print "Input command: " + str(command)
-        #cmd = AgentCommand(command = ResourceAgentEvent.RUN)
-        #cmd = AgentCommand(command = SBE37ProtocolEvent.START_AUTOSAMPLE)
         cmd = AgentCommand(command = command)
         retval = self._ia_client.execute_resource(cmd)
         print "Results of command: " + str(retval)
 
     def _get_param(self):
+        """
+        @brief Get a single parameter from the instrument (will be updated to get 
+        multiple later).
+        """
+        
         _all_params = self._ia_client.get_resource('DRIVER_PARAMETER_ALL')
-        print "Parameters are: " + str(_all_params)
+        print "Parameters you can get are: " + str(_all_params)
         _param_valid = False
         while _param_valid is False:
-            _param = prompt.text('\nEnter parameter')
+            _param = prompt.text('\nEnter a single parameter')
             if _param in _all_params:
                 _param_valid = True
             else:
                 print 'Invalid parameter: ' + _param 
                 
         #reply = self._ia_client.get_resource(_param)
-        reply = self._ia_client.get_resource(['PA1'])
+        reply = self._ia_client.get_resource([_param])
         print 'Reply is :' + str(reply)
                                                                     
     def _set_param(self):
+        """
+        @brief Set a single parameter
+        """
+        
         reply = self._ia_client.set_resource('test')
         orig_params = reply
                                                                     
@@ -461,50 +420,81 @@ class RunInstrument(IonIntegrationTestCase):
         """
         @brief collect metadata from the user
         """
+
+        self.metadata = Metadata()
+        self.driver_make = self.metadata.driver_make
+        self.driver_model = self.metadata.driver_model
+        self.driver_name = self.metadata.driver_name
+        
         if not (self.driver_make and self.driver_model and self.driver_name):
             self.driver_make = prompt.text( 'Driver Make', self.driver_make )
             self.driver_model = prompt.text( 'Driver Model', self.driver_model )
             self.driver_name = prompt.text( 'Driver Name', self.driver_name )
-
+            
+        if not (self.driver_class):
+            self.driver_class = prompt.text( 'Driver Class', self.driver_class )
+            
         self.metadata = Metadata(self.driver_make, self.driver_model, self.driver_name)
 
-    def get_user_command(self, text='Enter command'):
-            command = prompt.text(text)
-            return command
-            
     def fetch_comm_config(self):
         """
         @brief collect connection information for the logger from the user
         """
+
         config_path = "%s/%s" % (self.metadata.driver_dir(), CommConfig.config_filename())
         self.comm_config = CommConfig.get_config_from_console(config_path)
-        self.comm_config.get_from_console()
+        self.comm_config.display_config()
+        #self.comm_config.get_from_console()
+        self.ip_address = self.comm_config.device_addr
+        self.port = self.comm_config.device_port
+        
+        if not (self.ip_address):
+            self.ip_address = prompt.text( 'Instrument IP Address', self.ip_address )
+            
+        if not (self.port):
+            continuing = True
+            while continuing:
+                sport = prompt.text( 'Instrument Port', self.port )
+                try:
+                    self.port = int(sport)
+                    continuing = False
+                except ValueError as e:
+                    print "Error converting port to number: " + str(e)
+                    print "Please enter a valid port number.\n"
 
+    def fetch_driver_class(self):
+        self.driver_class = prompt.text( 'Driver Class', self.driver_class )
+            
+    def get_user_command(self, text='Enter command'):
+
+        command = prompt.text(text)
+        return command
+            
     def run(self):
         """
         @brief Run it.
         """
+        
         print( "*** Starting RunInstrument ***" )
 
         self._initialize()
 
-        self.test_resource_states()
+        self.bring_instrument_active()
         self.get_capabilities()
 
         text = 'Enter command'
         continuing = True
         while continuing:
             command = self.get_user_command(text)
+            text = 'Enter command'
             if command == 'quit':
                 continuing = False
             elif command in self.agt_cmds or command in self.res_cmds:
                 self.send_command(command)
-                text = 'Enter command'
             elif command == 'get':
                 self._get_param()
             elif command == 'set':
                 self._set_param()
-                
             else:
                 text = 'Invalid Command: ' + command + '.\nEnter command'
                 
