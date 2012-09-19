@@ -199,11 +199,11 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(Command.SAVE, self._build_exec_command)
         self._add_build_handler(Command.EXIT, self._build_exec_command)
         self._add_build_handler(Command.EXIT_AND_RESET, self._build_exec_command)
-        self._add_build_handler(Command.SWITCH_TO_AUTOSAMPLE, self._build_multi_control_command)
+        self._add_build_handler(Command.SWITCH_TO_AUTOSAMPLE, self._build_control_command)
         self._add_build_handler(Command.RESET, self._build_control_command)
         self._add_build_handler(Command.BREAK, self._build_multi_control_command)
         self._add_build_handler(Command.SAMPLE, self._build_control_command)
-        self._add_build_handler(Command.SWITCH_TO_POLL, self._build_multi_control_command)
+        self._add_build_handler(Command.SWITCH_TO_POLL, self._build_control_command)
 
         self._add_response_handler(Command.GET, self._parse_get_response)
         self._add_response_handler(Command.SET, self._parse_set_response)
@@ -256,6 +256,39 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
   
         return config
         
+    def _do_cmd_no_resp(self, cmd, *args, **kwargs):
+        """
+        Issue a command to the instrument after clearing of
+        buffers. No response is handled as a result of the command.
+        
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup timeout.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built.        
+        """
+        timeout = kwargs.get('timeout', 10)
+        write_delay = kwargs.get('write_delay', 0)
+
+        
+        build_handler = self._build_handlers.get(cmd, None)
+        if not build_handler:
+            raise InstrumentProtocolException(error_code=InstErrorCode.BAD_DRIVER_COMMAND)
+        cmd_line = build_handler(cmd, *args)
+        
+        # Clear line and prompt buffers for result.
+        self._linebuf = ''
+        self._promptbuf = ''
+
+        # Send command.
+        log.debug('_do_cmd_no_resp: %s, timeout=%s' % (repr(cmd_line), timeout))
+        if (write_delay == 0):
+            self._connection.send(cmd_line)
+        else:
+            for char in cmd_line:
+                self._connection.send(char)
+                time.sleep(write_delay)
+    
     ########################################################################
     # Unknown handlers.
     ########################################################################
@@ -403,16 +436,17 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             # get into auto-sample mode guaranteed, then switch to poll mode
             self._do_cmd_no_resp(Command.EXIT_AND_RESET, None, write_delay=self.write_delay)
             time.sleep(RESET_DELAY)
-            self._switch_to_poll()
-            # Give the instrument a bit to keep up. 1 sec is not enough!
-            time.sleep(5)
-            next_state = PARProtocolState.POLL
-            self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+            if not self._switch_to_poll():
+                next_state = PARProtocolState.COMMAND
+                next_agent_state = ResourceAgentState.COMMAND
+            else:
+                next_state = PARProtocolState.POLL
+                next_agent_state = ResourceAgentState.COMMAND
 
         except (InstrumentTimeoutException, InstrumentProtocolException) as e:
             log.debug("Caught exception while switching to poll mode: %s", e)
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_start_direct(self):
         """
@@ -507,12 +541,13 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             
             self._driver_event(DriverAsyncEvent.STATE_CHANGE)
             next_state = PARProtocolState.AUTOSAMPLE
+            next_agent_state = ResourceAgentState.COMMAND
         except InstrumentException:
             raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
                                               msg="Could not reset autosample!")                
         
         log.debug("next: %s, result: %s", next_state, result) 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Poll handlers.
@@ -532,6 +567,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
                                               msg="Not in the correct mode!")
         
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         return (next_state, result)
 
     def _handler_poll_acquire_sample(self, *args, **kwargs):
@@ -611,13 +647,13 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             
             self._driver_event(DriverAsyncEvent.STATE_CHANGE)
             next_state = PARProtocolState.AUTOSAMPLE
+            next_agent_state = ResourceAgentState.COMMAND
         except InstrumentException:
             raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
                                               msg="Could not reset poll!")                
-        
-        
+               
         log.debug("next: %s, result: %s", next_state, result) 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Direct access handlers.
@@ -907,16 +943,16 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         write_delay = 0.2
         log.debug("Sending switch_to_poll char")
 
-        if self._protocol_fsm.get_current_state() == PARProtocolState.COMMAND:
-            return InstErrorCode.OK
-
-        # TODO: infinite loop bad idea
-        while True:
-            self._do_cmd_no_resp(Command.SWITCH_TO_POLL, timeout=timeout,
+        counter = 0
+        while (counter < 10):
+            self._do_cmd_no_resp(Command.SWITCH_TO_POLL, timeout=0,
                                  write_delay=write_delay)
             
+            time.sleep(.5)    # wait a little for samples to stop coming out
             if self._confirm_poll_mode():
-                return
+                return True
+            counter = counter + 1 
+        return False
             
     def _send_break(self, timeout=10):
         """Send a blind break command to the device, confirm command mode after
@@ -980,31 +1016,17 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         # timestamp now,
         start_time = self._last_data_timestamp
         # wait a sample period,
-        # @todo get this working when _update_params is happening right (only when connected)
-        #time_between_samples = (1/self._param_dict.get_config()[Parameter.MAXRATE])+1
-        time_between_samples = 2
+        time_between_samples = (1/self._param_dict.get_config()[Parameter.MAXRATE])+1
         time.sleep(time_between_samples)
         end_time = self._last_data_timestamp
-        
-        return not (end_time == start_time)
-        
-    def _confirm_poll_mode(self):
-        """Confirm we are in poll mode by waiting for things not to happen.
-        
-        Time depends on max data rate
-        @retval True if in poll mode, False if not
-        """
-        log.debug("Confirming poll mode...")
-        
-        AUTOSAMPLE = self._confirm_autosample_mode()
-        cmd_mode = self._confirm_command_mode()
-        if (not AUTOSAMPLE) and (not cmd_mode):
-            log.debug("Confirmed in poll mode")
+        log.debug("_confirm_autosample_mode: end_time=%s, start_time=%s" %(end_time, start_time))
+        if (end_time != start_time):
+            log.debug("Confirmed in autosample mode")
             return True
         else:
-            log.debug("Confirmed NOT in poll mode")
+            log.debug("Confirmed NOT in autosample mode")
             return False
-                    
+        
     def _confirm_command_mode(self):
         """Confirm we are in command mode
         
@@ -1027,13 +1049,29 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         except InstrumentProtocolException:
             log.debug("Confirmed NOT in command mode via protocol exception")
             return False
-
         # made it this far
         log.debug("Confirmed in command mode")
         time.sleep(0.5)
 
         return True
 
+    def _confirm_poll_mode(self):
+        """Confirm we are in poll mode by waiting for things not to happen.
+        
+        Time depends on max data rate
+        @retval True if in poll mode, False if not
+        """
+        log.debug("Confirming poll mode...")
+        
+        auto_sample_mode = self._confirm_autosample_mode()
+        cmd_mode = self._confirm_command_mode()
+        if (not auto_sample_mode) and (not cmd_mode):
+            log.debug("Confirmed in poll mode")
+            return True
+        else:
+            log.debug("Confirmed NOT in poll mode")
+            return False
+                    
 class SatlanticChecksumDecorator(ChecksumDecorator):
     """Checks the data checksum for the Satlantic PAR sensor"""
     
