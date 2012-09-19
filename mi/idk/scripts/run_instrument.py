@@ -18,7 +18,7 @@ def run():
     app.run()
 
 def parseArgs():
-    parser = argparse.ArgumentParser(description='Switch the current driver.')
+    parser = argparse.ArgumentParser(description='Run instrument.')
     parser.add_argument('-make', nargs="?", help='driver make')
     parser.add_argument('-model', nargs="?", help='driver model')
     parser.add_argument('-name', nargs="?", help='driver name')
