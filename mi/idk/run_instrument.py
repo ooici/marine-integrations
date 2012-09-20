@@ -4,6 +4,7 @@
 @brief Main script class for communicating with an instrument
 """
 
+import subprocess
 from pyon.public import CFG
 from ooi.logging import config
 
@@ -27,7 +28,7 @@ from pyon.agent.agent import ResourceAgentEvent
 # Driver imports.
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 from ion.agents.instrument.driver_int_test_support import DriverIntegrationTestSupport
-from ion.agents.port.logger_process import EthernetDeviceLogger
+from ion.agents.port.port_agent_process import PortAgentProcess
 from ion.agents.instrument.driver_process import DriverProcessType
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -158,12 +159,19 @@ class RunInstrument(IonIntegrationTestCase):
                                                      WORK_DIR)
         
         # Start port agent, add stop to cleanup.
-        self._start_pagent()
+        #self._start_pagent()
+        self.new_start_pagent()
+
+        self.monitor_file = self._pagent.port_agent.logfname
+        pOpenString = "xterm -e tail -f " + self.monitor_file
+        
+        x = subprocess.Popen(pOpenString, shell=True)        
         
         """
         DHE: Added self._cleanups to make base classes happy
         """
-        self.addCleanup(self._support.stop_pagent)    
+        #self.addCleanup(self._support.stop_pagent)    
+        self.addCleanup(self.new_stop_pagent)    
         
         # Start container.
         log.info('Staring capability container.')
@@ -220,7 +228,46 @@ class RunInstrument(IonIntegrationTestCase):
             'addr' : 'localhost',
             'port' : port
         }
-        
+ 
+    def new_start_pagent(self):
+        """
+        Construct and start the port agent.
+        @retval port Port that was used for connection to agent
+        """
+        # Create port agent object.
+        config = { 'device_addr' : self.ip_address,
+                   'device_port' : self.port,
+                   'working_dir' : WORK_DIR,
+                   'delimiter' : DELIM }
+
+        self._pagent = PortAgentProcess.launch_process(config, timeout = 60, test_mode = True)
+        pid = self._pagent.get_pid()
+        port = self._pagent.get_data_port()
+
+        log.info('Started port agent pid %d listening at port %d', pid, port)
+
+        # Configure driver to use port agent port number.
+        DVR_CONFIG['comms_config'] = {
+            'addr' : 'localhost',
+            'port' : port
+        }
+
+        return port
+
+    def new_stop_pagent(self):
+        """
+        Stop the port agent.
+        """
+        if self._pagent:
+            pid = self._pagent.get_pid()
+            if pid:
+                mi_logger.info('Stopping pagent pid %i', pid)
+                self._pagent.stop()
+            else:
+                mi_logger.info('No port agent running.')
+
+
+       
     ###############################################################################
     # Data stream helpers.
     ###############################################################################
