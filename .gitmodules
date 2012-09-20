@@ -7,3 +7,6 @@
 [submodule "extern/coi-services"]
 	path = extern/coi-services
 	url = git://github.com/ooici/coi-services
+[submodule "extern/coverage-model"]
+	path = extern/coverage-model
+	url = git@github.com:ooici/coverage-model.git
