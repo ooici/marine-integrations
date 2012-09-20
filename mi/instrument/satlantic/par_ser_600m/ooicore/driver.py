@@ -50,9 +50,9 @@ RESET_DELAY = 6
 EOLN = "\r\n"
 
 class PARSpecificDriverEvents(BaseEnum):
-    START_POLL = 'START_POLL'
-    STOP_POLL = 'STOP_POLL'
-    RESET = "RESET"
+    START_POLL = 'DRIVER_EVENT_START_POLL'
+    STOP_POLL = 'DRIVER_EVENT_STOP_POLL'
+    RESET = "DRIVER_EVENT_RESET"
         
 ####################################################################
 # Static enumerations for this class
@@ -100,14 +100,14 @@ class PARCapability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    START_POLL = PARSpecificDriverEvents.START_POLL
-    STOP_POLL = PARSpecificDriverEvents.STOP_POLL
-    RESET = PARSpecificDriverEvents.RESET
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
+    ACQUIRE_SAMPLE = PARProtocolEvent.ACQUIRE_SAMPLE
+    START_AUTOSAMPLE = PARProtocolEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = PARProtocolEvent.STOP_AUTOSAMPLE
+    START_POLL = PARProtocolEvent.START_POLL
+    STOP_POLL = PARProtocolEvent.STOP_POLL
+    RESET = PARProtocolEvent.RESET
+    GET = PARProtocolEvent.GET
+    SET = PARProtocolEvent.SET
 
 class Parameter(BaseEnum):
     TELBAUD = 'telbaud'
@@ -432,6 +432,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throw InstrumentProtocolException For invalid parameter
         """
         next_state = None
+        next_agent_state = None
         result = None
         
         try:
@@ -440,10 +441,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             time.sleep(RESET_DELAY)
             if not self._switch_to_poll():
                 next_state = PARProtocolState.COMMAND
-                next_agent_state = ResourceAgentState.COMMAND
             else:
                 next_state = PARProtocolState.POLL
-                next_agent_state = ResourceAgentState.COMMAND
 
         except (InstrumentTimeoutException, InstrumentProtocolException) as e:
             log.debug("Caught exception while switching to poll mode: %s", e)
@@ -477,6 +476,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         result = None
         
         if not self._confirm_autosample_mode:
+            # TODO: seems like some kind of recovery should occur here
             raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
                                               msg="Not in the correct mode!")
         
@@ -567,6 +567,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         result = None
         
         if not self._confirm_poll_mode:
+            # TODO: seems like some kind of recovery should occur here
             raise InstrumentProtocolException(error_code=InstErrorCode.HARDWARE_ERROR,
                                               msg="Not in the correct mode!")
         
@@ -580,16 +581,14 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throw InstrumentProtocolException For invalid command
         """
         next_state = None
+        next_agent_state = None
         result = None
         
         # This sometimes takes a few seconds, so stall after our sample cmd
         # and before the read/parse
         delay = self.write_delay + 2
         self._do_cmd_no_resp(Command.SAMPLE, write_delay=delay)
-        
-        log.debug("Polled sample: %s", result)
-        next_agent_state = ResourceAgentState.COMMAND
-        
+                
         return (next_state, (next_agent_state, result))
     
     def _handler_poll_stop_poll(self, *args, **kwargs):
