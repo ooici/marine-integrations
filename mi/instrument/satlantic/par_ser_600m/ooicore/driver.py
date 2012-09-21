@@ -903,7 +903,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         old_config = self._param_dict.get_config()
         self.get_config()
         new_config = self._param_dict.get_config()            
-        if (new_config != old_config) and (None not in old_config.values()):
+        if (new_config != old_config):
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)            
             
     def _send_reset(self, timeout=10):

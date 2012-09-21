@@ -51,7 +51,6 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
 from interface.objects import AgentCommand
 from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
-from pyon.public import StreamSubscriberRegistrar
 from pyon.event.event import EventSubscriber, EventPublisher
 
 from mi.core.log import get_logger ; log = get_logger()
@@ -60,7 +59,6 @@ from pyon.agent.agent import ResourceAgentClient
 
 #from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from pyon.core.exception import InstParameterError
-from interface.objects import StreamQuery
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 from ion.agents.instrument.common import InstErrorCode
@@ -71,7 +69,6 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.exceptions import InstrumentParameterException
 
 from ion.agents.port.port_agent_process import PortAgentProcess
-
 
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
@@ -242,7 +239,7 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         """
         Stop the port agent.
         """
-        log.info("Stop port agent")
+        log.info("Stop port agent: cls=%s" %cls)
         if cls.test_config.port_agent:
             log.debug("found port agent, now stop it")
             cls.test_config.port_agent.stop()
@@ -1037,19 +1034,14 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                On a seabird sbe37 this results in a ds and dc command being sent.
         """
 
-        cmd = AgentCommand(command='initialize')
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
+        state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-        cmd = AgentCommand(command='go_active')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        # Test the driver is configured for comms.
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
+        state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
         pass
@@ -1069,21 +1061,15 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         driver process and transition to inactive.
         """
 
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
+        state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-        cmd = AgentCommand(command='initialize')
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
+        state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-        cmd = AgentCommand(command='reset')
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
+        state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
