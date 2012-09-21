@@ -16,6 +16,10 @@ from mi.idk.comm_config import CommConfig
 from mi.idk.config import Config
 from mi.idk.exceptions import DriverDoesNotExist
 
+# Pyon pubsub and event support.
+from pyon.event.event import EventSubscriber
+from pyon.ion.stream import StandaloneStreamSubscriber
+
 # Pyon unittest support.
 from pyon.util.int_test import IonIntegrationTestCase
 
@@ -33,7 +37,11 @@ from ion.agents.instrument.driver_process import DriverProcessType
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverConnectionState
+
+# Parameter dicts and publishing.
 from ion.agents.instrument.taxy_factory import get_taxonomy
+from ion.util.parameter_yaml_IO import get_param_dict
+from coverage_model.parameter import ParameterDictionary
 
 # Objects and clients.
 from interface.objects import AgentCommand
@@ -209,6 +217,8 @@ class RunInstrument(IonIntegrationTestCase):
         self._ia_client = ResourceAgentClient(IA_RESOURCE_ID,
                                               process=FakeProcess())
         log.info('Got ia client %s.', str(self._ia_client))
+        
+        self._start_data_subscribers(6)
 
         
     ###############################################################################
@@ -281,42 +291,42 @@ class RunInstrument(IonIntegrationTestCase):
         # Create streams and subscriptions for each stream named in driver.
         self._stream_config = {}
 
-        for stream_name in PACKET_CONFIG:
-            
-            # Create stream_id from stream_name.
-            stream_id, stream_route = pubsub_client.create_stream(name=stream_name, exchange_point='science_data')
+        streams = {
+            'parsed' : 'ctd_parsed_param_dict',
+            'raw' : 'ctd_raw_param_dict'
+        }
 
-            # Create stream config from taxonomy and id.
-            taxy = get_taxonomy(stream_name)
-            stream_config = dict(
-                id=stream_id,
-                route=stream_route,
-                taxonomy=taxy.dump()
-            )
-            self._stream_config[stream_name] = stream_config        
+        for (stream_name, param_dict_name) in streams.iteritems():
+            stream_id, stream_route = pubsub_client.create_stream(name=stream_name,
+                                                exchange_point='science_data')
+            pd = get_param_dict(param_dict_name)
+            stream_config = dict(stream_route=stream_route,
+                                 stream_id=stream_id,
+                                 parameter_dictionary=pd.dump())
+            self._stream_config[stream_name] = stream_config
 
     def _start_data_subscribers(self, count):
         """
-        """
+        """        
         # Create a pubsub client to create streams.
         pubsub_client = PubsubManagementServiceClient(node=self.container.node)
                 
         # Create streams and subscriptions for each stream named in driver.
         self._data_subscribers = []
-        self._data_greenlets = []
         self._samples_received = []
-        self._async_sample_result = AsyncResult()
+        #self._async_sample_result = AsyncResult()
 
         # A callback for processing subscribed-to data.
         def recv_data(message, stream_route, stream_id):
+            print 'Received message on ' + str(stream_id) + ' (' + str(stream_route.exchange_point) + ',' + str(stream_route.routing_key) + ')'
             log.info('Received message on %s (%s,%s)', stream_id, stream_route.exchange_point, stream_route.routing_key)
             self._samples_received.append(message)
-            if len(self._samples_received) == count:
-                self._async_sample_result.set()
+            #if len(self._samples_received) == count:
+                #self._async_sample_result.set()
 
         for (stream_name, stream_config) in self._stream_config.iteritems():
             
-            stream_id = stream_config['id']
+            stream_id = stream_config['stream_id']
             
             # Create subscriptions for each stream.
 
