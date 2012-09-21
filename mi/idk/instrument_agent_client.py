@@ -38,10 +38,10 @@ from pyon.util.context import LocalContextMixin
 from interface.services.icontainer_agent import ContainerAgentClient
 from pyon.agent.agent import ResourceAgentClient
 from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
-from pyon.public import StreamSubscriberRegistrar
+#from pyon.public import StreamSubscriberRegistrar
 from pyon.event.event import EventSubscriber, EventPublisher
 
-from interface.objects import StreamQuery
+#from interface.objects import StreamQuery
 
 DEFAULT_DEPLOY = 'res/deploy/r2deploy.yml'
 
@@ -313,6 +313,7 @@ class InstrumentAgentDataSubscribers(object):
             if self.no_samples and self.no_samples == len(self.samples_received):
                 self.async_data_result.set()
 
+        """
         # Create a stream subscriber registrar to create subscribers.
         subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
                                                          container=self.container)
@@ -333,7 +334,7 @@ class InstrumentAgentDataSubscribers(object):
             query = StreamQuery(stream_ids=[stream_id])
             sub_id = pubsub_client.create_subscription(query=query, exchange_name=exchange_name, exchange_point='science_data')
             pubsub_client.activate_subscription(sub_id)
-
+        """
 
 
     def _listen(self, sub):

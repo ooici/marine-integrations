@@ -58,7 +58,7 @@ from pyon.core.exception import Conflict
 
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.satlantic.par_ser_600m.ooicore.driver',
-    driver_class="SatlanticPARInstrumentDriver",
+    driver_class="InstrumentDriver",
 
     instrument_agent_resource_id = 'satlantic_par_ser_600m_ooicore',
     instrument_agent_name = 'satlantic_par_ser_600m_ooicore_agent',
@@ -619,7 +619,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
     # (UNIT, INT, and QUAL) are run.  
 
 
-    #@unittest.skip("skip for automatic tests")
+    @unittest.skip("skip for automatic tests")
     def test_direct_access_telnet_mode_manually(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
