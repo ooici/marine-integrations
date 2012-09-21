@@ -55,27 +55,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.idk import prompt
 
 from prototype.sci_data.stream_defs import ctd_stream_definition
-from mi.instrument.satlantic.isusv3.ooicore.driver import PACKET_CONFIG
 
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolEvent
-
-#DEV_ADDR = "10.180.80.179"
-#DEV_PORT = 2101
-
-#DEV_ADDR = CFG.device.sbe37.host
-#DEV_PORT = CFG.device.sbe37.port
-
-DEV_ADDR = '67.58.40.195'
-DEV_PORT = 2001
-
-DRV_MOD = 'mi.instrument.satlantic.par_ser_600m.ooicore.driver'
-DRV_CLS = 'SatlanticPARInstrumentDriver'
-
-#DRV_MOD = 'mi.instrument.seabird.sbe37smb.ooicore.driver'
-#DRV_CLS = 'SBE37Driver'
-
-#DRV_MOD = 'mi.instrument.satlantic.isusv3.ooicore.driver'
-#DRV_CLS = 'ooicoreInstrumentDriver'
 
 WORK_DIR = '/tmp/'
 DELIM = ['<<','>>']
