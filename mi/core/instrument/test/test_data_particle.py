@@ -124,7 +124,6 @@ class TestUnitDataParticle(IonUnitTestCase):
         #   Be sure to check timestamp format as BASE64 and de-encode it.
         #   Sanity check it as well.
         parsed_result = self.parsed_test_particle.generate_parsed()
-        log.debug("parsed_result: %s", parsed_result)
         decoded_parsed = json.loads(parsed_result)
         
         driver_time = decoded_parsed["driver_timestamp"]
@@ -132,7 +131,6 @@ class TestUnitDataParticle(IonUnitTestCase):
         
         # run it through json so unicode and everything lines up
         standard = json.dumps(self.sample_parsed_particle, sort_keys=True)
-        log.debug("standard: %s", standard)        
         self.assertEqual(parsed_result, standard)
         
     def test_timestamps(self):

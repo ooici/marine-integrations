@@ -18,8 +18,11 @@ import time
 import os
 import signal
 import re
+import json
 
 from mi.core.common import BaseEnum, InstErrorCode
+from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
@@ -65,6 +68,44 @@ class InstrumentProtocol(object):
         """
         pass
     
+    def _extract_sample(self, particle_class, regex, line, publish=True):
+        """
+        Extract sample from a response line if present and publish "raw" and
+        "parsed" sample events to agent. 
+
+        @param particle_class The class to instantiate for this specific
+            data particle. Parameterizing this allows for simple, standard
+            behavior from this routine
+        @param regex The regular expression that matches a data sample
+        @param line string to match for sample.
+        @param publish boolean to publish samples (default True). If True,
+               two different events are published: one to notify raw data and
+               the other to notify parsed data.
+
+        @retval dict of dicts {'parsed': parsed_sample, 'raw': raw_sample} if
+                the line can be parsed for a sample. Otherwise, None.
+        @todo Figure out how the agent wants the results for a single poll
+            and return them that way from here
+        """
+        sample = None
+        if regex.match(line):
+        
+            particle = particle_class(line,
+                preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
+            
+            raw_sample = particle.generate_raw()
+            parsed_sample = particle.generate_parsed()
+            
+            if publish and self._driver_event:
+                self._driver_event(DriverAsyncEvent.SAMPLE, raw_sample)
+    
+            if publish and self._driver_event:
+                self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
+    
+            sample = dict(parsed=json.loads(parsed_sample), raw=json.loads(raw_sample))
+            return sample
+        return sample
+
     def get_current_state(self):
         """
         Return current state of the protocol FSM.

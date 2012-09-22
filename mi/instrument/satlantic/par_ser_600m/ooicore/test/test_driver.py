@@ -13,6 +13,7 @@ import gevent
 
 import unittest
 import time
+import json
 from mock import Mock, call, DEFAULT
 from pyon.util.unit_test import PyonTestCase
 from nose.plugins.attrib import attr
@@ -23,6 +24,8 @@ from mi.core.instrument.instrument_driver import DriverState
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_protocol import InterfaceType
+from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import DataParticleValue
 
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentDataException
@@ -40,17 +43,18 @@ from mi.instrument.satlantic.par_ser_600m.ooicore.driver import PARProtocolEvent
 from mi.instrument.satlantic.par_ser_600m.ooicore.driver import Parameter
 from mi.instrument.satlantic.par_ser_600m.ooicore.driver import Command
 from mi.instrument.satlantic.par_ser_600m.ooicore.driver import SatlanticChecksumDecorator
-from mi.instrument.satlantic.par_ser_600m.ooicore.driver import sample_regex
+from mi.instrument.satlantic.par_ser_600m.ooicore.driver import SatlanticPARDataParticle
+from mi.instrument.satlantic.par_ser_600m.ooicore.driver import SatlanticPARDataParticleKey
 
 from mi.core.log import get_logger ; log = get_logger()
 from interface.objects import AgentCommand
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 from pyon.core.exception import Conflict
 
+VALID_SAMPLE = "SATPAR0229,10.01,2206748544,234"
 # Make tests verbose and provide stdout
 # bin/nosetests -s -v ion/services/mi/drivers/test/test_satlantic_par.py
 # All unit tests: add "-a UNIT" to end, integration add "-a INT"
@@ -66,43 +70,48 @@ InstrumentDriverTestCase.initialize(
     #instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
 )
 
-@unittest.skip("Need better mocking of FSM or smaller testing chunks")
 @attr('UNIT', group='mi')
 class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
     """
     @todo test timeout exceptions while transitioning states and handling commands
     """
         
-    def setUp(self):
-        def response_side_effect(*args, **kwargs):
-            if args[0] == Command.SAMPLE:
-                mi_logger.debug("Side effecting!")
-                return "SATPAR0229,10.01,2206748544,234"
-            else:
-                return DEFAULT
-            
-        self.mock_callback = Mock(name='callback')
-        self.mock_logger = Mock(name='logger')
-        self.mock_logger_client = Mock(name='logger_client')
-        self.mock_fsm = Mock(name='fsm')
-#        self.mock_logger_client.send = Mock()
-        self.par_proto = SatlanticPARInstrumentProtocol(self.mock_callback)
-        self.config_params = {'device_addr':'1.1.1.1',
-                              'device_port':1,
-                              'server_addr':'2.2.2.2',
-                              'server_port':2}
-        self.par_proto._fsm = self.mock_fsm
-        self.par_proto.configure(self.config_params)
-        self.par_proto.initialize()
-        self.par_proto._logger = self.mock_logger 
-        self.par_proto._logger_client = self.mock_logger_client
-        self.par_proto._get_response = Mock(return_value=('$', None))
-        # Quick sanity check to make sure the logger got mocked properly
-        self.assertEquals(self.par_proto._logger, self.mock_logger)
-        self.assertEquals(self.par_proto._logger_client, self.mock_logger_client)
-        self.assertEquals(self.par_proto._fsm, self.mock_fsm)
-        self.mock_logger_client.reset_mock()
+    #def setUp(self):
+    """
+    Mocked up stuff
     
+    def response_side_effect(*args, **kwargs):
+        if args[0] == Command.SAMPLE:
+            mi_logger.debug("Side effecting!")
+            return "SATPAR0229,10.01,2206748544,234"
+        else:
+            return DEFAULT
+        
+    self.mock_callback = Mock(name='callback')
+    self.mock_logger = Mock(name='logger')
+    self.mock_logger_client = Mock(name='logger_client')
+    self.mock_fsm = Mock(name='fsm')
+#        self.mock_logger_client.send = Mock()
+    self.par_proto = SatlanticPARInstrumentProtocol(self.mock_callback)
+    self.config_params = {'device_addr':'1.1.1.1',
+                          'device_port':1,
+                          'server_addr':'2.2.2.2',
+                          'server_port':2}
+    self.par_proto._fsm = self.mock_fsm
+    self.par_proto.configure(self.config_params)
+    self.par_proto.initialize()
+    self.par_proto._logger = self.mock_logger 
+    self.par_proto._logger_client = self.mock_logger_client
+    self.par_proto._get_response = Mock(return_value=('$', None))
+    # Quick sanity check to make sure the logger got mocked properly
+    self.assertEquals(self.par_proto._logger, self.mock_logger)
+    self.assertEquals(self.par_proto._logger_client, self.mock_logger_client)
+    self.assertEquals(self.par_proto._fsm, self.mock_fsm)
+    self.mock_logger_client.reset_mock()
+    """
+    
+
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")    
     def test_get_param(self):
         # try single
         result = self.par_proto.get([Parameter.TELBAUD])
@@ -126,7 +135,8 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
         self.assertRaises(InstrumentProtocolException, self.par_proto.get, None)
         self.assertRaises(InstrumentProtocolException,
                           self.par_proto.get,['bad_param'])
-        
+
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")    
     def test_set_param(self):
         #@todo deal with success/fail flag or catch everywhere?
         #@todo add save checks?
@@ -160,6 +170,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
         self.assertRaises(InstrumentProtocolException,
                           self.par_proto.set,{'bad_param':0})
     
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_get_config(self):
         fetched_config = {}
         fetched_config = self.par_proto.get_config()
@@ -172,6 +183,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
         self.assertTrue(fetched_config.has_key(Parameter.TELBAUD))
         self.assertTrue(fetched_config.has_key(Parameter.MAXRATE))
     
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_restore_config(self):
         self.assertRaises(InstrumentProtocolException,
                           self.par_proto.restore_config, None)    
@@ -188,6 +200,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
                  call("set %s %s\n" % (Parameter.MAXRATE, 2))]
         self.mock_logger_client.send.assert_has_calls(calls, any_order=True)
         
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_get_single_value(self):
         result = self.par_proto.execute_poll()
         calls = [call("%s\n" % Command.EXIT),
@@ -197,6 +210,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
                  call(Command.BREAK)]
         self.mock_logger_client.send.assert_has_calls(calls, any_order=False)
         
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_breaks(self):
         # test kick to autosample, then back
         result = self.par_proto.execute_exit()        
@@ -223,6 +237,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
         self.mock_logger_client.send.assert_called_with(Command.BREAK)
         self.assertEqual(self.mock_callback.call_count, 1)
   
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_got_data(self):
         # Cant trigger easily since the async command/response, so short circut
         # the test early.
@@ -237,11 +252,51 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
 
         # check for correct parse
         
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_connect_disconnect(self):
         pass
     
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_get_status(self):
         pass
+    
+    def test_sample_format(self):
+        """
+        Test to make sure we can get sample data out in a reasonable format.
+        Parsed is all we care about...raw is tested in the base DataParticle tests
+        VALID_SAMPLE = "SATPAR0229,10.01,2206748544,234"
+        """
+        
+        port_timestamp = 3555423720.711772
+        internal_timestamp = 3555423721.711772
+        driver_timestamp = 3555423722.711772
+        particle = SatlanticPARDataParticle(VALID_SAMPLE,
+                                            port_timestamp=port_timestamp,
+                                            internal_timestamp=internal_timestamp)
+        # perform the extraction into a structure for parsed
+        sample_parsed_particle = {
+            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
+            DataParticleKey.PKT_VERSION: 1,
+            DataParticleKey.STREAM_NAME: DataParticleValue.PARSED,
+            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
+            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
+            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
+            DataParticleKey.VALUES: [
+                {DataParticleKey.VALUE_ID:SatlanticPARDataParticleKey.SERIAL_NUM,
+                 DataParticleKey.VALUE:"0229"},
+                {DataParticleKey.VALUE_ID:SatlanticPARDataParticleKey.TIMER,
+                 DataParticleKey.VALUE:10.01},
+                {DataParticleKey.VALUE_ID:SatlanticPARDataParticleKey.COUNTS,
+                 DataParticleKey.VALUE: 2206748544},
+                {DataParticleKey.VALUE_ID:SatlanticPARDataParticleKey.CHECKSUM,
+                 DataParticleKey.VALUE: 234}
+                ]
+            }
+        
+        self.compare_parsed_data_particle(SatlanticPARDataParticle,
+                                         VALID_SAMPLE,
+                                         sample_parsed_particle)        
 
 #@unittest.skip("Need a VPN setup to test against RSN installation")
 @attr('INT', group='mi')

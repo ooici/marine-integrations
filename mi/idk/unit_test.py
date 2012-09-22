@@ -11,21 +11,13 @@ from mi.core.log import get_logger ; log = get_logger()
 
 import re
 import os
-import time
 import unittest
 from sets import Set
 
-from os.path import basename
-
 import gevent
-from gevent import spawn
-from gevent.event import AsyncResult
-import subprocess
-
-from pyon.container.cc import Container
+import json
 from pyon.util.int_test import IonIntegrationTestCase
 
-from ion.agents.port.logger_process import EthernetDeviceLogger
 from ion.agents.instrument.driver_process import DriverProcess, DriverProcessType
 
 from mi.idk.comm_config import CommConfig
@@ -35,38 +27,22 @@ from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.instrument_agent_client import InstrumentAgentDataSubscribers
 from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
 
-from ion.agents.instrument.instrument_agent import InstrumentAgentEvent
 
 from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import TestNoCommConfig
-from mi.idk.exceptions import TestNoDeployFile
-from mi.idk.exceptions import PortAgentTimeout
-from mi.idk.exceptions import MissingConfig
-from mi.idk.exceptions import MissingExecutable
-from mi.idk.exceptions import FailedToLaunch
-from mi.idk.exceptions import NoContainer
 from mi.core.exceptions import InstrumentException
 
+from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
 from interface.objects import AgentCommand
-from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
-from pyon.event.event import EventSubscriber, EventPublisher
 
 from mi.core.log import get_logger ; log = get_logger()
-from interface.services.icontainer_agent import ContainerAgentClient
-from pyon.agent.agent import ResourceAgentClient
 
-#from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from pyon.core.exception import InstParameterError
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 from ion.agents.instrument.common import InstErrorCode
 from mi.core.instrument.instrument_driver import DriverConnectionState
-
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-#from pyon.net.channel import ChannelError
-from mi.core.exceptions import InstrumentParameterException
 
 from ion.agents.port.port_agent_process import PortAgentProcess
 
@@ -308,69 +284,35 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     def tearDownClass(cls):
         cls.stop_port_agent()
 
-    def setUp(self):
+    def compare_parsed_data_particle(self, particle_type, raw_input, happy_structure):
         """
-        @brief Setup test cases.
-        """
-        InstrumentDriverTestCase.setUp(self)
-        self.port_agent = self.test_config.port_agent
-
-        log.debug("InstrumentDriverIntegrationTestCase setUp")
-        self.init_driver_process_client()
-
-    def tearDown(self):
-        """
-        @brief Test teardown
-        """
-        log.debug("InstrumentDriverIntegrationTestCase tearDown")
-        self.stop_driver_process_client()
-
-        InstrumentDriverTestCase.tearDown(self)
-
-    def test_driver_process(self):
-        """
-        @Brief Test for correct launch of driver process and communications, including asynchronous driver events.
-        """
-
-        log.info("Ensuring driver process was started properly ...")
+        Compare a data particle created with the raw input string to the structure
+        that should be generated.
         
-        # Verify processes exist.
-        self.assertNotEqual(self.driver_process, None)
-        drv_pid = self.driver_process.getpid()
-        self.assertTrue(isinstance(drv_pid, int))
+        @param The data particle class to create
+        @param raw_input The input string that is instrument-specific
+        @param happy_structure The structure that should result from parsing the
+            raw input during DataParticle creation
+        """
+        port_timestamp = happy_structure[DataParticleKey.PORT_TIMESTAMP]
+        if DataParticleKey.INTERNAL_TIMESTAMP in happy_structure:
+            internal_timestamp = happy_structure[DataParticleKey.INTERNAL_TIMESTAMP]        
+            test_particle = particle_type(raw_input, port_timestamp=port_timestamp,
+                                          internal_timestamp=internal_timestamp)
+        else:
+            test_particle = particle_type(raw_input, port_timestamp=port_timestamp)
+            
+        parsed_result = test_particle.generate_parsed()
+        decoded_parsed = json.loads(parsed_result)
         
-        self.assertNotEqual(self.port_agent, None)
-        pagent_pid = self.port_agent.get_pid()
-        self.assertTrue(isinstance(pagent_pid, int))
+        driver_time = decoded_parsed[DataParticleKey.DRIVER_TIMESTAMP]
+        happy_structure[DataParticleKey.DRIVER_TIMESTAMP] = driver_time
         
-        # Send a test message to the process interface, confirm result.
-        reply = self.driver_client.cmd_dvr('process_echo')
-        self.assert_(reply.startswith('ping from resource ppid:'))
+        # run it through json so unicode and everything lines up
+        standard = json.dumps(happy_structure, sort_keys=True)
 
-        reply = self.driver_client.cmd_dvr('driver_ping', 'foo')
-        self.assert_(reply.startswith('driver_ping: foo'))
-        
-        # Test the driver is in state unconfigured.
-        # TODO: Add this test back in after driver code is merged from coi-services
-        #state = self.driver_client.cmd_dvr('get_current_state')
-        #self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-                
-        # Test the event thread publishes and client side picks up events.
-        events = [
-            'I am important event #1!',
-            'And I am important event #2!'
-            ]
-        reply = self.driver_client.cmd_dvr('test_events', events=events)
-        gevent.sleep(1)
-        
-        # Confirm the events received are as expected.
-        self.assertEqual(self.events, events)
-
-        # Test the exception mechanism.
-        with self.assertRaises(InstrumentException):
-            exception_str = 'Oh no, something bad happened!'
-            reply = self.driver_client.cmd_dvr('test_exceptions', exception_str)
-
+        self.assertEqual(parsed_result, standard)
+    
 
 class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must inherit from here to get _start_container
     @classmethod

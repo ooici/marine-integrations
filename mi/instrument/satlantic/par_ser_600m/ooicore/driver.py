@@ -23,6 +23,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.common import InstErrorCode
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.exceptions import InstrumentException
@@ -30,6 +31,7 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentDataException
 from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import SampleException
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -39,10 +41,10 @@ log = get_logger()
 ####################################################################
 
 # ex SATPAR0229,10.01,2206748544,234
-sample_pattern = r'SATPAR(?P<sernum>\d{4}),(?P<timer>\d{1,7}.\d\d),(?P<counts>\d{10}),(?P<checksum>\d{1,3})'
-sample_regex = re.compile(sample_pattern)
-header_pattern = r'Satlantic PAR Sensor\r\nCommand Console\r\nType \'help\' for a list of available commands.\r\nS/N: \d*\r\nFirmware: .*\r\n\r\n'
-header_regex = re.compile(header_pattern)
+SAMPLE_PATTERN = r'SATPAR(?P<sernum>\d{4}),(?P<timer>\d{1,7}.\d\d),(?P<counts>\d{10}),(?P<checksum>\d{1,3})'
+SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
+HEADER_PATTERN = r'Satlantic PAR Sensor\r\nCommand Console\r\nType \'help\' for a list of available commands.\r\nS/N: \d*\r\nFirmware: .*\r\n\r\n'
+HEADER_REGEX = re.compile(HEADER_PATTERN)
 init_pattern = r'Press <Ctrl\+C> for command console. \r\nInitializing system. Please wait...\r\n'
 init_regex = re.compile(init_pattern)
 WRITE_DELAY = 0.2
@@ -149,6 +151,57 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     def _build_protocol(self):
         """ Construct driver protocol state machine """
         self._protocol = SatlanticPARInstrumentProtocol(self._driver_event)
+        
+class SatlanticPARDataParticleKey(BaseEnum):
+    SERIAL_NUM = "serial_num"
+    COUNTS = "counts"
+    TIMER = "timer"
+    CHECKSUM = "checksum"
+    
+class SatlanticPARDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure for the
+    Satlantic PAR sensor. Overrides the building of values, and the rest comes
+    along for free.
+    """
+    def _build_parsed_values(self):
+        """
+        Take something in the sample format and split it into
+        a PAR values (with an appropriate tag)
+        
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = SAMPLE_REGEX.match(self.raw_data)
+        
+        if not match:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+            
+        sernum = str(match.group(1))
+        timer = float(match.group(2))
+        counts = int(match.group(3))
+        checksum = int(match.group(4))
+        
+        if not sernum:
+            raise SampleException("No serial number value parsed")
+        if not timer:
+            raise SampleException("No timer value parsed")
+        if not counts:
+            raise SampleException("No counts value parsed")
+        if not checksum:
+            raise SampleException("No checksum value parsed")
+        
+        #TODO:  Get 'temp', 'cond', and 'depth' from a paramdict
+        result = [{DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.SERIAL_NUM,
+                   DataParticleKey.VALUE: sernum},
+                  {DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.TIMER,
+                   DataParticleKey.VALUE: timer},
+                  {DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.COUNTS,
+                    DataParticleKey.VALUE: counts},
+                  {DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.CHECKSUM,
+                    DataParticleKey.VALUE: checksum}]
+        
+        return result
         
 ####################################################################
 # Satlantic PAR Sensor Protocol
@@ -363,9 +416,24 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             if not Parameter.has(param):
                 raise InstrumentParameterException()
                 break
-            result_vals[param] = self._do_cmd_resp(Command.GET, param,
-                                                   expected_prompt=Prompt.COMMAND,
-                                                   write_delay=self.write_delay)
+            try:
+                result_vals[param] = self._do_cmd_resp(Command.GET, param,
+                                                       expected_prompt=Prompt.COMMAND,
+                                                       write_delay=self.write_delay)
+            except InstrumentProtocolException:
+                # Give it a second try...
+                log.warn("Retrying get from instrument...")
+                try:
+                    result_vals[param] = self._do_cmd_resp(Command.GET, param,
+                                                           expected_prompt=Prompt.COMMAND,
+                                                           write_delay=self.write_delay)
+                except InstrumentProtocolException:
+                    # then raise the exception if that fails a third time
+                    log.warn("Retrying get from instrument...again...")
+                    result_vals[param] = self._do_cmd_resp(Command.GET, param,
+                                                expected_prompt=Prompt.COMMAND,
+                                                write_delay=self.write_delay)
+                
         result = result_vals
             
         log.debug("Get finished, next: %s, result: %s", next_state, result) 
@@ -779,14 +847,18 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @param response The response string from the instrument
         @param prompt The prompt received from the instrument
         @retval return The numerical value of the parameter in the known units
-        @todo Fill this in
+        @raise InstrumentProtocolException When a bad response is encountered
         """
         # should end with the response, an eoln, and a prompt
         split_response = response.split(self.eoln)
         if (len(split_response) < 2) or (split_response[-1] != Prompt.COMMAND):
             return InstErrorCode.HARDWARE_ERROR
         name = self._param_dict.update(split_response[-2])
-        log.debug("parameter %s set to %s" %(name, self._param_dict.get(name)))
+        if not name:
+            log.warn("Bad response from instrument")
+            raise InstrumentProtocolException("Invalid response. Bad command?")
+            
+        log.debug("Parameter %s set to %s" %(name, self._param_dict.get(name)))
         return self._param_dict.get(name)
         
     def _parse_silent_response(self, response, prompt):
@@ -813,7 +885,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug("Parsing header response of [%s] with prompt [%s]",
                         response, prompt)
-        if header_regex.search(response):
+        if HEADER_REGEX.search(response):
             return InstErrorCode.OK        
         else:
             return InstErrorCode.HARDWARE_ERROR
@@ -870,12 +942,12 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             if self.eoln in response:
                 lines = response.split(self.eoln)
                 for line in lines:
-                    if sample_regex.match(line):
+                    if SAMPLE_REGEX.match(line):
                         # In poll mode, we only care about the first response, right?
                         return line
                     else:
                         return ""
-            elif sample_regex.match(response):
+            elif SAMPLE_REGEX.match(response):
                 return response
             else:
                 return ""
@@ -997,9 +1069,14 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                 if self.eoln in self._linebuf:
                     lines = self._linebuf.split(self.eoln)
                     for line in lines:
-                        if sample_regex.match(line):
+                        if SAMPLE_REGEX.match(line):
                             self._last_data_timestamp = time.time()
-                            self._driver_event(DriverAsyncEvent.SAMPLE, line)
+                            
+                            # construct and publish data particles
+                            self._extract_sample(SatlanticPARDataParticle,
+                                                 SAMPLE_REGEX,
+                                                 line)                            
+                            
                             self._linebuf = self._linebuf.replace(line+self.eoln, "") # been processed
 
     def _confirm_autosample_mode(self):
@@ -1090,7 +1167,7 @@ class SatlanticChecksumDecorator(ChecksumDecorator):
         """
         assert (data != None)
         assert (data != "")
-        match = sample_regex.match(data)
+        match = SAMPLE_REGEX.match(data)
         if not match:
             return False
         try:

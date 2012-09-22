@@ -194,6 +194,11 @@ class SBE37Driver(SingleConnectionInstrumentDriver):
         """
         self._protocol = SBE37Protocol(SBE37Prompt, SBE37_NEWLINE, self._driver_event)
 
+class SBE37DataParticleKey(BaseEnum):
+    TEMP = "temp"
+    CONDUCTIVITY = "conductivity"
+    DEPTH = "depth"
+    
 class SBE37DataParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
@@ -225,11 +230,11 @@ class SBE37DataParticle(DataParticle):
         
         
         #TODO:  Get 'temp', 'cond', and 'depth' from a paramdict
-        result = [{DataParticleKey.VALUE_ID: "temp",
+        result = [{DataParticleKey.VALUE_ID: SBE37DataParticleKey.TEMP,
                    DataParticleKey.VALUE: temperature},
-                  {DataParticleKey.VALUE_ID: "conductivity",
+                  {DataParticleKey.VALUE_ID: SBE37DataParticleKey.CONDUCTIVITY,
                    DataParticleKey.VALUE: conductivity},
-                  {DataParticleKey.VALUE_ID: "depth",
+                  {DataParticleKey.VALUE_ID: SBE37DataParticleKey.DEPTH,
                     DataParticleKey.VALUE: depth}]
         
         return result
@@ -807,7 +812,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         sample = None
         for line in response.split(SBE37_NEWLINE):
-            sample = self._extract_sample(line, True)
+            sample = self._extract_sample(SBE37DataParticle, SAMPLE_REGEX, line, True)
             if sample:
                 break
 
@@ -873,41 +878,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                     lines = self._linebuf.split(SBE37_NEWLINE)
                     self._linebuf = lines[-1]
                     for line in lines:
-                        self._extract_sample(line)
-
-    def _extract_sample(self, line, publish=True):
-        """
-        Extract sample from a response line if present and publish "raw" and
-        "parsed" sample events to agent.
-
-        @param line string to match for sample.
-        @param publish boolean to publish samples (default True). If True,
-               two different events are published: one to notify raw data and
-               the other to notify parsed data.
-
-        @retval dict of dicts {'parsed': parsed_sample, 'raw': raw_sample} if
-                the line can be parsed for a sample. Otherwise, None.
-        @todo Figure out how the agent wants the results for a single poll
-            and return them that way from here
-        """
-        sample = None
-        if SAMPLE_REGEX.match(line):
-        
-            particle = SBE37DataParticle(line,
-                preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
-            
-            raw_sample = particle.generate_raw()
-            parsed_sample = particle.generate_parsed()
-            
-            if publish and self._driver_event:
-                self._driver_event(DriverAsyncEvent.SAMPLE, raw_sample)
-    
-            if publish and self._driver_event:
-                self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
-    
-            sample = dict(parsed=json.loads(parsed_sample), raw=json.loads(raw_sample))
-            return sample
-        return sample
+                        self._extract_sample(SBE37DataParticle, SAMPLE_REGEX,
+                                             line)
 
     def _build_param_dict(self):
         """

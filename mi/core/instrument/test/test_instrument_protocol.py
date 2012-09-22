@@ -10,10 +10,13 @@
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
-import loggging
+import logging
 from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
+#from mi.core.instrument.data_particle import DataParticle
+from mi.instrument.satlantic.par_ser_600m.ooicore.driver import SAMPLE_REGEX
+from mi.instrument.satlantic.par_ser_600m.ooicore.driver import SatlanticPARDataParticle
 from pyon.util.unit_test import IonUnitTestCase
 
 @attr('UNIT', group='mi')
@@ -28,11 +31,24 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
         """
         self.callback_result = None
         
-        def protocol_callback(self, arg)
+        def protocol_callback(self, arg):
             callback_result = arg
             
         self.protocol = InstrumentProtocol(protocol_callback)
     
+    def test_extraction(self):
+        sample_line = "SATPAR0229,10.01,2206748544,234"
+        result = self.protocol._extract_sample(SatlanticPARDataParticle,
+                                               SAMPLE_REGEX,
+                                               sample_line,
+                                               publish=False)
+    
+        self.assertTrue(result['parsed'])
+        self.assertTrue(result['raw'])
+
+        # Test the format of the result in the individual driver tests. Here,
+        # just tests that the result is there.
+        
     def test_publish_raw(self):
         """
         Tests to see if raw data is appropriately published back out to
