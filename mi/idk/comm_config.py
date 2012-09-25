@@ -39,6 +39,8 @@ from mi.idk.exceptions import NoConfigFileSpecified
 from mi.idk.exceptions import CommConfigReadFail
 from mi.idk.exceptions import InvalidCommType
 
+DEFAULT_DATA_PORT = 5000
+DEFAULT_CMD_PORT = 5001
 
 class CommConfig(object):
     """
@@ -64,12 +66,17 @@ class CommConfig(object):
         if( yamlInput ):
             self.config_type = yamlInput['comm'].get('method')
 
+            self.data_port = yamlInput['comm'].get('data_port')
+            self.command_port = yamlInput['comm'].get('command_port')
+
     def _config_dictionary(self):
         """
         @brief get a dictionary of configuration parameters.  This method should be sub classed to extend config
         @retval dictionary containing all config parameters.
         """
-        return { 'method': self.method() }
+        return { 'method': self.method(),
+                 'data_port': self.data_port,
+                 'command_port': self.command_port }
 
 
     ###
@@ -80,6 +87,9 @@ class CommConfig(object):
         @brief Pretty print object configuration to stdout.  This method should be sub classed.
         """
         print( "Type: " + self.method() )
+        print( "PA Command Port: " + self.command_port )
+        print( "PA Data Port: " + self.data_port )
+
 
     def serialize(self):
         """
@@ -136,6 +146,12 @@ class CommConfig(object):
         """
         @brief Read comm config from the console.  This should be overloaded in a sub class.
         """
+        if(not self.data_port): self.data_port = DEFAULT_DATA_PORT
+        if(not self.command_port): self.command_port = DEFAULT_CMD_PORT
+
+        self.data_port = prompt.text( 'Port Agent Data Port', self.data_port )
+        self.command_port = prompt.text( 'Port Agent Command Port', self.command_port )
+
         if( self.confirm_config() ):
             self.store_to_file()
         else:

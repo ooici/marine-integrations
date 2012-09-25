@@ -29,6 +29,11 @@ from mi.idk.exceptions import NoConfigFileSpecified
 from mi.idk.exceptions import CommConfigReadFail
 from mi.idk.exceptions import InvalidCommType
 
+INSTRUMENT_ADDR = 'localhost'
+INSTRUMENT_PORT = 4000
+COMMAND_PORT = 4001
+DATA_PORT = 4002
+
 ROOTDIR="/tmp/test_config.idk_test"
 # /tmp is a link on OS X
 if exists("/private/tmp"):
@@ -54,13 +59,13 @@ class TestCommConfig(unittest.TestCase):
         return "%s/comm_config.yml" % ROOTDIR
     
     def config_content(self):
-        return "comm:\n" + \
-               "  device_addr: localhost\n" + \
-               "  device_port: 1000\n" + \
-               "  method: ethernet\n" + \
-               "  server_addr: localhost\n" + \
-               "  server_port: 2000\n"
-               
+        return "comm:\n" +\
+               "  command_port: %d\n" % (COMMAND_PORT) + \
+               "  data_port: %d\n" % (DATA_PORT) + \
+               "  device_addr: %s\n" % (INSTRUMENT_ADDR) + \
+               "  device_port: %d\n" % (INSTRUMENT_PORT) + \
+               "  method: ethernet\n"
+
     def write_config(self):
         ofile = open(self.config_file(), "w");
         ofile.write(self.config_content())
@@ -134,10 +139,10 @@ class TestCommConfig(unittest.TestCase):
         self.assertFalse(exists(self.config_file()))
         
         config = CommConfig.get_config_from_type(self.config_file(), "ethernet")
-        config.device_addr = 'localhost'
-        config.device_port = 1000
-        config.server_addr = 'localhost'
-        config.server_port = 2000
+        config.device_addr = INSTRUMENT_ADDR
+        config.device_port = INSTRUMENT_PORT
+        config.data_port = DATA_PORT
+        config.command_port = COMMAND_PORT
         
         log.debug("CONFIG: %s" % config.serialize())
         
@@ -148,9 +153,9 @@ class TestCommConfig(unittest.TestCase):
     def test_config_read_ethernet(self):
         config = CommConfig.get_config_from_type(self.config_file(), "ethernet")
         
-        self.assertEqual(config.device_addr, 'localhost')
-        self.assertEqual(config.device_port, 1000)
-        self.assertEqual(config.server_addr, 'localhost')
-        self.assertEqual(config.server_port, 2000)
+        self.assertEqual(config.device_addr, INSTRUMENT_ADDR)
+        self.assertEqual(config.device_port, INSTRUMENT_PORT)
+        self.assertEqual(config.data_port, DATA_PORT)
+        self.assertEqual(config.command_port, COMMAND_PORT)
         
     
