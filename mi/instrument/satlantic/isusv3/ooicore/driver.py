@@ -949,7 +949,7 @@ class Protocol(MenuInstrumentProtocol):
     #
     # DHE ADDED 
     #
-    def got_data(self, data):
+    def old_got_data(self, data):
         """
         Callback for receiving new data from the device.
         """
@@ -998,7 +998,7 @@ class Protocol(MenuInstrumentProtocol):
                             self._extract_sample(line)
 
 
-    def got_pa_packet(self, paPacket):
+    def got_data(self, paPacket):
         """
         Callback for receiving new data from the device.
         """
