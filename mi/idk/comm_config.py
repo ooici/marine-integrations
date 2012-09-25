@@ -87,8 +87,8 @@ class CommConfig(object):
         @brief Pretty print object configuration to stdout.  This method should be sub classed.
         """
         print( "Type: " + self.method() )
-        print( "PA Command Port: " + self.command_port )
-        print( "PA Data Port: " + self.data_port )
+        print( "PA Command Port: " + str(self.command_port) )
+        print( "PA Data Port: " + str(self.data_port) )
 
 
     def serialize(self):
