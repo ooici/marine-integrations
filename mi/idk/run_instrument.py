@@ -152,9 +152,10 @@ class RunInstrument(IonIntegrationTestCase):
         #self._start_pagent()
         self.new_start_pagent()
 
+        # Start a monitor window if specified.
         if self.monitor_window:
             self.monitor_file = self._pagent.port_agent.logfname
-            pOpenString = "xterm -e tail -f " + self.monitor_file
+            pOpenString = "xterm -T InstrumentMonitor -e tail -f " + self.monitor_file
             
             x = subprocess.Popen(pOpenString, shell=True)        
             
@@ -525,7 +526,8 @@ class RunInstrument(IonIntegrationTestCase):
 
         self.bring_instrument_active()
 
-        text = 'Enter command'
+        PROMPT = 'Enter command (\'quit\' to exit)'
+        text = PROMPT
         continuing = True
         while continuing:
             """
@@ -533,12 +535,12 @@ class RunInstrument(IonIntegrationTestCase):
             """
             self.get_capabilities()
             command = self.get_user_command(text)
-            text = 'Enter command'
+            text = PROMPT
             if command == 'quit':
                 continuing = False
             elif command in self.agt_cmds or command in self.res_cmds:
                 self.send_command(command)
             else:
-                text = 'Invalid Command: ' + command + '.\nEnter command'
+                text = 'Invalid Command: ' + command + PROMPT
                 
 
