@@ -78,15 +78,11 @@ class PortAgentPacket():
             self.__length = len(self.__data)
             
             up_header = (0xa3, 0x9d, 0x7a, self.__type, self.__length + HEADER_SIZE, 0, 0, 0)
-            #format = '>BBBBHHLL'
             format = '>BBBBHHLL'
             size = struct.calcsize(format)
             self.__header = array.array('B', '\0' * HEADER_SIZE)
-            #struct.pack_into(format, self.__header, *up_header)
-            #self.__header = bytearray("123456789abcdef")
-            #crapola = "123456789abcdef"
             struct.pack_into(format, self.__header, 0, *up_header)
-            print "here it is: ", binascii.hexlify(self.__header)
+            #print "here it is: ", binascii.hexlify(self.__header)
             
             """
             do the checksum last, since the checksum needs to include the
@@ -123,7 +119,7 @@ class PortAgentPacket():
         else:
             self.__isValid = False
             
-        log.info('checksum: %i.' %(checksum))
+        #log.debug('checksum: %i.' %(checksum))
 
     def get_data_size(self):
         return self.__length
@@ -211,7 +207,7 @@ class PortAgentClient(object):
         paPacket.verify_checksum()
         self.user_callback(paPacket)
         
-    def send(self, data):
+    def old_send(self, data):
         """
         Send data to the port agent.  (Instantiate a PortAgentPacket object and
         send the object to the port agent.)
@@ -238,6 +234,21 @@ class PortAgentClient(object):
                     data = data[sent:]
                 except socket.error:
                     time.sleep(.1)
+                
+    def send(self, data):
+        """
+        Send data to the port agent.
+        """
+        
+        if self.sock:
+            while len(data) > 0:
+                try:
+                    sent = self.sock.send(data)
+                    gone = data[:sent]
+                    data = data[sent:]
+                except socket.error:
+                    time.sleep(.1)
+
                 
 class Listener(threading.Thread):
     """
@@ -298,7 +309,6 @@ class Listener(threading.Thread):
                     bytes_left -= len(header)
                     if bytes_left == 0:
                         received_header = True
-                        print "RECEIVED HEADER!"
                         paPacket = PortAgentPacket()         
                         paPacket.unpack_header(header)         
                         data_size = paPacket.get_data_size()
@@ -327,25 +337,6 @@ class Listener(threading.Thread):
                     else:
                         log.error('No callback registered')
 
-                
-                #--------------------------------- OLD
-                """
-                data = self.sock.recv(4069)
-                if self.callback:
-                    self.callback(header, data)
-                else:
-                    if not self.delim:
-                        print 'from device:%s' % repr(data)
-                    else:
-                        self.linebuf += data
-                        lines = str.split(self.linebuf, self.delim)
-                        self.linebuf = lines[-1]
-                        lines = lines[:-1]
-                        for item in lines:
-                            print 'from device:%s' % item
-                """
-                #--------------------------------- END OLD
-                
             except socket.error:
                 time.sleep(.1)
         log.info('Logger client done listening.')
