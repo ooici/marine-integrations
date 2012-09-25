@@ -92,7 +92,8 @@ class RunInstrument(IonIntegrationTestCase):
     Main class for communicating with an instrument
     """
 
-    def __init__(self, make=None, model=None, name=None, driver_class=None, ip_address=None, port=None, version=None):
+    def __init__(self, make=None, model=None, name=None, driver_class=None, 
+                 ip_address=None, port=None, version=None, monitor=False):
         self.driver_make = make
         self.driver_model = model
         self.driver_name = name
@@ -102,6 +103,7 @@ class RunInstrument(IonIntegrationTestCase):
         self.ip_address = ip_address
         self.port = port
         self.driver_version = version
+        self.monitor_window = monitor
         
         self._cleanups = []
 
@@ -150,11 +152,12 @@ class RunInstrument(IonIntegrationTestCase):
         #self._start_pagent()
         self.new_start_pagent()
 
-        self.monitor_file = self._pagent.port_agent.logfname
-        pOpenString = "xterm -e tail -f " + self.monitor_file
-        
-        x = subprocess.Popen(pOpenString, shell=True)        
-        
+        if self.monitor_window:
+            self.monitor_file = self._pagent.port_agent.logfname
+            pOpenString = "xterm -e tail -f " + self.monitor_file
+            
+            x = subprocess.Popen(pOpenString, shell=True)        
+            
         """
         DHE: Added self._cleanups to make base classes happy
         """
