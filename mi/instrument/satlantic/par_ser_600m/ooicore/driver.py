@@ -50,6 +50,7 @@ init_regex = re.compile(init_pattern)
 WRITE_DELAY = 0.2
 RESET_DELAY = 6
 EOLN = "\r\n"
+RETRY = 3
 
 class PARSpecificDriverEvents(BaseEnum):
     START_POLL = 'DRIVER_EVENT_START_POLL'
@@ -415,24 +416,18 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         for param in params:
             if not Parameter.has(param):
                 raise InstrumentParameterException()
-                break
-            try:
-                result_vals[param] = self._do_cmd_resp(Command.GET, param,
-                                                       expected_prompt=Prompt.COMMAND,
-                                                       write_delay=self.write_delay)
-            except InstrumentProtocolException:
-                # Give it a second try...
-                log.warn("Retrying get from instrument...")
+            for attempt in range(RETRY):
+                # retry up to RETRY times
                 try:
                     result_vals[param] = self._do_cmd_resp(Command.GET, param,
                                                            expected_prompt=Prompt.COMMAND,
                                                            write_delay=self.write_delay)
-                except InstrumentProtocolException:
-                    # then raise the exception if that fails a third time
-                    log.warn("Retrying get from instrument...again...")
-                    result_vals[param] = self._do_cmd_resp(Command.GET, param,
-                                                expected_prompt=Prompt.COMMAND,
-                                                write_delay=self.write_delay)
+                    break  # GET worked, so exit inner for loop
+                except InstrumentProtocolException as ex:
+                    pass   # GET failed, so retry again
+            else:
+                # retries exhausted, so raise exception
+                raise ex
                 
         result = result_vals
             
@@ -456,7 +451,6 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         for key in name_values.keys():
             if not Parameter.has(key):
                 raise InstrumentParameterException()
-                break
             result_vals[key] = self._do_cmd_resp(Command.SET, key, name_values[key],
                                                  expected_prompt=Prompt.COMMAND,
                                                  write_delay=self.write_delay)
