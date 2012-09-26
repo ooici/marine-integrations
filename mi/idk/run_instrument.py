@@ -152,9 +152,9 @@ class RunInstrument(IonIntegrationTestCase):
                                                      WORK_DIR)
         """
         
-        # Start port agent, add stop to cleanup.
-        #self._start_pagent()
-        self.new_start_pagent()
+        # Start port agent, add stop to cleanup (not sure if that's
+        # necessary yet).
+        self.start_pagent()
 
         # Start a monitor window if specified.
         if self.monitor_window:
@@ -168,8 +168,7 @@ class RunInstrument(IonIntegrationTestCase):
         """
         DHE: Added self._cleanups to make base classes happy
         """
-        #self.addCleanup(self._support.stop_pagent)    
-        self.addCleanup(self.new_stop_pagent)    
+        self.addCleanup(self.stop_pagent)    
         
         # Start container.
         log.info('Staring capability container.')
@@ -210,69 +209,16 @@ class RunInstrument(IonIntegrationTestCase):
         
         self._start_data_subscribers(6)
 
-        
     ###############################################################################
     # Port agent helpers.
     ###############################################################################
-
-    def _start_pagent(self):
-        """
-        Construct and start the port agent.
-        """
-
-        port = self._support.start_pagent()
-        log.info('Port agent started at port %i',port)
         
-        # Configure driver to use port agent port number.
-        DVR_CONFIG['comms_config'] = {
-            'addr' : 'localhost',
-            'port' : port
-        }
- 
-    @classmethod
-    def comm_config_file(self):
-        """
-        @brief Return the path the the driver comm config yaml file.
-        @return if comm_config.yml exists return the full path
-        """
-        repo_dir = Config().get('working_repo')
-        driver_path = self.test_config.driver_module
-        p = re.compile('\.')
-        driver_path = p.sub('/', driver_path)
-        abs_path = "%s/%s/%s" % (repo_dir, os.path.dirname(driver_path), CommConfig.config_filename())
-        
-        log.debug(abs_path)
-        return abs_path
-
-    @classmethod
-    def get_comm_config(self):
-        """
-        @brief Create the comm config object by reading the comm_config.yml file.
-        """
-        log.info("get comm config")
-        config_file = self.comm_config_file()
-        
-        log.debug( " -- reading comm config from: %s" % config_file )
-        if not os.path.exists(config_file):
-            raise TestNoCommConfig(msg="Missing comm config.  Try running start_driver or switch_driver")
-        
-        return CommConfig.get_config_from_file(config_file)
-        
-    def new_start_pagent(self):
+    def start_pagent(self):
         """
         Construct and start the port agent.
         @retval port Port that was used for connection to agent
         """
         # Create port agent object.
-        """
-        old stuff
-        config = { 'device_addr' : self.ip_address,
-                   'device_port' : self.data_port,
-                   'working_dir' : WORK_DIR,
-                   'delimiter' : DELIM }
-        """
-
-        #comm_config = self.get_comm_config()
         comm_config = self.comm_config
 
         config = {
@@ -300,19 +246,17 @@ class RunInstrument(IonIntegrationTestCase):
 
         return port
 
-    def new_stop_pagent(self):
+    def stop_pagent(self):
         """
         Stop the port agent.
         """
         if self._pagent:
             pid = self._pagent.get_pid()
             if pid:
-                mi_logger.info('Stopping pagent pid %i', pid)
+                log.info('Stopping pagent pid %i', pid)
                 self._pagent.stop()
             else:
-                mi_logger.info('No port agent running.')
-
-
+                log.info('No port agent running.')
        
     ###############################################################################
     # Data stream helpers.
@@ -595,5 +539,8 @@ class RunInstrument(IonIntegrationTestCase):
                 self.send_command(command)
             else:
                 text = 'Invalid Command: ' + command + PROMPT
-                
+
+        self.stop_pagent()
+        print( "*** Stopping RunInstrument ***")
+        
 
