@@ -415,7 +415,14 @@ class RunInstrument(IonIntegrationTestCase):
         """
 
         print "Input command: " + str(command)
-        cmd = AgentCommand(command = command)
+        if command == 'RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS':
+            cmd = AgentCommand(command = command, 
+                               kwargs={'session_type': DirectAccessTypes.telnet,
+                                       'session_timeout':600,
+                                       'inactivity_timeout':600})
+        else:
+            cmd = AgentCommand(command = command)
+            
         retval = self._ia_client.execute_agent(cmd)
         print "Results of command: " + str(retval)
 
@@ -547,21 +554,25 @@ class RunInstrument(IonIntegrationTestCase):
         PROMPT = 'Enter command (\'quit\' to exit)'
         text = PROMPT
         while continuing:
-            """
-            Get a list of the currently available capabilities
-            """
-            self.get_capabilities()
-            command = self.get_user_command(text)
-            text = PROMPT
-            if command == 'quit':
+            try:
+                """
+                Get a list of the currently available capabilities
+                """
+                self.get_capabilities()
+                command = self.get_user_command(text)
+                text = PROMPT
+                if command == 'quit':
+                    continuing = False
+                elif command in self.agt_cmds:
+                    self.send_agent_command(command)
+                elif command in self.res_cmds:
+                    self.send_driver_command(command)
+                else:
+                    text = 'Invalid Command: ' + command + '\n' + PROMPT 
+            except:
+                log.error("run(): Exception occurred; shutting down.", exc_info=True)
                 continuing = False
-            elif command in self.agt_cmds:
-                self.send_agent_command(command)
-            elif command in self.res_cmds:
-                self.send_driver_command(command)
-            else:
-                text = 'Invalid Command: ' + command + PROMPT
-
+                
         self.stop_pagent()
         print( "*** Stopping RunInstrument ***")
         
