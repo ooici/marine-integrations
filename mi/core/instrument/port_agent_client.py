@@ -166,11 +166,7 @@ class PortAgentClient(object):
             # error: [Errno 61] Connection refused
             self.sock.connect((self.host, self.port))
             self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            """
-            DHE: Setting socket to blocking to try something...
-            """                        
-            #self.sock.setblocking(0)
-            self.sock.setblocking(1)
+            self.sock.setblocking(0)
             self.user_callback = callback        
             self.listener_thread = Listener(self.sock, self.delim, self.callback)
             self.listener_thread.start()
