@@ -17,6 +17,7 @@ from sets import Set
 import gevent
 import json
 from pyon.util.int_test import IonIntegrationTestCase
+from ion.agents.port.port_agent_process import PortAgentProcessType
 
 from ion.agents.instrument.driver_process import DriverProcess, DriverProcessType
 
@@ -196,7 +197,13 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
 
         config = {
             'device_addr' : comm_config.device_addr,
-            'device_port' : comm_config.device_port
+            'device_port' : comm_config.device_port,
+
+            'command_port': comm_config.command_port,
+            'data_port': comm_config.data_port,
+
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 5,
         }
 
         port_agent = PortAgentProcess.launch_process(config, timeout = 60,

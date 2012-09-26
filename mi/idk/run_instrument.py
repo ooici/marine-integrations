@@ -33,6 +33,7 @@ from pyon.agent.agent import ResourceAgentEvent
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 from ion.agents.instrument.driver_int_test_support import DriverIntegrationTestSupport
 from ion.agents.port.port_agent_process import PortAgentProcess
+from ion.agents.port.port_agent_process import PortAgentProcessType
 from ion.agents.instrument.driver_process import DriverProcessType
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -92,7 +93,8 @@ class RunInstrument(IonIntegrationTestCase):
     Main class for communicating with an instrument
     """
 
-    def __init__(self, make=None, model=None, name=None, driver_class=None, ip_address=None, port=None, version=None):
+    def __init__(self, make=None, model=None, name=None, driver_class=None, 
+                 ip_address=None, data_port=None, command_port=None, version=None, monitor=False):
         self.driver_make = make
         self.driver_model = model
         self.driver_name = name
@@ -100,8 +102,10 @@ class RunInstrument(IonIntegrationTestCase):
         if not self.driver_class:
             self.driver_class = DRIVER_CLASS
         self.ip_address = ip_address
-        self.port = port
+        self.data_port = data_port
+        self.command_port = command_port
         self.driver_version = version
+        self.monitor_window = monitor
         
         self._cleanups = []
 
@@ -132,34 +136,39 @@ class RunInstrument(IonIntegrationTestCase):
         log.info('driver module: %s', driver_module)
         log.info('driver class: %s', self.driver_class)
         log.info('device address: %s', self.ip_address)
-        log.info('device port: %s', self.port)
+        log.info('device data port: %s', self.data_port)
+        log.info('device command port: %s', self.command_port)
         log.info('log delimiter: %s', DELIM)
         log.info('work dir: %s', WORK_DIR)
 
         DVR_CONFIG.update({'dvr_mod' : driver_module, 'dvr_cls' : self.driver_class})
 
-        
+        """
         self._support = DriverIntegrationTestSupport(driver_module,
                                                      self.driver_class,
                                                      self.ip_address,
-                                                     self.port,
+                                                     self.data_port,
                                                      DELIM,
                                                      WORK_DIR)
+        """
         
-        # Start port agent, add stop to cleanup.
-        #self._start_pagent()
-        self.new_start_pagent()
+        # Start port agent, add stop to cleanup (not sure if that's
+        # necessary yet).
+        self.start_pagent()
 
-        self.monitor_file = self._pagent.port_agent.logfname
-        pOpenString = "xterm -e tail -f " + self.monitor_file
-        
-        x = subprocess.Popen(pOpenString, shell=True)        
-        
+        # Start a monitor window if specified.
+        if self.monitor_window:
+            self.monitor_file = self._pagent.port_agent.logfname
+            strXterm = "xterm -T InstrumentMonitor -sb -rightbar"
+            #pOpenString = "xterm -T InstrumentMonitor -e tail -f " + self.monitor_file
+            pOpenString = strXterm + " -e tail -f " + self.monitor_file
+            
+            x = subprocess.Popen(pOpenString, shell=True)        
+            
         """
         DHE: Added self._cleanups to make base classes happy
         """
-        #self.addCleanup(self._support.stop_pagent)    
-        self.addCleanup(self.new_stop_pagent)    
+        self.addCleanup(self.stop_pagent)    
         
         # Start container.
         log.info('Staring capability container.')
@@ -200,35 +209,28 @@ class RunInstrument(IonIntegrationTestCase):
         
         self._start_data_subscribers(6)
 
-        
     ###############################################################################
     # Port agent helpers.
     ###############################################################################
-
-    def _start_pagent(self):
-        """
-        Construct and start the port agent.
-        """
-
-        port = self._support.start_pagent()
-        log.info('Port agent started at port %i',port)
         
-        # Configure driver to use port agent port number.
-        DVR_CONFIG['comms_config'] = {
-            'addr' : 'localhost',
-            'port' : port
-        }
- 
-    def new_start_pagent(self):
+    def start_pagent(self):
         """
         Construct and start the port agent.
         @retval port Port that was used for connection to agent
         """
         # Create port agent object.
-        config = { 'device_addr' : self.ip_address,
-                   'device_port' : self.port,
-                   'working_dir' : WORK_DIR,
-                   'delimiter' : DELIM }
+        comm_config = self.comm_config
+
+        config = {
+            'device_addr' : comm_config.device_addr,
+            'device_port' : comm_config.device_port,
+
+            'command_port': comm_config.command_port,
+            'data_port': comm_config.data_port,
+
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 5,
+        }
 
         self._pagent = PortAgentProcess.launch_process(config, timeout = 60, test_mode = True)
         pid = self._pagent.get_pid()
@@ -244,19 +246,17 @@ class RunInstrument(IonIntegrationTestCase):
 
         return port
 
-    def new_stop_pagent(self):
+    def stop_pagent(self):
         """
         Stop the port agent.
         """
         if self._pagent:
             pid = self._pagent.get_pid()
             if pid:
-                mi_logger.info('Stopping pagent pid %i', pid)
+                log.info('Stopping pagent pid %i', pid)
                 self._pagent.stop()
             else:
-                mi_logger.info('No port agent running.')
-
-
+                log.info('No port agent running.')
        
     ###############################################################################
     # Data stream helpers.
@@ -487,17 +487,18 @@ class RunInstrument(IonIntegrationTestCase):
         self.comm_config.display_config()
         #self.comm_config.get_from_console()
         self.ip_address = self.comm_config.device_addr
-        self.port = self.comm_config.device_port
+        self.data_port = self.comm_config.data_port
+        self.command_port = self.comm_config.command_port
         
         if not (self.ip_address):
             self.ip_address = prompt.text( 'Instrument IP Address', self.ip_address )
             
-        if not (self.port):
+        if not (self.data_port):
             continuing = True
             while continuing:
-                sport = prompt.text( 'Instrument Port', self.port )
+                sport = prompt.text( 'Instrument Port', self.data_port )
                 try:
-                    self.port = int(sport)
+                    self.data_port = int(sport)
                     continuing = False
                 except ValueError as e:
                     print "Error converting port to number: " + str(e)
@@ -522,7 +523,8 @@ class RunInstrument(IonIntegrationTestCase):
 
         self.bring_instrument_active()
 
-        text = 'Enter command'
+        PROMPT = 'Enter command (\'quit\' to exit)'
+        text = PROMPT
         continuing = True
         while continuing:
             """
@@ -530,12 +532,15 @@ class RunInstrument(IonIntegrationTestCase):
             """
             self.get_capabilities()
             command = self.get_user_command(text)
-            text = 'Enter command'
+            text = PROMPT
             if command == 'quit':
                 continuing = False
             elif command in self.agt_cmds or command in self.res_cmds:
                 self.send_command(command)
             else:
-                text = 'Invalid Command: ' + command + '.\nEnter command'
-                
+                text = 'Invalid Command: ' + command + PROMPT
+
+        self.stop_pagent()
+        print( "*** Stopping RunInstrument ***")
+        
 
