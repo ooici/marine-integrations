@@ -1038,23 +1038,26 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
             if self._confirm_command_mode():
                 break  
             
-    def got_data(self, data):
+    def got_data(self, paPacket):
         """ 
         Callback for receiving new data from the device.
-        The comms object fires this when data is received
-        @param data The chunk of data that was received
+        The port agent object fires this when data is received
+        @param paPacket The packet of data that was received
         """
+        paLength = paPacket.get_data_size()
+        paData = paPacket.get_data()
+
         if self.get_current_state() == PARProtocolState.DIRECT_ACCESS:
             # direct access mode
-            if len(data) > 0:
-                log.debug("SatlanticPARInstrumentProtocol.got_data(): <" + data + ">") 
+            if paLength > 0:
+                log.debug("SatlanticPARInstrumentProtocol.got_data(): <" + paData + ">") 
                 if self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
+                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
                     # TODO: what about logging this as an event?
             return
         
-        if len(data)>0:
-            CommandResponseInstrumentProtocol.got_data(self, data)
+        if paLength > 0:
+            CommandResponseInstrumentProtocol.got_data(self, paData)
             
             # If we are streaming, process the line buffer for samples, but it
             # could have header stuff come out if you just got a break!
