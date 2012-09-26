@@ -348,31 +348,39 @@ class RunInstrument(IonIntegrationTestCase):
         #self.addCleanup(self._stop_event_subscriber)
         """    
 
-        state = self._ia_client.get_agent_state()
-        print "ResourceAgentState: " + str(state)
+        try:
+            state = self._ia_client.get_agent_state()
+            print "ResourceAgentState: " + str(state)
+        
+            cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+            retval = self._ia_client.execute_agent(cmd)
+            state = self._ia_client.get_agent_state()
+            
+            res_state = self._ia_client.get_resource_state()
+            print "DriverConnectionState: " + str(state)
     
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self._ia_client.execute_agent(cmd)
-        state = self._ia_client.get_agent_state()
+            cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+            retval = self._ia_client.execute_agent(cmd)
+            state = self._ia_client.get_agent_state()
+            print "ResourceAgentState: " + str(state)
+    
+            res_state = self._ia_client.get_resource_state()
+            print "DriverProtocolState: " + str(state)
+    
+            cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+            retval = self._ia_client.execute_agent(cmd)
+            state = self._ia_client.get_agent_state()
+            print "ResourceAgentState: " + str(state)
+            
+            res_state = self._ia_client.get_resource_state()
+            print "DriverProtocolState: " + str(state)
+            
+        except:
+            log.error("bring_instrument_active(): Exception occurred; shutting down.", exc_info=True)
+            return False
         
-        res_state = self._ia_client.get_resource_state()
-        print "DriverConnectionState: " + str(state)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self._ia_client.execute_agent(cmd)
-        state = self._ia_client.get_agent_state()
-        print "ResourceAgentState: " + str(state)
-
-        res_state = self._ia_client.get_resource_state()
-        print "DriverProtocolState: " + str(state)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self._ia_client.execute_agent(cmd)
-        state = self._ia_client.get_agent_state()
-        print "ResourceAgentState: " + str(state)
-        
-        res_state = self._ia_client.get_resource_state()
-        print "DriverProtocolState: " + str(state)
+        else:
+            return True
 
         """
         DHE: Don't have an event subscriber yet so we've received no events.
@@ -401,7 +409,17 @@ class RunInstrument(IonIntegrationTestCase):
         print "Resource Commands: " + str(self.res_cmds)
         print "Resource Parameters: " + str(self.res_pars)
 
-    def send_command(self, command):
+    def send_agent_command(self, command):
+        """
+        @brief Send a command to the agent. 
+        """
+
+        print "Input command: " + str(command)
+        cmd = AgentCommand(command = command)
+        retval = self._ia_client.execute_agent(cmd)
+        print "Results of command: " + str(retval)
+
+    def send_driver_command(self, command):
         """
         @brief Send a command to the instrument through the instrument agent.
         First determine whether it's a get or set, which are handled separately.
@@ -521,11 +539,13 @@ class RunInstrument(IonIntegrationTestCase):
 
         self._initialize()
 
-        self.bring_instrument_active()
-
+        """
+        bring_instrument_active should return true if successful
+        """
+        continuing = self.bring_instrument_active()
+            
         PROMPT = 'Enter command (\'quit\' to exit)'
         text = PROMPT
-        continuing = True
         while continuing:
             """
             Get a list of the currently available capabilities
@@ -535,8 +555,10 @@ class RunInstrument(IonIntegrationTestCase):
             text = PROMPT
             if command == 'quit':
                 continuing = False
-            elif command in self.agt_cmds or command in self.res_cmds:
-                self.send_command(command)
+            elif command in self.agt_cmds:
+                self.send_agent_command(command)
+            elif command in self.res_cmds:
+                self.send_driver_command(command)
             else:
                 text = 'Invalid Command: ' + command + PROMPT
 
