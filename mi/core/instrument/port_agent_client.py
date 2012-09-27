@@ -203,34 +203,6 @@ class PortAgentClient(object):
         paPacket.verify_checksum()
         self.user_callback(paPacket)
         
-    def old_send(self, data):
-        """
-        Send data to the port agent.  (Instantiate a PortAgentPacket object and
-        send the object to the port agent.)
-        """
-        paPacket = PortAgentPacket()
-        paPacket.attach_data(data)
-        paPacket.pack_header(DATA_FROM_DRIVER)
-        
-        header = paPacket.get_header()
-        if self.sock:
-            while len(header) > 0:
-                try:
-                    sent = self.sock.send(header)
-                    gone = header[:sent]
-                    header = header[sent:]
-                except socket.error:
-                    time.sleep(.1)
-
-        if self.sock:
-            while len(data) > 0:
-                try:
-                    sent = self.sock.send(data)
-                    gone = data[:sent]
-                    data = data[sent:]
-                except socket.error:
-                    time.sleep(.1)
-                
     def send(self, data):
         """
         Send data to the port agent.
