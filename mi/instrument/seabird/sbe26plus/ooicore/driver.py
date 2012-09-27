@@ -43,6 +43,7 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVal
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.common import BaseEnum
 
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 # newline.
 NEWLINE = '\r\n'
 
@@ -50,12 +51,17 @@ NEWLINE = '\r\n'
 TIMEOUT = 40
 
 # Packet config
-STREAM_NAME_PARSED = 'parsed'
-STREAM_NAME_RAW = 'raw'
+STREAM_NAME_PARSED = DataParticleValue.PARSED
+STREAM_NAME_RAW = DataParticleValue.RAW
 PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
+
 
 from mi.instrument.seabird.sbe26plus.ooicore.range import Range
 
+
+
+
+# Device specific parameters.
 class InstrumentCmds(BaseEnum):
     """
     Instrument Commands
@@ -102,6 +108,17 @@ class ProtocolEvent(BaseProtocolEvent):
     UPLOAD_ASCII = 'PROTOCOL_EVENT_UPLOAD_ASCII'
     QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
     INIT_LOGGING = 'PROTOCOL_EVENT_INIT_LOGGING'
+
+class SBE37Capability(BaseEnum):
+    """
+    Protocol events that should be exposed to users (subset of above).
+    """
+    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+    TEST = DriverEvent.TEST
+
+
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -365,6 +382,45 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 ###############################################################################
 # Protocol
 ################################################################################
+class DataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    def _build_parsed_values(self):
+        """
+        Take something in the autosample/TS format and split it into
+        C, T, and D values (with appropriate tags)
+
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = SAMPLE_REGEX.match(self.raw_data)
+
+        if not match:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        temperature = float(match.group(1))
+        conductivity = float(match.group(2))
+        depth = float(match.group(3))
+
+        if not temperature:
+            raise SampleException("No temperature value parsed")
+        if not conductivity:
+            raise SampleException("No conductivity value parsed")
+        if not depth:
+            raise SampleException("No depth value parsed")
+
+
+        #TODO:  Get 'temp', 'cond', and 'depth' from a paramdict
+        result = [{DataParticleKey.VALUE_ID: "temp",
+                   DataParticleKey.VALUE: temperature},
+                  {DataParticleKey.VALUE_ID: "conductivity",
+                   DataParticleKey.VALUE: conductivity},
+                  {DataParticleKey.VALUE_ID: "depth",
+                   DataParticleKey.VALUE: depth}]
+
+        return result
 
 
 class Protocol(CommandResponseInstrumentProtocol):
@@ -406,16 +462,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.INIT_LOGGING,           self._handler_command_init_logging)
 
 
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST,                   self._handler_command_test)
+        #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST,                   self._handler_command_test)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,     self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.ENTER,                     self._handler_test_enter)
-        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.EXIT,                      self._handler_test_exit)
-        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.RUN_TEST,                  self._handler_test_run_tests)
-        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.GET,                       self._handler_command_autosample_test_get)
+        #self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.ENTER,                     self._handler_test_enter)
+        #self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.EXIT,                      self._handler_test_exit)
+        #self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.RUN_TEST,                  self._handler_test_run_tests)
+        #self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.GET,                       self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,             self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT,   self._handler_direct_access_execute_direct)
@@ -610,7 +666,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-
+    def _filter_capabilities(self, events):
+        """
+        """
+        events_out = [x for x in events if Capability.has(x)]
+        return events_out
 
     ########################################################################
     # Unknown handlers.
@@ -665,16 +725,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         else:
             raise InstrumentStateException('Unknown state.')
 
-        """
-        if prompt == Prompt.COMMAND:
-            next_state = ProtocolState.COMMAND
-            result = ProtocolState.COMMAND
-        elif prompt == Prompt.AUTOSAMPLE:
-            next_state = ProtocolState.AUTOSAMPLE
-            result = ProtocolState.AUTOSAMPLE
-        else:
-            raise InstrumentStateException('Unknown state.')
-        """
         return (next_state, result)
 
     ########################################################################
@@ -733,9 +783,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
-
-
-
     def _handler_command_acquire_sample(self, *args, **kwargs):
         """
         Acquire sample from SBE26 Plus.
@@ -771,18 +818,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
-    def _handler_command_test(self, *args, **kwargs):
-        """
-        Switch to test state to perform instrument tests.
-        @retval (next_state, result) tuple, (ProtocolState.TEST, None).
-        """
-        next_state = None
-        result = None
-
-        next_state = ProtocolState.TEST
-
-        return (next_state, result)
-
     def _handler_command_start_direct(self):
         """
         """
@@ -792,6 +827,374 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.DIRECT_ACCESS
 
         return (next_state, result)
+
+    ###############################
+    # Need to sort below
+    ###############################
+
+    def _build_set_time_command(self, command_name, *args, **kwargs):
+        """
+        Build handler for setsampling command.
+        @param args[0] is a dict of the values to change
+        """
+
+        self._set_time = args[0]
+
+        return InstrumentCmds.SET_TIME + NEWLINE
+
+    def _build_setsampling_command(self, foo, *args, **kwargs):
+        """
+        Build handler for setsampling command.
+        @param args[0] is a dict of the values to change
+        @throws InstrumentParameterException if passed paramater is outside of allowed ranges.
+        """
+
+        self._sampling_args = args[0]
+
+
+        #for k in self._sampling_args.keys():
+        #    if k in self.ranges:
+        #        if not self.ranges[k].is_valid(value=self._sampling_args[k]):
+        #            raise InstrumentParameterException("Value " + str(self._sampling_args[k]) + " is out of allowable range for Parameter." + str(k))
+        #        log.debug("** parameter " + str(k) + " is valid.")
+        #    else:
+        #        log.debug("** parameter " + str(k) + " has no type/range attributes.")
+
+
+        return InstrumentCmds.SETSAMPLING + NEWLINE
+
+
+    def _parse_init_logging_response(self, response, prompt):
+        """
+        Parse handler for init_logging command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if set command misunderstood.
+        """
+
+        if prompt != Prompt.COMMAND:
+            raise InstrumentProtocolException('Initlogging command not recognized: %s' % response)
+
+        return True
+
+    def _parse_setsampling_response(self, response, prompt): #(self, cmd, *args, **kwargs):
+        """
+        Parse handler for set command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if set command misunderstood.
+        """
+
+        desired_prompt = ", new value = "
+        done = False
+        while not done:
+            (prompt, response) = self._get_response(expected_prompt=desired_prompt)
+            self._promptbuf = ''
+            self._linebuf = ''
+            time.sleep(0.1)
+
+            log.debug(response)
+            if "tide interval (integer minutes) " in response:
+                if 'TIDE_INTERVAL' in self._sampling_args:
+                    self._connection.send(self._int_to_string(self._sampling_args['TIDE_INTERVAL']) + NEWLINE)
+                else:
+                    log.debug("SENDING TIDE INTERVAL -- PUNTING ")
+                    self._connection.send(NEWLINE)
+            elif "tide measurement duration (seconds)" in response:
+                if 'TIDE_MEASUREMENT_DURATION' in self._sampling_args:
+                    self._connection.send(self._int_to_string(self._sampling_args['TIDE_MEASUREMENT_DURATION']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "measure wave burst after every N tide samples" in response:
+                if 'TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS' in self._sampling_args:
+                    self._connection.send(self._int_to_string(self._sampling_args['TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "number of wave samples per burst (multiple of 4)" in response:
+                if 'WAVE_SAMPLES_PER_BURST' in self._sampling_args:
+                    self._connection.send(self._int_to_string(self._sampling_args['WAVE_SAMPLES_PER_BURST']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "wave Sample duration (0.25, 0.50, 0.75, 1.0) seconds" in response:
+                if 'WAVE_SAMPLES_SCANS_PER_SECOND' in self._sampling_args:
+                    self._connection.send(self._float_to_string(1 / self._sampling_args['WAVE_SAMPLES_SCANS_PER_SECOND']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "use start time (y/n)" in response:
+                if 'USE_START_TIME' in self._sampling_args:
+                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_START_TIME']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "use stop time (y/n)" in response:
+                if 'USE_STOP_TIME' in self._sampling_args:
+                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_STOP_TIME']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "TXWAVESTATS (real-time wave statistics) (y/n)" in response:
+                if 'TXWAVESTATS' in self._sampling_args:
+                    if self._sampling_args['TXWAVESTATS'] == False:
+                        done = True
+                    self._connection.send(self._true_false_to_string(self._sampling_args['TXWAVESTATS']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "show progress messages (y/n) = " in response:
+                if 'SHOW_PROGRESS_MESSAGES' in self._sampling_args:
+                    self._connection.send(self._true_false_to_string(self._sampling_args['SHOW_PROGRESS_MESSAGES']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "number of wave samples per burst to use for wave statistics = " in response:
+                if 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' in self._sampling_args:
+                    self._connection.send(self._int_to_string(self._sampling_args['NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "use measured temperature and conductivity for density calculation (y/n) = " in response:
+                if 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' in self._sampling_args:
+                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "use measured temperature for density calculation (y/n) = " in response:
+                if 'USE_MEASURED_TEMP_FOR_DENSITY_CALC' in self._sampling_args:
+                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_MEASURED_TEMP_FOR_DENSITY_CALC']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "average water temperature above the pressure sensor (deg C) = " in response:
+                if 'AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR' in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args['AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+
+            elif "average salinity above the pressure sensor (PSU) = " in response:
+                if 'AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR' in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args['AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+
+            elif "height of pressure sensor from bottom (meters) = " in response:
+                if 'PREASURE_SENSOR_HEIGHT_FROM_BOTTOM' in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args['PREASURE_SENSOR_HEIGHT_FROM_BOTTOM']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "number of spectral estimates for each frequency band = " in response:
+                if 'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND' in self._sampling_args:
+                    self._connection.send(self._int_to_string(self._sampling_args['SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "minimum allowable attenuation = " in response:
+                if 'MIN_ALLOWABLE_ATTENUATION' in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args['MIN_ALLOWABLE_ATTENUATION']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "minimum period (seconds) to use in auto-spectrum = " in response:
+                if 'MIN_PERIOD_IN_AUTO_SPECTRUM' in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args['MIN_PERIOD_IN_AUTO_SPECTRUM']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "maximum period (seconds) to use in auto-spectrum = " in response:
+                if 'MAX_PERIOD_IN_AUTO_SPECTRUM' in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args['MAX_PERIOD_IN_AUTO_SPECTRUM']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+            elif "hanning window cutoff = " in response:
+                done = True
+                if 'HANNING_WINDOW_CUTOFF' in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args['HANNING_WINDOW_CUTOFF']) + NEWLINE)
+                else:
+                    self._connection.send(NEWLINE)
+                """
+                the remaining prompts apply to real-time wave statistics
+                    show progress messages (y/n) = n, new value = y
+                    number of wave samples per burst to use for wave statistics = 512, new value = 555
+                    use measured temperature and conductivity for density calculation (y/n) = y, new value =
+                    height of pressure sensor from bottom (meters) = 600.0, new value = 55
+                    number of spectral estimates for each frequency band = 5, new value =
+                    minimum allowable attenuation = 0.0025, new value =
+                    minimum period (seconds) to use in auto-spectrum = 0.0e+00, new value =
+                    maximum period (seconds) to use in auto-spectrum = 1.0e+06, new value =
+                    hanning window cutoff = 0.10, new value =
+                resetting number of wave samples per burst to 512
+                resetting number of samples to use for wave statistics to 512
+                """
+            else:
+
+                raise InstrumentProtocolException('HOW DID I GET HERE! %s' % str(response) + str(prompt))
+
+
+
+
+        prompt = ""
+        while prompt != Prompt.COMMAND:
+            (prompt, response) = self._get_response(expected_prompt=Prompt.COMMAND)
+
+            log.debug("WARNING!!! UNEXPECTED RESPONSE " + repr(response))
+
+            #raise InstrumentProtocolException("UNEXPECTED RESPONSE " + repr(response))
+
+        # Update params after changing them.
+
+        self._update_params()
+
+        # Verify that paramaters set via set are matching in the latest parameter scan.
+
+
+        device_parameters = self._param_dict.get_config()
+        for k in self._sampling_args.keys():
+            try:
+                log.debug("self._sampling_args " + k + " = " + str(self._sampling_args[k]))
+            except:
+                log.debug("self._sampling_args " + k + " = ERROR")
+            try:
+                log.debug("device_parameters " + k + " = " + str(device_parameters[k]))
+            except:
+                log.debug("device_parameters " + k + " = ERROR")
+            if self._sampling_args[k] != device_parameters[k]:
+                log.debug("FAILURE: " + str(k) + " was " + str(device_parameters[k]) + " and should have been " + str(self._sampling_args[k]))
+                raise InstrumentParameterException("FAILURE: " + str(k) + " was " + str(device_parameters[k]) + " and should have been " + str(self._sampling_args[k]))
+
+    def _parse_set_time_response(self, response, prompt):
+        """
+        self._set_time
+        """
+        desired_prompt = ") = "
+        done = False
+        while not done:
+            (prompt, response) = self._get_response(expected_prompt=desired_prompt, timeout=30)
+            self._promptbuf = ''
+            self._linebuf = ''
+            time.sleep(0.1)
+            log.debug("RESPONSE = " + response)
+            if "month (1 - 12) = " in response:
+                self._connection.send(time.strftime("%m", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
+            elif "day (1 - 31) = "  in response:
+                self._connection.send(time.strftime("%d", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
+            elif "year (4 digits) = "  in response:
+                self._connection.send(time.strftime("%Y", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
+            elif "hour (0 - 23) = "  in response:
+                self._connection.send(time.strftime("%H", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
+            elif "minute (0 - 59) = "  in response:
+                self._connection.send(time.strftime("%M", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
+            elif "second (0 - 59) = "  in response:
+                self._connection.send(time.strftime("%S", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
+                desired_prompt = 'S>'
+            #else:
+                #log.debug("NOT SURE WHAT TO DO WITH" + str(response + prompt))
+
+            if 'S>' == prompt:
+                done = True
+
+    def _parse_uplaad_data_ascii_response(self, response, prompt): #(self, cmd, *args, **kwargs):
+        """
+        Parse handler for data dump command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        """
+        output = ""
+
+
+        (prompt, response) = self._get_line_of_response(timeout=10, line_delimiter=NEWLINE)
+        while True:
+            (prompt, response) = self._get_line_of_response(timeout=10, line_delimiter=NEWLINE, expected_prompt="S>")
+            if prompt == "S>":
+                return output
+            else:
+                output = output + response
+
+        raise InstrumentProtocolException('_parse_uplaad_data_ascii_response : I should never get here...')
+
+
+    def _handler_command_setsampling(self, *args, **kwargs):
+        """
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup and command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
+
+        next_state = None
+        result = None
+
+        kwargs['expected_prompt'] = ", new value = "
+        result = self._do_cmd_resp(InstrumentCmds.SETSAMPLING, *args, **kwargs)
+
+        return (next_state, result)
+
+    def _handler_command_set_time(self, *args, **kwargs):
+        """
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup and command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
+
+        next_state = None
+        result = None
+
+        kwargs['expected_prompt'] = ") = "
+        result = self._do_cmd_resp(InstrumentCmds.SET_TIME, *args, **kwargs)
+
+        return (next_state, result)
+
+    def _handler_command_quit_session(self, *args, **kwargs):
+        """
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup and command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
+
+        next_state = None
+        result = None
+
+        result = self._do_cmd_no_resp(InstrumentCmds.QUIT_SESSION, *args, **kwargs)
+        return (next_state, result)
+
+    def _handler_command_init_logging(self, *args, **kwargs):
+
+        log.debug("in _handler_command_init_logging")
+
+        next_state = None
+        result = None
+
+        kwargs['expected_prompt'] = "S>"
+        log.debug("WANT " + repr(kwargs['expected_prompt']))
+        result = self._do_cmd_resp(InstrumentCmds.INIT_LOGGING, *args, **kwargs)
+
+        return (next_state, result)
+
+    def _handler_command_upload_ascii(self, *args, **kwargs):
+        """
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup and command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
+
+        next_state = None
+        result = None
+
+        kwargs['expected_prompt'] = [NEWLINE, 'S>']
+        result = self._do_cmd_resp(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT, *args, **kwargs)
+
+        return (next_state, result)
+
+    ###############################
+    # Need to sort above
+    ###############################
 
     ########################################################################
     # Autosample handlers.
@@ -885,65 +1288,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Test handlers.
     ########################################################################
 
-    def _handler_test_enter(self, *args, **kwargs):
-        """
-        Enter test state. Setup the secondary call to run the tests.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        # Forward the test event again to run the test handler and
-        # switch back to command mode afterward.
-        Timer(1, lambda: self._protocol_fsm.on_event(ProtocolEvent.RUN_TEST)).start()
-
-    def _handler_test_exit(self, *args, **kwargs):
-        """
-        Exit test state.
-        """
-        pass
-
-    def _handler_test_run_tests(self, *args, **kwargs):
-        """
-        Run test routines and validate results.
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command misunderstood or
-        incorrect prompt received.
-        """
-        next_state = None
-        result = None
-
-        tc_pass = False
-        tt_pass = False
-        tp_pass = False
-        tc_result = None
-        tt_result = None
-        tp_result = None
-
-        test_result = {}
-
-        try:
-            tc_pass, tc_result = self._do_cmd_resp('tc', timeout=200)
-            tt_pass, tt_result = self._do_cmd_resp('tt', timeout=200)
-            tp_pass, tp_result = self._do_cmd_resp('tp', timeout=200)
-
-        except Exception as e:
-            test_result['exception'] = e
-            test_result['message'] = 'Error running instrument tests.'
-
-        finally:
-            test_result['cond_test'] = 'Passed' if tc_pass else 'Failed'
-            test_result['cond_data'] = tc_result
-            test_result['temp_test'] = 'Passed' if tt_pass else 'Failed'
-            test_result['temp_data'] = tt_result
-            test_result['pres_test'] = 'Passed' if tp_pass else 'Failed'
-            test_result['pres_data'] = tp_result
-            test_result['success'] = 'Passed' if (tc_pass and tt_pass and tp_pass) else 'Failed'
-
-        self._driver_event(DriverAsyncEvent.TEST_RESULT, test_result)
-        next_state = ProtocolState.COMMAND
-
-        return (next_state, result)
 
     ########################################################################
     # Direct access handlers.
@@ -1023,8 +1367,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
-
-
     def _build_simple_command(self, cmd):
         """
         Build handler for basic sbe26plus commands.
@@ -1033,19 +1375,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         log.debug("in _build_simple_command() cmd = " + str(cmd))
         return cmd + NEWLINE
-
-
-    '''
-    def _build_baud_command(self, cmd, *args):
-        """
-        Build handler for basic sbe26plus commands.
-        @param cmd the simple sbe37 command to format.
-        @retval The command to be sent to the device.
-        """
-        log.debug("in _build_baud_command() cmd = " + str(cmd) + " param = " + str(args[0]))
-
-        return cmd + '=' + str(args[0]) + NEWLINE
-    '''
 
     def _build_set_command(self, cmd, param, val):
         """
@@ -1084,20 +1413,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         elif prompt != Prompt.COMMAND:
             raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
 
-
-    def _parse_init_logging_response(self, response, prompt):
-        """
-        Parse handler for init_logging command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if set command misunderstood.
-        """
-
-        if prompt != Prompt.COMMAND:
-            raise InstrumentProtocolException('Initlogging command not recognized: %s' % response)
-
-        return True
-
     def _parse_ds_response(self, response, prompt):
         """
         Response handler for ds command
@@ -1108,8 +1423,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         for line in response.split(NEWLINE):
             name = self._param_dict.update(line)
 
-
-
     def _parse_dc_response(self, response, prompt):
         """
         Response handler for dc command
@@ -1119,7 +1432,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         for line in response.split(NEWLINE):
             name = self._param_dict.update(line)
-
 
     def _parse_ts_response(self, response, prompt):
         """
@@ -1158,30 +1470,31 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return sample
 
-#    def _parse_test_response(self, response, prompt):
-#        """
-#        Do minimal checking of test outputs.
-#        @param response command response string.
-#        @param promnpt prompt following command response.
-#        @retval tuple of pass/fail boolean followed by response
-#        """
-#        log.debug("************ in _parse_test_response ")
-#        success = False
-#        lines = response.split()
-#        if len(lines)>2:
-#            data = lines[1:-1]
-#            bad_count = 0
-#            for item in data:
-#                try:
-#                    float(item)
-#
-#                except ValueError:
-#                    bad_count += 1
-#
-#            if bad_count == 0:
-#                success = True
-#
-#        return (success, response)
+    #    def _parse_test_response(self, response, prompt):
+    #        """
+    #        Do minimal checking of test outputs.
+    #        @param response command response string.
+    #        @param promnpt prompt following command response.
+    #        @retval tuple of pass/fail boolean followed by response
+    #        """
+    #        log.debug("************ in _parse_test_response ")
+    #        success = False
+    #        lines = response.split()
+    #        if len(lines)>2:
+    #            data = lines[1:-1]
+    #            bad_count = 0
+    #            for item in data:
+    #                try:
+    #                    float(item)
+    #
+    #                except ValueError:
+    #                    bad_count += 1
+    #
+    #            if bad_count == 0:
+    #                success = True
+    #
+    #        return (success, response)
+
 
     def got_data(self, data):
         """
@@ -1220,7 +1533,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return
 
-
     def _extract_sample(self, line, publish=True):
         """
         Extract sample from a response line if present and publish to agent.
@@ -1249,7 +1561,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                             self.parsed_sample[pattern_names[count]].append(val)
                         else:
                             self.parsed_sample[pattern_names[count]] = val
-                        #log.debug("####====> "  + pattern_names[count] + " = " +  str(self.sample[pattern_names[count]]))
+                            #log.debug("####====> "  + pattern_names[count] + " = " +  str(self.sample[pattern_names[count]]))
                         count = count + 1
                     matched = True
 
@@ -1287,7 +1599,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
             if False == match:
                 log.debug("NOT USING LINE => " + repr(line))
-
 
     def _build_param_dict(self):
         """
@@ -1972,7 +2283,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return date
 
-
     @staticmethod
     def _string_to_numeric_date_time_string(date_time_string):
         """
@@ -1980,391 +2290,3 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
 
         return time.strftime("%m%d%Y%H%M%S", time.strptime(date_time_string, "%d %b %Y %H:%M:%S"))
-
-    def _build_set_time_command(self, command_name, *args, **kwargs):
-        """
-        Build handler for setsampling command.
-        @param args[0] is a dict of the values to change
-        """
-
-        self._set_time = args[0]
-
-        return InstrumentCmds.SET_TIME + NEWLINE
-
-
-    def _build_setsampling_command(self, foo, *args, **kwargs):
-        """
-        Build handler for setsampling command.
-        @param args[0] is a dict of the values to change
-        @throws InstrumentParameterException if passed paramater is outside of allowed ranges.
-        """
-
-        self._sampling_args = args[0]
-
-
-        #for k in self._sampling_args.keys():
-        #    if k in self.ranges:
-        #        if not self.ranges[k].is_valid(value=self._sampling_args[k]):
-        #            raise InstrumentParameterException("Value " + str(self._sampling_args[k]) + " is out of allowable range for Parameter." + str(k))
-        #        log.debug("** parameter " + str(k) + " is valid.")
-        #    else:
-        #        log.debug("** parameter " + str(k) + " has no type/range attributes.")
-
-
-        return InstrumentCmds.SETSAMPLING + NEWLINE
-
-
-    def _parse_setsampling_response(self, response, prompt): #(self, cmd, *args, **kwargs):
-        """
-        Parse handler for set command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if set command misunderstood.
-        """
-
-        desired_prompt = ", new value = "
-        done = False
-        while not done:
-            (prompt, response) = self._get_response(expected_prompt=desired_prompt)
-            self._promptbuf = ''
-            self._linebuf = ''
-            time.sleep(0.1)
-
-            log.debug(response)
-            if "tide interval (integer minutes) " in response:
-                if 'TIDE_INTERVAL' in self._sampling_args:
-                    self._connection.send(self._int_to_string(self._sampling_args['TIDE_INTERVAL']) + NEWLINE)
-                else:
-                    log.debug("SENDING TIDE INTERVAL -- PUNTING ")
-                    self._connection.send(NEWLINE)
-            elif "tide measurement duration (seconds)" in response:
-                if 'TIDE_MEASUREMENT_DURATION' in self._sampling_args:
-                    self._connection.send(self._int_to_string(self._sampling_args['TIDE_MEASUREMENT_DURATION']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "measure wave burst after every N tide samples" in response:
-                if 'TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS' in self._sampling_args:
-                    self._connection.send(self._int_to_string(self._sampling_args['TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "number of wave samples per burst (multiple of 4)" in response:
-                if 'WAVE_SAMPLES_PER_BURST' in self._sampling_args:
-                    self._connection.send(self._int_to_string(self._sampling_args['WAVE_SAMPLES_PER_BURST']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "wave Sample duration (0.25, 0.50, 0.75, 1.0) seconds" in response:
-                if 'WAVE_SAMPLES_SCANS_PER_SECOND' in self._sampling_args:
-                    self._connection.send(self._float_to_string(1 / self._sampling_args['WAVE_SAMPLES_SCANS_PER_SECOND']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "use start time (y/n)" in response:
-                if 'USE_START_TIME' in self._sampling_args:
-                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_START_TIME']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "use stop time (y/n)" in response:
-                if 'USE_STOP_TIME' in self._sampling_args:
-                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_STOP_TIME']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "TXWAVESTATS (real-time wave statistics) (y/n)" in response:
-                if 'TXWAVESTATS' in self._sampling_args:
-                    if self._sampling_args['TXWAVESTATS'] == False:
-                        done = True
-                    self._connection.send(self._true_false_to_string(self._sampling_args['TXWAVESTATS']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "show progress messages (y/n) = " in response:
-                if 'SHOW_PROGRESS_MESSAGES' in self._sampling_args:
-                    self._connection.send(self._true_false_to_string(self._sampling_args['SHOW_PROGRESS_MESSAGES']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "number of wave samples per burst to use for wave statistics = " in response:
-                if 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' in self._sampling_args:
-                    self._connection.send(self._int_to_string(self._sampling_args['NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "use measured temperature and conductivity for density calculation (y/n) = " in response:
-                if 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' in self._sampling_args:
-                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "use measured temperature for density calculation (y/n) = " in response:
-                if 'USE_MEASURED_TEMP_FOR_DENSITY_CALC' in self._sampling_args:
-                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_MEASURED_TEMP_FOR_DENSITY_CALC']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "average water temperature above the pressure sensor (deg C) = " in response:
-                if 'AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-
-            elif "average salinity above the pressure sensor (PSU) = " in response:
-                if 'AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-
-            elif "height of pressure sensor from bottom (meters) = " in response:
-                if 'PREASURE_SENSOR_HEIGHT_FROM_BOTTOM' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['PREASURE_SENSOR_HEIGHT_FROM_BOTTOM']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "number of spectral estimates for each frequency band = " in response:
-                if 'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND' in self._sampling_args:
-                    self._connection.send(self._int_to_string(self._sampling_args['SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "minimum allowable attenuation = " in response:
-                if 'MIN_ALLOWABLE_ATTENUATION' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['MIN_ALLOWABLE_ATTENUATION']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "minimum period (seconds) to use in auto-spectrum = " in response:
-                if 'MIN_PERIOD_IN_AUTO_SPECTRUM' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['MIN_PERIOD_IN_AUTO_SPECTRUM']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "maximum period (seconds) to use in auto-spectrum = " in response:
-                if 'MAX_PERIOD_IN_AUTO_SPECTRUM' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['MAX_PERIOD_IN_AUTO_SPECTRUM']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-            elif "hanning window cutoff = " in response:
-                done = True
-                if 'HANNING_WINDOW_CUTOFF' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['HANNING_WINDOW_CUTOFF']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
-                """
-                the remaining prompts apply to real-time wave statistics
-                    show progress messages (y/n) = n, new value = y
-                    number of wave samples per burst to use for wave statistics = 512, new value = 555
-                    use measured temperature and conductivity for density calculation (y/n) = y, new value =
-                    height of pressure sensor from bottom (meters) = 600.0, new value = 55
-                    number of spectral estimates for each frequency band = 5, new value =
-                    minimum allowable attenuation = 0.0025, new value =
-                    minimum period (seconds) to use in auto-spectrum = 0.0e+00, new value =
-                    maximum period (seconds) to use in auto-spectrum = 1.0e+06, new value =
-                    hanning window cutoff = 0.10, new value =
-                resetting number of wave samples per burst to 512
-                resetting number of samples to use for wave statistics to 512
-                """
-            else:
-
-                raise InstrumentProtocolException('HOW DID I GET HERE! %s' % str(response) + str(prompt))
-
-
-
-
-        prompt = ""
-        while prompt != Prompt.COMMAND:
-            (prompt, response) = self._get_response(expected_prompt=Prompt.COMMAND)
-
-            log.debug("WARNING!!! UNEXPECTED RESPONSE " + repr(response))
-
-            #raise InstrumentProtocolException("UNEXPECTED RESPONSE " + repr(response))
-
-        # Update params after changing them.
-
-        self._update_params()
-
-        # Verify that paramaters set via set are matching in the latest parameter scan.
-
-
-        device_parameters = self._param_dict.get_config()
-        for k in self._sampling_args.keys():
-            try:
-                log.debug("self._sampling_args " + k + " = " + str(self._sampling_args[k]))
-            except:
-                log.debug("self._sampling_args " + k + " = ERROR")
-            try:
-                log.debug("device_parameters " + k + " = " + str(device_parameters[k]))
-            except:
-                log.debug("device_parameters " + k + " = ERROR")
-            if self._sampling_args[k] != device_parameters[k]:
-                log.debug("FAILURE: " + str(k) + " was " + str(device_parameters[k]) + " and should have been " + str(self._sampling_args[k]))
-                raise InstrumentParameterException("FAILURE: " + str(k) + " was " + str(device_parameters[k]) + " and should have been " + str(self._sampling_args[k]))
-
-
-    def _parse_set_time_response(self, response, prompt):
-        """
-        self._set_time
-        """
-        desired_prompt = ") = "
-        done = False
-        while not done:
-            (prompt, response) = self._get_response(expected_prompt=desired_prompt, timeout=30)
-            self._promptbuf = ''
-            self._linebuf = ''
-            time.sleep(0.1)
-            log.debug("RESPONSE = " + response)
-            if "month (1 - 12) = " in response:
-                self._connection.send(time.strftime("%m", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
-            elif "day (1 - 31) = "  in response:
-                self._connection.send(time.strftime("%d", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
-            elif "year (4 digits) = "  in response:
-                self._connection.send(time.strftime("%Y", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
-            elif "hour (0 - 23) = "  in response:
-                self._connection.send(time.strftime("%H", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
-            elif "minute (0 - 59) = "  in response:
-                self._connection.send(time.strftime("%M", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
-            elif "second (0 - 59) = "  in response:
-                self._connection.send(time.strftime("%S", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
-                desired_prompt = 'S>'
-            #else:
-                #log.debug("NOT SURE WHAT TO DO WITH" + str(response + prompt))
-
-            if 'S>' == prompt:
-                done = True
-
-    def _handler_command_setsampling(self, *args, **kwargs):
-        """
-        Perform a command-response on the device.
-        @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup and command timeout.
-        @retval resp_result The (possibly parsed) response result.
-        @raises InstrumentTimeoutException if the response did not occur in time.
-        @raises InstrumentProtocolException if command could not be built or if response
-        was not recognized.
-        """
-
-        next_state = None
-        result = None
-
-        kwargs['expected_prompt'] = ", new value = "
-        result = self._do_cmd_resp(InstrumentCmds.SETSAMPLING, *args, **kwargs)
-
-        return (next_state, result)
-
-
-    def _handler_command_set_time(self, *args, **kwargs):
-        """
-        Perform a command-response on the device.
-        @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup and command timeout.
-        @retval resp_result The (possibly parsed) response result.
-        @raises InstrumentTimeoutException if the response did not occur in time.
-        @raises InstrumentProtocolException if command could not be built or if response
-        was not recognized.
-        """
-
-        next_state = None
-        result = None
-
-        kwargs['expected_prompt'] = ") = "
-        result = self._do_cmd_resp(InstrumentCmds.SET_TIME, *args, **kwargs)
-
-        return (next_state, result)
-
-    '''
-    def _handler_command_baud(self, *args, **kwargs):
-        """
-        Perform a command-response on the device.
-        @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup and command timeout.
-        @retval resp_result The (possibly parsed) response result.
-        @raises InstrumentTimeoutException if the response did not occur in time.
-        @raises InstrumentProtocolException if command could not be built or if response
-        was not recognized.
-        """
-
-        next_state = None
-        result = None
-
-        kwargs['expected_prompt'] = "S>"
-        result = self._do_cmd_resp('baud', *args, **kwargs)
-        return (next_state, result)
-    '''
-
-    def _handler_command_upload_ascii(self, *args, **kwargs):
-        """
-        Perform a command-response on the device.
-        @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup and command timeout.
-        @retval resp_result The (possibly parsed) response result.
-        @raises InstrumentTimeoutException if the response did not occur in time.
-        @raises InstrumentProtocolException if command could not be built or if response
-        was not recognized.
-        """
-
-        next_state = None
-        result = None
-
-        kwargs['expected_prompt'] = [NEWLINE, 'S>']
-        result = self._do_cmd_resp(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT, *args, **kwargs)
-
-        return (next_state, result)
-
-    def _handler_command_quit_session(self, *args, **kwargs):
-        """
-        Perform a command-response on the device.
-        @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup and command timeout.
-        @retval resp_result The (possibly parsed) response result.
-        @raises InstrumentTimeoutException if the response did not occur in time.
-        @raises InstrumentProtocolException if command could not be built or if response
-        was not recognized.
-        """
-
-        next_state = None
-        result = None
-
-        result = self._do_cmd_no_resp(InstrumentCmds.QUIT_SESSION, *args, **kwargs)
-        return (next_state, result)
-
-    def _handler_command_init_logging(self, *args, **kwargs):
-
-        log.debug("in _handler_command_init_logging")
-
-        next_state = None
-        result = None
-
-        kwargs['expected_prompt'] = "S>"
-        log.debug("WANT " + repr(kwargs['expected_prompt']))
-        result = self._do_cmd_resp(InstrumentCmds.INIT_LOGGING, *args, **kwargs)
-
-        return (next_state, result)
-
-    '''
-    def _parse_baud_response(self, response, prompt): #(self, cmd, *args, **kwargs):
-        """
-        Parse handler for baud command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if set command misunderstood.
-        """
-
-        if "changing baud rate to " not in response:
-            raise InstrumentProtocolException('BAUD command not recognized: %s' % response)
-        if prompt != Prompt.COMMAND:
-            raise InstrumentProtocolException('BAUD command not recognized: %s' % response)
-
-        return True
-    '''
-
-
-    def _parse_uplaad_data_ascii_response(self, response, prompt): #(self, cmd, *args, **kwargs):
-        """
-        Parse handler for data dump command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        """
-        output = ""
-
-
-        (prompt, response) = self._get_line_of_response(timeout=10, line_delimiter=NEWLINE)
-        while True:
-            (prompt, response) = self._get_line_of_response(timeout=10, line_delimiter=NEWLINE, expected_prompt="S>")
-            if prompt == "S>":
-                return output
-            else:
-                output = output + response
-
-        raise InstrumentProtocolException('_parse_uplaad_data_ascii_response : I should never get here...')

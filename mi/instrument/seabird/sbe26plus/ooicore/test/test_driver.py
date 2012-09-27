@@ -54,11 +54,17 @@ from interface.objects import AgentCommand
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-
-from mi.instrument.seabird.sbe26plus.ooicore.driver import Parameter
+from mi.instrument.seabird.sbe26plus.ooicore.driver import PACKET_CONFIG
+from mi.instrument.seabird.sbe26plus.ooicore.driver import DataParticle
+from mi.instrument.seabird.sbe26plus.ooicore.driver import InstrumentDriver
 from mi.instrument.seabird.sbe26plus.ooicore.driver import ProtocolState
+from mi.instrument.seabird.sbe26plus.ooicore.driver import Parameter
+from mi.instrument.seabird.sbe26plus.ooicore.driver import ProtocolEvent
+from mi.instrument.seabird.sbe26plus.ooicore.driver import SBE37Capability
+
 from mi.instrument.seabird.sbe26plus.ooicore.driver import InstrumentCmds
 from mi.instrument.seabird.sbe26plus.ooicore.driver import NEWLINE
+
 from mi.core.instrument.instrument_driver import DriverConnectionState
 
 from mi.core.exceptions import InstrumentTimeoutException
@@ -67,9 +73,19 @@ from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
 
+
+
+from prototype.sci_data.stream_parser import PointSupplementStreamParser
+from prototype.sci_data.constructor_apis import PointSupplementConstructor
+from prototype.sci_data.stream_defs import ctd_stream_definition
+from prototype.sci_data.stream_defs import SBE37_CDM_stream_definition
+import numpy
+from prototype.sci_data.stream_parser import PointSupplementStreamParser
+
 ###
 #   Driver parameters for the tests
 ###
+"""
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
     driver_class="InstrumentDriver",
@@ -78,6 +94,17 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name = 'seabird_sbe26plus_ooicore',
     instrument_agent_packet_config = {},
     instrument_agent_stream_definition = {}
+)
+"""
+
+InstrumentDriverTestCase.initialize(
+    driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
+    driver_class="InstrumentDriver",
+
+    instrument_agent_resource_id = '2E7GNV',
+    instrument_agent_name = 'seabird_sbe26plus_ooicore',
+    instrument_agent_packet_config = PACKET_CONFIG,
+    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
 )
 
 PARAMS = {
@@ -1087,7 +1114,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertTrue(reply)
     '''
 
-
+    # works
     def test_init_logging(self):
         """
         Test init logging command.
@@ -1119,7 +1146,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertTrue(reply)
 
 
-
+    # works
     def test_quit_session(self):
         """
         Test quit session command.
@@ -1162,118 +1189,6 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertParamDict(reply)
 
-
-    # Commands to verify are present and working.
-
-    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 2000}}})
-    def test_direct_access_telnet_mode(self):
-        """
-        @brief This test verifies that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
-        """
-        cmd = AgentCommand(command='power_down')
-        retval = self.driver_client.cmd_dvr(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = driver_client.cmd_dvr(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
-
-        cmd = AgentCommand(command='power_up')
-        retval = driver_client.cmd_dvr(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = driver_client.cmd_dvr(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command='initialize')
-        retval = driver_client.cmd_dvr(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = driver_client.cmd_dvr(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
-
-        cmd = AgentCommand(command='go_active')
-        retval = driver_client.cmd_dvr(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = driver_client.cmd_dvr(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
-
-        cmd = AgentCommand(command='run')
-        retval = driver_client.cmd_dvr(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = driver_client.cmd_dvr(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
-
-        gevent.sleep(5)  # wait for mavs4 to go back to sleep if it was sleeping
-
-        # go direct access
-        cmd = AgentCommand(command='go_direct_access',
-            kwargs={'session_type': DirectAccessTypes.telnet,
-                    #kwargs={'session_type':DirectAccessTypes.vsp,
-                    'session_timeout':600,
-                    'inactivity_timeout':600})
-        retval = driver_client.cmd_dvr(cmd)
-        log.warn("go_direct_access retval=" + str(retval.result))
-
-        # start 'telnet' client with returned address and port
-        s = TcpClient(retval.result['ip_address'], retval.result['port'])
-
-        # look for and swallow 'Username' prompt
-        try_count = 0
-        while s.peek_at_buffer().find("Username: ") == -1:
-            log.debug("WANT 'Username:' READ ==>" + str(s.peek_at_buffer()))
-            gevent.sleep(1)
-            try_count += 1
-            if try_count > 10:
-                raise Timeout('It took longer than 10 seconds to get a Username: prompt')
-        s.remove_from_buffer("Username: ")
-        # send some username string
-        s.send_data("bob\r\n", "1")
-
-        # look for and swallow 'token' prompt
-        try_count = 0
-        while s.peek_at_buffer().find("token: ") == -1:
-            log.debug("WANT 'token: ' READ ==>" + str(s.peek_at_buffer()))
-            gevent.sleep(1)
-            try_count += 1
-            if try_count > 10:
-                raise Timeout('It took longer than 10 seconds to get a token: prompt')
-        s.remove_from_buffer("token: ")
-        # send the returned token
-        s.send_data(retval.result['token'] + "\r\n", "1")
-
-        # look for and swallow telnet negotiation string
-        try_count = 0
-        while s.peek_at_buffer().find(WILL_ECHO_CMD) == -1:
-            log.debug("WANT %s READ ==> %s" %(WILL_ECHO_CMD, str(s.peek_at_buffer())))
-            gevent.sleep(1)
-            try_count += 1
-            if try_count > 10:
-                raise Timeout('It took longer than 10 seconds to get the telnet negotiation string')
-        s.remove_from_buffer(WILL_ECHO_CMD)
-        # send the telnet negotiation response string
-        s.send_data(DO_ECHO_CMD, "1")
-
-        # look for and swallow 'connected' indicator
-        try_count = 0
-        while s.peek_at_buffer().find("connected\r\n") == -1:
-            log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
-            gevent.sleep(1)
-            try_count += 1
-            if try_count > 10:
-                raise Timeout('It took longer than 10 seconds to get a connected prompt')
-        s.remove_from_buffer("connected\r\n")
-
-        # try to interact with the instrument
-        try_count = 0
-        while ((s.peek_at_buffer().find("Enter <CTRL>-<C> now to wake up") == -1) and
-               (s.peek_at_buffer().find("Main Menu") == -1)):
-            self.assertNotEqual(try_count, 5)
-            try_count += 1
-            log.debug("WANT %s or %s; READ ==> %s" %("'Enter <CTRL>-<C> now to wake up'", "'Main Menu'", str(s.peek_at_buffer())))
-            s.send_data("\r\n\r\n", "1")
-            gevent.sleep(2)
 
 
 ###############################################################################
@@ -1401,8 +1316,29 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         log.debug("ROGER ==> 15")
 
+
+
+    def test_command_agent(self):
+        """
+        New test to learn how to talk to the new instrument agent
+        Needs to have startup code modified...
+        Example in extern/coi-services/ion/agents/instrument/test/test_instrument_agent.py
+        """
+        log.debug("**************1")
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        log.debug("**************2")
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("**************3")
+        #state = self._ia_client.get_agent_state()
+        #self.assertEqual(state, ResourceAgentState.IDLE)
+        cmd = AgentCommand(command='get_resource_state')
+        log.debug("**************4")
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.debug("**************5")
+        return
+
     @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 2000}}})
-    def disabled_test_direct_access_telnet_mode(self):
+    def test_direct_access_telnet_mode(self):
         """
         @brief This test verifies that the Instrument Driver
                properly supports direct access to the physical
@@ -1414,22 +1350,6 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
 
         #see  nobska/mavs4 for examplar code in the main branch.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1545,3 +1465,12 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         self.assertTrue(matches == 7) # need to have found 7 conformant fields.
         """
+
+    def test_get_capabilities(self):
+        log.debug("********************************** IN test_get_capabilities ****************")
+        #ResourceAgentEvent.GO_ACTIVE
+        retval = self.instrument_agent_client.get_capabilities()
+        log.debug("********************************** B ****************")
+        for x in retval:
+            log.debug(repr(x))
+            log.debug(str(x))

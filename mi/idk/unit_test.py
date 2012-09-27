@@ -74,6 +74,9 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.exceptions import InstrumentParameterException
 
 from ion.agents.port.port_agent_process import PortAgentProcess
+
+from pyon.agent.agent import ResourceAgentState
+
 class InstrumentDriverTestConfig(Singleton):
     """
     Singleton driver test config object.
@@ -272,8 +275,9 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         try:
             driver_client = self.driver_process.get_client()
             driver_client.start_messaging(self.event_received)
+            log.debug("before 'process_echo'")
             retval = driver_client.cmd_dvr('process_echo', 'Test.') # data=? RU
-
+            log.debug("after 'process_echo'")
             self.driver_client = driver_client
         except Exception, e:
             self.driver_process.stop()
@@ -376,16 +380,19 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
 class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must inherit from here to get _start_container
     @classmethod
     def setUpClass(cls):
+        log.debug("InstrumentDriverIntegrationTestCase.setUpClass")
         cls.init_port_agent()
 
     @classmethod
     def tearDownClass(cls):
+        log.debug("InstrumentDriverIntegrationTestCase.tearDownClass")
         cls.stop_port_agent()
 
     def setUp(self):
         """
         @brief Setup test cases.
         """
+        log.debug("InstrumentDriverIntegrationTestCase.setUp")
         InstrumentDriverTestCase.setUp(self)
         self.port_agent = self.test_config.port_agent
 
@@ -418,7 +425,9 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         self.assertTrue(isinstance(pagent_pid, int))
         
         # Send a test message to the process interface, confirm result.
+        log.debug("before 'process_echo'")
         reply = self.driver_client.cmd_dvr('process_echo')
+        log.debug("after 'process_echo'")
         self.assert_(reply.startswith('ping from resource ppid:'))
 
         reply = self.driver_client.cmd_dvr('driver_ping', 'foo')
@@ -446,6 +455,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             reply = self.driver_client.cmd_dvr('test_exceptions', exception_str)
 
 
+
 class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
     @classmethod
@@ -460,22 +470,23 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         @brief Setup test cases.
         """
-        log.debug("InstrumentDriverQualificationTestCase setUp")
 
         InstrumentDriverTestCase.setUp(self)
-
         self.port_agent = self.test_config.port_agent
-
         self.instrument_agent_manager = InstrumentAgentClient();
         self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
+
         self.container = self.instrument_agent_manager.container
 
+        log.debug("#ROGER# in setUp self.test_config.instrument_agent_packet_config = " + str(self.test_config.instrument_agent_packet_config))
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.instrument_agent_packet_config,
             encoding=self.test_config.instrument_agent_stream_encoding,
             stream_definition=self.test_config.instrument_agent_stream_definition
         )
-        self.event_subscribers = InstrumentAgentEventSubscribers()
+        log.debug("InstrumentDriverQualificationTestCase setUp Problem BELOW")
+        self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.instrument_agent_resource_id)
+        log.debug("InstrumentDriverQualificationTestCase setUp Problem ABOVE")
 
         self.init_instrument_agent_client()
 
@@ -495,10 +506,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         driver_config = {
             'dvr_mod' : self.test_config.driver_module,
             'dvr_cls' : self.test_config.driver_class,
-
+            'workdir' : self.test_config.working_dir,
             'process_type' : self.test_config.driver_process_type,
 
-            'workdir' : self.test_config.working_dir,
             'comms_config' : self.port_agent_comm_config()
         }
 
@@ -510,6 +520,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'test_mode' : True  ## Enable a poison pill. If the spawning process dies
             ## shutdown the daemon process.
         }
+
+
+        # ROGER message_headers
 
         # Start instrument agent client.
         self.instrument_agent_manager.start_client(
@@ -524,6 +537,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
 
 
+
     def tearDown(self):
         """
         @brief Test teardown
@@ -531,6 +545,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         log.debug("InstrumentDriverQualificationTestCase tearDown")
         self.instrument_agent_manager.stop_container()
         InstrumentDriverTestCase.tearDown(self)
+
 
     def test_common_qualification(self):
         self.assertTrue(1)
@@ -543,46 +558,69 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                properly command the instrument through the following states.
         @todo  Once direct access settles down and works again, re-enable direct access.
 
-               KNOWN COMMANDS               -> RESULTANT STATES:
-               * power_up                   -> UNINITIALIZED
-               * power_down                 -> POWERED_DOWN
-               * initialize                 -> INACTIVE
-               * reset                      -> UNINITIALIZED
-               * go_active                  -> IDLE
-               * go_inactive                -> INACTIVE
-               * run                        -> OBSERVATORY
-               * clear                      -> IDLE
-               * pause                      -> STOPPED
-               * resume                     -> OBSERVATORY
-               * go_streaming               -> STREAMING
-               * go_direct_access           -> DIRECT_ACCESS
-               * go_observatory             -> OBSERVATORY
-               * get_resource_state          -> gives current state.
-               * start_transaction (NA)
-               * end_transaction (NA)
 
-               STATES ACHIEVED:
-               * InstrumentAgentState.POWERED_DOWN
-               * InstrumentAgentState.UNINITIALIZED
-               * InstrumentAgentState.INACTIVE
-               * InstrumentAgentState.IDLE
-               * InstrumentAgentState.OBSERVATORY
-               * InstrumentAgentState.STREAMING
-               * InstrumentAgentState.DIRECT_ACCESS
-               * InstrumentAgentState.STOPPED
 
-               above that are common to all devices go into common,
-               others go into instrument specific
+        """
+        log.debug("RUNNING THE RIGHT TEST ROGER")
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+        log.debug("ROGER 2")
+        # Ping the agent.
+        retval = self.instrument_agent_client.ping_agent()
+        log.info(retval)
+        log.debug("ROGER 3")
+        with self.assertRaises(Conflict):
+            retval = self.instrument_agent_client.ping_resource()
+        log.debug("ROGER 4")
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+        log.debug("ROGER 5")
+        # Ping the driver proc.
+        retval = self.instrument_agent_client.ping_resource()
+        log.info(retval)
+        log.debug("ROGER 6")
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+        log.debug("ROGER 7")
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
-               ?? when we get it, we can add:
-               ??    get_current_capabilitys <- instrument specific
+        cmd = AgentCommand(command=ResourceAgentEvent.PAUSE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.STOPPED)
 
-               A side effect of this testing is verification that the
-               events emitted by the agent conform to those expected
-               by the system.
+        cmd = AgentCommand(command=ResourceAgentEvent.RESUME)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.CLEAR)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
         """
 
+        log.debug("3 BEFORE POWER DOWN")
         cmd = AgentCommand(command='power_down')
+        log.debug("3 AFTER POWER DOWN")
         retval = self.instrument_agent_client.execute_agent(cmd)
         cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -719,6 +757,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        """
+
 
     def test_instrument_agent_to_instrument_driver_connectivity(self):
         """
@@ -731,7 +771,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         log.debug("IA client = " + str(self.instrument_agent_client))
 
+        log.debug("1 BEFORE POWER DOWN")
         cmd = AgentCommand(command='power_down')
+        log.debug("1 AFTER POWER DOWN")
         retval = self.instrument_agent_client.execute_agent(cmd)
         cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -765,7 +807,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         cmd = AgentCommand(command='helo_driver', kwargs={'message': 'PING-DRIVER'})
         retval = self.instrument_agent_client.execute_agent(cmd)
+
+        log.debug("before 'process_echo'")
         self.assertEqual(retval.result, 'process_echo: PING-DRIVER')
+        log.debug("after 'process_echo'")
 
         cmd = AgentCommand(command='go_inactive')
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -785,6 +830,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertTrue(self.check_for_reused_values(InstErrorCode))
         pass
 
+
     def test_driver_connection_state_enum(self):
         """
         @brief check DriverConnectionState for consistency
@@ -797,9 +843,11 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.assertTrue(self.check_for_reused_values(DriverConnectionState))
 
+
     def test_instrument_agent_event_enum(self):
 
         self.assertTrue(self.check_for_reused_values(InstrumentAgentEvent))
+
 
     def test_instrument_agent_state_enum(self):
 
@@ -825,6 +873,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         # If this assert fails, then two of the enumerations have an identical value...
         return match == outer_match
+
 
     def test_driver_async_event_enum(self):
         """
@@ -908,6 +957,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_UNINITIALIZED')
 
         cmd = AgentCommand(command='power_down')
+        log.debug("2 BEFORE POWER DOWN")
+        cmd = AgentCommand(command='power_down')
+        log.debug("2 AFTER POWER DOWN")
         retval = self.instrument_agent_client.execute_agent(cmd)
 
         cmd = AgentCommand(command='power_up')
@@ -1037,13 +1089,13 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         pass
 
-
     def test_initialize(self):
         """
         Test agent initialize command. This causes creation of
         driver process and transition to inactive.
         """
-
+        pass
+        return
         cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
