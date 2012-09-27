@@ -12,8 +12,8 @@ from gevent import monkey; monkey.patch_all()
 import gevent
 
 import unittest
-import logging
 import time
+import json
 from mock import Mock, call, DEFAULT
 from pyon.util.unit_test import PyonTestCase
 from nose.plugins.attrib import attr
@@ -24,6 +24,8 @@ from mi.core.instrument.instrument_driver import DriverState
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_protocol import InterfaceType
+from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import DataParticleValue
 
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentDataException
@@ -41,10 +43,18 @@ from mi.instrument.satlantic.par_ser_600m.ooicore.driver import PARProtocolEvent
 from mi.instrument.satlantic.par_ser_600m.ooicore.driver import Parameter
 from mi.instrument.satlantic.par_ser_600m.ooicore.driver import Command
 from mi.instrument.satlantic.par_ser_600m.ooicore.driver import SatlanticChecksumDecorator
-from mi.instrument.satlantic.par_ser_600m.ooicore.driver import sample_regex
+from mi.instrument.satlantic.par_ser_600m.ooicore.driver import SatlanticPARDataParticle
+from mi.instrument.satlantic.par_ser_600m.ooicore.driver import SatlanticPARDataParticleKey
 
-mi_logger = logging.getLogger('mi_logger')
+from mi.core.log import get_logger ; log = get_logger()
+from interface.objects import AgentCommand
+from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
+from pyon.agent.agent import ResourceAgentState
+from pyon.agent.agent import ResourceAgentEvent
+from pyon.core.exception import Conflict
+
+VALID_SAMPLE = "SATPAR0229,10.01,2206748544,234"
 # Make tests verbose and provide stdout
 # bin/nosetests -s -v ion/services/mi/drivers/test/test_satlantic_par.py
 # All unit tests: add "-a UNIT" to end, integration add "-a INT"
@@ -52,7 +62,7 @@ mi_logger = logging.getLogger('mi_logger')
 
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.satlantic.par_ser_600m.ooicore.driver',
-    driver_class="SatlanticPARInstrumentDriver",
+    driver_class="InstrumentDriver",
 
     instrument_agent_resource_id = 'satlantic_par_ser_600m_ooicore',
     instrument_agent_name = 'satlantic_par_ser_600m_ooicore_agent',
@@ -60,43 +70,48 @@ InstrumentDriverTestCase.initialize(
     #instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
 )
 
-@unittest.skip("Need better mocking of FSM or smaller testing chunks")
 @attr('UNIT', group='mi')
 class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
     """
     @todo test timeout exceptions while transitioning states and handling commands
     """
         
-    def setUp(self):
-        def response_side_effect(*args, **kwargs):
-            if args[0] == Command.SAMPLE:
-                mi_logger.debug("Side effecting!")
-                return "SATPAR0229,10.01,2206748544,234"
-            else:
-                return DEFAULT
-            
-        self.mock_callback = Mock(name='callback')
-        self.mock_logger = Mock(name='logger')
-        self.mock_logger_client = Mock(name='logger_client')
-        self.mock_fsm = Mock(name='fsm')
-#        self.mock_logger_client.send = Mock()
-        self.par_proto = SatlanticPARInstrumentProtocol(self.mock_callback)
-        self.config_params = {'device_addr':'1.1.1.1',
-                              'device_port':1,
-                              'server_addr':'2.2.2.2',
-                              'server_port':2}
-        self.par_proto._fsm = self.mock_fsm
-        self.par_proto.configure(self.config_params)
-        self.par_proto.initialize()
-        self.par_proto._logger = self.mock_logger 
-        self.par_proto._logger_client = self.mock_logger_client
-        self.par_proto._get_response = Mock(return_value=('$', None))
-        # Quick sanity check to make sure the logger got mocked properly
-        self.assertEquals(self.par_proto._logger, self.mock_logger)
-        self.assertEquals(self.par_proto._logger_client, self.mock_logger_client)
-        self.assertEquals(self.par_proto._fsm, self.mock_fsm)
-        self.mock_logger_client.reset_mock()
+    #def setUp(self):
+    """
+    Mocked up stuff
     
+    def response_side_effect(*args, **kwargs):
+        if args[0] == Command.SAMPLE:
+            mi_logger.debug("Side effecting!")
+            return "SATPAR0229,10.01,2206748544,234"
+        else:
+            return DEFAULT
+        
+    self.mock_callback = Mock(name='callback')
+    self.mock_logger = Mock(name='logger')
+    self.mock_logger_client = Mock(name='logger_client')
+    self.mock_fsm = Mock(name='fsm')
+#        self.mock_logger_client.send = Mock()
+    self.par_proto = SatlanticPARInstrumentProtocol(self.mock_callback)
+    self.config_params = {'device_addr':'1.1.1.1',
+                          'device_port':1,
+                          'server_addr':'2.2.2.2',
+                          'server_port':2}
+    self.par_proto._fsm = self.mock_fsm
+    self.par_proto.configure(self.config_params)
+    self.par_proto.initialize()
+    self.par_proto._logger = self.mock_logger 
+    self.par_proto._logger_client = self.mock_logger_client
+    self.par_proto._get_response = Mock(return_value=('$', None))
+    # Quick sanity check to make sure the logger got mocked properly
+    self.assertEquals(self.par_proto._logger, self.mock_logger)
+    self.assertEquals(self.par_proto._logger_client, self.mock_logger_client)
+    self.assertEquals(self.par_proto._fsm, self.mock_fsm)
+    self.mock_logger_client.reset_mock()
+    """
+    
+
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")    
     def test_get_param(self):
         # try single
         result = self.par_proto.get([Parameter.TELBAUD])
@@ -120,7 +135,8 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
         self.assertRaises(InstrumentProtocolException, self.par_proto.get, None)
         self.assertRaises(InstrumentProtocolException,
                           self.par_proto.get,['bad_param'])
-        
+
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")    
     def test_set_param(self):
         #@todo deal with success/fail flag or catch everywhere?
         #@todo add save checks?
@@ -154,6 +170,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
         self.assertRaises(InstrumentProtocolException,
                           self.par_proto.set,{'bad_param':0})
     
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_get_config(self):
         fetched_config = {}
         fetched_config = self.par_proto.get_config()
@@ -166,6 +183,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
         self.assertTrue(fetched_config.has_key(Parameter.TELBAUD))
         self.assertTrue(fetched_config.has_key(Parameter.MAXRATE))
     
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_restore_config(self):
         self.assertRaises(InstrumentProtocolException,
                           self.par_proto.restore_config, None)    
@@ -182,6 +200,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
                  call("set %s %s\n" % (Parameter.MAXRATE, 2))]
         self.mock_logger_client.send.assert_has_calls(calls, any_order=True)
         
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_get_single_value(self):
         result = self.par_proto.execute_poll()
         calls = [call("%s\n" % Command.EXIT),
@@ -191,6 +210,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
                  call(Command.BREAK)]
         self.mock_logger_client.send.assert_has_calls(calls, any_order=False)
         
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_breaks(self):
         # test kick to autosample, then back
         result = self.par_proto.execute_exit()        
@@ -217,6 +237,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
         self.mock_logger_client.send.assert_called_with(Command.BREAK)
         self.assertEqual(self.mock_callback.call_count, 1)
   
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_got_data(self):
         # Cant trigger easily since the async command/response, so short circut
         # the test early.
@@ -231,115 +252,154 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
 
         # check for correct parse
         
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_connect_disconnect(self):
         pass
     
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_get_status(self):
         pass
+    
+    def test_sample_format(self):
+        """
+        Test to make sure we can get sample data out in a reasonable format.
+        Parsed is all we care about...raw is tested in the base DataParticle tests
+        VALID_SAMPLE = "SATPAR0229,10.01,2206748544,234"
+        """
+        
+        port_timestamp = 3555423720.711772
+        internal_timestamp = 3555423721.711772
+        driver_timestamp = 3555423722.711772
+        particle = SatlanticPARDataParticle(VALID_SAMPLE,
+                                            port_timestamp=port_timestamp,
+                                            internal_timestamp=internal_timestamp)
+        # perform the extraction into a structure for parsed
+        sample_parsed_particle = {
+            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
+            DataParticleKey.PKT_VERSION: 1,
+            DataParticleKey.STREAM_NAME: DataParticleValue.PARSED,
+            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
+            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
+            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
+            DataParticleKey.VALUES: [
+                {DataParticleKey.VALUE_ID:SatlanticPARDataParticleKey.SERIAL_NUM,
+                 DataParticleKey.VALUE:"0229"},
+                {DataParticleKey.VALUE_ID:SatlanticPARDataParticleKey.TIMER,
+                 DataParticleKey.VALUE:10.01},
+                {DataParticleKey.VALUE_ID:SatlanticPARDataParticleKey.COUNTS,
+                 DataParticleKey.VALUE: 2206748544},
+                {DataParticleKey.VALUE_ID:SatlanticPARDataParticleKey.CHECKSUM,
+                 DataParticleKey.VALUE: 234}
+                ]
+            }
+        
+        self.compare_parsed_data_particle(SatlanticPARDataParticle,
+                                         VALID_SAMPLE,
+                                         sample_parsed_particle)        
 
 #@unittest.skip("Need a VPN setup to test against RSN installation")
 @attr('INT', group='mi')
 class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
-    def _clean_up(self):
-        # set back to command mode
-        if self.driver_client:
-            try:
-                reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.BREAK)
-            except InstrumentStateException:
-                # no biggie if we are already in cmd mode
-                pass
-            reply = self.driver_client.cmd_dvr('set_resource',
-                                             {Parameter.MAXRATE:1},
-                                              timeout=20)
-            self._disconnect()
+    
+    def check_state(self, expected_state):
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, expected_state)
         
 
-    def tearDown(self):
-        super(SatlanticParProtocolIntegrationTest, self).tearDown()
-        self._clean_up()
+    def put_instrument_in_command_mode(self):
+        """Wrap the steps and asserts for going into command mode.
+           May be used in multiple test cases.
+        """
+        # Test that the driver is in state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
 
-    def _initialize(self):
-        reply = self.driver_client.cmd_dvr('execute_init_device')
-        time.sleep(1)
+        # Configure driver and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
-    def _connect(self):
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(DriverState.UNCONFIGURED, reply)
-        configs = self.config_params
-        reply = self.driver_client.cmd_dvr('configure', configs)
-        self.assertEqual(reply, None)
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(DriverState.DISCONNECTED, reply)
+        # Test that the driver is in state disconnected.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Setup the protocol state machine and the connection to port agent.
         reply = self.driver_client.cmd_dvr('connect')
-        self.assertEqual(reply, None)
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(DriverProtocolState.UNKNOWN, reply)
 
-        self._initialize()
-        
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
+        # Test that the driver protocol is in state unknown.
+        self.check_state(PARProtocolState.UNKNOWN)
 
-        time.sleep(1)
+        # Discover what state the instrument is in and set the protocol state accordingly.
+        reply = self.driver_client.cmd_dvr('discover_state')
 
-    def _disconnect(self):
-        reply = self.driver_client.cmd_dvr('disconnect')
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(DriverState.DISCONNECTED, reply)
-        time.sleep(1)
+        # Test that the driver protocol is in state command.
+        self.check_state(PARProtocolState.COMMAND)
+
 
     def _start_stop_autosample(self):
         """Wrap the steps and asserts for going into and out of auto sample.
-        May be used in multiple test cases.
+           May be used in multiple test cases.
         """
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.AUTOSAMPLE)
+        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
 
-        time.sleep(5)
-        
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.AUTOSAMPLE_MODE, reply)
+        self.check_state(PARProtocolState.AUTOSAMPLE)
         
         # @todo check samples arriving here
         # @todo check publishing samples from here
         
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP)
+        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
                 
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
+        self.check_state(PARProtocolState.COMMAND)
+        
+
+    def test_configuration(self):
+        """
+        Test to configure the driver process for device comms and transition
+        to disconnected state.
+        """
+
+        # Test that the driver is in state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test that the driver is in state disconnected.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Re-Initialize the driver and transition to unconfigured.
+        reply = self.driver_client.cmd_dvr('initialize')
+
+        # Test that the driver returned to state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
+        
 
     def test_connect_disconnect(self):
-        """Instrument connect and disconnect"""
-        # Basic behavior for all tests includes connect and disconnect
-        # in test harness
-        pass
+        """
+        Test configuring and connecting to the device through the port
+        agent. Discover device state.  Then disconnect and re-initialize
+        """
+        self.put_instrument_in_command_mode()
+        
+        # Stop comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('disconnect')
+
+        # Test that the driver is in state disconnected.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Re-Initialize the driver and transition to unconfigured.
+        reply = self.driver_client.cmd_dvr('initialize')
     
-    def test_bad_driver_command(self):
-        """Test a bad driver command being sent to the driver client"""
-        self.assertRaises(InstrumentCommandException,
-                          self.driver_client.cmd_dvr, 'get_status')
+        # Test that the driver returned to state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
         
-    def test_start_stop_autosample(self):
-        """
-        Test moving into and out of autosample, gathering some data, and
-        seeing it published
-        @todo check the publishing, integrate this with changes in march 2012
-        """
-        # get into command mode and try it
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.BREAK)
 
-        self._start_stop_autosample()
-        
-        # try it from autosample mode now
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.POLL)
-
-        self._start_stop_autosample()
-        
     def test_get(self):
-        # Should default to command mode
+        
+        self.put_instrument_in_command_mode()
+        
         reply = self.driver_client.cmd_dvr('get_resource',
                                            [Parameter.TELBAUD,
                                             Parameter.MAXRATE],
                                            timeout=20)
+        
         self.assertEquals(reply, {Parameter.TELBAUD:19200,
                                   Parameter.MAXRATE:1})
         
@@ -347,146 +407,124 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
                           self.driver_client.cmd_dvr,
                           'bogus', [Parameter.TELBAUD])
 
+
     def test_set(self):
         config_key = Parameter.MAXRATE
-        config_A = {config_key:2}
-        config_B = {config_key:1}
+        value_A = 12
+        value_B = 1
+        config_A = {config_key:value_A}
+        config_B = {config_key:value_B}
         
-        # Should default to command mode
+        self.put_instrument_in_command_mode()
+        
         reply = self.driver_client.cmd_dvr('set_resource', config_A, timeout=20)
-        self.assertEquals(reply[config_key], 2)
+        self.assertEquals(reply[config_key], value_A)
                  
         reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=20)
         self.assertEquals(reply, config_A)
         
         reply = self.driver_client.cmd_dvr('set_resource', config_B, timeout=20)
-        self.assertEquals(reply[config_key], 1)
+        self.assertEquals(reply[config_key], value_B)
          
         reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=20)
         self.assertEquals(reply, config_B)
         
+
+    def test_start_stop_autosample(self):
+        """
+        Test moving into and out of autosample, gathering some data, and
+        seeing it published
+        @todo check the publishing, integrate this with changes in march 2012
+        """
+
+        self.put_instrument_in_command_mode()
+        self._start_stop_autosample()
+                
+
+    def test_bad_driver_command(self):
+        """Test a bad driver command being sent to the driver client"""
+        self.assertRaises(InstrumentCommandException, 
+                          self.driver_client.cmd_dvr, 'get_status')
+        
+
     def test_get_from_wrong_state(self):
         """Test get() from wrong state
-        
-        @todo Fix this to handle exceptions/errors across the zmq boundry
         """
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.AUTOSAMPLE)
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.AUTOSAMPLE_MODE, reply)
+        self.put_instrument_in_command_mode()
+        
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
+        self.check_state(PARProtocolState.AUTOSAMPLE)
 
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr,
-                          'get_resource', [Parameter.MAXRATE])
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'get_resource', [Parameter.MAXRATE])
+
 
     def test_set_from_wrong_state(self):
         """Test set() from wrong state
-        @todo exception across thread
         """
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.AUTOSAMPLE)
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.AUTOSAMPLE_MODE, reply)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr,
-                          'set_resource', {Parameter.MAXRATE:10})
-
-    def test_get_config(self):
-        """
-        """
-        # Should default to command mode
-        reply = self.driver_client.cmd_dvr('get_config')
-        self.assertEquals(len(reply.items()), 2)
-        self.assertEquals(reply[Parameter.TELBAUD], 19200)
-        self.assertEquals(reply[Parameter.MAXRATE], 1)
-
-        # Put in the wrong mode, then try it
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.AUTOSAMPLE)
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.AUTOSAMPLE_MODE, reply)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr,
-                          'get_config')
+        self.put_instrument_in_command_mode()
         
-    def test_restore_config(self):
-        """
-        """
-        config = self.driver_client.cmd_dvr('get_config')
-        self.assertEquals(len(config.items()), 2)
-        self.assertEquals(config[Parameter.TELBAUD], 19200)
-        self.assertEquals(config[Parameter.MAXRATE], 1)
-
-        config[Parameter.MAXRATE] = 2
-        config = self.driver_client.cmd_dvr('restore_config', config)
-        self.assertEquals(config[Parameter.MAXRATE], 2)
-        
-        config = self.driver_client.cmd_dvr('get_config')
-        self.assertEquals(len(config.items()), 2)
-        self.assertEquals(config[Parameter.TELBAUD], 19200)
-        self.assertEquals(config[Parameter.MAXRATE], 2)
-
-        # clean up
-        config[Parameter.MAXRATE] = 1
-        config = self.driver_client.cmd_dvr('restore_config', config)
-        self.assertEquals(config[Parameter.MAXRATE], 1)
-
-        # test from wrong state
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.AUTOSAMPLE)
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.AUTOSAMPLE_MODE, reply)
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
+        self.check_state(PARProtocolState.AUTOSAMPLE)
 
         self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr,
-                          'restore_config', config)
+                          self.driver_client.cmd_dvr, 'set_resource', {Parameter.MAXRATE:10})
 
-    def test_break_from_slow_autosample(self):
+
+    def test_stop_from_slow_autosample(self):
         # test break from autosample at low data rates
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.AUTOSAMPLE)
-        time.sleep(5)
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.BREAK)
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
+        self.put_instrument_in_command_mode()
+        
+        reply = self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE:1}, timeout=20)
 
-    def test_break_from_fast_autosample(self):
+        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
+        #time.sleep(5)
+        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
+        self.check_state(PARProtocolState.COMMAND)
+
+
+    def test_stop_from_fast_autosample(self):
         # test break from autosample at high data rates
+        self.put_instrument_in_command_mode()
+        
         reply = self.driver_client.cmd_dvr('set_resource',
                                            {Parameter.MAXRATE:12},
                                            timeout=20)
 
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.AUTOSAMPLE)
-        time.sleep(5)
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.BREAK)
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
+        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
+        #time.sleep(5)
+        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
+        self.check_state(PARProtocolState.COMMAND)
 
 
-    def test_break_from_poll(self):
-        # Now try it from poll mode
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.POLL)
+    def test_start_stop_poll(self):
+        self.put_instrument_in_command_mode()
+        
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_POLL)
+        self.check_state(PARProtocolState.POLL)
         time.sleep(2)
 
-        # Already in poll mode, so this shouldnt give us anything
+        # Already in poll mode, so this shouldn't give us anything
         self.assertRaises(InstrumentStateException,
-                  self.driver_client.cmd_dvr,
-                  'execute_resource', PARProtocolEvent.POLL)
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.START_POLL)
         
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.BREAK)        
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.ACQUIRE_SAMPLE)
+
+        # @todo check samples arriving here
+        # @todo check publishing samples from here
+        
+        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_POLL)        
+        self.check_state(PARProtocolState.COMMAND)
     
-    """
-    @todo Test reset function
+
+    @unittest.skip('Need to write this test')
     def test_reset(self):
         pass
-    """
-    """
-    @todo test any commands not already tested
-    def test_commands(self):
-        # check all the exec commands that havent been tested already
-        pass
+
+
     """
     def test_get_sample_from_cmd_mode(self):
-        """Get some samples directly from command mode"""
+        # Get some samples directly from command mode
         reply_1 = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.SAMPLE)
         self.assertTrue(sample_regex.match(reply_1[1]))        
     
@@ -496,27 +534,27 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assertNotEqual(reply_1[1], reply_2[1])
         
         reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
+        self.assertEqual(PARProtocolState.COMMAND, reply)
         
+
     def test_double_poll_mode(self):
-        """Mainly check the format of the manual sample that comes out
-        @todo Finish this out...is the transition right for getting into poll mode?
-        """
+        # Mainly check the format of the manual sample that comes out
+        #v@todo Finish this out...is the transition right for getting into poll mode?
         self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.POLL)
         reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.POLL_MODE, reply)
+        self.assertEqual(PARProtocolState.POLL, reply)
         
         # Get data
         result = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.SAMPLE)        
         self.assertTrue(sample_regex.match(result[1]))
         
+
     def test_get_data_sample_via_poll_mode(self):
-        """Mainly check the format of the manual sample that comes out
-        @todo Finish this out...is the transition right for getting into poll mode?
-        """
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.POLL)
+        # Mainly check the format of the manual sample that comes out
+        # @todo Finish this out...is the transition right for getting into poll mode?
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_POLL)
         reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.POLL_MODE, reply)
+        self.assertEqual(PARProtocolState.POLL, reply)
         
         # Get data
         reply_1 = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.SAMPLE)
@@ -524,7 +562,7 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assertTrue(sample_regex.match(reply_1[1]))        
     
         reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.POLL_MODE, reply)
+        self.assertEqual(PARProtocolState.POLL, reply)
 
         # Get data
         reply_2 = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.SAMPLE)
@@ -533,53 +571,13 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assertNotEqual(reply_1[1], reply_2[1])
 
         reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.POLL_MODE, reply)
+        self.assertEqual(PARProtocolState.POLL, reply)
         
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.BREAK)
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_POLL)
         
         reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.COMMAND_MODE, reply)
-        
-    '''
-    def test_publish(self):
-        """Test publishing of data...somehow"""
-    '''
-    def test_save(self):
-        """Test saving parameters, regardless of specific save since we save
-        at every set."""
-        config_key = Parameter.MAXRATE
-        config_A = {config_key:2}
-        config_B = {config_key:1}
-        
-        # get max rate value
-        reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=10)
-        self.assertEquals(reply, config_B)
-        
-        # change it to something else, save, reset
-        reply = self.driver_client.cmd_dvr('set_resource', config_A, timeout=10)
-        self.assertEquals(reply, config_A)
-        reply = self.driver_client.cmd_dvr('execute_exit_and_reset',
-                                           timeout=20)
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.BREAK,
-                                           timeout=20)
-        
-        # get max rate value, verify equal to saved value
-        reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=10)
-        self.assertEquals(reply, config_A)
-        
-        # change maxrate value, do NOT save, reset and check
-        reply = self.driver_client.cmd_dvr('set_resource', config_B, timeout=10)
-        self.assertEquals(reply, config_B)
-        reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=10)
-        self.assertEquals(reply, config_B)
-        reply = self.driver_client.cmd_dvr('execute_exit_and_reset',
-                                           timeout=20)
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.BREAK,
-                                           timeout=20)
-        
-        # get max rate value, verify equal to saved value
-        reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=10)
-        self.assertEquals(reply, config_B)
+        self.assertEqual(PARProtocolState.COMMAND, reply)
+    """    
         
 @attr('UNIT', group='mi')
 class SatlanticParDecoratorTest(PyonTestCase):
@@ -596,7 +594,67 @@ class SatlanticParDecoratorTest(PyonTestCase):
                           "SATPAR0229,10.01,2206748544,235")
 
 
+###############################################################################
+#                            QUALIFICATION TESTS                              #
+# Device specific qualification tests are for                                 #
+# testing device specific capabilities                                        #
+###############################################################################
+
 @attr('QUAL', group='mi')
 class QualFromIDK(InstrumentDriverQualificationTestCase):
-    pass
+    """Qualification Test Container"""
+    
+    # Qualification tests live in the base class.  This class is extended
+    # here so that when running this test from 'nosetests' all tests
+    # (UNIT, INT, and QUAL) are run.  
 
+
+    @unittest.skip("skip for automatic tests")
+    def test_direct_access_telnet_mode_manually(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+    
+        with self.assertRaises(Conflict):
+            res_state = self.instrument_agent_client.get_resource_state()
+    
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        print("sent initialize; IA state = %s" %str(state))
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        print("sent go_active; IA state = %s" %str(state))
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(res_state, DriverProtocolState.COMMAND)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        print("sent run; IA state = %s" %str(state))
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(res_state, DriverProtocolState.COMMAND)
+
+        # go direct access
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
+                           kwargs={'session_type': DirectAccessTypes.telnet,
+                                   #kwargs={'session_type':DirectAccessTypes.vsp,
+                                   'session_timeout':600,
+                                   'inactivity_timeout':600})
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.warn("go_direct_access retval=" + str(retval.result))
+        
+        gevent.sleep(600)  # wait for manual telnet session to be run

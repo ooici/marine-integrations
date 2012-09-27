@@ -22,8 +22,7 @@ import traceback
 from mi.core.exceptions import InstrumentException, InstrumentCommandException
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
-from mi.core.log import get_logger
-log = get_logger()
+from ooi.logging import log
 
 class DriverProcess(object):
     """

@@ -236,10 +236,19 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
     def assertSampleDict(self, val):
         """
-        Verify the value is an SBE37DataParticle with a few key fields
+        Verify the value is an SBE37DataParticle with a few key fields or a
+        dict with 'raw' and 'parsed' tags.
         """
-        self.assertTrue(isinstance(val, SBE37DataParticle))
-        raw_dict = json.loads(val.generate_raw())
+        
+        if (isinstance(val, SBE37DataParticle)):
+            raw_dict = json.loads(val.generate_raw())
+            parsed_dict = json.loads(val.generate_parsed())
+        else:
+            self.assertTrue(val['raw'])
+            raw_dict = val['raw']
+            self.assertTrue(val['parsed'])
+            parsed_dict = val['parsed']
+            
         self.assertTrue(raw_dict[DataParticleKey.STREAM_NAME],
                         DataParticleValue.RAW)
         self.assertTrue(raw_dict[DataParticleKey.PKT_FORMAT_ID],
@@ -248,7 +257,6 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         self.assertTrue(isinstance(raw_dict[DataParticleKey.VALUES],
                         list))
         
-        parsed_dict = json.loads(val.generate_parsed())
         self.assertTrue(parsed_dict[DataParticleKey.STREAM_NAME],
                         DataParticleValue.PARSED)
         self.assertTrue(parsed_dict[DataParticleKey.PKT_FORMAT_ID],

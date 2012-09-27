@@ -26,7 +26,8 @@ setup(  name = 'marine-integrations',
         packages = find_packages(),
         dependency_links = [
             'http://sddevrepo.oceanobservatories.org/releases/',
-            'https://github.com/ooici/pyon/tarball/master#egg=pyon'
+            'https://github.com/ooici/pyon/tarball/master#egg=pyon',
+            'https://github.com/ooici/utilities/tarball/master#egg=utilities-9999'
         ],
         test_suite = 'pyon',
         entry_points = {
@@ -37,8 +38,9 @@ setup(  name = 'marine-integrations',
             ],
         },
         install_requires = [
-		'gitpy==0.6.0',
-		'snakefood==1.4',
-		'ntplib>=0.1.9',
+            'gitpy==0.6.0',
+            'snakefood==1.4',
+            'ntplib>=0.1.9',
+            'utilities',
         ],
      )

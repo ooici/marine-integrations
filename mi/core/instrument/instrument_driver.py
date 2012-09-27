@@ -19,6 +19,7 @@ from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.logger_client import LoggerClient
+from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.instrument_protocol import BaseProtocolEvent
 
 from mi.core.log import get_logger,LoggerManager
@@ -767,7 +768,8 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
             port = config['port']
 
             if isinstance(addr, str) and isinstance(port, int) and len(addr)>0:
-                return LoggerClient(addr, port)
+                #return LoggerClient(addr, port)
+                return PortAgentClient(addr, port)
             else:
                 raise InstrumentParameterException('Invalid comms config dict.')
 

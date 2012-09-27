@@ -189,7 +189,7 @@ class ProtocolParameterDict(object):
         Update the dictionaray with a line input. Iterate through all objects
         and attempt to match and update a parameter.
         @param input A string to match to a dictionary object.
-        @retval The name that was successfully updated, None if not updated
+        @retval The name that was successfully updated, False if not updated
         """
 
         multi_mode = False

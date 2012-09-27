@@ -19,6 +19,13 @@ import gevent
 
 from mi.core.log import get_logger ; log = get_logger()
 
+# Set testing to false because the capability container tries to clear out
+# couchdb if we are testing. Since we don't care about couchdb for the most
+# part we can ignore this. See initialize_ion_int_tests() for implementation.
+# If you DO care about couch content make sure you do a force_clean when needed.
+from pyon.core import bootstrap
+bootstrap.testing = False;
+
 from mi.idk.config import Config
 
 from mi.idk.exceptions import TestNoDeployFile
@@ -31,10 +38,10 @@ from pyon.util.context import LocalContextMixin
 from interface.services.icontainer_agent import ContainerAgentClient
 from pyon.agent.agent import ResourceAgentClient
 from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
-from pyon.public import StreamSubscriberRegistrar
+#from pyon.public import StreamSubscriberRegistrar
 from pyon.event.event import EventSubscriber, EventPublisher
 
-from interface.objects import StreamQuery
+#from interface.objects import StreamQuery
 
 DEFAULT_DEPLOY = 'res/deploy/r2deploy.yml'
 
@@ -283,7 +290,7 @@ class InstrumentAgentDataSubscribers(object):
 
         if packet_config == None:
             packet_config = {}
-        log.debug("#ROGER# packet_config was " + str(packet_config))
+
 
         self.no_samples = None
         self.async_data_result = AsyncResult()
@@ -301,12 +308,14 @@ class InstrumentAgentDataSubscribers(object):
 
         # A callback for processing subscribed-to data.
         def consume_data(message, headers):
-            log.info('#**#**# Subscriber received data message: %s   %s.', str(message), str(headers))
+            log.info('#**#**# Data Subscriber (consume_data) received data message: %s   %s.', str(message), str(headers))
+
 
             self.samples_received.append(message)
             if self.no_samples and self.no_samples == len(self.samples_received):
                 self.async_data_result.set()
 
+        """
         # Create a stream subscriber registrar to create subscribers.
         subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
                                                          container=self.container)
@@ -328,26 +337,7 @@ class InstrumentAgentDataSubscribers(object):
             sub_id = pubsub_client.create_subscription(query=query, exchange_name=exchange_name, exchange_point='science_data')
             pubsub_client.activate_subscription(sub_id)
 
-        '''
-        for (stream_name, val) in packet_config.iteritems():
-            log.debug("#ROGER# packet_config stream_name = " + str(stream_name) + "val = " + str(val))
-            stream_def_id = pubsub_client.create_stream_definition(container=stream_definition)
-            stream_id = pubsub_client.create_stream(
-                name=stream_name,
-                stream_definition_id=stream_def_id,
-                original=original,
-                encoding=encoding)
-            self.stream_config[stream_name] = stream_id
-
-            # Create subscriptions for each stream.
-            exchange_name = '%s_queue' % stream_name
-            sub = subscriber_registrar.create_subscriber(exchange_name=exchange_name, callback=consume_data)
-            self._listen(sub)
-            self.data_subscribers.append(sub)
-            query = StreamQuery(stream_ids=[stream_id])
-            sub_id = pubsub_client.create_subscription(query=query, exchange_name=exchange_name)
-            pubsub_client.activate_subscription(sub_id)
-        '''
+        """
 
     def _listen(self, sub):
         """
@@ -371,28 +361,18 @@ class InstrumentAgentEventSubscribers(object):
         self.event_subscribers = []
 
         def consume_event(*args, **kwargs):
-            log.info('#**#**# Test recieved ION event: args=%s, kwargs=%s, event=%s.',
+
+            log.info('#**#**# Event subscriber (consume_event) recieved ION event: args=%s, kwargs=%s, event=%s.',
+
                 str(args), str(kwargs), str(args[0]))
             self.events_received.append(args[0])
             if self.no_events and self.no_events == len(self.event_received):
                 self.async_event_result.set()
 
 
-        log.debug("*********************************")
-        log.debug("*********************************")
-        log.debug("*********************************")
-        log.debug("********DISABLED CODE IN*********")
-        log.debug("*InstrumentAgentEventSubscribers*")
-        log.debug("*********************************")
-        log.debug("*********************************")
-
-
-        #event_sub = EventSubscriber(event_type="DeviceEvent", callback=consume_event)
-        #event_sub.activate()
-        #self.event_subscribers.append(event_sub)
-
-        self.event_sub = EventSubscriber(
+        self.event_subscribers = EventSubscriber(
             event_type='ResourceAgentEvent', callback=consume_event,
             origin=instrument_agent_resource_id)
-        self.event_sub.start()
-        self.event_sub._ready_event.wait(timeout=5)
+        self.event_subscribers.start()
+        self.event_subscribers._ready_event.wait(timeout=5)
+

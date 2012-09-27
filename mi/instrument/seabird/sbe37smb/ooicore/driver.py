@@ -17,8 +17,10 @@ import re
 import datetime
 from threading import Timer
 import string
+import json
 
 from mi.core.common import BaseEnum
+from mi.core.instrument.port_agent_client import PortAgentPacket
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -145,7 +147,14 @@ SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
 # Packet config for SBE37 data granules.
 STREAM_NAME_PARSED = DataParticleValue.PARSED
 STREAM_NAME_RAW = DataParticleValue.RAW
-PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
+#PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
+
+
+# TODO: Where are the param dict definitions kept and related to driver versions?
+PACKET_CONFIG = {
+    STREAM_NAME_PARSED : 'ctd_parsed_param_dict',
+    STREAM_NAME_RAW : 'ctd_raw_param_dict'
+}
 
 # TODO: remove this old definition:
 #PACKET_CONFIG = {
@@ -186,6 +195,11 @@ class SBE37Driver(SingleConnectionInstrumentDriver):
         """
         self._protocol = SBE37Protocol(SBE37Prompt, SBE37_NEWLINE, self._driver_event)
 
+class SBE37DataParticleKey(BaseEnum):
+    TEMP = "temp"
+    CONDUCTIVITY = "conductivity"
+    DEPTH = "depth"
+    
 class SBE37DataParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
@@ -217,11 +231,11 @@ class SBE37DataParticle(DataParticle):
         
         
         #TODO:  Get 'temp', 'cond', and 'depth' from a paramdict
-        result = [{DataParticleKey.VALUE_ID: "temp",
+        result = [{DataParticleKey.VALUE_ID: SBE37DataParticleKey.TEMP,
                    DataParticleKey.VALUE: temperature},
-                  {DataParticleKey.VALUE_ID: "conductivity",
+                  {DataParticleKey.VALUE_ID: SBE37DataParticleKey.CONDUCTIVITY,
                    DataParticleKey.VALUE: conductivity},
-                  {DataParticleKey.VALUE_ID: "depth",
+                  {DataParticleKey.VALUE_ID: SBE37DataParticleKey.DEPTH,
                     DataParticleKey.VALUE: depth}]
         
         return result
@@ -799,7 +813,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         sample = None
         for line in response.split(SBE37_NEWLINE):
-            sample = self._extract_sample(line, True)
+            sample = self._extract_sample(SBE37DataParticle, SAMPLE_REGEX, line, True)
             if sample:
                 break
 
@@ -833,7 +847,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         return (success, response)
 
-    def got_data(self, data):
+    def old_got_data(self, data):
         """
         Callback for receiving new data from the device.
         """
@@ -865,41 +879,46 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                     lines = self._linebuf.split(SBE37_NEWLINE)
                     self._linebuf = lines[-1]
                     for line in lines:
-                        self._extract_sample(line)
+                        self._extract_sample(SBE37DataParticle, SAMPLE_REGEX,
+                                             line)
 
-    def _extract_sample(self, line, publish=True):
+    def got_data(self, paPacket):
         """
-        Extract sample from a response line if present and publish "raw" and
-        "parsed" sample events to agent.
-
-        @param line string to match for sample.
-        @param publish boolean to publish samples (default True). If True,
-               two different events are published: one to notify raw data and
-               the other to notify parsed data.
-
-        @retval dict of dicts {'parsed': parsed_sample, 'raw': raw_sample} if
-                the line can be parsed for a sample. Otherwise, None.
-        @todo Figure out how the agent wants the results for a single poll
-            and return them that way from here
+        Callback for receiving new data from the device.
         """
-        sample = None
-        if SAMPLE_REGEX.match(line):
-        
-            particle = SBE37DataParticle(line,
-                preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
-            
-            raw_sample = particle.generate_raw()
-            parsed_sample = particle.generate_parsed()
-            
-            if publish and self._driver_event:
-                self._driver_event(DriverAsyncEvent.SAMPLE, raw_sample)
-    
-            if publish and self._driver_event:
-                self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
-    
-            sample = dict(parsed=parsed_sample, raw=raw_sample)
-            return particle
-        return sample
+        paLength = paPacket.get_data_size()
+        paData = paPacket.get_data()
+
+        if self.get_current_state() == SBE37ProtocolState.DIRECT_ACCESS:
+            # direct access mode
+            if paLength > 0:
+                #mi_logger.debug("SBE37Protocol._got_data(): <" + data + ">")
+                # check for echoed commands from instrument (TODO: this should only be done for telnet?)
+                if len(self._sent_cmds) > 0:
+                    # there are sent commands that need to have there echoes filtered out
+                    oldest_sent_cmd = self._sent_cmds[0]
+                    if string.count(paData, oldest_sent_cmd) > 0:
+                        # found a command echo, so remove it from data and delete the command form list
+                        paData = string.replace(paData, oldest_sent_cmd, "", 1)
+                        self._sent_cmds.pop(0)
+                if len(paData) > 0 and self._driver_event:
+                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
+                    # TODO: what about logging this as an event?
+            return
+
+        if paLength > 0:
+            # Call the superclass to update line and prompt buffers.
+            CommandResponseInstrumentProtocol.got_data(self, paData)
+
+            # If in streaming mode, process the buffer for samples to publish.
+            cur_state = self.get_current_state()
+            if cur_state == SBE37ProtocolState.AUTOSAMPLE:
+                if SBE37_NEWLINE in self._linebuf:
+                    lines = self._linebuf.split(SBE37_NEWLINE)
+                    self._linebuf = lines[-1]
+                    for line in lines:
+                        self._extract_sample(SBE37DataParticle, SAMPLE_REGEX,
+                                             line)
 
     def _build_param_dict(self):
         """
