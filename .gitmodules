@@ -10,3 +10,6 @@
 [submodule "extern/coi-services"]
 	path = extern/coi-services
 	url = git://github.com/ooici/coi-services
+[submodule "extern/utilities"]
+	path = extern/utilities
+	url = https://github.com/ooici/utilities.git
