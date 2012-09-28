@@ -31,6 +31,7 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentDataException
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import InstrumentStateException
+from mi.core.exceptions import InstrumentParameterException
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
@@ -315,19 +316,19 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.check_state(DriverConnectionState.UNCONFIGURED)
 
         # Configure driver and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test that the driver is in state disconnected.
         self.check_state(DriverConnectionState.DISCONNECTED)
 
         # Setup the protocol state machine and the connection to port agent.
-        reply = self.driver_client.cmd_dvr('connect')
+        self.driver_client.cmd_dvr('connect')
 
         # Test that the driver protocol is in state unknown.
         self.check_state(PARProtocolState.UNKNOWN)
 
         # Discover what state the instrument is in and set the protocol state accordingly.
-        reply = self.driver_client.cmd_dvr('discover_state')
+        self.driver_client.cmd_dvr('discover_state')
 
         # Test that the driver protocol is in state command.
         self.check_state(PARProtocolState.COMMAND)
@@ -337,14 +338,14 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         """Wrap the steps and asserts for going into and out of auto sample.
            May be used in multiple test cases.
         """
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
 
         self.check_state(PARProtocolState.AUTOSAMPLE)
         
         # @todo check samples arriving here
         # @todo check publishing samples from here
         
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
                 
         self.check_state(PARProtocolState.COMMAND)
         
@@ -359,13 +360,13 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.check_state(DriverConnectionState.UNCONFIGURED)
 
         # Configure driver and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test that the driver is in state disconnected.
         self.check_state(DriverConnectionState.DISCONNECTED)
 
         # Re-Initialize the driver and transition to unconfigured.
-        reply = self.driver_client.cmd_dvr('initialize')
+        self.driver_client.cmd_dvr('initialize')
 
         # Test that the driver returned to state unconfigured.
         self.check_state(DriverConnectionState.UNCONFIGURED)
@@ -379,13 +380,13 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.put_instrument_in_command_mode()
         
         # Stop comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('disconnect')
+        self.driver_client.cmd_dvr('disconnect')
 
         # Test that the driver is in state disconnected.
         self.check_state(DriverConnectionState.DISCONNECTED)
 
         # Re-Initialize the driver and transition to unconfigured.
-        reply = self.driver_client.cmd_dvr('initialize')
+        self.driver_client.cmd_dvr('initialize')
     
         # Test that the driver returned to state unconfigured.
         self.check_state(DriverConnectionState.UNCONFIGURED)
@@ -407,6 +408,24 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
                           self.driver_client.cmd_dvr,
                           'bogus', [Parameter.TELBAUD])
 
+        # Assert get fails without a parameter.
+        self.assertRaises(InstrumentParameterException,
+                          self.driver_client.cmd_dvr, 'get_resource')
+            
+        # Assert get fails with a bad parameter (not ALL or a list).
+        with self.assertRaises(InstrumentParameterException):
+            bogus_params = 'I am a bogus param list.'
+            self.driver_client.cmd_dvr('get_resource', bogus_params)
+            
+        # Assert get fails with a bad parameter in a list).
+        with self.assertRaises(InstrumentParameterException):
+            bogus_params = [
+                'a bogus parameter name',
+                Parameter.TELBAUD,
+                Parameter.MAXRATE
+                ]
+            self.driver_client.cmd_dvr('get_resource', bogus_params)        
+        
 
     def test_set(self):
         config_key = Parameter.MAXRATE
@@ -428,7 +447,193 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
          
         reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=20)
         self.assertEquals(reply, config_B)
+
+        # Assert we cannot set a bogus parameter.
+        with self.assertRaises(InstrumentParameterException):
+            bogus_params = {
+                'a bogus parameter name' : 'bogus value'
+            }
+            self.driver_client.cmd_dvr('set_resource', bogus_params)
+            
+        # Assert we cannot set a real parameter to a bogus value.
+        with self.assertRaises(InstrumentParameterException):
+            bogus_params = {
+                Parameter.MAXRATE : 'bogus value'
+            }
+            self.driver_client.cmd_dvr('set_resource', bogus_params)
         
+        
+    #@unittest.skip('temp for debugging')
+    def test_error_conditions(self):
+        # Test that the driver is in state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver and transition to disconnected.
+        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test that the driver is in state disconnected.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Assert for a known command, invalid state.
+        self.assertRaises(InstrumentStateException,
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.ACQUIRE_SAMPLE)
+
+        # Setup the protocol state machine and the connection to port agent.
+        self.driver_client.cmd_dvr('connect')
+
+        # Test that the driver protocol is in state unknown.
+        self.check_state(PARProtocolState.UNKNOWN)
+
+        # Assert for a known command, invalid state.
+        self.assertRaises(InstrumentStateException,
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.ACQUIRE_SAMPLE)
+
+        # Discover what state the instrument is in and set the protocol state accordingly.
+        self.driver_client.cmd_dvr('discover_state')
+
+        # Test that the driver protocol is in state command.
+        self.check_state(PARProtocolState.COMMAND)
+
+        # tests when driver is in command mode
+        # Test a bad driver command 
+        self.assertRaises(InstrumentCommandException, 
+                          self.driver_client.cmd_dvr, 'bogus_command')
+        
+        self.assertRaises(InstrumentStateException,
+                          self.driver_client.cmd_dvr, 'connect')
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.ACQUIRE_SAMPLE)
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.RESET)
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.STOP_DIRECT)
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.STOP_POLL)
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.EXECUTE_DIRECT)
+
+        # tests when driver is in auto-sample mode
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
+        self.check_state(PARProtocolState.AUTOSAMPLE)
+
+        # Test a bad driver command 
+        self.assertRaises(InstrumentCommandException, 
+                          self.driver_client.cmd_dvr, 'bogus_command')
+        
+        # Test get from wrong state
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'get_resource', [Parameter.MAXRATE])
+
+        # Test set from wrong state
+        self.assertRaises(InstrumentStateException,
+                          self.driver_client.cmd_dvr, 'set_resource', {Parameter.MAXRATE:10})
+
+        # test commands for invalid state
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.ACQUIRE_SAMPLE)
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.START_DIRECT)
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.STOP_DIRECT)
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.EXECUTE_DIRECT)
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.STOP_POLL)
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
+
+        # tests when driver is in poll mode
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_POLL)
+        self.check_state(PARProtocolState.POLL)
+
+        # Test a bad driver command 
+        self.assertRaises(InstrumentCommandException, 
+                          self.driver_client.cmd_dvr, 'bogus_command')
+        
+        # Test get from wrong state
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'get_resource', [Parameter.MAXRATE])
+
+        # Test set from wrong state
+        self.assertRaises(InstrumentStateException,
+                          self.driver_client.cmd_dvr, 'set_resource', {Parameter.MAXRATE:10})
+
+        # test commands for invalid state
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.START_DIRECT)
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.STOP_DIRECT)
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.EXECUTE_DIRECT)
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
+
+        self.assertRaises(InstrumentStateException, 
+                          self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.START_POLL)
+
+        # Assert we forgot the comms parameter.
+        self.assertRaises(InstrumentParameterException,
+                          self.driver_client.cmd_dvr, 'configure')
+
+        # Assert we send a bad config object (not a dict).
+        with self.assertRaises(InstrumentParameterException):
+            BOGUS_CONFIG = 'not a config dict'            
+            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+            
+        # Assert we send a bad config object (missing addr value).
+        with self.assertRaises(InstrumentParameterException):
+            BOGUS_CONFIG = self.port_agent_comm_config().copy()
+            BOGUS_CONFIG.pop('addr')
+            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+
+        # Assert we send a bad config object (bad addr value).
+        with self.assertRaises(InstrumentParameterException):
+            BOGUS_CONFIG = self.port_agent_comm_config().copy()
+            BOGUS_CONFIG['addr'] = ''
+            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+        
+
+    def test_stop_from_slow_autosample(self):
+        # test break from autosample at low data rates
+        self.put_instrument_in_command_mode()
+        
+        self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE:1}, timeout=20)
+
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
+        #time.sleep(5)
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
+        self.check_state(PARProtocolState.COMMAND)
+
+
+    def test_stop_from_fast_autosample(self):
+        # test break from autosample at high data rates
+        self.put_instrument_in_command_mode()
+        
+        self.driver_client.cmd_dvr('set_resource',
+                                           {Parameter.MAXRATE:12},
+                                           timeout=20)
+
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
+        #time.sleep(5)
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
+        self.check_state(PARProtocolState.COMMAND)
+
 
     def test_start_stop_autosample(self):
         """
@@ -440,62 +645,6 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.put_instrument_in_command_mode()
         self._start_stop_autosample()
                 
-
-    def test_bad_driver_command(self):
-        """Test a bad driver command being sent to the driver client"""
-        self.assertRaises(InstrumentCommandException, 
-                          self.driver_client.cmd_dvr, 'get_status')
-        
-
-    def test_get_from_wrong_state(self):
-        """Test get() from wrong state
-        """
-        self.put_instrument_in_command_mode()
-        
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
-        self.check_state(PARProtocolState.AUTOSAMPLE)
-
-        self.assertRaises(InstrumentStateException, 
-                          self.driver_client.cmd_dvr, 'get_resource', [Parameter.MAXRATE])
-
-
-    def test_set_from_wrong_state(self):
-        """Test set() from wrong state
-        """
-        self.put_instrument_in_command_mode()
-        
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
-        self.check_state(PARProtocolState.AUTOSAMPLE)
-
-        self.assertRaises(InstrumentStateException,
-                          self.driver_client.cmd_dvr, 'set_resource', {Parameter.MAXRATE:10})
-
-
-    def test_stop_from_slow_autosample(self):
-        # test break from autosample at low data rates
-        self.put_instrument_in_command_mode()
-        
-        reply = self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE:1}, timeout=20)
-
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
-        #time.sleep(5)
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
-        self.check_state(PARProtocolState.COMMAND)
-
-
-    def test_stop_from_fast_autosample(self):
-        # test break from autosample at high data rates
-        self.put_instrument_in_command_mode()
-        
-        reply = self.driver_client.cmd_dvr('set_resource',
-                                           {Parameter.MAXRATE:12},
-                                           timeout=20)
-
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
-        #time.sleep(5)
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
-        self.check_state(PARProtocolState.COMMAND)
-
 
     def test_start_stop_poll(self):
         self.put_instrument_in_command_mode()
@@ -513,7 +662,7 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         # @todo check samples arriving here
         # @todo check publishing samples from here
         
-        reply = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_POLL)        
+        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_POLL)        
         self.check_state(PARProtocolState.COMMAND)
     
 
@@ -521,63 +670,6 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
     def test_reset(self):
         pass
 
-
-    """
-    def test_get_sample_from_cmd_mode(self):
-        # Get some samples directly from command mode
-        reply_1 = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.SAMPLE)
-        self.assertTrue(sample_regex.match(reply_1[1]))        
-    
-        # Get data
-        reply_2 = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.SAMPLE)
-        self.assertTrue(sample_regex.match(reply_2[1]))
-        self.assertNotEqual(reply_1[1], reply_2[1])
-        
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.COMMAND, reply)
-        
-
-    def test_double_poll_mode(self):
-        # Mainly check the format of the manual sample that comes out
-        #v@todo Finish this out...is the transition right for getting into poll mode?
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.POLL)
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.POLL, reply)
-        
-        # Get data
-        result = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.SAMPLE)        
-        self.assertTrue(sample_regex.match(result[1]))
-        
-
-    def test_get_data_sample_via_poll_mode(self):
-        # Mainly check the format of the manual sample that comes out
-        # @todo Finish this out...is the transition right for getting into poll mode?
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_POLL)
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.POLL, reply)
-        
-        # Get data
-        reply_1 = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.SAMPLE)
-        
-        self.assertTrue(sample_regex.match(reply_1[1]))        
-    
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.POLL, reply)
-
-        # Get data
-        reply_2 = self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.SAMPLE)
-        
-        self.assertTrue(sample_regex.match(reply_2[1]))
-        self.assertNotEqual(reply_1[1], reply_2[1])
-
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.POLL, reply)
-        
-        self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_POLL)
-        
-        reply = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(PARProtocolState.COMMAND, reply)
-    """    
         
 @attr('UNIT', group='mi')
 class SatlanticParDecoratorTest(PyonTestCase):
