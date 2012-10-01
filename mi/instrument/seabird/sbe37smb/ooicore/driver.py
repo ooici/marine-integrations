@@ -166,7 +166,7 @@ PACKET_CONFIG = {
 # Seabird Electronics 37-SMP MicroCAT Driver.
 ###############################################################################
 
-class SBE37Driver(SingleConnectionInstrumentDriver):
+class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass for SBE37 driver.
     Subclasses SingleConnectionInstrumentDriver with connection state
@@ -174,7 +174,7 @@ class SBE37Driver(SingleConnectionInstrumentDriver):
     """
     def __init__(self, evt_callback):
         """
-        SBE37Driver constructor.
+        InstrumentDriver constructor.
         @param evt_callback Driver process event callback.
         """
         #Construct superclass.
