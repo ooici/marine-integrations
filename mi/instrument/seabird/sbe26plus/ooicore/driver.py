@@ -44,6 +44,11 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.common import BaseEnum
 
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+
+from mi.core.instrument.port_agent_client import PortAgentPacket
+
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+
 # newline.
 NEWLINE = '\r\n'
 
@@ -462,16 +467,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.INIT_LOGGING,           self._handler_command_init_logging)
 
 
-        #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST,                   self._handler_command_test)
+#        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST,                   self._handler_command_test)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,     self._handler_autosample_stop_autosample)
-        #self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.ENTER,                     self._handler_test_enter)
-        #self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.EXIT,                      self._handler_test_exit)
-        #self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.RUN_TEST,                  self._handler_test_run_tests)
-        #self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.GET,                       self._handler_command_autosample_test_get)
+#        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.ENTER,                     self._handler_test_enter)
+#        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.EXIT,                      self._handler_test_exit)
+#        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.RUN_TEST,                  self._handler_test_run_tests)
+#        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.GET,                       self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,             self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT,   self._handler_direct_access_execute_direct)
@@ -1496,7 +1501,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     #        return (success, response)
 
 
-    def got_data(self, data):
+    def old_got_data(self, data):
         """
         Callback for receiving new data from the device.
         """
@@ -1522,6 +1527,46 @@ class Protocol(CommandResponseInstrumentProtocol):
 
             # Call the superclass to update line and prompt buffers.
             CommandResponseInstrumentProtocol.got_data(self, data)
+
+            # If in streaming mode, process the buffer for samples to publish.
+            if cur_state == ProtocolState.AUTOSAMPLE:
+
+                # want to be careful not to return a partial read off the back end...
+                while NEWLINE in self._linebuf:
+                    line, self._linebuf = self._linebuf.split(NEWLINE, 1 ) # PEZ dispenser for lines
+                    self._extract_sample(line)
+
+        return
+
+
+    def got_data(self, paPacket):
+        """
+        Callback for receiving new data from the device.
+        """
+        paLength = paPacket.get_data_size()
+        paData = paPacket.get_data()
+
+        cur_state = self.get_current_state()
+
+        if paLength > 0:
+            # direct access mode
+            if cur_state == ProtocolState.DIRECT_ACCESS:
+
+                #mi_logger.debug("Protocol._got_data(): <" + data + ">")
+                # check for echoed commands from instrument (TODO: this should only be done for telnet?)
+                if len(self._sent_cmds) > 0:
+                    # there are sent commands that need to have there echoes filtered out
+                    oldest_sent_cmd = self._sent_cmds[0]
+                    if string.count(data, oldest_sent_cmd) > 0:
+                        # found a command echo, so remove it from data and delete the command form list
+                        paData = string.replace(paData, oldest_sent_cmd, "", 1)
+                        self._sent_cmds.pop(0)
+                if paLength > 0 and self._driver_event:
+                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
+                    # TODO: what about logging this as an event?
+
+            # Call the superclass to update line and prompt buffers.
+            CommandResponseInstrumentProtocol.got_data(self, paData)
 
             # If in streaming mode, process the buffer for samples to publish.
             if cur_state == ProtocolState.AUTOSAMPLE:

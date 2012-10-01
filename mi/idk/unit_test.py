@@ -420,7 +420,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         @brief Setup test cases.
         """
-
+        log.debug("#ROGER# does setUp get called?")
         InstrumentDriverTestCase.setUp(self)
         self.port_agent = self.test_config.port_agent
         self.instrument_agent_manager = InstrumentAgentClient();
@@ -796,7 +796,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.event_subscribers.events_received = []
 
         expected_events = [
-            'AgentState=RESOURCE_AGENT_STATE_UNINITIALIZED',
             'AgentState=RESOURCE_AGENT_STATE_INACTIVE',
             'AgentCommand=RESOURCE_AGENT_EVENT_INITIALIZE',
             'ResourceState=DRIVER_STATE_DISCONNECTED',
@@ -806,20 +805,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'ResourceState=DRIVER_STATE_COMMAND',
             'AgentState=RESOURCE_AGENT_STATE_IDLE',
             'AgentCommand=RESOURCE_AGENT_EVENT_GO_ACTIVE',
-            'ResourceState=DRIVER_STATE_DISCONNECTED',
-            'ResourceState=DRIVER_STATE_UNCONFIGURED',
-            'AgentState=RESOURCE_AGENT_STATE_INACTIVE',
-            'AgentCommand=RESOURCE_AGENT_EVENT_GO_INACTIVE',
-            'ResourceState=DRIVER_STATE_DISCONNECTED',
-            'ResourceState=DRIVER_STATE_DISCONNECTED',
-            'ResourceState=DRIVER_STATE_UNKNOWN',
-            'ResourceConfig',
-            'ResourceState=DRIVER_STATE_COMMAND',
-            'AgentState=RESOURCE_AGENT_STATE_IDLE',
-            'AgentCommand=RESOURCE_AGENT_EVENT_GO_ACTIVE',
-            'AgentCommand=RESOURCE_AGENT_PING_RESOURCE',
             'AgentState=RESOURCE_AGENT_STATE_COMMAND',
             'AgentCommand=RESOURCE_AGENT_EVENT_RUN',
+            'AgentCommand=RESOURCE_AGENT_PING_RESOURCE',
             'ResourceState=DRIVER_STATE_DISCONNECTED',
             'ResourceState=DRIVER_STATE_UNCONFIGURED',
             'AgentState=RESOURCE_AGENT_STATE_UNINITIALIZED',
@@ -829,12 +817,12 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'ResourceState=DRIVER_STATE_DISCONNECTED',
             'ResourceState=DRIVER_STATE_DISCONNECTED',
             'ResourceState=DRIVER_STATE_UNKNOWN',
+            'ResourceConfig',
+            'ResourceState=DRIVER_STATE_COMMAND',
             'AgentState=RESOURCE_AGENT_STATE_IDLE',
             'AgentCommand=RESOURCE_AGENT_EVENT_GO_ACTIVE',
             'AgentState=RESOURCE_AGENT_STATE_COMMAND',
             'AgentCommand=RESOURCE_AGENT_EVENT_RUN',
-            'ResourceConfig',
-            'ResourceState=DRIVER_STATE_COMMAND',
             'AgentState=RESOURCE_AGENT_STATE_STOPPED',
             'AgentCommand=RESOURCE_AGENT_EVENT_PAUSE',
             'AgentState=RESOURCE_AGENT_STATE_COMMAND',
@@ -846,9 +834,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'AgentState=RESOUCE_AGENT_STATE_DIRECT_ACCESS',
             'AgentCommand=RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS',
             'ResourceState=DRIVER_STATE_DIRECT_ACCESS',
+            'ResourceState=DRIVER_STATE_COMMAND',
             'AgentState=RESOURCE_AGENT_STATE_COMMAND',
             'AgentCommand=RESOURCE_AGENT_EVENT_GO_COMMAND',
-            'ResourceState=DRIVER_STATE_COMMAND',
             'ResourceState=DRIVER_STATE_DISCONNECTED',
             'ResourceState=DRIVER_STATE_UNCONFIGURED',
             'AgentState=RESOURCE_AGENT_STATE_UNINITIALIZED',
@@ -869,38 +857,31 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_INACTIVE)
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        # Works but doesnt return anything useful when i tried.
-        #cmd = AgentCommand(command=ResourceAgentEvent.GET_RESOURCE_STATE)
-        #retval = self.instrument_agent_client.execute_agent(cmd)
-        #log.debug("======================== " + str(retval))
-
-        # works!
         retval = self.instrument_agent_client.ping_resource()
-        #log.debug("1======================== " + str(retval))
+        log.debug("1======================== " + str(retval))
+
         retval = self.instrument_agent_client.ping_agent()
-        #log.debug("2======================== " + str(retval))
+        log.debug("2======================== " + str(retval))
 
         cmd = AgentCommand(command=ResourceAgentEvent.PING_RESOURCE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         self.assertTrue("ping from resource ppid" in retval.result)
 
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
 
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        #cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #state = self.instrument_agent_client.get_agent_state()
+        #self.assertEqual(state, ResourceAgentState.IDLE)
+
+        #cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #state = self.instrument_agent_client.get_agent_state()
+        #self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -969,22 +950,24 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # Refactor changed it so no description is ever present.
         # go with state instead i guess...
         #
+
+        log.debug("ROGERROGER got to the end!")
         raw_events = []
         for x in self.event_subscribers.events_received:
             if str(type(x)) == "<class 'interface.objects.ResourceAgentCommandEvent'>":
-                log.warn(str(type(x)) + " ********************* " + str(x.execute_command))
+                log.debug(str(type(x)) + " ++********************* AgentCommand=" + str(x.execute_command))
                 raw_events.append("AgentCommand=" + str(x.execute_command))
             elif str(type(x)) == "<class 'interface.objects.ResourceAgentResourceStateEvent'>":
-                log.warn(str(type(x)) + " ********************* " + str(x.state))
+                log.debug(str(type(x)) + " ++********************* ResourceState=" + str(x.state))
                 raw_events.append("ResourceState=" + str(x.state))
             elif str(type(x)) == "<class 'interface.objects.ResourceAgentStateEvent'>":
-                log.warn(str(type(x)) + " ********************* " + str(x.state))
+                log.debug(str(type(x)) + " ++********************* AgentState=" + str(x.state))
                 raw_events.append("AgentState=" + str(x.state))
             elif str(type(x)) == "<class 'interface.objects.ResourceAgentResourceConfigEvent'>":
-                log.warn(str(type(x)) + " ********************* ")
+                log.debug(str(type(x)) + " ++********************* ResourceConfig")
                 raw_events.append("ResourceConfig")
             else:
-                log.warn(str(type(x)) + " ********************* " + str(x))
+                log.debug(str(type(x)) + " ++********************* " + str(x))
 
         for x in sorted(raw_events):
             log.debug(str(x) + " ?in (expected_events) = " + str(x in expected_events))
@@ -997,6 +980,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # assert we got the expected number of events
         num_expected = len(self.de_dupe(expected_events))
         num_actual = len(self.de_dupe(raw_events))
+        log.debug("num_expected = " + str(num_expected) + " num_actual = " + str(num_actual))
         self.assertTrue(num_actual == num_expected)
 
         pass

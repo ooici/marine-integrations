@@ -20,7 +20,7 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.logger_client import LoggerClient
 from mi.core.instrument.port_agent_client import PortAgentClient
-from mi.core.instrument.instrument_protocol import BaseProtocolEvent
+from mi.core.instrument.instrument_base_protocol_event import BaseProtocolEvent
 
 from mi.core.log import get_logger,LoggerManager
 log = get_logger()

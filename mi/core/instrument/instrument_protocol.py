@@ -22,7 +22,9 @@ import json
 
 from mi.core.common import BaseEnum, InstErrorCode
 from mi.core.instrument.data_particle import DataParticleKey
+
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
+
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
@@ -31,37 +33,12 @@ from mi.core.exceptions import NotImplementedException
 
 from mi.core.log import get_logger ; log = get_logger()
 
+from mi.core.instrument.instrument_base_protocol_event import BaseProtocolEvent
+
 class InterfaceType(BaseEnum):
     """The methods of connecting to a device"""
     ETHERNET = 'ethernet'
     SERIAL = 'serial'
-
-class BaseProtocolEvent(BaseEnum):
-    """
-    Base events for protocol state machines. Commands and other events
-    are transformed into state machine events for handling.
-    """
-    ENTER = 'DRIVER_EVENT_ENTER'
-    EXIT = 'DRIVER_EVENT_EXIT'
-
-    SET = 'DRIVER_EVENT_SET'
-    GET = 'DRIVER_EVENT_GET'
-    DISCOVER = 'DRIVER_EVENT_DISCOVER'
-    EXECUTE = 'DRIVER_EVENT_EXECUTE'
-    ACQUIRE_SAMPLE = 'DRIVER_EVENT_ACQUIRE_SAMPLE'
-    START_AUTOSAMPLE = 'DRIVER_EVENT_START_AUTOSAMPLE'
-    STOP_AUTOSAMPLE = 'DRIVER_EVENT_STOP_AUTOSAMPLE'
-    TEST = 'DRIVER_EVENT_TEST'
-    RUN_TEST = 'DRIVER_EVENT_RUN_TEST'
-    STOP_TEST = 'DRIVER_EVENT_STOP_TEST'
-    CALIBRATE = 'DRIVER_EVENT_CALIBRATE'
-    RESET = 'DRIVER_EVENT_RESET'
-    UPDATE_PARAMS = 'DRIVER_EVENT_UPDATE_PARAMS'
-    BREAK = 'DRIVER_EVENT_BREAK'
-    EXECUTE_DIRECT = 'EXECUTE_DIRECT'
-    START_DIRECT = 'DRIVER_EVENT_START_DIRECT'
-    STOP_DIRECT = 'DRIVER_EVENT_STOP_DIRECT'
-    PING_DRIVER = 'DRIVER_EVENT_PING_DRIVER'
 
 
 
