@@ -173,6 +173,7 @@ class PortAgentClient(object):
             log.info('PortAgentClient.init_comms(): connected to port agent at %s:%i.'
                            % (self.host, self.port))        
         except:
+            log.error("init_comms(): Exception occurred.", exc_info=True)
             raise InstrumentConnectionException('Failed to connect to port agent at %s:%i.' 
                                                 % (self.host, self.port))
         

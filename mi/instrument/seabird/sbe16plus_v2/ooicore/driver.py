@@ -80,6 +80,8 @@ class SBE16ProtocolEvent(BaseEnum):
     RUN_TEST = DriverEvent.RUN_TEST
     CALIBRATE = DriverEvent.CALIBRATE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    FORCE_STATE = DriverEvent.FORCE_STATE
+
 
 # Device specific parameters.
 class SBE16Parameter(DriverParameter):
@@ -143,6 +145,7 @@ class SBE16Prompt(BaseEnum):
     BAD_COMMAND = '?cmd S>'
     #AUTOSAMPLE = 'S>\r\n'
     AUTOSAMPLE = 'S>'
+    EXECUTED = '<Executed/>'
 
 # SBE16 newline.
 SBE16_NEWLINE = '\r\n'
@@ -160,7 +163,7 @@ PACKET_CONFIG = {
 # Seabird Electronics 16plus V2 MicroCAT Driver.
 ###############################################################################
 
-class SBE16Driver(SingleConnectionInstrumentDriver):
+class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass for SBE16 driver.
     Subclasses SingleConnectionInstrumentDriver with connection state
@@ -168,7 +171,7 @@ class SBE16Driver(SingleConnectionInstrumentDriver):
     """
     def __init__(self, evt_callback):
         """
-        SBE16Driver constructor.
+        InstrumentDriver constructor.
         @param evt_callback Driver process event callback.
         """
         #Construct superclass.
@@ -221,6 +224,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(SBE16ProtocolState.UNKNOWN, SBE16ProtocolEvent.ENTER, self._handler_unknown_enter)
         self._protocol_fsm.add_handler(SBE16ProtocolState.UNKNOWN, SBE16ProtocolEvent.EXIT, self._handler_unknown_exit)
         self._protocol_fsm.add_handler(SBE16ProtocolState.UNKNOWN, SBE16ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(SBE16ProtocolState.UNKNOWN, SBE16ProtocolEvent.FORCE_STATE, self._handler_unknown_force_state) 
         self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, SBE16ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, SBE16ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, SBE16ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
@@ -314,16 +318,33 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         
         # Set the state to change.
         # Raise if the prompt returned does not match command or autosample.
-        if prompt == SBE16Prompt.COMMAND:
+        if prompt == SBE16Prompt.COMMAND or prompt == SBE16Prompt.EXECUTED:
             next_state = SBE16ProtocolState.COMMAND
             result = SBE16ProtocolState.COMMAND
         elif prompt == SBE16Prompt.AUTOSAMPLE:
             next_state = SBE16ProtocolState.AUTOSAMPLE
             result = SBE16ProtocolState.AUTOSAMPLE
         else:
-            raise InstrumentProtocolException('Failure to recognzie device state.')
+            raise InstrumentProtocolException('Failure to recognize device state.')
             
         return (next_state, result)
+
+    def _handler_unknown_force_state(self, *args, **kwargs):
+        """
+        Force driver into a given state for the purposes of unit testing 
+        @param state=desired_state Required desired state to transition to.
+        @raises InstrumentParameterException if no state parameter.
+        """
+
+        state = kwargs.get('state', None)  # via kwargs
+        if state is None:
+            raise InstrumentParameterException('Missing state parameter.')
+
+        next_state = state
+        result = state
+        
+        return (next_state, result)
+
 
     ########################################################################
     # Command handlers.
@@ -686,7 +707,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.        
         @throws InstrumentProtocolException if dsdc command misunderstood.
         """
-        if prompt != SBE16Prompt.COMMAND:
+        if prompt not in [SBE16Prompt.COMMAND, SBE16Prompt.EXECUTED]: 
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
         for line in response.split(SBE16_NEWLINE):
@@ -707,10 +728,10 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         Parse handler for dsdc commands.
         @param response command response string.
         @param prompt prompt following command response.        
-        @throws ProtocolError if dsdc command misunderstood.
+        @throws InstrumentProtocolException if dsdc command misunderstood.
         """
-        if prompt != SBE16Prompt.COMMAND:
-            raise ProtocolError('dcal command not recognized: %s.' % response)
+        if prompt not in [SBE16Prompt.COMMAND, SBE16Prompt.EXECUTED]:
+            raise InstrumentProtocolException('dcal command not recognized: %s.' % response)
             
         for line in response.split(SBE16_NEWLINE):
             # DHE TEMPTEMP
@@ -727,7 +748,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentSampleException if response did not contain a sample
         """
         
-        if prompt != SBE16Prompt.COMMAND:
+        if prompt not in [SBE16Prompt.COMMAND, SBE16Prompt.EXECUTED]:
             raise InstrumentProtocolException('ts command not recognized: %s', response)
         
         sample = None
@@ -766,11 +787,14 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         
         return (success, response)        
                 
-    def got_data(self, data):
+    def got_data(self, paPacket):
         """
         Callback for receiving new data from the device.
         """
-        # Call the superclass to update line and promp buffers.
+        paLength = paPacket.get_data_size()
+        data = paPacket.get_data()
+
+        # Call the superclass to update line and prompt buffers.
         CommandResponseInstrumentProtocol.got_data(self, data)
 
         # If in streaming mode, process the buffer for samples to publish.

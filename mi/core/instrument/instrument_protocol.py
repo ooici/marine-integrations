@@ -459,6 +459,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                     return item
 
             if time.time() > starttime + timeout:
+                log.error("Instrument timed out during wakeup.  _promptbuf is: %s" % repr(self._promptbuf))
                 raise InstrumentTimeoutException()
 
     def _wakeup_until(self, timeout, desired_prompt, delay=1, no_tries=5):
