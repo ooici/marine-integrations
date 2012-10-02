@@ -377,30 +377,34 @@ class RunInstrument(IonIntegrationTestCase):
 
         try:
             state = self._ia_client.get_agent_state()
-            print "ResourceAgentState: " + str(state)
+            print "AgentState: " + str(state)
         
             cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
             retval = self._ia_client.execute_agent(cmd)
+
             state = self._ia_client.get_agent_state()
+            print "AgentState: " + str(state)
             
             res_state = self._ia_client.get_resource_state()
-            print "DriverConnectionState: " + str(state)
+            print "DriverState: " + str(res_state)
     
             cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
             retval = self._ia_client.execute_agent(cmd)
+
             state = self._ia_client.get_agent_state()
-            print "ResourceAgentState: " + str(state)
+            print "AgentState: " + str(state)
     
             res_state = self._ia_client.get_resource_state()
-            print "DriverProtocolState: " + str(state)
+            print "DriverState: " + str(res_state)
     
             cmd = AgentCommand(command=ResourceAgentEvent.RUN)
             retval = self._ia_client.execute_agent(cmd)
+
             state = self._ia_client.get_agent_state()
-            print "ResourceAgentState: " + str(state)
+            print "AgentState: " + str(state)
             
             res_state = self._ia_client.get_resource_state()
-            print "DriverProtocolState: " + str(state)
+            print "DriverState: " + str(res_state)
             
         except:
             log.error("bring_instrument_active(): Exception occurred; shutting down.", exc_info=True)

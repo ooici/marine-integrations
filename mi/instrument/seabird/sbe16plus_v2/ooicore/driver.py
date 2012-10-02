@@ -24,6 +24,7 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
@@ -310,22 +311,33 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         """
         next_state = None
         result = None
+
+        current_state = self._protocol_fsm.get_current_state()
         
-        # Wakeup the device with timeout if passed.
-        timeout = kwargs.get('timeout', SBE16_TIMEOUT)
-        prompt = self._wakeup(timeout)
-        prompt = self._wakeup(timeout)
+        # Driver can only be started in streaming, command or unknown.
+        if current_state == SBE16ProtocolState.AUTOSAMPLE:
+            result = ResourceAgentState.STREAMING
         
-        # Set the state to change.
-        # Raise if the prompt returned does not match command or autosample.
-        if prompt == SBE16Prompt.COMMAND or prompt == SBE16Prompt.EXECUTED:
-            next_state = SBE16ProtocolState.COMMAND
-            result = SBE16ProtocolState.COMMAND
-        elif prompt == SBE16Prompt.AUTOSAMPLE:
-            next_state = SBE16ProtocolState.AUTOSAMPLE
-            result = SBE16ProtocolState.AUTOSAMPLE
-        else:
-            raise InstrumentProtocolException('Failure to recognize device state.')
+        elif current_state == SBE16ProtocolState.COMMAND:
+            result = ResourceAgentState.IDLE
+        
+        elif current_state == SBE16ProtocolState.UNKNOWN:        
+            # Wakeup the device with timeout if passed.
+            timeout = kwargs.get('timeout', SBE16_TIMEOUT)
+            prompt = self._wakeup(timeout)
+            prompt = self._wakeup(timeout)
+            
+            # Set the state to change.
+            # Raise if the prompt returned does not match command or autosample.
+            if prompt in [SBE16Prompt.COMMAND, SBE16Prompt.EXECUTED]:
+                next_state = SBE16ProtocolState.COMMAND
+                result = ResourceAgentState.IDLE
+            elif prompt == SBE16Prompt.AUTOSAMPLE:
+                next_state = SBE16ProtocolState.AUTOSAMPLE
+                result = ResourceAgentState.STREAMING
+            else:
+                errorString = 'Failure to recognize device prompt: ' + prompt
+                raise InstrumentProtocolException(errorString) 
             
         return (next_state, result)
 
