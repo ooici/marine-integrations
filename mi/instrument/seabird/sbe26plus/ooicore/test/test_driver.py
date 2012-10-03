@@ -37,6 +37,7 @@ import gevent
 import time
 import socket
 
+import unittest
 from mock import patch
 from pyon.core.bootstrap import CFG
 
@@ -51,19 +52,20 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 from interface.objects import AgentCommand
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from mi.instrument.seabird.sbe26plus.ooicore.driver import PACKET_CONFIG
-from mi.instrument.seabird.sbe26plus.ooicore.driver import DataParticle
-from mi.instrument.seabird.sbe26plus.ooicore.driver import InstrumentDriver
-from mi.instrument.seabird.sbe26plus.ooicore.driver import ProtocolState
-from mi.instrument.seabird.sbe26plus.ooicore.driver import Parameter
-from mi.instrument.seabird.sbe26plus.ooicore.driver import ProtocolEvent
-from mi.instrument.seabird.sbe26plus.ooicore.driver import SBE37Capability
+from mi.instrument.seabird.sbe26plus.driver import PACKET_CONFIG
+from mi.instrument.seabird.sbe26plus.driver import DataParticle
+from mi.instrument.seabird.sbe26plus.driver import InstrumentDriver
+from mi.instrument.seabird.sbe26plus.driver import ProtocolState
+from mi.instrument.seabird.sbe26plus.driver import Parameter
+from mi.instrument.seabird.sbe26plus.driver import ProtocolEvent
+from mi.instrument.seabird.sbe26plus.driver import Capability
+from mi.instrument.seabird.sbe26plus.driver import Prompt
+from mi.instrument.seabird.sbe26plus.driver import Protocol
 
-from mi.instrument.seabird.sbe26plus.ooicore.driver import InstrumentCmds
-from mi.instrument.seabird.sbe26plus.ooicore.driver import NEWLINE
+from mi.instrument.seabird.sbe26plus.driver import InstrumentCmds
+from mi.instrument.seabird.sbe26plus.driver import NEWLINE
 
 from mi.core.instrument.instrument_driver import DriverConnectionState
 
@@ -82,20 +84,26 @@ from prototype.sci_data.stream_defs import SBE37_CDM_stream_definition
 import numpy
 from prototype.sci_data.stream_parser import PointSupplementStreamParser
 
+from pyon.agent.agent import ResourceAgentClient
+from pyon.agent.agent import ResourceAgentState
+from pyon.agent.agent import ResourceAgentEvent
+
+from pyon.core.exception import BadRequest
+from pyon.core.exception import Conflict
+
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverProtocolState
+
+from mock import Mock
+from mi.core.instrument.logger_client import LoggerClient
+from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacket
+from mi.core.instrument.instrument_fsm import InstrumentFSM
+
 ###
 #   Driver parameters for the tests
 ###
-"""
-InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
-    driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = '123xyz',
-    instrument_agent_name = 'seabird_sbe26plus_ooicore',
-    instrument_agent_packet_config = {},
-    instrument_agent_stream_definition = {}
-)
-"""
 
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
@@ -303,14 +311,228 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
-    ###
-    #    Add instrument specific unit tests
-    ###
+    ###############################################################################
+    #                                UNIT TESTS                                   #
+    #         Unit tests test the method calls and parameters using Mock.         #
+    # 1. Pick a single method within the class.                                   #
+    # 2. Create an instance of the class                                          #
+    # 3. If the method to be tested tries to call out, over-ride the offending    #
+    #    method with a mock                                                       #
+    # 4. Using above, try to cover all paths through the functions                #
+    # 5. Negative testing if at all possible.                                     #
+    ###############################################################################
 
 
-    # Fake data to got_data, insure that the correct driver output happens.
+
+    # Test enumerations. Verify no duplicates.
+
+    def convert_enum_to_dict(self, obj):
+        """
+        @author Roger Unwin
+        @brief  converts an enum to a dict
+
+        """
+        dic = {}
+        for i in [v for v in dir(obj) if not callable(getattr(obj,v))]:
+            if False == i.startswith('_'):
+                dic[i] = getattr(obj, i)
+        log.debug("enum dictionary = " + repr(dic))
+        return dic
+
+    def assert_enum_has_no_duplicates(self, obj):
+        dic = self.convert_enum_to_dict(obj)
+        occurances  = {}
+        for k, v in dic.items():
+            #v = tuple(v)
+            occurances[v] = occurances.get(v,0) + 1
+
+        for k in occurances:
+            if occurances[k] > 1:
+                log.error(str(obj) + " has ambigous duplicate values for '" + str(k) + "'")
+                self.assertEqual(1, occurances[k])
 
 
+
+    def test_prompts(self):
+        # Test Parameter.  Verify no Duplications.
+        prompts = Prompt()
+        self.assert_enum_has_no_duplicates(prompts)
+
+
+    def test_instrument_commands_for_duplicates(self):
+        # Test InstrumentCmds.  Verify no Duplications.
+        cmds = InstrumentCmds()
+        self.assert_enum_has_no_duplicates(cmds)
+
+    def test_protocol_state_for_duplicates(self):
+        # Test ProtocolState.  Verify no Duplications.
+        ps = ProtocolState()
+        self.assert_enum_has_no_duplicates(ps)
+
+    def test_protocol_event_for_duplicates(self):
+        # Test ProtocolState.  Verify no Duplications.
+        pe = ProtocolEvent()
+        self.assert_enum_has_no_duplicates(pe)
+
+    def test_capability_for_duplicates(self):
+        # Test ProtocolState.  Verify no Duplications.
+        c = Capability()
+        self.assert_enum_has_no_duplicates(c)
+
+    def test_parameter_for_duplicates(self):
+        # Test ProtocolState.  Verify no Duplications.
+        p = Parameter()
+        self.assert_enum_has_no_duplicates(p)
+
+    def my_event_callback(self, event):
+        event_type = event['type']
+        print str(event)
+        if event_type == DriverAsyncEvent.SAMPLE:
+            sample_value = event['value']
+            stream_type = sample_value['stream_name']
+            if stream_type == 'raw':
+                self.raw_stream_received = True
+            elif stream_type == 'parsed':
+                self.parsed_stream_received = True
+
+    def test_instrument_driver_init_(self):
+        """
+        NOT DONE
+        # should call instrument/instrument_driver SingleConnectionInstrumentDriver.__init__
+        # which will call InstrumentDriver.__init__, then create a _connection_fsm and start it.
+        # 1. verify it created the FSM with the expected top level states.
+        # 2. for each top level state, verify the commands.
+        # 3. verify that the correct starting state is achieved.
+        """
+
+        ID = InstrumentDriver(self.my_event_callback)
+        self.assertEqual(ID._connection, None)
+        self.assertEqual(ID._protocol, None)
+        self.assertTrue(isinstance(ID._connection_fsm, InstrumentFSM))
+        self.assertEqual(ID._connection_fsm.current_state, DriverConnectionState.UNCONFIGURED)
+
+    def test_instrument_driver_setSampling(self):
+        """
+        @TODO add in some args/kwargs to make this test better.
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        mock_fsm = Mock(spec=InstrumentFSM)
+        ID._connection_fsm = mock_fsm
+        args = []
+        kwargs =  {}
+        ID.setsampling(args, kwargs)
+        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_SETSAMPLING', [], {})]")
+
+    def test_instrument_driver_settime(self):
+        """
+        @TODO add in some args/kwargs to make this test better.
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        mock_fsm = Mock(spec=InstrumentFSM)
+        ID._connection_fsm = mock_fsm
+        args = []
+        kwargs =  {}
+        ID.settime(args, kwargs)
+        self.assertEqual(str(mock_fsm.mock_calls), "'DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_SET_TIME', [], {})]")
+
+    def test_instrument_driver_start(self):
+        """
+        @TODO add in some args/kwargs to make this test better.
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        mock_fsm = Mock(spec=InstrumentFSM)
+        ID._connection_fsm = mock_fsm
+        args = []
+        kwargs =  {}
+        ID.start(args, kwargs)
+        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'DRIVER_EVENT_START_AUTOSAMPLE', [], {})]")
+
+    def test_instrument_driver_dd(self):
+        """
+        @TODO add in some args/kwargs to make this test better.
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        mock_fsm = Mock(spec=InstrumentFSM)
+        ID._connection_fsm = mock_fsm
+        args = []
+        kwargs =  {}
+        ID.dd(args, kwargs)
+        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_UPLOAD_ASCII', [], {})]")
+
+    def test_instrument_driver_ts(self):
+        """
+        @TODO add in some args/kwargs to make this test better.
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        mock_fsm = Mock(spec=InstrumentFSM)
+        ID._connection_fsm = mock_fsm
+        args = []
+        kwargs =  {}
+        ID.ts(args, kwargs)
+        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'DRIVER_EVENT_ACQUIRE_SAMPLE', [], {})]")
+
+    def test_instrument_driver_qs(self):
+        """
+        @TODO add in some args/kwargs to make this test better.
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        mock_fsm = Mock(spec=InstrumentFSM)
+        ID._connection_fsm = mock_fsm
+        args = []
+        kwargs =  {}
+        ID.qs(args, kwargs)
+        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_QUIT_SESSION', [], {})]")
+
+    def test_instrument_driver_initlogging(self):
+        """
+        @TODO add in some args/kwargs to make this test better.
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        mock_fsm = Mock(spec=InstrumentFSM)
+        ID._connection_fsm = mock_fsm
+        args = []
+        kwargs =  {}
+        ID.initlogging(args, kwargs)
+        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_INIT_LOGGING', [], {})]")
+
+    def test_instrument_driver_get_resource_params(self):
+        """
+        @TODO
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        self.assertEqual(str(ID.get_resource_params()), str(Parameter.list()))
+
+    #@unittest.skip('Need to figure out how this one works.')
+    def test_instrument_driver_build_protocol(self):
+        ID = InstrumentDriver(self.my_event_callback)
+
+        ID._build_protocol()
+
+        #self.assertTrue(isinstance(Protocol, ID._protocol))
+
+        #self.assertTrue(isinstance(ID._protocol._driver_event, InstrumentDriver))
+        #AssertionError: <bound method InstrumentDriver._driver_event of <mi.instrument.seabird.sbe26plus.driver.InstrumentDriver object at 0x104122d50>> != <bound method UnitFromIDK.my_event_callback of <mi.instrument.seabird.sbe26plus.ooicore.test.test_driver.UnitFromIDK testMethod=test_instrument_driver_build_protocol>>
+
+        self.assertEqual(ID._protocol._newline, NEWLINE)
+        self.assertEqual(ID._protocol._prompts, Prompt)
+        self.assertEqual(ID._protocol._driver_event, ID._driver_event)
+        self.assertEqual(ID._protocol._linebuf, '')
+        self.assertEqual(ID._protocol._promptbuf, '')
+        self.assertEqual(ID._protocol._datalines, [])
+        self.assertEqual(ID._protocol._build_handlers, {})
+        self.assertEqual(ID._protocol._response_handlers, {})
+        self.assertEqual(ID._protocol._last_data_receive_timestamp, None)
+        self.assertEqual(ID._protocol._connection, None)
+        self.assertEqual(ID._protocol._param_dict, "") #ProtocolParameterDict()
+        # verify that the self._protocol_fsm is initialized correct
+
+
+        self.assertEqual(ID._protocol._protocol_fsm, None)
+
+
+
+    # create a mock instance of InstrumentDriver, and verify that the functions like
+    # start, settime, dd... pass the call to the proper mocked object.
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -1211,58 +1433,33 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
     #    Add instrument specific qualification tests
     ###
 
-
+    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 60}}})
     def test_autosample(self):
         """
         Test instrument driver execute interface to start and stop streaming
         mode.
         """
 
-        log.debug("ROGER ==> 1")
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-        cmd = AgentCommand(command='get_resource_state')
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-        log.debug("ROGER ==> 2")
-
-        cmd = AgentCommand(command='initialize')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
 
-        log.debug("ROGER ==> 3")
 
-        cmd = AgentCommand(command='get_resource_state')
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        log.debug("ROGER ==> 4")
 
-        cmd = AgentCommand(command='go_active')
-        log.debug("ROGER ==> 4.5")
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        log.debug("ROGER ==> 5")
-
-        cmd = AgentCommand(command='get_resource_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
-
-        log.debug("ROGER ==> 6")
-
-        cmd = AgentCommand(command='run')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        log.debug("ROGER ==> 7")
-
-        cmd = AgentCommand(command='get_resource_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
-
-        log.debug("ROGER ==> 8")
 
         """
         # Make sure the sampling rate and transmission are sane.
@@ -1277,10 +1474,8 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         self.data_subscribers.no_samples = 2
 
         # Begin streaming.
-        cmd = AgentCommand(command='go_streaming')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        log.debug("ROGER ==> 9")
+        cmd = AgentCommand(command=ProtocolEvent.START_AUTOSAMPLE)
+        retval = self.instrument_agent_client.execute_resource(cmd)
 
         non_accurate_seconds_count = 0
         while len(self.data_subscribers.samples_received) <= self.data_subscribers.no_samples and non_accurate_seconds_count < 1200:
@@ -1290,36 +1485,22 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
             non_accurate_seconds_count = non_accurate_seconds_count + 60
 
-        log.debug("ROGER ==> 10")
-
         # Halt streaming.
-        cmd = AgentCommand(command='go_observatory')
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command=ProtocolEvent.STOP_AUTOSAMPLE)
+        retval = self.instrument_agent_client.execute_resource(cmd)
 
-        log.debug("ROGER ==> 11")
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        cmd = AgentCommand(command='get_resource_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
-
-        log.debug("ROGER ==> 12")
         # Assert we got some samples.
         #self.assertTrue(self.data_subscribers.samples_received > self.data_subscribers.no_samples)
         #self.assertTrue(non_accurate_seconds_count < 1200)
-        log.debug("ROGER ==> 13")
 
-        cmd = AgentCommand(command='reset')
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
 
-        log.debug("ROGER ==> 14")
-        cmd = AgentCommand(command='get_resource_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
-        log.debug("ROGER ==> 15")
-
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
 
     def test_command_agent(self):

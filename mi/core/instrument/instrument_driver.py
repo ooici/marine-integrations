@@ -20,7 +20,7 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.logger_client import LoggerClient
 from mi.core.instrument.port_agent_client import PortAgentClient
-from mi.core.instrument.instrument_base_protocol_event import BaseProtocolEvent
+
 
 from mi.core.log import get_logger,LoggerManager
 log = get_logger()
@@ -455,7 +455,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.DISCOVER, BaseProtocolEvent.DISCOVER, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.DISCOVER, DriverEvent.DISCOVER, *args, **kwargs)
 
     def get_resource_capabilities(self, current_state=True, *args, **kwargs):
         """
@@ -496,7 +496,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.                        
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.GET, BaseProtocolEvent.GET, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.GET, DriverEvent.GET, *args, **kwargs)
 
     def set_resource(self, *args, **kwargs):
         """
@@ -510,7 +510,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.                        
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.SET, BaseProtocolEvent.SET, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.SET, DriverEvent.SET, *args, **kwargs)
 
     def execute_resource(self, resource_cmd, *args, **kwargs):
         """
@@ -534,11 +534,12 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.                        
         """
 
-       # Get the required param 
+        # Get the required param
         state = kwargs.get('state', None)  # via kwargs
         if state is None:
             raise InstrumentParameterException('Missing state parameter.')
 
+        log.debug("************ in execute_force_state")
         # Forward event and argument to the protocol FSM.
         return self._connection_fsm.on_event(DriverEvent.FORCE_STATE, DriverEvent.FORCE_STATE, *args, **kwargs)
 
