@@ -695,7 +695,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
-        log.debug("#ROGER# in _handler_unknown_enter")
+
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_unknown_exit(self, *args, **kwargs):
@@ -714,7 +714,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentStateException if the device response does not correspond to
         an expected state.
         """
-        log.debug("#ROGER# in _handler_unknown_discover")
+        log.debug("************* " + repr(kwargs))
+        timeout = kwargs.get('timeout', TIMEOUT)
+
         next_state = None
         result = None
 
@@ -729,7 +731,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         elif current_state == ProtocolState.UNKNOWN:
 
             # Wakeup the device with timeout if passed.
-            timeout = kwargs.get('timeout', TIMEOUT)
+
             delay = 0.1
 
             prompt = self._wakeup(timeout=timeout, delay=delay)
@@ -740,8 +742,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, timeout=timeout)
 
-        #
         pd = self._param_dict.get_config()
+
         if pd[Parameter.LOGGING] == True:
             next_state = ProtocolState.AUTOSAMPLE
             result = ResourceAgentState.STREAMING
@@ -757,9 +759,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Force driver into a given state for the purposes of unit testing
         @param state=desired_state Required desired state to transition to.
-        @raises InstrumentParameterException if no state parameter.
+        @raises InstrumentParameterException if no st'ate parameter.
         """
-        log.debug("************* in _handler_unknown_force_state()")
+        log.debug("************* " + repr(kwargs))
+        log.debug("************* in _handler_unknown_force_state()" + str(kwargs.get('state', None)))
 
         state = kwargs.get('state', None)  # via kwargs
         if state is None:
