@@ -63,15 +63,15 @@ NEWLINE = '\r\n'
 # default timeout.
 TIMEOUT = 40
 
+
+
+# need to pull this out eventually...
 # Packet config
 STREAM_NAME_PARSED = DataParticleValue.PARSED
 STREAM_NAME_RAW = DataParticleValue.RAW
 PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
 
-
-
-
-
+SAMPLE_REGEX = " DEFINED ELSEWHERE see self._sample_regexs"
 
 
 # Device specific parameters.
@@ -714,6 +714,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentStateException if the device response does not correspond to
         an expected state.
         """
+        log.debug("************* " + repr(args))
         log.debug("************* " + repr(kwargs))
         timeout = kwargs.get('timeout', TIMEOUT)
 
@@ -1518,109 +1519,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return sample
 
-    #    def _parse_test_response(self, response, prompt):
-    #        """
-    #        Do minimal checking of test outputs.
-    #        @param response command response string.
-    #        @param promnpt prompt following command response.
-    #        @retval tuple of pass/fail boolean followed by response
-    #        """
-    #        log.debug("************ in _parse_test_response ")
-    #        success = False
-    #        lines = response.split()
-    #        if len(lines)>2:
-    #            data = lines[1:-1]
-    #            bad_count = 0
-    #            for item in data:
-    #                try:
-    #                    float(item)
-    #
-    #                except ValueError:
-    #                    bad_count += 1
-    #
-    #            if bad_count == 0:
-    #                success = True
-    #
-    #        return (success, response)
-
-
-    def old_got_data(self, data):
-        """
-        Callback for receiving new data from the device.
-        """
-
-        cur_state = self.get_current_state()
-
-        if len(data) > 0:
-            # direct access mode
-            if cur_state == ProtocolState.DIRECT_ACCESS:
-
-                #mi_logger.debug("Protocol._got_data(): <" + data + ">")
-                # check for echoed commands from instrument (TODO: this should only be done for telnet?)
-                if len(self._sent_cmds) > 0:
-                    # there are sent commands that need to have there echoes filtered out
-                    oldest_sent_cmd = self._sent_cmds[0]
-                    if string.count(data, oldest_sent_cmd) > 0:
-                        # found a command echo, so remove it from data and delete the command form list
-                        data = string.replace(data, oldest_sent_cmd, "", 1)
-                        self._sent_cmds.pop(0)
-                if len(data) > 0 and self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
-                    # TODO: what about logging this as an event?
-
-            # Call the superclass to update line and prompt buffers.
-            CommandResponseInstrumentProtocol.got_data(self, data)
-
-            # If in streaming mode, process the buffer for samples to publish.
-            if cur_state == ProtocolState.AUTOSAMPLE:
-
-                # want to be careful not to return a partial read off the back end...
-                while NEWLINE in self._linebuf:
-                    line, self._linebuf = self._linebuf.split(NEWLINE, 1 ) # PEZ dispenser for lines
-                    self._extract_sample(line)
-
-        return
-
-
-    def new_got_data(self, paPacket):
-        """
-        Callback for receiving new data from the device.
-        """
-        paLength = paPacket.get_data_size()
-        paData = paPacket.get_data()
-
-        cur_state = self.get_current_state()
-
-        if paLength > 0:
-            # direct access mode
-            if cur_state == ProtocolState.DIRECT_ACCESS:
-
-                #mi_logger.debug("Protocol._got_data(): <" + data + ">")
-                # check for echoed commands from instrument (TODO: this should only be done for telnet?)
-                if len(self._sent_cmds) > 0:
-                    # there are sent commands that need to have there echoes filtered out
-                    oldest_sent_cmd = self._sent_cmds[0]
-                    if string.count(data, oldest_sent_cmd) > 0:
-                        # found a command echo, so remove it from data and delete the command form list
-                        paData = string.replace(paData, oldest_sent_cmd, "", 1)
-                        self._sent_cmds.pop(0)
-                if paLength > 0 and self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
-                    # TODO: what about logging this as an event?
-
-            # Call the superclass to update line and prompt buffers.
-            CommandResponseInstrumentProtocol.got_data(self, paData)
-
-            # If in streaming mode, process the buffer for samples to publish.
-            if cur_state == ProtocolState.AUTOSAMPLE:
-
-                # want to be careful not to return a partial read off the back end...
-                while NEWLINE in self._linebuf:
-                    line, self._linebuf = self._linebuf.split(NEWLINE, 1 ) # PEZ dispenser for lines
-                    self._extract_sample(line)
-
-        return
-
     def got_data(self, paPacket):
         """
         Callback for receiving new data from the device.
@@ -1628,12 +1526,13 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         paLength = paPacket.get_data_size()
         paData = paPacket.get_data()
-        log.debug("in got_data paPacket = " + str(paPacket.get_data()))
+
         if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
             # direct access mode
             if paLength > 0:
                 #mi_logger.debug("Protocol._got_data(): <" + data + ">")
                 # check for echoed commands from instrument (TODO: this should only be done for telnet?)
+
                 if len(self._sent_cmds) > 0:
                     # there are sent commands that need to have there echoes filtered out
                     oldest_sent_cmd = self._sent_cmds[0]
@@ -1657,8 +1556,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                     lines = self._linebuf.split(NEWLINE)
                     self._linebuf = lines[-1]
                     for line in lines:
-                        self._extract_sample(DataParticle, SAMPLE_REGEX,
-                            line)
+                        self._extract_sample(DataParticle, SAMPLE_REGEX, line)
         else:
             log.debug("got_data ignoring the data sent to it.....")
 

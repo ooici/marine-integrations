@@ -54,7 +54,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from interface.objects import AgentCommand
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from mi.instrument.seabird.sbe26plus.driver import PACKET_CONFIG
+#from mi.instrument.seabird.sbe26plus.driver import PACKET_CONFIG
 from mi.instrument.seabird.sbe26plus.driver import DataParticle
 from mi.instrument.seabird.sbe26plus.driver import InstrumentDriver
 from mi.instrument.seabird.sbe26plus.driver import ProtocolState
@@ -79,8 +79,8 @@ from mi.core.exceptions import InstrumentProtocolException
 
 from prototype.sci_data.stream_parser import PointSupplementStreamParser
 from prototype.sci_data.constructor_apis import PointSupplementConstructor
-from prototype.sci_data.stream_defs import ctd_stream_definition
-from prototype.sci_data.stream_defs import SBE37_CDM_stream_definition
+#from prototype.sci_data.stream_defs import ctd_stream_definition
+#from prototype.sci_data.stream_defs import SBE37_CDM_stream_definition
 import numpy
 from prototype.sci_data.stream_parser import PointSupplementStreamParser
 
@@ -106,15 +106,6 @@ from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 ###
 
 
-InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
-    driver_class="InstrumentDriver",
-
-    instrument_agent_resource_id = '2E7GNV',
-    instrument_agent_name = 'seabird_sbe26plus_ooicore',
-    instrument_agent_packet_config = PACKET_CONFIG,
-    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
-)
 
 PARAMS = {
     # DS # parameters - contains all setsampling parameters
@@ -308,7 +299,7 @@ class my_sock():
 #         Unit tests test the method calls and parameters using Mock.         #
 ###############################################################################
 @attr('UNIT', group='mi')
-class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
+class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
@@ -421,8 +412,8 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
         ID._connection_fsm = mock_fsm
         args = []
         kwargs =  {}
-        ID.setsampling(args, kwargs)
-        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_SETSAMPLING', [], {})]")
+        ID.setsampling(*args, **kwargs)
+        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_SETSAMPLING')]")
 
     def test_instrument_driver_settime(self):
         """
@@ -433,8 +424,8 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
         ID._connection_fsm = mock_fsm
         args = []
         kwargs =  {}
-        ID.settime(args, kwargs)
-        self.assertEqual(str(mock_fsm.mock_calls), "'DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_SET_TIME', [], {})]")
+        ID.settime(*args, **kwargs)
+        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_SET_TIME')]")
 
     def test_instrument_driver_start(self):
         """
@@ -445,8 +436,8 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
         ID._connection_fsm = mock_fsm
         args = []
         kwargs =  {}
-        ID.start(args, kwargs)
-        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'DRIVER_EVENT_START_AUTOSAMPLE', [], {})]")
+        ID.start(*args, **kwargs)
+        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'DRIVER_EVENT_START_AUTOSAMPLE')]")
 
     def test_instrument_driver_dd(self):
         """
@@ -457,8 +448,8 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
         ID._connection_fsm = mock_fsm
         args = []
         kwargs =  {}
-        ID.dd(args, kwargs)
-        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_UPLOAD_ASCII', [], {})]")
+        ID.dd(*args, **kwargs)
+        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_UPLOAD_ASCII')]")
 
     def test_instrument_driver_ts(self):
         """
@@ -469,8 +460,8 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
         ID._connection_fsm = mock_fsm
         args = []
         kwargs =  {}
-        ID.ts(args, kwargs)
-        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'DRIVER_EVENT_ACQUIRE_SAMPLE', [], {})]")
+        ID.ts(*args, **kwargs)
+        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'DRIVER_EVENT_ACQUIRE_SAMPLE')]")
 
     def test_instrument_driver_qs(self):
         """
@@ -481,8 +472,8 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
         ID._connection_fsm = mock_fsm
         args = []
         kwargs =  {}
-        ID.qs(args, kwargs)
-        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_QUIT_SESSION', [], {})]")
+        ID.qs(*args, **kwargs)
+        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_QUIT_SESSION')]")
 
     def test_instrument_driver_initlogging(self):
         """
@@ -493,8 +484,8 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
         ID._connection_fsm = mock_fsm
         args = []
         kwargs =  {}
-        ID.initlogging(args, kwargs)
-        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_INIT_LOGGING', [], {})]")
+        ID.initlogging(*args, **kwargs)
+        self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_INIT_LOGGING')]")
 
     def test_instrument_driver_get_resource_params(self):
         """
@@ -675,7 +666,7 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
 
         args = []
         kwargs =  {}
-        p._handler_unknown_enter(args, kwargs)
+        p._handler_unknown_enter(*args, **kwargs)
         self.assertEqual(str(my_event_callback.call_args_list), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE'),\n call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
 
 
@@ -687,7 +678,7 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
 
         args = []
         kwargs =  {}
-        p._handler_unknown_exit(args, kwargs)
+        p._handler_unknown_exit(*args, **kwargs)
         self.assertEqual(str(my_event_callback.call_args_list), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
 
 
@@ -696,18 +687,19 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
         Test 3 paths through the func ( ProtocolState.UNKNOWN, ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE)
             For each test 3 paths of Parameter.LOGGING = ( True, False, Other )
         """
+
+
         ID = InstrumentDriver(self.my_event_callback)
         ID._build_protocol()
         p = ID._protocol
-
         #
         # current_state = ProtocolState.UNKNOWN
         #
 
-        p._protocol_fsm.current_state = ProtocolState.UNKNOWN
+        ID._protocol._protocol_fsm.current_state = ProtocolState.UNKNOWN
 
         args = []
-        kwargs =  dict({'timeout': 30,})
+        kwargs = ({'timeout': 30,})
 
         do_cmd_resp_mock = Mock(spec="do_cmd_resp_mock")
         p._do_cmd_resp = do_cmd_resp_mock
@@ -719,12 +711,12 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
         p._param_dict.set(Parameter.LOGGING, v)
         ex_caught = False
         try:
-            (next_state, result) = p._handler_unknown_discover(args, kwargs)
+            (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
         except InstrumentStateException:
             ex_caught = True
         self.assertTrue(ex_caught)
-        self.assertEqual(str(_wakeup_mock.mock_calls), '[call(delay=0.1, timeout=40), call(40)]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=40)]")
+        self.assertEqual(str(_wakeup_mock.mock_calls), '[call(delay=0.1, timeout=30), call(30)]')
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30)]")
         _wakeup_mock.reset_mock()
         do_cmd_resp_mock.reset_mock()
 
@@ -732,22 +724,22 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
 
         v.value = True
         p._param_dict.set(Parameter.LOGGING, v)
-        (next_state, result) = p._handler_unknown_discover(args, kwargs)
+        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
         self.assertEqual(next_state, 'DRIVER_STATE_AUTOSAMPLE')
         self.assertEqual(result, 'RESOURCE_AGENT_STATE_STREAMING')
-        self.assertEqual(str(_wakeup_mock.mock_calls), '[call(delay=0.1, timeout=40), call(40)]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=40)]")
+        self.assertEqual(str(_wakeup_mock.mock_calls), '[call(delay=0.1, timeout=30), call(30)]')
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30)]")
 
         _wakeup_mock.reset_mock()
         do_cmd_resp_mock.reset_mock()
 
         v.value = False
         p._param_dict.set(Parameter.LOGGING, v)
-        (next_state, result) = p._handler_unknown_discover(args, kwargs)
+        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
         self.assertEqual(next_state, 'DRIVER_STATE_COMMAND')
         self.assertEqual(result, 'RESOURCE_AGENT_STATE_IDLE')
-        self.assertEqual(str(_wakeup_mock.mock_calls), '[call(delay=0.1, timeout=40), call(40)]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=40)]")
+        self.assertEqual(str(_wakeup_mock.mock_calls), '[call(delay=0.1, timeout=30), call(30)]')
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30)]")
 
         #
         # current_state = ProtocolState.COMMAND
@@ -771,12 +763,12 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
         p._param_dict.set(Parameter.LOGGING, v)
         ex_caught = False
         try:
-            (next_state, result) = p._handler_unknown_discover(args, kwargs)
+            (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
         except InstrumentStateException:
             ex_caught = True
         self.assertTrue(ex_caught)
         self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=40)]")
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30)]")
         _wakeup_mock.reset_mock()
         do_cmd_resp_mock.reset_mock()
 
@@ -784,22 +776,22 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
 
         v.value = True
         p._param_dict.set(Parameter.LOGGING, v)
-        (next_state, result) = p._handler_unknown_discover(args, kwargs)
+        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
         self.assertEqual(next_state, 'DRIVER_STATE_AUTOSAMPLE')
         self.assertEqual(result, 'RESOURCE_AGENT_STATE_STREAMING')
         self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=40)]")
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30)]")
 
         _wakeup_mock.reset_mock()
         do_cmd_resp_mock.reset_mock()
 
         v.value = False
         p._param_dict.set(Parameter.LOGGING, v)
-        (next_state, result) = p._handler_unknown_discover(args, kwargs)
+        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
         self.assertEqual(next_state, 'DRIVER_STATE_COMMAND')
         self.assertEqual(result, 'RESOURCE_AGENT_STATE_IDLE')
         self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=40)]")
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30)]")
 
 
         #
@@ -824,12 +816,12 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
         p._param_dict.set(Parameter.LOGGING, v)
         ex_caught = False
         try:
-            (next_state, result) = p._handler_unknown_discover(args, kwargs)
+            (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
         except InstrumentStateException:
             ex_caught = True
         self.assertTrue(ex_caught)
         self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=40)]")
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30)]")
         _wakeup_mock.reset_mock()
         do_cmd_resp_mock.reset_mock()
 
@@ -837,22 +829,22 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
 
         v.value = True
         p._param_dict.set(Parameter.LOGGING, v)
-        (next_state, result) = p._handler_unknown_discover(args, kwargs)
+        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
         self.assertEqual(next_state, 'DRIVER_STATE_AUTOSAMPLE')
         self.assertEqual(result, 'RESOURCE_AGENT_STATE_STREAMING')
         self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=40)]")
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30)]")
 
         _wakeup_mock.reset_mock()
         do_cmd_resp_mock.reset_mock()
 
         v.value = False
         p._param_dict.set(Parameter.LOGGING, v)
-        (next_state, result) = p._handler_unknown_discover(args, kwargs)
+        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
         self.assertEqual(next_state, 'DRIVER_STATE_COMMAND')
         self.assertEqual(result, 'RESOURCE_AGENT_STATE_IDLE')
         self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=40)]")
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30)]")
 
 
 
@@ -863,24 +855,779 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
         ID._build_protocol()
         p = ID._protocol
 
-        args = ['foo']
-        kwargs = {'timeout': 30,}
-        #kwargs =  dict({'timeout': 30,})
+        args = []
+        kwargs =  dict({'timeout': 30,})
         ex_caught = False
         try:
-            (next_state, result) = p._handler_unknown_force_state(args, kwargs)
+            (next_state, result) = p._handler_unknown_force_state(*args, **kwargs)
         except InstrumentParameterException:
             ex_caught = True
         self.assertTrue(ex_caught)
 
         kwargs = dict({'timeout': 30,
                         'state': 'ARDVARK'})
-        state = kwargs.get('state', None)
-        print state
 
-        (next_state, result) = p._handler_unknown_force_state(args, kwargs)
+        (next_state, result) = p._handler_unknown_force_state(*args, **kwargs)
         self.assertEqual(next_state, 'ARDVARK')
         self.assertEqual(result, 'ARDVARK')
+
+    def test_protocol_handler_command_enter(self):
+        """
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+        _update_params_mock = Mock(spec="update_params")
+        p._update_params = _update_params_mock
+
+        _update_driver_event = Mock(spec="driver_event")
+        p._driver_event = _update_driver_event
+        args = []
+        kwargs =  dict({'timeout': 30,})
+
+        ret = p._handler_command_enter(*args, **kwargs)
+        self.assertEqual(ret, None)
+        self.assertEqual(str(_update_params_mock.mock_calls), "[call()]")
+        self.assertEqual(str(_update_driver_event.mock_calls), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
+
+
+
+
+
+
+
+
+
+    def test_protocol_parse_ts_response(self):
+        """
+        Exercise the various paths through _parse_ts_response verifying that a sample is correctly parsed
+        """
+
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+
+        # verify that it throws an exception if the wrong prompt is encountered
+
+        response = 'silly irrelevent response'
+        for prompt in (Prompt.BAD_COMMAND, Prompt.CONFIRMATION_PROMPT):
+            ex_caught = False
+            try:
+                ret = p._parse_ts_response(response, prompt)
+            except InstrumentProtocolException:
+                ex_caught = True
+            self.assertTrue(ex_caught)
+
+        # verify we get a SampleException if the sample data is incorrect
+        try:
+            ret = p._parse_ts_response(response, Prompt.COMMAND)
+        except SampleException:
+            ex_caught = True
+        self.assertTrue(ex_caught)
+
+        # test with valid data
+        response = "ts" + NEWLINE + \
+                   "   14.5128  24.34  23.9912" + NEWLINE +\
+                   Prompt.COMMAND
+
+        ret = p._parse_ts_response(response, Prompt.COMMAND)
+        # need to put a good validation here, but not until this packet gets solidified.t
+        #ret == {'raw': {'stream_name': 'raw', 'blob': '\r\n   14.5128  24.34  23.9912', 'time': [1349393089.311601]}, 'parsed': {'stream_name': 'parsed', 'parsed': {'p': '14.5128', 't': '23.9912', 'pt': '24.34'}, 'time': [1349393089.311601]}}
+
+        # test with slightly invalid data. should still work
+        response = "ts" + NEWLINE +\
+                   " 14.5128 24.34 23.9912 111111" + NEWLINE +\
+                   Prompt.COMMAND
+
+        ret = p._parse_ts_response(response, Prompt.COMMAND)
+        # need to put a good validation here, but not until this packet gets solidified.
+        # ret == {'raw': {'stream_name': 'raw', 'blob': '\r\n 14.5128  24.34  23.9912  111111', 'time': [1349393237.7224]}, 'parsed': {'stream_name': 'parsed', 'parsed': {'p': '14.5128', 't': '23.9912', 'pt': '24.34'}, 'time': [1349393237.7224]}}
+
+
+    def test_protocol_got_data(self):
+        """
+
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+        paPacket = PortAgentPacket()
+
+
+
+        #
+        # DIRECT_ACCESS mode, zero length data
+        #
+
+        p._protocol_fsm.current_state = ProtocolState.DIRECT_ACCESS
+        self.assertEqual(p.get_current_state(), ProtocolState.DIRECT_ACCESS)
+
+        data = ""
+        paPacket = PortAgentPacket()
+        paPacket.attach_data(data)
+        paPacket.pack_header(1)
+
+
+        # mock out _driver_event as we are only looking at got_data
+        _driver_event_mock = Mock(spec="driver_event")
+        p._driver_event = _driver_event_mock
+
+
+        ret = p.got_data(paPacket)
+        self.assertEqual(ret, None)
+        self.assertEqual(str(_driver_event_mock.mock_calls), "[]")
+
+
+
+        #
+        # DIRECT_ACCESS mode, valid data
+        #
+
+        # mock out _driver_event as we are only looking at got_data
+        _driver_event_mock = Mock(spec="driver_event")
+        p._driver_event = _driver_event_mock
+
+        p._sent_cmds = []
+        p._sent_cmds.append('ts')
+        self.assertTrue(len(p._sent_cmds) > 0)
+        p._protocol_fsm.current_state = ProtocolState.DIRECT_ACCESS
+        self.assertEqual(p.get_current_state(), ProtocolState.DIRECT_ACCESS)
+
+        data = "ts" + NEWLINE +\
+               " 14.5128 24.34 23.9912 111111" + NEWLINE +\
+               Prompt.COMMAND
+        paPacket = PortAgentPacket()
+        paPacket.attach_data(data)
+        paPacket.pack_header(1)
+
+        ret = p.got_data(paPacket)
+        self.assertEqual(ret, None)
+        self.assertEqual(str(_driver_event_mock.mock_calls), "[call('DRIVER_ASYNC_EVENT_DIRECT_ACCESS', '\\r\\n 14.5128 24.34 23.9912 111111\\r\\nS>')]")
+
+
+
+
+
+        #
+        # AUTOSAMPLE mode, valid data
+        #
+
+        p._protocol_fsm.current_state = ProtocolState.AUTOSAMPLE
+        self.assertEqual(p.get_current_state(), ProtocolState.AUTOSAMPLE)
+
+
+        # mock out _extract_sample as we are only looking at got_data
+        _extract_sample_mock = Mock(spec="extract_sample")
+        p._extract_sample = _extract_sample_mock
+
+        data = \
+            "S>start" + NEWLINE + \
+            "start" + NEWLINE + \
+            "logging will start in 10 seconds" + NEWLINE +\
+            "tide: start time = 05 Oct 2012 00:55:54, p = 14.5348, pt = 24.250, t = 23.9046" + NEWLINE +\
+            "tide: start time = 05 Oct 2012 00:58:54, p = 14.5367, pt = 24.242, t = 23.8904" + NEWLINE +\
+            "tide: start time = 05 Oct 2012 01:01:54, p = 14.5387, pt = 24.250, t = 23.8778" + NEWLINE +\
+            "tide: start time = 05 Oct 2012 01:04:54, p = 14.5346, pt = 24.228, t = 23.8664" + NEWLINE +\
+            "tide: start time = 05 Oct 2012 01:07:54, p = 14.5364, pt = 24.205, t = 23.8575" + NEWLINE +\
+            "wave: start time = 05 Oct 2012 01:10:54" + NEWLINE +\
+            "wave: ptfreq = 171791.359" + NEWLINE +\
+            "14.5102" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5078" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5078" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5188" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5097" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5036" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5134" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "14.5064" + NEWLINE +\
+            "14.5165" + NEWLINE +\
+            "wave: end burst" + NEWLINE +\
+            "tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404" + NEWLINE +\
+            "" + NEWLINE +\
+            "deMeanTrend................" + NEWLINE +\
+            "depth =    0.000, temperature = 23.840, salinity = 35.000, density = 1023.690" + NEWLINE +\
+            "" + NEWLINE +\
+            "fill array..." + NEWLINE +\
+            "find minIndex." + NEWLINE +\
+            "hanning...................." + NEWLINE +\
+            "FFT................................................................................................" + NEWLINE +\
+            "normalize....." + NEWLINE +\
+            "band average......................................................." + NEWLINE +\
+            "Auto-Spectrum Statistics:" + NEWLINE +\
+            "nAvgBand = 5" + NEWLINE +\
+            "total variance = 1.0896e-05" + NEWLINE +\
+            "total energy = 1.0939e-01" + NEWLINE +\
+            "significant period = 5.3782e-01" + NEWLINE +\
+            "significant wave height = 1.3204e-02" + NEWLINE +\
+            "" + NEWLINE +\
+            "calculate dispersion.................................................................................................................................................................................................................................................................................." + NEWLINE +\
+            "IFFT................................................................................................" + NEWLINE +\
+            "deHanning...................." + NEWLINE +\
+            "move data.." + NEWLINE +\
+            "zero crossing analysis............." + NEWLINE +\
+            "Time Series Statistics:" + NEWLINE +\
+            "wave integration time = 128" + NEWLINE +\
+            "number of waves = 0" + NEWLINE +\
+            "total variance = 1.1595e-05" + NEWLINE +\
+            "total energy = 1.1640e-01" + NEWLINE +\
+            "average wave height = 0.0000e+00" + NEWLINE +\
+            "average wave period = 0.0000e+00" + NEWLINE +\
+            "maximum wave height = 1.0893e-02" + NEWLINE +\
+            "significant wave height = 0.0000e+00" + NEWLINE +\
+            "significant wave period = 0.0000e+00" + NEWLINE +\
+            "H1/10 = 0.0000e+00" + NEWLINE +\
+            "H1/100 = 0.0000e+00" + NEWLINE +\
+            "tide: start time = 05 Oct 2012 01:13:54, p = 14.5384, pt = 24.205, t = 23.8363" + NEWLINE
+
+        paPacket = PortAgentPacket()
+        paPacket.attach_data(data)
+        paPacket.pack_header(1)
+        self.assertTrue(len(data) > 0)
+        self.assertTrue(paPacket.get_data_size() > 0)
+        self.assertTrue(len(paPacket.get_data()) > 0)
+        ret = p.got_data(paPacket)
+        self.assertEqual(ret, None)
+        #@ TODO put below line back in and fix it once it is working
+        #self.assertEqual(str(_extract_sample_mock.mock_calls), "3XXXXX")
+
+
+        #
+        # AUTOSAMPLE mode, no data
+        #
+
+
+        p._protocol_fsm.current_state = ProtocolState.AUTOSAMPLE
+        self.assertEqual(p.get_current_state(), ProtocolState.AUTOSAMPLE)
+
+
+        # mock out _extract_sample as we are only looking at got_data
+        _extract_sample_mock = Mock(spec="extract_sample")
+        p._extract_sample = _extract_sample_mock
+
+        data = ""
+        paPacket = PortAgentPacket()
+        paPacket.attach_data(data)
+        paPacket.pack_header(1)
+        self.assertTrue(len(data) == 0)
+        self.assertTrue(paPacket.get_data_size() == 0)
+        self.assertTrue(len(paPacket.get_data()) == 0)
+
+        ret = p.got_data(paPacket)
+        self.assertEqual(ret, None)
+        self.assertEqual(str(_extract_sample_mock.mock_calls), "[]")
+
+
+
+
+
+
+
+
+
+
+
 
 
 # create a mock instance of InstrumentDriver, and verify that the functions like
@@ -894,7 +1641,7 @@ class InstrumentDriverUnitFromIDK(InstrumentDriverUnitTestCase):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class InstrumentDriverIntFromIDK(InstrumentDriverIntegrationTestCase):
+class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
@@ -1775,7 +2522,7 @@ class InstrumentDriverIntFromIDK(InstrumentDriverIntegrationTestCase):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('QUAL', group='mi')
-class InstrumentDriverQualFromIDK(InstrumentDriverQualificationTestCase):
+class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
     def setUp(self):
         log.debug("BEFORE")
         InstrumentDriverQualificationTestCase.setUp(self)

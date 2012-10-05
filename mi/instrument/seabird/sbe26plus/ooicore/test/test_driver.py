@@ -22,16 +22,29 @@ __license__ = 'Apache 2.0'
 import unittest
 from mock import patch
 from nose.plugins.attrib import attr
-from mi.instrument.seabird.sbe26plus.test.test_driver import InstrumentDriverUnitFromIDK
-from mi.instrument.seabird.sbe26plus.test.test_driver import InstrumentDriverIntFromIDK
-from mi.instrument.seabird.sbe26plus.test.test_driver import InstrumentDriverQualFromIDK
+from mi.instrument.seabird.sbe26plus.test.test_driver import SBE26PlusUnitFromIDK
+from mi.instrument.seabird.sbe26plus.test.test_driver import SBE26PlusIntFromIDK
+from mi.instrument.seabird.sbe26plus.test.test_driver import SBE26PlusQualFromIDK
+from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.instrument.seabird.sbe26plus.ooicore.driver import PACKET_CONFIG
+from prototype.sci_data.stream_defs import ctd_stream_definition
+
+InstrumentDriverTestCase.initialize(
+    driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
+    driver_class="InstrumentDriver",
+
+    instrument_agent_resource_id = '2E7GNV',
+    instrument_agent_name = 'seabird_sbe26plus_ooicore',
+    instrument_agent_packet_config = PACKET_CONFIG,
+    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
+)
 
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
 ###############################################################################
 @attr('UNIT', group='mi')
-class UnitFromIDK(InstrumentDriverUnitFromIDK):
+class UnitFromIDK(SBE26PlusUnitFromIDK):
     """
 
     """
@@ -44,7 +57,7 @@ class UnitFromIDK(InstrumentDriverUnitFromIDK):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class IntFromIDK(InstrumentDriverIntFromIDK):
+class IntFromIDK(SBE26PlusIntFromIDK):
     """
 
     """
@@ -54,7 +67,7 @@ class IntFromIDK(InstrumentDriverIntFromIDK):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('QUAL', group='mi')
-class QualFromIDK(InstrumentDriverQualFromIDK):
+class QualFromIDK(SBE26PlusQualFromIDK):
     """
 
     """
