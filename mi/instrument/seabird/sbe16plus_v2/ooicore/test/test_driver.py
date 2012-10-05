@@ -17,6 +17,7 @@ import gevent
 
 # Standard lib imports
 import time
+import json
 import unittest
 
 # 3rd party imports
@@ -41,7 +42,7 @@ from mi.core.exceptions import InstrumentCommandException
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import PACKET_CONFIG
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import InstrumentDriver
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16ProtocolState
-from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16ProtocolEvent
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import ProtocolEvent
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16Parameter
 from ion.agents.port.logger_process import EthernetDeviceLogger
 
@@ -161,7 +162,12 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         print str(event)
         if event_type == DriverAsyncEvent.SAMPLE:
             sample_value = event['value']
-            stream_type = sample_value['stream_name']
+            """
+            DHE: Need to pull the list out of here.  It's coming out as a
+            string like it is.
+            """
+            particle_dict = json.loads(sample_value)
+            stream_type = particle_dict['stream_name']
             if stream_type == 'raw':
                 self.raw_stream_received = True
             elif stream_type == 'parsed':
@@ -249,6 +255,12 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
 
         self.reset_test_vars()
         test_sample = "<Executed/>\n"
+        
+        """
+        use for test particle
+        test_sample = "#  24.0088,  0.00001,   -0.000,   0.0117, 03 Oct 2012 20:59:04"
+        test_sample = "# 24. 24.0088,  0.00001,    0.000,   0.0117, 03 Oct 2012 20:58:54"
+        """
 
         paPacket = PortAgentPacket()         
         paHeader = "\xa3\x9d\x7a\x02\x00\x1c\x0b\x2e\x00\x00\x00\x01\x80\x00\x00\x00"
@@ -264,6 +276,171 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """
         
     pass
+
+    def test_sample(self):
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = InstrumentDriver(self.my_event_callback)
+        
+        current_state = test_driver.get_resource_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        # commented below out; trying real port agent
+        test_driver.configure(config = config)
+
+        """
+        DHE: trying this; want to invoke the driver methods themselves, but 
+        with the driver talking to the port_agent (through the client).
+        Will it work? Answer: It does, but I can't step through it.  Let
+        me try just running this.
+        """
+        #test_driver.configure(config = self.port_agent_comm_config())
+        current_state = test_driver.get_resource_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        
+        """
+        TODO: DHE: Shouldn't have to put a sleep here; it's like the
+        port_agent isn't up yet; I get a connection refused without this.
+        """
+        gevent.sleep(2)
+
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Invoke the discover_state method of the driver
+        """
+        # commenting out because it will try wakeup
+        #test_driver.discover_state()
+        #current_state = test_driver.get_resource_state()
+        #print "DHE: DriverConnectionState: " + str(current_state)
+
+        """
+        Force state to command state.
+        """
+        
+        """
+        This won't work right now because the SBE16 does an _update_params upon
+        entry to the command_handler; since this is a unit test there is nothing
+        to respond to the ds and dc commands.  Setting up mock to do it would
+        be really handy.
+        """
+        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_resource_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        self.reset_test_vars()
+        test_sample = "#  24.0088,  0.00001,   -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n"
+        
+        """
+        use for test particle
+        test_sample = "#  24.0088,  0.00001,   -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n"
+        test_sample = "# 24. 24.0088,  0.00001,    0.000,   0.0117, 03 Oct 2012 20:58:54\r\n"
+        """
+
+        paPacket = PortAgentPacket()         
+        paHeader = "\xa3\x9d\x7a\x02\x00\x50\x0b\x2e\x00\x00\x00\x01\x80\x00\x00\x00"
+        paPacket.unpack_header(paHeader)
+        
+        paPacket.attach_data(test_sample)
+
+        test_driver._protocol.got_data(paPacket)
+        
+        """
+        self.assertTrue(self.raw_stream_received)
+        self.assertTrue(self.parsed_stream_received)
+        """
+        
+    pass
+
+
+    def test_parse_ds(self):
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = InstrumentDriver(self.my_event_callback)
+        
+        current_state = test_driver.get_resource_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        # commented below out; trying real port agent
+        test_driver.configure(config = config)
+
+        """
+        DHE: trying this; want to invoke the driver methods themselves, but 
+        with the driver talking to the port_agent (through the client).
+        Will it work? Answer: It does, but I can't step through it.  Let
+        me try just running this.
+        """
+        #test_driver.configure(config = self.port_agent_comm_config())
+        current_state = test_driver.get_resource_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        
+        """
+        TODO: DHE: Shouldn't have to put a sleep here; it's like the
+        port_agent isn't up yet; I get a connection refused without this.
+        """
+        gevent.sleep(2)
+
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        self.reset_test_vars()
+        test_ds_response = "output salinity = yes, output sound velocity = no\r\n"
+        
+        test_driver._protocol._parse_dsdc_response(test_ds_response, '<Executed/>')
+        
+        """
+        self.assertTrue(self.raw_stream_received)
+        self.assertTrue(self.parsed_stream_received)
+        """
+        
+    pass
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -526,15 +703,15 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         self.assertEqual(state, SBE16ProtocolState.COMMAND)
 
         # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_resource', SBE16ProtocolEvent.ACQUIRE_SAMPLE)
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
         self.assertSampleDict(reply[1])
         
         # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_resource', SBE16ProtocolEvent.ACQUIRE_SAMPLE)
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
         self.assertSampleDict(reply[1])
 
         # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_resource', SBE16ProtocolEvent.ACQUIRE_SAMPLE)
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
         self.assertSampleDict(reply[1])
         
         # Confirm that 3 samples arrived as published events.
@@ -596,7 +773,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         }
         reply = self.driver_client.cmd_dvr('set_resource', params)
         
-        reply = self.driver_client.cmd_dvr('execute_resource', SBE16ProtocolEvent.START_AUTOSAMPLE)
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
 
         # Test the driver is in autosample mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
@@ -611,7 +788,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         count = 0
         while True:
             try:
-                reply = self.driver_client.cmd_dvr('execute_resource', SBE16ProtocolEvent.STOP_AUTOSAMPLE)
+                reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
             
             except InstrumentTimeoutException:
                 count += 1
@@ -674,7 +851,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         self.assertEqual(state, SBE16ProtocolState.COMMAND)
 
         start_time = time.time()
-        reply = self.driver_client.cmd_dvr('execute_resource', SBE16ProtocolEvent.TEST)
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.TEST)
 
         # Test the driver is in unknown state.
         state = self.driver_client.cmd_dvr('get_resource_state')
@@ -720,7 +897,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
-            reply = self.driver_client.cmd_dvr('execute_resource', SBE16ProtocolEvent.ACQUIRE_SAMPLE)
+            reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
 
         # Assert we forgot the comms parameter.
         with self.assertRaises(InstrumentParameterException):
@@ -752,7 +929,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
-            reply = self.driver_client.cmd_dvr('execute_resource', SBE16ProtocolEvent.ACQUIRE_SAMPLE)
+            reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
 
         reply = self.driver_client.cmd_dvr('connect')
                 
@@ -762,7 +939,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
-            reply = self.driver_client.cmd_dvr('execute_resource', SBE16ProtocolEvent.ACQUIRE_SAMPLE)
+            reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
                 
         reply = self.driver_client.cmd_dvr('discover')
 
@@ -771,12 +948,12 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         self.assertEqual(state, SBE16ProtocolState.COMMAND)
 
         # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_resource', SBE16ProtocolEvent.ACQUIRE_SAMPLE)
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
         self.assertSampleDict(reply[1])
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
-            reply = self.driver_client.cmd_dvr('execute_resource', SBE16ProtocolEvent.STOP_AUTOSAMPLE)
+            reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
         
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
@@ -873,7 +1050,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         }
         reply = self.driver_client.cmd_dvr('set_resource', params)
         
-        reply = self.driver_client.cmd_dvr('execute_resource', SBE16ProtocolEvent.START_AUTOSAMPLE)
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
 
         # Test the driver is in autosample mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
@@ -940,7 +1117,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         count = 0
         while True:
             try:
-                reply = self.driver_client.cmd_dvr('execute_resource', SBE16ProtocolEvent.STOP_AUTOSAMPLE)
+                reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
             
             except InstrumentTimeoutException:
                 count += 1
