@@ -31,7 +31,6 @@ import uuid
 
 # ION imports.
 from interface.objects import StreamQuery
-from interface.services.dm.itransform_management_service import TransformManagementServiceClient
 from interface.services.cei.iprocess_dispatcher_service import ProcessDispatcherServiceClient
 from interface.services.icontainer_agent import ContainerAgentClient
 from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
