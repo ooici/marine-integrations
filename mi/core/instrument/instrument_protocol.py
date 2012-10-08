@@ -332,10 +332,10 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             raise InstrumentProtocolException('Cannot build command: %s' % cmd)
         
         cmd_line = build_handler(cmd, *args)
-        
+
         # Wakeup the device, pass up exception if timeout
         prompt = self._wakeup(timeout)
-                    
+        
         # Clear line and prompt buffers for result.
         self._linebuf = ''
         self._promptbuf = ''
@@ -378,6 +378,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         
         build_handler = self._build_handlers.get(cmd, None)
         if not build_handler:
+            log.error('_do_cmd_no_resp: no handler for command: %s' % (cmd))
             raise InstrumentProtocolException(error_code=InstErrorCode.BAD_DRIVER_COMMAND)
         cmd_line = build_handler(cmd, *args)
         

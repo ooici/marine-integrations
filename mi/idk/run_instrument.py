@@ -104,6 +104,7 @@ class RunInstrument(IonIntegrationTestCase):
         self.data_port = None
         self.command_port = None
         self.driver_version = None
+        self._pagent = None
         self.monitor_window = monitor
         self.subcriber_window = subscriber
         
@@ -159,6 +160,7 @@ class RunInstrument(IonIntegrationTestCase):
             
             # Start port agent, add stop to cleanup (not sure if that's
             # necessary yet).
+            print( "------------------>>>> Starting Port Agent <<<<------------------" )
             self.start_pagent()
     
             # Start a monitor window if specified.
@@ -176,11 +178,11 @@ class RunInstrument(IonIntegrationTestCase):
             self.addCleanup(self.stop_pagent)    
             
             # Start container.
-            log.info('Staring capability container.')
+            print( "------------------>>>> Starting Capability Container <<<<------------------" )
             self._start_container()
             
             # Bring up services in a deploy file (no need to message)
-            log.info('Staring deploy services.')
+            print( "------------------>>>> Starting Deploy Services <<<<------------------" )
             self.container.start_rel_from_url('res/deploy/r2deploy.yml')
     
             # Setup stream config.
@@ -196,8 +198,7 @@ class RunInstrument(IonIntegrationTestCase):
     
             # Start instrument agent.
             self._ia_pid = None
-            log.debug("TestInstrumentAgent.setup(): starting IA.")
-            log.info('Agent config: %s', str(agent_config))
+            print( "------------------>>>> Starting Instrument Agent <<<<------------------" )
             container_client = ContainerAgentClient(node=self.container.node,
                                                     name=self.container.name)
             self._ia_pid = container_client.spawn_process(name=IA_NAME,
@@ -435,10 +436,11 @@ class RunInstrument(IonIntegrationTestCase):
         self.res_cmds = [x.name for x in retval if x.cap_type==CapabilityType.RES_CMD]
         self.res_pars = [x.name for x in retval if x.cap_type==CapabilityType.RES_PAR]
         
+        print "\n------------------>>>> Current Capabilities <<<<------------------"
         print "Agent Commands: " + str(self.agt_cmds)
-        print "Agent Parameters: " + str(self.agt_pars)
+        #print "Agent Parameters: " + str(self.agt_pars)
         print "Resource Commands: " + str(self.res_cmds)
-        print "Resource Parameters: " + str(self.res_pars)
+        #print "Resource Parameters: " + str(self.res_pars)
 
     def send_agent_command(self, command):
         """
@@ -508,11 +510,21 @@ class RunInstrument(IonIntegrationTestCase):
                 print 'Invalid parameter: ' + _param 
 
         _value = prompt.text('Enter value')
-                
+        _value = _value.lower()
+
+        """
+        DHE: Need to convert to native types here; can't be string; at this
+        point it doesn't seem to be a driver problem but rather a requirement
+        for messages.
+        """        
+        if _value == 'true':
+            _value = True
+        elif _value == 'false':
+            _value = False
+
         param_dict = {_param: _value}
-        reply = self._ia_client.set_resource(param_dict)
-        orig_params = reply
-                                                                    
+        self._ia_client.set_resource(param_dict)
+                                                                            
     def fetch_metadata(self):
         """
         @brief collect metadata from the user
@@ -573,7 +585,7 @@ class RunInstrument(IonIntegrationTestCase):
         @brief Run it.
         """
         
-        print( "*** Starting RunInstrument ***" )
+        print( "------------------>>>> Starting RunInstrument <<<<------------------" )
 
         """
         initialize; returns True if successful, else False.
@@ -609,6 +621,6 @@ class RunInstrument(IonIntegrationTestCase):
                 continuing = False
                 
         self.stop_pagent()
-        print( "*** Stopping RunInstrument ***")
+        print( "------------------>>>> Stopping RunInstrument <<<<------------------" )
         
 
