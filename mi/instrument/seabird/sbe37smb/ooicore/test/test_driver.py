@@ -4,7 +4,7 @@
 @package ion.services.mi.instrument.sbe37.test.test_sbe37_driver
 @file ion/services/mi/instrument/sbe37/test/test_sbe37_driver.py
 @author Edward Hunter
-@brief Test cases for SBE37Driver
+@brief Test cases for InstrumentDriver
 """
 
 __author__ = 'Edward Hunter'
@@ -42,7 +42,7 @@ from mi.core.exceptions import InstrumentCommandException
 
 from mi.instrument.seabird.sbe37smb.ooicore.driver import PACKET_CONFIG
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DataParticle
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Driver
+from mi.instrument.seabird.sbe37smb.ooicore.driver import InstrumentDriver
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolEvent
@@ -105,7 +105,7 @@ from interface.objects import AgentCapability
 ## Initialize the test parameters
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.seabird.sbe37smb.ooicore.driver',
-    driver_class="SBE37Driver",
+    driver_class="InstrumentDriver",
 
     instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'Agent007',

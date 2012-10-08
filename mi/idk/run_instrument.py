@@ -9,7 +9,7 @@ from pyon.public import CFG
 from ooi.logging import config
 
 from os.path import exists, join, isdir
-from os import listdir
+from os import listdir, mkfifo
 
 from mi.idk.metadata import Metadata
 from mi.idk.comm_config import CommConfig
@@ -57,6 +57,8 @@ from mi.idk import prompt
 
 from prototype.sci_data.stream_defs import ctd_stream_definition
 
+PIPE_PATH = "/tmp/run-instrument-data"
+
 
 WORK_DIR = '/tmp/'
 DELIM = ['<<','>>']
@@ -93,19 +95,17 @@ class RunInstrument(IonIntegrationTestCase):
     Main class for communicating with an instrument
     """
 
-    def __init__(self, make=None, model=None, name=None, driver_class=None, 
-                 ip_address=None, data_port=None, command_port=None, version=None, monitor=False):
-        self.driver_make = make
-        self.driver_model = model
-        self.driver_name = name
-        self.driver_class = driver_class
-        if not self.driver_class:
-            self.driver_class = DRIVER_CLASS
-        self.ip_address = ip_address
-        self.data_port = data_port
-        self.command_port = command_port
-        self.driver_version = version
+    def __init__(self, monitor=False, subscriber=False):
+        self.driver_make = None
+        self.driver_model = None
+        self.driver_name = None
+        self.driver_class = DRIVER_CLASS
+        self.ip_address = None
+        self.data_port = None
+        self.command_port = None
+        self.driver_version = None
         self.monitor_window = monitor
+        self.subcriber_window = subscriber
         
         self._cleanups = []
 
@@ -117,97 +117,111 @@ class RunInstrument(IonIntegrationTestCase):
         Define agent config, start agent.
         Start agent client.
         """
-
-        """
-        Get the information for the driver.  This can be read from the yml
-        files; the user can run switch_driver to change the current driver.
-        """ 
-        self.fetch_metadata()
-        self.fetch_driver_class()
-        self.fetch_comm_config()
-
-        if not exists(self.metadata.driver_dir()):
-            raise DriverDoesNotExist( "%s/%s/$%s" % (self.metadata.driver_make,
-                                                     self.metadata.driver_model,
-                                                     self.driver_name))        
         
-        driver_module = DRIVER_MODULE_ROOT + self.metadata.driver_make + '.' + self.metadata.driver_model + '.' + self.metadata.driver_name + DRIVER_MODULE_LEAF
-        
-        log.info('driver module: %s', driver_module)
-        log.info('driver class: %s', self.driver_class)
-        log.info('device address: %s', self.ip_address)
-        log.info('device data port: %s', self.data_port)
-        log.info('device command port: %s', self.command_port)
-        log.info('log delimiter: %s', DELIM)
-        log.info('work dir: %s', WORK_DIR)
+        try:
 
-        DVR_CONFIG.update({'dvr_mod' : driver_module, 'dvr_cls' : self.driver_class})
-
-        """
-        self._support = DriverIntegrationTestSupport(driver_module,
-                                                     self.driver_class,
-                                                     self.ip_address,
-                                                     self.data_port,
-                                                     DELIM,
-                                                     WORK_DIR)
-        """
-        
-        # Start port agent, add stop to cleanup (not sure if that's
-        # necessary yet).
-        self.start_pagent()
-
-        # Start a monitor window if specified.
-        if self.monitor_window:
-            self.monitor_file = self._pagent.port_agent.logfname
-            strXterm = "xterm -T InstrumentMonitor -sb -rightbar"
-            #pOpenString = "xterm -T InstrumentMonitor -e tail -f " + self.monitor_file
-            pOpenString = strXterm + " -e tail -f " + self.monitor_file
+            """
+            Get the information for the driver.  This can be read from the yml
+            files; the user can run switch_driver to change the current driver.
+            """ 
+            self.fetch_metadata()
+            self.fetch_driver_class()
+            self.fetch_comm_config()
             
-            x = subprocess.Popen(pOpenString, shell=True)        
+            if not exists(PIPE_PATH):
+                mkfifo(PIPE_PATH)
+    
+            if not exists(self.metadata.driver_dir()):
+                raise DriverDoesNotExist( "%s/%s/$%s" % (self.metadata.driver_make,
+                                                         self.metadata.driver_model,
+                                                         self.driver_name))        
             
-        """
-        DHE: Added self._cleanups to make base classes happy
-        """
-        self.addCleanup(self.stop_pagent)    
+            driver_module = DRIVER_MODULE_ROOT + self.metadata.driver_make + '.' + self.metadata.driver_model + '.' + self.metadata.driver_name + DRIVER_MODULE_LEAF
+            
+            log.info('driver module: %s', driver_module)
+            log.info('driver class: %s', self.driver_class)
+            log.info('device address: %s', self.ip_address)
+            log.info('device data port: %s', self.data_port)
+            log.info('device command port: %s', self.command_port)
+            log.info('log delimiter: %s', DELIM)
+            log.info('work dir: %s', WORK_DIR)
+    
+            DVR_CONFIG.update({'dvr_mod' : driver_module, 'dvr_cls' : self.driver_class})
+    
+            """
+            self._support = DriverIntegrationTestSupport(driver_module,
+                                                         self.driver_class,
+                                                         self.ip_address,
+                                                         self.data_port,
+                                                         DELIM,
+                                                         WORK_DIR)
+            """
+            
+            # Start port agent, add stop to cleanup (not sure if that's
+            # necessary yet).
+            self.start_pagent()
+    
+            # Start a monitor window if specified.
+            if self.monitor_window:
+                self.monitor_file = self._pagent.port_agent.logfname
+                strXterm = "xterm -T InstrumentMonitor -sb -rightbar"
+                #pOpenString = "xterm -T InstrumentMonitor -e tail -f " + self.monitor_file
+                pOpenString = strXterm + " -e tail -f " + self.monitor_file
+                
+                x = subprocess.Popen(pOpenString, shell=True)        
+    
+            """
+            DHE: Added self._cleanups to make base classes happy
+            """
+            self.addCleanup(self.stop_pagent)    
+            
+            # Start container.
+            log.info('Staring capability container.')
+            self._start_container()
+            
+            # Bring up services in a deploy file (no need to message)
+            log.info('Staring deploy services.')
+            self.container.start_rel_from_url('res/deploy/r2deploy.yml')
+    
+            # Setup stream config.
+            self._build_stream_config()
+            
+            # Create agent config.
+            agent_config = {
+                'driver_config' : DVR_CONFIG,
+                'stream_config' : self._stream_config,
+                'agent'         : {'resource_id': IA_RESOURCE_ID},
+                'test_mode' : True
+            }
+    
+            # Start instrument agent.
+            self._ia_pid = None
+            log.debug("TestInstrumentAgent.setup(): starting IA.")
+            log.info('Agent config: %s', str(agent_config))
+            container_client = ContainerAgentClient(node=self.container.node,
+                                                    name=self.container.name)
+            self._ia_pid = container_client.spawn_process(name=IA_NAME,
+                                                          module=IA_MOD, 
+                                                          cls=IA_CLS, 
+                                                          config=agent_config)      
+            log.info('Agent pid=%s.', str(self._ia_pid))
+            
+            # Start a resource agent client to talk with the instrument agent.
+            self._ia_client = None
+            self._ia_client = ResourceAgentClient(IA_RESOURCE_ID,
+                                                  process=FakeProcess())
+            log.info('Got ia client %s.', str(self._ia_client))
+            
+            if self.subcriber_window:
+                self._start_data_subscribers(6)
+                #self.addCleanup(self._stop_data_subscribers)
+                
+        except:
+            log.error("initialize(): Exception occurred; shutting down.", exc_info=True)
+            return False
         
-        # Start container.
-        log.info('Staring capability container.')
-        self._start_container()
-        
-        # Bring up services in a deploy file (no need to message)
-        log.info('Staring deploy services.')
-        self.container.start_rel_from_url('res/deploy/r2deploy.yml')
-
-        # Setup stream config.
-        self._build_stream_config()
-        
-        # Create agent config.
-        agent_config = {
-            'driver_config' : DVR_CONFIG,
-            'stream_config' : self._stream_config,
-            'agent'         : {'resource_id': IA_RESOURCE_ID},
-            'test_mode' : True
-        }
-
-        # Start instrument agent.
-        self._ia_pid = None
-        log.debug("TestInstrumentAgent.setup(): starting IA.")
-        log.info('Agent config: %s', str(agent_config))
-        container_client = ContainerAgentClient(node=self.container.node,
-                                                name=self.container.name)
-        self._ia_pid = container_client.spawn_process(name=IA_NAME,
-                                                      module=IA_MOD, 
-                                                      cls=IA_CLS, 
-                                                      config=agent_config)      
-        log.info('Agent pid=%s.', str(self._ia_pid))
-        
-        # Start a resource agent client to talk with the instrument agent.
-        self._ia_client = None
-        self._ia_client = ResourceAgentClient(IA_RESOURCE_ID,
-                                              process=FakeProcess())
-        log.info('Got ia client %s.', str(self._ia_client))
-        
-        self._start_data_subscribers(6)
+        else:
+            return True
 
     ###############################################################################
     # Port agent helpers.
@@ -296,10 +310,23 @@ class RunInstrument(IonIntegrationTestCase):
         self._samples_received = []
         #self._async_sample_result = AsyncResult()
 
+        strXterm = "xterm -T InstrumentScienceData -sb -rightbar "
+        pOpenString = strXterm + " -e tail -f " + PIPE_PATH
+        subprocess.Popen(['xterm', '-T', 'InstrumentScienceData', '-e', 'tail', '-f', PIPE_PATH])        
+        #subprocess.Popen(pOpenString)
+                
+        #self.pipeData = open(PIPE_PATH, "w", 1) 
+
         # A callback for processing subscribed-to data.
         def recv_data(message, stream_route, stream_id):
             print 'Received message on ' + str(stream_id) + ' (' + str(stream_route.exchange_point) + ',' + str(stream_route.routing_key) + ')'
             log.info('Received message on %s (%s,%s)', stream_id, stream_route.exchange_point, stream_route.routing_key)
+             
+            self.pipeData = open(PIPE_PATH, "w", 1) 
+            self.pipeData.write(str(message))
+            self.pipeData.flush()
+            self.pipeData.close()      
+
             self._samples_received.append(message)
             #if len(self._samples_received) == count:
                 #self._async_sample_result.set()
@@ -350,30 +377,34 @@ class RunInstrument(IonIntegrationTestCase):
 
         try:
             state = self._ia_client.get_agent_state()
-            print "ResourceAgentState: " + str(state)
+            print "AgentState: " + str(state)
         
             cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
             retval = self._ia_client.execute_agent(cmd)
+
             state = self._ia_client.get_agent_state()
+            print "AgentState: " + str(state)
             
             res_state = self._ia_client.get_resource_state()
-            print "DriverConnectionState: " + str(state)
+            print "DriverState: " + str(res_state)
     
             cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
             retval = self._ia_client.execute_agent(cmd)
+
             state = self._ia_client.get_agent_state()
-            print "ResourceAgentState: " + str(state)
+            print "AgentState: " + str(state)
     
             res_state = self._ia_client.get_resource_state()
-            print "DriverProtocolState: " + str(state)
+            print "DriverState: " + str(res_state)
     
             cmd = AgentCommand(command=ResourceAgentEvent.RUN)
             retval = self._ia_client.execute_agent(cmd)
+
             state = self._ia_client.get_agent_state()
-            print "ResourceAgentState: " + str(state)
+            print "AgentState: " + str(state)
             
             res_state = self._ia_client.get_resource_state()
-            print "DriverProtocolState: " + str(state)
+            print "DriverState: " + str(res_state)
             
         except:
             log.error("bring_instrument_active(): Exception occurred; shutting down.", exc_info=True)
@@ -544,12 +575,16 @@ class RunInstrument(IonIntegrationTestCase):
         
         print( "*** Starting RunInstrument ***" )
 
-        self._initialize()
+        """
+        initialize; returns True if successful, else False.
+        """
+        continuing = self._initialize()
 
         """
-        bring_instrument_active should return true if successful
+        bring_instrument_active; returns True if successful, else False
         """
-        continuing = self.bring_instrument_active()
+        if (continuing):
+            continuing = self.bring_instrument_active()
             
         PROMPT = 'Enter command (\'quit\' to exit)'
         text = PROMPT

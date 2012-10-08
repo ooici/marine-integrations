@@ -74,6 +74,8 @@ class SBE37Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
+    GET = DriverEvent.GET
+    SET = DriverEvent.SET
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
@@ -166,7 +168,7 @@ PACKET_CONFIG = {
 # Seabird Electronics 37-SMP MicroCAT Driver.
 ###############################################################################
 
-class SBE37Driver(SingleConnectionInstrumentDriver):
+class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass for SBE37 driver.
     Subclasses SingleConnectionInstrumentDriver with connection state
@@ -174,7 +176,7 @@ class SBE37Driver(SingleConnectionInstrumentDriver):
     """
     def __init__(self, evt_callback):
         """
-        SBE37Driver constructor.
+        InstrumentDriver constructor.
         @param evt_callback Driver process event callback.
         """
         #Construct superclass.
@@ -846,41 +848,6 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                 success = True
 
         return (success, response)
-
-    def old_got_data(self, data):
-        """
-        Callback for receiving new data from the device.
-        """
-        if self.get_current_state() == SBE37ProtocolState.DIRECT_ACCESS:
-            # direct access mode
-            if len(data) > 0:
-                #mi_logger.debug("SBE37Protocol._got_data(): <" + data + ">")
-                # check for echoed commands from instrument (TODO: this should only be done for telnet?)
-                if len(self._sent_cmds) > 0:
-                    # there are sent commands that need to have there echoes filtered out
-                    oldest_sent_cmd = self._sent_cmds[0]
-                    if string.count(data, oldest_sent_cmd) > 0:
-                        # found a command echo, so remove it from data and delete the command form list
-                        data = string.replace(data, oldest_sent_cmd, "", 1)
-                        self._sent_cmds.pop(0)
-                if len(data) > 0 and self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
-                    # TODO: what about logging this as an event?
-            return
-
-        if len(data)>0:
-            # Call the superclass to update line and prompt buffers.
-            CommandResponseInstrumentProtocol.got_data(self, data)
-
-            # If in streaming mode, process the buffer for samples to publish.
-            cur_state = self.get_current_state()
-            if cur_state == SBE37ProtocolState.AUTOSAMPLE:
-                if SBE37_NEWLINE in self._linebuf:
-                    lines = self._linebuf.split(SBE37_NEWLINE)
-                    self._linebuf = lines[-1]
-                    for line in lines:
-                        self._extract_sample(SBE37DataParticle, SAMPLE_REGEX,
-                                             line)
 
     def got_data(self, paPacket):
         """
