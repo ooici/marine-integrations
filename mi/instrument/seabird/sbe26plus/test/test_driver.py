@@ -100,7 +100,7 @@ from mi.core.instrument.logger_client import LoggerClient
 from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacket
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
-
+from mi.core.instrument.instrument_driver import DriverParameter
 ###
 #   Driver parameters for the tests
 ###
@@ -217,6 +217,1202 @@ PARAMS = {
 #                                                                             #
 ###############################################################################
 
+SAMPLE_DS = \
+        "SBE 26plus" + NEWLINE +\
+        "S>ds" + NEWLINE +\
+        "ds" + NEWLINE +\
+        "SBE 26plus V 6.1e  SN 1329    05 Oct 2012  17:19:27" + NEWLINE +\
+        "user info=ooi" + NEWLINE +\
+        "quartz pressure sensor: serial number = 122094, range = 300 psia" + NEWLINE +\
+        "internal temperature sensor" + NEWLINE +\
+        "conductivity = NO" + NEWLINE +\
+        "iop =  7.4 ma  vmain = 16.2 V  vlith =  9.0 V" + NEWLINE +\
+        "last sample: p = 14.5361, t = 23.8155" + NEWLINE +\
+        "" + NEWLINE +\
+        "tide measurement: interval = 3.000 minutes, duration = 60 seconds" + NEWLINE +\
+        "measure waves every 6 tide samples" + NEWLINE +\
+        "512 wave samples/burst at 4.00 scans/sec, duration = 128 seconds" + NEWLINE +\
+        "logging start time = do not use start time" + NEWLINE +\
+        "logging stop time = do not use stop time" + NEWLINE +\
+        "" + NEWLINE +\
+        "tide samples/day = 480.000" + NEWLINE +\
+        "wave bursts/day = 80.000" + NEWLINE +\
+        "memory endurance = 258.0 days" + NEWLINE +\
+        "nominal alkaline battery endurance = 272.8 days" + NEWLINE +\
+        "total recorded tide measurements = 5982" + NEWLINE +\
+        "total recorded wave bursts = 4525" + NEWLINE +\
+        "tide measurements since last start = 11" + NEWLINE +\
+        "wave bursts since last start = 1" + NEWLINE +\
+        "" + NEWLINE +\
+        "transmit real-time tide data = YES" + NEWLINE +\
+        "transmit real-time wave burst data = YES" + NEWLINE +\
+        "transmit real-time wave statistics = YES" + NEWLINE +\
+        "real-time wave statistics settings:" + NEWLINE +\
+        "  number of wave samples per burst to use for wave statistics = 512" + NEWLINE +\
+        "  use measured temperature for density calculation" + NEWLINE +\
+        "  height of pressure sensor from bottom (meters) = 10.0" + NEWLINE +\
+        "  number of spectral estimates for each frequency band = 5" + NEWLINE +\
+        "  minimum allowable attenuation = 0.0025" + NEWLINE +\
+        "  minimum period (seconds) to use in auto-spectrum = 0.0e+00" + NEWLINE +\
+        "  maximum period (seconds) to use in auto-spectrum = 1.0e+06" + NEWLINE +\
+        "  hanning window cutoff = 0.10" + NEWLINE +\
+        "  show progress messages" + NEWLINE +\
+        "" + NEWLINE +\
+        "status = stopped by user" + NEWLINE +\
+        "logging = NO, send start command to begin logging" + NEWLINE +\
+        "S>" + NEWLINE
+
+SAMPLE_DC = \
+        "S>dc" + NEWLINE +\
+        "dc" + NEWLINE +\
+        "Pressure coefficients:  02-apr-12" + NEWLINE +\
+        "    U0 = 5.827424e+00" + NEWLINE +\
+        "    Y1 = -3.845795e+03" + NEWLINE +\
+        "    Y2 = -1.082941e+04" + NEWLINE +\
+        "    Y3 = 0.000000e+00" + NEWLINE +\
+        "    C1 = 2.123771e+03" + NEWLINE +\
+        "    C2 = 3.741653e+01" + NEWLINE +\
+        "    C3 = -4.014654e+03" + NEWLINE +\
+        "    D1 = 2.529400e-02" + NEWLINE +\
+        "    D2 = 0.000000e+00" + NEWLINE +\
+        "    T1 = 2.777282e+01" + NEWLINE +\
+        "    T2 = 3.911380e-01" + NEWLINE +\
+        "    T3 = 1.752851e+01" + NEWLINE +\
+        "    T4 = 3.109619e+01" + NEWLINE +\
+        "    M = 41943.0" + NEWLINE +\
+        "    B = 2796.2" + NEWLINE +\
+        "    OFFSET = -1.877000e-01" + NEWLINE +\
+        "Temperature coefficients:  30-mar-12" + NEWLINE +\
+        "    TA0 = 2.557341e-04" + NEWLINE +\
+        "    TA1 = 2.493547e-04" + NEWLINE +\
+        "    TA2 = -1.567218e-06" + NEWLINE +\
+        "    TA3 = 1.508124e-07" + NEWLINE +\
+        "S>"
+
+SAMPLE_DATA =\
+        "S>start" + NEWLINE +\
+        "start" + NEWLINE +\
+        "logging will start in 10 seconds" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 00:55:54, p = 14.5348, pt = 24.250, t = 23.9046" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 00:58:54, p = 14.5367, pt = 24.242, t = 23.8904" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 01:01:54, p = 14.5387, pt = 24.250, t = 23.8778" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 01:04:54, p = 14.5346, pt = 24.228, t = 23.8664" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 01:07:54, p = 14.5364, pt = 24.205, t = 23.8575" + NEWLINE +\
+        "wave: start time = 05 Oct 2012 01:10:54" + NEWLINE +\
+        "wave: ptfreq = 171791.359" + NEWLINE +\
+        "  14.5102" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5078" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "I AM A DATA GLITCH " + NEWLINE  +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5078" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5188" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5097" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "wave: end burst" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404" + NEWLINE +\
+        "" + NEWLINE +\
+        "deMeanTrend................" + NEWLINE +\
+        "depth =    0.000, temperature = 23.840, salinity = 35.000, density = 1023.690" + NEWLINE +\
+        "" + NEWLINE +\
+        "fill array..." + NEWLINE +\
+        "find minIndex." + NEWLINE +\
+        "hanning...................." + NEWLINE +\
+        "FFT................................................................................................" + NEWLINE +\
+        "normalize....." + NEWLINE +\
+        "band average......................................................." + NEWLINE +\
+        "Auto-Spectrum Statistics:" + NEWLINE +\
+        "   nAvgBand = 5" + NEWLINE +\
+        "   total variance = 1.0896e-05" + NEWLINE +\
+        "   total energy = 1.0939e-01" + NEWLINE +\
+        "   significant period = 5.3782e-01" + NEWLINE +\
+        "   significant wave height = 1.3204e-02" + NEWLINE +\
+        "" + NEWLINE +\
+        "calculate dispersion.................................................................................................................................................................................................................................................................................." + NEWLINE +\
+        "IFFT................................................................................................" + NEWLINE +\
+        "deHanning...................." + NEWLINE +\
+        "move data.." + NEWLINE +\
+        "zero crossing analysis............." + NEWLINE +\
+        "Time Series Statistics:" + NEWLINE +\
+        "   wave integration time = 128" + NEWLINE +\
+        "   number of waves = 0" + NEWLINE +\
+        "   total variance = 1.1595e-05" + NEWLINE +\
+        "   total energy = 1.1640e-01" + NEWLINE +\
+        "   average wave height = 0.0000e+00" + NEWLINE +\
+        "   average wave period = 0.0000e+00" + NEWLINE +\
+        "   maximum wave height = 1.0893e-02" + NEWLINE +\
+        "   significant wave height = 0.0000e+00" + NEWLINE +\
+        "   significant wave period = 0.0000e+00" + NEWLINE +\
+        "   H1/10 = 0.0000e+00" + NEWLINE +\
+        "   H1/100 = 0.0000e+00" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 01:13:54, p = 14.5384, pt = 24.205, t = 23.8363" + NEWLINE
+
+
+
+BAD_SAMPLE_DATA =\
+        "S>start" + NEWLINE +\
+        "start" + NEWLINE +\
+        "logging will start in 10 seconds" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 00:55:54, p = 14.5348, pt = 24.250, t = 23.9046" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 00:58:54, p = 14.5367,NERD HERDER  pt = 24.242, t = 23.8904" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 01:01:54, p = 14.5387, pt = 24.250, t = 23.8778" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 01:04:54, p = 14.5346, pt = 24.228, t = 23.8664" + NEWLINE +\
+        "tide: start time = NERD HERDER05 Oct 2012 01:07:54, p = 14.5364, pt = 24.205, t = 23.8575" + NEWLINE +\
+        "wave: start time = 05 Oct 2012 01:10:54" + NEWLINE +\
+        "wave: ptfNERD HERDERreq = 171791.359" + NEWLINE +\
+        "  14.5FR2" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5078" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5078" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5188" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5097" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE +\
+        "wave: end burst" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404" + NEWLINE +\
+        "" + NEWLINE +\
+        "deMeanTrend................" + NEWLINE +\
+        "depth =    0.000, temperature = 23.840, salinity = 35.000, density = 1023.690" + NEWLINE +\
+        "" + NEWLINE +\
+        "fill array..." + NEWLINE +\
+        "find minIndex." + NEWLINE +\
+        "hanning...................." + NEWLINE +\
+        "FFT................................................................................................" + NEWLINE +\
+        "normalize....." + NEWLINE +\
+        "band average......................................................." + NEWLINE +\
+        "Auto-Spectrum Statistics:" + NEWLINE +\
+        "   nAvgBand = 5" + NEWLINE +\
+        "   total variance = 1.0896e-05" + NEWLINE +\
+        "   total energy = 1.0939e-01" + NEWLINE +\
+        "   significant period = 5.3782e-01" + NEWLINE +\
+        "   significant wave height = 1.3204e-02" + NEWLINE +\
+        "" + NEWLINE +\
+        "calculate dispersion.....................NERD HERDER............................................................................................................................................................................................................................................................." + NEWLINE +\
+        "IFFT.......................................................NERD HERDER........................................." + NEWLINE +\
+        "deHanning...................." + NEWLINE +\
+        "move data.." + NEWLINE +\
+        "zero crossing analysis....NERD HERDER........." + NEWLINE +\
+        "Time Series Statistics:" + NEWLINE +\
+        "   wave integration time = 128" + NEWLINE +\
+        "   number of waves = 0" + NEWLINE +\
+        "   total NERD HERDERvariance = 1.1595e-05" + NEWLINE +\
+        "   total energy = 1.1640e-01" + NEWLINE +\
+        "   average wave height = 0.0000e+00" + NEWLINE +\
+        "   average wave period = 0.0000e+00" + NEWLINE +\
+        "   maximum NERD HERDERwave height = 1.0893e-02" + NEWLINE +\
+        "   significant wave height = 0.0000e+00" + NEWLINE +\
+        "   significant NERD HERDERwave period = 0.0000e+00" + NEWLINE +\
+        "   H1/10 = 0.0000e+00" + NEWLINE +\
+        "   H1/100 = 0.0000e+00" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 01:13:54, p = 14.5384, pt = 24.205, t = 23.8363" + NEWLINE
 
 class my_sock():
     buf = ""
@@ -322,7 +1518,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         """
         @author Roger Unwin
         @brief  converts an enum to a dict
-
         """
         dic = {}
         for i in [v for v in dir(obj) if not callable(getattr(obj,v))]:
@@ -346,28 +1541,38 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
     @unittest.skip('Need to figure out how this one works.')
     def test_prompts(self):
-        # Test Parameter.  Verify no Duplications.
+        """
+        Verify that the prompts enumeration has no duplicate values that might cause confusion
+        """
         prompts = Prompt()
         self.assert_enum_has_no_duplicates(prompts)
 
 
     def test_instrument_commands_for_duplicates(self):
-        # Test InstrumentCmds.  Verify no Duplications.
+        """
+        Verify that the InstrumentCmds enumeration has no duplicate values that might cause confusion
+        """
         cmds = InstrumentCmds()
         self.assert_enum_has_no_duplicates(cmds)
 
     def test_protocol_state_for_duplicates(self):
-        # Test ProtocolState.  Verify no Duplications.
+        """
+        Verify that the ProtocolState enumeration has no duplicate values that might cause confusion
+        """
         ps = ProtocolState()
         self.assert_enum_has_no_duplicates(ps)
 
     def test_protocol_event_for_duplicates(self):
-        # Test ProtocolState.  Verify no Duplications.
+        """
+        Verify that the ProtocolEvent enumeration has no duplicate values that might cause confusion
+        """
         pe = ProtocolEvent()
         self.assert_enum_has_no_duplicates(pe)
 
     def test_capability_for_duplicates(self):
-        # Test ProtocolState.  Verify no Duplications.
+        """
+        Verify that the Capability enumeration has no duplicate values that might cause confusion
+        """
         c = Capability()
         self.assert_enum_has_no_duplicates(c)
 
@@ -636,6 +1841,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
     def test_protocol_filter_capabilities(self):
         """
+        This tests driver get capabilities
         """
 
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
@@ -645,6 +1851,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         master_list = []
         for k in self.convert_enum_to_dict(c):
             ret = p._filter_capabilities([getattr(c, k)])
+            log.debug(str(ret))
             master_list.append(getattr(c, k))
             self.assertEqual(len(ret), 1)
         self.assertEqual(len(p._filter_capabilities(master_list)), 4)
@@ -1020,566 +2227,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         _extract_sample_mock = Mock(spec="extract_sample")
         p._extract_sample = _extract_sample_mock
 
-        data = \
-            "S>start" + NEWLINE + \
-            "start" + NEWLINE + \
-            "logging will start in 10 seconds" + NEWLINE +\
-            "tide: start time = 05 Oct 2012 00:55:54, p = 14.5348, pt = 24.250, t = 23.9046" + NEWLINE +\
-            "tide: start time = 05 Oct 2012 00:58:54, p = 14.5367, pt = 24.242, t = 23.8904" + NEWLINE +\
-            "tide: start time = 05 Oct 2012 01:01:54, p = 14.5387, pt = 24.250, t = 23.8778" + NEWLINE +\
-            "tide: start time = 05 Oct 2012 01:04:54, p = 14.5346, pt = 24.228, t = 23.8664" + NEWLINE +\
-            "tide: start time = 05 Oct 2012 01:07:54, p = 14.5364, pt = 24.205, t = 23.8575" + NEWLINE +\
-            "wave: start time = 05 Oct 2012 01:10:54" + NEWLINE +\
-            "wave: ptfreq = 171791.359" + NEWLINE +\
-            "14.5102" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5078" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5078" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5188" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5097" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5036" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5134" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "14.5064" + NEWLINE +\
-            "14.5165" + NEWLINE +\
-            "wave: end burst" + NEWLINE +\
-            "tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404" + NEWLINE +\
-            "" + NEWLINE +\
-            "deMeanTrend................" + NEWLINE +\
-            "depth =    0.000, temperature = 23.840, salinity = 35.000, density = 1023.690" + NEWLINE +\
-            "" + NEWLINE +\
-            "fill array..." + NEWLINE +\
-            "find minIndex." + NEWLINE +\
-            "hanning...................." + NEWLINE +\
-            "FFT................................................................................................" + NEWLINE +\
-            "normalize....." + NEWLINE +\
-            "band average......................................................." + NEWLINE +\
-            "Auto-Spectrum Statistics:" + NEWLINE +\
-            "nAvgBand = 5" + NEWLINE +\
-            "total variance = 1.0896e-05" + NEWLINE +\
-            "total energy = 1.0939e-01" + NEWLINE +\
-            "significant period = 5.3782e-01" + NEWLINE +\
-            "significant wave height = 1.3204e-02" + NEWLINE +\
-            "" + NEWLINE +\
-            "calculate dispersion.................................................................................................................................................................................................................................................................................." + NEWLINE +\
-            "IFFT................................................................................................" + NEWLINE +\
-            "deHanning...................." + NEWLINE +\
-            "move data.." + NEWLINE +\
-            "zero crossing analysis............." + NEWLINE +\
-            "Time Series Statistics:" + NEWLINE +\
-            "wave integration time = 128" + NEWLINE +\
-            "number of waves = 0" + NEWLINE +\
-            "total variance = 1.1595e-05" + NEWLINE +\
-            "total energy = 1.1640e-01" + NEWLINE +\
-            "average wave height = 0.0000e+00" + NEWLINE +\
-            "average wave period = 0.0000e+00" + NEWLINE +\
-            "maximum wave height = 1.0893e-02" + NEWLINE +\
-            "significant wave height = 0.0000e+00" + NEWLINE +\
-            "significant wave period = 0.0000e+00" + NEWLINE +\
-            "H1/10 = 0.0000e+00" + NEWLINE +\
-            "H1/100 = 0.0000e+00" + NEWLINE +\
-            "tide: start time = 05 Oct 2012 01:13:54, p = 14.5384, pt = 24.205, t = 23.8363" + NEWLINE
+        data = SAMPLE_DATA
 
         paPacket = PortAgentPacket()
         paPacket.attach_data(data)
@@ -1618,17 +2266,636 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(ret, None)
         self.assertEqual(str(_extract_sample_mock.mock_calls), "[]")
 
+        #
+        # AUTOSAMPLE mode, corrupted data
+        #
+
+        p._protocol_fsm.current_state = ProtocolState.AUTOSAMPLE
+        self.assertEqual(p.get_current_state(), ProtocolState.AUTOSAMPLE)
+
+
+        # mock out _extract_sample as we are only looking at got_data
+        _extract_sample_mock = Mock(spec="extract_sample")
+        p._extract_sample = _extract_sample_mock
+
+        data = BAD_SAMPLE_DATA
+
+        paPacket = PortAgentPacket()
+        paPacket.attach_data(data)
+        paPacket.pack_header(1)
+        self.assertTrue(len(data) > 0)
+        self.assertTrue(paPacket.get_data_size() > 0)
+        self.assertTrue(len(paPacket.get_data()) > 0)
+        ret = p.got_data(paPacket)
+        self.assertEqual(ret, None)
+
+        #@TODO fix publishing.
+        # INTERESTING. isusing SAMPLE_REGEX
+        print _extract_sample_mock.mock_calls
+        self.assertEqual(len(_extract_sample_mock.mock_calls), 560)
+        #@ TODO put below line back in and fix it once it is working
+        #self.assertEqual(str(_extract_sample_mock.mock_calls), "3XXXXX")
 
 
 
 
+    def test_extract_sample(self):
+        """
+        Test that the _extract_sample method can parse data
+        """
+
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+
+        _driver_event_mock = Mock(spec="driver_event")
+        p._driver_event = _driver_event_mock
+
+        data = SAMPLE_DATA
+
+        for line in data.split(NEWLINE):
+            ret = p._extract_sample(line)
 
 
 
+        # Verify it published 2 packets
+        self.assertEqual(len(_driver_event_mock.mock_calls), 2)
+        """
+        print _driver_event_mock.mock_calls
+        [call('DRIVER_ASYNC_EVENT_SAMPLE', {'stream_name': 'raw', 'blob': '\r\nwave: ptfreq = 171791.359\r\ndepth =    0.000, temperature = 23.840, salinity = 35.000, density = 1023.690\r\n   nAvgBand = 5\r\n   total variance = 1.0896e-05\r\n   total energy = 1.0939e-01\r\n   significant period = 5.3782e-01\r\n   significant wave height = 1.3204e-02\r\n   wave integration time = 128\r\n   number of waves = 0\r\n   total variance = 1.1595e-05\r\n   total energy = 1.1640e-01\r\n   average wave height = 0.0000e+00\r\n   average wave period = 0.0000e+00\r\n   maximum wave height = 1.0893e-02\r\n   significant wave height = 0.0000e+00\r\n   significant wave period = 0.0000e+00\r\n   H1/10 = 0.0000e+00\r\n   H1/100 = 0.0000e+00', 'time': [1349456065.638729]}),
+         call('DRIVER_ASYNC_EVENT_SAMPLE', {'stream_name': 'parsed', 'parsed': {'significant_period': '5.3782e-01', 'maximum_wave_height': '1.0893e-02', 'temperature': '23.840', 'significant_wave_period': '0.0000e+00', 'density': '1023.690', 'average_wave_height': '0.0000e+00', 'number_of_waves': '0', 'average_wave_period': '0.0000e+00', 'total_variance': '1.1595e-05', 'salinity': '35.000', 'depth': '0.000', 'total_energy': '1.1640e-01', 'height_highest_10_percent_waves': '0.0000e+00', 'nAvgBand': '5', 'height_highest_1_percent_waves': '0.0000e+00', 'wave_ptfreq': '171791.359', 'significant_wave_height': '0.0000e+00', 'wave_integration_time': '128'}, 'time': [1349456065.638729]})]
+        """
 
 
 
+    def test_parse_ds_response(self):
+        """
+        Verify that the driver can parse output from DS command.
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
 
+
+        ret = p._parse_ds_response(SAMPLE_DS, Prompt.COMMAND)
+        # assert that we know of 76 params
+        self.assertEqual(len(p._param_dict.get_keys()), 76)
+        print p._param_dict.get_keys()
+        # get
+        #
+        dic = self.convert_enum_to_dict(Parameter)
+
+        """
+        for k in p._param_dict.get_keys():
+            if p._param_dict.get(k) is None:
+                print "self.assertEqual(p._param_dict.get('" + k + "'), None)"
+            else:
+                print "self.assertEqual(str(p._param_dict.get('" + k + "')),'" + str(p._param_dict.get(k)) + "')"
+        """
+
+        self.assertEqual(p._param_dict.get('TA0'), None)
+        self.assertEqual(str(p._param_dict.get('HANNING_WINDOW_CUTOFF')),'0.1')
+        self.assertEqual(p._param_dict.get('FACTORY_M'), None)
+        self.assertEqual(p._param_dict.get('FACTORY_B'), None)
+        self.assertEqual(str(p._param_dict.get('TIDE_MEASUREMENTS_SINCE_LAST_START')),'11.0')
+        self.assertEqual(p._param_dict.get('PY2'), None)
+        self.assertEqual(p._param_dict.get('PY3'), None)
+        self.assertEqual(str(p._param_dict.get('TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS')),'6.0')
+        self.assertEqual(str(p._param_dict.get('USE_STOP_TIME')),'False')
+        self.assertEqual(str(p._param_dict.get('DateTime')),'05 OCT 2012  17:19:27')
+        self.assertEqual(str(p._param_dict.get('NOMINAL_ALKALINE_BATTERY_ENDURANCE')),'272.8')
+        self.assertEqual(str(p._param_dict.get('TIDE_INTERVAL')),'3')
+        self.assertEqual(str(p._param_dict.get('USE_START_TIME')),'False')
+        self.assertEqual(str(p._param_dict.get('IOP_MA')),'7.4')
+        self.assertEqual(str(p._param_dict.get('QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER')),'122094.0')
+        self.assertEqual(p._param_dict.get('PU0'), None)
+        self.assertEqual(p._param_dict.get('TA1'), None)
+        self.assertEqual(str(p._param_dict.get('CONDUCTIVITY')),'False')
+        self.assertEqual(p._param_dict.get('CSLOPE'), None)
+        self.assertEqual(p._param_dict.get('PT4'), None)
+        self.assertEqual(p._param_dict.get('PY1'), None)
+        self.assertEqual(p._param_dict.get('CCALDATE'), None)
+        self.assertEqual(p._param_dict.get('POFFSET'), None)
+        self.assertEqual(str(p._param_dict.get('MEMORY_ENDURANCE')),'258.0')
+        self.assertEqual(p._param_dict.get('TCALDATE'), None)
+        self.assertEqual(str(p._param_dict.get('WAVE_BURSTS_PER_DAY')),'80.0')
+        self.assertEqual(p._param_dict.get('PD2'), None)
+        self.assertEqual(p._param_dict.get('PD1'), None)
+        self.assertEqual(p._param_dict.get('PT1'), None)
+        self.assertEqual(str(p._param_dict.get('DEVICE_VERSION')),'6.1E')
+        self.assertEqual(str(p._param_dict.get('WAVE_SAMPLES_PER_BURST')),'512')
+        self.assertEqual(str(p._param_dict.get('PREASURE_SENSOR_HEIGHT_FROM_BOTTOM')),'10.0')
+        self.assertEqual(str(p._param_dict.get('LAST_SAMPLE_T')),'23.8155')
+        self.assertEqual(str(p._param_dict.get('NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS')),'512')
+        self.assertEqual(str(p._param_dict.get('LAST_SAMPLE_P')),'14.5361')
+        self.assertEqual(p._param_dict.get('LAST_SAMPLE_S'), None)
+        self.assertEqual(str(p._param_dict.get('TIDE_SAMPLES_PER_DAY')),'480.0')
+        self.assertEqual(str(p._param_dict.get('STATUS')),'STOPPED')
+        self.assertEqual(p._param_dict.get('CJ'), None)
+        self.assertEqual(p._param_dict.get('AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR'), None)
+        self.assertEqual(p._param_dict.get('CH'), None)
+        self.assertEqual(str(p._param_dict.get('LOGGING')),'False')
+        self.assertEqual(str(p._param_dict.get('TxTide')),'True')
+        self.assertEqual(p._param_dict.get('TA2'), None)
+        self.assertEqual(p._param_dict.get('TA3'), None)
+        self.assertEqual(str(p._param_dict.get('TIDE_MEASUREMENT_DURATION')),'60')
+        self.assertEqual(p._param_dict.get('CG'), None)
+        self.assertEqual(str(p._param_dict.get('ExternalTemperature')),'False')
+        self.assertEqual(p._param_dict.get('CTCOR'), None)
+        self.assertEqual(str(p._param_dict.get('MIN_PERIOD_IN_AUTO_SPECTRUM')),'0.0')
+        self.assertEqual(str(p._param_dict.get('SHOW_PROGRESS_MESSAGES')),'True')
+        self.assertEqual(str(p._param_dict.get('TxWave')),'True')
+        self.assertEqual(str(p._param_dict.get('WAVE_BURSTS_SINCE_LAST_START')),'1.0')
+        self.assertEqual(p._param_dict.get('PC1'), None)
+        self.assertEqual(str(p._param_dict.get('MIN_ALLOWABLE_ATTENUATION')),'0.0025')
+        self.assertEqual(str(p._param_dict.get('TXWAVESTATS')),'True')
+        self.assertEqual(p._param_dict.get('PT3'), None)
+        self.assertEqual(p._param_dict.get('PT2'), None)
+        self.assertEqual(str(p._param_dict.get('USE_MEASURED_TEMP_FOR_DENSITY_CALC')),'False')
+        self.assertEqual(str(p._param_dict.get('SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND')),'5')
+        self.assertEqual(p._param_dict.get('PCALDATE'), None)
+        self.assertEqual(str(p._param_dict.get('QUARTZ_PREASURE_SENSOR_RANGE')),'300.0')
+        self.assertEqual(str(p._param_dict.get('TOTAL_RECORDED_TIDE_MEASUREMENTS')),'5982.0')
+        self.assertEqual(str(p._param_dict.get('TOTAL_RECORDED_WAVE_BURSTS')),'4525.0')
+        self.assertEqual(p._param_dict.get('PC2'), None)
+        self.assertEqual(p._param_dict.get('PC3'), None)
+        self.assertEqual(p._param_dict.get('USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC'), None)
+        self.assertEqual(p._param_dict.get('CI'), None)
+        self.assertEqual(str(p._param_dict.get('WAVE_SAMPLES_SCANS_PER_SECOND')),'4.0')
+        self.assertEqual(str(p._param_dict.get('MAX_PERIOD_IN_AUTO_SPECTRUM')),'1000000.0')
+        self.assertEqual(p._param_dict.get('CPCOR'), None)
+        self.assertEqual(str(p._param_dict.get('USERINFO')),'OOI')
+        self.assertEqual(str(p._param_dict.get('VLITH_V')),'9.0')
+        self.assertEqual(str(p._param_dict.get('SERIAL_NUMBER')),'1329')
+        self.assertEqual(str(p._param_dict.get('VMAIN_V')),'16.2')
+        self.assertEqual(p._param_dict.get('AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR'), None)
+
+
+        attrs = {'update.return_value': 'FAKE IGNORED RETURN'}
+        _param_dict_mock = Mock(**attrs)
+
+        p._param_dict = _param_dict_mock
+
+        ret = p._parse_ds_response(SAMPLE_DS, Prompt.COMMAND)
+        self.assertEqual(ret, None)
+        # verify it passed all 44 lines to the update func
+        self.assertEqual(len(_param_dict_mock.mock_calls), 44)
+
+    def test_parse_dc_response(self):
+        """
+        Verify that the driver can parse output from DC command.
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+
+
+        ret = p._parse_dc_response(SAMPLE_DC, Prompt.COMMAND)
+        # assert that we know of 76 params
+        self.assertEqual(len(p._param_dict.get_keys()), 76)
+
+        # get
+        #
+        dic = self.convert_enum_to_dict(Parameter)
+
+        """
+        for k in p._param_dict.get_keys():
+            if p._param_dict.get(k) is None:
+                print "self.assertEqual(p._param_dict.get('" + k + "'), None)"
+            else:
+                print "self.assertEqual(str(p._param_dict.get('" + k + "')),'" + str(p._param_dict.get(k)) + "')"
+        """
+        self.assertEqual(str(p._param_dict.get('TA0')),'0.0002557341')
+        self.assertEqual(p._param_dict.get('HANNING_WINDOW_CUTOFF'), None)
+        self.assertEqual(str(p._param_dict.get('FACTORY_M')),'41943.0')
+        self.assertEqual(str(p._param_dict.get('FACTORY_B')),'2796.2')
+        self.assertEqual(p._param_dict.get('TIDE_MEASUREMENTS_SINCE_LAST_START'), None)
+        self.assertEqual(str(p._param_dict.get('PY2')),'-10829.41')
+        self.assertEqual(str(p._param_dict.get('PY3')),'0.0')
+        self.assertEqual(p._param_dict.get('TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS'), None)
+        self.assertEqual(p._param_dict.get('USE_STOP_TIME'), None)
+        self.assertEqual(p._param_dict.get('DateTime'), None)
+        self.assertEqual(p._param_dict.get('NOMINAL_ALKALINE_BATTERY_ENDURANCE'), None)
+        self.assertEqual(p._param_dict.get('TIDE_INTERVAL'), None)
+        self.assertEqual(p._param_dict.get('USE_START_TIME'), None)
+        self.assertEqual(p._param_dict.get('IOP_MA'), None)
+        self.assertEqual(p._param_dict.get('QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER'), None)
+        self.assertEqual(str(p._param_dict.get('PU0')),'5.827424')
+        self.assertEqual(str(p._param_dict.get('TA1')),'0.0002493547')
+        self.assertEqual(p._param_dict.get('CONDUCTIVITY'), None)
+        self.assertEqual(p._param_dict.get('CSLOPE'), None)
+        self.assertEqual(str(p._param_dict.get('PT4')),'31.09619')
+        self.assertEqual(str(p._param_dict.get('PY1')),'-3845.795')
+        self.assertEqual(p._param_dict.get('CCALDATE'), None)
+        self.assertEqual(str(p._param_dict.get('POFFSET')),'-0.1877')
+        self.assertEqual(p._param_dict.get('MEMORY_ENDURANCE'), None)
+        self.assertEqual(str(p._param_dict.get('TCALDATE')),'(30, 3, 2012)')
+        self.assertEqual(p._param_dict.get('WAVE_BURSTS_PER_DAY'), None)
+        self.assertEqual(str(p._param_dict.get('PD2')),'0.0')
+        self.assertEqual(str(p._param_dict.get('PD1')),'0.025294')
+        self.assertEqual(str(p._param_dict.get('PT1')),'27.77282')
+        self.assertEqual(p._param_dict.get('DEVICE_VERSION'), None)
+        self.assertEqual(p._param_dict.get('WAVE_SAMPLES_PER_BURST'), None)
+        self.assertEqual(p._param_dict.get('PREASURE_SENSOR_HEIGHT_FROM_BOTTOM'), None)
+        self.assertEqual(p._param_dict.get('LAST_SAMPLE_T'), None)
+        self.assertEqual(p._param_dict.get('NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS'), None)
+        self.assertEqual(p._param_dict.get('LAST_SAMPLE_P'), None)
+        self.assertEqual(p._param_dict.get('LAST_SAMPLE_S'), None)
+        self.assertEqual(p._param_dict.get('TIDE_SAMPLES_PER_DAY'), None)
+        self.assertEqual(p._param_dict.get('STATUS'), None)
+        self.assertEqual(p._param_dict.get('CJ'), None)
+        self.assertEqual(p._param_dict.get('AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR'), None)
+        self.assertEqual(p._param_dict.get('CH'), None)
+        self.assertEqual(p._param_dict.get('LOGGING'), None)
+        self.assertEqual(p._param_dict.get('TxTide'), None)
+        self.assertEqual(str(p._param_dict.get('TA2')),'-1.567218e-06')
+        self.assertEqual(str(p._param_dict.get('TA3')),'1.508124e-07')
+        self.assertEqual(p._param_dict.get('TIDE_MEASUREMENT_DURATION'), None)
+        self.assertEqual(p._param_dict.get('CG'), None)
+        self.assertEqual(p._param_dict.get('ExternalTemperature'), None)
+        self.assertEqual(p._param_dict.get('CTCOR'), None)
+        self.assertEqual(p._param_dict.get('MIN_PERIOD_IN_AUTO_SPECTRUM'), None)
+        self.assertEqual(p._param_dict.get('SHOW_PROGRESS_MESSAGES'), None)
+        self.assertEqual(p._param_dict.get('TxWave'), None)
+        self.assertEqual(p._param_dict.get('WAVE_BURSTS_SINCE_LAST_START'), None)
+        self.assertEqual(str(p._param_dict.get('PC1')),'2123.771')
+        self.assertEqual(p._param_dict.get('MIN_ALLOWABLE_ATTENUATION'), None)
+        self.assertEqual(p._param_dict.get('TXWAVESTATS'), None)
+        self.assertEqual(str(p._param_dict.get('PT3')),'17.52851')
+        self.assertEqual(str(p._param_dict.get('PT2')),'0.391138')
+        self.assertEqual(p._param_dict.get('USE_MEASURED_TEMP_FOR_DENSITY_CALC'), None)
+        self.assertEqual(p._param_dict.get('SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND'), None)
+        self.assertEqual(str(p._param_dict.get('PCALDATE')),'(2, 4, 2012)')
+        self.assertEqual(p._param_dict.get('QUARTZ_PREASURE_SENSOR_RANGE'), None)
+        self.assertEqual(p._param_dict.get('TOTAL_RECORDED_TIDE_MEASUREMENTS'), None)
+        self.assertEqual(p._param_dict.get('TOTAL_RECORDED_WAVE_BURSTS'), None)
+        self.assertEqual(str(p._param_dict.get('PC2')),'37.41653')
+        self.assertEqual(str(p._param_dict.get('PC3')),'-4014.654')
+        self.assertEqual(p._param_dict.get('USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC'), None)
+        self.assertEqual(p._param_dict.get('CI'), None)
+        self.assertEqual(p._param_dict.get('WAVE_SAMPLES_SCANS_PER_SECOND'), None)
+        self.assertEqual(p._param_dict.get('MAX_PERIOD_IN_AUTO_SPECTRUM'), None)
+        self.assertEqual(p._param_dict.get('CPCOR'), None)
+        self.assertEqual(p._param_dict.get('USERINFO'), None)
+        self.assertEqual(p._param_dict.get('VLITH_V'), None)
+        self.assertEqual(p._param_dict.get('SERIAL_NUMBER'), None)
+        self.assertEqual(p._param_dict.get('VMAIN_V'), None)
+        self.assertEqual(p._param_dict.get('AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR'), None)
+
+        attrs = {'update.return_value': 'FAKE IGNORED RETURN'}
+        _param_dict_mock = Mock(**attrs)
+
+        p._param_dict = _param_dict_mock
+
+        ret = p._parse_dc_response(SAMPLE_DS, Prompt.COMMAND)
+        self.assertEqual(ret, None)
+        # verify it passed all 44 lines to the update func
+        self.assertEqual(len(_param_dict_mock.mock_calls), 44)
+
+
+    def test_build_set_command(self):
+        """
+        verify the build set command performs correctly
+        should return var=value\r\n
+        test for float, string, date, Boolean
+        PU0 FLOAT 5.827424
+        SHOW_PROGRESS_MESSAGES True Boolean
+        self.assertEqual(str(p._param_dict.get('TCALDATE')),'(30, 3, 2012)')
+        USER_INFO OOI str,
+        TIDE_INTERVAL
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+
+        # Float
+        ret = p._build_set_command("irrelevant", Parameter.PU0, 5.827424)
+        self.assertEqual(ret, 'PU0=5.827424\r\n')
+
+        # Boolean - Yes/No
+        ret = p._build_set_command("irrelevant", Parameter.SHOW_PROGRESS_MESSAGES, True)
+        self.assertEqual(ret, 'SHOW_PROGRESS_MESSAGES=y\r\n')
+
+        # String
+        ret = p._build_set_command("irrelevant", Parameter.USER_INFO, 'ooi_test')
+        self.assertEqual(ret, 'USERINFO=ooi_test\r\n')
+
+        # Date (Tuple)
+        ret = p._build_set_command("irrelevant", Parameter.TCALDATE, (30, 8, 2012))
+        self.assertEqual(ret, 'TCALDATE=30-Aug-12\r\n')
+
+
+
+    def test_handler_command_set(self):
+        """
+        Verify that we can set parameters
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+
+
+        attrs = {'return_value': '_do_cmd_resp was returned'}
+        _do_cmd_resp_mock = Mock(**attrs)
+        _update_params_mock = Mock()
+
+        p._do_cmd_resp = _do_cmd_resp_mock
+        p._update_params = _update_params_mock
+
+        params = {
+            Parameter.EXTERNAL_TEMPERATURE_SENSOR : 5,
+            Parameter.PD1 : int(1),
+            Parameter.PD2 : True,
+            }
+        args = params
+        kwargs = {}
+
+        (next_state, result) = p._handler_command_set(args, **kwargs)
+        self.assertEqual(str(_do_cmd_resp_mock.mock_calls),"[call('set', 'ExternalTemperature', 5),\n call('set', 'PD2', True),\n call('set', 'PD1', 1)]")
+        self.assertEqual(str(_update_params_mock.mock_calls), "[call()]")
+        self.assertEqual(next_state, None)
+        self.assertEqual(str(result), "_do_cmd_resp was returned")
+
+        ex_caught = False
+        try:
+            (next_state, result) = p._handler_command_set("WRONG", **kwargs)
+        except InstrumentParameterException:
+            ex_caught = True
+        self.assertTrue(ex_caught)
+
+        args = []
+        ex_caught = False
+        try:
+            (next_state, result) = p._handler_command_set(*args, **kwargs)
+        except InstrumentParameterException:
+            ex_caught = True
+        self.assertTrue(ex_caught)
+
+    def test_parse_setsampling_response(self):
+        """
+        verify setsampling works properly
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+
+        # Fill the DC/DS response
+        p._parse_dc_response(SAMPLE_DC, Prompt.COMMAND)
+        p._parse_ds_response(SAMPLE_DS, Prompt.COMMAND)
+
+        p.fake_responses = [(", new value = ", "tide interval (integer minutes) = 3, new value ="),
+                            (", new value = ", "tide measurement duration (seconds) = 60, new value ="),
+                            (", new value = ", "measure wave burst after every N tide samples: N = 6, new value ="),
+                            (", new value = ", "number of wave samples per burst (multiple of 4) = 512, new value ="),
+                            (", new value = ", "wave Sample duration (0.25, 0.50, 0.75, 1.0) seconds = 0.25, new value ="),
+                            (", new value = ", "use start time (y/n) = n, new value ="),
+                            (", new value = ", "use stop time (y/n) = n, new value ="),
+                            (", new value = ", "TXWAVESTATS (real-time wave statistics) (y/n) = y, new value ="),
+                            #(", new value = ", "the remaining prompts apply to real-time wave statistics"),
+                            (", new value = ", "show progress messages (y/n) = y, new value ="),
+                            (", new value = ", "number of wave samples per burst to use for wave statistics = 512, new value ="),
+                            (", new value = ", "use measured temperature for density calculation (y/n) = y, new value ="),
+                            (", new value = ", "height of pressure sensor from bottom (meters) = 10.0, new value ="),
+                            (", new value = ", "number of spectral estimates for each frequency band = 5, new value ="),
+                            (", new value = ", "minimum allowable attenuation = 0.0025, new value ="),
+                            (", new value = ", "minimum period (seconds) to use in auto-spectrum = 0.0e+00, new value ="),
+                            (", new value = ", "maximum period (seconds) to use in auto-spectrum = 1.0e+06, new value ="),
+                            (", new value = ", "hanning window cutoff = 0.10, new value ="),
+                            (Prompt.COMMAND, "")]
+
+        # First time is with no values to send (accept defaults)
+        p._sampling_args = {}
+
+        def _get_response_mock(expected_prompt):
+            try:
+                resp = p.fake_responses.pop(0)
+            except:
+                resp = (Prompt.COMMAND, "out of data")
+                print resp
+            return resp
+        p._get_response = _get_response_mock
+        _update_params_mock = Mock()
+        p._update_params = _update_params_mock
+        _connection_mock = Mock()
+        p._connection = _connection_mock
+        p._parse_setsampling_response("IGNORED", "IGNORED")
+
+        self.assertEqual(len(_connection_mock.mock_calls),17)
+        self.assertEqual(len(_update_params_mock.mock_calls),1)
+
+        # Now with values to update
+        p._sampling_args = {
+            Parameter.TIDE_INTERVAL : 3, #1,
+            Parameter.TIDE_MEASUREMENT_DURATION : 60,
+            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : 6,
+            Parameter.WAVE_SAMPLES_PER_BURST : 512,
+            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND : float(4.0),
+            Parameter.USE_START_TIME : False,
+            Parameter.USE_STOP_TIME : False,
+            Parameter.TXWAVESTATS : True,
+            Parameter.SHOW_PROGRESS_MESSAGES : True,
+            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS : 512,
+            Parameter.USE_MEASURED_TEMP_FOR_DENSITY_CALC : False,
+            Parameter.PREASURE_SENSOR_HEIGHT_FROM_BOTTOM: 10.0,
+            Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND : 5,
+            Parameter.MIN_ALLOWABLE_ATTENUATION : 0.0025,
+            Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : 0.0,
+            Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM : 1000000.0,
+            Parameter.HANNING_WINDOW_CUTOFF : 0.1
+        }
+        p.fake_responses = [(", new value = ", "tide interval (integer minutes) = 3, new value ="),
+                            (", new value = ", "tide measurement duration (seconds) = 60, new value ="),
+                            (", new value = ", "measure wave burst after every N tide samples: N = 6, new value ="),
+                            (", new value = ", "number of wave samples per burst (multiple of 4) = 512, new value ="),
+                            (", new value = ", "wave Sample duration (0.25, 0.50, 0.75, 1.0) seconds = 0.25, new value ="),
+                            (", new value = ", "use start time (y/n) = n, new value ="),
+                            (", new value = ", "use stop time (y/n) = n, new value ="),
+                            (", new value = ", "TXWAVESTATS (real-time wave statistics) (y/n) = y, new value ="),
+                            (", new value = ", "the remaining prompts apply to real-time wave statistics\r\nshow progress messages (y/n) = y, new value ="),
+                            (", new value = ", "number of wave samples per burst to use for wave statistics = 512, new value ="),
+                            (", new value = ", "use measured temperature for density calculation (y/n) = y, new value ="),
+                            (", new value = ", "height of pressure sensor from bottom (meters) = 10.0, new value ="),
+                            (", new value = ", "number of spectral estimates for each frequency band = 5, new value ="),
+                            (", new value = ", "minimum allowable attenuation = 0.0025, new value ="),
+                            (", new value = ", "minimum period (seconds) to use in auto-spectrum = 0.0e+00, new value ="),
+                            (", new value = ", "maximum period (seconds) to use in auto-spectrum = 1.0e+06, new value ="),
+                            (", new value = ", "hanning window cutoff = 0.10, new value ="),
+                            (Prompt.COMMAND, "")]
+        p._get_response = _get_response_mock
+        _update_params_mock = Mock()
+        p._update_params = _update_params_mock
+        _connection_mock = Mock()
+        p._connection = _connection_mock
+        p._parse_setsampling_response("IGNORED", "IGNORED")
+
+        self.assertEqual(len(_connection_mock.mock_calls),17)
+        self.assertEqual(len(_update_params_mock.mock_calls),1)
+
+
+    def test_parse_settime_response(self):
+        """
+        verify setsampling works properly
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+
+        # Fill the DC/DS response
+        p._parse_dc_response(SAMPLE_DC, Prompt.COMMAND)
+        p._parse_ds_response(SAMPLE_DS, Prompt.COMMAND)
+
+
+        p.fake_responses = [(")= ", "settime\r\nset current time:\r\nmonth (1 - 12) = "),
+                            (")= ", "day (1 - 31) = "),
+                            (")= ", "year (4 digits) = "),
+                            (")= ", "hour (0 - 23) = "),
+                            (")= ", "minute (0 - 59) = "),
+                            (")= ", "second (0 - 59) = "),
+                            (Prompt.COMMAND, Prompt.COMMAND)]
+
+        # First time is with no values to send (accept defaults)
+        p._sampling_args = {}
+        _connection_mock = Mock()
+        p._connection = _connection_mock
+
+        p._set_time = time.strftime("%d %b %Y %H:%M:%S", time.localtime())
+        def _get_response_mock(expected_prompt, timeout):
+            try:
+                resp = p.fake_responses.pop(0)
+            except:
+                resp = (Prompt.COMMAND, Prompt.COMMAND)
+                print resp
+            return resp
+        p._get_response = _get_response_mock
+
+        p._parse_set_time_response("IGNORED", "IGNORED")
+
+    def test__parse_upload_data_ascii_response(self):
+        """
+        verify that the data from a dd command is properly captured
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+
+        dd_data = [ (NEWLINE, "dd" + NEWLINE),
+                    (NEWLINE, "FFFFFFFFFBFFFFFFFF" + NEWLINE),
+                    (NEWLINE, "174E47840000000000" + NEWLINE),
+                    (NEWLINE, "003C00040000000000" + NEWLINE),
+                    (NEWLINE, "FFFFFFFFFCFFFFFFFF" + NEWLINE),
+                    (NEWLINE, "095651823C174E4784" + NEWLINE),
+                    (NEWLINE, "09565A8246174E47C0" + NEWLINE),
+                    (NEWLINE, "000000000000000000" + NEWLINE),
+                    (NEWLINE, "174E47FD0000000000" + NEWLINE),
+                    (NEWLINE, "029F08BC0400000000" + NEWLINE),
+                    (NEWLINE, "8C2BF78C2BF8" + NEWLINE),
+                    (NEWLINE, "8C2BFB8C2BFB" + NEWLINE),
+                    (NEWLINE, "FFFFFFFFFFFFFFFFFF" + NEWLINE),
+                    (NEWLINE, "0956028251174E47FC" + NEWLINE),
+                    (NEWLINE, "09560A825B174E4838" + NEWLINE),
+                    (NEWLINE, "000000000000000000" + NEWLINE),
+                    (NEWLINE, "174E48750000000000" + NEWLINE),
+                    (NEWLINE, "029F09040400000000" + NEWLINE),
+                    (NEWLINE, "8C2BF78C2BFB" + NEWLINE),
+                    (NEWLINE, "8C2BFB8C2BF6" + NEWLINE),
+                    ("S>", "S>")]
+
+        p.fake_responses = dd_data
+        def _get_response_mock(timeout, line_delimiter, expected_prompt=None):
+            try:
+                resp = p.fake_responses.pop(0)
+            except:
+                resp = (Prompt.COMMAND, Prompt.COMMAND)
+                print resp
+            return resp
+
+        p._get_line_of_response = _get_response_mock
+        ret = p._parse_uplaad_data_ascii_response("IGNORED", "IGNORED")
+        self.assertEqual(ret, "FFFFFFFFFBFFFFFFFF\r\n" + \
+                              "174E47840000000000\r\n" + \
+                              "003C00040000000000\r\n" + \
+                              "FFFFFFFFFCFFFFFFFF\r\n" +\
+                              "095651823C174E4784\r\n" +\
+                              "09565A8246174E47C0\r\n" +\
+                              "000000000000000000\r\n" +\
+                              "174E47FD0000000000\r\n" +\
+                              "029F08BC0400000000\r\n" +\
+                              "8C2BF78C2BF8\r\n" +\
+                              "8C2BFB8C2BFB\r\n" +\
+                              "FFFFFFFFFFFFFFFFFF\r\n" +\
+                              "0956028251174E47FC\r\n" +\
+                              "09560A825B174E4838\r\n" +\
+                              "000000000000000000\r\n" +\
+                              "174E48750000000000\r\n" +\
+                              "029F09040400000000\r\n" +\
+                              "8C2BF78C2BFB\r\n" +\
+                              "8C2BFB8C2BF6\r\n")
+
+
+
+    def test_handler_command_autosample_test_get(self):
+        """
+        Verify that we are able to get back a variable setting correctly
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+
+        # Fill the DC/DS response
+        p._parse_dc_response(SAMPLE_DC, Prompt.COMMAND)
+        p._parse_ds_response(SAMPLE_DS, Prompt.COMMAND)
+
+        kwargs = {}
+        p._handler_command_autosample_test_get(DriverParameter.ALL, **kwargs)
+
+        args = [Parameter.TXREALTIME]
+        kwargs = {}
+        (next_state, result) = p._handler_command_autosample_test_get(args, **kwargs)
+        self.assertEqual(next_state, None)
+        self.assertEqual(result, {'TxTide': True})
+
+    def test_handler_command_start_autosample(self):
+        """
+        verify startautosample sends the start command to the instrument.
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+        _wakeup_mock = Mock(spec="wakeup_mock")
+        p._wakeup = _wakeup_mock
+
+        _connection_mock = Mock(spec="_connection")
+        _connection_send_mock = Mock(spec="_connection")
+        p._connection = _connection_mock
+        p._connection.send = _connection_send_mock
+        args = []
+        kwargs = {}
+        (next_state, result) = p._handler_command_start_autosample(*args, **kwargs)
+        self.assertEqual(next_state,  ProtocolState.AUTOSAMPLE)
+        self.assertEqual(result, None)
+        self.assertEqual(str(_connection_send_mock.mock_calls), "[call('start\\r\\n')]")
+
+
+    def test_handler_command_quit_session(self):
+        """
+        verify quit session sends the qs command to the instrument.
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+        _wakeup_mock = Mock(spec="wakeup_mock")
+        p._wakeup = _wakeup_mock
+
+        _connection_mock = Mock(spec="_connection")
+        _connection_send_mock = Mock(spec="_connection")
+        p._connection = _connection_mock
+        p._connection.send = _connection_send_mock
+        args = []
+        kwargs = {}
+        (next_state, result) = p._handler_command_quit_session(*args, **kwargs)
+        self.assertEqual(next_state,  None)
+        self.assertEqual(result, None)
+        self.assertEqual(str(_connection_send_mock.mock_calls), "[call('qs\\r\\n')]")
 
 # create a mock instance of InstrumentDriver, and verify that the functions like
 # start, settime, dd... pass the call to the proper mocked object.
@@ -1662,8 +2929,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 
 
 
-
-    # assertParamDict is failing, needs a re-work
+    #@TODO assertParamDict is failing, needs a re-work
 
 
 
@@ -2038,7 +3304,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         log.debug("setsampling Test 1 - TXWAVESTATS = N, small subset of possible parameters.")
 
         sampling_params = {
-            Parameter.TIDE_INTERVAL : 9,
+            Parameter.TIDE_INTERVAL : 18,
             Parameter.TXWAVESTATS : False,
             }
 
@@ -2052,7 +3318,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('get_resource', parameter_all)
 
 
-        return
+
 
         """
         Test 1: TXWAVESTATS = N
@@ -2168,7 +3434,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
             Parameter.SHOW_PROGRESS_MESSAGES : True,
             Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS : 512,
             Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC : True,
-            Parameter.PREASURE_SENSOR_HEIGHT_FROM_BOTTOM: 1.0,
+            Parameter.PREASURE_SENSOR_HEIGHT_FROM_BOTTOM: 10.0,
             Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND : 1,
             Parameter.MIN_ALLOWABLE_ATTENUATION : 1.0,
             Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : 1.0,
@@ -2212,7 +3478,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
             Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC : False,
             Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR : float(15.0),
             Parameter.AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR : float(37.6),
-            Parameter.PREASURE_SENSOR_HEIGHT_FROM_BOTTOM: 1.0,
+            Parameter.PREASURE_SENSOR_HEIGHT_FROM_BOTTOM: 10.0,
             Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND : 1,
             Parameter.MIN_ALLOWABLE_ATTENUATION : 1.0,
             Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : 1.0,
@@ -2515,6 +3781,154 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertParamDict(reply)
 
 
+    def test_get_resource_capabilities(self):
+        """
+        Test get resource capabilities.
+        """
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolState.UNKNOWN)
+
+        reply = self.driver_client.cmd_dvr('discover_state')
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolState.COMMAND)
+
+        (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
+        self.assertTrue('DRIVER_EVENT_ACQUIRE_SAMPLE' in res_cmds)
+        self.assertTrue('DRIVER_EVENT_START_AUTOSAMPLE' in res_cmds)
+
+        # Verify all paramaters are present in res_params
+
+        # DC
+        self.assertTrue(Parameter.PCALDATE in res_params)
+        self.assertTrue(Parameter.PU0 in res_params)
+        self.assertTrue(Parameter.PY1 in res_params)
+        self.assertTrue(Parameter.PY2 in res_params)
+        self.assertTrue(Parameter.PY3 in res_params)
+        self.assertTrue(Parameter.PC1 in res_params)
+        self.assertTrue(Parameter.PC2 in res_params)
+        self.assertTrue(Parameter.PC3 in res_params)
+        self.assertTrue(Parameter.PD1 in res_params)
+        self.assertTrue(Parameter.PD2 in res_params)
+        self.assertTrue(Parameter.PT1 in res_params)
+        self.assertTrue(Parameter.PT2 in res_params)
+        self.assertTrue(Parameter.PT3 in res_params)
+        self.assertTrue(Parameter.PT4 in res_params)
+        self.assertTrue(Parameter.FACTORY_M in res_params)
+        self.assertTrue(Parameter.FACTORY_B in res_params)
+        self.assertTrue(Parameter.POFFSET in res_params)
+        self.assertTrue(Parameter.TCALDATE in res_params)
+        self.assertTrue(Parameter.TA0 in res_params)
+        self.assertTrue(Parameter.TA1 in res_params)
+        self.assertTrue(Parameter.TA2 in res_params)
+        self.assertTrue(Parameter.TA3 in res_params)
+        self.assertTrue(Parameter.CCALDATE in res_params)
+        self.assertTrue(Parameter.CG in res_params)
+        self.assertTrue(Parameter.CH in res_params)
+        self.assertTrue(Parameter.CI in res_params)
+        self.assertTrue(Parameter.CJ in res_params)
+        self.assertTrue(Parameter.CTCOR in res_params)
+        self.assertTrue(Parameter.CPCOR in res_params)
+        self.assertTrue(Parameter.CSLOPE in res_params)
+
+        # DS
+        self.assertTrue(Parameter.DEVICE_VERSION in res_params)
+        self.assertTrue(Parameter.SERIAL_NUMBER in res_params)
+        self.assertTrue(Parameter.DS_DEVICE_DATE_TIME in res_params)
+        self.assertTrue(Parameter.USER_INFO in res_params)
+        self.assertTrue(Parameter.QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER in res_params)
+        self.assertTrue(Parameter.QUARTZ_PREASURE_SENSOR_RANGE in res_params)
+        self.assertTrue(Parameter.EXTERNAL_TEMPERATURE_SENSOR in res_params)
+        self.assertTrue(Parameter.CONDUCTIVITY in res_params)
+        self.assertTrue(Parameter.IOP_MA in res_params)
+        self.assertTrue(Parameter.VMAIN_V in res_params)
+        self.assertTrue(Parameter.VLITH_V in res_params)
+        self.assertTrue(Parameter.LAST_SAMPLE_P in res_params)
+        self.assertTrue(Parameter.LAST_SAMPLE_T in res_params)
+        self.assertTrue(Parameter.LAST_SAMPLE_S in res_params)
+
+        # DS/SETSAMPLING
+        self.assertTrue(Parameter.TIDE_INTERVAL in res_params)
+        self.assertTrue(Parameter.TIDE_MEASUREMENT_DURATION in res_params)
+        self.assertTrue(Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS in res_params)
+        self.assertTrue(Parameter.WAVE_SAMPLES_PER_BURST in res_params)
+        self.assertTrue(Parameter.WAVE_SAMPLES_SCANS_PER_SECOND in res_params)
+        self.assertTrue(Parameter.USE_START_TIME in res_params)
+        #Parameter.START_TIME,
+        self.assertTrue(Parameter.USE_STOP_TIME in res_params)
+        #Parameter.STOP_TIME,
+        self.assertTrue(Parameter.TXWAVESTATS in res_params)
+        self.assertTrue(Parameter.TIDE_SAMPLES_PER_DAY in res_params)
+        self.assertTrue(Parameter.WAVE_BURSTS_PER_DAY in res_params)
+        self.assertTrue(Parameter.MEMORY_ENDURANCE in res_params)
+        self.assertTrue(Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE in res_params)
+        self.assertTrue(Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS in res_params)
+        self.assertTrue(Parameter.TOTAL_RECORDED_WAVE_BURSTS in res_params)
+        self.assertTrue(Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START in res_params)
+        self.assertTrue(Parameter.WAVE_BURSTS_SINCE_LAST_START in res_params)
+        self.assertTrue(Parameter.TXREALTIME in res_params)
+        self.assertTrue(Parameter.TXWAVEBURST in res_params)
+        self.assertTrue(Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS in res_params)
+        self.assertTrue(Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC in res_params)
+        self.assertTrue(Parameter.USE_MEASURED_TEMP_FOR_DENSITY_CALC in res_params)
+        self.assertTrue(Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR in res_params)
+        self.assertTrue(Parameter.AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR in res_params)
+        self.assertTrue(Parameter.PREASURE_SENSOR_HEIGHT_FROM_BOTTOM in res_params)
+        self.assertTrue(Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND in res_params)
+        self.assertTrue(Parameter.MIN_ALLOWABLE_ATTENUATION in res_params)
+        self.assertTrue(Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM in res_params)
+        self.assertTrue(Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM in res_params)
+        self.assertTrue(Parameter.HANNING_WINDOW_CUTOFF in res_params)
+        self.assertTrue(Parameter.SHOW_PROGRESS_MESSAGES in res_params)
+        self.assertTrue(Parameter.STATUS in res_params)
+        self.assertTrue(Parameter.LOGGING in res_params)
+
+
+
+    def test_connect_configure_disconnect(self):
+        """
+
+        """
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+        self.assertEqual(reply, None)
+
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolState.UNKNOWN)
+
+        reply = self.driver_client.cmd_dvr('discover_state')
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolState.COMMAND)
+
+        reply = self.driver_client.cmd_dvr('disconnect')
+        self.assertEqual(reply, None)
+
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -2621,8 +4035,106 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         log.debug("**************5")
         return
 
-    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 2000}}})
+
     def test_direct_access_telnet_mode(self):
+        """
+        @brief This test verifies that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+
+        gevent.sleep(5)  # wait for mavs4 to go back to sleep if it was sleeping
+
+        # go direct access
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS, #'go_direct_access',
+            kwargs={'session_type': DirectAccessTypes.telnet,
+                    #kwargs={'session_type':DirectAccessTypes.vsp,
+                    'session_timeout':600,
+                    'inactivity_timeout':600})
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.warn("go_direct_access retval=" + str(retval.result))
+
+        # start 'telnet' client with returned address and port
+        s = TcpClient(retval.result['ip_address'], retval.result['port'])
+
+        # look for and swallow 'Username' prompt
+        try_count = 0
+        while s.peek_at_buffer().find("Username: ") == -1:
+            log.debug("WANT 'Username:' READ ==>" + str(s.peek_at_buffer()))
+            gevent.sleep(1)
+            try_count += 1
+            if try_count > 10:
+                raise Timeout('It took longer than 10 seconds to get a Username: prompt')
+        s.remove_from_buffer("Username: ")
+        # send some username string
+        s.send_data("bob\r\n", "1")
+
+        # look for and swallow 'token' prompt
+        try_count = 0
+        while s.peek_at_buffer().find("token: ") == -1:
+            log.debug("WANT 'token: ' READ ==>" + str(s.peek_at_buffer()))
+            gevent.sleep(1)
+            try_count += 1
+            if try_count > 10:
+                raise Timeout('It took longer than 10 seconds to get a token: prompt')
+        s.remove_from_buffer("token: ")
+        # send the returned token
+        s.send_data(retval.result['token'] + "\r\n", "1")
+
+        # look for and swallow telnet negotiation string
+        try_count = 0
+        while s.peek_at_buffer().find(WILL_ECHO_CMD) == -1:
+            log.debug("WANT %s READ ==> %s" %(WILL_ECHO_CMD, str(s.peek_at_buffer())))
+            gevent.sleep(1)
+            try_count += 1
+            if try_count > 10:
+                raise Timeout('It took longer than 10 seconds to get the telnet negotiation string')
+        s.remove_from_buffer(WILL_ECHO_CMD)
+        # send the telnet negotiation response string
+        s.send_data(DO_ECHO_CMD, "1")
+
+        # look for and swallow 'connected' indicator
+        try_count = 0
+        while s.peek_at_buffer().find("connected\r\n") == -1:
+            log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
+            gevent.sleep(1)
+            try_count += 1
+            if try_count > 10:
+                raise Timeout('It took longer than 10 seconds to get a connected prompt')
+        s.remove_from_buffer("connected\r\n")
+
+        # try to interact with the instrument
+        try_count = 0
+        while ((s.peek_at_buffer().find("Enter <CTRL>-<C> now to wake up") == -1) and
+               (s.peek_at_buffer().find("Main Menu") == -1)):
+            self.assertNotEqual(try_count, 5)
+            try_count += 1
+            log.debug("WANT %s or %s; READ ==> %s" %("'Enter <CTRL>-<C> now to wake up'", "'Main Menu'", str(s.peek_at_buffer())))
+            s.send_data("\r\n\r\n", "1")
+            gevent.sleep(2)
+
+
+
+
+    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 2000}}})
+    def old_test_direct_access_telnet_mode(self):
         """
         @brief This test verifies that the Instrument Driver
                properly supports direct access to the physical

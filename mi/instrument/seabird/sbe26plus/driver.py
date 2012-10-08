@@ -115,6 +115,8 @@ class ProtocolEvent(DriverEvent):
     Should only have to define ones to ADD to the base class.  cannot remove from base class gracefully...
     """
 
+    GET = DriverEvent.GET
+    SET = DriverEvent.SET
     SETSAMPLING = 'PROTOCOL_EVENT_SETSAMPLING' # it HAS to be defined there, OR!!! InstrumentFSM.on_event() CANNOT HANDLE IT. THIS SHOULD BE DOCUMENTED!!!!!!
     SET_TIME = 'PROTOCOL_EVENT_SET_TIME'
     UPLOAD_ASCII = 'PROTOCOL_EVENT_UPLOAD_ASCII'
@@ -125,11 +127,14 @@ class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    TEST = DriverEvent.TEST
-
+    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
+    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
+    TEST = ProtocolEvent.TEST
+    GET = ProtocolEvent.GET
+    SET = ProtocolEvent.SET
+    #GET *see david
+    #SET
 
 
 # Device specific parameters.
@@ -435,6 +440,7 @@ class DataParticle(DataParticle):
         return result
 
 
+
 class Protocol(CommandResponseInstrumentProtocol):
     """
     Instrument protocol class for sbe26plus driver.
@@ -560,7 +566,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                      {'publish' : False,
                       'list' : False}
                     ),
-            re.compile(r'^([\d.e+-]+)$') : # -153.3697
+            re.compile(r'^ *([\d.e+-]+)$') : # -153.3697
                 (['wave_burst_sample',],
 
                      {'publish' : False,
@@ -664,7 +670,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                      {'publish' : False,
                       'list' : False}
                     ),
-            re.compile(r'   H1/100 = ([\d.e+-]+)') : # 0.0000e+00
+            re.compile(r'   H1/100 = ([\d.e+-]+)') : # 0.0000e+00H1/100 = 0.0000e+00
                 (['height_highest_1_percent_waves',],
 
                      {'publish' : True,
@@ -898,16 +904,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._sampling_args = args[0]
 
-
-        #for k in self._sampling_args.keys():
-        #    if k in self.ranges:
-        #        if not self.ranges[k].is_valid(value=self._sampling_args[k]):
-        #            raise InstrumentParameterException("Value " + str(self._sampling_args[k]) + " is out of allowable range for Parameter." + str(k))
-        #        log.debug("** parameter " + str(k) + " is valid.")
-        #    else:
-        #        log.debug("** parameter " + str(k) + " has no type/range attributes.")
-
-
         return InstrumentCmds.SETSAMPLING + NEWLINE
 
 
@@ -932,6 +928,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if set command misunderstood.
         """
 
+
+
         desired_prompt = ", new value = "
         done = False
         while not done:
@@ -940,12 +938,13 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._linebuf = ''
             time.sleep(0.1)
 
-            log.debug(response)
+            log.debug("prompt = " + str(prompt))
+            log.debug("response = " + str(response))
+
             if "tide interval (integer minutes) " in response:
                 if 'TIDE_INTERVAL' in self._sampling_args:
                     self._connection.send(self._int_to_string(self._sampling_args['TIDE_INTERVAL']) + NEWLINE)
                 else:
-                    log.debug("SENDING TIDE INTERVAL -- PUNTING ")
                     self._connection.send(NEWLINE)
             elif "tide measurement duration (seconds)" in response:
                 if 'TIDE_MEASUREMENT_DURATION' in self._sampling_args:
@@ -999,7 +998,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                     self._connection.send(self._true_false_to_string(self._sampling_args['USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC']) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
-            elif "use measured temperature for density calculation (y/n) = " in response:
+            elif "use measured temperature for density calculation " in response:
                 if 'USE_MEASURED_TEMP_FOR_DENSITY_CALC' in self._sampling_args:
                     self._connection.send(self._true_false_to_string(self._sampling_args['USE_MEASURED_TEMP_FOR_DENSITY_CALC']) + NEWLINE)
                 else:
@@ -1074,7 +1073,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
             log.debug("WARNING!!! UNEXPECTED RESPONSE " + repr(response))
 
-            #raise InstrumentProtocolException("UNEXPECTED RESPONSE " + repr(response))
 
         # Update params after changing them.
 
@@ -1595,6 +1593,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
 
                     if True == pattern_details['publish']:
+                        log.debug("TRYING TO PUBLISH")
                         # Driver timestamp.
                         ts = time.time()
 
@@ -1683,7 +1682,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         ds_line_26 = r' +average water temperature above the pressure sensor \(deg C\) = ([\d.]+)' # float
         ds_line_27 = r' +average salinity above the pressure sensor \(PSU\) = ([\d.]+)' # float
-        ds_line_28 = r' +height of pressure sensor from bottom \(meters\) =  ([\d.]+)'
+        ds_line_28 = r' +height of pressure sensor from bottom \(meters\) = ([\d.]+)'
         ds_line_29 = r' +number of spectral estimates for each frequency band = (\d+)'
         ds_line_30 = r' +minimum allowable attenuation = ([\d.]+)'
         ds_line_31 = r' +minimum period \(seconds\) to use in auto-spectrum = (-?[\d.e\-\+]+)'
