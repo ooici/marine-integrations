@@ -14,6 +14,13 @@ import os
 import unittest
 from sets import Set
 
+# Set testing to false because the capability container tries to clear out
+# couchdb if we are testing. Since we don't care about couchdb for the most
+# part we can ignore this. See initialize_ion_int_tests() for implementation.
+# If you DO care about couch content make sure you do a force_clean when needed.
+from pyon.core import bootstrap
+bootstrap.testing = False;
+
 import gevent
 import json
 from pyon.util.int_test import IonIntegrationTestCase
