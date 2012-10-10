@@ -18,7 +18,6 @@ from pyon.core.bootstrap import CFG
 
 from gevent import monkey; monkey.patch_all()
 import gevent
-import socket
 import re
 import json
 
@@ -918,34 +917,23 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
                properly supports direct access to the physical
                instrument. (telnet mode)
         """
-        cmd = AgentCommand(command='power_down')
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-        self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
-
-        cmd = AgentCommand(command='power_up')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        self.assertEqual(state, ResourceAgentState.IDLE)
 
-        cmd = AgentCommand(command='initialize')
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
-
-        cmd = AgentCommand(command='go_active')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, InstrumentAgentState.IDLE)
-
-        cmd = AgentCommand(command='run')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
         # go direct access
-        cmd = AgentCommand(command='go_direct_access',
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
                            kwargs={'session_type': DirectAccessTypes.telnet,
                                    #kwargs={'session_type':DirectAccessTypes.vsp,
                                    'session_timeout':600,
@@ -954,38 +942,8 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         log.warn("go_direct_access retval=" + str(retval.result))
 
         s = SocketTester(retval.result['ip_address'], retval.result['port'])
+        s.negotiate_telnet_session(retval)
         
-        try_count = 0
-        while s.peek_at_buffer().find("Username: ") == -1:
-            log.debug("WANT 'Username:' READ ==>" + str(s.peek_at_buffer()))
-            gevent.sleep(1)
-            try_count = try_count + 1
-            if try_count > 10:
-                raise Timeout('I took longer than 10 seconds to get a Username: prompt')
-
-        s.remove_from_buffer("Username: ")
-        s.send_data("bob\r\n", "1")
-
-        try_count = 0
-        while s.peek_at_buffer().find("token: ") == -1:
-            log.debug("WANT 'token: ' READ ==>" + str(s.peek_at_buffer()))
-            gevent.sleep(1)
-            try_count = try_count + 1
-            if try_count > 10:
-                raise Timeout('I took longer than 10 seconds to get a token: prompt')
-        s.remove_from_buffer("token: ")
-        s.send_data(retval.result['token'] + "\r\n", "1")
-
-        try_count = 0
-        while s.peek_at_buffer().find("connected\n") == -1:
-            log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
-            gevent.sleep(1)
-            s.peek_at_buffer()
-            try_count = try_count + 1
-            if try_count > 10:
-                raise Timeout('I took longer than 10 seconds to get a connected prompt')
-
-        s.remove_from_buffer("connected\n")
         s.send_data("ts\r\n", "1")
         log.debug("SENT THE TS COMMAND")
 
@@ -1687,32 +1645,23 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         Test instrument driver execute interface to start and stop streaming
         mode.
         """
-
-
-
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
 
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
 
-
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.INACTIVE)
-
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
 
-
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
-
         cmd = AgentCommand(command=ResourceAgentEvent.RUN)
         retval = self.instrument_agent_client.execute_agent(cmd)
-
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
@@ -1731,8 +1680,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         # Begin streaming.
         cmd = AgentCommand(command=SBE37ProtocolEvent.START_AUTOSAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd)
-
+        retval = self.instrument_agent_client.execute_resource(cmd, timeout=30)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.STREAMING)
@@ -1742,26 +1690,22 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         # Halt streaming.
         cmd = AgentCommand(command=SBE37ProtocolEvent.STOP_AUTOSAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd)
-
+        retval = self.instrument_agent_client.execute_resource(cmd, timeout=30)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         # Assert we got some samples.
-        self.data_subscribers.async_data_result.get(timeout=10)
+        self.data_subscribers.async_data_result.get(timeout=30)
         self.assertTrue(len(self.data_subscribers.samples_received)>=2)
-
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
-
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
         self.doCleanups()
-
 
     def assertParamDict(self, pd, all_params=False):
         """
@@ -1902,7 +1846,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         # Assert we got 3 samples.
         # note no samples are being caught by the default data subscriber.
-        self.data_subscribers.async_sample_result.get(timeout=10)
+        self.data_subscribers.async_data_result.get(timeout=10)
         log.debug("SAMPLES RECEIVED =====> " + str(self.data_subscribers.samples_received))
         self.assertGreaterEqual(len(self.data_subscribers.samples_received), 3)
 

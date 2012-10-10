@@ -15,6 +15,7 @@ from pyon.core.bootstrap import CFG
 import re
 import os
 import unittest
+import socket
 from sets import Set
 
 # Set testing to false because the capability container tries to clear out
@@ -25,7 +26,6 @@ from pyon.core import bootstrap
 bootstrap.testing = False;
 
 import gevent
-from gevent.event import AsyncResult
 import json
 from pyon.util.int_test import IonIntegrationTestCase
 from ion.agents.port.port_agent_process import PortAgentProcessType
@@ -48,7 +48,6 @@ from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
 from interface.objects import AgentCommand
-from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -63,6 +62,11 @@ from pyon.agent.agent import ResourceAgentState
 
 from pyon.agent.agent import ResourceAgentEvent
 
+# 'will echo' command sequence to be sent from DA telnet server
+# see RFCs 854 & 857
+WILL_ECHO_CMD = '\xff\xfd\x03\xff\xfb\x03\xff\xfb\x01'
+# 'do echo' command sequence to be sent back from telnet client
+DO_ECHO_CMD   = '\xff\xfb\x03\xff\xfd\x03\xff\xfd\x01'
 
 class InstrumentDriverTestConfig(Singleton):
     """
@@ -1142,3 +1146,53 @@ class SocketTester():
             self.s.sendall(data)
         except:
             log.debug("*** send_data FAILED [" + debug + "] had an exception sending [" + data + "]")
+            
+    def negotiate_telnet_session(self, cmd_result):
+        """
+        Go through the sequences of a DA session negotiation
+        
+        @param cmd_result The result of the GO_DIRECT command
+        """
+        try_count = 0
+        while self.peek_at_buffer().find("Username: ") == -1:
+            log.debug("WANT 'Username:' READ ==>" + str(self.peek_at_buffer()))
+            gevent.sleep(1)
+            try_count = try_count + 1
+            if try_count > 10:
+                raise Timeout('I took longer than 10 seconds to get a Username: prompt')
+
+        self.remove_from_buffer("Username: ")
+        self.send_data("bob\r\n", "1")
+
+        try_count = 0
+        while self.peek_at_buffer().find("token: ") == -1:
+            log.debug("WANT 'token: ' READ ==>" + str(self.peek_at_buffer()))
+            gevent.sleep(1)
+            try_count = try_count + 1
+            if try_count > 10:
+                raise Timeout('I took longer than 10 seconds to get a token: prompt')
+        self.remove_from_buffer("token: ")
+        self.send_data(cmd_result.result['token'] + "\r\n", "1")
+
+        # look for and swallow telnet negotiation string
+        try_count = 0
+        while self.peek_at_buffer().find(WILL_ECHO_CMD) == -1:
+            log.debug("WANT %s READ ==> %s" %(WILL_ECHO_CMD, str(self.peek_at_buffer())))
+            gevent.sleep(1)
+            try_count += 1
+            if try_count > 10:
+                raise Timeout('It took longer than 10 seconds to get the telnet negotiation string')
+        self.remove_from_buffer(WILL_ECHO_CMD)
+        # send the telnet negotiation response string
+        self.send_data(DO_ECHO_CMD, "1")
+        
+        try_count = 0
+        while self.peek_at_buffer().find("connected\r\n") == -1:
+            log.debug("WANT 'connected\r\n' READ ==>" + str(self.peek_at_buffer()))
+            gevent.sleep(1)
+            self.peek_at_buffer()
+            try_count = try_count + 1
+            if try_count > 10:
+                raise Timeout('I took longer than 10 seconds to get a connected prompt')
+
+        self.remove_from_buffer("connected\n")

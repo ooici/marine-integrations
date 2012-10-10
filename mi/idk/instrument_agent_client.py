@@ -358,14 +358,14 @@ class InstrumentAgentDataSubscribers(object):
         # Create streams and subscriptions for each stream named in driver.
         self.data_subscribers = []
         self.samples_received = []
-        self.async_sample_result = AsyncResult()
+        self.async_data_result = AsyncResult()
 
         # A callback for processing subscribed-to data.
         def recv_data(message, stream_route, stream_id):
             log.info('Received message on %s (%s,%s)', stream_id, stream_route.exchange_point, stream_route.routing_key)
             self.samples_received.append(message)
             if len(self.samples_received) == count:
-                self.async_sample_result.set()
+                self.async_data_result.set()
 
         for (stream_name, stream_config) in self.stream_config.iteritems():
             
