@@ -64,6 +64,7 @@ from mi.instrument.seabird.sbe26plus.driver import ProtocolEvent
 from mi.instrument.seabird.sbe26plus.driver import Capability
 from mi.instrument.seabird.sbe26plus.driver import Prompt
 from mi.instrument.seabird.sbe26plus.driver import Protocol
+from mi.instrument.seabird.sbe26plus.driver import SBE26plusDataParticle
 
 from mi.instrument.seabird.sbe26plus.driver import InstrumentCmds
 from mi.instrument.seabird.sbe26plus.driver import NEWLINE
@@ -2318,7 +2319,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         data = SAMPLE_DATA
 
         for line in data.split(NEWLINE):
-            ret = p._extract_sample(line)
+            ret = p._extract_sample(SBE26plusDataParticle, line)
 
 
 
