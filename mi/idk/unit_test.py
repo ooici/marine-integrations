@@ -25,6 +25,7 @@ from pyon.core import bootstrap
 bootstrap.testing = False;
 
 import gevent
+from gevent.event import AsyncResult
 import json
 from pyon.util.int_test import IonIntegrationTestCase
 from ion.agents.port.port_agent_process import PortAgentProcessType
@@ -47,6 +48,7 @@ from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
 from interface.objects import AgentCommand
+from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -436,6 +438,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.container = self.instrument_agent_manager.container
 
         log.debug("#ROGER# in setUp self.test_config.instrument_agent_packet_config = " + str(self.test_config.instrument_agent_packet_config))
+        
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.instrument_agent_packet_config,
             encoding=self.test_config.instrument_agent_stream_encoding,
@@ -446,8 +449,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         log.debug("InstrumentDriverQualificationTestCase setUp Problem ABOVE")
 
         self.init_instrument_agent_client()
-
-
+            
     def init_instrument_agent_client(self):
         log.info("Start Instrument Agent Client")
 
@@ -1060,3 +1062,83 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+
+class SocketTester():
+    """
+    This class is used to peek through sockets to see raw characters that have
+    come through. This is largely used in direct access tests.
+    """
+    buf = ""
+
+    def __init__(self, host, port):
+        self.buf = ""
+        self.host = host
+        self.port = port
+        # log.debug("OPEN SOCKET HOST = " + str(host) + " PORT = " + str(port))
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.connect((self.host, self.port))
+        self.s.settimeout(0.0)
+
+    def read_a_char(self):
+        c = None
+        if len(self.buf) > 0:
+            c = self.buf[0:1]
+            self.buf = self.buf[1:]
+        else:
+            self.buf = self.s.recv(1024)
+            log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
+
+        return c
+
+
+    def peek_at_buffer(self):
+        if len(self.buf) == 0:
+            try:
+                self.buf = self.s.recv(1024)
+                log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
+            except:
+                """
+                Ignore this exception, its harmless
+                """
+
+        return self.buf
+
+    def remove_from_buffer(self, remove):
+        log.debug("BUF WAS " + str(repr(self.buf)))
+        self.buf = self.buf.replace(remove, "")
+        log.debug("BUF IS '" + str(repr(self.buf)) + "'")
+
+    def get_data(self):
+        data = ""
+        try:
+            ret = ""
+
+            while True:
+                c = self.read_a_char()
+                if c == None:
+                    break
+                if c == '\n' or c == '':
+                    ret += c
+                    break
+                else:
+                    ret += c
+
+            data = ret
+        except AttributeError:
+            log.debug("CLOSING - GOT AN ATTRIBUTE ERROR")
+            self.s.close()
+        except:
+            data = ""
+
+        if data:
+            data = data.lower()
+            log.debug("IN  [" + repr(data) + "]")
+        return data
+
+    def send_data(self, data, debug):
+        try:
+            log.debug("OUT [" + repr(data) + "]")
+            self.s.sendall(data)
+        except:
+            log.debug("*** send_data FAILED [" + debug + "] had an exception sending [" + data + "]")

@@ -30,6 +30,10 @@ from mi.idk.config import Config
 
 from mi.idk.exceptions import TestNoDeployFile
 from mi.idk.exceptions import NoContainer
+from mi.idk.exceptions import MissingConfig
+from mi.idk.exceptions import MissingExecutable
+from mi.idk.exceptions import FailedToLaunch
+
 
 from pyon.util.int_test import IonIntegrationTestCase
 from pyon.container.cc import Container
@@ -39,8 +43,9 @@ from interface.services.icontainer_agent import ContainerAgentClient
 from pyon.agent.agent import ResourceAgentClient
 from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
 
-from pyon.event.event import EventSubscriber
 from pyon.ion.stream import StandaloneStreamSubscriber
+from ion.util.parameter_yaml_IO import get_param_dict
+
 
 
 
@@ -74,7 +79,7 @@ class InstrumentAgentClient(object):
         # Start instrument agent.
         log.debug("Starting Instrument Agent Client")
         container_client = ContainerAgentClient(node=self.container.node,
-            name=self.container.name)
+            to_name=self.container.name)
 
         instrument_agent_pid = container_client.spawn_process(
             name=name,
@@ -309,40 +314,90 @@ class InstrumentAgentDataSubscribers(object):
         if not self.container:
             raise NoContainer()
 
+        self._build_stream_config()        
+
+    def _build_stream_config(self):
+        """
+        """
         # Create a pubsub client to create streams.
         pubsub_client = PubsubManagementServiceClient(node=self.container.node)
-
-        # A callback for processing subscribed-to data.
-        # was def consume_data(message, headers):
-        def consume_data(message, stream_route, stream_id):
-            log.debug('#**#**# Data Subscriber (consume_data) received data message: %s   %s.', str(message), str(headers))
-
-            self.samples_received.append(message)
-            log.debug("self.no_samples = " + str(self.no_samples))
-            log.debug("self.samples_received = " + str(len(self.samples_received)))
-            if self.no_samples and self.no_samples == len(self.samples_received):
-                log.debug("***CALLING self.async_data_result.set()")
-                self.async_data_result.set()
-
+                
         # Create streams and subscriptions for each stream named in driver.
         self.stream_config = {}
+
+        streams = {
+            #'ctd_parsed' : 'ctd_parsed_param_dict',
+            #'ctd_raw' : 'ctd_raw_param_dict',
+            'parsed' : 'data_particle_parsed_param_dict',
+            'raw' : 'data_particle_raw_param_dict',
+        }
+
+        for (stream_name, param_dict_name) in streams.iteritems():
+            pd = get_param_dict(param_dict_name)
+
+            stream_def_id = pubsub_client.create_stream_definition(name=stream_name, parameter_dictionary=pd)
+
+            stream_id, stream_route = pubsub_client.create_stream(name=stream_name,
+                                                exchange_point='science_data',
+                                                stream_definition_id=stream_def_id)
+
+            stream_config = dict(stream_route=stream_route,
+                                 routing_key=stream_route.routing_key,
+                                 exchange_point=stream_route.exchange_point,
+                                 stream_id=stream_id,
+                                 stream_definition_ref=stream_def_id,
+                                 parameter_dictionary=pd.dump())
+            self.stream_config[stream_name] = stream_config    
+
+    def start_data_subscribers(self, count):
+        """
+        """        
+        # Create a pubsub client to create streams.
+        pubsub_client = PubsubManagementServiceClient(node=self.container.node)
+                
+        # Create streams and subscriptions for each stream named in driver.
         self.data_subscribers = []
+        self.samples_received = []
+        self.async_sample_result = AsyncResult()
+
+        # A callback for processing subscribed-to data.
+        def recv_data(message, stream_route, stream_id):
+            log.info('Received message on %s (%s,%s)', stream_id, stream_route.exchange_point, stream_route.routing_key)
+            self.samples_received.append(message)
+            if len(self.samples_received) == count:
+                self.async_sample_result.set()
 
         for (stream_name, stream_config) in self.stream_config.iteritems():
-            log.debug("stream_name = " + str(stream_name) + ", stream_config = " + str(stream_config))
-            stream_id = stream_config['id'] # was id
-            log.debug("stream_config [DOES IT HAVE ID?] = " + str(stream_config))
-
+            
+            stream_id = stream_config['stream_id']
+            
             # Create subscriptions for each stream.
+
             exchange_name = '%s_queue' % stream_name
-            sub = StandaloneStreamSubscriber(exchange_name=exchange_name, callback=consume_data)
+            self._purge_queue(exchange_name)
+            sub = StandaloneStreamSubscriber(exchange_name, recv_data)
             sub.start()
-            #self.listen_data(sub)
             self.data_subscribers.append(sub)
-            query = StreamQuery(stream_ids=[stream_id])
-            sub_id = pubsub_client.create_subscription(query=query, exchange_name=exchange_name, exchange_point='science_data')
+            print 'stream_id: %s' % stream_id
+            sub_id = pubsub_client.create_subscription(name=exchange_name, stream_ids=[stream_id])
             pubsub_client.activate_subscription(sub_id)
-            sub.subscription_id = sub_id
+            sub.subscription_id = sub_id # Bind the subscription to the standalone subscriber (easier cleanup, not good in real practice)
+
+    def _purge_queue(self, queue):
+        xn = self.container.ex_manager.create_xn_queue(queue)
+        xn.purge()
+
+    def stop_data_subscribers(self):
+        for subscriber in self.data_subscribers:
+            pubsub_client = PubsubManagementServiceClient()
+            if hasattr(subscriber,'subscription_id'):
+                try:
+                    pubsub_client.deactivate_subscription(subscriber.subscription_id)
+                except:
+                    pass
+                pubsub_client.delete_subscription(subscriber.subscription_id)
+            subscriber.stop()
+
 
 
     def _listen(self, sub):

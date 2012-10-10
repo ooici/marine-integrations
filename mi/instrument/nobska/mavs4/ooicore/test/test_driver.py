@@ -59,6 +59,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import SocketTester
 
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
@@ -125,83 +126,6 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config = PACKET_CONFIG,
     instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
 )
-
-
-class TcpClient():
-    # for direct access testing
-    buf = ""
-
-    def __init__(self, host, port):
-        self.buf = ""
-        self.host = host
-        self.port = port
-        # log.debug("OPEN SOCKET HOST = " + str(host) + " PORT = " + str(port))
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.connect((self.host, self.port))
-        self.s.settimeout(0.0)
-
-    def read_a_char(self):
-        temp = self.s.recv(1024)
-        if len(temp) > 0:
-            log.debug("read_a_char got '" + str(repr(temp)) + "'")
-            self.buf += temp
-        if len(self.buf) > 0:
-            c = self.buf[0:1]
-            self.buf = self.buf[1:]
-        else:
-            c = None
-        return c
-
-    def peek_at_buffer(self):
-        if len(self.buf) == 0:
-            try:
-                self.buf = self.s.recv(1024)
-                log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
-            except:
-                """
-                Ignore this exception, its harmless
-                """
-        return self.buf
-
-    def remove_from_buffer(self, remove):
-        log.debug("BUF WAS " + str(repr(self.buf)))
-        self.buf = self.buf.replace(remove, "")
-        log.debug("BUF IS '" + str(repr(self.buf)) + "'")
-
-    def get_data(self):
-        data = ""
-        try:
-            ret = ""
-
-            while True:
-                c = self.read_a_char()
-                if c == None:
-                    break
-                if c == '\n' or c == '':
-                    ret += c
-                    break
-                else:
-                    ret += c
-
-            data = ret
-        except AttributeError:
-            log.debug("CLOSING - GOT AN ATTRIBUTE ERROR")
-            self.s.close()
-        except:
-            data = ""
-
-        if data:
-            data = data.lower()
-            log.debug("IN  [" + repr(data) + "]")
-        return data
-
-    def send_data(self, data, debug):
-        try:
-            log.debug("OUT [" + repr(data) + "]")
-            self.s.sendall(data)
-        except:
-            log.debug("*** send_data FAILED [" + debug + "] had an exception sending [" + data + "]")
-
 
 
 #################################### RULES ####################################
@@ -600,7 +524,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
         log.warn("go_direct_access retval=" + str(retval.result))
 
         # start 'telnet' client with returned address and port
-        s = TcpClient(retval.result['ip_address'], retval.result['port'])
+        s = SocketTester(retval.result['ip_address'], retval.result['port'])
 
         # look for and swallow 'Username' prompt
         try_count = 0

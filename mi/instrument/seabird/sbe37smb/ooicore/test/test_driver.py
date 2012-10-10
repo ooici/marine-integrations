@@ -55,6 +55,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import SocketTester
 
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
@@ -155,81 +156,6 @@ PARAMS = {
     SBE37Parameter.RTCA1 : float,
     SBE37Parameter.RTCA2 : float
 }
-
-class my_sock():
-    buf = ""
-    def __init__(self, host, port):
-        self.buf = ""
-        self.host = host
-        self.port = port
-        # log.debug("OPEN SOCKET HOST = " + str(host) + " PORT = " + str(port))
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.connect((self.host, self.port))
-        self.s.settimeout(0.0)
-
-    def read_a_char(self):
-        c = None
-        if len(self.buf) > 0:
-            c = self.buf[0:1]
-            self.buf = self.buf[1:]
-        else:
-            self.buf = self.s.recv(1024)
-            log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
-
-        return c
-
-
-    def peek_at_buffer(self):
-        if len(self.buf) == 0:
-            try:
-                self.buf = self.s.recv(1024)
-                log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
-            except:
-                """
-                Ignore this exception, its harmless
-                """
-
-        return self.buf
-
-    def remove_from_buffer(self, remove):
-        log.debug("BUF WAS " + str(repr(self.buf)))
-        self.buf = self.buf.replace(remove, "")
-        log.debug("BUF IS '" + str(repr(self.buf)) + "'")
-
-    def get_data(self):
-        data = ""
-        try:
-            ret = ""
-
-            while True:
-                c = self.read_a_char()
-                if c == None:
-                    break
-                if c == '\n' or c == '':
-                    ret += c
-                    break
-                else:
-                    ret += c
-
-            data = ret
-        except AttributeError:
-            log.debug("CLOSING - GOT AN ATTRIBUTE ERROR")
-            self.s.close()
-        except:
-            data = ""
-
-        if data:
-            data = data.lower()
-            log.debug("IN  [" + repr(data) + "]")
-        return data
-
-    def send_data(self, data, debug):
-        try:
-            log.debug("OUT [" + repr(data) + "]")
-            self.s.sendall(data)
-        except:
-            log.debug("*** send_data FAILED [" + debug + "] had an exception sending [" + data + "]")
-
 
 @attr('UNIT', group='mi')
 class SBEUnitTestCase(InstrumentDriverUnitTestCase):
@@ -983,7 +909,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
     # Qualification tests live in the base class.  This class is extended
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.
-    pass
+    
 
     #@unittest.skip("Do not include until direct_access gets implemented")
     def test_direct_access_telnet_mode(self):
@@ -994,37 +920,28 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         """
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
+        state = self.instrument_agent_client.get_agent_state()
+
         self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
 
         cmd = AgentCommand(command='power_up')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
+        state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
+        state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
 
         cmd = AgentCommand(command='go_active')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
+        state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, InstrumentAgentState.IDLE)
 
         cmd = AgentCommand(command='run')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
+        state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
 
         # go direct access
@@ -1036,7 +953,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.warn("go_direct_access retval=" + str(retval.result))
 
-        s = my_sock(retval.result['ip_address'], retval.result['port'])
+        s = SocketTester(retval.result['ip_address'], retval.result['port'])
         
         try_count = 0
         while s.peek_at_buffer().find("Username: ") == -1:
@@ -1227,7 +1144,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         }
         self.instrument_agent_client.set_resource(params)
 
-        self.data_subscribers.no_samples = 2
+        self.data_subscribers.start_data_subscribers(2)
 
         # Begin streaming.
         cmd = AgentCommand(command=SBE37ProtocolEvent.START_AUTOSAMPLE)
@@ -1278,16 +1195,10 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
             self.assertTrue(isinstance(pressure[0], numpy.float64))
             self.assertTrue(isinstance(time[0], numpy.float64))
 
-
-
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-
-
-        pass
 
     @unittest.skip("raw mode not yet implemented")
     def test_data_stream_integrity_autosample_raw(self):
@@ -1402,7 +1313,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
 
         # Lets get 3 samples.
-        self.data_subscribers.no_samples = 3
+        self.data_subscribers.start_data_subscribers(3)
 
         # Poll for a few samples.
         cmd = AgentCommand(command=SBE37ProtocolEvent.ACQUIRE_SAMPLE)
@@ -1419,7 +1330,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         # Assert we got 3 samples.
         self.data_subscribers.async_data_result.get(timeout=10)
-        self.assertTrue(len(self.data_subscribers.samples_received)==self.data_subscribers.no_samples)
+        self.assertTrue(len(self.data_subscribers.samples_received)==3)
 
         for x in self.data_subscribers.samples_received:
             psd = PointSupplementStreamParser(stream_definition=SBE37_CDM_stream_definition(), stream_granule=x)
@@ -1447,7 +1358,6 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-        pass
 
     @unittest.skip("raw mode not yet implemented")
     def test_data_stream_integrity_polled_raw(self):
@@ -1816,7 +1726,8 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         }
         self.instrument_agent_client.set_resource(params)
 
-        self.data_subscribers.no_samples = 2
+        self.data_subscribers.start_data_subscribers(2)
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
 
         # Begin streaming.
         cmd = AgentCommand(command=SBE37ProtocolEvent.START_AUTOSAMPLE)
@@ -1848,6 +1759,8 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        self.doCleanups()
 
 
     def assertParamDict(self, pd, all_params=False):
@@ -1971,7 +1884,8 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         # Lets get 3 samples.
-        self.data_subscribers.no_samples = 3
+        self.data_subscribers.start_data_subscribers(3)
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
 
         # Poll for a few samples.
         cmd = AgentCommand(command=SBE37ProtocolEvent.ACQUIRE_SAMPLE)
@@ -1988,15 +1902,16 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         # Assert we got 3 samples.
         # note no samples are being caught by the default data subscriber.
-        self.data_subscribers.async_data_result.get(timeout=10)
+        self.data_subscribers.async_sample_result.get(timeout=10)
         log.debug("SAMPLES RECEIVED =====> " + str(self.data_subscribers.samples_received))
-        self.assertTrue(len(self.data_subscribers.samples_received)==self.data_subscribers.no_samples)
+        self.assertGreaterEqual(len(self.data_subscribers.samples_received), 3)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
+        self.doCleanups()
 
     def test_instrument_driver_vs_invalid_commands(self):
         """
