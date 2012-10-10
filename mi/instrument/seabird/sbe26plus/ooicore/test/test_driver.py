@@ -33,7 +33,7 @@ InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
     driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = '2E7GNV',
+    instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'seabird_sbe26plus_ooicore',
     instrument_agent_packet_config = PACKET_CONFIG,
     instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)

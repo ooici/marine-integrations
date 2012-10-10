@@ -43,7 +43,7 @@ class InstrumentFSM():
         Return current state.
         """
 
-        log.debug("entering InstrumentFSM.get_current_state")
+
         return self.current_state
 
     def add_handler(self, state, event, handler):
@@ -53,7 +53,7 @@ class InstrumentFSM():
         @param the event to handle.
         @retval True if successful, False otherwise.
         """
-        log.debug("entering InstrumentFSM.add_handler")
+
         if not self.states.has(state):
             return False
         
@@ -73,7 +73,7 @@ class InstrumentFSM():
         @retval True if successful, False otherwise.
         @raises Any exception raised by the enter handler.
         """
-        log.debug("entering InstrumentFSM.start")
+
         if not self.states.has(state):
             return False
                 
@@ -94,14 +94,13 @@ class InstrumentFSM():
         @raises InstrumentStateException if no handler for the event exists in current state.
         @raises Any exception raised by the handlers.
         """
-        log.debug("entering InstrumentFSM.on_event")
+
         next_state = None
         result = None
 
         if self.events.has(event):
             handler = self.state_handlers.get((self.current_state, event), None)
             if handler:
-                log.debug("InstrumentFSM.on_event calling " + str(handler))
                 (next_state, result) = handler(*args, **kwargs)
             else:
                 raise InstrumentStateException('Command not handled in current state.')
@@ -122,10 +121,9 @@ class InstrumentFSM():
         @param kwargs keyword arguments to pass to the handler.
         @raises Any exception raised by the handlers.
         """
-        log.debug("entering InstrumentFSM._on_transition")
+
         handler = self.state_handlers.get((self.current_state, self.exit_event), None)
         if handler:
-            log.debug("InstrumentFSM._on_transition calling " + str(handler))
             handler(*args, **kwargs)
         self.previous_state = self.current_state
         self.current_state = next_state
@@ -139,7 +137,6 @@ class InstrumentFSM():
         @param current_state if true, return events handled in the current state only.
         @retval list of events handled.
         """
-        log.debug("entering InstrumentFSM.get_events")
         events = []
         for (key, handler) in self.state_handlers.iteritems():
             state = key[0]

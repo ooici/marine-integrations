@@ -36,6 +36,7 @@ from gevent import monkey; monkey.patch_all()
 import gevent
 import time
 import socket
+import re
 
 import unittest
 from mock import patch
@@ -74,7 +75,7 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
-
+from mi.core.exceptions import InstrumentCommandException
 
 
 from prototype.sci_data.stream_parser import PointSupplementStreamParser
@@ -90,6 +91,7 @@ from pyon.agent.agent import ResourceAgentEvent
 
 from pyon.core.exception import BadRequest
 from pyon.core.exception import Conflict
+from pyon.agent.instrument_fsm import FSMStateError
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
@@ -105,7 +107,11 @@ from mi.core.instrument.instrument_driver import DriverParameter
 #   Driver parameters for the tests
 ###
 
-
+# 'will echo' command sequence to be sent from DA telnet server
+# see RFCs 854 & 857
+WILL_ECHO_CMD = '\xff\xfd\x03\xff\xfb\x03\xff\xfb\x01'
+# 'do echo' command sequence to be sent back from telnet client
+DO_ECHO_CMD   = '\xff\xfb\x03\xff\xfd\x03\xff\xfd\x01'
 
 PARAMS = {
     # DS # parameters - contains all setsampling parameters
@@ -1414,8 +1420,10 @@ BAD_SAMPLE_DATA =\
         "   H1/100 = 0.0000e+00" + NEWLINE +\
         "tide: start time = 05 Oct 2012 01:13:54, p = 14.5384, pt = 24.205, t = 23.8363" + NEWLINE
 
-class my_sock():
+class TcpClient():
+    # for direct access testing
     buf = ""
+
     def __init__(self, host, port):
         self.buf = ""
         self.host = host
@@ -1426,16 +1434,16 @@ class my_sock():
         self.s.settimeout(0.0)
 
     def read_a_char(self):
-        c = None
+        temp = self.s.recv(1024)
+        if len(temp) > 0:
+            log.debug("read_a_char got '" + str(repr(temp)) + "'")
+            self.buf += temp
         if len(self.buf) > 0:
             c = self.buf[0:1]
             self.buf = self.buf[1:]
         else:
-            self.buf = self.s.recv(1024)
-            log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
-
+            c = None
         return c
-
 
     def peek_at_buffer(self):
         if len(self.buf) == 0:
@@ -1446,7 +1454,6 @@ class my_sock():
                 """
                 Ignore this exception, its harmless
                 """
-
         return self.buf
 
     def remove_from_buffer(self, remove):
@@ -1594,12 +1601,9 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
     def test_instrument_driver_init_(self):
         """
-        NOT DONE
+        @brief Test that the InstrumentDriver constructors correctly build a Driver instance.
         # should call instrument/instrument_driver SingleConnectionInstrumentDriver.__init__
         # which will call InstrumentDriver.__init__, then create a _connection_fsm and start it.
-        # 1. verify it created the FSM with the expected top level states.
-        # 2. for each top level state, verify the commands.
-        # 3. verify that the correct starting state is achieved.
         """
 
         ID = InstrumentDriver(self.my_event_callback)
@@ -1854,7 +1858,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
             log.debug(str(ret))
             master_list.append(getattr(c, k))
             self.assertEqual(len(ret), 1)
-        self.assertEqual(len(p._filter_capabilities(master_list)), 4)
+        self.assertEqual(len(p._filter_capabilities(master_list)), 7)
 
         # Negative Testing
         self.assertEqual(len(p._filter_capabilities(['BIRD', 'ABOVE', 'WATER'])), 0)
@@ -3265,7 +3269,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
     # WORKS
     def test_set_sampling(self):
         """
-        Test device setsampling.
+        @brief Test device setsampling.
         """
         parameter_all = [
             Parameter.ALL
@@ -3555,7 +3559,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
     # WORKS
     def test_set_time(self):
         """
-        Test setting time with settime command
+        @brief Test setting time with settime command
         S>settime
         set current time:
         month (1 - 12) = 1
@@ -3602,7 +3606,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
     # WORKS
     def test_upload_data_ascii(self):
         """
-        Test device parameter access.
+        @brief Test device parameter access.
         """
         # Test the driver is in state unconfigured.
         state = self.driver_client.cmd_dvr('get_resource_state')
@@ -3644,7 +3648,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
     # WORKS
     def test_take_sample(self):
         """
-        Test device parameter access.
+        @brief Test device parameter access.
         """
         # Test the driver is in state unconfigured.
         state = self.driver_client.cmd_dvr('get_resource_state')
@@ -3708,7 +3712,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
     # works
     def test_init_logging(self):
         """
-        Test init logging command.
+        @brief Test init logging command.
         """
         # Test the driver is in state unconfigured.
         state = self.driver_client.cmd_dvr('get_resource_state')
@@ -3740,7 +3744,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
     # works
     def test_quit_session(self):
         """
-        Test quit session command.
+        @brief Test quit session command.
         """
         # Test the driver is in state unconfigured.
         state = self.driver_client.cmd_dvr('get_resource_state')
@@ -3930,6 +3934,155 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
+    def test_bad_commands(self):
+        """
+        @brief test that bad commands are handled with grace and style.
+        """
+
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+
+        # Test bad commands in UNCONFIGURED state.
+
+        exception_happened = False
+        try:
+            state = self.driver_client.cmd_dvr('conquer_the_world')
+        except InstrumentCommandException as ex:
+            exception_happened = True
+            log.debug("1 - conquer_the_world - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+        # Test the driver is configured for comms.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        #state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Test bad commands in DISCONNECTED state.
+
+        exception_happened = False
+        try:
+            state = self.driver_client.cmd_dvr('test_the_waters')
+        except InstrumentCommandException as ex:
+            exception_happened = True
+            log.debug("2 - test_the_waters - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+
+        # Test the driver is in unknown state.
+        reply = self.driver_client.cmd_dvr('connect')
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolState.UNKNOWN)
+
+        # Test bad commands in UNKNOWN state.
+
+        exception_happened = False
+        try:
+            state = self.driver_client.cmd_dvr("skip_to_the_loo")
+        except InstrumentCommandException as ex:
+            exception_happened = True
+            log.debug("3 - skip_to_the_loo - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+
+
+        # Test the driver is in command mode.
+        reply = self.driver_client.cmd_dvr('discover_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolState.COMMAND)
+
+        # Test bad commands in COMMAND state.
+
+        exception_happened = False
+        try:
+            state = self.driver_client.cmd_dvr("... --- ..., ... --- ...")
+        except InstrumentCommandException as ex:
+            exception_happened = True
+            log.debug("4 - ... --- ..., ... --- ... - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+    def assert_sample_dict(self, sample):
+        """
+        @brief validate that a sample contains the correct fields.
+        """
+        self.assertTrue('stream_name' in sample.keys())
+        self.assertTrue('parsed' in sample.keys())
+        self.assertTrue('p' in sample['parsed'].keys())
+        self.assertTrue('t' in sample['parsed'].keys())
+        self.assertTrue('pt' in sample['parsed'].keys())
+
+
+    def test_poll(self):
+        """
+        @brief Test sample polling commands and events.
+        also tests execute_resource
+        """
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolState.UNKNOWN)
+
+        reply = self.driver_client.cmd_dvr('discover_state')
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolState.COMMAND)
+
+        # Poll for a sample and confirm result.
+        reply = self.driver_client.cmd_dvr('execute_resource', Capability.ACQUIRE_SAMPLE)
+        log.debug("SAMPLE = " + repr(reply))
+        self.assert_sample_dict(reply)
+
+        # Poll for a sample and confirm result.
+        reply = self.driver_client.cmd_dvr('execute_resource', Capability.ACQUIRE_SAMPLE)
+        log.debug("SAMPLE = " + repr(reply))
+        self.assert_sample_dict(reply)
+
+        # Poll for a sample and confirm result.
+        reply = self.driver_client.cmd_dvr('execute_resource', Capability.ACQUIRE_SAMPLE)
+        log.debug("SAMPLE = " + repr(reply))
+        self.assert_sample_dict(reply)
+
+        # Confirm that 3 samples arrived as published events.
+        gevent.sleep(1)
+        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
+        # @TODO Set this properly (3) when only one set of events are sent
+        self.assertEqual(len(sample_events), 6)
+
+        # Disconnect from the port agent.
+        reply = self.driver_client.cmd_dvr('disconnect')
+
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Deconfigure the driver.
+        reply = self.driver_client.cmd_dvr('initialize')
+
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+
+
+
+
+
+
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -3938,9 +4091,8 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 @attr('QUAL', group='mi')
 class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
     def setUp(self):
-        log.debug("BEFORE")
         InstrumentDriverQualificationTestCase.setUp(self)
-        log.debug("AFTER")
+
 
     ###
     #    Add instrument specific qualification tests
@@ -3949,7 +4101,7 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
     @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 60}}})
     def test_autosample(self):
         """
-        Test instrument driver execute interface to start and stop streaming
+        @brief Test instrument driver execute interface to start and stop streaming
         mode.
         """
 
@@ -4016,30 +4168,11 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
 
-    def test_command_agent(self):
-        """
-        New test to learn how to talk to the new instrument agent
-        Needs to have startup code modified...
-        Example in extern/coi-services/ion/agents/instrument/test/test_instrument_agent.py
-        """
-        log.debug("**************1")
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        log.debug("**************2")
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.debug("**************3")
-        #state = self._ia_client.get_agent_state()
-        #self.assertEqual(state, ResourceAgentState.IDLE)
-        cmd = AgentCommand(command='get_resource_state')
-        log.debug("**************4")
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.debug("**************5")
-        return
-
-
     def test_direct_access_telnet_mode(self):
         """
         @brief This test verifies that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
+
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
@@ -4053,7 +4186,6 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
-
         cmd = AgentCommand(command=ResourceAgentEvent.RUN)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
@@ -4061,20 +4193,25 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
 
 
         gevent.sleep(5)  # wait for mavs4 to go back to sleep if it was sleeping
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
+                            kwargs={'session_type': DirectAccessTypes.telnet,
+                                    #kwargs={'session_type':DirectAccessTypes.vsp,
+                                    'session_timeout':6000,
+                                    'inactivity_timeout':6000})
 
-        # go direct access
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS, #'go_direct_access',
-            kwargs={'session_type': DirectAccessTypes.telnet,
-                    #kwargs={'session_type':DirectAccessTypes.vsp,
-                    'session_timeout':600,
-                    'inactivity_timeout':600})
         retval = self.instrument_agent_client.execute_agent(cmd)
-        log.warn("go_direct_access retval=" + str(retval.result))
+
+        state = self.instrument_agent_client.get_agent_state()
+
+        self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
+
+        log.info("GO_DIRECT_ACCESS retval=" + str(retval.result))
 
         # start 'telnet' client with returned address and port
         s = TcpClient(retval.result['ip_address'], retval.result['port'])
 
         # look for and swallow 'Username' prompt
+
         try_count = 0
         while s.peek_at_buffer().find("Username: ") == -1:
             log.debug("WANT 'Username:' READ ==>" + str(s.peek_at_buffer()))
@@ -4082,11 +4219,12 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
             try_count += 1
             if try_count > 10:
                 raise Timeout('It took longer than 10 seconds to get a Username: prompt')
+
         s.remove_from_buffer("Username: ")
         # send some username string
         s.send_data("bob\r\n", "1")
-
         # look for and swallow 'token' prompt
+
         try_count = 0
         while s.peek_at_buffer().find("token: ") == -1:
             log.debug("WANT 'token: ' READ ==>" + str(s.peek_at_buffer()))
@@ -4094,9 +4232,11 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
             try_count += 1
             if try_count > 10:
                 raise Timeout('It took longer than 10 seconds to get a token: prompt')
+
         s.remove_from_buffer("token: ")
         # send the returned token
         s.send_data(retval.result['token'] + "\r\n", "1")
+
 
         # look for and swallow telnet negotiation string
         try_count = 0
@@ -4120,153 +4260,350 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
                 raise Timeout('It took longer than 10 seconds to get a connected prompt')
         s.remove_from_buffer("connected\r\n")
 
-        # try to interact with the instrument
+        s.send_data("\r\n", "1")
+        gevent.sleep(2)
+
         try_count = 0
-        while ((s.peek_at_buffer().find("Enter <CTRL>-<C> now to wake up") == -1) and
-               (s.peek_at_buffer().find("Main Menu") == -1)):
-            self.assertNotEqual(try_count, 5)
+        while s.peek_at_buffer().find("S>") == -1:
+            log.debug("BUFFER = '" + repr(s.peek_at_buffer()) + "'")
+            self.assertNotEqual(try_count, 15)
             try_count += 1
-            log.debug("WANT %s or %s; READ ==> %s" %("'Enter <CTRL>-<C> now to wake up'", "'Main Menu'", str(s.peek_at_buffer())))
-            s.send_data("\r\n\r\n", "1")
             gevent.sleep(2)
+        log.debug("FELL OUT!")
 
-
-
-
-    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 2000}}})
-    def old_test_direct_access_telnet_mode(self):
-        """
-        @brief This test verifies that the Instrument Driver
-               properly supports direct access to the physical
-               instrument. (telnet mode)
-        """
-
-
-
-
-
-        #see  nobska/mavs4 for examplar code in the main branch.
-
-
-
-        cmd = AgentCommand(command='power_down')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_resource_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
-
-        cmd = AgentCommand(command='power_up')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_resource_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command='initialize')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_resource_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
-        log.debug("***********************************-2")
-        cmd = AgentCommand(command='go_active')
-        log.debug("***********************************-2.1")
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.debug("***********************************-2.2")
-        cmd = AgentCommand(command='get_resource_state')
-        log.debug("***********************************-2.3")
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.debug("***********************************-2.4")
-        state = retval.result
-        log.debug("***********************************-2.5")
-        self.assertEqual(state, InstrumentAgentState.IDLE)
-        log.debug("***********************************-1")
-        cmd = AgentCommand(command='run')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_resource_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
-        log.debug("***********************************0")
-        # go direct access
-        cmd = AgentCommand(command='go_direct_access',
-            kwargs={'session_type': DirectAccessTypes.telnet,
-                    #kwargs={'session_type':DirectAccessTypes.vsp,
-                    'session_timeout':600,
-                    'inactivity_timeout':600})
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.warn("go_direct_access retval=" + str(retval.result))
-        gevent.sleep(300)
-        s = my_sock(retval.result['ip_address'], retval.result['port'])
-        log.debug("***********************************1")
+        s.remove_from_buffer("\r\nS>")
+        s.remove_from_buffer("S>")
         try_count = 0
-        while s.peek_at_buffer().find("Username: ") == -1:
-            log.debug("WANT 'Username:' READ ==>" + str(s.peek_at_buffer()))
-            gevent.sleep(1)
-            try_count = try_count + 1
-            if try_count > 10:
-                raise Timeout('I took longer than 10 seconds to get a Username: prompt')
-        log.debug("***********************************2")
-        s.remove_from_buffer("Username: ")
-        s.send_data("bob\r\n", "1")
-
-        try_count = 0
-        while s.peek_at_buffer().find("token: ") == -1:
-            log.debug("WANT 'token: ' READ ==>" + str(s.peek_at_buffer()))
-            gevent.sleep(0.1)
-            try_count = try_count + 1
-            if try_count > 10:
-                raise Timeout('I took longer than 10 seconds to get a token: prompt')
-        log.debug("***********************************3")
-        s.remove_from_buffer("token: ")
-        log.debug("***********************************3.1")
-        s.send_data(retval.result['token'] + "\r\n", "1")
-        log.debug("***********************************3.2")
-
-        try_count = 0
-        log.debug("***********************************3.3")
-        while s.peek_at_buffer().find("connected\n") == -1:
-            log.debug("***********************************3.4")
-            log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
-            log.debug("***********************************3.5")
-            gevent.sleep(0.1)
-            log.debug("***********************************3.6")
-            s.peek_at_buffer()
-            log.debug("***********************************3.7")
-            try_count = try_count + 1
-            log.debug("***********************************3.8")
-            if try_count > 10:
-                raise Timeout('I took longer than 10 seconds to get a connected prompt')
-        log.debug("***********************************4")
-        s.remove_from_buffer("connected\n")
-        """
         s.send_data("ts\r\n", "1")
-        log.debug("SENT THE TS COMMAND")
 
-        pattern = re.compile("^([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9a-z]+),([ 0-9:]+)")
+        while s.peek_at_buffer().find("ts") == -1:
+            log.debug("BUFFER = '" + repr(s.peek_at_buffer()) + "'")
+            self.assertNotEqual(try_count, 15)
+            try_count += 1
+            gevent.sleep(20)
+        s.remove_from_buffer("ts")
+
+        while s.peek_at_buffer().find("\r\nS>") == -1:
+            log.debug("BUFFER = '" + repr(s.peek_at_buffer()) + "'")
+            self.assertNotEqual(try_count, 15)
+            try_count += 1
+            gevent.sleep(20)
+
+        pattern = re.compile(" ([0-9\-\.]+) +([0-9\-\.]+) +([0-9\-\.]+) +([0-9\-\.]+) +([0-9\-\.]+)")
 
         matches = 0
         n = 0
         while n < 100:
             n = n + 1
             gevent.sleep(1)
-            data = s.get_data()
+            data = s.peek_at_buffer()
             log.debug("READ ==>" + str(repr(data)))
             m = pattern.search(data)
             if m != None:
+                log.debug("MATCHES ==>" + str(m.lastindex))
                 matches = m.lastindex
-                if matches == 7:
+                if matches == 5:
                     break
 
-        self.assertTrue(matches == 7) # need to have found 7 conformant fields.
-        """
+
+        self.assertTrue(matches == 5) # need to have found 7 conformant fields.
+
+        # RAW READ GOT ''ts -159.0737 -8387.75  -3.2164 -1.02535   0.0000\r\nS>''
+
 
     def test_get_capabilities(self):
-        log.debug("********************************** IN test_get_capabilities ****************")
-        #ResourceAgentEvent.GO_ACTIVE
+        """
+        @brief Verify that the correct capabilities are returned from get_capabilities
+        at various driver/agent states.
+        """
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        agent_capabilities = []
+        unknown = []
+        driver_capabilities = []
+        driver_vars = []
         retval = self.instrument_agent_client.get_capabilities()
-        log.debug("********************************** B ****************")
         for x in retval:
-            log.debug(repr(x))
-            log.debug(str(x))
+            if x.cap_type == 1:
+                agent_capabilities.append(x.name)
+            elif x.cap_type == 2:
+                unknown.append(x.name)
+            elif x.cap_type == 3:
+                driver_capabilities.append(x.name)
+            elif x.cap_type == 4:
+                driver_vars.append(x.name)
+            else:
+                log.debug("*UNKNOWN* " + str(repr(x)))
+
+        #--- Verify the following for ResourceAgentState.UNINITIALIZED
+        self.assertEqual(agent_capabilities, ['RESOURCE_AGENT_EVENT_INITIALIZE'])
+        self.assertEqual(unknown, ['example'])
+        self.assertEqual(driver_capabilities, [])
+        self.assertEqual(driver_vars, [])
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+
+        agent_capabilities = []
+        unknown = []
+        driver_capabilities = []
+        driver_vars = []
+        retval = self.instrument_agent_client.get_capabilities()
+
+        for x in retval:
+            if x.cap_type == 1:
+                agent_capabilities.append(x.name)
+            elif x.cap_type == 2:
+                unknown.append(x.name)
+            elif x.cap_type == 3:
+                driver_capabilities.append(x.name)
+            elif x.cap_type == 4:
+                driver_vars.append(x.name)
+            else:
+                log.debug("*UNKNOWN* " + str(repr(x)))
+
+        #--- Verify the following for ResourceAgentState.INACTIVE
+        self.assertEqual(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_ACTIVE', 'RESOURCE_AGENT_EVENT_RESET'])
+        self.assertEqual(unknown, ['example'])
+        self.assertEqual(driver_capabilities, [])
+        self.assertEqual(driver_vars, [])
+
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+
+        agent_capabilities = []
+        unknown = []
+        driver_capabilities = []
+        driver_vars = []
+        retval = self.instrument_agent_client.get_capabilities()
+
+        for x in retval:
+            if x.cap_type == 1:
+                agent_capabilities.append(x.name)
+            elif x.cap_type == 2:
+                unknown.append(x.name)
+            elif x.cap_type == 3:
+                driver_capabilities.append(x.name)
+            elif x.cap_type == 4:
+                driver_vars.append(x.name)
+            else:
+                log.debug("*UNKNOWN* " + str(repr(x)))
+
+        #--- Verify the following for ResourceAgentState.IDLE
+        self.assertEqual(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_INACTIVE', 'RESOURCE_AGENT_EVENT_RESET',
+                                              'RESOURCE_AGENT_EVENT_RUN'])
+        self.assertEqual(unknown, ['example'])
+        self.assertEqual(driver_capabilities, [])
+        self.assertEqual(driver_vars, [])
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        agent_capabilities = []
+        unknown = []
+        driver_capabilities = []
+        driver_vars = []
+        retval = self.instrument_agent_client.get_capabilities()
+
+        for x in retval:
+            if x.cap_type == 1:
+                agent_capabilities.append(x.name)
+            elif x.cap_type == 2:
+                unknown.append(x.name)
+            elif x.cap_type == 3:
+                driver_capabilities.append(x.name)
+            elif x.cap_type == 4:
+                driver_vars.append(x.name)
+            else:
+                log.debug("*UNKNOWN* " + str(repr(x)))
+
+        #--- Verify the following for ResourceAgentState.COMMAND
+        self.assertEqual(agent_capabilities, ['RESOURCE_AGENT_EVENT_CLEAR', 'RESOURCE_AGENT_EVENT_RESET',
+                                              'RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS',
+                                              'RESOURCE_AGENT_EVENT_GO_INACTIVE',
+                                              'RESOURCE_AGENT_EVENT_PAUSE'])
+        self.assertEqual(unknown, ['example'])
+        self.assertEqual(driver_capabilities, ['DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                               'DRIVER_EVENT_SET', 'DRIVER_EVENT_GET',
+                                               'PROTOCOL_EVENT_SETSAMPLING', 'DRIVER_EVENT_START_AUTOSAMPLE',
+                                               'PROTOCOL_EVENT_UPLOAD_ASCII'])
+        # Assert all PARAMS are present.
+        for p in PARAMS.keys():
+            self.assertTrue(p in driver_vars)
+
+
+
+    def test_execute_capability_from_invalid_state(self):
+        """
+        @brief Perform netative testing that capabilitys utilized
+        from wrong states are caught and handled gracefully.
+        """
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        # Lets try GO_ACTIVE too early....
+
+        exception_happened = False
+        try:
+            cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+            retval = self.instrument_agent_client.execute_agent(cmd)
+        except Conflict as ex:
+            exception_happened = True
+            log.debug("1 - GO_ACTIVE - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        # Lets try RUN too early....
+
+        exception_happened = False
+        try:
+            cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+            retval = self.instrument_agent_client.execute_agent(cmd)
+        except Conflict as ex:
+            exception_happened = True
+            log.debug("2 - RUN - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        # Now advance to next state
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE) #*****
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        # Lets try RUN too early....
+
+        exception_happened = False
+        try:
+            cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+            retval = self.instrument_agent_client.execute_agent(cmd)
+        except Conflict as ex:
+            exception_happened = True
+            log.debug("3 - RUN - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE) #*****
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        # Lets try INITIALIZE too late....
+
+        exception_happened = False
+        try:
+            cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+            retval = self.instrument_agent_client.execute_agent(cmd)
+        except Conflict as ex:
+            exception_happened = True
+            log.debug("4 - INITIALIZE - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN) #*****
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        # Lets try RUN too when in COMMAND....
+
+        exception_happened = False
+        try:
+            cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+            retval = self.instrument_agent_client.execute_agent(cmd)
+        except Conflict as ex:
+            exception_happened = True
+            log.debug("5 - RUN - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        # Lets try INITIALIZE too late....
+
+        exception_happened = False
+        try:
+            cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+            retval = self.instrument_agent_client.execute_agent(cmd)
+        except Conflict as ex:
+            exception_happened = True
+            log.debug("6 - INITIALIZE - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        # Lets try GO_ACTIVE too late....
+
+        exception_happened = False
+        try:
+            cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+            retval = self.instrument_agent_client.execute_agent(cmd)
+        except Conflict as ex:
+            exception_happened = True
+            log.debug("7 - GO_ACTIVE - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+    def test_execute_reset(self):
+        """
+        @brief Walk the driver into command mode and perform a reset
+        verifying it goes back to UNINITIALIZED, then walk it back to
+        COMMAND to test there are no glitches in RESET
+        """
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        # Test RESET
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
