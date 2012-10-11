@@ -1,0 +1,6 @@
+comm:
+  command_port: 4003
+  data_port: 4002
+  device_addr: ciports1-4.whoi.edu
+  device_port: 2104
+  method: ethernet

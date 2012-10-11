@@ -35,7 +35,6 @@ from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.instrument_agent_client import InstrumentAgentDataSubscribers
 from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
 
-
 from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import TestNoCommConfig
 from mi.core.exceptions import InstrumentException
@@ -56,6 +55,17 @@ from ion.agents.port.port_agent_process import PortAgentProcess
 
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
+
+from mi.core.common import BaseEnum
+from mi.core.instrument.instrument_driver import DriverEvent
+class RequiredCapabilities(BaseEnum):
+    """
+    Required Capabilities for Every Driver
+    """
+    GET = DriverEvent.GET
+    SET = DriverEvent.SET
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
 
 class InstrumentDriverTestConfig(Singleton):
     """

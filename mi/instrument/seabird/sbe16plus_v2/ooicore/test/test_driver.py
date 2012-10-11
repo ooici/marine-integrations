@@ -41,15 +41,17 @@ from mi.core.exceptions import InstrumentCommandException
 
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import PACKET_CONFIG
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import InstrumentDriver
-from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16ProtocolState
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import ProtocolState
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import ProtocolEvent
-from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16Parameter
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import Capability
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import Parameter
 from ion.agents.port.logger_process import EthernetDeviceLogger
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import RequiredCapabilities
 
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
@@ -89,45 +91,41 @@ DELIM = ['<<','>>']
 
 # Used to validate param config retrieved from driver.
 PARAMS = {
-    SBE16Parameter.OUTPUTSAL : bool,
-    SBE16Parameter.OUTPUTSV : bool,
-    SBE16Parameter.NAVG : int,
-    SBE16Parameter.SAMPLENUM : int,
-    SBE16Parameter.INTERVAL : int,
-    SBE16Parameter.TXREALTIME : bool,
-    SBE16Parameter.SYNCMODE : bool,
+    Parameter.ALL: list,
+    Parameter.OUTPUTSAL : bool,
+    Parameter.OUTPUTSV : bool,
+    Parameter.NAVG : int,
+    Parameter.SAMPLENUM : int,
+    Parameter.INTERVAL : int,
+    Parameter.TXREALTIME : bool,
+    Parameter.SYNCMODE : bool,
+    Parameter.TCALDATE : tuple,
+    Parameter.TA0 : float,
+    Parameter.TA1 : float,
+    Parameter.TA2 : float,
+    Parameter.TA3 : float,
+    Parameter.CCALDATE : tuple,
+    Parameter.CG : float,
+    Parameter.CH : float,
+    Parameter.CI : float,
+    Parameter.CJ : float,
+    Parameter.CTCOR : float,
+    Parameter.CPCOR : float,
+    Parameter.PCALDATE : tuple,
+    Parameter.PA0 : float,
+    Parameter.PA1 : float,
+    Parameter.PA2 : float,
+    Parameter.PTCA0 : float,
+    Parameter.PTCA1 : float,
+    Parameter.PTCA2 : float,
+    Parameter.PTCB0 : float,
+    Parameter.PTCB1 : float,
+    Parameter.PTCB2 : float,
+    Parameter.POFFSET : float,
     # DHE this doesn't show up in the status unless the
     # SYNCMODE is enabled.  Need to change the test to
     # test for SYNCMODE and if true test for SYNCWAIT
-    #SBE16Parameter.SYNCWAIT : int,
-    SBE16Parameter.TCALDATE : tuple,
-    SBE16Parameter.TA0 : float,
-    SBE16Parameter.TA1 : float,
-    SBE16Parameter.TA2 : float,
-    SBE16Parameter.TA3 : float,
-    SBE16Parameter.CCALDATE : tuple,
-    SBE16Parameter.CG : float,
-    SBE16Parameter.CH : float,
-    SBE16Parameter.CI : float,
-    SBE16Parameter.CJ : float,
-    SBE16Parameter.CTCOR : float,
-    # Our SBE 16plus doesn't have a pressure sensor
-    #SBE16Parameter.CPCOR : float,
-    #SBE16Parameter.PCALDATE : tuple,
-    #SBE16Parameter.PA0 : float,
-    #SBE16Parameter.PA1 : float,
-    #SBE16Parameter.PA2 : float,
-    #SBE16Parameter.PTCA0 : float,
-    #SBE16Parameter.PTCA1 : float,
-    #SBE16Parameter.PTCA2 : float,
-    #SBE16Parameter.PTCB0 : float,
-    #SBE16Parameter.PTCB1 : float,
-    #SBE16Parameter.PTCB2 : float,
-    #SBE16Parameter.POFFSET : float,
-    #SBE16Parameter.RCALDATE : tuple,
-    #SBE16Parameter.RTCA0 : float,
-    #SBE16Parameter.RTCA1 : float,
-    #SBE16Parameter.RTCA2 : float
+    #Parameter.SYNCWAIT : int,
 }
 
 
@@ -156,7 +154,26 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
     def reset_test_vars(self):
         self.raw_stream_received = False
         self.parsed_stream_received = False
-        
+
+    def convert_enum_to_dict(self, obj):
+        """
+        @author Roger Unwin
+        @brief  converts an enum to a dict
+        """
+        dic = {}
+        for i in [v for v in dir(obj) if not callable(getattr(obj,v))]:
+            if False == i.startswith('_'):
+                dic[i] = getattr(obj, i)
+        log.debug("enum dictionary = " + repr(dic))
+        return dic
+
+    """
+    Assert that every item in subset is in superset
+    """    
+    def assertSetComplete(self, subset, superset):
+        for item in subset:
+            self.assertTrue(item in superset)
+            
     def my_event_callback(self, event):
         event_type = event['type']
         print str(event)
@@ -172,6 +189,87 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
                 self.raw_stream_received = True
             elif stream_type == 'parsed':
                 self.parsed_stream_received = True
+
+    """
+    Test that the get_resource_params() method returns a list of params
+    that matches what we expect.
+    """
+    def test_params(self):
+
+        mock_port_agent = Mock(spec=PortAgentClient)
+        test_driver = InstrumentDriver(self.my_event_callback)
+        capability = test_driver.get_resource_params()
+        self.assertSetComplete(capability, PARAMS)
+
+    """
+    Test that, given the complete ProtocolEvent list, the 
+    filter_capabilities returns a list equal to Capabilities
+    """        
+    def test_filter_capabilities(self):
+
+        mock_port_agent = Mock(spec=PortAgentClient)
+        test_driver = InstrumentDriver(self.my_event_callback)
+
+        """
+        invoke configure and connect to set up the _protocol attribute
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        driver_events = ProtocolEvent.list()
+        events = test_driver._protocol._filter_capabilities(driver_events)
+        self.assertTrue(events)
+        driver_capabilities = Capability.list()
+        self.assertEqual(events, driver_capabilities)
+
+    """
+    Test that the driver returns the required capabilities. 
+    """        
+    def test_capabilities(self):
+
+        mock_port_agent = Mock(spec=PortAgentClient)
+        test_driver = InstrumentDriver(self.my_event_callback)
+
+        """
+        invoke configure and connect to set up the _protocol attribute
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        required_capabilities = RequiredCapabilities.list()
+        driver_capabilities = test_driver._protocol._protocol_fsm.get_events(current_state=False)
+        self.assertTrue(driver_capabilities)
+        self.assertSetComplete(required_capabilities, driver_capabilities)
+
+    """
+    Test that the fsm is initialized with the full list of states
+    """        
+    def test_states(self):
+
+        mock_port_agent = Mock(spec=PortAgentClient)
+        test_driver = InstrumentDriver(self.my_event_callback)
+
+        """
+        invoke configure and connect to set up the _protocol attribute
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        driver_fsm_states = test_driver._protocol._protocol_fsm.states.list()
+        self.assertTrue(driver_fsm_states)
+        driver_states = ProtocolState.list()
+        self.assertEqual(driver_fsm_states, driver_states)
+        #self.assertSetComplete(driver_fsm_states, driver_states)
+        
 
     """
     This version of the test creates a PortAgentPacket object and passes it to
@@ -318,12 +416,6 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         (which means that the FSM should now be reporting the ProtocolState).
         """
         
-        """
-        TODO: DHE: Shouldn't have to put a sleep here; it's like the
-        port_agent isn't up yet; I get a connection refused without this.
-        """
-        gevent.sleep(2)
-
         test_driver.connect()
         current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
@@ -368,6 +460,69 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         paPacket.attach_data(test_sample)
 
         test_driver._protocol.got_data(paPacket)
+        
+        """
+        self.assertTrue(self.raw_stream_received)
+        self.assertTrue(self.parsed_stream_received)
+        """
+        
+    pass
+
+
+    def test_set(self):
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = InstrumentDriver(self.my_event_callback)
+        
+        current_state = test_driver.get_resource_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        # commented below out; trying real port agent
+        test_driver.configure(config = config)
+
+        """
+        DHE: trying this; want to invoke the driver methods themselves, but 
+        with the driver talking to the port_agent (through the client).
+        Will it work? Answer: It does, but I can't step through it.  Let
+        me try just running this.
+        """
+        #test_driver.configure(config = self.port_agent_comm_config())
+        current_state = test_driver.get_resource_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        print "DHE: DriverConnectionState: " + str(current_state)
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        #test_driver.execute_force_state(state = DriverProtocolState.COMMAND)
+        #current_state = test_driver.get_resource_state()
+        #print "DHE: DriverProtocolState: " + str(current_state)
+        #self.assertEqual(current_state, DriverProtocolState.COMMAND)
+
+
+        self.reset_test_vars()
+        
+        test_driver._protocol._handler_command_set({Parameter.OUTPUTSAL: True})
         
         """
         self.assertTrue(self.raw_stream_received)
@@ -440,7 +595,6 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """
         
     pass
-
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -562,14 +716,14 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Test the driver is in unknown state.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
+        self.assertEqual(state, ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.COMMAND)
+        self.assertEqual(state, ProtocolState.COMMAND)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('disconnect')
@@ -605,17 +759,17 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
                 
         # Test the driver is in unknown state.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
+        self.assertEqual(state, ProtocolState.UNKNOWN)
                 
         reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.COMMAND)
+        self.assertEqual(state, ProtocolState.COMMAND)
 
         # Get all device parameters. Confirm all expected keys are retrived
         # and have correct type.
-        reply = self.driver_client.cmd_dvr('get', SBE16Parameter.ALL)
+        reply = self.driver_client.cmd_dvr('get', Parameter.ALL)
         self.assertParamDict(reply, True)
 
         # Remember original configuration.
@@ -623,10 +777,10 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         
         # Grab a subset of parameters.
         params = [
-            SBE16Parameter.TA0,
-            SBE16Parameter.INTERVAL,
-            #SBE16Parameter.STORETIME,
-            SBE16Parameter.TCALDATE
+            Parameter.TA0,
+            Parameter.INTERVAL,
+            #Parameter.STORETIME,
+            Parameter.TCALDATE
             ]
         reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertParamDict(reply)        
@@ -635,12 +789,12 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         orig_params = reply
         
         # Construct new parameters to set.
-        old_date = orig_params[SBE16Parameter.TCALDATE]
+        old_date = orig_params[Parameter.TCALDATE]
         new_params = {
-            SBE16Parameter.TA0 : orig_params[SBE16Parameter.TA0] * 1.2,
-            SBE16Parameter.INTERVAL : orig_params[SBE16Parameter.INTERVAL] + 1,
-            #SBE16Parameter.STORETIME : not orig_params[SBE16Parameter.STORETIME],
-            SBE16Parameter.TCALDATE : (old_date[0], old_date[1], old_date[2] + 1)
+            Parameter.TA0 : orig_params[Parameter.TA0] * 1.2,
+            Parameter.INTERVAL : orig_params[Parameter.INTERVAL] + 1,
+            #Parameter.STORETIME : not orig_params[Parameter.STORETIME],
+            Parameter.TCALDATE : (old_date[0], old_date[1], old_date[2] + 1)
         }
 
         # Set parameters and verify.
@@ -655,7 +809,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Retrieve the configuration and ensure it matches the original.
         # Remove samplenum as it is switched by autosample and storetime.
-        reply = self.driver_client.cmd_dvr('get_resource', SBE16Parameter.ALL)
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         reply.pop('SAMPLENUM')
         orig_config.pop('SAMPLENUM')
         self.assertParamVals(reply, orig_config)
@@ -694,13 +848,13 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
                 
         # Test the driver is in unknown state.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
+        self.assertEqual(state, ProtocolState.UNKNOWN)
                 
         reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.COMMAND)
+        self.assertEqual(state, ProtocolState.COMMAND)
 
         # Poll for a sample and confirm result.
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
@@ -755,21 +909,21 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Test the driver is in unknown state.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
+        self.assertEqual(state, ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.COMMAND)
+        self.assertEqual(state, ProtocolState.COMMAND)
         
         # Make sure the device parameters are set to sample frequently and
         # to transmit.
         params = {
-            SBE16Parameter.NAVG : 1,
-            SBE16Parameter.INTERVAL : 10, # Our borrowed SBE16plus takes no less than 10
-            SBE16Parameter.TXREALTIME : True
+            Parameter.NAVG : 1,
+            Parameter.INTERVAL : 10, # Our borrowed SBE16plus takes no less than 10
+            Parameter.TXREALTIME : True
         }
         reply = self.driver_client.cmd_dvr('set_resource', params)
         
@@ -777,7 +931,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Test the driver is in autosample mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.AUTOSAMPLE)
+        self.assertEqual(state, ProtocolState.AUTOSAMPLE)
         
         # Wait for a few samples to roll in.
         #gevent.sleep(30)
@@ -800,7 +954,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.COMMAND)
+        self.assertEqual(state, ProtocolState.COMMAND)
 
         # Verify we received at least 2 samples.
         sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
@@ -841,23 +995,23 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Test the driver is in unknown state.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
+        self.assertEqual(state, ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.COMMAND)
+        self.assertEqual(state, ProtocolState.COMMAND)
 
         start_time = time.time()
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.TEST)
 
         # Test the driver is in unknown state.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.TEST)
+        self.assertEqual(state, ProtocolState.TEST)
         
-        while state != SBE16ProtocolState.COMMAND:
+        while state != ProtocolState.COMMAND:
             gevent.sleep(5)
             elapsed = time.time() - start_time
             log.info('Device testing %f seconds elapsed.' % elapsed)
@@ -935,7 +1089,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
                 
         # Test the driver is in unknown state.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
+        self.assertEqual(state, ProtocolState.UNKNOWN)
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
@@ -945,7 +1099,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.COMMAND)
+        self.assertEqual(state, ProtocolState.COMMAND)
 
         # Poll for a sample and confirm result.
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
@@ -961,7 +1115,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Get all device parameters. Confirm all expected keys are retrived
         # and have correct type.
-        reply = self.driver_client.cmd_dvr('get_resource', SBE16Parameter.ALL)
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         self.assertParamDict(reply, True)
         
         # Assert get fails without a parameter.
@@ -978,9 +1132,9 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         with self.assertRaises(InstrumentParameterException):
             bogus_params = [
                 'a bogus parameter name',
-                SBE16Parameter.INTERVAL,
-                #SBE16Parameter.STORETIME,
-                SBE16Parameter.TCALDATE
+                Parameter.INTERVAL,
+                #Parameter.STORETIME,
+                Parameter.TCALDATE
                 ]
             reply = self.driver_client.cmd_dvr('get_resource', bogus_params)        
         
@@ -994,7 +1148,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         # Assert we cannot set a real parameter to a bogus value.
         with self.assertRaises(InstrumentParameterException):
             bogus_params = {
-                SBE16Parameter.INTERVAL : 'bogus value'
+                Parameter.INTERVAL : 'bogus value'
             }
             reply = self.driver_client.cmd_dvr('set_resource', bogus_params)
         
@@ -1034,19 +1188,19 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Test the driver is in unknown state.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
+        self.assertEqual(state, ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.COMMAND)
+        self.assertEqual(state, ProtocolState.COMMAND)
         
         # Make sure the device parameters are set to sample frequently.
         params = {
-            SBE16Parameter.NAVG : 1,
-            SBE16Parameter.INTERVAL : 5
+            Parameter.NAVG : 1,
+            Parameter.INTERVAL : 5
         }
         reply = self.driver_client.cmd_dvr('set_resource', params)
         
@@ -1054,7 +1208,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Test the driver is in autosample mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.AUTOSAMPLE)
+        self.assertEqual(state, ProtocolState.AUTOSAMPLE)
     
         # Let a sample or two come in.
         gevent.sleep(30)
@@ -1088,7 +1242,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Test the driver is in unknown state.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.UNKNOWN)
+        self.assertEqual(state, ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
         count = 0
@@ -1106,7 +1260,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.AUTOSAMPLE)
+        self.assertEqual(state, ProtocolState.AUTOSAMPLE)
 
         # Let a sample or two come in.
         # This device takes awhile to begin transmitting again after you
@@ -1129,7 +1283,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE16ProtocolState.COMMAND)
+        self.assertEqual(state, ProtocolState.COMMAND)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('disconnect')

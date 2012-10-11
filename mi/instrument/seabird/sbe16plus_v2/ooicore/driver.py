@@ -2,7 +2,7 @@
 
 """
 @package ion.services.mi.sbe16_driver
-@file ion/services/mi/sbe16_driver.py
+@file mi/instrument/seabird/sbe16plus_v2/ooicore/driver.py
 @author David Everett 
 @brief Driver class for sbe16plus V2 CTD instrument.
 """
@@ -43,7 +43,7 @@ log = get_logger()
 # Static enumerations for this class
 ###############################################################################
 
-class SBE16Command(BaseEnum):
+class Command(BaseEnum):
         DS  = 'ds'
         DCAL = 'dcal' # DHE dcal replaces dc
         TS = 'ts'
@@ -54,7 +54,7 @@ class SBE16Command(BaseEnum):
         TP = 'tp'
         SET = 'set'
 
-class SBE16ProtocolState(BaseEnum):
+class ProtocolState(BaseEnum):
     """
     Protocol states for SBE16. Cherry picked from DriverProtocolState
     enum.
@@ -94,7 +94,7 @@ class Capability(BaseEnum):
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
 
 # Device specific parameters.
-class SBE16Parameter(DriverParameter):
+class Parameter(DriverParameter):
     """
     Device parameters for SBE16.
     """
@@ -103,15 +103,8 @@ class SBE16Parameter(DriverParameter):
     NAVG = 'NAVG'
     SAMPLENUM = 'SAMPLENUM'
     INTERVAL = 'INTERVAL'
-    # DHE
-    # SBE 16plus doesn't do this
-    #STORETIME = 'STORETIME'
     TXREALTIME = 'TXREALTIME'
     SYNCMODE = 'SYNCMODE'
-    # DHE This doesn't show up in status when SYNCMODE
-    # is disabled, so the tests fail.  Commenting out for 
-    # now.
-    #SYNCWAIT = 'SYNCWAIT'
     TCALDATE = 'TCALDATE'
     TA0 = 'TA0'
     TA1 = 'TA1'
@@ -122,32 +115,26 @@ class SBE16Parameter(DriverParameter):
     CH = 'CH'
     CI = 'CI'
     CJ = 'CJ'
-    # DHE
-    # SBE 16plus doesn't do this
-    #WBOTC = 'WBOTC'
     CTCOR = 'CTCOR'
     CPCOR = 'CPCOR'
-    # Our SBE 16plus doesn't have a pressure sensor 
-    #PCALDATE = 'PCALDATE'
-    #PA0 = 'PA0'
-    #PA1 = 'PA1'
-    #PA2 = 'PA2'
-    #PTCA0 = 'PTCA0'
-    #PTCA1 = 'PTCA1'
-    #PTCA2 = 'PTCA2'
-    #PTCB0 = 'PTCB0'
-    #PTCB1 = 'PTCB1'
-    #PTCB2 = 'PTCB2'
-    #POFFSET = 'POFFSET'
-    # SBE 16plus doesn't do this
-    #RCALDATE = 'RCALDATE'
-    #RTCA0 = 'RTCA0'
-    #RTCA1 = 'RTCA1'
-    #RTCA2 = 'RTCA2'
-    
+    PCALDATE = 'PCALDATE'
+    PA0 = 'PA0'
+    PA1 = 'PA1'
+    PA2 = 'PA2'
+    PTCA0 = 'PTCA0'
+    PTCA1 = 'PTCA1'
+    PTCA2 = 'PTCA2'
+    PTCB0 = 'PTCB0'
+    PTCB1 = 'PTCB1'
+    PTCB2 = 'PTCB2'
+    POFFSET = 'POFFSET'
+    # DHE This doesn't show up in status when SYNCMODE
+    # is disabled, so the tests fail.  Commenting out for 
+    # now.  Bill F. said that we won't be using SYNCWAIT .
+    #SYNCWAIT = 'SYNCWAIT'
     
 # Device prompts.
-class SBE16Prompt(BaseEnum):
+class Prompt(BaseEnum):
     """
     SBE16 io prompts.
     """
@@ -207,7 +194,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         Return list of device parameters available.
         """
-        return SBE16Parameter.list()        
+        return Parameter.list()        
 
     ########################################################################
     # Protocol builder.
@@ -217,7 +204,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = SBE16Protocol(SBE16Prompt, SBE16_NEWLINE, self._driver_event)
+        self._protocol = SBE16Protocol(Prompt, SBE16_NEWLINE, self._driver_event)
 
 
 class SBE16DataParticleKey(BaseEnum):
@@ -286,57 +273,57 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
         
         # Build SBE16 protocol state machine.
-        self._protocol_fsm = InstrumentFSM(SBE16ProtocolState, ProtocolEvent,
+        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
                             ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(SBE16ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.UNKNOWN, ProtocolEvent.FORCE_STATE, self._handler_unknown_force_state) 
-        self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_autosample_test_get)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.COMMAND, ProtocolEvent.TEST, self._handler_command_test)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_autosample_test_get)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.TEST, ProtocolEvent.ENTER, self._handler_test_enter)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.TEST, ProtocolEvent.EXIT, self._handler_test_exit)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.TEST, ProtocolEvent.RUN_TEST, self._handler_test_run_tests)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.TEST, ProtocolEvent.GET, self._handler_command_autosample_test_get)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(SBE16ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.FORCE_STATE, self._handler_unknown_force_state) 
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST, self._handler_command_test)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.ENTER, self._handler_test_enter)
+        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.EXIT, self._handler_test_exit)
+        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.RUN_TEST, self._handler_test_run_tests)
+        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.GET, self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
 
         # Add build handlers for device commands.
-        self._add_build_handler(SBE16Command.DS, self._build_simple_command)
+        self._add_build_handler(Command.DS, self._build_simple_command)
         # DHE dcal replaces dc
-        self._add_build_handler(SBE16Command.DCAL, self._build_simple_command)
-        self._add_build_handler(SBE16Command.TS, self._build_simple_command)
-        self._add_build_handler(SBE16Command.STARTNOW, self._build_simple_command)
-        self._add_build_handler(SBE16Command.STOP, self._build_simple_command)
-        self._add_build_handler(SBE16Command.TC, self._build_simple_command)
-        self._add_build_handler(SBE16Command.TT, self._build_simple_command)
-        self._add_build_handler(SBE16Command.TP, self._build_simple_command)
-        self._add_build_handler(SBE16Command.SET, self._build_set_command)
+        self._add_build_handler(Command.DCAL, self._build_simple_command)
+        self._add_build_handler(Command.TS, self._build_simple_command)
+        self._add_build_handler(Command.STARTNOW, self._build_simple_command)
+        self._add_build_handler(Command.STOP, self._build_simple_command)
+        self._add_build_handler(Command.TC, self._build_simple_command)
+        self._add_build_handler(Command.TT, self._build_simple_command)
+        self._add_build_handler(Command.TP, self._build_simple_command)
+        self._add_build_handler(Command.SET, self._build_set_command)
 
         # Add response handlers for device commands.
-        self._add_response_handler(SBE16Command.DS, self._parse_dsdc_response)
+        self._add_response_handler(Command.DS, self._parse_dsdc_response)
         # DHE dcal replaces dc
-        self._add_response_handler(SBE16Command.DCAL, self._parse_dcal_response)
-        self._add_response_handler(SBE16Command.TS, self._parse_ts_response)
-        self._add_response_handler(SBE16Command.SET, self._parse_set_response)
-        self._add_response_handler(SBE16Command.TC, self._parse_test_response)
-        self._add_response_handler(SBE16Command.TT, self._parse_test_response)
-        self._add_response_handler(SBE16Command.TP, self._parse_test_response)
+        self._add_response_handler(Command.DCAL, self._parse_dcal_response)
+        self._add_response_handler(Command.TS, self._parse_ts_response)
+        self._add_response_handler(Command.SET, self._parse_set_response)
+        self._add_response_handler(Command.TC, self._parse_test_response)
+        self._add_response_handler(Command.TT, self._parse_test_response)
+        self._add_response_handler(Command.TP, self._parse_test_response)
 
         # Add sample handlers.
         # DHE: replaced the pattern because our borrowed SBE16 doesn't have a pressure sensor 
@@ -348,7 +335,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         self._sample_regex = re.compile(self._sample_pattern)
 
         # State state machine in UNKNOWN state. 
-        self._protocol_fsm.start(SBE16ProtocolState.UNKNOWN)
+        self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
     def _filter_capabilities(self, events):
         """
@@ -377,7 +364,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state; can be COMMAND or AUTOSAMPLE.
-        @retval (next_state, next_agent_state), (SBE16ProtocolState.COMMAND or
+        @retval (next_state, next_agent_state), (ProtocolState.COMMAND or
         SBE16State.AUTOSAMPLE, next_agent_state) if successful.
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentProtocolException if the device response does not correspond to
@@ -389,13 +376,13 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         current_state = self._protocol_fsm.get_current_state()
         
         # Driver can only be started in streaming, command or unknown.
-        if current_state == SBE16ProtocolState.AUTOSAMPLE:
+        if current_state == ProtocolState.AUTOSAMPLE:
             next_agent_state = ResourceAgentState.STREAMING
         
-        elif current_state == SBE16ProtocolState.COMMAND:
+        elif current_state == ProtocolState.COMMAND:
             next_agent_state = ResourceAgentState.IDLE
         
-        elif current_state == SBE16ProtocolState.UNKNOWN:        
+        elif current_state == ProtocolState.UNKNOWN:        
             # Wakeup the device with timeout if passed.
             timeout = kwargs.get('timeout', SBE16_TIMEOUT)
             prompt = self._wakeup(timeout)
@@ -403,11 +390,11 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             
             # Set the state to change.
             # Raise if the prompt returned does not match command or autosample.
-            if prompt in [SBE16Prompt.COMMAND, SBE16Prompt.EXECUTED]:
-                next_state = SBE16ProtocolState.COMMAND
+            if prompt in [Prompt.COMMAND, Prompt.EXECUTED]:
+                next_state = ProtocolState.COMMAND
                 next_agent_state = ResourceAgentState.IDLE
-            elif prompt == SBE16Prompt.AUTOSAMPLE:
-                next_state = SBE16ProtocolState.AUTOSAMPLE
+            elif prompt == Prompt.AUTOSAMPLE:
+                next_state = ProtocolState.AUTOSAMPLE
                 next_agent_state = ResourceAgentState.STREAMING
             else:
                 errorString = 'Failure to recognize device prompt: ' + prompt
@@ -484,7 +471,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         else:
             
             for (key, val) in params.iteritems():
-                result = self._do_cmd_resp(SBE16Command.SET, key, val, **kwargs)
+                result = self._do_cmd_resp(Command.SET, key, val, **kwargs)
             self._update_params()
             
         return (next_state, result)
@@ -501,14 +488,14 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        result = self._do_cmd_resp(SBE16Command.TS, *args, **kwargs)
+        result = self._do_cmd_resp(Command.TS, *args, **kwargs)
         
         return (next_state, (next_agent_state, result))
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Switch into autosample mode.
-        @retval (next_state, result) tuple, (SBE16ProtocolState.AUTOSAMPLE,
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
         (next_agent_state, None) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
@@ -518,13 +505,13 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         # Assure the device is transmitting.
-        if not self._param_dict.get(SBE16Parameter.TXREALTIME):
-            self._do_cmd_resp(SBE16Command.SET, SBE16Parameter.TXREALTIME, True, **kwargs)
+        if not self._param_dict.get(Parameter.TXREALTIME):
+            self._do_cmd_resp(Command.SET, Parameter.TXREALTIME, True, **kwargs)
         
         # Issue start command and switch to autosample if successful.
-        self._do_cmd_no_resp(SBE16Command.STARTNOW, *args, **kwargs)
+        self._do_cmd_no_resp(Command.STARTNOW, *args, **kwargs)
                 
-        next_state = SBE16ProtocolState.AUTOSAMPLE        
+        next_state = ProtocolState.AUTOSAMPLE        
         next_agent_state = ResourceAgentState.STREAMING
         
         return (next_state, (next_agent_state, result))
@@ -532,7 +519,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
     def _handler_command_test(self, *args, **kwargs):
         """
         Switch to test state to perform instrument tests.
-        @retval (next_state, result) tuple, (SBE16ProtocolState.TEST, None).
+        @retval (next_state, result) tuple, (ProtocolState.TEST, None).
         """
         next_state = None
         result = None
@@ -562,7 +549,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Stop autosample and switch back to command mode.
-        @retval (next_state, result) tuple, (SBE16ProtocolState.COMMAND,
+        @retval (next_state, result) tuple, (ProtocolState.COMMAND,
         (next_agent_state, None) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command misunderstood or
@@ -577,8 +564,8 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         notries = 0
         try:
             # DHE: there should really be a tuple of expected prompts
-            #self._wakeup_until(timeout, SBE16Prompt.AUTOSAMPLE)
-            self._wakeup_until(timeout, SBE16Prompt.EXECUTED)
+            #self._wakeup_until(timeout, Prompt.AUTOSAMPLE)
+            self._wakeup_until(timeout, Prompt.EXECUTED)
         
         except InstrumentTimeoutException:
             notries = notries + 1
@@ -586,14 +573,14 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
                 raise
 
         # Issue the stop command.
-        self._do_cmd_resp(SBE16Command.STOP, *args, **kwargs)        
+        self._do_cmd_resp(Command.STOP, *args, **kwargs)        
         
         # Prompt device until command prompt is seen.
         # DHE: there should really be a tuple of expected prompts
-        #self._wakeup_until(timeout, SBE16Prompt.COMMAND)
-        self._wakeup_until(timeout, SBE16Prompt.EXECUTED)
+        #self._wakeup_until(timeout, Prompt.COMMAND)
+        self._wakeup_until(timeout, Prompt.EXECUTED)
         
-        next_state = SBE16ProtocolState.COMMAND
+        next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
         return (next_state, (next_agent_state, result))
@@ -681,10 +668,10 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         test_result = {}
 
         try:
-            tc_pass, tc_result = self._do_cmd_resp(SBE16Command.TC, timeout=200)
-            tt_pass, tt_result = self._do_cmd_resp(SBE16Command.TT, timeout=200)
+            tc_pass, tc_result = self._do_cmd_resp(Command.TC, timeout=200)
+            tt_pass, tt_result = self._do_cmd_resp(Command.TT, timeout=200)
             # DHE: our SBE16 has no pressure sensor
-            #tp_pass, tp_result = self._do_cmd_resp(SBE16Command.TP, timeout=200)
+            #tp_pass, tp_result = self._do_cmd_resp(Command.TP, timeout=200)
         
         except Exception as e:
             test_result['exception'] = e
@@ -702,7 +689,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             test_result['success'] = 'Passed' if (tc_pass and tt_pass) else 'Failed'
             
         self._driver_event(DriverAsyncEvent.TEST_RESULT, test_result)
-        next_state = SBE16ProtocolState.COMMAND
+        next_state = ProtocolState.COMMAND
  
         return (next_state, result)
 
@@ -749,8 +736,8 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         
         # Issue display commands and parse results.
         timeout = kwargs.get('timeout', SBE16_TIMEOUT)
-        self._do_cmd_resp(SBE16Command.DS, timeout=timeout)
-        self._do_cmd_resp(SBE16Command.DCAL, timeout=timeout)
+        self._do_cmd_resp(Command.DS, timeout=timeout)
+        self._do_cmd_resp(Command.DCAL, timeout=timeout)
         
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
@@ -797,7 +784,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.        
         @throws InstrumentProtocolException if set command misunderstood.
         """
-        if prompt not in [SBE16Prompt.EXECUTED, SBE16Prompt.COMMAND]:
+        if prompt not in [Prompt.EXECUTED, Prompt.COMMAND]:
             log.error("Set command encountered error; instrument returned: %s", response) 
             raise InstrumentProtocolException('Set command not recognized: %s' % response)
 
@@ -808,7 +795,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.        
         @throws InstrumentProtocolException if dsdc command misunderstood.
         """
-        if prompt not in [SBE16Prompt.COMMAND, SBE16Prompt.EXECUTED]: 
+        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]: 
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
         for line in response.split(SBE16_NEWLINE):
@@ -830,7 +817,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.        
         @throws InstrumentProtocolException if dsdc command misunderstood.
         """
-        if prompt not in [SBE16Prompt.COMMAND, SBE16Prompt.EXECUTED]:
+        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
             raise InstrumentProtocolException('dcal command not recognized: %s.' % response)
             
         for line in response.split(SBE16_NEWLINE):
@@ -846,7 +833,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentSampleException if response did not contain a sample
         """
         
-        if prompt not in [SBE16Prompt.COMMAND, SBE16Prompt.EXECUTED]:
+        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
             raise InstrumentProtocolException('ts command not recognized: %s', response)
         
         sample = None
@@ -900,7 +887,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
 
             # If in streaming mode, process the buffer for samples to publish.
             cur_state = self.get_current_state()
-            if cur_state == SBE16ProtocolState.AUTOSAMPLE:
+            if cur_state == ProtocolState.AUTOSAMPLE:
                 if SBE16_NEWLINE in self._linebuf:
                     lines = self._linebuf.split(SBE16_NEWLINE)
                     self._linebuf = lines[-1]
@@ -915,167 +902,167 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.        
-        self._param_dict.add(SBE16Parameter.OUTPUTSAL,
+        self._param_dict.add(Parameter.OUTPUTSAL,
                              r'output salinity = (no)?',
                              lambda match : False if match.group(1) else True,
                              self._true_false_to_string)
-        self._param_dict.add(SBE16Parameter.OUTPUTSV,
+        self._param_dict.add(Parameter.OUTPUTSV,
                              r'output sound velocity = (no)?',
                              lambda match : False if match.group(1) else True,
                              self._true_false_to_string)
-        self._param_dict.add(SBE16Parameter.NAVG,
+        self._param_dict.add(Parameter.NAVG,
                              r'number of measurements per sample = (\d+)',
                              lambda match : int(match.group(1)),
                              self._int_to_string)
-        self._param_dict.add(SBE16Parameter.SAMPLENUM,
+        self._param_dict.add(Parameter.SAMPLENUM,
                              r'samples = (\d+), free = \d+',
                              lambda match : int(match.group(1)),
                              self._int_to_string)
-        self._param_dict.add(SBE16Parameter.INTERVAL,
+        self._param_dict.add(Parameter.INTERVAL,
                              r'sample interval = (\d+) seconds',
                              lambda match : int(match.group(1)),
                              self._int_to_string)
         # DHE: 16plus does not do this
-        #self._param_dict.add(SBE16Parameter.STORETIME,
+        #self._param_dict.add(Parameter.STORETIME,
         #                     r'(do not )?store time with each sample',
         #                     lambda match : False if match.group(1) else True,
         #                     self._true_false_to_string)
-        self._param_dict.add(SBE16Parameter.TXREALTIME,
+        self._param_dict.add(Parameter.TXREALTIME,
                              #r'(do not )?transmit real-time data',
                              r'transmit real-time = (yes|no)',
                              #lambda match : False if match.group(1) else True,
                              lambda match : True if match.group(1)=='yes' else False,
                              self._true_false_to_string)
-        self._param_dict.add(SBE16Parameter.SYNCMODE,
+        self._param_dict.add(Parameter.SYNCMODE,
                              r'serial sync mode (enabled|disabled)',
                              lambda match : False if (match.group(1)=='disabled') else True,
                              self._true_false_to_string)
         # DHE This doesn't show up in status when SYNCMODE
         # is disabled, so the tests fail.  Commenting out for 
         # now.
-        #self._param_dict.add(SBE16Parameter.SYNCWAIT,
+        #self._param_dict.add(Parameter.SYNCWAIT,
         #                     r'wait time after serial sync sampling = (\d+) seconds',
         #                     lambda match : int(match.group(1)),
         #                     self._int_to_string)
-        self._param_dict.add(SBE16Parameter.TCALDATE,
+        self._param_dict.add(Parameter.TCALDATE,
                              r'temperature: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
                              self._date_to_string)
-        self._param_dict.add(SBE16Parameter.TA0,
+        self._param_dict.add(Parameter.TA0,
                              #r' +TA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              r' +TA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE16Parameter.TA1,
+        self._param_dict.add(Parameter.TA1,
                              r' +TA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE16Parameter.TA2,
+        self._param_dict.add(Parameter.TA2,
                              r' +TA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE16Parameter.TA3,
+        self._param_dict.add(Parameter.TA3,
                              r' +TA3 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE16Parameter.CCALDATE,
+        self._param_dict.add(Parameter.CCALDATE,
                              r'conductivity: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
                              self._date_to_string)
-        self._param_dict.add(SBE16Parameter.CG,
+        self._param_dict.add(Parameter.CG,
                              r' +G = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE16Parameter.CH,
+        self._param_dict.add(Parameter.CH,
                              r' +H = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE16Parameter.CI,
+        self._param_dict.add(Parameter.CI,
                              r' +I = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        self._param_dict.add(SBE16Parameter.CJ,
+        self._param_dict.add(Parameter.CJ,
                              r' +J = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
         #
         # DHE SBE16 doesn't have this parameter
         #
-        #self._param_dict.add(SBE16Parameter.WBOTC,
+        #self._param_dict.add(Parameter.WBOTC,
         #                     r' +WBOTC = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                     self._float_to_string)
         #
         # DHE SBE16 different than SBE16
         #
-        self._param_dict.add(SBE16Parameter.CTCOR,
+        self._param_dict.add(Parameter.CTCOR,
                              r' +CTCOR = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
         #
         # DHE SBE16 different than SBE16
         #
-        #self._param_dict.add(SBE16Parameter.CPCOR,
+        #self._param_dict.add(Parameter.CPCOR,
         #                     r' +CPCOR = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                     self._float_to_string)
-        #self._param_dict.add(SBE16Parameter.PCALDATE,
+        #self._param_dict.add(Parameter.PCALDATE,
         #                     r'pressure .+ ((\d+)-([a-zA-Z]+)-(\d+))',
         #                     lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
         #                     self._date_to_string)
-        #self._param_dict.add(SBE16Parameter.PA0,
+        #self._param_dict.add(Parameter.PA0,
         #                     r' +PA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                     self._float_to_string)
-        #self._param_dict.add(SBE16Parameter.PA1,
+        #self._param_dict.add(Parameter.PA1,
         #                     r' +PA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                     self._float_to_string)
-        #self._param_dict.add(SBE16Parameter.PA2,
+        #self._param_dict.add(Parameter.PA2,
         #                     r' +PA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                     self._float_to_string)
-        #self._param_dict.add(SBE16Parameter.PTCA0,
+        #self._param_dict.add(Parameter.PTCA0,
         #                     r' +PTCA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                     self._float_to_string)
-        #self._param_dict.add(SBE16Parameter.PTCA1,
+        #self._param_dict.add(Parameter.PTCA1,
         #                     r' +PTCA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                     self._float_to_string)
-        #self._param_dict.add(SBE16Parameter.PTCA2,
+        #self._param_dict.add(Parameter.PTCA2,
         #                     r' +PTCA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                     self._float_to_string)
-        #self._param_dict.add(SBE16Parameter.PTCB0,
+        #self._param_dict.add(Parameter.PTCB0,
         #                     r' +PTCSB0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                    self._float_to_string)
-        #self._param_dict.add(SBE16Parameter.PTCB1,
+        #self._param_dict.add(Parameter.PTCB1,
         #                     r' +PTCSB1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                     self._float_to_string)
-        #self._param_dict.add(SBE16Parameter.PTCB2,
+        #self._param_dict.add(Parameter.PTCB2,
         #                     r' +PTCSB2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                     self._float_to_string)
-        #self._param_dict.add(SBE16Parameter.POFFSET,
+        #self._param_dict.add(Parameter.POFFSET,
         #                     r' +POFFSET = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                     self._float_to_string)
-        #self._param_dict.add(SBE16Parameter.RCALDATE,
+        #self._param_dict.add(Parameter.RCALDATE,
         #                     r'rtc: +((\d+)-([a-zA-Z]+)-(\d+))',
         #                     lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
         #                     self._date_to_string)
-        #self._param_dict.add(SBE16Parameter.RTCA0,
+        #self._param_dict.add(Parameter.RTCA0,
         #                     r' +RTCA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                     self._float_to_string)
-        #self._param_dict.add(SBE16Parameter.RTCA1,
+        #self._param_dict.add(Parameter.RTCA1,
         #                     r' +RTCA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                     self._float_to_string)
-        #self._param_dict.add(SBE16Parameter.RTCA2,
+        #self._param_dict.add(Parameter.RTCA2,
         #                     r' +RTCA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
         #                     lambda match : float(match.group(1)),
         #                     self._float_to_string)
