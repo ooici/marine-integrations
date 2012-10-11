@@ -43,6 +43,7 @@ from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
 from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import TestNoCommConfig
 from mi.core.exceptions import InstrumentException
+from mi.core.exceptions import InstrumentTimeoutException
 
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -457,14 +458,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
     def init_instrument_agent_client(self):
         log.info("Start Instrument Agent Client")
 
-        # A callback for processing subscribed-to data.
-        '''
-        def consume_data(message, headers):
-            log.info('Subscriber received data message: %s.', str(message))
-            self.samples_received.append(message)
-            if self.no_samples and self.no_samples == len(self.samples_received):
-                self.async_data_result.set()
-        '''
         # Driver config
         driver_config = {
             'dvr_mod' : self.test_config.driver_module,
@@ -1156,7 +1149,7 @@ class SocketTester():
             gevent.sleep(1)
             try_count = try_count + 1
             if try_count > 10:
-                raise Timeout('I took longer than 10 seconds to get a Username: prompt')
+                raise InstrumentTimeoutException('I took longer than 10 seconds to get a Username: prompt')
 
         self.remove_from_buffer("Username: ")
         self.send_data("bob\r\n", "1")
@@ -1167,7 +1160,7 @@ class SocketTester():
             gevent.sleep(1)
             try_count = try_count + 1
             if try_count > 10:
-                raise Timeout('I took longer than 10 seconds to get a token: prompt')
+                raise InstrumentTimeoutException('I took longer than 10 seconds to get a token: prompt')
         self.remove_from_buffer("token: ")
         self.send_data(cmd_result.result['token'] + "\r\n", "1")
 
@@ -1178,7 +1171,7 @@ class SocketTester():
             gevent.sleep(1)
             try_count += 1
             if try_count > 10:
-                raise Timeout('It took longer than 10 seconds to get the telnet negotiation string')
+                raise InstrumentTimeoutException('It took longer than 10 seconds to get the telnet negotiation string')
         self.remove_from_buffer(WILL_ECHO_CMD)
         # send the telnet negotiation response string
         self.send_data(DO_ECHO_CMD, "1")
@@ -1190,6 +1183,6 @@ class SocketTester():
             self.peek_at_buffer()
             try_count = try_count + 1
             if try_count > 10:
-                raise Timeout('I took longer than 10 seconds to get a connected prompt')
+                raise InstrumentTimeoutException('I took longer than 10 seconds to get a connected prompt')
 
         self.remove_from_buffer("connected\n")

@@ -69,5 +69,5 @@ class IntFromIDK(SBE26PlusIntFromIDK):
 @attr('QUAL', group='mi')
 class QualFromIDK(SBE26PlusQualFromIDK):
     """
-
+    
     """

@@ -1074,8 +1074,6 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
                stream emitted by the driver properly conforms
                to the canonical format. parsed data stream in autosample mode
         """
-
-
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
@@ -1094,8 +1092,6 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        self.data_subscribers.samples_received = []
-
         # Make sure the sampling rate and transmission are sane.
         params = {
             SBE37Parameter.NAVG : 1,
@@ -1105,11 +1101,11 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         self.instrument_agent_client.set_resource(params)
 
         self.data_subscribers.start_data_subscribers(2)
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
 
         # Begin streaming.
         cmd = AgentCommand(command=SBE37ProtocolEvent.START_AUTOSAMPLE)
         retval = self.instrument_agent_client.execute_resource(cmd)
-
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.STREAMING)
@@ -1121,38 +1117,25 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         cmd = AgentCommand(command=SBE37ProtocolEvent.STOP_AUTOSAMPLE)
         retval = self.instrument_agent_client.execute_resource(cmd)
 
-
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         # Assert we got some samples.
-
-
         self.data_subscribers.async_data_result.get(timeout=33)
 
-        self.assertTrue(len(self.data_subscribers.samples_received)>=2)
+        # we dont really care about raw counts in a parsed test,
+        # but hey, its easy to check
+        self.assertTrue(len(self.data_subscribers.parsed_samples_received)>=2)
+        self.assertTrue(len(self.data_subscribers.raw_samples_received)>=2)
 
-
-        for granule in self.data_subscribers.samples_received:
-            log.debug("*** granule: %s", granule)
-            rdt = RecordDictionaryTool.load_from_granule(granule)
-            self.assert_('conductivity' in rdt)
-            self.assert_(rdt['conductivity'] is not None)
-            self.assertTrue(isinstance(rdt['conductivity'], numpy.float64))
-
-            self.assert_('depth' in rdt)
-            self.assert_(rdt['depth'] is not None)
-            self.assertTrue(isinstance(rdt['depth'], numpy.float64))
-
-            self.assert_('temp' in rdt)
-            self.assert_(rdt['temp'] is not None)
-            self.assertTrue(isinstance(rdt['temp'], numpy.float64))
-            
-
+        self.assertParsedGranules()
+                
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        self.doCleanups()
 
     @unittest.skip("raw mode not yet implemented")
     def test_data_stream_integrity_autosample_raw(self):
@@ -1163,6 +1146,23 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         """
         pass
 
+    def assertParsedGranules(self):
+        
+        for granule in self.data_subscribers.parsed_samples_received:
+            rdt = RecordDictionaryTool.load_from_granule(granule)
+            
+            self.assert_('conductivity' in rdt)
+            self.assert_(rdt['conductivity'] is not None)
+            self.assertTrue(isinstance(rdt['conductivity'], numpy.ndarray))                      
+
+            self.assert_('depth' in rdt)
+            self.assert_(rdt['depth'] is not None)
+            self.assertTrue(isinstance(rdt['depth'], numpy.ndarray))
+
+            self.assert_('temp' in rdt)
+            self.assert_(rdt['temp'] is not None)
+            self.assertTrue(isinstance(rdt['temp'], numpy.ndarray))
+        
     def assertSampleDict(self, val):
         """
         Verify the value is a sample dictionary for the sbe37.
@@ -1210,31 +1210,11 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
                     'driver_timestamp': 3557855046.123893
                 }
             },
-
-
         """
 
         for x in val['parsed']['values']:
             self.assertTrue(x['value_id'] in ['temp', 'conductivity', 'depth'])
             self.assertTrue(isinstance(x['value'], float))
-
-        '''
-        self.assertTrue(isinstance(val, dict))
-        self.assertTrue(val.has_key('c'))
-        self.assertTrue(val.has_key('t'))
-        self.assertTrue(val.has_key('p'))
-        self.assertTrue(val.has_key('time'))
-        c = val['c'][0]
-        t = val['t'][0]
-        p = val['p'][0]
-        time = val['time'][0]
-
-        self.assertTrue(isinstance(c, float))
-        self.assertTrue(isinstance(t, float))
-        self.assertTrue(isinstance(p, float))
-        self.assertTrue(isinstance(time, float))
-        '''
-
 
     def test_data_stream_integrity_polled_parsed(self):
         """
@@ -1242,7 +1222,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
                stream emitted by the driver properly conforms
                to the canonical format. parsed data stream in polled mode
         """
-        self.data_subscribers.samples_received = []
+        self.data_subscribers.parsed_samples_received = []
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
@@ -1285,30 +1265,11 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         # Assert we got 3 samples.
         self.data_subscribers.async_data_result.get(timeout=10)
-        self.assertTrue(len(self.data_subscribers.samples_received)==3)
+        self.assertTrue(len(self.data_subscribers.parsed_samples_received)==3)
 
-        for x in self.data_subscribers.samples_received:
-            psd = PointSupplementStreamParser(stream_definition=SBE37_CDM_stream_definition(), stream_granule=x)
+        self.assertParsedGranules()
 
-            self.assertTrue(isinstance(psd, PointSupplementStreamParser))
-            field_names = psd.list_field_names()
-
-            self.assertTrue('conductivity' in field_names)
-            self.assertTrue('pressure' in field_names)
-            self.assertTrue('temperature' in field_names)
-            self.assertTrue('time' in field_names)
-
-            conductivity = psd.get_values('conductivity')
-            pressure = psd.get_values('pressure')
-            temperature = psd.get_values('temperature')
-            time = psd.get_values('time')
-
-            self.assertTrue(isinstance(conductivity[0], numpy.float64))
-            self.assertTrue(isinstance(temperature[0], numpy.float64))
-            self.assertTrue(isinstance(pressure[0], numpy.float64))
-            self.assertTrue(isinstance(time[0], numpy.float64))
-
-        cmd = AgentCommand(command='reset')
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
@@ -1696,7 +1657,8 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         # Assert we got some samples.
         self.data_subscribers.async_data_result.get(timeout=30)
-        self.assertTrue(len(self.data_subscribers.samples_received)>=2)
+        self.assertTrue(len(self.data_subscribers.raw_samples_received)>=2)
+        self.assertTrue(len(self.data_subscribers.parsed_samples_received)>=2)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -1846,8 +1808,10 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         # Assert we got 3 samples.
         # note no samples are being caught by the default data subscriber.
         self.data_subscribers.async_data_result.get(timeout=10)
-        log.debug("SAMPLES RECEIVED =====> " + str(self.data_subscribers.samples_received))
-        self.assertGreaterEqual(len(self.data_subscribers.samples_received), 3)
+        log.debug("SAMPLES RECEIVED =====> " + str(self.data_subscribers.parsed_samples_received))
+        self.assertGreaterEqual(len(self.data_subscribers.parsed_samples_received), 3)
+        log.debug("SAMPLES RECEIVED =====> " + str(self.data_subscribers.raw_samples_received))
+        self.assertGreaterEqual(len(self.data_subscribers.raw_samples_received), 3)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
