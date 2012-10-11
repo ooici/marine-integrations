@@ -66,6 +66,8 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.core.instrument.instrument_driver import DriverProtocolState
+from ion.services.dm.utility.granule.record_dictionary import RecordDictionaryTool
+
 
 from prototype.sci_data.stream_parser import PointSupplementStreamParser
 from prototype.sci_data.constructor_apis import PointSupplementConstructor
@@ -1131,27 +1133,21 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         self.assertTrue(len(self.data_subscribers.samples_received)>=2)
 
 
-        for x in self.data_subscribers.samples_received:
+        for granule in self.data_subscribers.samples_received:
+            log.debug("*** granule: %s", granule)
+            rdt = RecordDictionaryTool.load_from_granule(granule)
+            self.assert_('conductivity' in rdt)
+            self.assert_(rdt['conductivity'] is not None)
+            self.assertTrue(isinstance(rdt['conductivity'], numpy.float64))
 
-            psd = PointSupplementStreamParser(stream_definition=SBE37_CDM_stream_definition(), stream_granule=x)
+            self.assert_('depth' in rdt)
+            self.assert_(rdt['depth'] is not None)
+            self.assertTrue(isinstance(rdt['depth'], numpy.float64))
 
-            self.assertTrue(isinstance(psd, PointSupplementStreamParser))
-            field_names = psd.list_field_names()
-
-            self.assertTrue('conductivity' in field_names)
-            self.assertTrue('pressure' in field_names)
-            self.assertTrue('temperature' in field_names)
-            self.assertTrue('time' in field_names)
-
-            conductivity = psd.get_values('conductivity')
-            pressure = psd.get_values('pressure')
-            temperature = psd.get_values('temperature')
-            time = psd.get_values('time')
-
-            self.assertTrue(isinstance(conductivity[0], numpy.float64))
-            self.assertTrue(isinstance(temperature[0], numpy.float64))
-            self.assertTrue(isinstance(pressure[0], numpy.float64))
-            self.assertTrue(isinstance(time[0], numpy.float64))
+            self.assert_('temp' in rdt)
+            self.assert_(rdt['temp'] is not None)
+            self.assertTrue(isinstance(rdt['temp'], numpy.float64))
+            
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -1272,6 +1268,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         # Lets get 3 samples.
         self.data_subscribers.start_data_subscribers(3)
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
 
         # Poll for a few samples.
         cmd = AgentCommand(command=SBE37ProtocolEvent.ACQUIRE_SAMPLE)
@@ -1315,6 +1312,8 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+        
+        self.doCleanups()
 
 
     @unittest.skip("raw mode not yet implemented")

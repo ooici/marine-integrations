@@ -335,7 +335,8 @@ class InstrumentAgentDataSubscribers(object):
         for (stream_name, param_dict_name) in streams.iteritems():
             pd = get_param_dict(param_dict_name)
 
-            stream_def_id = pubsub_client.create_stream_definition(name=stream_name, parameter_dictionary=pd)
+            stream_def_id = pubsub_client.create_stream_definition(name=stream_name,
+                                                                   parameter_dictionary_id=pd)
 
             stream_id, stream_route = pubsub_client.create_stream(name=stream_name,
                                                 exchange_point='science_data',

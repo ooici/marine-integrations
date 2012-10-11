@@ -1025,7 +1025,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
                On a seabird sbe37 this results in a ds and dc command being sent.
         """
-
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
@@ -1035,8 +1034,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
-
-        pass
 
     @unittest.skip("Driver.get_device_signature not yet implemented")
     def test_get_device_signature(self):
