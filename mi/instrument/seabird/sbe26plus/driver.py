@@ -105,9 +105,10 @@ class ProtocolState(BaseEnum):
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
-    TEST = DriverProtocolState.TEST
-    CALIBRATE = DriverProtocolState.CALIBRATE
+    #TEST = DriverProtocolState.TEST                        # May cause problems
+    #CALIBRATE = DriverProtocolState.CALIBRATE              # May cause problems
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
+
 
 class ProtocolEvent(BaseEnum):
     """
@@ -148,7 +149,7 @@ class Capability(BaseEnum):
     UPLOAD_ASCII = ProtocolEvent.UPLOAD_ASCII
     GET = ProtocolEvent.GET
     SET = ProtocolEvent.SET
-
+    SET_TIME = ProtocolEvent.SET_TIME
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -808,6 +809,54 @@ class Protocol(CommandResponseInstrumentProtocol):
             result = ResourceAgentState.IDLE
         else:
             raise InstrumentStateException('Unknown state.')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        #
+        # @TODO Can time be set when device is discovered in command mode?
+        #
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         return (next_state, result)
 
