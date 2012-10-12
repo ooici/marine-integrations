@@ -15,9 +15,9 @@ import unittest
 import re
 from nose.plugins.attrib import attr
 from mock import Mock
-from ion.services.mi.data_decorator import RSNTimestampDecorator
+from mi.core.instrument.data_decorator import RSNTimestampDecorator
 
-import ion.services.mi.mi_logger
+import mi.core.mi_logger
 mi_logger = logging.getLogger('mi_logger')
 
 #@unittest.skip('Do not run hardware test.')

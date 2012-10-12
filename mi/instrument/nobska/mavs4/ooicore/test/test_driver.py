@@ -24,78 +24,9 @@ USAGE:
 __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
-"""
-#from mock import Mock, call, DEFAULT
-
-#from nose.plugins.attrib import attr
-
-from ion.idk.metadata import Metadata
-from ion.idk.comm_config import CommConfig
-from ion.idk.unit_test import InstrumentDriverTestCase
-from ion.idk.test.driver_qualification import DriverQualificationTestCase
-
-#from mi.instrument.nobska.mavs4.mavs4.driver import State
-#from mi.instrument.nobska.mavs4.mavs4.driver import Event
-#from mi.instrument.nobska.mavs4.mavs4.driver import Error
-#from mi.instrument.nobska.mavs4.mavs4.driver import Status
-#from mi.instrument.nobska.mavs4.mavs4.driver import Prompt
-#from mi.instrument.nobska.mavs4.mavs4.driver import Channel
-#from mi.instrument.nobska.mavs4.mavs4.driver import Command
-#from mi.instrument.nobska.mavs4.mavs4.driver import Parameter
-#from mi.instrument.nobska.mavs4.mavs4.driver import Capability
-#from mi.instrument.nobska.mavs4.mavs4.driver import MetadataParameter
-#from mi.instrument.nobska.mavs4.mavs4.driver import mavs4InstrumentProtocol
-#from mi.instrument.nobska.mavs4.mavs4.driver import mavs4InstrumentDriver
-
-
-# Standard imports.
-#import os
-#import signal
-import time
-import unittest
-#from datetime import datetime
-
-# 3rd party imports.
-#from gevent import spawn
-#from gevent.event import AsyncResult
-import gevent
-from nose.plugins.attrib import attr
-#from mock import patch
-#import uuid
-
-# ION imports.
-#from interface.objects import StreamQuery
-#from interface.services.dm.itransform_management_service import TransformManagementServiceClient
-#from interface.services.cei.iprocess_dispatcher_service import ProcessDispatcherServiceClient
-#from interface.services.icontainer_agent import ContainerAgentClient
-#from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
-#from pyon.public import StreamSubscriberRegistrar
-from prototype.sci_data.stream_defs import ctd_stream_definition
-#from pyon.agent.agent import ResourceAgentClient
-#from interface.objects import AgentCommand
-#from pyon.util.int_test import IonIntegrationTestCase
-#from pyon.util.context import LocalContextMixin
-#from pyon.public import CFG
-#from pyon.event.event import EventSubscriber, EventPublisher
-
-#from pyon.core.exception import InstParameterError
-
-
-# MI imports.
-#from ion.agents.port.logger_process import EthernetDeviceLogger
-#from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentParameters
-from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from mi.core.log import log
-
-from mi.instrument.nobska.mavs4.ooicore.driver import PACKET_CONFIG
-"""
-
 # Ensure the test class is monkey patched for gevent
 from gevent import monkey; monkey.patch_all()
+from gevent.timeout import Timeout
 import gevent
 import socket
 
@@ -110,6 +41,7 @@ from prototype.sci_data.stream_defs import ctd_stream_definition
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
@@ -117,10 +49,11 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
-from mi.instrument.seabird.sbe37smb.ooicore.driver import PACKET_CONFIG
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Driver
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
+from mi.instrument.nobska.mavs4.ooicore.driver import PACKET_CONFIG
+from mi.instrument.nobska.mavs4.ooicore.driver import mavs4InstrumentDriver
+from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolStates
+from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolEvents
+from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentParameters
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
@@ -128,14 +61,60 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 # MI logger
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 from interface.objects import AgentCommand
 
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
+# 'will echo' command sequence to be sent from DA telnet server
+# see RFCs 854 & 857
+WILL_ECHO_CMD = '\xff\xfd\x03\xff\xfb\x03\xff\xfb\x01'
+# 'do echo' command sequence to be sent back from telnet client
+DO_ECHO_CMD   = '\xff\xfb\x03\xff\xfd\x03\xff\xfd\x01'
 
+
+# Device specific parameters.
+class TestInstrumentParameters(DriverParameter):
+    """
+    Device parameters for MAVS-4.
+    """
+    SYS_CLOCK = 'sys_clock'
+    DATA_MONITOR = 'DataMonitor'
+    QUERY_MODE = 'QueryMode'
+    MEASUREMENT_FREQUENCY = 'MeasurementFrequency'
+    MEASUREMENTS_PER_SAMPLE = 'MeasurementsPerSample'
+    SAMPLE_PERIOD_SECS = 'SamplePeriod.secs'
+    SAMPLE_PERIOD_TICKS = 'SamplePeriod.ticks'
+    SAMPLES_PER_BURST = 'SamplesPerBurst'
+    INTERVAL_BETWEEN_BURSTS = 'IntervalBetweenBursts'
+
+# Used to validate param config retrieved from driver.
+parameter_types = {
+    InstrumentParameters.SYS_CLOCK : str,
+    InstrumentParameters.DATA_MONITOR : int,
+    InstrumentParameters.QUERY_MODE : int,
+    InstrumentParameters.MEASUREMENT_FREQUENCY : float,
+    InstrumentParameters.MEASUREMENTS_PER_SAMPLE : int,
+    InstrumentParameters.SAMPLE_PERIOD_SECS : int,
+    InstrumentParameters.SAMPLE_PERIOD_TICKS : int,
+    InstrumentParameters.SAMPLES_PER_BURST : int,
+    InstrumentParameters.INTERVAL_BETWEEN_BURSTS : int,
+}
+
+parameter_list = [
+    InstrumentParameters.SYS_CLOCK,
+    InstrumentParameters.DATA_MONITOR,
+    InstrumentParameters.QUERY_MODE,
+    InstrumentParameters.MEASUREMENT_FREQUENCY,
+    InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
+    InstrumentParameters.SAMPLE_PERIOD_SECS,
+    InstrumentParameters.SAMPLE_PERIOD_TICKS,
+    InstrumentParameters.SAMPLES_PER_BURST,
+    InstrumentParameters.INTERVAL_BETWEEN_BURSTS,
+]
+    
 ## Initialize the test configuration
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.nobska.mavs4.ooicore.driver',
@@ -171,7 +150,6 @@ class TcpClient():
             self.buf = self.buf[1:]
         else:
             c = None
-
         return c
 
     def peek_at_buffer(self):
@@ -183,7 +161,6 @@ class TcpClient():
                 """
                 Ignore this exception, its harmless
                 """
-
         return self.buf
 
     def remove_from_buffer(self, remove):
@@ -293,37 +270,204 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
     def driver_class():
         return 'mavs4InstrumentDriver'    
     
+
+    def assertParamDict(self, pd, all_params=False):
+        """
+        Verify all device parameters exist and are correct type.
+        """
+        if all_params:
+            self.assertEqual(set(pd.keys()), set(parameter_types.keys()),
+                             'not all parameters are present')
+            for (key, type_val) in parameter_types.iteritems():
+                self.assertTrue(isinstance(pd[key], type_val),
+                                'parameter %s not type %s' %(key, str(type_val)))
+        else:
+            for (key, val) in pd.iteritems():
+                self.assertTrue(parameter_types.has_key(key),
+                                'unexpected parameter %s' %key)
+                self.assertTrue(isinstance(val, parameter_types[key]),
+                                'parameter %s not type %s' %(key, str(parameter_types[key])))
+    
+    def assertParamVals(self, params, correct_params):
+        """
+        Verify parameters take the correct values.
+        """
+        self.assertEqual(set(params.keys()), set(correct_params.keys()),
+                         '%s != %s' %(params.keys(), correct_params.keys()))
+        for (key, val) in params.iteritems():
+            self.assertEqual(val, correct_params[key],
+                             '%s: %s != %s' %(key, val, correct_params[key]))
+
+    def assertParamList(self, pl):
+        """
+        Verify all device parameters.
+        """
+        self.assertEqual(pl, TestInstrumentParameters.list())
+    
     @unittest.skip("override & skip while in development")
     def test_driver_process(self):
         pass 
+
     
-    def Xtest_instrumment_wakeup(self):
+    def Xtest_instrument_wakeup(self):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' state
         """
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms and in disconnected state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Connect to instrument and transition to unknown.
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
-        self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolStates.UNKNOWN)
 
         # discover instrument state and transition to command.
         reply = self.driver_client.cmd_dvr('discover')
 
         # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolStates.COMMAND)
+                
+               
+    def test_get_set(self):
+        """
+        Test device parameter access.
+        """
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms and in disconnected state.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Connect to instrument and transition to unknown.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolStates.UNKNOWN)
+
+        # discover instrument state and transition to command.
+        reply = self.driver_client.cmd_dvr('discover_state')
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolStates.COMMAND)
+
+        # get the list of device parameters
+        reply = self.driver_client.cmd_dvr('get_resource_params')
+        self.assertParamList(reply)
+
+        # Get all device parameters. Confirm all expected keys are retrieved
+        # and have correct type.
+        reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
+        self.assertParamDict(reply, True)
+        """
+        log.debug("test_get_set: parameters:" )
+        for parameter in parameter_list:
+            log.debug("%s = %s" %(parameter, reply[parameter]))
+        """
+        
+        # Remember original configuration.
+        orig_config = reply
+        
+        # Grab a subset of parameters.
+        params = [InstrumentParameters.SYS_CLOCK]
+        reply = self.driver_client.cmd_dvr('get_resource', params)
+        self.assertParamDict(reply)
+        for (name, value) in reply.iteritems():
+            log.debug('parameter %s=%s' %(name, value))        
+
+        # Remember the original subset.
+        orig_params = reply
+        
+        # Construct new parameters to set.
+        new_params = {InstrumentParameters.SYS_CLOCK : '03/29/2002 11:11:42'}
+
+        # Set parameters and verify.
+        reply = self.driver_client.cmd_dvr('set_resource', new_params)
+        reply = self.driver_client.cmd_dvr('get_resource', params)
+        log.debug('set=%s, got=%s' %(new_params[InstrumentParameters.SYS_CLOCK], reply[InstrumentParameters.SYS_CLOCK]))
+        #self.assertParamVals(reply, new_params)
+        
+        """
+        # Restore original parameters and verify.
+        reply = self.driver_client.cmd_dvr('set_resource', orig_params)
+        reply = self.driver_client.cmd_dvr('get_resource', params)
+        self.assertParamVals(reply, orig_params)
+
+        # Retrieve the configuration and ensure it matches the original.
+        reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
+        self.assertParamVals(reply, orig_config)
+
+        # Disconnect from the port agent.
+        reply = self.driver_client.cmd_dvr('disconnect')
+        
+        # Test the driver is disconnected.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+        
+        # Deconfigure the driver.
+        reply = self.driver_client.cmd_dvr('initialize')
+        
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED) 
+        """       
+
+    def Xtest_instrumment_autosample(self):
+        """
+        @brief Test for instrument wakeup, expects instrument to be in 'command' state
+        """
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms and in disconnected state.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Connect to instrument and transition to unknown.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolStates.UNKNOWN)
+
+        # discover instrument state and transition to command.
+        reply = self.driver_client.cmd_dvr('discover')
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolStates.COMMAND)
+                
+        # start auto-sample.
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvents.START_AUTOSAMPLE)
+
+        # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_current_state')
-        self.assertEqual(state, SBE37ProtocolState.COMMAND)
+        self.assertEqual(state, ProtocolStates.AUTOSAMPLE)
+                
+        # stop auto-sample.
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvents.STOP_AUTOSAMPLE)
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolStates.COMMAND)
                 
 
     ###
@@ -343,16 +487,16 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
     # Qualification tests live in the base class.  This class is extended
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.  
-    pass
 
 
+    @unittest.skip("skip for automatic tests")
     def test_direct_access_telnet_mode_manually(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         print("sent power_down; IA state = %s" %str(retval.result))
@@ -360,7 +504,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command='power_up')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         print("sent power_up; IA state = %s" %str(retval.result))
@@ -368,7 +512,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         print("sent initialize; IA state = %s" %str(retval.result))
@@ -376,7 +520,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command='go_active')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         print("sent go_active; IA state = %s" %str(retval.result))
@@ -384,7 +528,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command='run')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         print("sent run; IA state = %s" %str(retval.result))
@@ -404,41 +548,42 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
         gevent.sleep(600)  # wait for manual telnet session to be run
 
 
-    def Xtest_direct_access_telnet_mode(self):
+    #@unittest.skip("skip for now")
+    def test_direct_access_telnet_mode(self):
         """
         @brief This test verifies that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
 
         cmd = AgentCommand(command='power_up')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
 
         cmd = AgentCommand(command='go_active')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
 
         cmd = AgentCommand(command='run')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
@@ -458,86 +603,58 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
         s = TcpClient(retval.result['ip_address'], retval.result['port'])
 
         # look for and swallow 'Username' prompt
+        try_count = 0
         while s.peek_at_buffer().find("Username: ") == -1:
             log.debug("WANT 'Username:' READ ==>" + str(s.peek_at_buffer()))
             gevent.sleep(1)
+            try_count += 1
+            if try_count > 10:
+                raise Timeout('It took longer than 10 seconds to get a Username: prompt')
         s.remove_from_buffer("Username: ")
         # send some username string
         s.send_data("bob\r\n", "1")
         
         # look for and swallow 'token' prompt
+        try_count = 0
         while s.peek_at_buffer().find("token: ") == -1:
             log.debug("WANT 'token: ' READ ==>" + str(s.peek_at_buffer()))
             gevent.sleep(1)
+            try_count += 1
+            if try_count > 10:
+                raise Timeout('It took longer than 10 seconds to get a token: prompt')
         s.remove_from_buffer("token: ")
         # send the returned token
         s.send_data(retval.result['token'] + "\r\n", "1")
         
+        # look for and swallow telnet negotiation string
+        try_count = 0
+        while s.peek_at_buffer().find(WILL_ECHO_CMD) == -1:
+            log.debug("WANT %s READ ==> %s" %(WILL_ECHO_CMD, str(s.peek_at_buffer())))
+            gevent.sleep(1)
+            try_count += 1
+            if try_count > 10:
+                raise Timeout('It took longer than 10 seconds to get the telnet negotiation string')
+        s.remove_from_buffer(WILL_ECHO_CMD)
+        # send the telnet negotiation response string
+        s.send_data(DO_ECHO_CMD, "1")
+
         # look for and swallow 'connected' indicator
-        while s.peek_at_buffer().find("connected\n") == -1:
+        try_count = 0
+        while s.peek_at_buffer().find("connected\r\n") == -1:
             log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
             gevent.sleep(1)
-            s.peek_at_buffer()
-        s.remove_from_buffer("connected\n")
+            try_count += 1
+            if try_count > 10:
+                raise Timeout('It took longer than 10 seconds to get a connected prompt')
+        s.remove_from_buffer("connected\r\n")
         
-        # try to wake the instrument up from its sleep mode
-        n = 0
-        s.send_data("\r\n\r\n", "1")
-        gevent.sleep(1)
-        while s.peek_at_buffer().find("Enter <CTRL>-<C> now to wake up") == -1:
-            self.assertNotEqual(n, 5)
-            n += 1
-            log.debug("WANT 'Enter <CTRL>-<C> now to wake up' READ ==>" + str(s.peek_at_buffer()))
+        # try to interact with the instrument 
+        try_count = 0
+        while ((s.peek_at_buffer().find("Enter <CTRL>-<C> now to wake up") == -1) and
+              (s.peek_at_buffer().find("Main Menu") == -1)):
+            self.assertNotEqual(try_count, 5)
+            try_count += 1
+            log.debug("WANT %s or %s; READ ==> %s" %("'Enter <CTRL>-<C> now to wake up'", "'Main Menu'", str(s.peek_at_buffer())))
             s.send_data("\r\n\r\n", "1")
-            gevent.sleep(1)
-            s.peek_at_buffer()
-       
-        """
-        pattern = re.compile("^([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9a-z]+),([ 0-9:]+)")
-
-        matches = 0
-        n = 0
-        while n < 100:
-            n = n + 1
-            gevent.sleep(1)
-            data = s.get_data()
-            log.debug("READ ==>" + str(repr(data)))
-            m = pattern.search(data)
-            if m != None:
-                matches = m.lastindex
-                if matches == 7:
-                    break
-
-        self.assertTrue(matches == 7) # need to have found 7 conformant fields.
-        """
-        
-###############################################################################
-# Auto generated code.  There should rarely be reason to edit anything below. #
-###############################################################################
-
-"""
-these cause nosetest to run all tests twice!
-class IntFromIDK(Testmavs4_INT):
-    #This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    #called from the IDK test_driver program
-    
-    @classmethod
-    def init_comm(cls):
-        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
-
-class UnitFromIDK(Testmavs4_UNIT):
-    #This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    #called from the IDK test_driver program
-
-    @classmethod
-    def init_comm(cls):
-        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
-
-class QualFromIDK(Testmavs4_QUAL):
-    #This class overloads the default test class so that comm configurations can be overloaded.  This is the test class
-    #called from the IDK test_driver program
-
-    @classmethod
-    def init_comm(cls):
-        cls.comm_config = CommConfig.get_config_from_file(Metadata()).dict()
-"""
+            gevent.sleep(2)
+               

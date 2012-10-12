@@ -14,7 +14,7 @@ from nose.plugins.attrib import attr
 from mock import Mock
 import unittest
 
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.instrument_agent_client import InstrumentAgentClient
 
 @attr('UNIT', group='mi')

@@ -20,7 +20,7 @@ from nose.plugins.attrib import attr
 from mock import Mock
 import unittest
 
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.idk_git import IDKGit
 
 from mi.idk.exceptions import InvalidGitRepo

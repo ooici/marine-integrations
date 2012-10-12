@@ -6,7 +6,7 @@
 
 from mi.idk.metadata import Metadata
 from mi.idk.config import Config
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 from mi.idk import prompt
 
@@ -33,5 +33,5 @@ class WhichDriver():
 
 
 if __name__ == '__main__':
-    app = SwitchDriver()
+    app = WitchDriver()
     app.run()

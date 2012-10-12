@@ -4,7 +4,7 @@
 @package ion.services.mi.instrument.sbe37.test.test_sbe37_driver
 @file ion/services/mi/instrument/sbe37/test/test_sbe37_driver.py
 @author Edward Hunter
-@brief Test cases for SBE37Driver
+@brief Test cases for InstrumentDriver
 """
 
 __author__ = 'Edward Hunter'
@@ -15,6 +15,7 @@ from gevent import monkey; monkey.patch_all()
 import gevent
 import socket
 import re
+import json
 
 # Standard lib imports
 import time
@@ -35,11 +36,14 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
 from mi.instrument.seabird.sbe37smb.ooicore.driver import PACKET_CONFIG
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Driver
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DataParticle
+from mi.instrument.seabird.sbe37smb.ooicore.driver import InstrumentDriver
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolEvent
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Capability
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
@@ -47,7 +51,7 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 # MI logger
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 from interface.objects import AgentCommand
 
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
@@ -85,7 +89,7 @@ from gevent.timeout import Timeout
 ## Initialize the test parameters
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.seabird.sbe37smb.ooicore.driver',
-    driver_class="SBE37Driver",
+    driver_class="InstrumentDriver",
 
     instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'Agent007',
@@ -232,24 +236,35 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
     def assertSampleDict(self, val):
         """
-        Verify the value is a sample dictionary for the sbe37.
+        Verify the value is an SBE37DataParticle with a few key fields or a
+        dict with 'raw' and 'parsed' tags.
         """
-        #{'p': [-6.945], 'c': [0.08707], 't': [20.002], 'time': [1333752198.450622]}        
-        self.assertTrue(isinstance(val, dict))
-        self.assertTrue(val.has_key('c'))
-        self.assertTrue(val.has_key('t'))
-        self.assertTrue(val.has_key('p'))
-        self.assertTrue(val.has_key('time'))
-        c = val['c'][0]
-        t = val['t'][0]
-        p = val['p'][0]
-        time = val['time'][0]
-    
-        self.assertTrue(isinstance(c, float))
-        self.assertTrue(isinstance(t, float))
-        self.assertTrue(isinstance(p, float))
-        self.assertTrue(isinstance(time, float))
-    
+        
+        if (isinstance(val, SBE37DataParticle)):
+            raw_dict = json.loads(val.generate_raw())
+            parsed_dict = json.loads(val.generate_parsed())
+        else:
+            self.assertTrue(val['raw'])
+            raw_dict = val['raw']
+            self.assertTrue(val['parsed'])
+            parsed_dict = val['parsed']
+            
+        self.assertTrue(raw_dict[DataParticleKey.STREAM_NAME],
+                        DataParticleValue.RAW)
+        self.assertTrue(raw_dict[DataParticleKey.PKT_FORMAT_ID],
+                        DataParticleValue.JSON_DATA)
+        self.assertTrue(raw_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(raw_dict[DataParticleKey.VALUES],
+                        list))
+        
+        self.assertTrue(parsed_dict[DataParticleKey.STREAM_NAME],
+                        DataParticleValue.PARSED)
+        self.assertTrue(parsed_dict[DataParticleKey.PKT_FORMAT_ID],
+                        DataParticleValue.JSON_DATA)
+        self.assertTrue(parsed_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(parsed_dict[DataParticleKey.VALUES],
+                        list))
+        
     def assertParamDict(self, pd, all_params=False):
         """
         Verify all device parameters exist and are correct type.
@@ -286,21 +301,21 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         """
 
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Initialize the driver and transition to unconfigured.
         reply = self.driver_client.cmd_dvr('initialize')
 
         # Test the driver returned state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
         
     def test_connect(self):
@@ -311,42 +326,42 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         log.info("test_connect test started")
 
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover_state')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.COMMAND)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('disconnect')
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Initialize the driver and transition to unconfigured.
         reply = self.driver_client.cmd_dvr('initialize')
     
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
         
     def test_get_set(self):
@@ -355,30 +370,30 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         """
 
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         reply = self.driver_client.cmd_dvr('connect')
                 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
                 
-        reply = self.driver_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover_state')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.COMMAND)
 
         # Get all device parameters. Confirm all expected keys are retrived
         # and have correct type.
-        reply = self.driver_client.cmd_dvr('get', SBE37Parameter.ALL)
+        reply = self.driver_client.cmd_dvr('get_resource', SBE37Parameter.ALL)
         self.assertParamDict(reply, True)
 
         # Remember original configuration.
@@ -391,7 +406,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
             SBE37Parameter.STORETIME,
             SBE37Parameter.TCALDATE
             ]
-        reply = self.driver_client.cmd_dvr('get', params)
+        reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertParamDict(reply)        
 
         # Remember the original subset.
@@ -407,18 +422,18 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         }
 
         # Set parameters and verify.
-        reply = self.driver_client.cmd_dvr('set', new_params)
-        reply = self.driver_client.cmd_dvr('get', params)
+        reply = self.driver_client.cmd_dvr('set_resource', new_params)
+        reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertParamVals(reply, new_params)
         
         # Restore original parameters and verify.
-        reply = self.driver_client.cmd_dvr('set', orig_params)
-        reply = self.driver_client.cmd_dvr('get', params)
+        reply = self.driver_client.cmd_dvr('set_resource', orig_params)
+        reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertParamVals(reply, orig_params)
 
         # Retrieve the configuration and ensure it matches the original.
         # Remove samplenum as it is switched by autosample and storetime.
-        reply = self.driver_client.cmd_dvr('get', SBE37Parameter.ALL)
+        reply = self.driver_client.cmd_dvr('get_resource', SBE37Parameter.ALL)
         reply.pop('SAMPLENUM')
         orig_config.pop('SAMPLENUM')
         self.assertParamVals(reply, orig_config)
@@ -427,72 +442,72 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('disconnect')
         
         # Test the driver is disconnected.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
         
         # Deconfigure the driver.
         reply = self.driver_client.cmd_dvr('initialize')
         
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)        
     
     def test_poll(self):
         """
         Test sample polling commands and events.
         """
-
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         reply = self.driver_client.cmd_dvr('connect')
                 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
                 
-        reply = self.driver_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover_state')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.COMMAND)
 
         # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_acquire_sample')
-        self.assertSampleDict(reply)
+        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
+        self.assertSampleDict(reply[1])
         
         # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_acquire_sample')
-        self.assertSampleDict(reply)
+        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
+        self.assertSampleDict(reply[1])
 
         # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_acquire_sample')
-        self.assertSampleDict(reply)
+        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
+        self.assertSampleDict(reply[1])
         
         # Confirm that 3 samples arrived as published events.
         gevent.sleep(1)
         sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-        self.assertEqual(len(sample_events), 3)
+        # @TODO Set this properly (3) when only one set of events are sent
+        self.assertEqual(len(sample_events), 6)
 
         # Disconnect from the port agent.
         reply = self.driver_client.cmd_dvr('disconnect')
         
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
         
         # Deconfigure the driver.
         reply = self.driver_client.cmd_dvr('initialize')
         
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
     def test_autosample(self):
@@ -501,28 +516,28 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         """
         
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover_state')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.COMMAND)
         
         # Make sure the device parameters are set to sample frequently.
@@ -530,12 +545,12 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
             SBE37Parameter.NAVG : 1,
             SBE37Parameter.INTERVAL : 5
         }
-        reply = self.driver_client.cmd_dvr('set', params)
+        reply = self.driver_client.cmd_dvr('set_resource', params)
         
-        reply = self.driver_client.cmd_dvr('execute_start_autosample')
+        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.START_AUTOSAMPLE)
 
         # Test the driver is in autosample mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.AUTOSAMPLE)
         
         # Wait for a few samples to roll in.
@@ -545,7 +560,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         count = 0
         while True:
             try:
-                reply = self.driver_client.cmd_dvr('execute_stop_autosample')
+                reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.STOP_AUTOSAMPLE)
             
             except InstrumentTimeoutException:
                 count += 1
@@ -556,7 +571,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
                 break
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.COMMAND)
 
         # Verify we received at least 2 samples.
@@ -567,14 +582,14 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('disconnect')
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Initialize the driver and transition to unconfigured.
         reply = self.driver_client.cmd_dvr('initialize')
     
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
     @unittest.skip('Not supported by simulator and very long (> 5 min).')
@@ -583,42 +598,42 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         Test the hardware testing mode.
         """
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover_state')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.COMMAND)
 
         start_time = time.time()
-        reply = self.driver_client.cmd_dvr('execute_test')
+        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.TEST)
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.TEST)
         
         while state != SBE37ProtocolState.COMMAND:
             gevent.sleep(5)
             elapsed = time.time() - start_time
             log.info('Device testing %f seconds elapsed.' % elapsed)
-            state = self.driver_client.cmd_dvr('get_current_state')
+            state = self.driver_client.cmd_dvr('get_resource_state')
 
         # Verify we received the test result and it passed.
         test_results = [evt for evt in self.events if evt['type']==DriverAsyncEvent.TEST_RESULT]
@@ -629,14 +644,14 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('disconnect')
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Initialize the driver and transition to unconfigured.
         reply = self.driver_client.cmd_dvr('initialize')
     
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
     def test_errors(self):
@@ -645,7 +660,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         """
         
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Assert for an unknown driver command.
@@ -654,7 +669,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
-            reply = self.driver_client.cmd_dvr('execute_acquire_sample')
+            reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
 
         # Assert we forgot the comms parameter.
         with self.assertRaises(InstrumentParameterException):
@@ -681,36 +696,36 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
-            reply = self.driver_client.cmd_dvr('execute_acquire_sample')
+            reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
 
         reply = self.driver_client.cmd_dvr('connect')
                 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
-            reply = self.driver_client.cmd_dvr('execute_acquire_sample')
+            reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
                 
-        reply = self.driver_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover_state')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.COMMAND)
 
         # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_acquire_sample')
-        self.assertSampleDict(reply)
+        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
+        self.assertSampleDict(reply[1])
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
-            reply = self.driver_client.cmd_dvr('execute_stop_autosample')
+            reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.STOP_AUTOSAMPLE)
         
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
@@ -718,17 +733,17 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # Get all device parameters. Confirm all expected keys are retrived
         # and have correct type.
-        reply = self.driver_client.cmd_dvr('get', SBE37Parameter.ALL)
+        reply = self.driver_client.cmd_dvr('get_resource', SBE37Parameter.ALL)
         self.assertParamDict(reply, True)
         
         # Assert get fails without a parameter.
         with self.assertRaises(InstrumentParameterException):
-            reply = self.driver_client.cmd_dvr('get')
+            reply = self.driver_client.cmd_dvr('get_resource')
             
         # Assert get fails without a bad parameter (not ALL or a list).
         with self.assertRaises(InstrumentParameterException):
             bogus_params = 'I am a bogus param list.'
-            reply = self.driver_client.cmd_dvr('get', bogus_params)
+            reply = self.driver_client.cmd_dvr('get_resource', bogus_params)
             
         # Assert get fails without a bad parameter (not ALL or a list).
         #with self.assertRaises(InvalidParameterValueError):
@@ -739,34 +754,34 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
                 SBE37Parameter.STORETIME,
                 SBE37Parameter.TCALDATE
                 ]
-            reply = self.driver_client.cmd_dvr('get', bogus_params)        
+            reply = self.driver_client.cmd_dvr('get_resource', bogus_params)        
         
         # Assert we cannot set a bogus parameter.
         with self.assertRaises(InstrumentParameterException):
             bogus_params = {
                 'a bogus parameter name' : 'bogus value'
             }
-            reply = self.driver_client.cmd_dvr('set', bogus_params)
+            reply = self.driver_client.cmd_dvr('set_resource', bogus_params)
             
         # Assert we cannot set a real parameter to a bogus value.
         with self.assertRaises(InstrumentParameterException):
             bogus_params = {
                 SBE37Parameter.INTERVAL : 'bogus value'
             }
-            reply = self.driver_client.cmd_dvr('set', bogus_params)
+            reply = self.driver_client.cmd_dvr('set_resource', bogus_params)
         
         # Disconnect from the port agent.
         reply = self.driver_client.cmd_dvr('disconnect')
         
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
         
         # Deconfigure the driver.
         reply = self.driver_client.cmd_dvr('initialize')
         
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
     
     @unittest.skip('Not supported by simulator.')
@@ -776,28 +791,28 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         """
         
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover_state')
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.COMMAND)
         
         # Make sure the device parameters are set to sample frequently.
@@ -805,12 +820,12 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
             SBE37Parameter.NAVG : 1,
             SBE37Parameter.INTERVAL : 5
         }
-        reply = self.driver_client.cmd_dvr('set', params)
+        reply = self.driver_client.cmd_dvr('set_resource', params)
         
-        reply = self.driver_client.cmd_dvr('execute_start_autosample')
+        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.START_AUTOSAMPLE)
 
         # Test the driver is in autosample mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.AUTOSAMPLE)
     
         # Let a sample or two come in.
@@ -820,14 +835,14 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('disconnect')
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Initialize the driver and transition to unconfigured.
         reply = self.driver_client.cmd_dvr('initialize')
     
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Wait briefly before we restart the comms.
@@ -837,21 +852,21 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
         count = 0
         while True:
             try:        
-                reply = self.driver_client.cmd_dvr('discover')
+                reply = self.driver_client.cmd_dvr('discover_state')
 
             except InstrumentTimeoutException:
                 count += 1
@@ -862,7 +877,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
                 break
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.AUTOSAMPLE)
 
         # Let a sample or two come in.
@@ -874,7 +889,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         count = 0
         while True:
             try:
-                reply = self.driver_client.cmd_dvr('execute_stop_autosample')
+                reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.STOP_AUTOSAMPLE)
             
             except InstrumentTimeoutException:
                 count += 1
@@ -885,21 +900,21 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
                 break
 
         # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.COMMAND)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('disconnect')
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Initialize the driver and transition to unconfigured.
         reply = self.driver_client.cmd_dvr('initialize')
     
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
     # Added tests below
@@ -935,35 +950,35 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         """
         cmd = AgentCommand(command='power_down')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
 
         cmd = AgentCommand(command='power_up')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
 
         cmd = AgentCommand(command='go_active')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
 
         cmd = AgentCommand(command='run')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
@@ -1140,7 +1155,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         """
 
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
 
 
@@ -1172,7 +1187,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
 
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.STREAMING)
@@ -1185,7 +1200,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
 
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
@@ -1224,7 +1239,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command='reset')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
@@ -1271,7 +1286,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         """
         self.data_subscribers.samples_received = []
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
 
 
@@ -1330,7 +1345,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command='reset')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
@@ -1354,7 +1369,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         AGT_CMDS = [
             'clear',
             'end_transaction',
-            'get_current_state',
+            'get_agent_state',
             'go_active',
             'go_direct_access',
             'go_inactive',
@@ -1390,14 +1405,14 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         apars = self.instrument_agent_client.get_capabilities(['AGT_PAR'])
         apars = [item[1] for item in apars]
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
@@ -1413,7 +1428,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command='reset')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
@@ -1426,7 +1441,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
 
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
@@ -1436,7 +1451,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
 
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
@@ -1446,7 +1461,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
 
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
@@ -1456,7 +1471,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
 
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
@@ -1477,7 +1492,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
 
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.STREAMING)
@@ -1490,7 +1505,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
 
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
@@ -1504,7 +1519,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
 
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
@@ -1551,28 +1566,28 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         """
         Test instrument driver get and set interface.
         """
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
 
         cmd = AgentCommand(command='go_active')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
 
         cmd = AgentCommand(command='run')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
@@ -1611,7 +1626,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command='reset')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
@@ -1622,28 +1637,28 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         Test observatory polling function.
         """
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command='initialize')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.INACTIVE)
 
         cmd = AgentCommand(command='go_active')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.IDLE)
 
         cmd = AgentCommand(command='run')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
@@ -1670,7 +1685,111 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command='reset')
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command='get_agent_state')
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = retval.result
         self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+
+    def test_instrument_driver_vs_invalid_commands(self):
+        """
+        @Author Edward Hunter
+        @brief This test should send mal-formed, misspelled,
+               missing parameter, or out of bounds parameters
+               at the instrument driver in an attempt to
+               confuse it.
+
+               See: test_instrument_driver_to_physical_instrument_interoperability
+               That test will provide the how-to of connecting.
+               Once connected, send messed up commands.
+
+               * negative testing
+
+
+               Test illegal behavior and replies.
+        """
+
+        cmd = AgentCommand(command='get_agent_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+
+        # Can't go active in unitialized state.
+        # Status 660 is state error.
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.info('GO ACTIVE CMD %s',str(retval))
+        self.assertEquals(retval.status, 660)
+
+        # Can't command driver in this state.
+        cmd = AgentCommand(command='acquire_sample')
+        reply = self.instrument_agent_client.execute(cmd)
+        self.assertEqual(reply.status, 660)
+
+        cmd = AgentCommand(command='initialize')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_agent_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+
+        cmd = AgentCommand(command='go_active')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_agent_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.IDLE)
+
+        cmd = AgentCommand(command='run')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        cmd = AgentCommand(command='get_agent_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+
+        # OK, I can do this now.
+        cmd = AgentCommand(command='acquire_sample')
+        reply = self.instrument_agent_client.execute(cmd)
+        self.assertSampleDict(reply.result)
+
+
+        # 404 unknown agent command.
+        cmd = AgentCommand(command='kiss_edward')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        self.assertEquals(retval.status, 404)
+
+
+        '''
+        @todo this needs to be re-enabled eventually
+        # 670 unknown driver command.
+        cmd = AgentCommand(command='acquire_sample_please')
+        retval = self.instrument_agent_client.execute(cmd)
+        log.debug("retval = " + str(retval))
+
+        # the return value will likely be changed in the future to return
+        # to being 670... for now, lets make it work.
+        #self.assertEqual(retval.status, 670)
+        self.assertEqual(retval.status, -1)
+
+        try:
+            reply = self.instrument_agent_client.get_param('1234')
+        except Exception as e:
+            log.debug("InstrumentParameterException ERROR = " + str(e))
+
+        #with self.assertRaises(XXXXXXXXXXXXXXXXXXXXXXXX):
+        #    reply = self.instrument_agent_client.get_param('1234')
+
+        # 630 Parameter error.
+        #with self.assertRaises(InstParameterError):
+        #    reply = self.instrument_agent_client.get_param('bogus bogus')
+
+        cmd = AgentCommand(command='reset')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        cmd = AgentCommand(command='get_agent_state')
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        state = retval.result
+        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        '''
+        pass

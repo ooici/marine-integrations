@@ -43,25 +43,25 @@ class DriverTestMixin(object):
         self._init_protocol()
 
     def _assert_driver_unconfigured(self):
-        state = self.driver.get_current_state()
+        state = self.driver.get_resource_state()
         log.info("driver connected -> %s" % str(state))
         self.assertEqual(DriverState.UNCONFIGURED, state)
 
     def _initialize(self):
         self.driver.initialize()
-        state = self.driver.get_current_state()
+        state = self.driver.get_resource_state()
         log.info("intitialize -> %s" % str(state))
         self.assertEqual(DriverState.UNCONFIGURED, state)
 
     def _configure(self):
         self.driver.configure(config=self.comms_config)
-        state = self.driver.get_current_state()
+        state = self.driver.get_resource_state()
         log.info("configure -> %s" % str(state))
         self.assertEqual(DriverState.DISCONNECTED, state)
 
     def _connect(self):
         self.driver.connect()
-        state = self.driver.get_current_state()
+        state = self.driver.get_resource_state()
         log.info("connect -> %s" % str(state))
 #        self.assertEqual(DriverState.CONNECTED, state)
         if DriverState.CONNECTED == state:
@@ -71,12 +71,12 @@ class DriverTestMixin(object):
 
     def _init_protocol(self):
         self.driver.execute_init_protocol()
-        state = self.driver.get_current_state()
+        state = self.driver.get_resource_state()
         log.info("execute_init_protocol -> %s" % str(state))
 
     def _disconnect(self):
         self.driver.disconnect()
-        state = self.driver.get_current_state()
+        state = self.driver.get_resource_state()
         log.info("disconnect -> %s" % str(state))
         self.assertEqual(DriverState.DISCONNECTED, state)
 

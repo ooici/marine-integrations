@@ -3,7 +3,7 @@
 __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 class IDKException(Exception):
     """Base class for an exception related to IDK processes

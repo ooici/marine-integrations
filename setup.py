@@ -18,15 +18,16 @@ setup(  name = 'marine-integrations',
         version = version,
         description = 'OOI ION Marine Integrations',
         url = 'https://github.com/ooici/marine-integrations',
-        download_url = 'http://ooici.net/releases',
+        download_url = 'http://sddevrepo.oceanobservatories.org/releases/',
         license = 'Apache 2.0',
         author = 'Michael Meisinger',
         author_email = 'mmeisinger@ucsd.edu',
         keywords = ['ooici','ioncore', 'pyon', 'coi'],
         packages = find_packages(),
         dependency_links = [
-            'http://ooici.net/releases',
-            'https://github.com/ooici/pyon/tarball/master#egg=pyon'
+            'http://sddevrepo.oceanobservatories.org/releases/',
+            'https://github.com/ooici/pyon/tarball/master#egg=pyon',
+            'https://github.com/ooici/utilities/tarball/master#egg=utilities-9999'
         ],
         test_suite = 'pyon',
         entry_points = {
@@ -37,6 +38,9 @@ setup(  name = 'marine-integrations',
             ],
         },
         install_requires = [
-		'gitpy==0.6.0',
+            'gitpy==0.6.0',
+            'snakefood==1.4',
+            'ntplib>=0.1.9',
+            'utilities',
         ],
      )

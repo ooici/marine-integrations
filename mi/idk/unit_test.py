@@ -7,25 +7,25 @@
 """
 
 # Import pyon first for monkey patching.
-from mi.core.log import log
+from mi.core.log import get_logger ; log = get_logger()
 
 import re
 import os
-import time
 import unittest
 from sets import Set
 
-from os.path import basename
+# Set testing to false because the capability container tries to clear out
+# couchdb if we are testing. Since we don't care about couchdb for the most
+# part we can ignore this. See initialize_ion_int_tests() for implementation.
+# If you DO care about couch content make sure you do a force_clean when needed.
+from pyon.core import bootstrap
+bootstrap.testing = False;
 
 import gevent
-from gevent import spawn
-from gevent.event import AsyncResult
-import subprocess
-
-from pyon.container.cc import Container
+import json
 from pyon.util.int_test import IonIntegrationTestCase
+from ion.agents.port.port_agent_process import PortAgentProcessType
 
-from ion.agents.port.logger_process import EthernetDeviceLogger
 from ion.agents.instrument.driver_process import DriverProcess, DriverProcessType
 
 from mi.idk.comm_config import CommConfig
@@ -35,42 +35,28 @@ from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.instrument_agent_client import InstrumentAgentDataSubscribers
 from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
 
-from ion.agents.instrument.instrument_agent import InstrumentAgentEvent
 
 from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import TestNoCommConfig
-from mi.idk.exceptions import TestNoDeployFile
-from mi.idk.exceptions import PortAgentTimeout
-from mi.idk.exceptions import MissingConfig
-from mi.idk.exceptions import MissingExecutable
-from mi.idk.exceptions import FailedToLaunch
-from mi.idk.exceptions import NoContainer
 from mi.core.exceptions import InstrumentException
 
+from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
 from interface.objects import AgentCommand
-from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
-from pyon.public import StreamSubscriberRegistrar
-from pyon.event.event import EventSubscriber, EventPublisher
 
-from mi.core.log import log
-from interface.services.icontainer_agent import ContainerAgentClient
-from pyon.agent.agent import ResourceAgentClient
+from mi.core.log import get_logger ; log = get_logger()
 
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from pyon.core.exception import InstParameterError
-from interface.objects import StreamQuery
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 from ion.agents.instrument.common import InstErrorCode
 from mi.core.instrument.instrument_driver import DriverConnectionState
 
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-#from pyon.net.channel import ChannelError
-from mi.core.exceptions import InstrumentParameterException
-
 from ion.agents.port.port_agent_process import PortAgentProcess
+
+from pyon.agent.agent import ResourceAgentState
+from pyon.agent.agent import ResourceAgentEvent
+
 class InstrumentDriverTestConfig(Singleton):
     """
     Singleton driver test config object.
@@ -218,7 +204,13 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
 
         config = {
             'device_addr' : comm_config.device_addr,
-            'device_port' : comm_config.device_port
+            'device_port' : comm_config.device_port,
+
+            'command_port': comm_config.command_port,
+            'data_port': comm_config.data_port,
+
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 5,
         }
 
         port_agent = PortAgentProcess.launch_process(config, timeout = 60,
@@ -237,7 +229,7 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         """
         Stop the port agent.
         """
-        log.info("Stop port agent")
+        log.info("Stop port agent: cls=%s" %cls)
         if cls.test_config.port_agent:
             log.debug("found port agent, now stop it")
             cls.test_config.port_agent.stop()
@@ -294,12 +286,47 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         }
 
 
-
-
 class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     """
     Base class for instrument driver unit tests
     """
+    @classmethod
+    def setUpClass(cls):
+        cls.init_port_agent()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.stop_port_agent()
+
+    def compare_parsed_data_particle(self, particle_type, raw_input, happy_structure):
+        """
+        Compare a data particle created with the raw input string to the structure
+        that should be generated.
+        
+        @param The data particle class to create
+        @param raw_input The input string that is instrument-specific
+        @param happy_structure The structure that should result from parsing the
+            raw input during DataParticle creation
+        """
+        port_timestamp = happy_structure[DataParticleKey.PORT_TIMESTAMP]
+        if DataParticleKey.INTERNAL_TIMESTAMP in happy_structure:
+            internal_timestamp = happy_structure[DataParticleKey.INTERNAL_TIMESTAMP]        
+            test_particle = particle_type(raw_input, port_timestamp=port_timestamp,
+                                          internal_timestamp=internal_timestamp)
+        else:
+            test_particle = particle_type(raw_input, port_timestamp=port_timestamp)
+            
+        parsed_result = test_particle.generate_parsed()
+        decoded_parsed = json.loads(parsed_result)
+        
+        driver_time = decoded_parsed[DataParticleKey.DRIVER_TIMESTAMP]
+        happy_structure[DataParticleKey.DRIVER_TIMESTAMP] = driver_time
+        
+        # run it through json so unicode and everything lines up
+        standard = json.dumps(happy_structure, sort_keys=True)
+
+        self.assertEqual(parsed_result, standard)
+    
 
 class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must inherit from here to get _start_container
     @classmethod
@@ -346,20 +373,17 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         self.assertTrue(isinstance(pagent_pid, int))
         
         # Send a test message to the process interface, confirm result.
-        msg = 'I am a ZMQ message going to the process.'
-        reply = self.driver_client.cmd_dvr('process_echo', msg)
-        self.assertEqual(reply,'process_echo: '+msg)
-        
+        reply = self.driver_client.cmd_dvr('process_echo')
+        self.assert_(reply.startswith('ping from resource ppid:'))
+
+        reply = self.driver_client.cmd_dvr('driver_ping', 'foo')
+        self.assert_(reply.startswith('driver_ping: foo'))
+
         # Test the driver is in state unconfigured.
         # TODO: Add this test back in after driver code is merged from coi-services
         #state = self.driver_client.cmd_dvr('get_current_state')
         #self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-        
-        # Send a test message to the driver interface, confirm result.
-        msg = 'I am a ZMQ message going to the driver.'
-        reply = self.driver_client.cmd_dvr('driver_echo', msg)
-        self.assertEqual(reply, 'driver_echo: '+msg)
-        
+                
         # Test the event thread publishes and client side picks up events.
         events = [
             'I am important event #1!',
@@ -375,11 +399,6 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         with self.assertRaises(InstrumentException):
             exception_str = 'Oh no, something bad happened!'
             reply = self.driver_client.cmd_dvr('test_exceptions', exception_str)
-
-        # Verify we received a driver error event.
-        gevent.sleep(1)
-        error_events = [evt for evt in self.events if isinstance(evt, dict) and evt['type']==DriverAsyncEvent.ERROR]
-        self.assertTrue(len(error_events) == 1)
 
 
 class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
@@ -400,11 +419,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         InstrumentDriverTestCase.setUp(self)
 
-<<<<<<< HEAD
         self.port_agent = self.test_config.port_agent
-=======
-        self.init_port_agent()
->>>>>>> upstream/master
 
         self.instrument_agent_manager = InstrumentAgentClient();
         self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
@@ -475,6 +490,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
     def test_common_qualification(self):
         self.assertTrue(1)
 
+    # FIXED
     def test_instrument_agent_common_state_model_lifecycle(self):
         """
         @brief Test agent state transitions.
@@ -482,197 +498,148 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                properly command the instrument through the following states.
         @todo  Once direct access settles down and works again, re-enable direct access.
 
-               KNOWN COMMANDS               -> RESULTANT STATES:
-               * power_up                   -> UNINITIALIZED
-               * power_down                 -> POWERED_DOWN
-               * initialize                 -> INACTIVE
-               * reset                      -> UNINITIALIZED
-               * go_active                  -> IDLE
-               * go_inactive                -> INACTIVE
-               * run                        -> OBSERVATORY
-               * clear                      -> IDLE
-               * pause                      -> STOPPED
-               * resume                     -> OBSERVATORY
-               * go_streaming               -> STREAMING
-               * go_direct_access           -> DIRECT_ACCESS
-               * go_observatory             -> OBSERVATORY
-               * get_current_state          -> gives current state.
-               * start_transaction (NA)
-               * end_transaction (NA)
+                COMMANDS TESTED
+                *ResourceAgentEvent.INITIALIZE
+                *ResourceAgentEvent.RESET
+                *ResourceAgentEvent.GO_ACTIVE
+                *ResourceAgentEvent.RUN
+                *ResourceAgentEvent.PAUSE
+                *ResourceAgentEvent.RESUME
+                *ResourceAgentEvent.GO_COMMAND
+                *ResourceAgentEvent.GO_DIRECT_ACCESS
+                *ResourceAgentEvent.GO_INACTIVE
+                *ResourceAgentEvent.PING_RESOURCE
+                *ResourceAgentEvent.CLEAR
 
-               STATES ACHIEVED:
-               * InstrumentAgentState.POWERED_DOWN
-               * InstrumentAgentState.UNINITIALIZED
-               * InstrumentAgentState.INACTIVE
-               * InstrumentAgentState.IDLE
-               * InstrumentAgentState.OBSERVATORY
-               * InstrumentAgentState.STREAMING
-               * InstrumentAgentState.DIRECT_ACCESS
-               * InstrumentAgentState.STOPPED
+                COMMANDS NOT TESTED
+                * ResourceAgentEvent.GET_RESOURCE_STATE
+                * ResourceAgentEvent.GET_RESOURCE
+                * ResourceAgentEvent.SET_RESOURCE
+                * ResourceAgentEvent.EXECUTE_RESOURCE
 
-               above that are common to all devices go into common,
-               others go into instrument specific
+                STATES ACHIEVED:
+                * ResourceAgentState.UNINITIALIZED
+                * ResourceAgentState.INACTIVE
+                * ResourceAgentState.IDLE'
+                * ResourceAgentState.STOPPED
+                * ResourceAgentState.COMMAND
+                * ResourceAgentState.DIRECT_ACCESS
 
-               ?? when we get it, we can add:
-               ??    get_current_capabilitys <- instrument specific
-
-               A side effect of this testing is verification that the
-               events emitted by the agent conform to those expected
-               by the system.
+                STATES NOT ACHIEVED:
+                * ResourceAgentState.STREAMING
+                * ResourceAgentState.TEST
+                * ResourceAgentState.CALIBRATE
+                * ResourceAgentState.BUSY
         """
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-        cmd = AgentCommand(command='power_down')
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
 
-        cmd = AgentCommand(command='power_up')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_INACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
 
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        # Works but doesnt return anything useful when i tried.
+        #cmd = AgentCommand(command=ResourceAgentEvent.GET_RESOURCE_STATE)
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #log.debug("======================== " + str(retval))
 
-        cmd = AgentCommand(command='initialize')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+        # works!
+        retval = self.instrument_agent_client.ping_resource()
+        #log.debug("1======================== " + str(retval))
+        retval = self.instrument_agent_client.ping_agent()
+        #log.debug("2======================== " + str(retval))
 
-        cmd = AgentCommand(command='go_active')
+        cmd = AgentCommand(command=ResourceAgentEvent.PING_RESOURCE)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
-        log.debug("Instrument active.  Verify RQ-634")
+        self.assertTrue("ping from resource ppid" in retval.result)
 
-        cmd = AgentCommand(command='go_inactive')
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        # ...and put it back to where it should be...
-        cmd = AgentCommand(command='go_active')
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-        cmd = AgentCommand(command='run')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
 
-        # Begin streaming.
-        cmd = AgentCommand(command='go_streaming')
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.STREAMING)
-        log.debug("Enterered streaming mode. Verify RQ-636")
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        # Halt streaming.
-        cmd = AgentCommand(command='go_observatory')
+        cmd = AgentCommand(command=ResourceAgentEvent.PAUSE)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.STOPPED)
 
+        cmd = AgentCommand(command=ResourceAgentEvent.RESUME)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        # go direct access
-        cmd = AgentCommand(command='go_direct_access',
-                           kwargs={'session_type':DirectAccessTypes.telnet,
-                           #kwargs={'session_type':DirectAccessTypes.vsp,
-                                   'session_timeout':600,
-                                   'inactivity_timeout':600})
+        cmd = AgentCommand(command=ResourceAgentEvent.CLEAR)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
 
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
+            #kwargs={'session_type': DirectAccessTypes.telnet,
+            kwargs={'session_type':DirectAccessTypes.vsp,
+                    'session_timeout':600,
+                    'inactivity_timeout':600})
         retval = self.instrument_agent_client.execute_agent(cmd)
-        log.debug("5***** go_direct_access retval=" + str(retval.result))
-        # 5***** go_direct_access retval={'token': '3AE880EF-27FE-4DE8-BFFF-C078640A3090', 'ip_address': 'REDACTED.local', 'port': 8000}
+        # assert it is as long as expected 4149CB23-AF1D-43DF-8688-DDCD2B8E435E
+        self.assertTrue(36 == len(retval.result['token']))
 
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.DIRECT_ACCESS)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
 
-        # Halt DA.
-        cmd = AgentCommand(command='go_observatory')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        cmd = AgentCommand(command='pause')
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.STOPPED)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-        cmd = AgentCommand(command='resume')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
-
-        cmd = AgentCommand(command='clear')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
-
-        cmd = AgentCommand(command='run')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
-
-        cmd = AgentCommand(command='pause')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.STOPPED)
-
-        cmd = AgentCommand(command='clear')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
-
-        cmd = AgentCommand(command='reset')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
+    # FIXED
     def test_instrument_agent_to_instrument_driver_connectivity(self):
         """
         @brief This test verifies that the instrument agent can
@@ -682,71 +649,43 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                layer.
         """
 
-        log.debug("IA client = " + str(self.instrument_agent_client))
 
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-
-        cmd = AgentCommand(command='power_down')
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-
-
-
-
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
 
-        cmd = AgentCommand(command='power_up')
-        retval = self.instrument_agent_client.execute_agent(cmd)
 
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        retval = self.instrument_agent_client.ping_resource()
+        log.debug("RETVAL = " + str(type(retval)))
+        self.assertTrue("ping from resource ppid" in retval)
+        self.assertTrue("time:" in retval)
 
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        retval = self.instrument_agent_client.ping_agent()
+        log.debug("RETVAL = " + str(type(retval)))
+        self.assertTrue("ping from InstrumentAgent" in retval)
+        self.assertTrue("time:" in retval)
 
-        cmd = AgentCommand(command='initialize')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
 
-        cmd = AgentCommand(command='go_layer_ping')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_INACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.LAYER_PING)
-        log.debug("***** If i get here i am in LAYER_PING state....")
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-        cmd = AgentCommand(command='helo_agent', kwargs={'message': 'PING-AGENT'})
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        self.assertEqual(retval.result, "PONG-PING-AGENT")
-
-        cmd = AgentCommand(command='helo_driver', kwargs={'message': 'PING-DRIVER'})
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        self.assertEqual(retval.result, 'process_echo: PING-DRIVER')
-
-        cmd = AgentCommand(command='go_inactive')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        log.debug("***** retval2 = " + str(retval))
-
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
-        log.debug("***** If i get here i am in POWERED_DOWN state....")
 
 
     def test_instrument_error_code_enum(self):
         """
         @brief check InstErrorCode for consistency
+        @todo did InstErrorCode become redundant in the last refactor?
         """
         self.assertTrue(self.check_for_reused_values(InstErrorCode))
         pass
@@ -763,13 +702,15 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.assertTrue(self.check_for_reused_values(DriverConnectionState))
 
-    def test_instrument_agent_event_enum(self):
+    # FIXED
+    def test_resource_agent_event_enum(self):
 
-        self.assertTrue(self.check_for_reused_values(InstrumentAgentEvent))
+        self.assertTrue(self.check_for_reused_values(ResourceAgentEvent))
 
-    def test_instrument_agent_state_enum(self):
+    # FIXED
+    def test_resource_agent_state_enum(self):
 
-        self.assertTrue(self.check_for_reused_values(InstrumentAgentState))
+        self.assertTrue(self.check_for_reused_values(ResourceAgentState))
 
 
     def check_for_reused_values(self, obj):
@@ -832,119 +773,199 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
 
         # Clear off any events from before this test so we have consistent state
-        self._events_received = []
+        self.event_subscribers.events_received = []
 
-        expected_events = []
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_POWERED_DOWN')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_UNINITIALIZED')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_INACTIVE')
-        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
-        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
-        expected_events.append('New driver state: DRIVER_STATE_UNKNOWN')
-        expected_events.append('New driver configuration:')
-        expected_events.append('New driver state: DRIVER_STATE_COMMAND')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_IDLE')
-        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_INACTIVE')
-        expected_events.append('New driver state: DRIVER_STATE_UNCONFIGURED')
-        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
-        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
-        expected_events.append('New driver state: DRIVER_STATE_UNKNOWN')
-        expected_events.append('New driver configuration:')
-        expected_events.append('New driver state: DRIVER_STATE_COMMAND')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_IDLE')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_OBSERVATORY')
-        expected_events.append('New driver state: DRIVER_STATE_AUTOSAMPLE')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_STREAMING')
-        expected_events.append('New driver configuration:')
-        expected_events.append('New driver state: DRIVER_STATE_COMMAND')
-        expected_events.append('New driver state: DRIVER_STATE_DIRECT_ACCESS')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_DIRECT_ACCESS')
-        expected_events.append('New driver state: DRIVER_STATE_COMMAND')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_OBSERVATORY')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_STOPPED')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_OBSERVATORY')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_IDLE')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_OBSERVATORY')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_STOPPED')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_IDLE')
-        expected_events.append('New driver state: DRIVER_STATE_DISCONNECTED')
-        expected_events.append('New driver state: DRIVER_STATE_UNCONFIGURED')
-        expected_events.append('Agent entered state: INSTRUMENT_AGENT_STATE_UNINITIALIZED')
+        expected_events = [
+            'AgentState=RESOURCE_AGENT_STATE_UNINITIALIZED',
+            'AgentState=RESOURCE_AGENT_STATE_INACTIVE',
+            'AgentCommand=RESOURCE_AGENT_EVENT_INITIALIZE',
+            'ResourceState=DRIVER_STATE_DISCONNECTED',
+            'ResourceState=DRIVER_STATE_DISCONNECTED',
+            'ResourceState=DRIVER_STATE_UNKNOWN',
+            'ResourceConfig',
+            'ResourceState=DRIVER_STATE_COMMAND',
+            'AgentState=RESOURCE_AGENT_STATE_IDLE',
+            'AgentCommand=RESOURCE_AGENT_EVENT_GO_ACTIVE',
+            'ResourceState=DRIVER_STATE_DISCONNECTED',
+            'ResourceState=DRIVER_STATE_UNCONFIGURED',
+            'AgentState=RESOURCE_AGENT_STATE_INACTIVE',
+            'AgentCommand=RESOURCE_AGENT_EVENT_GO_INACTIVE',
+            'ResourceState=DRIVER_STATE_DISCONNECTED',
+            'ResourceState=DRIVER_STATE_DISCONNECTED',
+            'ResourceState=DRIVER_STATE_UNKNOWN',
+            'ResourceConfig',
+            'ResourceState=DRIVER_STATE_COMMAND',
+            'AgentState=RESOURCE_AGENT_STATE_IDLE',
+            'AgentCommand=RESOURCE_AGENT_EVENT_GO_ACTIVE',
+            'AgentCommand=RESOURCE_AGENT_PING_RESOURCE',
+            'AgentState=RESOURCE_AGENT_STATE_COMMAND',
+            'AgentCommand=RESOURCE_AGENT_EVENT_RUN',
+            'ResourceState=DRIVER_STATE_DISCONNECTED',
+            'ResourceState=DRIVER_STATE_UNCONFIGURED',
+            'AgentState=RESOURCE_AGENT_STATE_UNINITIALIZED',
+            'AgentCommand=RESOURCE_AGENT_EVENT_RESET',
+            'AgentState=RESOURCE_AGENT_STATE_INACTIVE',
+            'AgentCommand=RESOURCE_AGENT_EVENT_INITIALIZE',
+            'ResourceState=DRIVER_STATE_DISCONNECTED',
+            'ResourceState=DRIVER_STATE_DISCONNECTED',
+            'ResourceState=DRIVER_STATE_UNKNOWN',
+            'AgentState=RESOURCE_AGENT_STATE_IDLE',
+            'AgentCommand=RESOURCE_AGENT_EVENT_GO_ACTIVE',
+            'AgentState=RESOURCE_AGENT_STATE_COMMAND',
+            'AgentCommand=RESOURCE_AGENT_EVENT_RUN',
+            'ResourceConfig',
+            'ResourceState=DRIVER_STATE_COMMAND',
+            'AgentState=RESOURCE_AGENT_STATE_STOPPED',
+            'AgentCommand=RESOURCE_AGENT_EVENT_PAUSE',
+            'AgentState=RESOURCE_AGENT_STATE_COMMAND',
+            'AgentCommand=RESOURCE_AGENT_EVENT_RESUME',
+            'AgentState=RESOURCE_AGENT_STATE_IDLE',
+            'AgentCommand=RESOURCE_AGENT_EVENT_CLEAR',
+            'AgentState=RESOURCE_AGENT_STATE_COMMAND',
+            'AgentCommand=RESOURCE_AGENT_EVENT_RUN',
+            'AgentState=RESOUCE_AGENT_STATE_DIRECT_ACCESS',
+            'AgentCommand=RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS',
+            'ResourceState=DRIVER_STATE_DIRECT_ACCESS',
+            'AgentState=RESOURCE_AGENT_STATE_COMMAND',
+            'AgentCommand=RESOURCE_AGENT_EVENT_GO_COMMAND',
+            'ResourceState=DRIVER_STATE_COMMAND',
+            'ResourceState=DRIVER_STATE_DISCONNECTED',
+            'ResourceState=DRIVER_STATE_UNCONFIGURED',
+            'AgentState=RESOURCE_AGENT_STATE_UNINITIALIZED',
+            'AgentCommand=RESOURCE_AGENT_EVENT_RESET'
+        ]
 
-        cmd = AgentCommand(command='power_down')
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-        cmd = AgentCommand(command='power_up')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
 
-        cmd = AgentCommand(command='initialize')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_INACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-        cmd = AgentCommand(command='go_active')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
 
-        cmd = AgentCommand(command='go_inactive')
+        # Works but doesnt return anything useful when i tried.
+        #cmd = AgentCommand(command=ResourceAgentEvent.GET_RESOURCE_STATE)
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #log.debug("======================== " + str(retval))
+
+        # works!
+        retval = self.instrument_agent_client.ping_resource()
+        #log.debug("1======================== " + str(retval))
+        retval = self.instrument_agent_client.ping_agent()
+        #log.debug("2======================== " + str(retval))
+
+        cmd = AgentCommand(command=ResourceAgentEvent.PING_RESOURCE)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        self.assertTrue("ping from resource ppid" in retval.result)
 
-        cmd = AgentCommand(command='go_active')
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        cmd = AgentCommand(command='run')
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-        # Begin streaming.
-        cmd = AgentCommand(command='go_streaming')
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-        # Halt streaming.
-        cmd = AgentCommand(command='go_observatory')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
 
-        # go direct access
-        cmd = AgentCommand(command='go_direct_access',
-            kwargs={'session_type':DirectAccessTypes.telnet,
-                    #kwargs={'session_type':DirectAccessTypes.vsp,
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.PAUSE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.STOPPED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RESUME)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.CLEAR)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
+            #kwargs={'session_type': DirectAccessTypes.telnet,
+            kwargs={'session_type':DirectAccessTypes.vsp,
                     'session_timeout':600,
                     'inactivity_timeout':600})
         retval = self.instrument_agent_client.execute_agent(cmd)
+        # assert it is as long as expected 4149CB23-AF1D-43DF-8688-DDCD2B8E435E
+        self.assertTrue(36 == len(retval.result['token']))
 
-        log.debug("RETVAL = " + str(retval))
-        # Halt DA.
-        cmd = AgentCommand(command='go_observatory')
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        cmd = AgentCommand(command='pause')
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-        cmd = AgentCommand(command='resume')
-        retval = self.instrument_agent_client.execute_agent(cmd)
 
-        cmd = AgentCommand(command='clear')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        cmd = AgentCommand(command='run')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        cmd = AgentCommand(command='pause')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        cmd = AgentCommand(command='clear')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        cmd = AgentCommand(command='reset')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
+        #
+        # Refactor changed it so no description is ever present.
+        # go with state instead i guess...
+        #
         raw_events = []
-        log.warn("ROGER *********************EVENTS " + str(self.event_subscribers.events_received))
         for x in self.event_subscribers.events_received:
-            if x.description.find("New driver configuration:") >= 0:
-                raw_events.append("New driver configuration:")
-                log.warn("ROGER *********************APPENDING " + "New driver configuration:")
+            if str(type(x)) == "<class 'interface.objects.ResourceAgentCommandEvent'>":
+                log.warn(str(type(x)) + " ********************* " + str(x.execute_command))
+                raw_events.append("AgentCommand=" + str(x.execute_command))
+            elif str(type(x)) == "<class 'interface.objects.ResourceAgentResourceStateEvent'>":
+                log.warn(str(type(x)) + " ********************* " + str(x.state))
+                raw_events.append("ResourceState=" + str(x.state))
+            elif str(type(x)) == "<class 'interface.objects.ResourceAgentStateEvent'>":
+                log.warn(str(type(x)) + " ********************* " + str(x.state))
+                raw_events.append("AgentState=" + str(x.state))
+            elif str(type(x)) == "<class 'interface.objects.ResourceAgentResourceConfigEvent'>":
+                log.warn(str(type(x)) + " ********************* ")
+                raw_events.append("ResourceConfig")
             else:
-                raw_events.append(str(x.description))
-                log.warn("ROGER *********************APPENDING " + str(x.description))
-        log.debug("raw_events[] = " + str(raw_events))
+                log.warn(str(type(x)) + " ********************* " + str(x))
+
         for x in sorted(raw_events):
             log.debug(str(x) + " ?in (expected_events) = " + str(x in expected_events))
             self.assertTrue(x in expected_events)
@@ -954,113 +975,12 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             self.assertTrue(x in raw_events)
 
         # assert we got the expected number of events
-        self.assertEqual(len(self.de_dupe(expected_events)), len(self.de_dupe(raw_events)))
-        # FAIL AssertionError: 37 != 38
+        num_expected = len(self.de_dupe(expected_events))
+        num_actual = len(self.de_dupe(raw_events))
+        self.assertTrue(num_actual == num_expected)
+
         pass
 
-    # broken
-    def test_instrument_driver_vs_invalid_commands(self):
-        """
-        @Author Edward Hunter
-        @brief This test should send mal-formed, misspelled,
-               missing parameter, or out of bounds parameters
-               at the instrument driver in an attempt to
-               confuse it.
-
-               See: test_instrument_driver_to_physical_instrument_interoperability
-               That test will provide the how-to of connecting.
-               Once connected, send messed up commands.
-
-               * negative testing
-
-
-               Test illegal behavior and replies.
-        """
-
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
-        # Can't go active in unitialized state.
-        # Status 660 is state error.
-        cmd = AgentCommand(command='go_active')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.info('GO ACTIVE CMD %s',str(retval))
-        self.assertEquals(retval.status, 660)
-
-        # Can't command driver in this state.
-        cmd = AgentCommand(command='acquire_sample')
-        reply = self.instrument_agent_client.execute(cmd)
-        self.assertEqual(reply.status, 660)
-
-        cmd = AgentCommand(command='initialize')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
-
-        cmd = AgentCommand(command='go_active')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
-
-        cmd = AgentCommand(command='run')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
-
-        # OK, I can do this now.
-        cmd = AgentCommand(command='acquire_sample')
-        reply = self.instrument_agent_client.execute(cmd)
-        self.assertSampleDict(reply.result)
-
-
-        # 404 unknown agent command.
-        cmd = AgentCommand(command='kiss_edward')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        self.assertEquals(retval.status, 404)
-
-
-        '''
-        @todo this needs to be re-enabled eventually
-        # 670 unknown driver command.
-        cmd = AgentCommand(command='acquire_sample_please')
-        retval = self.instrument_agent_client.execute(cmd)
-        log.debug("retval = " + str(retval))
-        
-        # the return value will likely be changed in the future to return
-        # to being 670... for now, lets make it work.
-        #self.assertEqual(retval.status, 670)
-        self.assertEqual(retval.status, -1)
-
-        try:
-            reply = self.instrument_agent_client.get_param('1234')
-        except Exception as e:
-            log.debug("InstrumentParameterException ERROR = " + str(e))
-
-        #with self.assertRaises(XXXXXXXXXXXXXXXXXXXXXXXX):
-        #    reply = self.instrument_agent_client.get_param('1234')
-
-        # 630 Parameter error.
-        #with self.assertRaises(InstParameterError):
-        #    reply = self.instrument_agent_client.get_param('bogus bogus')
-
-        cmd = AgentCommand(command='reset')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-        '''
-        pass
 
     def test_instrument_driver_to_physical_instrument_interoperability(self):
         """
@@ -1070,26 +990,15 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                On a seabird sbe37 this results in a ds and dc command being sent.
         """
 
-
-
-
-        cmd = AgentCommand(command='initialize')
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
-
-        cmd = AgentCommand(command='go_active')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        # Test the driver is configured for comms.
-
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
 
         pass
 
@@ -1108,23 +1017,15 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         driver process and transition to inactive.
         """
 
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-        cmd = AgentCommand(command='initialize')
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-        cmd = AgentCommand(command='get_current_state')
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
-
-        cmd = AgentCommand(command='reset')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)

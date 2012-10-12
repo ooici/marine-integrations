@@ -18,10 +18,11 @@ import signal
 import os
 import sys
 import time
-from mi.core.exceptions import InstrumentCommandException
+import traceback
+from mi.core.exceptions import InstrumentException, InstrumentCommandException
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
-from mi.core.log import log
+from ooi.logging import log
 
 class DriverProcess(object):
     """
@@ -147,29 +148,40 @@ class DriverProcess(object):
             self.events += events
             reply = 'test_events'
         elif cmd == 'process_echo':
-            reply = 'process_echo: %s' % str(args[0])
+            reply = 'ping from resource ppid:%s, resource:%s' % (str(self.ppid), str(self.driver))
+            #try:
+            #    msg = args[0]
+            #except IndexError:
+            #    msg = 'no message to echo'
+            # reply = 'process_echo: %s' % msg
         elif cmd_func:
             try:
                 reply = cmd_func(*args, **kwargs)
             except Exception as e:
                 reply = e
-                event = {
-                    'type' : DriverAsyncEvent.ERROR,
-                    'value' : str(e),
-                    'exception' : e,
-                    'time' : time.time()
-                }
-                self.send_event(event)
+                # Command error events are better handled in the agent directly.
+                #event = {
+                #    'type' : DriverAsyncEvent.ERROR,
+                #    'value' : str(e),
+                #    'exception' : e,
+                #    'time' : time.time()
+                #}
+                #self.send_event(event)
+                if not isinstance(e, InstrumentException):
+                    trace = traceback.format_exc()
+                    log.critical("Python error, Trace follows: \n%s" %trace)
+                
                 
         else:
             reply = InstrumentCommandException('Unknown driver command.')
-            event = {
-                'type' : DriverAsyncEvent.ERROR,
-                'value' : str(reply),
-                'exception' : reply,
-                'time' : time.time()
-            }
-            self.send_event(event)
+            # Command error events are better handled in the agent directly.
+            #event = {
+            #    'type' : DriverAsyncEvent.ERROR,
+            #    'value' : str(reply),
+            #    'exception' : reply,
+            #    'time' : time.time()
+            #}
+            #self.send_event(event)
         
         return reply        
             
@@ -185,7 +197,10 @@ class DriverProcess(object):
         Periodically check messaging is going and parent exists if
         specified.
         """
-        
+
+        from mi.core.log import LoggerManager
+        LoggerManager()
+
         log.info('Driver process started.')
         
         def shand(signum, frame):

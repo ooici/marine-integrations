@@ -3,6 +3,6 @@ driver_metadata:
   driver_make: nobska
   driver_model: mavs4
   driver_name: ooicore
-  email: wbollenbacher@ucsd.edu
-  release_notes: initial release
-  version: '1'
+  email: wcbollenbacher@ucsd.edu
+  release_notes: .
+  version: '1.0'

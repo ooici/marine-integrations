@@ -29,7 +29,8 @@ import zmq
 
 import mi.core.instrument.driver_process as driver_process
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.log import log
+from mi.core.log import get_logger
+log = get_logger()
 
 class ZmqDriverProcess(driver_process.DriverProcess):
     """
@@ -119,7 +120,6 @@ class ZmqDriverProcess(driver_process.DriverProcess):
         on REP and PUB sockets, respectively. Terminate loops and close
         sockets when stop flag is set in driver process.
         """
-        
         def recv_cmd_msg(zmq_driver_process):
             """
             Await commands on a ZMQ REP socket, forwaring them to the

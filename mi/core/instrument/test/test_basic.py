@@ -21,17 +21,17 @@ import logging
 import unittest
 from nose.plugins.attrib import attr
 from mock import Mock
-from ion.services.mi.common import BaseEnum
-from ion.services.mi.common import InstErrorCode
+from mi.core.common import BaseEnum
+from mi.core.common import InstErrorCode
 #from ion.services.mi.common import DriverAnnouncement
-from ion.services.mi.exceptions import InstrumentParameterException
-from ion.services.mi.instrument_protocol import InstrumentProtocol
-from ion.services.mi.instrument_driver import DriverState
-from ion.services.mi.instrument_driver import InstrumentDriver
+from mi.core.exceptions import InstrumentParameterException
+from mi.core.instrument.instrument_protocol import InstrumentProtocol
+from mi.core.instrument.instrument_driver import DriverState
+from mi.core.instrument.instrument_driver import InstrumentDriver
 #from ion.services.mi.instrument_driver import DriverChannel
-from ion.services.mi.instrument_driver import DriverState, DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverState, DriverConnectionState
 
-import ion.services.mi.mi_logger
+import mi.core.mi_logger
 mi_logger = logging.getLogger('mi_logger')
 
 
@@ -285,7 +285,7 @@ class DriverTest(unittest.TestCase):
 
         mi_logger.debug("\nGET: %s" % str(params))
 
-        get_result = self.driver.get(params)
+        get_result = self.driver.get_resource(params)
 
         _print_dict("\nGET get_result", get_result)
 
@@ -305,7 +305,7 @@ class DriverTest(unittest.TestCase):
 
         mi_logger.debug("\nGET: %s" % str(params))
 
-        get_result = self.driver.get(params)
+        get_result = self.driver.get_resource(params)
 
         _print_dict("\nGET get_result", get_result)
 
@@ -330,12 +330,12 @@ class DriverTest(unittest.TestCase):
 
         set_params = self._prepare_set_params(params)
 
-        set_result = self.driver.set(set_params)
+        set_result = self.driver.set_resource(set_params)
 
         _print_dict("\nSET set_result", set_result)
 
         # now, get the values for the valid parameters and check
-        get_result = self.driver.get(Some.VALID_PARAMS)
+        get_result = self.driver.get_resource(Some.VALID_PARAMS)
 
         _print_dict("\nGET get_result", get_result)
 
@@ -354,7 +354,7 @@ class DriverTest(unittest.TestCase):
 
         set_params = self._prepare_set_params(params)
 
-        set_result = self.driver.set(set_params)
+        set_result = self.driver.set_resource(set_params)
 
         _print_dict("\nSET set_result", set_result)
 
@@ -408,16 +408,16 @@ class DriverTest(unittest.TestCase):
 
     def test_connect_disconnect(self):
         """Test state change when connecting and disconnecting"""
-        result = self.driver.get_current_state()
+        result = self.driver.get_resource_state()
         mi_logger.debug("Initial state result: %s", result)
         self.assertEquals(result[Channel.INSTRUMENT], DriverState.UNCONFIGURED)
 
         self.driver.chan_map[Channel.INSTRUMENT].connect = Mock(return_value = 12)
         result = self.driver.connect()
-        result = self.driver.get_current_state()
+        result = self.driver.get_resource_state()
         # Verify we hit the protocol since we are "connected"
         self.assertEquals(result[Channel.INSTRUMENT], DriverState.UNCONFIGURED)
         result = self.driver.disconnect()
-        result = self.driver.get_current_state()
+        result = self.driver.get_resource_state()
         # driver FSM should intercept
         self.assertEquals(result[Channel.INSTRUMENT], DriverConnectionState.DISCONNECTED)

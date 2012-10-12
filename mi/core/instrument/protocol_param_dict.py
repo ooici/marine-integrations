@@ -25,10 +25,18 @@ class ParameterDictVal(object):
     """
     A parameter dictionary value.
     """
+    """
     def __init__(self, name, pattern, f_getval, f_format, value=None,
                  visibility=ParameterDictVisibility.READ_WRITE,
                  menu_path_read=None,
                  menu_path_write=None):
+    """
+    def __init__(self, name, pattern, f_getval, f_format, value=None,
+                 visibility=ParameterDictVisibility.READ_WRITE,
+                 menu_path_read=None,
+                 submenu_read=None,
+                 menu_path_write=None,
+                 submenu_write=None):
         """
         Parameter value constructor.
         @param name The parameter name.
@@ -48,7 +56,9 @@ class ParameterDictVal(object):
         self.f_format = f_format
         self.value = value
         self.menu_path_read = menu_path_read
+        self.submenu_read = submenu_read
         self.menu_path_write = menu_path_write
+        self.submenu_write = submenu_write
         self.visibility = visibility
 
     def update(self, input):
@@ -78,9 +88,15 @@ class ProtocolParameterDict(object):
         """
         self._param_dict= {}
         
+    """
     def add(self, name, pattern, f_getval, f_format, value=None,
             visibility=ParameterDictVisibility.READ_WRITE,
             menu_path_read=None, menu_path_write=None):
+    """
+    def add(self, name, pattern, f_getval, f_format, value=None,
+            visibility=ParameterDictVisibility.READ_WRITE,
+            menu_path_read=None, submenu_read=None,
+            menu_path_write=None, submenu_write=None):
         """
         Add a parameter object to the dictionary.
         @param name The parameter name.
@@ -97,7 +113,9 @@ class ProtocolParameterDict(object):
                                value=value,
                                visibility=visibility,
                                menu_path_read=menu_path_read,
-                               menu_path_write=menu_path_write)
+                               submenu_read=submenu_read,
+                               menu_path_write=menu_path_write,
+                               submenu_write=submenu_write)
         self._param_dict[name] = val
         
     def get(self, name):
@@ -117,12 +135,50 @@ class ProtocolParameterDict(object):
         """
         self._param_dict[name] = value
         
+    # DHE Added
+    def get_menu_path_read(self, name):
+        """
+        Get a parameter value from the dictionary.
+        @param name Name of the value to be retrieved.
+        @raises KeyError if the name is invalid.
+        """
+        return self._param_dict[name].menu_path_read
+        
+    # DHE Added
+    # This is the final destination submenu
+    def get_submenu_read(self, name):
+        """
+        Get a parameter value from the dictionary.
+        @param name Name of the value to be retrieved.
+        @raises KeyError if the name is invalid.
+        """
+        return self._param_dict[name].submenu_read
+        
+    # DHE Added
+    def get_menu_path_write(self, name):
+        """
+        Get a parameter value from the dictionary.
+        @param name Name of the value to be retrieved.
+        @raises KeyError if the name is invalid.
+        """
+        return self._param_dict[name].menu_path_write
+        
+    # DHE Added
+    # This is the final destination submenu
+    def get_submenu_write(self, name):
+        """
+        Get a parameter value from the dictionary.
+        @param name Name of the value to be retrieved.
+        @raises KeyError if the name is invalid.
+        """
+        return self._param_dict[name].submenu_write
+        
     def update(self, input):
         """
         Update the dictionaray with a line input. Iterate through all objects
         and attempt to match and update a parameter.
         @param input A string to match to a dictionary object.
-        @retval The name that was successfully updated, None if not updated
+        @retval The name that was successfully updated, False if not updated
         """
         for (name, val) in self._param_dict.iteritems():
             if val.update(input):
