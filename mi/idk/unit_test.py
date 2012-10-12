@@ -57,6 +57,9 @@ from ion.agents.port.port_agent_process import PortAgentProcess
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 
+# Do not remove this import.  It is for package building.
+from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
+
 class InstrumentDriverTestConfig(Singleton):
     """
     Singleton driver test config object.
