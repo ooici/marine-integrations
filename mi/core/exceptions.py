@@ -51,6 +51,10 @@ class InstrumentDataException(InstrumentException):
     along the path of handling that data"""
     pass
 
+class TestModeException(InstrumentException):
+    """Attempt to run a test command while not in test mode"""
+    pass
+
 class InstrumentCommandException(InstrumentException):
     """A problem with the command sent toward the instrument"""
     pass

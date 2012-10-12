@@ -14,7 +14,8 @@ __license__ = 'Apache 2.0'
 import time
 
 from mi.core.common import BaseEnum
-from mi.core.exceptions import NotImplementedException 
+from mi.core.exceptions import TestModeException
+from mi.core.exceptions import NotImplementedException
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.instrument.instrument_fsm import InstrumentFSM
@@ -164,11 +165,20 @@ class InstrumentDriver(object):
         """
         LoggerManager()
         self._send_event = event_callback
+        self._test_mode = False
 
     #############################################################
     # Device connection interface.
     #############################################################
-    
+
+    def set_test_mode(self, mode):
+        """
+        Enable test mode for the driver.  If this mode is envoked
+        then the user has access to test_ commands.
+        @param mode: test mode state
+        """
+        self._test_mode = True if mode else False
+
     def initialize(self, *args, **kwargs):
         """
         Initialize driver connection, bringing communications parameters
@@ -522,7 +532,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         # Forward event and argument to the protocol FSM.
         return self._connection_fsm.on_event(DriverEvent.EXECUTE, resource_cmd, *args, **kwargs)
 
-    def execute_force_state(self, *args, **kwargs):
+    def test_force_state(self, *args, **kwargs):
         """
         Force driver into a given state for the purposes of unit testing 
         @param state=desired_state Required desired state to transition to.
@@ -530,6 +540,9 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises InstrumentStateException if command not allowed in current state.
         @raises NotImplementedException if not implemented by subclass.                        
         """
+
+        if(not self._test_mode):
+            raise TestModeException();
 
        # Get the required param 
         state = kwargs.get('state', None)  # via kwargs
