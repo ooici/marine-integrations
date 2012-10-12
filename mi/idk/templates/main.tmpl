@@ -1,0 +1,31 @@
+import argparse
+from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
+
+def run():
+    opts = parseArgs()
+
+    if( opts.command == opts.event ):
+        print "command port file can not equal the event port file\n";
+        return
+
+    dp = ZmqDriverProcess("${driver_module}",
+                          "${driver_class}",
+                          opts.command,
+                          opts.event,
+                          opts.ppid);
+    dp.run()
+
+def parseArgs():
+    parser = argparse.ArgumentParser(description='start the driver.')
+
+    parser.add_argument("-c", "--command_port_file", dest='command', required=True, help="command port file" )
+    parser.add_argument("-e", "--event_port_file", dest='event', required=True, help="event port file" )
+    parser.add_argument("-p", "--ppid", dest='ppid', required=False, type=int, help="parent process id, if this PPID doesn't exist die" )
+
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    run()
+
+

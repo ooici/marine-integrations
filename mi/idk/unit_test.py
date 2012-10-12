@@ -56,23 +56,8 @@ from ion.agents.port.port_agent_process import PortAgentProcess
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 
-from mi.core.common import BaseEnum
-from mi.core.instrument.instrument_driver import DriverEvent
-class RequiredCapabilities(BaseEnum):
-    """
-    Required Capabilities for Every Driver
-    """
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-
-class RequiredAutoSampleCapabilities(BaseEnum):
-    """
-    Required Capabilities for Every Driver
-    """
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-
+# Do not remove this import.  It is for package building.
+from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
 class InstrumentDriverTestConfig(Singleton):
     """
