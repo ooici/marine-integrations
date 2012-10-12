@@ -537,8 +537,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         Force driver into a given state for the purposes of unit testing 
         @param state=desired_state Required desired state to transition to.
         @raises InstrumentParameterException if no state parameter.
-        @raises InstrumentStateException if command not allowed in current state.
-        @raises NotImplementedException if not implemented by subclass.                        
+        @raises TestModeException if not in test mode
         """
 
         if(not self._test_mode):
@@ -549,8 +548,10 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         if state is None:
             raise InstrumentParameterException('Missing state parameter.')
 
-        # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.FORCE_STATE, DriverEvent.FORCE_STATE, *args, **kwargs)
+        # We are mucking with internal FSM parameters which may be bad.
+        # The alternative was to raise an event to change the state.  Dont
+        # know which is better.
+        self._protocol._protocol_fsm.current_state = state
 
     ########################################################################
     # Unconfigured handlers.

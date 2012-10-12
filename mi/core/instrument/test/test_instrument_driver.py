@@ -36,8 +36,9 @@ class TestUnitInstrumentDriver(IonUnitTestCase):
 
     def test_test_mode(self):
         """
-        Test driver test mode and ensure that it throws an exception when
-        attempting to call a test_ method.
+        Test driver test mode.
+        Ensure driver test mode attribute is set properly and verify
+        exceptions are thrown when not in test mode.
         """
 
         # Ensure that we default to test mode off
@@ -51,15 +52,25 @@ class TestUnitInstrumentDriver(IonUnitTestCase):
         except(TestModeException):
             exception = True
 
+        except(Exception):
+            # ignore other exceptions
+            pass
+
+
         self.assertTrue(exception)
 
         # Now set test mode and try to run again.
         exception = False
         try:
             self.driver.set_test_mode(True)
-
-        except:
+            self.assertTrue(self.driver._test_mode)
+            self.driver.test_force_state(state=1)
+        except(TestModeException):
             exception = True
+
+        except(Exception):
+            # ignore other exceptions
+            pass
 
         self.assertFalse(exception)
 
