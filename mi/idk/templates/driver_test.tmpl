@@ -154,7 +154,8 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         Force the driver into AUTOSAMPLE state so that it will parse and 
         publish samples
         """        
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        test_driver.set_test_mode(True)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_current_state()
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -210,7 +211,8 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         Force the driver into AUTOSAMPLE state so that it will parse and 
         publish samples
         """        
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        test_driver.set_test_mode(True)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_current_state()
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -271,7 +273,8 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         Force the driver into AUTOSAMPLE state so that it will parse and 
         publish samples
         """        
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        test_driver.set_test_mode(True)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_current_state()
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -347,7 +350,8 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         Force the driver into AUTOSAMPLE state so that it will parse and 
         publish samples
         """        
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        test_driver.set_test_mode(True)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_current_state()
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
