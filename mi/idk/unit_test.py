@@ -28,6 +28,7 @@ from ion.agents.port.port_agent_process import PortAgentProcessType
 
 from ion.agents.instrument.driver_process import DriverProcess, DriverProcessType
 
+from mi.idk.util import convert_enum_to_dict
 from mi.idk.comm_config import CommConfig
 from mi.idk.config import Config
 from mi.idk.common import Singleton
@@ -287,6 +288,39 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
             'addr': 'localhost',
             'port': port
         }
+
+    #####
+    # Custom assert methods
+    #####
+
+    def assert_set_complete(self, subset, superset):
+        """
+        Assert that every item in subset is in superset
+        """
+
+        # use assertTrue here intentionally because it's easier to unit test
+        # this method.
+        if len(superset):
+            self.assertTrue(len(subset) > 0)
+
+        for item in subset:
+            self.assertTrue(item in superset)
+
+        # This added so the unit test can set a true flag.  If we have made it
+        # this far we should pass the test.
+        #self.assertTrue(True)
+
+    def assert_enum_has_no_duplicates(self, obj):
+        dic = convert_enum_to_dict(obj)
+        occurances  = {}
+        for k, v in dic.items():
+            #v = tuple(v)
+            occurances[v] = occurances.get(v,0) + 1
+
+        for k in occurances:
+            if occurances[k] > 1:
+                log.error(str(obj) + " has ambigous duplicate values for '" + str(k) + "'")
+                self.assertEqual(1, occurances[k])
 
 
 class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
