@@ -3,11 +3,11 @@
 """
 @package mi.core.instrument.test.test_instrument_driver
 @file mi/core/instrument/test/test_instrument_driver.py
-@author Steve Foley
+@author Bill French
 @brief Test cases for the base instrument driver module
 """
 
-__author__ = 'Steve Foley'
+__author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
 from nose.plugins.attrib import attr
