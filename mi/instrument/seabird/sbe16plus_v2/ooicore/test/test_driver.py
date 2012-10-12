@@ -26,6 +26,8 @@ from mock import Mock
 
 from prototype.sci_data.stream_defs import ctd_stream_definition
 
+from mi.core.common import BaseEnum
+
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
 
@@ -53,8 +55,8 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from mi.idk.unit_test import RequiredCapabilities
-from mi.idk.unit_test import RequiredAutoSampleCapabilities
+#from mi.idk.unit_test import RequiredCapabilities
+#from mi.idk.unit_test import RequiredAutoSampleCapabilities
 
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
@@ -130,6 +132,21 @@ PARAMS = {
     # test for SYNCMODE and if true test for SYNCWAIT
     #Parameter.SYNCWAIT : int,
 }
+
+class RequiredCapabilities(BaseEnum):
+    """
+    Required Capabilities for Every Driver
+    """
+    GET = DriverEvent.GET
+    SET = DriverEvent.SET
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+
+class RequiredAutoSampleCapabilities(BaseEnum):
+    """
+    Required Capabilities for Every Driver
+    """
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
 
 """
 Test Inputs
@@ -280,6 +297,11 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         test_driver = InstrumentDriver(self.my_event_callback)
 
         """
+        Put the driver into test mode
+        """
+        test_driver.set_test_mode(True)
+
+        """
         invoke configure and connect to set up the _protocol attribute
         """
         config = {'mock_port_agent' : mock_port_agent}
@@ -291,7 +313,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """
         Force the driver state to AUTOSAMPLE to test current capabilities
         """
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -341,6 +363,11 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """                  
         test_driver = InstrumentDriver(self.my_event_callback)
         
+        """
+        Put the driver into test mode
+        """
+        test_driver.set_test_mode(True)
+
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
@@ -366,7 +393,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """
         Force driver to AUTOSAMPLE state
         """
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -398,6 +425,11 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """                  
         test_driver = InstrumentDriver(self.my_event_callback)
         
+        """
+        Put the driver into test mode
+        """
+        test_driver.set_test_mode(True)
+
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
@@ -423,7 +455,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """
         Force driver to AUTOSAMPLE state
         """
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -455,6 +487,11 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """                  
         test_driver = InstrumentDriver(self.my_event_callback)
         
+        """
+        Put the driver into test mode
+        """
+        test_driver.set_test_mode(True)
+
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
@@ -480,7 +517,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """
         Force driver to AUTOSAMPLE state
         """
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -543,6 +580,11 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """                  
         test_driver = InstrumentDriver(self.my_event_callback)
         
+        """
+        Put the driver into test mode
+        """
+        test_driver.set_test_mode(True)
+
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
@@ -568,7 +610,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """
         Force driver to AUTOSAMPLE state
         """
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
@@ -599,6 +641,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
     Test that the got_data method consumes a sample that has a concatenated fragment
     """        
     def test_sample_concatenated_fragment(self):
+
         """
         Create a mock port agent
         """
@@ -610,6 +653,11 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """                  
         test_driver = InstrumentDriver(self.my_event_callback)
         
+        """
+        Put the driver into test mode
+        """
+        test_driver.set_test_mode(True)
+
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
@@ -635,7 +683,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """
         Force driver to AUTOSAMPLE state
         """
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
