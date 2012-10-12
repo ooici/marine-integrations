@@ -1658,7 +1658,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval Sample dictionary if present or None.
         """
 
-        log.debug("IN _extract_sample line = " + repr(line))
+
         if repr(line) != "''":
             matched = False
             for (pattern_regex, pattern_info) in self._sample_regexs.iteritems():

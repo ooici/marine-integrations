@@ -1705,6 +1705,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(str(ID.get_resource_params()), str(Parameter.list()))
 
 
+
     def test_instrument_driver_build_protocol(self):
         #@TODO add tests for ID._protocol._sample_regexs
 
@@ -2902,6 +2903,107 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(result, None)
         self.assertEqual(str(_connection_send_mock.mock_calls), "[call('qs\\r\\n')]")
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    def test_get_resource_capabilities(self):
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+        args = []
+        kwargs = {}
+
+        # Force State UNKNOWN
+        ID._protocol._protocol_fsm.current_state = ProtocolState.UNKNOWN
+
+        ret = ID.get_resource_capabilities(*args, **kwargs)
+        self.assertEqual(ret[0], [])
+
+
+
+
+        # Force State COMMAND
+        ID._protocol._protocol_fsm.current_state = ProtocolState.COMMAND
+
+        ret = ID.get_resource_capabilities(*args, **kwargs)
+        for state in ['DRIVER_EVENT_ACQUIRE_SAMPLE', 'PROTOCOL_EVENT_SET_TIME',
+                      'DRIVER_EVENT_SET', 'DRIVER_EVENT_GET', 'PROTOCOL_EVENT_SETSAMPLING',
+                      'DRIVER_EVENT_START_AUTOSAMPLE', 'PROTOCOL_EVENT_UPLOAD_ASCII']:
+            self.assertTrue(state in ret[0])
+        self.assertEqual(len(ret[0]), 7)
+
+
+
+
+        # Force State AUTOSAMPLE
+        ID._protocol._protocol_fsm.current_state = ProtocolState.AUTOSAMPLE
+
+        ret = ID.get_resource_capabilities(*args, **kwargs)
+        for state in ['DRIVER_EVENT_STOP_AUTOSAMPLE', 'DRIVER_EVENT_GET']:
+            self.assertTrue(state in ret[0])
+        self.assertEqual(len(ret[0]), 2)
+
+
+
+        # Force State DIRECT_ACCESS
+        ID._protocol._protocol_fsm.current_state = ProtocolState.DIRECT_ACCESS
+
+        ret = ID.get_resource_capabilities(*args, **kwargs)
+        self.assertEqual(ret[0], [])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # create a mock instance of InstrumentDriver, and verify that the functions like
 # start, settime, dd... pass the call to the proper mocked object.
 
@@ -3794,26 +3896,41 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
+        # UNCONFIGURED
+        (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
+        self.assertEqual(res_cmds, [])
+
+
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
-        reply = self.driver_client.cmd_dvr('connect')
+        # DISCONNECTED
+        (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
+        self.assertEqual(res_cmds, [])
 
+        reply = self.driver_client.cmd_dvr('connect')
         # Test the driver is in unknown state.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolState.UNKNOWN)
 
+        # UNKNOWN
+        (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
+        self.assertEqual(res_cmds, [])
         reply = self.driver_client.cmd_dvr('discover_state')
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolState.COMMAND)
 
+        # COMMAND
         (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
-        self.assertTrue('DRIVER_EVENT_ACQUIRE_SAMPLE' in res_cmds)
-        self.assertTrue('DRIVER_EVENT_START_AUTOSAMPLE' in res_cmds)
+        for state in ['DRIVER_EVENT_ACQUIRE_SAMPLE', 'PROTOCOL_EVENT_SET_TIME',
+                      'DRIVER_EVENT_SET', 'DRIVER_EVENT_GET', 'PROTOCOL_EVENT_SETSAMPLING',
+                      'DRIVER_EVENT_START_AUTOSAMPLE', 'PROTOCOL_EVENT_UPLOAD_ASCII']:
+            self.assertTrue(state in res_cmds)
+        self.assertEqual(len(res_cmds), 7)
 
         # Verify all paramaters are present in res_params
 
@@ -3901,6 +4018,30 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertTrue(Parameter.STATUS in res_params)
         self.assertTrue(Parameter.LOGGING in res_params)
 
+        reply = self.driver_client.cmd_dvr('execute_resource', Capability.START_AUTOSAMPLE)
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolState.AUTOSAMPLE)
+
+
+        (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
+        for state in ['DRIVER_EVENT_STOP_AUTOSAMPLE', 'DRIVER_EVENT_GET']:
+            self.assertTrue(state in res_cmds)
+        self.assertEqual(len(res_cmds), 2)
+        reply = self.driver_client.cmd_dvr('execute_resource', Capability.STOP_AUTOSAMPLE)
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolState.COMMAND)
+
+
+        (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
+        for state in ['DRIVER_EVENT_ACQUIRE_SAMPLE', 'PROTOCOL_EVENT_SET_TIME',
+                      'DRIVER_EVENT_SET', 'DRIVER_EVENT_GET', 'PROTOCOL_EVENT_SETSAMPLING',
+                      'DRIVER_EVENT_START_AUTOSAMPLE', 'PROTOCOL_EVENT_UPLOAD_ASCII']:
+            self.assertTrue(state in res_cmds)
+        self.assertEqual(len(res_cmds), 7)
 
 
     def test_connect_configure_disconnect(self):
@@ -4079,8 +4220,51 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 
 
 
+    def test_connect(self):
+        """
+        Test configuring and connecting to the device through the port
+        agent. Discover device state.
+        """
+        log.info("test_connect test started")
 
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolState.UNKNOWN)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('discover_state')
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolState.COMMAND)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('disconnect')
+
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Initialize the driver and transition to unconfigured.
+        reply = self.driver_client.cmd_dvr('initialize')
+
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
 
 
@@ -4608,3 +4792,65 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
+
+    def test_acquire_sample(self):
+        """
+        @brief Acquire a sample.
+
+        @todo this will need to be re-worked once publishing is working.
+        """
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        cmd = AgentCommand(command=Capability.ACQUIRE_SAMPLE)
+        retval = self.instrument_agent_client.execute_resource(cmd)
+
+        self.assertEqual(retval.status, 0)
+        self.assertEqual(retval.type_, 'AgentCommandResult')
+        self.assertEqual(retval.command, Capability.ACQUIRE_SAMPLE)
+        self.assertEqual(retval.result, 'parsed')
+
+
+    def test_connect_disconnect(self):
+        """
+        @brief Acquire a sample.
+
+        @todo this will need to be re-worked once publishing is working.
+        """
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        cmd = AgentCommand(command='disconnect')
+        retval = self.instrument_agent_client.execute_resource(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        log.debug("STATE = " + str(state))
