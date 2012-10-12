@@ -47,5 +47,10 @@ coverage_results
 couchdb.stderr
 couchdb.stdout
 erl_crash.dump
+.deps/
+Makefile
+config.status
+autom4te.cache
+
 
 mavs4_menu_hex.txt

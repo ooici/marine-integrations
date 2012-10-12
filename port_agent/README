@@ -1,0 +1,45 @@
+OOI C++ code
+
+Prereqs
+=======
+
+For testing the google test framework and socat needs to be installed. 
+
+On OS X:
+brew install gtest
+brew install gmock
+brew install socat
+
+
+Project setup
+=============
+This project is setup using automake and autoconf.  Every source directory 
+needs a Makefile.am file.  Also each make file must exsist in the 
+AC_CONFIG_FILES variable in the configure.ac file in the project source dir.
+
+We are using the google test framework for unit testing.  Every source directory
+should have a test directory.
+
+Updating Makefile.am or configure.ac
+====================================
+Whenever Makefile.am or configure.ac are update files must be rebuild.  To do
+this run:
+
+$ autoreconf --force --install
+
+When adding a new target library make sure to add the target to 
+src/Makfile.am.inc.
+
+Building the project
+====================
+$ ./configure --prefix=<install_dir>
+$ make
+
+# Run all tests
+$ make check
+
+# Install code
+$ make install
+
+# cleaning up
+$ make clean
