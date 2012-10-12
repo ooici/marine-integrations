@@ -889,11 +889,18 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             cur_state = self.get_current_state()
             if cur_state == ProtocolState.AUTOSAMPLE:
                 if SBE16_NEWLINE in self._linebuf:
-                    lines = self._linebuf.split(SBE16_NEWLINE)
+                    #lines = self._linebuf.split(SBE16_NEWLINE)
+                    lines = self._linebuf.splitlines(1)
                     self._linebuf = lines[-1]
                     for line in lines:
-                        sample = self._extract_sample(SBE16DataParticle, SAMPLE_REGEX,
-                                             line)
+                        """
+                        The above split can leave a zero-length line in list,
+                        so only call extract_sample if len greater than zero.
+                        """
+                        if len(line) > 0 and line.endswith(SBE16_NEWLINE):
+                            sample = self._extract_sample(SBE16DataParticle, 
+                                                          SAMPLE_REGEX,
+                                                          line)
                 
     def _build_param_dict(self):
         """

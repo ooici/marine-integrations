@@ -67,6 +67,13 @@ class RequiredCapabilities(BaseEnum):
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
 
+class RequiredAutoSampleCapabilities(BaseEnum):
+    """
+    Required Capabilities for Every Driver
+    """
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+
+
 class InstrumentDriverTestConfig(Singleton):
     """
     Singleton driver test config object.

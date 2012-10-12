@@ -32,6 +32,8 @@ from mi.core.instrument.port_agent_client import PortAgentPacket
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverEvent
+
 
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
@@ -52,6 +54,7 @@ from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import RequiredCapabilities
+from mi.idk.unit_test import RequiredAutoSampleCapabilities
 
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
@@ -128,6 +131,19 @@ PARAMS = {
     #Parameter.SYNCWAIT : int,
 }
 
+"""
+Test Inputs
+"""
+VALID_SAMPLE = "24.0088,  0.00001,   -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n"
+# A beginning fragment (truncated)
+VALID_SAMPLE_FRAG_01 = "24.0088,  0.00001"
+# Ending fragment (the remainder of the above frag)
+VALID_SAMPLE_FRAG_02 = ", -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n"
+# A full sample plus a beginning frag of another sample
+VALID_SAMPLE_FRAG_03 = "24.0088,  0.00001, -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n24.0088,  0.00001"
+# A full sample plus a beginning frag of another sample
+INVALID_SAMPLE = "bogus sample 03 Oct 2012 20:59:04\r\n24.0088,  0.00001"
+
 
 #################################### RULES ####################################
 #                                                                             #
@@ -150,10 +166,12 @@ PARAMS = {
 @attr('UNIT', group='mi')
 class SBEUnitTestCase(InstrumentDriverUnitTestCase):
     """Unit Test Container"""
+
     
     def reset_test_vars(self):
-        self.raw_stream_received = False
-        self.parsed_stream_received = False
+        self.raw_stream_received = 0
+        self.parsed_stream_received = 0
+
 
     def convert_enum_to_dict(self, obj):
         """
@@ -167,16 +185,18 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         log.debug("enum dictionary = " + repr(dic))
         return dic
 
+
     """
     Assert that every item in subset is in superset
     """    
     def assertSetComplete(self, subset, superset):
         for item in subset:
             self.assertTrue(item in superset)
+
             
     def my_event_callback(self, event):
         event_type = event['type']
-        print str(event)
+        print "my_event_callback received: " + str(event)
         if event_type == DriverAsyncEvent.SAMPLE:
             sample_value = event['value']
             """
@@ -186,9 +206,10 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
             particle_dict = json.loads(sample_value)
             stream_type = particle_dict['stream_name']
             if stream_type == 'raw':
-                self.raw_stream_received = True
+                self.raw_stream_received += 1
             elif stream_type == 'parsed':
-                self.parsed_stream_received = True
+                self.parsed_stream_received += 1
+
 
     """
     Test that the get_resource_params() method returns a list of params
@@ -200,6 +221,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         test_driver = InstrumentDriver(self.my_event_callback)
         capability = test_driver.get_resource_params()
         self.assertSetComplete(capability, PARAMS)
+
 
     """
     Test that, given the complete ProtocolEvent list, the 
@@ -225,6 +247,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         driver_capabilities = Capability.list()
         self.assertEqual(events, driver_capabilities)
 
+
     """
     Test that the driver returns the required capabilities. 
     """        
@@ -247,6 +270,38 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         self.assertTrue(driver_capabilities)
         self.assertSetComplete(required_capabilities, driver_capabilities)
 
+
+    """
+    Test that the driver returns the current capabilities when in autosample. 
+    """        
+    def test_autosample_capabilities(self):
+
+        mock_port_agent = Mock(spec=PortAgentClient)
+        test_driver = InstrumentDriver(self.my_event_callback)
+
+        """
+        invoke configure and connect to set up the _protocol attribute
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Force the driver state to AUTOSAMPLE to test current capabilities
+        """
+        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        required_capabilities = RequiredAutoSampleCapabilities.list()
+        driver_capabilities = test_driver._protocol._protocol_fsm.get_events()
+        self.assertTrue(driver_capabilities)
+        self.assertSetComplete(required_capabilities, driver_capabilities)
+        self.assertTrue(DriverEvent.START_AUTOSAMPLE not in driver_capabilities)
+
+
     """
     Test that the fsm is initialized with the full list of states
     """        
@@ -268,15 +323,13 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         self.assertTrue(driver_fsm_states)
         driver_states = ProtocolState.list()
         self.assertEqual(driver_fsm_states, driver_states)
-        #self.assertSetComplete(driver_fsm_states, driver_states)
         
 
     """
-    This version of the test creates a PortAgentPacket object and passes it to
-    the driver's got_data() method (NOTE: it actually invokes a special got_data
-    method that is aware of the PortAgentPacket).
-    """
-    def test_discover(self):
+    Test that the got_data method consumes a sample and publishes raw and
+    parsed particles
+    """        
+    def test_valid_sample(self):
         """
         Create a mock port agent
         """
@@ -289,7 +342,6 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         test_driver = InstrumentDriver(self.my_event_callback)
         
         current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
         """
@@ -297,18 +349,9 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         that the driver transitions to that state
         """
         config = {'mock_port_agent' : mock_port_agent}
-        # commented below out; trying real port agent
         test_driver.configure(config = config)
 
-        """
-        DHE: trying this; want to invoke the driver methods themselves, but 
-        with the driver talking to the port_agent (through the client).
-        Will it work? Answer: It does, but I can't step through it.  Let
-        me try just running this.
-        """
-        #test_driver.configure(config = self.port_agent_comm_config())
         current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
         
         """
@@ -316,159 +359,311 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         port agent.  Verify that the connection FSM transitions to CONNECTED,
         (which means that the FSM should now be reporting the ProtocolState).
         """
-        
-        """
-        TODO: DHE: Shouldn't have to put a sleep here; it's like the
-        port_agent isn't up yet; I get a connection refused without this.
-        """
-        gevent.sleep(2)
-
         test_driver.connect()
         current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
         """
-        Invoke the discover_state method of the driver
-        """
-        # commenting out because it will try wakeup
-        #test_driver.discover_state()
-        #current_state = test_driver.get_resource_state()
-        #print "DHE: DriverConnectionState: " + str(current_state)
-
-        """
-        Force state to command state.
-        """
-        
-        """
-        This won't work right now because the SBE16 does an _update_params upon
-        entry to the command_handler; since this is a unit test there is nothing
-        to respond to the ds and dc commands.  Setting up mock to do it would
-        be really handy.
-        """
-        test_driver.execute_force_state(state = DriverProtocolState.COMMAND)
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverProtocolState.COMMAND)
-
-        self.reset_test_vars()
-        test_sample = "<Executed/>\n"
-        
-        """
-        use for test particle
-        test_sample = "#  24.0088,  0.00001,   -0.000,   0.0117, 03 Oct 2012 20:59:04"
-        test_sample = "# 24. 24.0088,  0.00001,    0.000,   0.0117, 03 Oct 2012 20:58:54"
-        """
-
-        paPacket = PortAgentPacket()         
-        paHeader = "\xa3\x9d\x7a\x02\x00\x1c\x0b\x2e\x00\x00\x00\x01\x80\x00\x00\x00"
-        paPacket.unpack_header(paHeader)
-        
-        paPacket.attach_data(test_sample)
-
-        test_driver._protocol.got_data(paPacket)
-        
-        """
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
-        """
-        
-    pass
-
-    def test_sample(self):
-        """
-        Create a mock port agent
-        """
-        mock_port_agent = Mock(spec=PortAgentClient)
-
-        """
-        Instantiate the driver class directly (no driver client, no driver
-        client, no zmq driver process, no driver process; just own the driver)
-        """                  
-        test_driver = InstrumentDriver(self.my_event_callback)
-        
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-        
-        """
-        Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to that state
-        """
-        config = {'mock_port_agent' : mock_port_agent}
-        # commented below out; trying real port agent
-        test_driver.configure(config = config)
-
-        """
-        DHE: trying this; want to invoke the driver methods themselves, but 
-        with the driver talking to the port_agent (through the client).
-        Will it work? Answer: It does, but I can't step through it.  Let
-        me try just running this.
-        """
-        #test_driver.configure(config = self.port_agent_comm_config())
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-        
-        """
-        Invoke the connect method of the driver: should connect to mock
-        port agent.  Verify that the connection FSM transitions to CONNECTED,
-        (which means that the FSM should now be reporting the ProtocolState).
-        """
-        
-        test_driver.connect()
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        """
-        Invoke the discover_state method of the driver
-        """
-        # commenting out because it will try wakeup
-        #test_driver.discover_state()
-        #current_state = test_driver.get_resource_state()
-        #print "DHE: DriverConnectionState: " + str(current_state)
-
-        """
-        Force state to command state.
-        """
-        
-        """
-        This won't work right now because the SBE16 does an _update_params upon
-        entry to the command_handler; since this is a unit test there is nothing
-        to respond to the ds and dc commands.  Setting up mock to do it would
-        be really handy.
+        Force driver to AUTOSAMPLE state
         """
         test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
         self.reset_test_vars()
-        test_sample = "#  24.0088,  0.00001,   -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n"
+        test_sample = VALID_SAMPLE
         
-        """
-        use for test particle
-        test_sample = "#  24.0088,  0.00001,   -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n"
-        test_sample = "# 24. 24.0088,  0.00001,    0.000,   0.0117, 03 Oct 2012 20:58:54\r\n"
-        """
-
         paPacket = PortAgentPacket()         
-        paHeader = "\xa3\x9d\x7a\x02\x00\x50\x0b\x2e\x00\x00\x00\x01\x80\x00\x00\x00"
-        paPacket.unpack_header(paHeader)
-        
         paPacket.attach_data(test_sample)
-
+        paPacket.pack_header()
+  
         test_driver._protocol.got_data(paPacket)
         
-        """
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
-        """
+        self.assertTrue(self.raw_stream_received is 1)
+        self.assertTrue(self.parsed_stream_received is 1)
         
-    pass
+
+    """
+    Test that the got_data method does not publish an invalid sample
+    """        
+    def test_invalid_sample(self):
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = InstrumentDriver(self.my_event_callback)
+        
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Force driver to AUTOSAMPLE state
+        """
+        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        self.reset_test_vars()
+        test_sample = INVALID_SAMPLE
+        
+        paPacket = PortAgentPacket()         
+        paPacket.attach_data(test_sample)
+        paPacket.pack_header()
+  
+        test_driver._protocol.got_data(paPacket)
+        
+        self.assertTrue(self.raw_stream_received is 0)
+        self.assertTrue(self.parsed_stream_received is 0)
 
 
+    """
+    Test that the got_data method does not publish an invalid sample
+    """        
+    def test_invalid_sample_with_concatenated_valid(self):
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = InstrumentDriver(self.my_event_callback)
+        
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Force driver to AUTOSAMPLE state
+        """
+        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        self.reset_test_vars()
+        test_sample = INVALID_SAMPLE
+        
+        paPacket = PortAgentPacket()         
+        paPacket.attach_data(test_sample)
+        paPacket.pack_header()
+  
+        test_driver._protocol.got_data(paPacket)
+        
+        self.assertTrue(self.raw_stream_received is 0)
+        self.assertTrue(self.parsed_stream_received is 0)
+        
+        """
+        This valid sample should not be published because it will be concatenated
+        to the prior invalid fragment (trailing the CR LF).
+        """
+        test_sample = VALID_SAMPLE
+        
+        paPacket = PortAgentPacket()         
+        paPacket.attach_data(test_sample)
+        paPacket.pack_header()
+  
+        test_driver._protocol.got_data(paPacket)
+        
+        self.assertTrue(self.raw_stream_received is 0)
+        self.assertTrue(self.parsed_stream_received is 0)
+        
+        """
+        This valid sample SHOULD be published because the _linebuf should be cleared
+        after the prior sample.
+        """
+        test_sample = VALID_SAMPLE
+        
+        paPacket = PortAgentPacket()         
+        paPacket.attach_data(test_sample)
+        paPacket.pack_header()
+  
+        test_driver._protocol.got_data(paPacket)
+        
+        self.assertTrue(self.raw_stream_received is 1)
+        self.assertTrue(self.parsed_stream_received is 1)
+        
+
+    """
+    Test that the got_data method consumes a fragmented sample and publishes raw and
+    parsed particles
+    """        
+    def test_sample_fragment(self):
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = InstrumentDriver(self.my_event_callback)
+        
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Force driver to AUTOSAMPLE state
+        """
+        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        self.reset_test_vars()
+        test_sample = VALID_SAMPLE_FRAG_01
+        
+        paPacket = PortAgentPacket()         
+        paPacket.attach_data(test_sample)
+        paPacket.pack_header()
+  
+        test_driver._protocol.got_data(paPacket)
+        
+        self.assertTrue(self.raw_stream_received is 0)
+        self.assertTrue(self.parsed_stream_received is 0)
+        
+        test_sample = VALID_SAMPLE_FRAG_02
+        
+        paPacket = PortAgentPacket()         
+        paPacket.attach_data(test_sample)
+        paPacket.pack_header()
+  
+        test_driver._protocol.got_data(paPacket)
+        
+        self.assertTrue(self.raw_stream_received is 1)
+        self.assertTrue(self.parsed_stream_received is 1)
+        
+    """
+    Test that the got_data method consumes a sample that has a concatenated fragment
+    """        
+    def test_sample_concatenated_fragment(self):
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = InstrumentDriver(self.my_event_callback)
+        
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Force driver to AUTOSAMPLE state
+        """
+        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        self.reset_test_vars()
+        test_sample = VALID_SAMPLE_FRAG_03
+        
+        paPacket = PortAgentPacket()         
+        paPacket.attach_data(test_sample)
+        paPacket.pack_header()
+  
+        test_driver._protocol.got_data(paPacket)
+        
+        self.assertTrue(self.raw_stream_received is 1)
+        self.assertTrue(self.parsed_stream_received is 1)
+        
+        test_sample = VALID_SAMPLE_FRAG_02
+        
+        paPacket = PortAgentPacket()         
+        paPacket.attach_data(test_sample)
+        paPacket.pack_header()
+  
+        test_driver._protocol.got_data(paPacket)
+        
+        self.assertTrue(self.raw_stream_received is 2)
+        self.assertTrue(self.parsed_stream_received is 2)
+        
+
+    @unittest.skip("Doesn't work because the set_handler tries to update variables.")    
     def test_set(self):
         """
         Create a mock port agent
@@ -482,7 +677,6 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         test_driver = InstrumentDriver(self.my_event_callback)
         
         current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
         """
@@ -490,18 +684,9 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         that the driver transitions to that state
         """
         config = {'mock_port_agent' : mock_port_agent}
-        # commented below out; trying real port agent
         test_driver.configure(config = config)
 
-        """
-        DHE: trying this; want to invoke the driver methods themselves, but 
-        with the driver talking to the port_agent (through the client).
-        Will it work? Answer: It does, but I can't step through it.  Let
-        me try just running this.
-        """
-        #test_driver.configure(config = self.port_agent_comm_config())
         current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
         
         """
@@ -511,27 +696,13 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """
         test_driver.connect()
         current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        #test_driver.execute_force_state(state = DriverProtocolState.COMMAND)
-        #current_state = test_driver.get_resource_state()
-        #print "DHE: DriverProtocolState: " + str(current_state)
-        #self.assertEqual(current_state, DriverProtocolState.COMMAND)
-
 
         self.reset_test_vars()
         
         test_driver._protocol._handler_command_set({Parameter.OUTPUTSAL: True})
-        
-        """
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
-        """
-        
-    pass
 
-
+        
     def test_parse_ds(self):
         """
         Create a mock port agent
@@ -545,7 +716,6 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         test_driver = InstrumentDriver(self.my_event_callback)
         
         current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
         
         """
@@ -553,18 +723,9 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         that the driver transitions to that state
         """
         config = {'mock_port_agent' : mock_port_agent}
-        # commented below out; trying real port agent
         test_driver.configure(config = config)
 
-        """
-        DHE: trying this; want to invoke the driver methods themselves, but 
-        with the driver talking to the port_agent (through the client).
-        Will it work? Answer: It does, but I can't step through it.  Let
-        me try just running this.
-        """
-        #test_driver.configure(config = self.port_agent_comm_config())
         current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
         
         """
@@ -572,16 +733,8 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         port agent.  Verify that the connection FSM transitions to CONNECTED,
         (which means that the FSM should now be reporting the ProtocolState).
         """
-        
-        """
-        TODO: DHE: Shouldn't have to put a sleep here; it's like the
-        port_agent isn't up yet; I get a connection refused without this.
-        """
-        gevent.sleep(2)
-
         test_driver.connect()
         current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
         self.reset_test_vars()
@@ -589,12 +742,28 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         
         test_driver._protocol._parse_dsdc_response(test_ds_response, '<Executed/>')
         
+    def test_protocol_handler_command_enter(self):
         """
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
         """
-        
-    pass
+        test_driver = InstrumentDriver(self.my_event_callback)
+        temp_dir = dir(test_driver)
+        test_driver._build_protocol()
+        test_protocol = test_driver._protocol
+        temp_dir = dir(test_protocol)
+        _update_params_mock = Mock(spec="_update_params")
+        test_protocol._update_params = _update_params_mock
+
+        _update_driver_event = Mock(spec="driver_event")
+        test_protocol._driver_event = _update_driver_event
+        args = []
+        kwargs =  dict({'timeout': 30,})
+
+        ret = test_protocol._handler_command_enter(*args, **kwargs)
+        self.assertEqual(ret, None)
+        self.assertEqual(str(_update_params_mock.mock_calls), "[call()]")
+        self.assertEqual(str(_update_driver_event.mock_calls), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
+
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #

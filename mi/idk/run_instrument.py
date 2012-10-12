@@ -513,9 +513,9 @@ class RunInstrument(IonIntegrationTestCase):
         _value = _value.lower()
 
         """
-        DHE: Need to convert to native types here; can't be string; at this
-        point it doesn't seem to be a driver problem but rather a requirement
-        for messages.
+        DHE: Need to convert to native types here; can't be string; this is a 
+        problem for the UI because we need a way to get the metadata about 
+        each param to the UI.
         """        
         if _value == 'true':
             _value = True
