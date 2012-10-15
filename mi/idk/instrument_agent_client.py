@@ -8,14 +8,11 @@ __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
 import os
-import sys
-import nose
 import signal
 import subprocess
 import time
 from gevent import spawn
 from gevent.event import AsyncResult
-import gevent
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -30,6 +27,10 @@ from mi.idk.config import Config
 
 from mi.idk.exceptions import TestNoDeployFile
 from mi.idk.exceptions import NoContainer
+from mi.idk.exceptions import MissingConfig
+from mi.idk.exceptions import MissingExecutable
+from mi.idk.exceptions import FailedToLaunch
+
 
 from pyon.util.int_test import IonIntegrationTestCase
 from pyon.container.cc import Container
@@ -38,8 +39,11 @@ from pyon.util.context import LocalContextMixin
 from interface.services.icontainer_agent import ContainerAgentClient
 from pyon.agent.agent import ResourceAgentClient
 from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
-#from pyon.public import StreamSubscriberRegistrar
-from pyon.event.event import EventSubscriber, EventPublisher
+from interface.services.dm.idataset_management_service import DatasetManagementServiceClient
+
+from pyon.ion.stream import StandaloneStreamSubscriber
+
+from pyon.event.event import EventSubscriber
 
 #from interface.objects import StreamQuery
 
@@ -68,7 +72,7 @@ class InstrumentAgentClient(object):
         # Start instrument agent.
         log.debug("Starting Instrument Agent Client")
         container_client = ContainerAgentClient(node=self.container.node,
-            name=self.container.name)
+            to_name=self.container.name)
 
         instrument_agent_pid = container_client.spawn_process(
             name=name,
@@ -291,51 +295,110 @@ class InstrumentAgentDataSubscribers(object):
         if packet_config == None:
             packet_config = {}
 
+
         self.no_samples = None
         self.async_data_result = AsyncResult()
 
         self.data_greenlets = []
         self.stream_config = {}
-        self.samples_received = []
-        self.data_subscribers = []
+        self.raw_samples_received = []
+        self.parsed_samples_received = []
+        self.data_subscribers = {}
         self.container = Container.instance
         if not self.container:
             raise NoContainer()
 
+        self._build_stream_config()        
+
+    def _build_stream_config(self):
+        """
+        """
         # Create a pubsub client to create streams.
         pubsub_client = PubsubManagementServiceClient(node=self.container.node)
-
-        # A callback for processing subscribed-to data.
-        def consume_data(message, headers):
-            log.info('#**#**# Data Subscriber (consume_data) received data message: %s   %s.', str(message), str(headers))
-
-            self.samples_received.append(message)
-            if self.no_samples and self.no_samples == len(self.samples_received):
-                self.async_data_result.set()
-
-        """
-        # Create a stream subscriber registrar to create subscribers.
-        subscriber_registrar = StreamSubscriberRegistrar(process=self.container,
-                                                         container=self.container)
-
+        dataset_management = DatasetManagementServiceClient() 
+        
         # Create streams and subscriptions for each stream named in driver.
         self.stream_config = {}
-        self.data_subscribers = []
+
+        streams = {
+            #'ctd_parsed' : 'ctd_parsed_param_dict',
+            #'ctd_raw' : 'ctd_raw_param_dict',
+            'parsed' : 'data_particle_parsed_param_dict',
+            'raw' : 'data_particle_raw_param_dict',
+        }
+
+        for (stream_name, param_dict_name) in streams.iteritems():
+            pd_id = dataset_management.read_parameter_dictionary_by_name(param_dict_name, id_only=True)
+
+            stream_def_id = pubsub_client.create_stream_definition(name=stream_name,
+                                                                   parameter_dictionary_id=pd_id)
+            pd = pubsub_client.read_stream_definition(stream_def_id).parameter_dictionary
+            
+            stream_id, stream_route = pubsub_client.create_stream(name=stream_name,
+                                                exchange_point='science_data',
+                                                stream_definition_id=stream_def_id)
+
+            stream_config = dict(stream_route=stream_route,
+                                 routing_key=stream_route.routing_key,
+                                 exchange_point=stream_route.exchange_point,
+                                 stream_id=stream_id,
+                                 stream_definition_ref=stream_def_id,
+                                 parameter_dictionary=pd)
+            self.stream_config[stream_name] = stream_config    
+
+    def start_data_subscribers(self, count):
+        """
+        """        
+        # Create a pubsub client to create streams.
+        pubsub_client = PubsubManagementServiceClient(node=self.container.node)
+                
+        # Create streams and subscriptions for each stream named in driver.
+        self.data_subscribers = {}
+        self.parsed_samples_received = []
+        self.raw_samples_received = []
+        self.async_data_result = AsyncResult()
+
+        # A callback for processing subscribed-to data.
+        def recv_data(message, stream_route, stream_id):
+            log.info('Received message on %s (%s,%s)', stream_id,
+                     stream_route.exchange_point,
+                     stream_route.routing_key)
+            if stream_route.routing_key == self.stream_config['parsed']['routing_key']:
+                self.parsed_samples_received.append(message)
+            elif stream_route.routing_key == self.stream_config['raw']['routing_key']:
+                self.raw_samples_received.append(message)
+                
+            # set when both kinds of messages have at least the required number
+            if (len(self.parsed_samples_received) >= count) and \
+                (len(self.raw_samples_received) >= count):
+                self.async_data_result.set()
 
         for (stream_name, stream_config) in self.stream_config.iteritems():
-            stream_id = stream_config['id']
-
+            stream_id = stream_config['stream_id']
             # Create subscriptions for each stream.
             exchange_name = '%s_queue' % stream_name
-            sub = subscriber_registrar.create_subscriber(
-                exchange_name=exchange_name, callback=consume_data)
-            self.listen_data(sub)
-            self.data_subscribers.append(sub)
-            query = StreamQuery(stream_ids=[stream_id])
-            sub_id = pubsub_client.create_subscription(query=query, exchange_name=exchange_name, exchange_point='science_data')
+            self._purge_queue(exchange_name)
+            sub = StandaloneStreamSubscriber(exchange_name, recv_data)
+            sub.start()
+            self.data_subscribers[stream_name] = sub
+            sub_id = pubsub_client.create_subscription(name=exchange_name, stream_ids=[stream_id])
             pubsub_client.activate_subscription(sub_id)
-        """
+            sub.subscription_id = sub_id # Bind the subscription to the standalone subscriber (easier cleanup, not good in real practice)
 
+    def _purge_queue(self, queue):
+        xn = self.container.ex_manager.create_xn_queue(queue)
+        xn.purge()
+
+    def stop_data_subscribers(self):
+        for subscriber in self.data_subscribers.values():
+            pubsub_client = PubsubManagementServiceClient()
+            if hasattr(subscriber,'subscription_id'):
+                try:
+                    pubsub_client.deactivate_subscription(subscriber.subscription_id)
+                except:
+                    pass
+                pubsub_client.delete_subscription(subscriber.subscription_id)
+            subscriber.stop()
 
     def _listen(self, sub):
         """
@@ -359,14 +422,21 @@ class InstrumentAgentEventSubscribers(object):
         self.event_subscribers = []
 
         def consume_event(*args, **kwargs):
-            log.info('#**#**# Event subscriber (consume_event) recieved ION event: args=%s, kwargs=%s, event=%s.',
+            log.debug('#**#**# Event subscriber (consume_event) recieved ION event: args=%s, kwargs=%s, event=%s.',
                 str(args), str(kwargs), str(args[0]))
+
+            log.debug("self.no_events = " + str(self.no_events))
+            log.debug("self.event_received = " + str(self.events_received))
+
             self.events_received.append(args[0])
-            if self.no_events and self.no_events == len(self.event_received):
+            if self.no_events and self.no_events == len(self.events_received):
+                log.debug("CALLING self.async_event_result.set()")
                 self.async_event_result.set()
+
 
         self.event_subscribers = EventSubscriber(
             event_type='ResourceAgentEvent', callback=consume_event,
             origin=instrument_agent_resource_id)
         self.event_subscribers.start()
         self.event_subscribers._ready_event.wait(timeout=5)
+

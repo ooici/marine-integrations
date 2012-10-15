@@ -309,7 +309,7 @@ class RunInstrument(IonIntegrationTestCase):
         # Create streams and subscriptions for each stream named in driver.
         self._data_subscribers = []
         self._samples_received = []
-        #self._async_sample_result = AsyncResult()
+        #self._async_data_result = AsyncResult()
 
         strXterm = "xterm -T InstrumentScienceData -sb -rightbar "
         pOpenString = strXterm + " -e tail -f " + PIPE_PATH
@@ -330,7 +330,7 @@ class RunInstrument(IonIntegrationTestCase):
 
             self._samples_received.append(message)
             #if len(self._samples_received) == count:
-                #self._async_sample_result.set()
+                #self._async_data_result.set()
 
         for (stream_name, stream_config) in self._stream_config.iteritems():
             

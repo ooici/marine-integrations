@@ -1,0 +1,73 @@
+ds
+SBE 26plus V 6.1e  SN 1328    27 Aug 2012  15:02:58
+user info=whoi
+quartz pressure sensor: serial number = 123404, range = 100 psia
+external temperature sensor
+conductivity = NO
+iop =  6.2 ma  vmain = 17.0 V  vlith =  9.0 V
+last sample: p = 429343.8750, t = 32.0122
+
+tide measurement: interval = 7.000 minutes, duration = 10 seconds
+measure waves every 2 tide samples
+512 wave samples/burst at 2.00 scans/sec, duration = 256 seconds
+logging start time = do not use start time
+logging stop time = do not use stop time
+
+tide samples/day = 205.714
+wave bursts/day = 102.857
+memory endurance = 205.2 days
+nominal alkaline battery endurance = 168.1 days
+total recorded tide measurements = 0
+total recorded wave bursts = 0
+tide measurements since last start = 0
+wave bursts since last start = 0
+
+transmit real-time tide data = YES
+transmit real-time wave burst data = YES
+transmit real-time wave statistics = YES
+real-time wave statistics settings:
+  number of wave samples per burst to use for wave statistics = 512
+  use measured temperature for density calculation
+  height of pressure sensor from bottom (meters) =  1.0
+  number of spectral estimates for each frequency band = 1
+  minimum allowable attenuation = 1.0000
+  minimum period (seconds) to use in auto-spectrum = 1.0e+00
+  maximum period (seconds) to use in auto-spectrum = 1.0e+00
+  hanning window cutoff = 1.00
+  do not show progress messages
+
+status = stopped by user
+logging = NO, send start command to begin logging
+S>dc
+dc
+Pressure coefficients:  02-apr-13
+    U0 = 5.100000e+00
+    Y1 = -3.910859e+03
+    Y2 = -1.070825e+04
+    Y3 = 0.000000e+00
+    C1 = 6.072786e+02
+    C2 = 1.000000e+00
+    C3 = -1.024374e+03
+    D1 = 2.928000e-02
+    D2 = 0.000000e+00
+    T1 = 2.783369e+01
+    T2 = 6.072020e-01
+    T3 = 1.821885e+01
+    T4 = 2.790597e+01
+    M = 125829.1
+    B = 8388.6
+    OFFSET = -1.374000e-01
+Temperature coefficients:  02-apr-13
+    TA0 = 1.200000e-04
+    TA1 = 2.558291e-04
+    TA2 = -2.073449e-06
+    TA3 = 1.640089e-07
+Conductivity coefficients:  28-mar-12
+    CG = -1.025348e+01
+    CH = 1.557569e+00
+    CI = -1.737200e-03
+    CJ = 2.268000e-04
+    CTCOR = 3.250000e-06
+    CPCOR = -9.570000e-08
+    CSLOPE = 1.000000e+00
+S>

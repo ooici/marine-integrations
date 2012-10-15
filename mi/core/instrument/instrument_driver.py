@@ -22,6 +22,7 @@ from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.logger_client import LoggerClient
 from mi.core.instrument.port_agent_client import PortAgentClient
 
+
 from mi.core.log import get_logger,LoggerManager
 log = get_logger()
 
@@ -106,8 +107,10 @@ class DriverEvent(BaseEnum):
     Base events for driver state machines. Commands and other events
     are transformed into state machine events for handling.
     """
-    CONFIGURE = 'DRIVER_EVENT_CONFIGURE'
+    ENTER = 'DRIVER_EVENT_ENTER'
+    EXIT = 'DRIVER_EVENT_EXIT'
     INITIALIZE = 'DRIVER_EVENT_INITIALIZE'
+    CONFIGURE = 'DRIVER_EVENT_CONFIGURE'
     CONNECT = 'DRIVER_EVENT_CONNECT'
     CONNECTION_LOST = 'DRIVER_CONNECTION_LOST'
     DISCONNECT = 'DRIVER_EVENT_DISCONNECT'
@@ -408,7 +411,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
     #############################################################
     # Device connection interface.
     #############################################################
-    
+
     def initialize(self, *args, **kwargs):
         """
         Initialize driver connection, bringing communications parameters
@@ -742,6 +745,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @param kwargs keyword arguments to pass on.
         @retval (next_state, result) tuple, (None, protocol result).
         """
+
         next_state = None
         result = self._protocol._protocol_fsm.on_event(event, *args, **kwargs)
         

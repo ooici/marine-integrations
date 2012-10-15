@@ -140,6 +140,9 @@ SBE37_NEWLINE = '\r\n'
 # SBE37 default timeout.
 SBE37_TIMEOUT = 10
 
+# Sample looks something like:
+# '#87.9140,5.42747, 556.864,   37.1829, 1506.961, 02 Jan 2001, 15:34:51'
+# Where C, T, and D are first 3 number fields respectively 
 SAMPLE_PATTERN = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'
 SAMPLE_PATTERN += r'(, *(-?\d+\.\d+))?(, *(-?\d+\.\d+))?'
 SAMPLE_PATTERN += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'
@@ -218,19 +221,15 @@ class SBE37DataParticle(DataParticle):
         
         if not match:
             raise SampleException("No regex match of parsed sample data: [%s]" %
-                                  self.decoded_raw)
+                                  self.raw_data)
             
-        temperature = float(match.group(1))
-        conductivity = float(match.group(2))
-        depth = float(match.group(3))
-        
-        if not temperature:
-            raise SampleException("No temperature value parsed")
-        if not conductivity:
-            raise SampleException("No conductivity value parsed")
-        if not depth:
-            raise SampleException("No depth value parsed")
-        
+        try:
+            temperature = float(match.group(1))
+            conductivity = float(match.group(2))
+            depth = float(match.group(3))
+        except ValueError:
+            raise SampleException("ValueError while decoding floats in data: [%s]" %
+                                  self.raw_data)
         
         #TODO:  Get 'temp', 'cond', and 'depth' from a paramdict
         result = [{DataParticleKey.VALUE_ID: SBE37DataParticleKey.TEMP,

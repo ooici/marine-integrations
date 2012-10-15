@@ -1,0 +1,4 @@
+comm:
+  device_addr: 10.180.80.175
+  device_port: 2101
+  method: ethernet
