@@ -10,7 +10,6 @@
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
-import logging
 import time
 import re
 import datetime
@@ -33,7 +32,8 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
 
 #import ion.services.mi.mi_logger
-mi_logger = logging.getLogger('mi_logger')
+from mi.core.log import get_logger
+log = get_logger()
 
 ###############################################################################
 # Module-wide values
@@ -246,13 +246,6 @@ class SBE16DataParticle(DataParticle):
         temperature = float(match.group(1))
         conductivity = float(match.group(2))
         depth = float(match.group(3))
-        
-        ### DHE TEMPTEMP
-        print "--> DHE TEMP: match: " + str(match)
-        print "--> DHE TEMP: temperature: " + str(temperature)
-        print "--> DHE TEMP: conductivity: " + str(conductivity)
-        print "--> DHE TEMP: depth: " + str(depth)
-        ### DHE END TEMPTEMP
         
         if temperature is None:
             raise SampleException("No temperature value parsed")
@@ -786,8 +779,6 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         try:
             str_val = self._param_dict.format(param, val)
             
-            # DHE TEMPTEMP
-            #print 'param is: ' + param
             if param == 'INTERVAL':
                 param = 'sampleinterval'
 
@@ -806,7 +797,8 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.        
         @throws InstrumentProtocolException if set command misunderstood.
         """
-        if prompt != SBE16Prompt.COMMAND:
+        if prompt not in [SBE16Prompt.EXECUTED, SBE16Prompt.COMMAND]:
+            log.error("Set command encountered error; instrument returned: %s", response) 
             raise InstrumentProtocolException('Set command not recognized: %s' % response)
 
     def _parse_dsdc_response(self, response, prompt):
@@ -820,7 +812,6 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
         for line in response.split(SBE16_NEWLINE):
-            print "DHE dsdc_... TEMPTEMP: " + line
             if 'sample interval' in line:
                 for sline in line.split(','):
                     #print 'DHE: split this: ' + sline.lstrip()
@@ -843,7 +834,6 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException('dcal command not recognized: %s.' % response)
             
         for line in response.split(SBE16_NEWLINE):
-            print "DHE dcal_... TEMPTEMP: " + line
             self._param_dict.update(line)
         
     def _parse_ts_response(self, response, prompt):
@@ -911,42 +901,13 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             # If in streaming mode, process the buffer for samples to publish.
             cur_state = self.get_current_state()
             if cur_state == SBE16ProtocolState.AUTOSAMPLE:
-                print "--------> DHE TEMPTEMP Got Data in AUTOSAMPLE: " + data
-            
                 if SBE16_NEWLINE in self._linebuf:
                     lines = self._linebuf.split(SBE16_NEWLINE)
                     self._linebuf = lines[-1]
                     for line in lines:
-                        print "----> DHE Calling extract_sample with line: " + line
                         sample = self._extract_sample(SBE16DataParticle, SAMPLE_REGEX,
                                              line)
-                        if sample:
-                            print "----> DHE TEMPTEMP; _extract_sample returned: " + str(sample)
                 
-    def _delete_this_extract_sample(self, line, publish=True):
-        """
-        Extract sample from a response line if present and publish to agent.
-        @param line string to match for sample.
-        @param publsih boolean to publish sample (default True).
-        @retval Sample dictionary if present or None.
-        """
-        sample = None
-        match = self._sample_regex.match(line)
-        if match:
-            sample = {}
-            sample['t'] = [float(match.group(1))]
-            sample['c'] = [float(match.group(2))]
-            #sample['p'] = [float(match.group(3))]
-
-            # Driver timestamp.
-            sample['time'] = [time.time()]
-            sample['stream_name'] = 'ctd_parsed'
-
-            if self._driver_event:
-                self._driver_event(DriverAsyncEvent.SAMPLE, sample)
-
-        return sample            
-        
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with SBE16 parameters.
