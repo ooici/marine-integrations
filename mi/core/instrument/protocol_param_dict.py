@@ -14,6 +14,8 @@ import re
 import logging
 from mi.core.common import BaseEnum
 
+from mi.core.log import get_logger ; log = get_logger()
+
 mi_logger = logging.getLogger('mi_logger')
 
 class ParameterDictVisibility(BaseEnum):
@@ -36,7 +38,8 @@ class ParameterDictVal(object):
                  menu_path_read=None,
                  submenu_read=None,
                  menu_path_write=None,
-                 submenu_write=None):
+                 submenu_write=None,
+                 multi_match=False):
         """
         Parameter value constructor.
         @param name The parameter name.
@@ -60,6 +63,7 @@ class ParameterDictVal(object):
         self.menu_path_write = menu_path_write
         self.submenu_write = submenu_write
         self.visibility = visibility
+        self.multi_match = multi_match
 
     def update(self, input):
         """
@@ -68,10 +72,14 @@ class ParameterDictVal(object):
         @param input A string possibly containing the parameter value.
         @retval True if an update was successful, False otherwise.
         """
+
         match = self.regex.match(input)
         if match:
             self.value = self.f_getval(match)
+            mi_logger.debug('self.value = ' + str(self.value))
+
             mi_logger.debug('Updated parameter %s=%s', self.name, str(self.value))
+
             return True
         else:
             return False
@@ -96,7 +104,8 @@ class ProtocolParameterDict(object):
     def add(self, name, pattern, f_getval, f_format, value=None,
             visibility=ParameterDictVisibility.READ_WRITE,
             menu_path_read=None, submenu_read=None,
-            menu_path_write=None, submenu_write=None):
+            menu_path_write=None, submenu_write=None,
+            multi_match=False):
         """
         Add a parameter object to the dictionary.
         @param name The parameter name.
@@ -115,7 +124,8 @@ class ProtocolParameterDict(object):
                                menu_path_read=menu_path_read,
                                submenu_read=submenu_read,
                                menu_path_write=menu_path_write,
-                               submenu_write=submenu_write)
+                               submenu_write=submenu_write,
+                               multi_match=multi_match)
         self._param_dict[name] = val
         
     def get(self, name):
@@ -133,6 +143,7 @@ class ProtocolParameterDict(object):
         @param value The parameter value.
         @raises KeyError if the name is invalid.
         """
+        log.debug("setting " + name + " to " + str(value))
         self._param_dict[name] = value
         
     # DHE Added
@@ -180,10 +191,23 @@ class ProtocolParameterDict(object):
         @param input A string to match to a dictionary object.
         @retval The name that was successfully updated, False if not updated
         """
+
+        multi_mode = False
         for (name, val) in self._param_dict.iteritems():
+            if multi_mode == True and val.multi_match == False:
+                #log.debug("SKIPPING name = " + name)
+                continue
+            #log.debug("NAME = " + name + " multi = " + str(val.multi_match))
             if val.update(input):
-                return name
-        return False
+                #log.debug("MATCH ***************************** " + name + " = " + str(val.value))
+                if False == val.multi_match:
+                    return
+                    # return name # Nothing uses this return, so making it a generic return
+                else:
+                    multi_mode = True
+        if False == multi_mode and input <> "":
+            log.debug("protocol_param_dict.py UNMATCHCHED ***************************** " + input)
+        #return False
     
     def get_config(self):
         """

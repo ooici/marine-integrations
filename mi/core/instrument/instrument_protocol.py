@@ -22,19 +22,25 @@ import json
 
 from mi.core.common import BaseEnum, InstErrorCode
 from mi.core.instrument.data_particle import DataParticleKey
+
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
+
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
-from mi.core.exceptions import NotImplementedException 
+from mi.core.exceptions import NotImplementedException
 
 from mi.core.log import get_logger ; log = get_logger()
+
 
 class InterfaceType(BaseEnum):
     """The methods of connecting to a device"""
     ETHERNET = 'ethernet'
     SERIAL = 'serial'
+
+
+
 
 class InstrumentProtocol(object):
     """
@@ -87,6 +93,7 @@ class InstrumentProtocol(object):
         @todo Figure out how the agent wants the results for a single poll
             and return them that way from here
         """
+
         sample = None
         if regex.match(line):
         
@@ -110,12 +117,13 @@ class InstrumentProtocol(object):
         """
         Return current state of the protocol FSM.
         """
+
         return self._protocol_fsm.get_current_state()
 
     def get_resource_capabilities(self, current_state=True):
         """
         """
-        
+
         res_cmds = self._protocol_fsm.get_events(current_state)
         res_cmds = self._filter_capabilities(res_cmds)        
         res_params = self._param_dict.get_keys()
@@ -125,6 +133,7 @@ class InstrumentProtocol(object):
     def _filter_capabilities(self, events):
         """
         """
+
         return events
 
     ########################################################################
@@ -141,6 +150,7 @@ class InstrumentProtocol(object):
         @param state The state to pair with the command for which the function
         should be used
         """
+
         if state == None:
             self._response_handlers[cmd] = func
         else:            
@@ -152,6 +162,7 @@ class InstrumentProtocol(object):
         @param cmd The device command to build.
         @param func The function that constructs the command.
         """
+
         self._build_handlers[cmd] = func
         
     ########################################################################
@@ -165,6 +176,7 @@ class InstrumentProtocol(object):
         @param args Unused arguments
         @retval Returns string ready for sending to instrument        
         """
+
         return "%s%s" % (cmd, self.eoln)
     
     def _build_keypress_command(self, cmd, *args):
@@ -175,6 +187,8 @@ class InstrumentProtocol(object):
         @param args Unused arguments
         @retval Returns string ready for sending to instrument        
         """
+
+
         return "%s" % (cmd)
     
     def _build_multi_keypress_command(self, cmd, *args):
@@ -185,6 +199,8 @@ class InstrumentProtocol(object):
         @param args Unused arguments
         @retval Returns string ready for sending to instrument        
         """
+
+
         return "%s%s%s%s%s%s" % (cmd, cmd, cmd, cmd, cmd, cmd)
 
     ########################################################################
@@ -292,22 +308,51 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @throw InstrumentProtocolExecption on timeout
         """
         # Grab time for timeout and wait for prompt.
+
         starttime = time.time()
-                
         if expected_prompt == None:
             prompt_list = self._prompts.list()
         else:
-            assert isinstance(expected_prompt, str)
-            prompt_list = [expected_prompt]            
+            if isinstance(expected_prompt, str):
+                prompt_list = [expected_prompt]
+            else:
+                prompt_list = expected_prompt
+
+
         while True:
             for item in prompt_list:
                 if self._promptbuf.endswith(item):
+
                     return (item, self._linebuf)
                 else:
                     time.sleep(.1)
+
             if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException()
-               
+                raise InstrumentTimeoutException("in _get_response()")
+
+
+
+    def _get_line_of_response(self, timeout=10, line_delimiter='\r\n', expected_prompt=None):
+
+
+
+        starttime = time.time()
+        while True:
+            if line_delimiter in self._linebuf:
+                (chunk, pat, remainder) = self._linebuf.partition(line_delimiter)
+                self._linebuf = remainder
+                return(None, chunk + pat)
+
+            elif self._promptbuf.endswith(expected_prompt):
+                (chunk, pat, remainder) = self._linebuf.partition(expected_prompt)
+                return(pat, None)
+
+            else:
+                time.sleep(.1)
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException("in _get_line_of_response()")
+
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
         Perform a command-response on the device.
@@ -319,7 +364,11 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
-        
+
+
+        log.debug("self._linebuf which was = to '" + str(self._linebuf) + "'")
+        log.debug("self._promptbuf which was = to '" + str(self._promptbuf) + "'")
+
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', 10)
         expected_prompt = kwargs.get('expected_prompt', None)
@@ -330,19 +379,23 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         build_handler = self._build_handlers.get(cmd, None)
         if not build_handler:
             raise InstrumentProtocolException('Cannot build command: %s' % cmd)
-        
+
         cmd_line = build_handler(cmd, *args)
 
         # Wakeup the device, pass up exception if timeout
+
         prompt = self._wakeup(timeout)
         
         # Clear line and prompt buffers for result.
+
+
         self._linebuf = ''
         self._promptbuf = ''
 
         # Send command.
         log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
                         (repr(cmd_line), timeout, write_delay, expected_prompt))
+
         if (write_delay == 0):
             self._connection.send(cmd_line)
         else:
@@ -351,14 +404,17 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                 time.sleep(write_delay)
 
         # Wait for the prompt, prepare result and return, timeout exception
+
         (prompt, result) = self._get_response(timeout,
                                               expected_prompt=expected_prompt)
+
+
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
             self._response_handlers.get(cmd, None)
         resp_result = None
         if resp_handler:
             resp_result = resp_handler(result, prompt)
-        
+
         return resp_result
             
     def _do_cmd_no_resp(self, cmd, *args, **kwargs):
@@ -372,6 +428,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built.        
         """
+
         timeout = kwargs.get('timeout', 10)
         write_delay = kwargs.get('write_delay', 0)
 
@@ -386,6 +443,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         prompt = self._wakeup(timeout)
 
         # Clear line and prompt buffers for result.
+
         self._linebuf = ''
         self._promptbuf = ''
 
@@ -406,6 +464,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @param cmd The high level command to issue
         """
 
+
         # Send command.
         log.debug('_do_cmd_direct: <%s>' % cmd)
         self._connection.send(cmd)
@@ -415,14 +474,16 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
     ########################################################################            
     def got_data(self, data):
         """
-       Called by the instrument connection when data is available.
-       Append line and prompt buffers. Extended by device specific
-       subclasses.
+        Called by the instrument connection when data is available.
+        Append line and prompt buffers. Extended by device specific
+        subclasses.
         """
+
         # Update the line and prompt buffers.
         self._linebuf += data        
         self._promptbuf += data
         self._last_data_timestamp = time.time()
+
 
     ########################################################################
     # Wakeup helpers.
@@ -433,6 +494,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         Send a wakeup to the device. Overridden by device specific
         subclasses.
         """
+
         pass
         
     def  _wakeup(self, timeout, delay=1):
@@ -443,6 +505,8 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @throw InstrumentTimeoutException if the device could not be woken.
         """
         # Clear the prompt buffer.
+
+
         self._promptbuf = ''
         
         # Grab time for timeout.
@@ -453,15 +517,15 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             log.debug('Sending wakeup.')
             self._send_wakeup()
             time.sleep(delay)
-            
+
             for item in self._prompts.list():
+                #log.debug("GOT " + repr(self._promptbuf))
                 if self._promptbuf.endswith(item):
                     log.debug('wakeup got prompt: %s' % repr(item))
                     return item
 
             if time.time() > starttime + timeout:
-                log.error("Instrument timed out during wakeup.  _promptbuf is: %s" % repr(self._promptbuf))
-                raise InstrumentTimeoutException()
+                raise InstrumentTimeoutException("in _wakeup()")
 
     def _wakeup_until(self, timeout, desired_prompt, delay=1, no_tries=5):
         """
@@ -475,6 +539,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @raises InstrumentProtocolException if the desired prompt is not seen in the
         maximum number of attempts.
         """
+
         count = 0
         while True:
             prompt = self._wakeup(timeout, delay)
@@ -654,6 +719,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         complete response has arrived, so we can miss it.  The read delay
         is to alleviate that problem.
         """
+
         if self._read_delay is not None:
             time.sleep(self._read_delay)
             
@@ -690,7 +756,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             if time.time() > starttime + timeout:
                 log.error('MenuInstrumentProtocol._get_response TIMEOUT waiting for item: %s in promptbuf!' 
                           %(item))
-                raise InstrumentTimeoutException()
+                raise InstrumentTimeoutException("in _get_response()")
                
     def _navigate_and_execute(self, cmd, **kwargs):
         """
@@ -809,6 +875,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         Append line and prompt buffers. Extended by device specific
         subclasses.
         """
+
         self._linebuf += data        
         self._promptbuf += data
         self._last_data_timestamp = time.time()    
