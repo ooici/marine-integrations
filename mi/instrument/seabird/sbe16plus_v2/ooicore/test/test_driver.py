@@ -190,27 +190,6 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         self.parsed_stream_received = 0
 
 
-    def convert_enum_to_dict(self, obj):
-        """
-        @author Roger Unwin
-        @brief  converts an enum to a dict
-        """
-        dic = {}
-        for i in [v for v in dir(obj) if not callable(getattr(obj,v))]:
-            if False == i.startswith('_'):
-                dic[i] = getattr(obj, i)
-        log.debug("enum dictionary = " + repr(dic))
-        return dic
-
-
-    """
-    Assert that every item in subset is in superset
-    """    
-    def assertSetComplete(self, subset, superset):
-        for item in subset:
-            self.assertTrue(item in superset)
-
-            
     def my_event_callback(self, event):
         event_type = event['type']
         print "my_event_callback received: " + str(event)
@@ -237,7 +216,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         mock_port_agent = Mock(spec=PortAgentClient)
         test_driver = InstrumentDriver(self.my_event_callback)
         capability = test_driver.get_resource_params()
-        self.assertSetComplete(capability, PARAMS)
+        self.assert_set_complete(capability, PARAMS)
 
 
     """
@@ -284,8 +263,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
 
         required_capabilities = RequiredCapabilities.list()
         driver_capabilities = test_driver._protocol._protocol_fsm.get_events(current_state=False)
-        self.assertTrue(driver_capabilities)
-        self.assertSetComplete(required_capabilities, driver_capabilities)
+        self.assert_set_complete(required_capabilities, driver_capabilities)
 
 
     """
@@ -319,8 +297,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
 
         required_capabilities = RequiredAutoSampleCapabilities.list()
         driver_capabilities = test_driver._protocol._protocol_fsm.get_events()
-        self.assertTrue(driver_capabilities)
-        self.assertSetComplete(required_capabilities, driver_capabilities)
+        self.assert_set_complete(required_capabilities, driver_capabilities)
         self.assertTrue(DriverEvent.START_AUTOSAMPLE not in driver_capabilities)
 
 
