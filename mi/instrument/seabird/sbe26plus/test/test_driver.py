@@ -1625,6 +1625,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         ID.setsampling(*args, **kwargs)
         self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_SETSAMPLING')]")
 
+    '''
     def test_instrument_driver_settime(self):
         """
         @TODO add in some args/kwargs to make this test better.
@@ -1636,6 +1637,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         kwargs =  {}
         ID.settime(*args, **kwargs)
         self.assertEqual(str(mock_fsm.mock_calls), "[call.on_event('DRIVER_EVENT_EXECUTE', 'PROTOCOL_EVENT_SET_TIME')]")
+    '''
 
     def test_instrument_driver_start(self):
         """
@@ -1719,8 +1721,8 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(ID._protocol._promptbuf, '')
         self.assertEqual(ID._protocol._datalines, [])
 
-        self.assertEqual(ID._protocol._build_handlers.keys(), ['qs', 'set', 'stop', 'dd', 'setsampling', 'dc', 'ts', 'start', 'settime', 'initlogging', 'ds'])
-        self.assertEqual(ID._protocol._response_handlers.keys(), ['set', 'dd', 'setsampling', 'dc', 'ts', 'settime', 'initlogging', 'ds'])
+        self.assertEqual(ID._protocol._build_handlers.keys(), ['qs', 'set', 'setsampling', 'dd', 'stop', 'dc', 'ts', 'start', 'initlogging', 'ds'])
+        self.assertEqual(ID._protocol._response_handlers.keys(), ['set', 'dd', 'setsampling', 'ts', 'dc', 'initlogging', 'ds'])
         self.assertEqual(ID._protocol._last_data_receive_timestamp, None)
         self.assertEqual(ID._protocol._connection, None)
 
@@ -1752,7 +1754,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
                           ('DRIVER_STATE_COMMAND', 'PROTOCOL_EVENT_QUIT_SESSION'): '_handler_command_quit_session',
                           ('DRIVER_STATE_DIRECT_ACCESS', 'DRIVER_EVENT_STOP_DIRECT'): '_handler_direct_access_stop_direct',
                           ('DRIVER_STATE_DIRECT_ACCESS', 'DRIVER_EVENT_EXIT'): '_handler_direct_access_exit',
-                          ('DRIVER_STATE_COMMAND', 'PROTOCOL_EVENT_SET_TIME'): '_handler_command_set_time',
                           ('DRIVER_STATE_UNKNOWN', 'DRIVER_FORCE_STATE'): '_handler_unknown_force_state',
                           ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_SET'): '_handler_command_set',
                           ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_START_DIRECT'): '_handler_command_start_direct',
@@ -1819,7 +1820,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
                           ('DRIVER_STATE_COMMAND', 'PROTOCOL_EVENT_QUIT_SESSION'): '_handler_command_quit_session',
                           ('DRIVER_STATE_DIRECT_ACCESS', 'DRIVER_EVENT_STOP_DIRECT'): '_handler_direct_access_stop_direct',
                           ('DRIVER_STATE_DIRECT_ACCESS', 'DRIVER_EVENT_EXIT'): '_handler_direct_access_exit',
-                          ('DRIVER_STATE_COMMAND', 'PROTOCOL_EVENT_SET_TIME'): '_handler_command_set_time',
                           ('DRIVER_STATE_UNKNOWN', 'DRIVER_FORCE_STATE'): '_handler_unknown_force_state',
                           ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_SET'): '_handler_command_set',
                           ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_START_DIRECT'): '_handler_command_start_direct',
@@ -1941,7 +1941,8 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(next_state, 'DRIVER_STATE_AUTOSAMPLE')
         self.assertEqual(result, 'RESOURCE_AGENT_STATE_STREAMING')
         self.assertEqual(str(_wakeup_mock.mock_calls), '[call(delay=0.1, timeout=30), call(30)]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30)]")
+
+        self.assertEqual("[call('ds', timeout=30)]", str(do_cmd_resp_mock.mock_calls))
 
         _wakeup_mock.reset_mock()
         do_cmd_resp_mock.reset_mock()
@@ -1952,7 +1953,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(next_state, 'DRIVER_STATE_COMMAND')
         self.assertEqual(result, 'RESOURCE_AGENT_STATE_IDLE')
         self.assertEqual(str(_wakeup_mock.mock_calls), '[call(delay=0.1, timeout=30), call(30)]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30)]")
+        self.assertTrue("[call('ds', timeout=30),\n call('set', 'DateTime', '" in str(do_cmd_resp_mock.mock_calls))
 
         #
         # current_state = ProtocolState.COMMAND
@@ -2004,7 +2005,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(next_state, 'DRIVER_STATE_COMMAND')
         self.assertEqual(result, 'RESOURCE_AGENT_STATE_IDLE')
         self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30)]")
+        self.assertTrue("[call('ds', timeout=30),\n call('set', 'DateTime', " in str(do_cmd_resp_mock.mock_calls))
 
 
         #
@@ -2057,7 +2058,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(next_state, 'DRIVER_STATE_COMMAND')
         self.assertEqual(result, 'RESOURCE_AGENT_STATE_IDLE')
         self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30)]")
+        self.assertTrue("[call('ds', timeout=30),\n call('set', 'DateTime'," in str(do_cmd_resp_mock.mock_calls))
 
 
 
@@ -2737,45 +2738,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(len(_connection_mock.mock_calls),17)
         self.assertEqual(len(_update_params_mock.mock_calls),1)
 
-
-    def test_parse_settime_response(self):
-        """
-        verify setsampling works properly
-        """
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-
-        # Fill the DC/DS response
-        p._parse_dc_response(SAMPLE_DC, Prompt.COMMAND)
-        p._parse_ds_response(SAMPLE_DS, Prompt.COMMAND)
-
-
-        p.fake_responses = [(")= ", "settime\r\nset current time:\r\nmonth (1 - 12) = "),
-                            (")= ", "day (1 - 31) = "),
-                            (")= ", "year (4 digits) = "),
-                            (")= ", "hour (0 - 23) = "),
-                            (")= ", "minute (0 - 59) = "),
-                            (")= ", "second (0 - 59) = "),
-                            (Prompt.COMMAND, Prompt.COMMAND)]
-
-        # First time is with no values to send (accept defaults)
-        p._sampling_args = {}
-        _connection_mock = Mock()
-        p._connection = _connection_mock
-
-        p._set_time = time.strftime("%d %b %Y %H:%M:%S", time.localtime())
-        def _get_response_mock(expected_prompt, timeout):
-            try:
-                resp = p.fake_responses.pop(0)
-            except:
-                resp = (Prompt.COMMAND, Prompt.COMMAND)
-                print resp
-            return resp
-        p._get_response = _get_response_mock
-
-        p._parse_set_time_response("IGNORED", "IGNORED")
-
     def test__parse_upload_data_ascii_response(self):
         """
         verify that the data from a dd command is properly captured
@@ -2878,7 +2840,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         kwargs = {}
         (next_state, result) = p._handler_command_start_autosample(*args, **kwargs)
         self.assertEqual(next_state,  ProtocolState.AUTOSAMPLE)
-        self.assertEqual(result, None)
+        self.assertEqual(result, ('RESOURCE_AGENT_STATE_STREAMING', None))
         self.assertEqual(str(_connection_send_mock.mock_calls), "[call('start\\r\\n')]")
 
 
@@ -2903,37 +2865,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(result, None)
         self.assertEqual(str(_connection_send_mock.mock_calls), "[call('qs\\r\\n')]")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def test_get_resource_capabilities(self):
         ID = InstrumentDriver(self.my_event_callback)
         ID._build_protocol()
@@ -2947,18 +2878,16 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         ret = ID.get_resource_capabilities(*args, **kwargs)
         self.assertEqual(ret[0], [])
 
-
-
-
         # Force State COMMAND
         ID._protocol._protocol_fsm.current_state = ProtocolState.COMMAND
 
         ret = ID.get_resource_capabilities(*args, **kwargs)
-        for state in ['DRIVER_EVENT_ACQUIRE_SAMPLE', 'PROTOCOL_EVENT_SET_TIME',
-                      'DRIVER_EVENT_SET', 'DRIVER_EVENT_GET', 'PROTOCOL_EVENT_SETSAMPLING',
+        for state in ['DRIVER_EVENT_ACQUIRE_SAMPLE', 'DRIVER_EVENT_SET',
+                      'DRIVER_EVENT_GET', 'PROTOCOL_EVENT_SETSAMPLING',
                       'DRIVER_EVENT_START_AUTOSAMPLE', 'PROTOCOL_EVENT_UPLOAD_ASCII']:
+            log.debug(str(state) + " in ret[0] = " + str(state in ret[0]))
             self.assertTrue(state in ret[0])
-        self.assertEqual(len(ret[0]), 7)
+        self.assertEqual(len(ret[0]), 6)
 
 
 
@@ -2971,38 +2900,11 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
             self.assertTrue(state in ret[0])
         self.assertEqual(len(ret[0]), 2)
 
-
-
         # Force State DIRECT_ACCESS
         ID._protocol._protocol_fsm.current_state = ProtocolState.DIRECT_ACCESS
 
         ret = ID.get_resource_capabilities(*args, **kwargs)
         self.assertEqual(ret[0], [])
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # create a mock instance of InstrumentDriver, and verify that the functions like
 # start, settime, dd... pass the call to the proper mocked object.
@@ -3022,25 +2924,6 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
     ###
     #    Add instrument specific integration tests
     ###
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    #@TODO assertParamDict is failing, needs a re-work
-
-
-
-
 
     def assertParamDict(self, pd, all_params=False):
         """
@@ -3657,55 +3540,6 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 
         reply = self.driver_client.cmd_dvr('get_resource', parameter_all)
 
-
-
-    # WORKS
-    def test_set_time(self):
-        """
-        @brief Test setting time with settime command
-        S>settime
-        set current time:
-        month (1 - 12) = 1
-        day (1 - 31) = 1
-        year (4 digits) = 1
-        hour (0 - 23) = 1
-        minute (0 - 59) = 1
-        second (0 - 59) = 1
-
-        time.strftime("%d %b %Y %H:%M:%S", time.localtime())
-        """
-        """
-        Test device setsampling.
-        """
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.UNKNOWN)
-
-        reply = self.driver_client.cmd_dvr('discover_state')
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        # Set parameters and verify.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        t = time.strftime("%d %b %Y %H:%M:%S", time.localtime())
-        log.debug("t = " + str(t))
-        reply = self.driver_client.cmd_dvr(InstrumentCmds.SET_TIME, t)
-
     # WORKS
     def test_upload_data_ascii(self):
         """
@@ -3926,8 +3760,8 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # COMMAND
         (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
-        for state in ['DRIVER_EVENT_ACQUIRE_SAMPLE', 'PROTOCOL_EVENT_SET_TIME',
-                      'DRIVER_EVENT_SET', 'DRIVER_EVENT_GET', 'PROTOCOL_EVENT_SETSAMPLING',
+        for state in ['DRIVER_EVENT_ACQUIRE_SAMPLE', 'DRIVER_EVENT_SET',
+                      'DRIVER_EVENT_GET', 'PROTOCOL_EVENT_SETSAMPLING',
                       'DRIVER_EVENT_START_AUTOSAMPLE', 'PROTOCOL_EVENT_UPLOAD_ASCII']:
             self.assertTrue(state in res_cmds)
         self.assertEqual(len(res_cmds), 7)
@@ -4185,8 +4019,8 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # Poll for a sample and confirm result.
         reply = self.driver_client.cmd_dvr('execute_resource', Capability.ACQUIRE_SAMPLE)
-        log.debug("SAMPLE = " + repr(reply))
-        self.assert_sample_dict(reply)
+        log.debug("SAMPLE = " + repr(reply[1]))
+        self.assert_sample_dict(reply[1])
 
         # Poll for a sample and confirm result.
         reply = self.driver_client.cmd_dvr('execute_resource', Capability.ACQUIRE_SAMPLE)
@@ -4283,11 +4117,14 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
     #    Add instrument specific qualification tests
     ###
 
+    # BROKE
     @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 60}}})
     def test_autosample(self):
         """
         @brief Test instrument driver execute interface to start and stop streaming
         mode.
+
+        @TODO needs to be fixed once the IDK data_subscribers and event_subscribers are fixed
         """
 
         state = self.instrument_agent_client.get_agent_state()
@@ -4302,7 +4139,6 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
-
 
         cmd = AgentCommand(command=ResourceAgentEvent.RUN)
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -4495,7 +4331,6 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
 
         # RAW READ GOT ''ts -159.0737 -8387.75  -3.2164 -1.02535   0.0000\r\nS>''
 
-
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -4618,15 +4453,13 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
                                               'RESOURCE_AGENT_EVENT_GO_INACTIVE',
                                               'RESOURCE_AGENT_EVENT_PAUSE'])
         self.assertEqual(unknown, ['example'])
-        self.assertEqual(driver_capabilities, ['DRIVER_EVENT_ACQUIRE_SAMPLE',
+        self.assertEqual(driver_capabilities, ['DRIVER_EVENT_ACQUIRE_SAMPLE', 'PROTOCOL_EVENT_SET_TIME',
                                                'DRIVER_EVENT_SET', 'DRIVER_EVENT_GET',
                                                'PROTOCOL_EVENT_SETSAMPLING', 'DRIVER_EVENT_START_AUTOSAMPLE',
                                                'PROTOCOL_EVENT_UPLOAD_ASCII'])
         # Assert all PARAMS are present.
         for p in PARAMS.keys():
             self.assertTrue(p in driver_vars)
-
-
 
     def test_execute_capability_from_invalid_state(self):
         """
@@ -4825,7 +4658,6 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         self.assertEqual(retval.command, Capability.ACQUIRE_SAMPLE)
         self.assertEqual(retval.result, 'parsed')
 
-
     def test_connect_disconnect(self):
         """
         @brief Acquire a sample.
@@ -4850,7 +4682,60 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        cmd = AgentCommand(command='disconnect')
-        retval = self.instrument_agent_client.execute_resource(cmd)
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
         log.debug("STATE = " + str(state))
+
+    def test_execute_clock_sync(self):
+        """
+        @brief Set the clock to a bogus date/time, then verify that after
+        a discover opoeration it reverts to the system time.
+        """
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        params = {
+            Parameter.DS_DEVICE_DATE_TIME : "01 Jan 2001 01:01:01",
+            }
+
+        self.instrument_agent_client.set_resource(params)
+
+        params = [
+            Parameter.DS_DEVICE_DATE_TIME,
+        ]
+        check_new_params = self.instrument_agent_client.get_resource(params)
+        log.debug("TESTING TIME = " + repr(check_new_params))
+
+        # assert that we altered the time.
+        self.assertTrue('01 JAN 2001  01:' in check_new_params[Parameter.DS_DEVICE_DATE_TIME])
+
+        # now put it back to normal
+
+        params = {
+            Parameter.DS_DEVICE_DATE_TIME : time.strftime("%d %b %Y %H:%M:%S", time.localtime())
+            }
+
+        self.instrument_agent_client.set_resource(params)
+
+        params = [
+            Parameter.DS_DEVICE_DATE_TIME,
+            ]
+        check_new_params = self.instrument_agent_client.get_resource(params)
+        log.debug("REAL TIME = " + repr(check_new_params))

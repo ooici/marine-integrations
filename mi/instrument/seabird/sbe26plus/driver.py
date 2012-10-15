@@ -125,7 +125,7 @@ class ProtocolEvent(BaseEnum):
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     SETSAMPLING = 'PROTOCOL_EVENT_SETSAMPLING'
-    SET_TIME = 'PROTOCOL_EVENT_SET_TIME'
+    # SET_TIME = 'PROTOCOL_EVENT_SET_TIME'          # Disabling. This is inferior to using DateTime=
     #TEST = DriverEvent.TEST
     #RUN_TEST = DriverEvent.RUN_TEST
     #CALIBRATE = DriverEvent.CALIBRATE
@@ -149,7 +149,7 @@ class Capability(BaseEnum):
     UPLOAD_ASCII = ProtocolEvent.UPLOAD_ASCII
     GET = ProtocolEvent.GET
     SET = ProtocolEvent.SET
-    SET_TIME = ProtocolEvent.SET_TIME
+    #SET_TIME = ProtocolEvent.SET_TIME      # Disabling. This is inferior to using DateTime=
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -517,39 +517,26 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT,                   self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER,               self._handler_unknown_discover)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.FORCE_STATE,            self._handler_unknown_force_state)
+
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER,                  self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT,                   self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,         self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,       self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,                    self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)
-
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET_TIME,               self._handler_command_set_time)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SETSAMPLING,            self._handler_command_setsampling)
+        #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET_TIME,               self._handler_command_set_time)
         #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.BAUD,                   self._handler_command_baud)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.UPLOAD_ASCII,           self._handler_command_upload_ascii)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION,           self._handler_command_quit_session)
-
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.INIT_LOGGING,           self._handler_command_init_logging)
-
-
-        #        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST,                   self._handler_command_test)
-
-
-
-
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
-
-
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,     self._handler_autosample_stop_autosample)
-        #        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.ENTER,                     self._handler_test_enter)
-        #        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.EXIT,                      self._handler_test_exit)
-        #        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.RUN_TEST,                  self._handler_test_run_tests)
-        #        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.GET,                       self._handler_command_autosample_test_get)
+
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,             self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT,   self._handler_direct_access_execute_direct)
@@ -563,7 +550,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCmds.SETSAMPLING,                 self._build_setsampling_command)
-        self._add_build_handler(InstrumentCmds.SET_TIME,                    self._build_set_time_command)
+        #self._add_build_handler(InstrumentCmds.SET_TIME,                    self._build_set_time_command)
         self._add_build_handler(InstrumentCmds.DISPLAY_STATUS,              self._build_simple_command)
         self._add_build_handler(InstrumentCmds.QUIT_SESSION,                self._build_simple_command)
         self._add_build_handler(InstrumentCmds.DISPLAY_CALIBRATION,         self._build_simple_command)
@@ -578,11 +565,9 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.SETSAMPLING,                  self._parse_setsampling_response)
-        self._add_response_handler(InstrumentCmds.SET_TIME,                     self._parse_set_time_response)
+        #self._add_response_handler(InstrumentCmds.SET_TIME,                     self._parse_set_time_response)
         self._add_response_handler(InstrumentCmds.DISPLAY_STATUS,               self._parse_ds_response)
         self._add_response_handler(InstrumentCmds.DISPLAY_CALIBRATION,          self._parse_dc_response)
-        #self._add_response_handler(InstrumentCmds.START_LOGGING,                self._parse_logging_response)
-        #self._add_response_handler(InstrumentCmds.STOP_LOGGING,                 self._parse_XXXXXXXXXXXXX)
         self._add_response_handler(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT,     self._parse_uplaad_data_ascii_response)
         #self._add_response_handler(InstrumentCmds.BAUD,                         self._parse_baud_response)
         self._add_response_handler(InstrumentCmds.SET,                          self._parse_set_response)
@@ -783,6 +768,9 @@ class Protocol(CommandResponseInstrumentProtocol):
             result = ResourceAgentState.STREAMING
 
         elif current_state == ProtocolState.COMMAND:
+            #log.info("SYNCING TIME WITH SENSOR")
+            #self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME,
+            #    time.strftime("%d %b %Y %H:%M:%S", time.localtime()), **kwargs)
             result = ResourceAgentState.IDLE
 
         elif current_state == ProtocolState.UNKNOWN:
@@ -807,56 +795,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         elif pd[Parameter.LOGGING] == False:
             next_state = ProtocolState.COMMAND
             result = ResourceAgentState.IDLE
+            log.info("SYNCING TIME WITH SENSOR")
+            self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME,
+                time.strftime("%d %b %Y %H:%M:%S", time.localtime()), **kwargs)
         else:
             raise InstrumentStateException('Unknown state.')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        #
-        # @TODO Can time be set when device is discovered in command mode?
-        #
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         return (next_state, result)
 
@@ -929,6 +872,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Raise if the command not understood.
         else:
             for (key, val) in params.iteritems():
+                log.debug("KEY = " + str(key) + " VALUE = " + str(val))
                 result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
             self._update_params()
 
@@ -944,11 +888,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
 
         next_state = None
+        next_agent_state = None
         result = None
         kwargs['timeout'] = 30
         result = self._do_cmd_resp('ts', *args, **kwargs)
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
@@ -966,8 +911,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, *args, **kwargs)
 
         next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_start_direct(self):
         """
@@ -984,16 +930,19 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Need to sort below
     ###############################
 
+    '''     # INFERIOR to using DateTime=
     def _build_set_time_command(self, command_name, *args, **kwargs):
         """
         Build handler for setsampling command.
         @param args[0] is a dict of the values to change
         """
 
+        log.debug("TIME VALUE = " + repr(args))
         self._set_time = args[0]
+        log.debug("TIME VALUE = " + repr(args))
 
         return InstrumentCmds.SET_TIME + NEWLINE
-
+    '''
     def _build_setsampling_command(self, foo, *args, **kwargs):
         """
         Build handler for setsampling command.
@@ -1194,9 +1143,11 @@ class Protocol(CommandResponseInstrumentProtocol):
                 log.debug("FAILURE: " + str(k) + " was " + str(device_parameters[k]) + " and should have been " + str(self._sampling_args[k]))
                 raise InstrumentParameterException("FAILURE: " + str(k) + " was " + str(device_parameters[k]) + " and should have been " + str(self._sampling_args[k]))
 
+    ''' # Inferior to using DateTime=
     def _parse_set_time_response(self, response, prompt):
         """
-        self._set_time
+        @brief set the device time to the system time.
+        This command is inferior to setting DateTime via DateTime=
         """
         desired_prompt = ") = "
         done = False
@@ -1224,6 +1175,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
             if 'S>' == prompt:
                 done = True
+    '''
 
     def _parse_uplaad_data_ascii_response(self, response, prompt): #(self, cmd, *args, **kwargs):
         """
@@ -1243,7 +1195,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                 output = output + response
 
         raise InstrumentProtocolException('_parse_uplaad_data_ascii_response : I should never get here...')
-
 
     def _handler_command_setsampling(self, *args, **kwargs):
         """
@@ -1265,6 +1216,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
+    '''     # Inferior to using DateTime
     def _handler_command_set_time(self, *args, **kwargs):
         """
         Perform a command-response on the device.
@@ -1284,7 +1236,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = self._do_cmd_resp(InstrumentCmds.SET_TIME, *args, **kwargs)
 
         return (next_state, result)
-
+    '''
     def _handler_command_quit_session(self, *args, **kwargs):
         """
         Perform a command-response on the device.
@@ -1381,8 +1333,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._wakeup_until(timeout, Prompt.COMMAND)
 
         next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Common handlers.
@@ -1539,7 +1492,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         except KeyError:
             raise InstrumentParameterException('Unknown driver parameter %s' % param)
 
-        log.debug("_build_set_command set_cmd = " + set_cmd)
         return set_cmd
 
     def _parse_set_response(self, response, prompt):
@@ -2252,7 +2204,6 @@ class Protocol(CommandResponseInstrumentProtocol):
             dc_line_30,
             lambda match : float(match.group(1)),
             self._float_to_string)
-
 
     ########################################################################
     # Static helpers to format set commands.
