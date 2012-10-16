@@ -1009,54 +1009,54 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         #
         # DHE SBE16 different than SBE16
         #
-        #self._param_dict.add(Parameter.CPCOR,
-        #                     r' +CPCOR = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                     self._float_to_string)
-        #self._param_dict.add(Parameter.PCALDATE,
-        #                     r'pressure .+ ((\d+)-([a-zA-Z]+)-(\d+))',
-        #                     lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
-        #                     self._date_to_string)
-        #self._param_dict.add(Parameter.PA0,
-        #                     r' +PA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                     self._float_to_string)
-        #self._param_dict.add(Parameter.PA1,
-        #                     r' +PA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                     self._float_to_string)
-        #self._param_dict.add(Parameter.PA2,
-        #                     r' +PA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                     self._float_to_string)
-        #self._param_dict.add(Parameter.PTCA0,
-        #                     r' +PTCA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                     self._float_to_string)
-        #self._param_dict.add(Parameter.PTCA1,
-        #                     r' +PTCA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                     self._float_to_string)
-        #self._param_dict.add(Parameter.PTCA2,
-        #                     r' +PTCA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                     self._float_to_string)
-        #self._param_dict.add(Parameter.PTCB0,
-        #                     r' +PTCSB0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                    self._float_to_string)
-        #self._param_dict.add(Parameter.PTCB1,
-        #                     r' +PTCSB1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                     self._float_to_string)
-        #self._param_dict.add(Parameter.PTCB2,
-        #                     r' +PTCSB2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                     self._float_to_string)
-        #self._param_dict.add(Parameter.POFFSET,
-        #                     r' +POFFSET = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                     self._float_to_string)
+        self._param_dict.add(Parameter.CPCOR,
+                             r' +CPCOR = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
+                             lambda match : float(match.group(1)),
+                             self._float_to_string)
+        self._param_dict.add(Parameter.PCALDATE,
+                             r'pressure .+ ((\d+)-([a-zA-Z]+)-(\d+))',
+                             lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
+                             self._date_to_string)
+        self._param_dict.add(Parameter.PA0,
+                             r' +PA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
+                             lambda match : float(match.group(1)),
+                             self._float_to_string)
+        self._param_dict.add(Parameter.PA1,
+                             r' +PA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
+                             lambda match : float(match.group(1)),
+                             self._float_to_string)
+        self._param_dict.add(Parameter.PA2,
+                             r' +PA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
+                             lambda match : float(match.group(1)),
+                             self._float_to_string)
+        self._param_dict.add(Parameter.PTCA0,
+                             r' +PTCA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
+                             lambda match : float(match.group(1)),
+                             self._float_to_string)
+        self._param_dict.add(Parameter.PTCA1,
+                             r' +PTCA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
+                             lambda match : float(match.group(1)),
+                             self._float_to_string)
+        self._param_dict.add(Parameter.PTCA2,
+                             r' +PTCA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
+                             lambda match : float(match.group(1)),
+                             self._float_to_string)
+        self._param_dict.add(Parameter.PTCB0,
+                             r' +PTCB0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
+                             lambda match : float(match.group(1)),
+                            self._float_to_string)
+        self._param_dict.add(Parameter.PTCB1,
+                             r' +PTCB1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
+                             lambda match : float(match.group(1)),
+                             self._float_to_string)
+        self._param_dict.add(Parameter.PTCB2,
+                             r' +PTCB2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
+                             lambda match : float(match.group(1)),
+                             self._float_to_string)
+        self._param_dict.add(Parameter.POFFSET,
+                             r' +POFFSET = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
+                             lambda match : float(match.group(1)),
+                             self._float_to_string)
         #self._param_dict.add(Parameter.RCALDATE,
         #                     r'rtc: +((\d+)-([a-zA-Z]+)-(\d+))',
         #                     lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
