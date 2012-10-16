@@ -468,6 +468,27 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         # Test that the driver is in state unconfigured.
         self.check_state(DriverConnectionState.UNCONFIGURED)
 
+        # Assert we forgot the comms parameter.
+        self.assertRaises(InstrumentParameterException,
+                          self.driver_client.cmd_dvr, 'configure')
+
+        # Assert we send a bad config object (not a dict).
+        with self.assertRaises(InstrumentParameterException):
+            BOGUS_CONFIG = 'not a config dict'            
+            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+            
+        # Assert we send a bad config object (missing addr value).
+        with self.assertRaises(InstrumentParameterException):
+            BOGUS_CONFIG = self.port_agent_comm_config().copy()
+            BOGUS_CONFIG.pop('addr')
+            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+
+        # Assert we send a bad config object (bad addr value).
+        with self.assertRaises(InstrumentParameterException):
+            BOGUS_CONFIG = self.port_agent_comm_config().copy()
+            BOGUS_CONFIG['addr'] = ''
+            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+        
         # Configure driver and transition to disconnected.
         self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
@@ -587,27 +608,6 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assertRaises(InstrumentStateException, 
                           self.driver_client.cmd_dvr, 'execute_resource', PARProtocolEvent.START_POLL)
 
-        # Assert we forgot the comms parameter.
-        self.assertRaises(InstrumentParameterException,
-                          self.driver_client.cmd_dvr, 'configure')
-
-        # Assert we send a bad config object (not a dict).
-        with self.assertRaises(InstrumentParameterException):
-            BOGUS_CONFIG = 'not a config dict'            
-            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
-            
-        # Assert we send a bad config object (missing addr value).
-        with self.assertRaises(InstrumentParameterException):
-            BOGUS_CONFIG = self.port_agent_comm_config().copy()
-            BOGUS_CONFIG.pop('addr')
-            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
-
-        # Assert we send a bad config object (bad addr value).
-        with self.assertRaises(InstrumentParameterException):
-            BOGUS_CONFIG = self.port_agent_comm_config().copy()
-            BOGUS_CONFIG['addr'] = ''
-            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
-        
 
     def test_stop_from_slow_autosample(self):
         # test break from autosample at low data rates
@@ -625,14 +625,14 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         # test break from autosample at high data rates
         self.put_instrument_in_command_mode()
         
-        self.driver_client.cmd_dvr('set_resource',
-                                           {Parameter.MAXRATE:12},
-                                           timeout=20)
+        self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE:12}, timeout=20)
 
         self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.START_AUTOSAMPLE)
         #time.sleep(5)
         self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
         self.check_state(PARProtocolState.COMMAND)
+        self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE:1}, timeout=20)
+
 
 
     def test_start_stop_autosample(self):
