@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='${name}',
@@ -7,9 +7,18 @@ setup(
     author='${author}',
     author_email='${email}',
     url='${url}',
+    packages=find_packages(),
     entry_points = {
         'setuptools.installation': [
-            'eggsecutable = my_package.some_module:main_func',
+            'eggsecutable = main:run',
         ]
-    }
+    },
+    dependency_links = [
+        'https://github.com/ooici/utilities/tarball/master#egg=utilities-9999'
+    ],
+    install_requires = [
+        'pyzmq==2.2.0',
+        'pyyaml==3.1.0',
+        'utilities'
+    ]
 )

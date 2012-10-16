@@ -29,6 +29,8 @@ from mi.idk.exceptions import FileNotFound
 from mi.idk.exceptions import InvalidParameters
 from mi.idk.exceptions import MissingTemplate
 from mi.idk.exceptions import ValidationFailure
+from mi.idk.unit_test import InstrumentDriverTestConfig
+from mi.idk.driver_generator import DriverGenerator
 
 from snakefood.util import iter_pyfiles, setup_logging, def_ignores, is_python
 from snakefood.depends import output_depends, read_depends
@@ -418,6 +420,20 @@ class EggGenerator:
         if not self._tmp_dir():
             raise InvalidParameters("missing working_repo configuration")
 
+        self.generator = DriverGenerator(self.metadata)
+        test_import = __import__(self._test_module())
+
+    def _test_module(self):
+        return self.generator.test_modulename()
+
+    def _driver_module(self):
+        test_config = InstrumentDriverTestConfig()
+        return test_config.driver_module
+
+    def _driver_class(self):
+        test_config = InstrumentDriverTestConfig()
+        return test_config.driver_class
+
     def _repo_dir(self):
         return Config().get('working_repo')
 
@@ -429,6 +445,12 @@ class EggGenerator:
 
     def _setup_template_path(self):
         return os.path.join(Config().template_dir(), 'setup.tmpl' )
+
+    def _main_path(self):
+        return os.path.join(self._build_dir(), 'main.py' )
+
+    def _main_template_path(self):
+        return os.path.join(Config().template_dir(), 'main.tmpl' )
 
     def _build_name(self):
         return "%s_%s_%s_%s" % (
@@ -518,8 +540,26 @@ class EggGenerator:
             'description': 'ooi core driver',
             'author': self.metadata.author,
             'email': self.metadata.email,
-            'url': 'http://goo'
+            'url': 'http://www.oceanobservatories.org',
+            'driver_module': self._driver_module,
+            'driver_class': self._driver_class,
         }
+
+    def _generate_main_file(self):
+        if not os.path.exists(self._build_dir()):
+            os.makedirs(self._build_dir())
+
+        main_file= self._main_path()
+        main_template = self._get_template(self._main_template_path())
+
+        log.debug("Create main.py file: %s" % main_file )
+        log.debug("main.py template file: %s" % self._main_template_path())
+        log.debug("main.py template date: %s" % self._setup_template_data())
+
+        ofile = open(main_file, 'w')
+        code = main_template.substitute(self._setup_template_data())
+        ofile.write(code)
+        ofile.close()
 
     def _verify_ready(self):
         """
@@ -573,6 +613,7 @@ class EggGenerator:
             self._verify_ready()
             self._stage_files(files)
             self._generate_setup_file()
+            self._generate_main_file()
 
             cmd = "cd %s; python setup.py bdist_egg" % self._build_dir()
             log.info("CMD: %s" % cmd)

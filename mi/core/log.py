@@ -23,7 +23,8 @@ to create a logger automatically scoped with the calling package and ready to us
     from ooi.logging import log    # no longer need get_logger at all
 
 """
-import os.path
+import os
+import sys
 import pkg_resources
 
 from mi.core.common import Singleton
@@ -40,31 +41,34 @@ class LoggerManager(Singleton):
     """
     Logger Manager.  Provides an interface to configure logging at runtime.
     """
-    def init(self):
+    def init(self, debug=False):
         """Initialize logging for MI.  Because this is a singleton it will only be initialized once."""
-        print 'starting log init'
         path = os.environ[LOGGING_CONFIG_ENVIRONMENT_VARIABLE] if LOGGING_CONFIG_ENVIRONMENT_VARIABLE in os.environ else None
-        print 'env path %r' % path
         haveenv = path and os.path.isfile(path)
-        print 'have env %r' % haveenv
         if path and not haveenv:
-            print 'WARNING: %s was set but %s was not found (using default configuration files instead)' % (LOGGING_CONFIG_ENVIRONMENT_VARIABLE, path)
+            print >> os.stderr, 'WARNING: %s was set but %s was not found (using default configuration files instead)' % (LOGGING_CONFIG_ENVIRONMENT_VARIABLE, path)
         if path and haveenv:
-            print 'about to use env path'
             config.replace_configuration(path)
-            print 'configured from ' + path
+            if debug:
+                print >> sys.stderr, str(os.getpid()) + ' configured logging from ' + path
         elif os.path.isfile(LOGGING_PRIMARY_FROM_FILE):
             config.replace_configuration(LOGGING_PRIMARY_FROM_FILE)
-            print 'configured from ' + LOGGING_PRIMARY_FROM_FILE
+            if debug:
+                print >> sys.stderr, str(os.getpid()) + ' configured logging from ' + LOGGING_PRIMARY_FROM_FILE
         else:
             path = pkg_resources.resource_filename('config', LOGGING_PRIMARY_FROM_EGG)
             config.replace_configuration(path)
-            print 'configured from ' + path
+            if debug:
+                print >> sys.stderr, str(os.getpid()) + ' configured logging from ' + path
 
         if os.path.isfile(LOGGING_MI_OVERRIDE):
             config.add_configuration(LOGGING_MI_OVERRIDE)
+            if debug:
+                print >> sys.stderr, str(os.getpid()) + ' supplemented logging from ' + path
         elif os.path.isfile(LOGGING_CONTAINER_OVERRIDE):
             config.add_configuration(LOGGING_CONTAINER_OVERRIDE)
+            if debug:
+                print >> sys.stderr, str(os.getpid()) + ' supplemented logging from ' + path
 
 def get_logger():
     return log

@@ -9,10 +9,21 @@
 # Import pyon first for monkey patching.
 from mi.core.log import get_logger ; log = get_logger()
 
+from mock import patch
+from pyon.core.bootstrap import CFG
+
 import re
 import os
 import unittest
+import socket
 from sets import Set
+
+# Set testing to false because the capability container tries to clear out
+# couchdb if we are testing. Since we don't care about couchdb for the most
+# part we can ignore this. See initialize_ion_int_tests() for implementation.
+# If you DO care about couch content make sure you do a force_clean when needed.
+from pyon.core import bootstrap
+bootstrap.testing = False;
 
 import gevent
 import json
@@ -21,6 +32,7 @@ from ion.agents.port.port_agent_process import PortAgentProcessType
 
 from ion.agents.instrument.driver_process import DriverProcess, DriverProcessType
 
+from mi.idk.util import convert_enum_to_dict
 from mi.idk.comm_config import CommConfig
 from mi.idk.config import Config
 from mi.idk.common import Singleton
@@ -32,6 +44,7 @@ from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
 from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import TestNoCommConfig
 from mi.core.exceptions import InstrumentException
+from mi.core.exceptions import InstrumentTimeoutException
 
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -48,7 +61,11 @@ from mi.core.instrument.instrument_driver import DriverConnectionState
 from ion.agents.port.port_agent_process import PortAgentProcess
 
 from pyon.agent.agent import ResourceAgentState
+
 from pyon.agent.agent import ResourceAgentEvent
+
+# Do not remove this import.  It is for package building.
+from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
 class InstrumentDriverTestConfig(Singleton):
     """
@@ -254,8 +271,9 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         try:
             driver_client = self.driver_process.get_client()
             driver_client.start_messaging(self.event_received)
-            retval = driver_client.cmd_dvr('process_echo', 'Test.')
-
+            log.debug("before 'process_echo'")
+            retval = driver_client.cmd_dvr('process_echo', 'Test.') # data=? RU
+            log.debug("after 'process_echo'")
             self.driver_client = driver_client
         except Exception, e:
             self.driver_process.stop()
@@ -277,6 +295,39 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
             'addr': 'localhost',
             'port': port
         }
+
+    #####
+    # Custom assert methods
+    #####
+
+    def assert_set_complete(self, subset, superset):
+        """
+        Assert that every item in subset is in superset
+        """
+
+        # use assertTrue here intentionally because it's easier to unit test
+        # this method.
+        if len(superset):
+            self.assertTrue(len(subset) > 0)
+
+        for item in subset:
+            self.assertTrue(item in superset)
+
+        # This added so the unit test can set a true flag.  If we have made it
+        # this far we should pass the test.
+        #self.assertTrue(True)
+
+    def assert_enum_has_no_duplicates(self, obj):
+        dic = convert_enum_to_dict(obj)
+        occurances  = {}
+        for k, v in dic.items():
+            #v = tuple(v)
+            occurances[v] = occurances.get(v,0) + 1
+
+        for k in occurances:
+            if occurances[k] > 1:
+                log.error(str(obj) + " has ambigous duplicate values for '" + str(k) + "'")
+                self.assertEqual(1, occurances[k])
 
 
 class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
@@ -324,16 +375,19 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
 class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must inherit from here to get _start_container
     @classmethod
     def setUpClass(cls):
+        log.debug("InstrumentDriverIntegrationTestCase.setUpClass")
         cls.init_port_agent()
 
     @classmethod
     def tearDownClass(cls):
+        log.debug("InstrumentDriverIntegrationTestCase.tearDownClass")
         cls.stop_port_agent()
 
     def setUp(self):
         """
         @brief Setup test cases.
         """
+        log.debug("InstrumentDriverIntegrationTestCase.setUp")
         InstrumentDriverTestCase.setUp(self)
         self.port_agent = self.test_config.port_agent
 
@@ -366,7 +420,9 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         self.assertTrue(isinstance(pagent_pid, int))
         
         # Send a test message to the process interface, confirm result.
+        log.debug("before 'process_echo'")
         reply = self.driver_client.cmd_dvr('process_echo')
+        log.debug("after 'process_echo'")
         self.assert_(reply.startswith('ping from resource ppid:'))
 
         reply = self.driver_client.cmd_dvr('driver_ping', 'foo')
@@ -394,6 +450,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             reply = self.driver_client.cmd_dvr('test_exceptions', exception_str)
 
 
+
 class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
     @classmethod
@@ -408,45 +465,37 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         @brief Setup test cases.
         """
-        log.debug("InstrumentDriverQualificationTestCase setUp")
-
+        log.debug("#ROGER# does setUp get called?")
         InstrumentDriverTestCase.setUp(self)
-
         self.port_agent = self.test_config.port_agent
-
         self.instrument_agent_manager = InstrumentAgentClient();
         self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
+
         self.container = self.instrument_agent_manager.container
 
+        log.debug("#ROGER# in setUp self.test_config.instrument_agent_packet_config = " + str(self.test_config.instrument_agent_packet_config))
+        
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.instrument_agent_packet_config,
             encoding=self.test_config.instrument_agent_stream_encoding,
             stream_definition=self.test_config.instrument_agent_stream_definition
         )
-        self.event_subscribers = InstrumentAgentEventSubscribers()
+        log.debug("InstrumentDriverQualificationTestCase setUp Problem BELOW")
+        self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.instrument_agent_resource_id)
+        log.debug("InstrumentDriverQualificationTestCase setUp Problem ABOVE")
 
         self.init_instrument_agent_client()
-
-
+            
     def init_instrument_agent_client(self):
         log.info("Start Instrument Agent Client")
 
-        # A callback for processing subscribed-to data.
-        '''
-        def consume_data(message, headers):
-            log.info('Subscriber received data message: %s.', str(message))
-            self.samples_received.append(message)
-            if self.no_samples and self.no_samples == len(self.samples_received):
-                self.async_data_result.set()
-        '''
         # Driver config
         driver_config = {
             'dvr_mod' : self.test_config.driver_module,
             'dvr_cls' : self.test_config.driver_class,
-
+            'workdir' : self.test_config.working_dir,
             'process_type' : self.test_config.driver_process_type,
 
-            'workdir' : self.test_config.working_dir,
             'comms_config' : self.port_agent_comm_config()
         }
 
@@ -458,6 +507,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'test_mode' : True  ## Enable a poison pill. If the spawning process dies
             ## shutdown the daemon process.
         }
+
+
+        # ROGER message_headers
 
         # Start instrument agent client.
         self.instrument_agent_manager.start_client(
@@ -472,6 +524,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
 
 
+
     def tearDown(self):
         """
         @brief Test teardown
@@ -480,10 +533,12 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.instrument_agent_manager.stop_container()
         InstrumentDriverTestCase.tearDown(self)
 
+
     def test_common_qualification(self):
         self.assertTrue(1)
 
     # FIXED
+    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 1200}}})
     def test_instrument_agent_common_state_model_lifecycle(self):
         """
         @brief Test agent state transitions.
@@ -528,14 +583,34 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+
         retval = self.instrument_agent_client.execute_agent(cmd)
+
+
+
+
+
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
+
+
+
+
+
+
+        log.debug("#ROGER# 1")
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        log.debug("#ROGER# 2")
         retval = self.instrument_agent_client.execute_agent(cmd)
+
+        self.assertTrue(False)
+
+        log.debug("#ROGER# 3")
         state = self.instrument_agent_client.get_agent_state()
+        log.debug("#ROGER# 4")
         self.assertEqual(state, ResourceAgentState.IDLE)
+        log.debug("#ROGER# 5")
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_INACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -550,13 +625,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # Works but doesnt return anything useful when i tried.
         #cmd = AgentCommand(command=ResourceAgentEvent.GET_RESOURCE_STATE)
         #retval = self.instrument_agent_client.execute_agent(cmd)
-        #log.debug("======================== " + str(retval))
 
         # works!
         retval = self.instrument_agent_client.ping_resource()
-        #log.debug("1======================== " + str(retval))
         retval = self.instrument_agent_client.ping_agent()
-        #log.debug("2======================== " + str(retval))
 
         cmd = AgentCommand(command=ResourceAgentEvent.PING_RESOURCE)
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -629,8 +701,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
+
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
 
     # FIXED
     def test_instrument_agent_to_instrument_driver_connectivity(self):
@@ -668,6 +742,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertTrue("time:" in retval)
 
 
+
         cmd = AgentCommand(command=ResourceAgentEvent.GO_INACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
@@ -682,6 +757,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         self.assertTrue(self.check_for_reused_values(InstErrorCode))
         pass
+
 
     def test_driver_connection_state_enum(self):
         """
@@ -699,6 +775,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
     def test_resource_agent_event_enum(self):
 
         self.assertTrue(self.check_for_reused_values(ResourceAgentEvent))
+
 
     # FIXED
     def test_resource_agent_state_enum(self):
@@ -725,6 +802,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         # If this assert fails, then two of the enumerations have an identical value...
         return match == outer_match
+
 
     def test_driver_async_event_enum(self):
         """
@@ -756,6 +834,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         unique_set = Set(item for item in list_in)
         return [(item) for item in unique_set]
 
+    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 1200}}})
     def test_driver_notification_messages(self):
         """
         @brief This tests event messages from the driver.  The following
@@ -766,10 +845,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
 
         # Clear off any events from before this test so we have consistent state
+
         self.event_subscribers.events_received = []
 
         expected_events = [
-            'AgentState=RESOURCE_AGENT_STATE_UNINITIALIZED',
             'AgentState=RESOURCE_AGENT_STATE_INACTIVE',
             'AgentCommand=RESOURCE_AGENT_EVENT_INITIALIZE',
             'ResourceState=DRIVER_STATE_DISCONNECTED',
@@ -779,20 +858,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'ResourceState=DRIVER_STATE_COMMAND',
             'AgentState=RESOURCE_AGENT_STATE_IDLE',
             'AgentCommand=RESOURCE_AGENT_EVENT_GO_ACTIVE',
-            'ResourceState=DRIVER_STATE_DISCONNECTED',
-            'ResourceState=DRIVER_STATE_UNCONFIGURED',
-            'AgentState=RESOURCE_AGENT_STATE_INACTIVE',
-            'AgentCommand=RESOURCE_AGENT_EVENT_GO_INACTIVE',
-            'ResourceState=DRIVER_STATE_DISCONNECTED',
-            'ResourceState=DRIVER_STATE_DISCONNECTED',
-            'ResourceState=DRIVER_STATE_UNKNOWN',
-            'ResourceConfig',
-            'ResourceState=DRIVER_STATE_COMMAND',
-            'AgentState=RESOURCE_AGENT_STATE_IDLE',
-            'AgentCommand=RESOURCE_AGENT_EVENT_GO_ACTIVE',
-            'AgentCommand=RESOURCE_AGENT_PING_RESOURCE',
             'AgentState=RESOURCE_AGENT_STATE_COMMAND',
             'AgentCommand=RESOURCE_AGENT_EVENT_RUN',
+            'AgentCommand=RESOURCE_AGENT_PING_RESOURCE',
             'ResourceState=DRIVER_STATE_DISCONNECTED',
             'ResourceState=DRIVER_STATE_UNCONFIGURED',
             'AgentState=RESOURCE_AGENT_STATE_UNINITIALIZED',
@@ -802,12 +870,12 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'ResourceState=DRIVER_STATE_DISCONNECTED',
             'ResourceState=DRIVER_STATE_DISCONNECTED',
             'ResourceState=DRIVER_STATE_UNKNOWN',
+            'ResourceConfig',
+            'ResourceState=DRIVER_STATE_COMMAND',
             'AgentState=RESOURCE_AGENT_STATE_IDLE',
             'AgentCommand=RESOURCE_AGENT_EVENT_GO_ACTIVE',
             'AgentState=RESOURCE_AGENT_STATE_COMMAND',
             'AgentCommand=RESOURCE_AGENT_EVENT_RUN',
-            'ResourceConfig',
-            'ResourceState=DRIVER_STATE_COMMAND',
             'AgentState=RESOURCE_AGENT_STATE_STOPPED',
             'AgentCommand=RESOURCE_AGENT_EVENT_PAUSE',
             'AgentState=RESOURCE_AGENT_STATE_COMMAND',
@@ -819,9 +887,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'AgentState=RESOUCE_AGENT_STATE_DIRECT_ACCESS',
             'AgentCommand=RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS',
             'ResourceState=DRIVER_STATE_DIRECT_ACCESS',
+            'ResourceState=DRIVER_STATE_COMMAND',
             'AgentState=RESOURCE_AGENT_STATE_COMMAND',
             'AgentCommand=RESOURCE_AGENT_EVENT_GO_COMMAND',
-            'ResourceState=DRIVER_STATE_COMMAND',
             'ResourceState=DRIVER_STATE_DISCONNECTED',
             'ResourceState=DRIVER_STATE_UNCONFIGURED',
             'AgentState=RESOURCE_AGENT_STATE_UNINITIALIZED',
@@ -842,38 +910,29 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_INACTIVE)
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        # Works but doesnt return anything useful when i tried.
-        #cmd = AgentCommand(command=ResourceAgentEvent.GET_RESOURCE_STATE)
-        #retval = self.instrument_agent_client.execute_agent(cmd)
-        #log.debug("======================== " + str(retval))
-
-        # works!
         retval = self.instrument_agent_client.ping_resource()
-        #log.debug("1======================== " + str(retval))
+
         retval = self.instrument_agent_client.ping_agent()
-        #log.debug("2======================== " + str(retval))
 
         cmd = AgentCommand(command=ResourceAgentEvent.PING_RESOURCE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         self.assertTrue("ping from resource ppid" in retval.result)
 
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
 
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        #cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #state = self.instrument_agent_client.get_agent_state()
+        #self.assertEqual(state, ResourceAgentState.IDLE)
+
+        #cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #state = self.instrument_agent_client.get_agent_state()
+        #self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -942,22 +1001,24 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # Refactor changed it so no description is ever present.
         # go with state instead i guess...
         #
+
+        log.debug("ROGERROGER got to the end!")
         raw_events = []
         for x in self.event_subscribers.events_received:
             if str(type(x)) == "<class 'interface.objects.ResourceAgentCommandEvent'>":
-                log.warn(str(type(x)) + " ********************* " + str(x.execute_command))
+                log.debug(str(type(x)) + " ++********************* AgentCommand=" + str(x.execute_command))
                 raw_events.append("AgentCommand=" + str(x.execute_command))
             elif str(type(x)) == "<class 'interface.objects.ResourceAgentResourceStateEvent'>":
-                log.warn(str(type(x)) + " ********************* " + str(x.state))
+                log.debug(str(type(x)) + " ++********************* ResourceState=" + str(x.state))
                 raw_events.append("ResourceState=" + str(x.state))
             elif str(type(x)) == "<class 'interface.objects.ResourceAgentStateEvent'>":
-                log.warn(str(type(x)) + " ********************* " + str(x.state))
+                log.debug(str(type(x)) + " ++********************* AgentState=" + str(x.state))
                 raw_events.append("AgentState=" + str(x.state))
             elif str(type(x)) == "<class 'interface.objects.ResourceAgentResourceConfigEvent'>":
-                log.warn(str(type(x)) + " ********************* ")
+                log.debug(str(type(x)) + " ++********************* ResourceConfig")
                 raw_events.append("ResourceConfig")
             else:
-                log.warn(str(type(x)) + " ********************* " + str(x))
+                log.debug(str(type(x)) + " ++********************* " + str(x))
 
         for x in sorted(raw_events):
             log.debug(str(x) + " ?in (expected_events) = " + str(x in expected_events))
@@ -970,11 +1031,12 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # assert we got the expected number of events
         num_expected = len(self.de_dupe(expected_events))
         num_actual = len(self.de_dupe(raw_events))
+        log.debug("num_expected = " + str(num_expected) + " num_actual = " + str(num_actual))
         self.assertTrue(num_actual == num_expected)
 
         pass
 
-
+    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 20}}})
     def test_instrument_driver_to_physical_instrument_interoperability(self):
         """
         @Brief this test is the integreation test test_connect
@@ -982,7 +1044,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
                On a seabird sbe37 this results in a ds and dc command being sent.
         """
-
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
@@ -993,8 +1054,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
-        pass
-
     @unittest.skip("Driver.get_device_signature not yet implemented")
     def test_get_device_signature(self):
         """
@@ -1003,15 +1062,16 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         pass
 
-
     def test_initialize(self):
         """
         Test agent initialize command. This causes creation of
         driver process and transition to inactive.
         """
 
+
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
 
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -1022,3 +1082,133 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+
+class SocketTester():
+    """
+    This class is used to peek through sockets to see raw characters that have
+    come through. This is largely used in direct access tests.
+    """
+    buf = ""
+
+    def __init__(self, host, port):
+        self.buf = ""
+        self.host = host
+        self.port = port
+        # log.debug("OPEN SOCKET HOST = " + str(host) + " PORT = " + str(port))
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.connect((self.host, self.port))
+        self.s.settimeout(0.0)
+
+    def read_a_char(self):
+        c = None
+        if len(self.buf) > 0:
+            c = self.buf[0:1]
+            self.buf = self.buf[1:]
+        else:
+            self.buf = self.s.recv(1024)
+            log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
+
+        return c
+
+
+    def peek_at_buffer(self):
+        if len(self.buf) == 0:
+            try:
+                self.buf = self.s.recv(1024)
+                log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
+            except:
+                """
+                Ignore this exception, its harmless
+                """
+
+        return self.buf
+
+    def remove_from_buffer(self, remove):
+        log.debug("BUF WAS " + str(repr(self.buf)))
+        self.buf = self.buf.replace(remove, "")
+        log.debug("BUF IS '" + str(repr(self.buf)) + "'")
+
+    def get_data(self):
+        data = ""
+        try:
+            ret = ""
+
+            while True:
+                c = self.read_a_char()
+                if c == None:
+                    break
+                if c == '\n' or c == '':
+                    ret += c
+                    break
+                else:
+                    ret += c
+
+            data = ret
+        except AttributeError:
+            log.debug("CLOSING - GOT AN ATTRIBUTE ERROR")
+            self.s.close()
+        except:
+            data = ""
+
+        if data:
+            data = data.lower()
+            log.debug("IN  [" + repr(data) + "]")
+        return data
+
+    def send_data(self, data, debug):
+        try:
+            log.debug("OUT [" + repr(data) + "]")
+            self.s.sendall(data)
+        except:
+            log.debug("*** send_data FAILED [" + debug + "] had an exception sending [" + data + "]")
+            
+    def negotiate_telnet_session(self, cmd_result):
+        """
+        Go through the sequences of a DA session negotiation
+        
+        @param cmd_result The result of the GO_DIRECT command
+        """
+        try_count = 0
+        while self.peek_at_buffer().find("Username: ") == -1:
+            log.debug("WANT 'Username:' READ ==>" + str(self.peek_at_buffer()))
+            gevent.sleep(1)
+            try_count = try_count + 1
+            if try_count > 10:
+                raise InstrumentTimeoutException('I took longer than 10 seconds to get a Username: prompt')
+
+        self.remove_from_buffer("Username: ")
+        self.send_data("bob\r\n", "1")
+
+        try_count = 0
+        while self.peek_at_buffer().find("token: ") == -1:
+            log.debug("WANT 'token: ' READ ==>" + str(self.peek_at_buffer()))
+            gevent.sleep(1)
+            try_count = try_count + 1
+            if try_count > 10:
+                raise InstrumentTimeoutException('I took longer than 10 seconds to get a token: prompt')
+        self.remove_from_buffer("token: ")
+        self.send_data(cmd_result.result['token'] + "\r\n", "1")
+
+        # look for and swallow telnet negotiation string
+        try_count = 0
+        while self.peek_at_buffer().find(WILL_ECHO_CMD) == -1:
+            log.debug("WANT %s READ ==> %s" %(WILL_ECHO_CMD, str(self.peek_at_buffer())))
+            gevent.sleep(1)
+            try_count += 1
+            if try_count > 10:
+                raise InstrumentTimeoutException('It took longer than 10 seconds to get the telnet negotiation string')
+        self.remove_from_buffer(WILL_ECHO_CMD)
+        # send the telnet negotiation response string
+        self.send_data(DO_ECHO_CMD, "1")
+        
+        try_count = 0
+        while self.peek_at_buffer().find("connected\r\n") == -1:
+            log.debug("WANT 'connected\r\n' READ ==>" + str(self.peek_at_buffer()))
+            gevent.sleep(1)
+            self.peek_at_buffer()
+            try_count = try_count + 1
+            if try_count > 10:
+                raise InstrumentTimeoutException('I took longer than 10 seconds to get a connected prompt')
+
+        self.remove_from_buffer("connected\n")
