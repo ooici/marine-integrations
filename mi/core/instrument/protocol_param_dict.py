@@ -184,6 +184,30 @@ class ProtocolParameterDict(object):
         """
         return self._param_dict[name].submenu_write
 
+    # RAU Added
+    def multi_match_update(self, input):
+        """
+        Update the dictionaray with a line input. Iterate through all objects
+        and attempt to match and update (a) parameter(s).
+        @param input A string to match to a dictionary object.
+        @retval The count of successfully updated parameters, 0 if not updated
+        """
+        hit_count = 0
+        multi_mode = False
+        for (name, val) in self._param_dict.iteritems():
+            if multi_mode == True and val.multi_match == False:
+                continue
+            if val.update(input):
+                hit_count =hit_count +1
+                if False == val.multi_match:
+                    return hit_count
+                else:
+                    multi_mode = True
+
+        if False == multi_mode and input <> "":
+            log.debug("protocol_param_dict.py UNMATCHCHED ***************************** " + input)
+        return hit_count
+
     def update(self, input):
         """
         Update the dictionaray with a line input. Iterate through all objects
