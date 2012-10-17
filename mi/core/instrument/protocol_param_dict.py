@@ -183,31 +183,20 @@ class ProtocolParameterDict(object):
         @raises KeyError if the name is invalid.
         """
         return self._param_dict[name].submenu_write
-        
+
     def update(self, input):
         """
         Update the dictionaray with a line input. Iterate through all objects
         and attempt to match and update a parameter.
         @param input A string to match to a dictionary object.
-        @retval The name that was successfully updated, False if not updated
+        @retval The name that was successfully updated, None if not updated
         """
-
-        multi_mode = False
         for (name, val) in self._param_dict.iteritems():
-            if multi_mode == True and val.multi_match == False:
-                #log.debug("SKIPPING name = " + name)
-                continue
-            #log.debug("NAME = " + name + " multi = " + str(val.multi_match))
+            log.debug("NAME/VAL = " + str(name) + "/" + str(val))
             if val.update(input):
-                #log.debug("MATCH ***************************** " + name + " = " + str(val.value))
-                if False == val.multi_match:
-                    return
-                    # return name # Nothing uses this return, so making it a generic return
-                else:
-                    multi_mode = True
-        if False == multi_mode and input <> "":
-            log.debug("protocol_param_dict.py UNMATCHCHED ***************************** " + input)
-        #return False
+                log.debug("RETURNING NAME = " + str(name))
+                return name
+        return False
     
     def get_config(self):
         """
