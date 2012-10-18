@@ -5,6 +5,7 @@
 """
 
 import subprocess
+import gevent
 from pyon.public import CFG
 from ooi.logging import config
 
@@ -453,11 +454,17 @@ class RunInstrument(IonIntegrationTestCase):
                                kwargs={'session_type': DirectAccessTypes.telnet,
                                        'session_timeout':600,
                                        'inactivity_timeout':600})
+            waiting = True
         else:
             cmd = AgentCommand(command = command)
             
         retval = self._ia_client.execute_agent(cmd)
         print "Results of command: " + str(retval)
+        while waiting:
+            gevent.sleep(60)
+            still_waiting = prompt.text('Still waiting? (y/n)')
+            if still_waiting is 'n':
+                waiting = False
 
     def send_driver_command(self, command):
         """
