@@ -203,7 +203,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 class SBE37DataParticleKey(BaseEnum):
     TEMP = "temp"
     CONDUCTIVITY = "conductivity"
-    DEPTH = "depth"
+    DEPTH = "pressure"
     
 class SBE37DataParticle(DataParticle):
     """
