@@ -451,7 +451,11 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         for key in name_values.keys():
             if not Parameter.has(key):
                 raise InstrumentParameterException()
-            result_vals[key] = self._do_cmd_resp(Command.SET, key, name_values[key],
+            try:
+                str_val = self._param_dict.format(key, name_values[key])
+            except KeyError:
+                raise InstrumentParameterException()
+            result_vals[key] = self._do_cmd_resp(Command.SET, key, str_val,
                                                  expected_prompt=Prompt.COMMAND,
                                                  write_delay=self.write_delay)
             # Populate with actual value instead of success flag

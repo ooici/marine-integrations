@@ -204,7 +204,7 @@ class DriverProcess(object):
         log.info('Driver process started.')
         
         def shand(signum, frame):
-            log.info('DRIVER GOT SIGINT')        
+            log.info('mi/core/instrument/driver_process.py DRIVER GOT SIGINT and is ignoring it...')
         signal.signal(signal.SIGINT, shand)
 
         if self.construct_driver():
