@@ -57,6 +57,12 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 #from mi.idk.unit_test import RequiredCapabilities
 #from mi.idk.unit_test import RequiredAutoSampleCapabilities
+from interface.objects import AgentCommand
+from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+
+from pyon.agent.agent import ResourceAgentState
+from pyon.agent.agent import ResourceAgentEvent
+from pyon.core.exception import Conflict
 
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
@@ -809,10 +815,8 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         """
         """
         test_driver = InstrumentDriver(self.my_event_callback)
-        temp_dir = dir(test_driver)
         test_driver._build_protocol()
         test_protocol = test_driver._protocol
-        temp_dir = dir(test_protocol)
         _update_params_mock = Mock(spec="_update_params")
         test_protocol._update_params = _update_params_mock
 
@@ -826,6 +830,70 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         self.assertEqual(str(_update_params_mock.mock_calls), "[call()]")
         self.assertEqual(str(_update_driver_event.mock_calls), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
 
+    #@unittest.skip("Doesn't work because the set_handler tries to update variables.")    
+    def test_fsm_handler(self):
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = InstrumentDriver(self.my_event_callback)
+        
+        """
+        Put the driver into test mode
+        """
+        test_driver.set_test_mode(True)
+
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        self.reset_test_vars()
+        
+        _update_params_mock = Mock(spec="_update_params")
+        test_driver._protocol._update_params = _update_params_mock
+
+        #_update_driver_event = Mock(spec="driver_event")
+        test_driver._protocol._driver_event = self.my_event_callback
+        args = []
+        kwargs =  dict({'timeout': 30,})
+
+        """
+        Force the driver state to COMMAND
+        """
+        test_driver.test_force_state(state = DriverProtocolState.COMMAND)
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.COMMAND)
+
+        args = [{Parameter.OUTPUTSAL: True}]
+        kwargs = {}
+
+        test_driver._connection_fsm.on_event(DriverEvent.SET, DriverEvent.SET, *args, **kwargs)
+        #test_driver._protocol._handler_command_set({Parameter.OUTPUTSAL: True})
+
+        
 
 
 ###############################################################################
@@ -1321,7 +1389,8 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
             state = self.driver_client.cmd_dvr('get_resource_state')
 
         # Verify we received the test result and it passed.
-        test_results = [evt for evt in self.events if evt['type']==DriverAsyncEvent.TEST_RESULT]
+        #test_results = [evt for evt in self.events if evt['type']==DriverAsyncEvent.TEST_RESULT]
+        test_results = [evt for evt in self.events if evt['type']==DriverAsyncEvent.RESULT]
         self.assertTrue(len(test_results) == 1)
         self.assertEqual(test_results[0]['value']['success'], 'Passed')
 
@@ -1618,4 +1687,55 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.
     pass
+
+    #@unittest.skip("Do not include until direct_access gets implemented")
+    def test_direct_access_telnet_mode(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+    
+        with self.assertRaises(Conflict):
+            res_state = self.instrument_agent_client.get_resource_state()
+    
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        print("sent initialize; IA state = %s" %str(state))
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        print("sent go_active; IA state = %s" %str(state))
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(res_state, DriverProtocolState.COMMAND)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        print("sent run; IA state = %s" %str(state))
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(res_state, DriverProtocolState.COMMAND)
+
+        # go direct access
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
+                           kwargs={'session_type': DirectAccessTypes.telnet,
+                                   #kwargs={'session_type':DirectAccessTypes.vsp,
+                                   'session_timeout':600,
+                                   'inactivity_timeout':600})
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.warn("go_direct_access retval=" + str(retval.result))
+        
+        gevent.sleep(600)  # wait for manual telnet session to be run
+
 

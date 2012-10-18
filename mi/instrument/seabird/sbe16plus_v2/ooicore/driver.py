@@ -24,6 +24,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.instrument_driver import ResourceAgentEvent
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
@@ -82,6 +83,8 @@ class ProtocolEvent(BaseEnum):
     RUN_TEST = DriverEvent.RUN_TEST
     CALIBRATE = DriverEvent.CALIBRATE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    START_DIRECT = DriverEvent.START_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
     FORCE_STATE = DriverEvent.FORCE_STATE
 
 class Capability(BaseEnum):
@@ -298,6 +301,9 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.GET, self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
+
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -521,9 +527,10 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         Switch to test state to perform instrument tests.
         @retval (next_state, result) tuple, (ProtocolState.TEST, None).
         """
-        next_state = None
+
         result = None
 
+        next_state = ProtocolState.TEST        
         next_agent_state = ResourceAgentState.TEST
 
         return (next_state, (next_agent_state, result))
@@ -670,8 +677,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         try:
             tc_pass, tc_result = self._do_cmd_resp(Command.TC, timeout=200)
             tt_pass, tt_result = self._do_cmd_resp(Command.TT, timeout=200)
-            # DHE: our SBE16 has no pressure sensor
-            #tp_pass, tp_result = self._do_cmd_resp(Command.TP, timeout=200)
+            tp_pass, tp_result = self._do_cmd_resp(Command.TP, timeout=200)
         
         except Exception as e:
             test_result['exception'] = e
@@ -682,13 +688,16 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             test_result['cond_data'] = tc_result
             test_result['temp_test'] = 'Passed' if tt_pass else 'Failed'
             test_result['temp_data'] = tt_result
-            # DHE: our SBE16 has no pressure sensor
-            #test_result['pres_test'] = 'Passed' if tp_pass else 'Failed'
-            #test_result['pres_data'] = tp_result
-            #test_result['success'] = 'Passed' if (tc_pass and tt_pass and tp_pass) else 'Failed'
+            test_result['pres_test'] = 'Passed' if tp_pass else 'Failed'
+            test_result['pres_data'] = tp_result
+            test_result['success'] = 'Passed' if (tc_pass and tt_pass and tp_pass) else 'Failed'
             test_result['success'] = 'Passed' if (tc_pass and tt_pass) else 'Failed'
+            test_result['desc'] = 'SBE16Plus-V2 self-test result'
+            test_result['cmd'] = DriverEvent.TEST
             
-        self._driver_event(DriverAsyncEvent.TEST_RESULT, test_result)
+        self._driver_event(DriverAsyncEvent.RESULT, test_result)
+        self._driver_event(DriverAsyncEvent.AGENT_EVENT, ResourceAgentEvent.DONE)
+
         next_state = ProtocolState.COMMAND
  
         return (next_state, result)
@@ -701,15 +710,46 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         """
         Enter direct access state.
         """
+
+        print ">>>>>>>>>>>>>>>>>>>> DHE direct_access_enter <<<<<<<<<<<<<<<<<<<<"
+        
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.                
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        self._sent_cmds = []
     
     def _handler_direct_access_exit(self, *args, **kwargs):
         """
         Exit direct access state.
         """
         pass
+
+    def _handler_direct_access_execute_direct(self, data):
+        """
+        """
+        next_state = None
+        result = None
+        next_agent_state = None
+        
+        self._do_cmd_direct(data)
+
+        # add sent command to list for 'echo' filtering in callback
+        self._sent_cmds.append(data)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_direct_access_stop_direct(self):
+        """
+        @throw InstrumentProtocolException on invalid command
+        """
+        next_state = None
+        result = None
+ 
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Private helpers.
