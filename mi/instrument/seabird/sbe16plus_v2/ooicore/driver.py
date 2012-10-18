@@ -13,6 +13,7 @@ __license__ = 'Apache 2.0'
 import time
 import re
 import datetime
+import string
 from threading import Timer
 
 from mi.core.common import BaseEnum
@@ -131,6 +132,7 @@ class Parameter(DriverParameter):
     PTCB1 = 'PTCB1'
     PTCB2 = 'PTCB2'
     POFFSET = 'POFFSET'
+    DATE_TIME = "DateTime"
     # DHE This doesn't show up in status when SYNCMODE
     # is disabled, so the tests fail.  Commenting out for 
     # now.  Bill F. said that we won't be using SYNCWAIT .
@@ -397,6 +399,9 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             # Set the state to change.
             # Raise if the prompt returned does not match command or autosample.
             if prompt in [Prompt.COMMAND, Prompt.EXECUTED]:
+                # DHE: Need to set time here.
+                #self._do_cmd_resp(Command.SET, Parameter.DATE_TIME,
+                #time.strftime("%d %b %Y %H:%M:%S", time.localtime()), **kwargs)
                 next_state = ProtocolState.COMMAND
                 next_agent_state = ResourceAgentState.IDLE
             elif prompt == Prompt.AUTOSAMPLE:
@@ -1096,7 +1101,12 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.POFFSET,
                              r' +POFFSET = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string),
+        self._param_dict.add(Parameter.DATE_TIME,
+                             r'SBE 16plus V ([\w.]+) +SERIAL NO. (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)', 
+                             lambda match : string.upper(match.group(3)),
+                             self._string_to_numeric_date_time_string)
+                             
         #self._param_dict.add(Parameter.RCALDATE,
         #                     r'rtc: +((\d+)-([a-zA-Z]+)-(\d+))',
         #                     lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
@@ -1218,3 +1228,11 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
                         
         return date
 
+    @staticmethod
+    def _string_to_numeric_date_time_string(date_time_string):
+        """
+        convert string from "21 AUG 2012  09:51:55" to numeric "mmddyyyyhhmmss"
+        """
+
+        return time.strftime("%m%d%Y%H%M%S", time.strptime(date_time_string, "%d %b %Y %H:%M:%S"))
+    
