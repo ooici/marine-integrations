@@ -60,24 +60,24 @@ class InstrumentPrompts(BaseEnum):
 
     
 class InstrumentCmds(BaseEnum):
+    CONFIGURE_INSTRUMENT               = 'CC'
     SOFT_BREAK_FIRST_HALF              = '@@@@@@'
     SOFT_BREAK_SECOND_HALF             = 'K1W%!Q'
-    CMD_WHAT_MODE                      = 'II'   
-    SAMPLE_WHAT_MODE                   = 'I'   
-    POWER_DOWN                         = 'PD'     
-    IDENTIFY                           = 'ID'
-    CONFIRMATION                       = 'MC'
-    SAMPLE_AVG_TIME                    = 'A'
-    SAMPLE_INTERVAL_TIME               = 'M'
-    START_MEASUREMENT_WITHOUT_RECORDER = 'ST'
-    GET_ALL_CONFIGURATIONS             = 'GA'
-    GET_USER_CONFIGURATION             = 'GC'
-    CONFIGURE_INSTRUMENT               = 'CC'
-    READ_CLOCK                         = 'RC'
-    SET_CLOCK                          = 'SC'
-    READ_BATTERY_VOLTAGE               = 'BV'
     READ_REAL_TIME_CLOCK               = 'RC'
     SET_REAL_TIME_CLOCK                = 'SC'
+    CMD_WHAT_MODE                      = 'II'   
+    GET_USER_CONFIGURATION             = 'GC'
+    POWER_DOWN                         = 'PD'     
+    READ_BATTERY_VOLTAGE               = 'BV'
+    IDENTIFY                           = 'ID'
+    START_MEASUREMENT_AT_SPECIFIC_TIME = 'SD'
+    START_MEASUREMENT_WITH_RECORDER    = 'SR'
+    CONFIRMATION                       = 'MC'
+    # SAMPLE_AVG_TIME                    = 'A'
+    # SAMPLE_INTERVAL_TIME               = 'M'
+    # GET_ALL_CONFIGURATIONS             = 'GA'
+    # GET_USER_CONFIGURATION             = 'GC'
+    # SAMPLE_WHAT_MODE                   = 'I'   
     
 class InstrumentModes(BaseEnum):
     FIRMWARE_UPGRADE = '\x00\x00\x06\x06'
@@ -970,199 +970,248 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+4),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.BLANKING_DISTANCE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+6),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.RECEIVE_LENGTH,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+8),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TIME_BETWEEN_PINGS,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+10),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TIME_BETWEEN_BURST_SEQUENCES,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+12),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMMBER_PINGS,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+14),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.AVG_INTERVAL,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+16),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.USER_NUMBER_BEAMS,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+18),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TIMING_CONTROL_REGISTER,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+20),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.POWER_CONTROL_REGISTER,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+22),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.A1_1_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+24),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.B0_1_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+26),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.B1_1_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+28),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.COMPASS_UPDATE_RATE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+30),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.COORDINATE_SYSTEM,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+32),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.NUMBER_BINS,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+34),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.BIN_LENGTH,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+36),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.MEASUREMENT_INTERVAL,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+38),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.DEPLOYMENT_NAME,
                              r'^.{%s}(.{6}).*' % str(self.USER_OFFSET+40),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WRAP_MODE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+46),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.CLOCK_DEPLOY,
                              r'^.{%s}(.{6}).*' % str(self.USER_OFFSET+48),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.DIAGNOSTIC_INTERVAL,
                              r'^.{%s}(.{4}).*' % str(self.USER_OFFSET+54),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.MODE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+58),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ADJUSTMENT_SOUND_SPEED,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+60),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+62),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+64),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMBER_PINGS_DIAGNOSTIC,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+66),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.MODE_TEST,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+68),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ANALOG_INPUT_ADDR,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+70),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.SW_VERSION,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+72),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.USER_1_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+74),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.VELOCITY_ADJ_TABLE,
                              r'^.{%s}(.{180}).*' % str(self.USER_OFFSET+76),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.COMMENTS,
                              r'^.{%s}(.{180}).*' % str(self.USER_OFFSET+256),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_MEASUREMENT_MODE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+436),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.DYN_PERCENTAGE_POSITION,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+438),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_TRANSMIT_PULSE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+440),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_BLANKING_DISTANCE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+442),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_CELL_SIZE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+444),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMBER_DIAG_SAMPLES,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+446),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.A1_2_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+448),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.B0_2_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+450),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.B1_2_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+452),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.USER_2_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+454),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ANALOG_OUTPUT_SCALE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+456),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.COORELATION_THRESHOLD,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+458),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.USER_3_SPARE,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+460),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
                              r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+462),
                              lambda match : self._convert_word_to_int(match.group(1)),
-                             self._word_to_string)
+                             self._word_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.USER_4_SPARE,
                              r'^.{%s}(.{30}).*' % str(self.USER_OFFSET+464),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.QUAL_CONSTANTS,
                              r'^.{%s}(.{16}).*' % str(self.USER_OFFSET+494),
                              lambda match : match.group(1),
-                             lambda string : string)
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         
     def _dump_user_config(self, input):
         # dump user section

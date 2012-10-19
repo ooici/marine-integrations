@@ -153,7 +153,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # Grab a subset of parameters.
         params = [
-            Parameter.AVG_INTERVAL
+            Parameter.MEASUREMENT_INTERVAL
             ]
         reply = self.driver_client.cmd_dvr('get_resource', params)
         #self.assertParamDict(reply)        
@@ -163,7 +163,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         
         # Construct new parameters to set.
         new_params = {
-            Parameter.AVG_INTERVAL : orig_params[Parameter.AVG_INTERVAL] + 1
+            Parameter.MEASUREMENT_INTERVAL : orig_params[Parameter.MEASUREMENT_INTERVAL] + 1
         }
         
         # Set parameters and verify.
