@@ -293,6 +293,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST, self._handler_command_test)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_autosample_test_get)
@@ -537,6 +538,17 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
 
         next_state = ProtocolState.TEST        
         next_agent_state = ResourceAgentState.TEST
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_start_direct(self):
+        """
+        """
+        next_state = None
+        result = None
+
+        next_state = ProtocolState.DIRECT_ACCESS
+        next_agent_state = ResourceAgentState.DIRECT_ACCESS
 
         return (next_state, (next_agent_state, result))
 
@@ -924,6 +936,23 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         length = paPacket.get_data_size()
         data = paPacket.get_data()
         tempLength = len(data)
+
+        if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
+            # direct access mode
+            if length > 0:
+                #mi_logger.debug("SBE16Protocol._got_data(): <" + data + ">")
+                # check for echoed commands from instrument (TODO: this should only be done for telnet?)
+                if len(self._sent_cmds) > 0:
+                    # there are sent commands that need to have there echoes filtered out
+                    oldest_sent_cmd = self._sent_cmds[0]
+                    if string.count(data, oldest_sent_cmd) > 0:
+                        # found a command echo, so remove it from data and delete the command from list
+                        data = string.replace(data, oldest_sent_cmd, "", 1)
+                        self._sent_cmds.pop(0)
+                if len(data) > 0 and self._driver_event:
+                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
+                    # TODO: what about logging this as an event?
+            return
 
         if length > 0:
             
