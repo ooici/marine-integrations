@@ -97,42 +97,65 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    ###
-    #    Add instrument specific integration tests
-    ###
+    def check_state(self, expected_state):
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, expected_state)
+        
+    def test_instrument_wakeup(self):
+        """
+        @brief Test for instrument wakeup, expects instrument to be in 'command' or 'auto-sample' state
+        """
+        # Test that the driver is in state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver and transition to disconnected.
+        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test that the driver is in state disconnected.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Setup the protocol state machine and the connection to port agent.
+        self.driver_client.cmd_dvr('connect')
+
+        # Test that the driver protocol is in state unknown.
+        self.check_state(ProtocolState.UNKNOWN)
+
+        # Discover what state the instrument is in and set the protocol state accordingly.
+        self.driver_client.cmd_dvr('discover_state')
+
+        # Test that the driver protocol is in state command.
+        self.check_state(ProtocolState.COMMAND)
+
     def test_instrument_set(self):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' or 'auto-sample' state
         """
-        state = self.driver_client.cmd_dvr('get_current_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+        # Test that the driver is in state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
 
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+        # Configure driver and transition to disconnected.
+        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
-        # Test the driver is configured for comms and in disconnected state.
-        state = self.driver_client.cmd_dvr('get_current_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+        # Test that the driver is in state disconnected.
+        self.check_state(DriverConnectionState.DISCONNECTED)
 
-        # Connect to instrument and transition to unknown.
-        reply = self.driver_client.cmd_dvr('connect')
+        # Setup the protocol state machine and the connection to port agent.
+        self.driver_client.cmd_dvr('connect')
 
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
-        self.assertEqual(state, ProtocolState.UNKNOWN)
+        # Test that the driver protocol is in state unknown.
+        self.check_state(ProtocolState.UNKNOWN)
 
-        # discover instrument state and transition to command.
-        reply = self.driver_client.cmd_dvr('discover')
+        # Discover what state the instrument is in and set the protocol state accordingly.
+        self.driver_client.cmd_dvr('discover_state')
 
-        # Test the driver is in command mode or auto-sample mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
-        self.assertTrue(state == ProtocolState.COMMAND)
+        # Test that the driver protocol is in state command.
+        self.check_state(ProtocolState.COMMAND)
 
         # Grab a subset of parameters.
         params = [
-            Parameter.TRANSMIT_PULSE_LENGTH
+            Parameter.AVG_INTERVAL
             ]
-        reply = self.driver_client.cmd_dvr('get', params)
+        reply = self.driver_client.cmd_dvr('get_resource', params)
         #self.assertParamDict(reply)        
 
         # Remember the original subset.
@@ -140,40 +163,12 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         
         # Construct new parameters to set.
         new_params = {
-            Parameter.TRANSMIT_PULSE_LENGTH : orig_params[Parameter.TRANSMIT_PULSE_LENGTH]
+            Parameter.AVG_INTERVAL : orig_params[Parameter.AVG_INTERVAL] + 1
         }
         
         # Set parameters and verify.
-        reply = self.driver_client.cmd_dvr('set', new_params)
+        reply = self.driver_client.cmd_dvr('set_resource', new_params)
 
-
-    def test_instrument_wakeup(self):
-        """
-        @brief Test for instrument wakeup, expects instrument to be in 'command' or 'auto-sample' state
-        """
-        state = self.driver_client.cmd_dvr('get_current_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms and in disconnected state.
-        state = self.driver_client.cmd_dvr('get_current_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Connect to instrument and transition to unknown.
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_current_state')
-        self.assertEqual(state, ProtocolState.UNKNOWN)
-
-        # discover instrument state and transition to command.
-        reply = self.driver_client.cmd_dvr('discover')
-
-        # Test the driver is in command mode or auto-sample mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
-        self.assertTrue((state == ProtocolState.COMMAND) or (state == ProtocolState.AUTOSAMPLE))
 
     def test_instrument_start_autosample(self):
         """

@@ -42,8 +42,6 @@ NEWLINE = '\n\r'
 # default timeout.
 TIMEOUT = 10
 
-CONFIGURATION_RESPONSE_LENGTH = 786
-
 # Packet config
 PACKET_CONFIG = {
     'parsed' : None,
@@ -166,7 +164,7 @@ class Parameter(DriverParameter):
     MEASUREMENT_INTERVAL = "MeasurementInterval"
     DEPLOYMENT_NAME = "DeploymentName"
     WRAP_MODE = "WrapMode"
-    CLOCK_DEPLOY = "ClockDeploy"      # deployment stgart time
+    CLOCK_DEPLOY = "ClockDeploy"      # deployment start time
     DIAGNOSTIC_INTERVAL = "DiagnosticInterval"
     MODE = "Mode"
     ADJUSTMENT_SOUND_SPEED = 'AdjustmentSoundSpeed'
@@ -460,10 +458,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
 
         # set up configuration indexing constants
-        """  only user config returned for now
-        self.HEAD_OFFSET = 48
-        self.USER_OFFSET = self.HEAD_OFFSET + 224
-        """
+        # only user config returned for now
+        #self.HEAD_OFFSET = 48
+        #self.USER_OFFSET = self.HEAD_OFFSET + 224
+   
         self.USER_OFFSET = 0
         self.ACK_OFFSET = self.USER_OFFSET + 512
         self.CONFIGURATION_RESPONSE_LENGTH = self.ACK_OFFSET + 2 
@@ -484,22 +482,27 @@ class Protocol(CommandResponseInstrumentProtocol):
     # overridden superclass methods
     ########################################################################
 
-    def got_data(self, data):
+    def got_data(self, paPacket):
         """
         Callback for receiving new data from the device.
+        The port agent object fires this when data is received
+        @param paPacket The packet of data that was received
         """
+        paLength = paPacket.get_data_size()
+        paData = paPacket.get_data()
+
         if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
             # direct access mode
-            if len(data) > 0:
-                log.debug("mavs4InstrumentProtocol._got_data(): <" + data + ">") 
+            if paLength > 0:
+                log.debug("mavs4InstrumentProtocol._got_data(): <" + paData + ">") 
                 if self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
+                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
                     # TODO: what about logging this as an event?
             return
         
-        if len(data)>0:
+        if paLength > 0:
             # Call the superclass to update line and prompt buffers.
-            CommandResponseInstrumentProtocol.got_data(self, data)
+            CommandResponseInstrumentProtocol.got_data(self, paData)
     
             # If in streaming mode, process the buffer for samples to publish.
             cur_state = self.get_current_state()
@@ -1264,9 +1267,9 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._promptbuf = ''
 
             log.debug('Sending get_all_configurations command to the instrument.')
-            # Send what_mode command to attempt to get a response.
+            # Send get_user_cofig command to attempt to get user configuration.
             self._connection.send(InstrumentCmds.GET_USER_CONFIGURATION)
-            for i in range(20):
+            for i in range(20):   # loop for 2 seconds waiting for response to complete
                 if len(self._promptbuf) == self.CONFIGURATION_RESPONSE_LENGTH:
                     if self._check_configuration(self._promptbuf):                    
                         self._param_dict.update(self._promptbuf)
@@ -1325,6 +1328,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                 raise InstrumentTimeoutException()
 
     def _create_set_output(self, parameters):
+        # load buffer with sync byte (A5), ID byte (0), and size word (# of words in little-endian form)
+        # 'user' configuration is 512 bytes, 256 words long, so size is 0x100
         output = '\xa5\x00\x00\x01'
         for name in self.UserParameters:
             output += parameters.format_parameter(name)
