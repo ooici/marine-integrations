@@ -365,10 +365,6 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         was not recognized.
         """
 
-
-        log.debug("self._linebuf which was = to '" + str(self._linebuf) + "'")
-        log.debug("self._promptbuf which was = to '" + str(self._promptbuf) + "'")
-
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', 10)
         expected_prompt = kwargs.get('expected_prompt', None)

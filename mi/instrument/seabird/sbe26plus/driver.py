@@ -145,6 +145,8 @@ class ProtocolEvent(BaseEnum):
     SEND_LAST = 'PROTOCOL_EVENT_SEND_LAST'
     SEND_LAST_AND_SLEEP = 'PROTOCOL_EVENT_SEND_LAST_AND_SLEEP'
 
+    EXECUTE_CLOCK_SYNC = 'PROTOCOL_EVENT_EXECUTE_CLOCK_SYNC'
+
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
@@ -157,6 +159,8 @@ class Capability(BaseEnum):
     GET = ProtocolEvent.GET
     SET = ProtocolEvent.SET
     #SET_TIME = ProtocolEvent.SET_TIME      # Disabling. This is inferior to using DateTime=
+
+    EXECUTE_CLOCK_SYNC = ProtocolEvent.EXECUTE_CLOCK_SYNC
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -562,6 +566,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET_TIME,               self._handler_command_set_time)
         #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.BAUD,                   self._handler_command_baud)
         #DISABLED#self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.UPLOAD_ASCII,           self._handler_command_upload_ascii)
+
+
+
+
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXECUTE_CLOCK_SYNC,     self._handler_execute_clock_sync)
+
+
+
+
+
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION,           self._handler_command_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.INIT_LOGGING,           self._handler_command_init_logging)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
@@ -818,21 +832,18 @@ class Protocol(CommandResponseInstrumentProtocol):
 
             # Wakeup the device with timeout if passed.
 
-            delay = 0.1
+            delay = 0.5
 
             prompt = self._wakeup(timeout=timeout, delay=delay)
             prompt = self._wakeup(timeout)
 
-            # Set the state to change.
-            # Raise if the prompt returned does not match command or autosample.
-        log.debug("******************************************************** IN _handler_unknown_discover(), doing ds")
-        #self._update_params()
+        # Set the state to change.
+        # Raise if the prompt returned does not match command or autosample.
+
         self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS,timeout=timeout)
         self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION,timeout=timeout)
-        log.debug("******************************************************** IN _handler_unknown_discover(), middle ds")
         pd = self._param_dict.get_config()
 
-        log.debug("******************************************************** IN _handler_unknown_discover(), did ds")
         if pd[Parameter.LOGGING] == True:
             next_state = ProtocolState.AUTOSAMPLE
             result = ResourceAgentState.STREAMING
@@ -957,7 +968,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         kwargs['expected_prompt'] = Prompt.COMMAND
         kwargs['timeout'] = 30
         log.info("SYNCING TIME WITH SENSOR")
-        self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME, time.strftime("%d %b %Y %H:%M:%S", time.localtime()), **kwargs)
+        self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME, time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))), **kwargs)
 
         next_state = None
         result = None
@@ -970,6 +981,56 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = ResourceAgentState.STREAMING
 
         return (next_state, (next_agent_state, result))
+
+    def _handler_execute_clock_sync(self, *args, **kwargs):
+        """
+        execute a clock sync on the leading edge of a second change
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        timeout = kwargs.get('timeout', TIMEOUT)
+        delay = 5
+        prompt = self._wakeup(timeout=timeout, delay=delay)
+        time.sleep(2)
+
+        # lets clear out any past data so it doesnt confuse the command
+        self._linebuf = ''
+        self._promptbuf = ''
+
+        t = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+        t_last = t
+
+        while t == t_last:
+            t_last = t
+            t = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+
+        str_val = self._param_dict.format(Parameter.DS_DEVICE_DATE_TIME, t)
+        set_cmd = '%s=%s' % (Parameter.DS_DEVICE_DATE_TIME, str_val) + NEWLINE
+        self._do_cmd_direct(set_cmd)
+        (prompt, response) = self._get_response(timeout=30)
+
+
+        if response != set_cmd + Prompt.COMMAND:
+            raise InstrumentProtocolException("_handler_execute_clock_sync - response != set_cmd")
+
+        if prompt != Prompt.COMMAND:
+            raise InstrumentProtocolException("_handler_execute_clock_sync - prompt != Prompt.COMMAND")
+
+
+        return (next_state, (next_agent_state, result))
+
+
+
+
+
+
 
     ###############################
     # Need to sort below
@@ -1629,7 +1690,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         paLength = paPacket.get_data_size()
         paData = paPacket.get_data()
-
         if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
             # direct access mode
             if paLength > 0:
@@ -1654,16 +1714,29 @@ class Protocol(CommandResponseInstrumentProtocol):
 
             # If in streaming mode, process the buffer for samples to publish.
             cur_state = self.get_current_state()
+
+            # SL/SLO output
+            # p = 429338.0625, t = 32.8599, s =  0.0000
+            # p = 429338.0312, t = 32.8863
+            # autosample examples
+            # tide: start time = 18 Oct 2012 16:53:34, p = 429338.0312, pt = 421105.875, t = 32.8912, c = -1.05512, s = 0.0000
+            # tide: start time = 18 Oct 2012 16:54:27, p = 429338.0312, pt = 421105.875, t = 32.8863
+            # tide: start time = 18 Oct 2012 16:58:55, p = 429338.0625, pt = 421105.656, t = 32.8599, c = -1.05512, s = 0.0000
+
+
             if cur_state == ProtocolState.AUTOSAMPLE:
                 if NEWLINE in self._linebuf:
                     lines = self._linebuf.split(NEWLINE)
                     self._linebuf = lines[-1]
                     for line in lines:
+                        #log.debug(":::::::::::::::::::::::::::::::::::::gobbling this with extract_sample -->" + str(line))
+                        # gobbling this with extract_sample -->p = 429338.0312, t = 32.9330, s =  0.0000
+                        # gobbling this with extract_sample -->tide: start time = 18 Oct 2012 16:42:34, p = 429338.0312, pt = 421105.968, t = 32.9330, c = -1.05512, s = 0.0000
                         self._extract_sample(SBE26plusDataParticle,  line)
         else:
             log.debug("got_data ignoring the data sent to it.....")
 
-
+        #log.debug("leaving got_data paData = " + str(paData))
 
 
 
@@ -2289,6 +2362,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.debug("DIRECT ACCESS PARAM SAVE " + str(p) + " = " + str(self._da_save_dict[p]))
 
     def _restore_da_params(self):
+
         run = True
         try:
             if self._da_save_dict == None:
@@ -2338,9 +2412,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         next_agent_state = None
         result = None
-        kwargs['timeout'] = 30
-        self._promptbuf = ''
+
+        log.debug("self._promptbuf = " + repr(self._promptbuf))
+        log.debug("self._linebuf = " + repr(self._linebuf))
         self._linebuf = ''
+        self._promptbuf = ''
+
+
+
+        kwargs['timeout'] = 60
+        kwargs['expected_prompt'] = "S>"
         result = self._do_cmd_resp(InstrumentCmds.SEND_LAST_AND_SLEEP, *args, **kwargs)
         log.debug("result = " + repr(result))
         return (next_state, (next_agent_state, result))
@@ -2351,11 +2432,20 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         next_agent_state = None
         result = None
-        kwargs['timeout'] = 30
-        self._promptbuf = ''
+
+
+        log.debug("self._promptbuf = " + repr(self._promptbuf))
+        log.debug("self._linebuf = " + repr(self._linebuf))
         self._linebuf = ''
+        self._promptbuf = ''
+
+
+        kwargs['timeout'] = 60
+        kwargs['expected_prompt'] = "S>"
+        log.debug(":::::::::::::::::::::::::::::::::::::::::::::BEFORE")
         result = self._do_cmd_resp(InstrumentCmds.SEND_LAST, *args, **kwargs)
         log.debug("result = " + repr(result))
+        log.debug(":::::::::::::::::::::::::::::::::::::::::::::AFTER")
         return (next_state, (next_agent_state, result))
 
 
@@ -2373,20 +2463,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("PROMPT = " + str(prompt) + " WANTED " + str(Prompt.COMMAND))
         if prompt != Prompt.COMMAND:
             raise InstrumentProtocolException('sl/slo command not recognized: %s', response)
+        log.debug("response = " + repr(response))
 
-        sample = None
-        for line in response.split(NEWLINE):
-            log.debug("line = " + repr(sample))
-            #sample = self._extract_sample(SBE26plusDataParticle, line, True)
 
-            #log.debug("sample = " + repr(sample))
-            #if sample:
-            #    break
+        log.debug("self._promptbuf = " + repr(self._promptbuf))
+        log.debug("self._linebuf = " + repr(self._linebuf))
 
-        #if not sample:
-        #    raise SampleException('Response did not contain sample: %s' % repr(response))
-
-        #return sample
 
     ########################################################################
     # Static helpers to format set commands.
