@@ -19,6 +19,8 @@ from pyon.util.unit_test import PyonTestCase
 from nose.plugins.attrib import attr
 from unittest import TestCase
 
+from mi.core.log import get_logger ; log = get_logger()
+
 from mi.core.common import InstErrorCode
 from mi.core.instrument.instrument_driver import DriverState
 from mi.core.instrument.instrument_driver import DriverConnectionState
@@ -47,7 +49,6 @@ from mi.instrument.satlantic.par_ser_600m.driver import SatlanticChecksumDecorat
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticle
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticleKey
 
-from mi.core.log import get_logger ; log = get_logger()
 from interface.objects import AgentCommand
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
@@ -103,13 +104,9 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
     """
     
 
-    @unittest.skip("Need better mocking of FSM or smaller testing chunks")    
+    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
     def test_get_param(self):
         # try single
-        result = self.par_proto.get([Parameter.TELBAUD])
-        self.mock_logger_client.send.assert_called_with("show %s\n" %
-                                                        Parameter.TELBAUD)
-        
         result = self.par_proto.get([Parameter.MAXRATE])
         self.mock_logger_client.send.assert_called_with("show %s\n" %
                                                         Parameter.MAXRATE)

@@ -124,7 +124,6 @@ class PARCapability(BaseEnum):
     SET = PARProtocolEvent.SET
 
 class Parameter(BaseEnum):
-    TELBAUD = 'telbaud'
     MAXRATE = 'maxrate'
     
 class Prompt(BaseEnum):
@@ -284,11 +283,6 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(Command.RESET, self._parse_reset_response, PARProtocolState.POLL)
         self._add_response_handler(Command.RESET, self._parse_reset_response, PARProtocolState.AUTOSAMPLE)
 
-        self._param_dict.add(Parameter.TELBAUD,
-                             r'Telemetry Baud Rate:\s+(\d+) bps',
-                             lambda match : int(match.group(1)),
-                             self._int_to_string)
-        
         self._param_dict.add(Parameter.MAXRATE,
                              r'Maximum Frame Rate:\s+(\d+) Hz',
                              lambda match : int(match.group(1)),
@@ -308,16 +302,12 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         Should be a dict of parameters and values
         @throws InstrumentProtocolException On invalid parameter
         """
-        config = self._protocol_fsm.on_event(PARProtocolEvent.GET, [Parameter.TELBAUD, Parameter.MAXRATE], **kwargs)
+        config = self._protocol_fsm.on_event(PARProtocolEvent.GET, [Parameter.MAXRATE], **kwargs)
         assert (isinstance(config, dict))
-        assert (config.has_key(Parameter.TELBAUD))
         assert (config.has_key(Parameter.MAXRATE))
         
         # Make sure we get these
         # TODO: endless loops seem like really bad idea
-        while config[Parameter.TELBAUD] == InstErrorCode.HARDWARE_ERROR:
-            config[Parameter.TELBAUD] = self._protocol_fsm.on_event(PARProtocolEvent.GET, [Parameter.TELBAUD])
-            
         while config[Parameter.MAXRATE] == InstErrorCode.HARDWARE_ERROR:
             config[Parameter.MAXRATE] = self._protocol_fsm.on_event(PARProtocolEvent.GET, [Parameter.MAXRATE])
   
@@ -419,7 +409,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         result_vals = {}
         
         if (params == DriverParameter.ALL):
-            params = [Parameter.TELBAUD, Parameter.MAXRATE]
+            params = [Parameter.MAXRATE]
 
         if ((params == None) or (not isinstance(params, list))):
                 raise InstrumentParameterException()
