@@ -11,6 +11,7 @@ import gevent
 
 from mi.core.log import get_logger ; log = get_logger()
 
+from ion.agents.port.port_agent_process import PortAgentProcessType
 from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.comm_config import CommConfig
 from mi.idk.config import Config
@@ -19,6 +20,7 @@ from mi.idk.metadata import Metadata
 from mi.idk.unit_test import InstrumentDriverTestConfig
 from mi.idk.exceptions import TestNotInitialized
 from mi.idk.util import launch_data_monitor
+from mi.core.instrument.instrument_driver import DriverProtocolState
 
 from interface.objects import AgentCommand
 
@@ -26,6 +28,9 @@ from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.driver_process import DriverProcessType
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 from ion.agents.port.port_agent_process import PortAgentProcess
+
+from pyon.agent.agent import ResourceAgentState
+from pyon.agent.agent import ResourceAgentEvent
 
 TIMEOUT = 600
 
@@ -123,7 +128,13 @@ class DirectAccessServer():
 
         config = {
             'device_addr' : self.comm_config.device_addr,
-            'device_port' : self.comm_config.device_port
+            'device_port' : self.comm_config.device_port,
+
+            'command_port': self.comm_config.command_port,
+            'data_port': self.comm_config.data_port,
+
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 5,
         }
 
         self.port_agent = PortAgentProcess.launch_process(config, timeout = 60,
@@ -203,42 +214,42 @@ class DirectAccessServer():
 
         log.info("--- Starting DA server ---")
 
-        cmd = AgentCommand(command='power_down')
+        #cmd = AgentCommand(command=ResourceAgentEvent.POWER_DOWN)
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #log.debug("retval: %s", retval)
+        #cmd = AgentCommand(command=ResourceAgentEvent.GET_RESOURCE_STATE)
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #log.debug("retval: %s", retval)
+
+        #cmd = AgentCommand(command=ResourceAgentEvent.POWER_UP)
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #log.debug("retval: %s", retval)
+        #cmd = AgentCommand(command=ResourceAgentEvent.GET_RESOURCE_STATE)
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #log.debug("retval: %s", retval)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
-        cmd = AgentCommand(command='get_resource_state')
+        cmd = AgentCommand(command=ResourceAgentEvent.GET_RESOURCE_STATE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
 
-        cmd = AgentCommand(command='power_up')
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
-        cmd = AgentCommand(command='get_resource_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.debug("retval: %s", retval)
-
-        cmd = AgentCommand(command='initialize')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.debug("retval: %s", retval)
-        cmd = AgentCommand(command='get_resource_state')
+        cmd = AgentCommand(command=ResourceAgentEvent.GET_RESOURCE_STATE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
 
-        cmd = AgentCommand(command='go_active')
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
-        cmd = AgentCommand(command='get_resource_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.debug("retval: %s", retval)
-
-        cmd = AgentCommand(command='run')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.debug("retval: %s", retval)
-        cmd = AgentCommand(command='get_resource_state')
+        cmd = AgentCommand(command=ResourceAgentEvent.GET_RESOURCE_STATE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
 
-        cmd = AgentCommand(command='go_direct_access',
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
             kwargs={'session_type': type,
                     'session_timeout': TIMEOUT,
                     'inactivity_timeout': TIMEOUT})
@@ -249,27 +260,27 @@ class DirectAccessServer():
         port= retval.result['port']
         token= retval.result['token']
 
-        cmd = AgentCommand(command='get_resource_state')
+        cmd = AgentCommand(command=ResourceAgentEvent.GET_RESOURCE_STATE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("retval: %s", retval)
 
         ia_state = retval.result
         log.debug("IA State: %s", ia_state)
 
-        if ia_state == InstrumentAgentState.DIRECT_ACCESS:
+        if ia_state == DriverProtocolState.DIRECT_ACCESS:
             print "Direct access server started, IP: %s Port: %s" % (ip_address, port)
             if token:
                 print "Token: %s" % token
 
-            while ia_state == InstrumentAgentState.DIRECT_ACCESS:
-                cmd = AgentCommand(command='get_resource_state')
+            while ia_state == DriverProtocolState.DIRECT_ACCESS:
+                cmd = AgentCommand(command=ResourceAgentEvent.GET_RESOURCE_STATE)
                 retval = self.instrument_agent_client.execute_agent(cmd)
 
                 ia_state = retval.result
                 gevent.sleep(.1)
 
         else:
-            log.error("Failed to start DA server")
+            log.error("Failed to start DA server (%s)" % ia_state)
 
 
     def start_telnet_server(self):

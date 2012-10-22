@@ -128,3 +128,7 @@ class FailedToLaunch(IDKException):
     """Could not launch external application"""
     pass
 
+class SampleTimeout(IDKException):
+    """Failed to read a sample from subscribed stream"""
+    pass
+
