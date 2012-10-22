@@ -51,6 +51,7 @@ from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import ProtocolState
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import ProtocolEvent
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import Capability
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import Parameter
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import Prompt
 from ion.agents.port.logger_process import EthernetDeviceLogger
 
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -813,7 +814,8 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         test_ds_response = "output salinity = yes, output sound velocity = no\r\n"
         
         test_driver._protocol._parse_dsdc_response(test_ds_response, '<Executed/>')
-        
+ 
+      
     def test_protocol_handler_command_enter(self):
         """
         """
@@ -832,6 +834,56 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         self.assertEqual(ret, None)
         self.assertEqual(str(_update_params_mock.mock_calls), "[call()]")
         self.assertEqual(str(_update_driver_event.mock_calls), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
+
+
+    def test_initialize_time(self):
+        """
+        """
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = InstrumentDriver(self.my_event_callback)
+        
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        _wakeup = Mock(spec="_wakeup")
+        test_driver._protocol._wakeup = _wakeup
+        
+        def side_effect(timeout):
+            return Prompt.EXECUTED
+        _wakeup.side_effect = side_effect
+
+
+        args = []
+        kwargs = dict({})
+        ret = test_driver._protocol._handler_unknown_discover(*args, **kwargs)
+
 
     @unittest.skip("Doesn't work because the set_handler tries to update variables.")    
     def test_fsm_handler(self):

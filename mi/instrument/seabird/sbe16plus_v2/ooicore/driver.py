@@ -11,8 +11,8 @@ __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 import time
-import re
 import datetime
+import re
 import string
 from threading import Timer
 
@@ -400,9 +400,12 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             # Set the state to change.
             # Raise if the prompt returned does not match command or autosample.
             if prompt in [Prompt.COMMAND, Prompt.EXECUTED]:
-                # DHE: Need to set time here.
-                #self._do_cmd_resp(Command.SET, Parameter.DATE_TIME,
-                #time.strftime("%d %b %Y %H:%M:%S", time.localtime()), **kwargs)
+                # DHE: Need a base class that sets time on second edge.
+                str_utc_time = self._get_utc_time_at_second_edge()
+                log.info("Setting SBE16plus_v2 time to UTC: %s", str_utc_time) 
+                self._do_cmd_resp(Command.SET, Parameter.DATE_TIME,
+                          str_utc_time, **kwargs)
+                
                 next_state = ProtocolState.COMMAND
                 next_agent_state = ResourceAgentState.IDLE
             elif prompt == Prompt.AUTOSAMPLE:
@@ -771,6 +774,14 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Private helpers.
     ########################################################################
+        
+    def _get_utc_time_at_second_edge(self):
+                
+        while datetime.datetime.utcnow().microsecond != 0:
+            pass
+
+        gmTime = time.gmtime(time.mktime(time.localtime()))
+        return time.strftime("%d %b %Y %H:%M:%S", gmTime)
         
     def _send_wakeup(self):
         """
