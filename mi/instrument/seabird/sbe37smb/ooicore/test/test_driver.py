@@ -1617,6 +1617,8 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         """
         Test observatory polling function.
         """
+        # Set up all data subscriptions.  Stream names are defined
+        # in the driver PACKET_CONFIG dictionary
         self.data_subscribers.start_data_subscribers()
         self.addCleanup(self.data_subscribers.stop_data_subscribers)
 
@@ -1638,8 +1640,13 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
+        ###
         # Poll for a few samples
-        self.data_subscribers.clear_sample_queue('parsed')
+        ###
+
+        # make sure there aren't any junk samples in the parsed
+        # data queue.
+        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
         cmd = AgentCommand(command=SBE37ProtocolEvent.ACQUIRE_SAMPLE)
         reply = self.instrument_agent_client.execute_resource(cmd)
 
@@ -1649,8 +1656,9 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         cmd = AgentCommand(command=SBE37ProtocolEvent.ACQUIRE_SAMPLE)
         reply = self.instrument_agent_client.execute_resource(cmd)
 
-        # Assert we got 3 samples.
-        samples = self.data_subscribers.get_samples('parsed', 3)
+        # Watch the parsed data queue and return once three samples
+        # have been read or the default timeout has been reached.
+        samples = self.data_subscribers.get_samples(DataParticleValue.PARSED, 3)
         self.assertGreaterEqual(len(samples), 3)
 
         self.assertSampleDataParticle(samples.pop())
