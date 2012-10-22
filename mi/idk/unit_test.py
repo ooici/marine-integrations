@@ -23,7 +23,7 @@ from sets import Set
 # part we can ignore this. See initialize_ion_int_tests() for implementation.
 # If you DO care about couch content make sure you do a force_clean when needed.
 from pyon.core import bootstrap
-bootstrap.testing = False;
+bootstrap.testing = False
 
 import gevent
 import json
@@ -82,7 +82,7 @@ class InstrumentDriverTestConfig(Singleton):
     driver_process_type = DriverProcessType.PYTHON_MODULE
     instrument_agent_resource_id = None
     instrument_agent_name = None
-    instrument_agent_module = 'ion.agents.instrument.instrument_agent'
+    instrument_agent_module = 'mi.idk.instrument_agent'
     instrument_agent_class = 'InstrumentAgent'
     instrument_agent_packet_config = None
     instrument_agent_stream_encoding = 'ION R2'
@@ -1036,7 +1036,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         pass
 
-    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 20}}})
     def test_instrument_driver_to_physical_instrument_interoperability(self):
         """
         @Brief this test is the integreation test test_connect
