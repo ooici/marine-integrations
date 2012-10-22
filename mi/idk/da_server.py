@@ -11,6 +11,7 @@ import gevent
 
 from mi.core.log import get_logger ; log = get_logger()
 
+from ion.agents.port.port_agent_process import PortAgentProcessType
 from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.comm_config import CommConfig
 from mi.idk.config import Config
@@ -123,7 +124,13 @@ class DirectAccessServer():
 
         config = {
             'device_addr' : self.comm_config.device_addr,
-            'device_port' : self.comm_config.device_port
+            'device_port' : self.comm_config.device_port,
+
+            'command_port': self.comm_config.command_port,
+            'data_port': self.comm_config.data_port,
+
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 5,
         }
 
         self.port_agent = PortAgentProcess.launch_process(config, timeout = 60,
