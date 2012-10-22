@@ -60,19 +60,19 @@ class InstrumentPrompts(BaseEnum):
 
     
 class InstrumentCmds(BaseEnum):
-    CONFIGURE_INSTRUMENT               = 'CC'
+    CONFIGURE_INSTRUMENT               = 'CC'        # sets the user configuration
     SOFT_BREAK_FIRST_HALF              = '@@@@@@'
     SOFT_BREAK_SECOND_HALF             = 'K1W%!Q'
-    READ_REAL_TIME_CLOCK               = 'RC'
+    READ_REAL_TIME_CLOCK               = 'RC'        
     SET_REAL_TIME_CLOCK                = 'SC'
-    CMD_WHAT_MODE                      = 'II'   
+    CMD_WHAT_MODE                      = 'II'        # to determine the mode of the instrument
     GET_USER_CONFIGURATION             = 'GC'
     POWER_DOWN                         = 'PD'     
     READ_BATTERY_VOLTAGE               = 'BV'
     IDENTIFY                           = 'ID'
     START_MEASUREMENT_AT_SPECIFIC_TIME = 'SD'
     START_MEASUREMENT_WITH_RECORDER    = 'SR'
-    CONFIRMATION                       = 'MC'
+    CONFIRMATION                       = 'MC'        # confirm a break request
     # SAMPLE_AVG_TIME                    = 'A'
     # SAMPLE_INTERVAL_TIME               = 'M'
     # GET_ALL_CONFIGURATIONS             = 'GA'
@@ -879,6 +879,24 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add parameter handlers to parameter dict.
         
+        self._param_dict.add(Parameter.REAL_TIME_CLOCK,
+                             r'(.{6})',
+                             lambda match : match.group(1),
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+               
+        self._param_dict.add(Parameter.BATTERY_VOLTAGE,
+                             r'(.{2})',
+                             lambda match : match.group(1),
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
+               
+        self._param_dict.add(Parameter.IDENTIFICATION_STRING,
+                             r'(.{14})',
+                             lambda match : match.group(1),
+                             lambda string : string,
+                             visibility=ParameterDictVisibility.READ_ONLY)
+               
         """
         These are read only parameters and not processed for now
         # hardware config
@@ -1306,16 +1324,22 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Get old param dict config.
         old_config = self._param_dict.get_config()
         
+        # get the RTC from the instrument
+        
+        # get the battery voltage from the instrument
+        
+        # get the identification string from the instrument
+        
+        # get user_configuration params from the instrument
         # Grab time for timeout.
         starttime = time.time()
         timeout = 6
 
-        # get params from the instrument
         while True:
             # Clear the prompt buffer.
             self._promptbuf = ''
 
-            log.debug('Sending get_all_configurations command to the instrument.')
+            log.debug('Sending get_user_configuration command to the instrument.')
             # Send get_user_cofig command to attempt to get user configuration.
             self._connection.send(InstrumentCmds.GET_USER_CONFIGURATION)
             for i in range(20):   # loop for 2 seconds waiting for response to complete
@@ -1324,19 +1348,19 @@ class Protocol(CommandResponseInstrumentProtocol):
                         self._param_dict.update(self._promptbuf)
                         # Get new param dict config. If it differs from the old config,
                         # tell driver superclass to publish a config change event.
-                        new_config = self._param_dict.get_config()
-                        if new_config != old_config:
-                            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
                         return
                     break
                 time.sleep(.1)
-            log.debug('_update_params: response not right length %d, %s' % (len(self._promptbuf), self._promptbuf.encode("hex")))
+            log.debug('_update_params: get_user_configuration command response not right length %d, %s' % (len(self._promptbuf), self._promptbuf.encode("hex")))
 
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException()
             
             continue
         
+        new_config = self._param_dict.get_config()
+        if new_config != old_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     def _extract_sample(self, line, publish=True):
         """
