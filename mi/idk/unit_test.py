@@ -586,31 +586,14 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         retval = self.instrument_agent_client.execute_agent(cmd)
 
-
-
-
-
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-
-
-
-
-
-
-        log.debug("#ROGER# 1")
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        log.debug("#ROGER# 2")
         retval = self.instrument_agent_client.execute_agent(cmd)
 
-        self.assertTrue(False)
-
-        log.debug("#ROGER# 3")
         state = self.instrument_agent_client.get_agent_state()
-        log.debug("#ROGER# 4")
         self.assertEqual(state, ResourceAgentState.IDLE)
-        log.debug("#ROGER# 5")
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_INACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
