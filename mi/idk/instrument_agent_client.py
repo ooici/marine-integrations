@@ -11,6 +11,7 @@ import os
 import signal
 import subprocess
 import time
+import gevent
 from gevent import spawn
 from gevent.event import AsyncResult
 
@@ -21,7 +22,7 @@ from mi.core.log import get_logger ; log = get_logger()
 # part we can ignore this. See initialize_ion_int_tests() for implementation.
 # If you DO care about couch content make sure you do a force_clean when needed.
 from pyon.core import bootstrap
-bootstrap.testing = False;
+bootstrap.testing = False
 
 from mi.idk.config import Config
 
@@ -30,6 +31,7 @@ from mi.idk.exceptions import NoContainer
 from mi.idk.exceptions import MissingConfig
 from mi.idk.exceptions import MissingExecutable
 from mi.idk.exceptions import FailedToLaunch
+from mi.idk.exceptions import SampleTimeout
 
 
 from pyon.util.int_test import IonIntegrationTestCase
@@ -48,6 +50,7 @@ from pyon.event.event import EventSubscriber
 #from interface.objects import StreamQuery
 
 DEFAULT_DEPLOY = 'res/deploy/r2deploy.yml'
+DEFAULT_PARAM_DICT = 'data_particle_raw_param_dict'
 
 class FakeProcess(LocalContextMixin):
     """
@@ -297,12 +300,11 @@ class InstrumentAgentDataSubscribers(object):
 
 
         self.no_samples = None
-        self.async_data_result = AsyncResult()
+        self.packet_config = packet_config
 
         self.data_greenlets = []
         self.stream_config = {}
-        self.raw_samples_received = []
-        self.parsed_samples_received = []
+        self.samples_received = {}
         self.data_subscribers = {}
         self.container = Container.instance
         if not self.container:
@@ -320,15 +322,12 @@ class InstrumentAgentDataSubscribers(object):
         # Create streams and subscriptions for each stream named in driver.
         self.stream_config = {}
 
-        streams = {
-            #'ctd_parsed' : 'ctd_parsed_param_dict',
-            #'ctd_raw' : 'ctd_raw_param_dict',
-            'parsed' : 'data_particle_parsed_param_dict',
-            'raw' : 'data_particle_raw_param_dict',
-        }
+        streams = self.packet_config
 
         for (stream_name, param_dict_name) in streams.iteritems():
-            pd_id = dataset_management.read_parameter_dictionary_by_name(param_dict_name, id_only=True)
+            pd_id = dataset_management.read_parameter_dictionary_by_name(DEFAULT_PARAM_DICT, id_only=True)
+            if(not pd_id):
+                log.error("No pd_id found for param_dict '%s'" % DEFAULT_PARAM_DICT)
 
             stream_def_id = pubsub_client.create_stream_definition(name=stream_name,
                                                                    parameter_dictionary_id=pd_id)
@@ -346,7 +345,7 @@ class InstrumentAgentDataSubscribers(object):
                                  parameter_dictionary=pd)
             self.stream_config[stream_name] = stream_config    
 
-    def start_data_subscribers(self, count):
+    def start_data_subscribers(self):
         """
         """        
         # Create a pubsub client to create streams.
@@ -354,27 +353,27 @@ class InstrumentAgentDataSubscribers(object):
                 
         # Create streams and subscriptions for each stream named in driver.
         self.data_subscribers = {}
-        self.parsed_samples_received = []
-        self.raw_samples_received = []
-        self.async_data_result = AsyncResult()
+        self.samples_received = {}
 
         # A callback for processing subscribed-to data.
         def recv_data(message, stream_route, stream_id):
             log.info('Received message on %s (%s,%s)', stream_id,
                      stream_route.exchange_point,
                      stream_route.routing_key)
-            if stream_route.routing_key == self.stream_config['parsed']['routing_key']:
-                self.parsed_samples_received.append(message)
-            elif stream_route.routing_key == self.stream_config['raw']['routing_key']:
-                self.raw_samples_received.append(message)
-                
-            # set when both kinds of messages have at least the required number
-            if (len(self.parsed_samples_received) >= count) and \
-                (len(self.raw_samples_received) >= count):
-                self.async_data_result.set()
+
+            name = None
+
+            for (stream_name, stream_config) in self.stream_config.iteritems():
+                if stream_route.routing_key == stream_config['routing_key']:
+                    log.debug("NAME: %s %s == %s" % (stream_name, stream_route.routing_key, stream_config['routing_key']))
+                    name = stream_name
+                    if(not self.samples_received.get(stream_name)):
+                        self.samples_received[stream_name] = []
+                    self.samples_received[stream_name].append(message)
 
         for (stream_name, stream_config) in self.stream_config.iteritems():
             stream_id = stream_config['stream_id']
+
             # Create subscriptions for each stream.
             exchange_name = '%s_queue' % stream_name
             self._purge_queue(exchange_name)
@@ -384,6 +383,43 @@ class InstrumentAgentDataSubscribers(object):
             sub_id = pubsub_client.create_subscription(name=exchange_name, stream_ids=[stream_id])
             pubsub_client.activate_subscription(sub_id)
             sub.subscription_id = sub_id # Bind the subscription to the standalone subscriber (easier cleanup, not good in real practice)
+
+    def get_samples(self, stream_name, sample_count = 1, timeout = 10):
+        """
+        listen on a stream until 'sample_count' samples are read and return
+        a list of all samples read.  If the required number of samples aren't
+        read then throw an exception.
+
+        Note that this method does not clear the sample queue for the stream.
+        This should be done explicitly by the caller.  However, samples that
+        are consumed by this method are removed.
+
+        @raise SampleTimeout - if the required number of samples aren't read
+        """
+
+        result = []
+        start_time = time.time()
+
+        while(len(result) < sample_count):
+            if(self.samples_received.has_key(stream_name) and
+               len(self.samples_received.get(stream_name))):
+                result.append(self.samples_received[stream_name].pop())
+
+            # Check for timeout
+            if(start_time + timeout < time.time()):
+                raise SampleTimeout()
+
+            if(len(result) < sample_count):
+                gevent.sleep(1)
+
+        return result
+
+    def clear_sample_queue(self, stream_name):
+        """
+        Remove all samples found in a sample received queue.
+        """
+        if(self.samples_received.get(stream_name)):
+            self.samples_received[stream_name] = []
 
     def _purge_queue(self, queue):
         xn = self.container.ex_manager.create_xn_queue(queue)
@@ -395,10 +431,10 @@ class InstrumentAgentDataSubscribers(object):
             if hasattr(subscriber,'subscription_id'):
                 try:
                     pubsub_client.deactivate_subscription(subscriber.subscription_id)
+                    pubsub_client.delete_subscription(subscriber.subscription_id)
+                    subscriber.stop()
                 except:
                     pass
-                pubsub_client.delete_subscription(subscriber.subscription_id)
-            subscriber.stop()
 
     def _listen(self, sub):
         """
