@@ -35,7 +35,8 @@ class Chunker(object):
             than the last item's index. This allows
             buffer[start_index:end_index] to properly describe the data block.
             If no data is present, return and empty list. If multiple data
-            blocks are found, the returned list will contain multiple tuples.
+            blocks are found, the returned list will contain multiple tuples,
+            IN SEQUENTIAL ORDER and WITHOUT OVERLAP.
         """
         self.sieve = data_sieve_fn
         
