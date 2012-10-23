@@ -53,7 +53,7 @@ class TestTime(unittest.TestCase):
             raised = True
         self.assertTrue(raised)
 
-    #@unittest.skip("long running test")
+    @unittest.skip("long running test")
     def test_extended_delayed_timestamp(self):
         """
         Test the creation of a timestamp string but generation is
