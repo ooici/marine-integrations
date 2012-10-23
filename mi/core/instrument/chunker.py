@@ -13,6 +13,8 @@ __license__ = 'Apache 2.0'
 
 from ooi.logging import log
 
+from mi.core.exceptions import SampleException
+
 class Chunker(object):
     """
     A great big buffer that ingests incoming data from an instrument, then
@@ -125,6 +127,11 @@ class Chunker(object):
         log.debug("Generating data lists with start index %s", start_index)
         return_list = {'data_chunk_list':[], 'non_data_chunk_list':[]}
         result = self.sieve(self.buffer[start_index:])
+        # assert no overlap!
+        if (self.overlaps(result)):
+            raise SampleException("Overlapping blocks in sieve list: %s" % result)
+        # sort to protect us from some sloppy sieve code
+        result.sort()
 
         # rebase to buffer coordinates
         return_list['data_chunk_list'] = [(s+start_index, e+start_index) for (s, e) in result]
@@ -146,6 +153,28 @@ class Chunker(object):
 
         log.debug("Generated return list: %s", return_list)
         return return_list    
+    
+    @staticmethod
+    def overlaps(data_list):
+        """
+        Looks for overlapping data blocks from the sieve function
+        
+        @param data_list A list of entries
+        @return True if overlap exists
+        """
+        list_length = len(data_list)
+        
+        if list_length < 2:
+            return False
+        
+        data_list.sort()
+        for index in range(1,len(data_list)):
+            (s1, e1) = data_list[index-1]
+            (s2, e2) = data_list[index]
+            if (s2 < e1):
+                return True
+            
+        return False
     
     def get_next_data(self, clean=True):
         """
