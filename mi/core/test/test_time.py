@@ -14,6 +14,7 @@ from nose.plugins.attrib import attr
 from mi.core.time import *
 import unittest
 import datetime
+import time
 
 from mi.idk.exceptions import InvalidParameters
 
@@ -26,6 +27,14 @@ class TestTime(unittest.TestCase):
         """
         Setup the test case
         """
+
+    def test_timestamp(self):
+        """
+        Test the creation of a timestamp string but generation
+        """
+        stamp = get_timestamp("%H:%M:%S")
+        self.assertTrue(stamp)
+
 
     def test_delayed_timestamp(self):
         """
@@ -44,13 +53,14 @@ class TestTime(unittest.TestCase):
             raised = True
         self.assertTrue(raised)
 
-    @unittest.skip("long running test")
+    #@unittest.skip("long running test")
     def test_extended_delayed_timestamp(self):
         """
         Test the creation of a timestamp string but generation is
         delayed to the edge of a second.  Run multiple tests.
         """
-        for x in range(0, 120):
+        for x in range(0, 240):
             stamp = get_timestamp_delayed("%H:%M:%S")
             now = datetime.datetime.utcnow()
-            self.assertLess(now.microsecond, 100);
+            self.assertLess(now.microsecond, 100)
+            time.sleep(0.1)

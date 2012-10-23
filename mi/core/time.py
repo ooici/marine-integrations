@@ -44,3 +44,21 @@ def get_timestamp_delayed(format):
         current = datetime.datetime.utcnow()
 
     return current.strftime(format)
+
+
+def get_timestamp(format):
+    '''
+    Return a formatted date string of the current utc time.
+
+    Formatting:
+    http://docs.python.org/library/time.html#time.strftime
+
+    @param format: strftime() format string
+    @return: formatted date string
+    @raise ValueError if format is None
+    '''
+    if(not format):
+        raise ValueError
+
+    now = datetime.datetime.utcnow()
+    return now.strftime(format)
