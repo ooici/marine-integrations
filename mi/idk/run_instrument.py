@@ -447,7 +447,9 @@ class RunInstrument(IonIntegrationTestCase):
         """
         @brief Send a command to the agent. 
         """
-
+        
+        DA_WAIT_PERIOD = 60
+        waiting = False
         print "Input command: " + str(command)
         if command == 'RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS':
             cmd = AgentCommand(command = command, 
@@ -461,7 +463,8 @@ class RunInstrument(IonIntegrationTestCase):
         retval = self._ia_client.execute_agent(cmd)
         print "Results of command: " + str(retval)
         while waiting:
-            gevent.sleep(60)
+            print "Waiting " + str(DA_WAIT_PERIOD) + " seconds for you to test direct access."
+            gevent.sleep(DA_WAIT_PERIOD)
             still_waiting = prompt.text('Still waiting? (y/n)')
             if still_waiting is 'n':
                 waiting = False
