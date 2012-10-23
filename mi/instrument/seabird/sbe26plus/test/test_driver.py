@@ -37,6 +37,7 @@ import gevent
 import time
 import socket
 import re
+import numpy
 
 import unittest
 from mock import patch
@@ -55,7 +56,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from interface.objects import AgentCommand
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-#from mi.instrument.seabird.sbe26plus.driver import PACKET_CONFIG
+from mi.instrument.seabird.sbe26plus.driver import PACKET_CONFIG
 from mi.instrument.seabird.sbe26plus.driver import DataParticle
 from mi.instrument.seabird.sbe26plus.driver import InstrumentDriver
 from mi.instrument.seabird.sbe26plus.driver import ProtocolState
@@ -81,9 +82,11 @@ from mi.core.exceptions import InstrumentCommandException
 
 from prototype.sci_data.stream_parser import PointSupplementStreamParser
 from prototype.sci_data.constructor_apis import PointSupplementConstructor
-#from prototype.sci_data.stream_defs import ctd_stream_definition
+from prototype.sci_data.stream_defs import ctd_stream_definition
 #from prototype.sci_data.stream_defs import SBE37_CDM_stream_definition
-import numpy
+
+
+
 from prototype.sci_data.stream_parser import PointSupplementStreamParser
 
 from pyon.agent.agent import ResourceAgentClient
@@ -104,6 +107,9 @@ from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacke
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.instrument_driver import DriverParameter
+
+from mi.core.instrument.chunker import StringChunker
+
 ###
 #   Driver parameters for the tests
 ###
@@ -1853,7 +1859,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(p.parsed_sample, {})
         self.assertEqual(p.raw_sample, '')
 
-
     def test_protocol_filter_capabilities(self):
         """
         This tests driver get capabilities
@@ -1891,7 +1896,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         p._handler_unknown_enter(*args, **kwargs)
         self.assertEqual(str(my_event_callback.call_args_list), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE'),\n call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
 
-
     def test_protocol_handler_unknown_exit(self):
         """
         """
@@ -1902,7 +1906,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         kwargs =  {}
         p._handler_unknown_exit(*args, **kwargs)
         self.assertEqual(str(my_event_callback.call_args_list), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
-
 
     def test_protocol_handler_unknown_discover(self):
         """
@@ -2070,8 +2073,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
         self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
 
-
-
     def test_protocol_unknown_force_state(self):
         """
         """
@@ -2113,14 +2114,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(ret, None)
         self.assertEqual(str(_update_params_mock.mock_calls), "[call()]")
         self.assertEqual(str(_update_driver_event.mock_calls), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
-
-
-
-
-
-
-
-
 
     def test_protocol_parse_ts_response(self):
         """
@@ -2166,7 +2159,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         ret = p._parse_ts_response(response, Prompt.COMMAND)
         # need to put a good validation here, but not until this packet gets solidified.
         # ret == {'raw': {'stream_name': 'raw', 'blob': '\r\n 14.5128  24.34  23.9912  111111', 'time': [1349393237.7224]}, 'parsed': {'stream_name': 'parsed', 'parsed': {'p': '14.5128', 't': '23.9912', 'pt': '24.34'}, 'time': [1349393237.7224]}}
-
 
     def test_protocol_got_data(self):
         """
@@ -2313,9 +2305,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         #@ TODO put below line back in and fix it once it is working
         #self.assertEqual(str(_extract_sample_mock.mock_calls), "3XXXXX")
 
-
-
-
     def test_extract_sample(self):
         """
         Test that the _extract_sample method can parse data
@@ -2342,8 +2331,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         [call('DRIVER_ASYNC_EVENT_SAMPLE', {'stream_name': 'raw', 'blob': '\r\nwave: ptfreq = 171791.359\r\ndepth =    0.000, temperature = 23.840, salinity = 35.000, density = 1023.690\r\n   nAvgBand = 5\r\n   total variance = 1.0896e-05\r\n   total energy = 1.0939e-01\r\n   significant period = 5.3782e-01\r\n   significant wave height = 1.3204e-02\r\n   wave integration time = 128\r\n   number of waves = 0\r\n   total variance = 1.1595e-05\r\n   total energy = 1.1640e-01\r\n   average wave height = 0.0000e+00\r\n   average wave period = 0.0000e+00\r\n   maximum wave height = 1.0893e-02\r\n   significant wave height = 0.0000e+00\r\n   significant wave period = 0.0000e+00\r\n   H1/10 = 0.0000e+00\r\n   H1/100 = 0.0000e+00', 'time': [1349456065.638729]}),
          call('DRIVER_ASYNC_EVENT_SAMPLE', {'stream_name': 'parsed', 'parsed': {'significant_period': '5.3782e-01', 'maximum_wave_height': '1.0893e-02', 'temperature': '23.840', 'significant_wave_period': '0.0000e+00', 'density': '1023.690', 'average_wave_height': '0.0000e+00', 'number_of_waves': '0', 'average_wave_period': '0.0000e+00', 'total_variance': '1.1595e-05', 'salinity': '35.000', 'depth': '0.000', 'total_energy': '1.1640e-01', 'height_highest_10_percent_waves': '0.0000e+00', 'nAvgBand': '5', 'height_highest_1_percent_waves': '0.0000e+00', 'wave_ptfreq': '171791.359', 'significant_wave_height': '0.0000e+00', 'wave_integration_time': '128'}, 'time': [1349456065.638729]})]
         """
-
-
 
     def test_parse_ds_response(self):
         """
@@ -2569,7 +2556,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         # verify it passed all 44 lines to the update func
         self.assertEqual(len(_param_dict_mock.mock_calls), 44)
 
-
     def test_build_set_command(self):
         """
         verify the build set command performs correctly
@@ -2600,8 +2586,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         # Date (Tuple)
         ret = p._build_set_command("irrelevant", Parameter.TCALDATE, (30, 8, 2012))
         self.assertEqual(ret, 'TCALDATE=30-Aug-12\r\n')
-
-
 
     def test_handler_command_set(self):
         """
@@ -2857,7 +2841,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(result, ('RESOURCE_AGENT_STATE_STREAMING', None))
         self.assertEqual(str(_connection_send_mock.mock_calls), "[call('start\\r\\n')]")
 
-
     def test_handler_command_quit_session(self):
         """
         verify quit session sends the qs command to the instrument.
@@ -2921,6 +2904,57 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(ret[0], [])
 
 
+
+    def test_chunker(self):
+        """
+        Tests the chunker
+        """
+        # This will want to be created in the driver eventually...
+        self._chunker = StringChunker(Protocol.sieve_function)
+
+
+        self._chunker.add_chunk("tide: start time = 23 Oct 2012 01:08:08, p = 429337.8750, pt = 421107.187, t = -3.2164" + NEWLINE + 
+                                "tide: start time = 22 Oct 2012 23:47:18, p = 429337.9687, pt = 421106.562, t = -3.2164, c = -1.05525, s = 0.000" + NEWLINE +
+                                SAMPLE_DATA)
+        result = self._chunker.get_next_data()
+        self.assertEquals(result, 'tide: start time = 05 Oct 2012 00:55:54, p = 14.5348, pt = 24.250, t = 23.9046')
+
+        result = self._chunker.get_next_data()
+        self.assertEquals(result, 'tide: start time = 05 Oct 2012 00:58:54, p = 14.5367, pt = 24.242, t = 23.8904')
+
+        result = self._chunker.get_next_data()
+        self.assertEquals(result, 'tide: start time = 05 Oct 2012 01:01:54, p = 14.5387, pt = 24.250, t = 23.8778')
+
+        result = self._chunker.get_next_data()
+        self.assertEquals(result, 'tide: start time = 05 Oct 2012 01:04:54, p = 14.5346, pt = 24.228, t = 23.8664')
+
+        result = self._chunker.get_next_data()
+        self.assertEquals(result, 'tide: start time = 05 Oct 2012 01:07:54, p = 14.5364, pt = 24.205, t = 23.8575')
+
+        result = self._chunker.get_next_data()
+        self.assertEquals(result, 'tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404')
+
+        result = self._chunker.get_next_data()
+        self.assertEquals(result,  'tide: start time = 05 Oct 2012 01:13:54, p = 14.5384, pt = 24.205, t = 23.8363')
+
+        result = self._chunker.get_next_data()
+        self.assertEquals(result, None)
+
+    def test_chunker_line_by_line(self):
+        # This will want to be created in the driver eventually...
+        self._chunker = StringChunker(Protocol.sieve_function)
+
+        for line in SAMPLE_DATA.split(NEWLINE):
+            log.debug(repr(line + NEWLINE))
+            self._chunker.add_chunk(line + NEWLINE)
+
+            result = self._chunker.get_next_data(clean=True)
+            log.debug("RESULT ============================================================================================================================================================= " + repr(result))
+
+            result = self._chunker.get_next_data(clean=True)
+            log.debug("RESULT ============================================================================================================================================================= " + repr(result))
+
+        self.assertTrue(False)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -4165,15 +4199,7 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
 
 
 
-        """
-        # Make sure the sampling rate and transmission are sane.
-        params = {
-            SBE37Parameter.NAVG : 1,
-            SBE37Parameter.INTERVAL : 5,
-            SBE37Parameter.TXREALTIME : True
-        }
-        self.instrument_agent_client.set_param(params)
-        """
+
 
         self.data_subscribers.no_samples = 2
 
@@ -4721,6 +4747,7 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         self.assertEqual(retval.status, 0)
         self.assertEqual(retval.type_, 'AgentCommandResult')
         self.assertEqual(retval.command, Capability.ACQUIRE_SAMPLE)
+        # AssertionError: {'stream_name': 'parsed', 'parsed': {'p': '-159.4619', 'c': '-1.02535', 's': '0.0000', 'pt': '-8384.70', 't': '-3.2164'}} != 'parsed'
         self.assertEqual(retval.result, 'parsed')
 
     def test_connect_disconnect(self):
