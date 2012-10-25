@@ -135,6 +135,7 @@ class DriverEvent(BaseEnum):
     STOP_DIRECT = 'DRIVER_EVENT_STOP_DIRECT'
     PING_DRIVER = 'DRIVER_EVENT_PING_DRIVER'
     FORCE_STATE = 'DRIVER_FORCE_STATE'
+    CLOCK_SYNC = 'DRIVER_EVENT_CLOCK_SYNC'
     
 class DriverAsyncEvent(BaseEnum):
     """
