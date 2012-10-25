@@ -91,6 +91,9 @@ class ProtocolEvent(BaseEnum):
 class Capability(BaseEnum):
     """
     Capabilities that are exposed to the user (subset of above)
+    NOTE: I have GET and SET here because these do not get exported
+    to the run_instrument (or any other UI) at this point, and I 
+    need their functionality.
     """
     GET = DriverEvent.GET
     SET = DriverEvent.SET
@@ -155,9 +158,10 @@ SBE16_NEWLINE = '\r\n'
 # SBE16 default timeout.
 SBE16_TIMEOUT = 10
                 
-SAMPLE_PATTERN = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'
+SAMPLE_PATTERN = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'     # T, C, D/P
+SAMPLE_PATTERN += r',? *(-?\d+\.\d+)?'                                  # Salinity
 SAMPLE_PATTERN += r'(, *(-?\d+\.\d+))?(, *(-?\d+\.\d+))?'
-SAMPLE_PATTERN += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'
+SAMPLE_PATTERN += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'    
 SAMPLE_PATTERN += r'(, *(\d+)-(\d+)-(\d+), *(\d+):(\d+):(\d+))?'
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
         
@@ -216,7 +220,8 @@ class SBE16DataParticleKey(BaseEnum):
     TEMP = "temp"
     CONDUCTIVITY = "conductivity"
     DEPTH = "depth"
-    
+    SALINITY = "salinity"
+
 class SBE16DataParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
@@ -233,19 +238,16 @@ class SBE16DataParticle(DataParticle):
         
         if not match:
             raise SampleException("No regex match of parsed sample data: [%s]" %
-                                  self.decoded_raw)
+                                  self.raw_data)
             
-        temperature = float(match.group(1))
-        conductivity = float(match.group(2))
-        depth = float(match.group(3))
-        
-        if temperature is None:
-            raise SampleException("No temperature value parsed")
-        if conductivity is None:
-            raise SampleException("No conductivity value parsed")
-        if depth is None:
-            raise SampleException("No depth value parsed")
-        
+        try:
+            temperature = float(match.group(1))
+            conductivity = float(match.group(2))
+            depth = float(match.group(3))
+            salinity = float(match.group(4))
+        except ValueError:
+            raise SampleException("ValueError while decoding floats in data: [%s]" %
+                                  self.raw_data)
         
         #TODO:  Get 'temp', 'cond', and 'depth' from a paramdict
         result = [{DataParticleKey.VALUE_ID: SBE16DataParticleKey.TEMP,
@@ -253,7 +255,9 @@ class SBE16DataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: SBE16DataParticleKey.CONDUCTIVITY,
                    DataParticleKey.VALUE: conductivity},
                   {DataParticleKey.VALUE_ID: SBE16DataParticleKey.DEPTH,
-                    DataParticleKey.VALUE: depth}]
+                    DataParticleKey.VALUE: depth},
+                  {DataParticleKey.VALUE_ID: SBE16DataParticleKey.SALINITY,
+                    DataParticleKey.VALUE: salinity}]
         
         return result
 

@@ -46,12 +46,14 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import PACKET_CONFIG
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16DataParticle
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import InstrumentDriver
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import ProtocolState
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import ProtocolEvent
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import Capability
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import Parameter
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import Prompt
+from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from ion.agents.port.logger_process import EthernetDeviceLogger
 
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -1747,6 +1749,58 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
     # (UNIT, INT, and QUAL) are run.
     pass
 
+    def assertSampleDataParticle(self, val):
+        """
+        Verify the value for a sbe16 sample data particle
+
+        {
+          'quality_flag': 'ok',
+          'preferred_timestamp': 'driver_timestamp',
+          'stream_name': 'parsed',
+          'pkt_format_id': 'JSON_Data',
+          'pkt_version': 1,
+          'driver_timestamp': 3559843883.8029947,
+          'values': [
+            {
+              'value_id': 'temp',
+              'value': 67.4448
+            },
+            {
+              'value_id': 'conductivity',
+              'value': 44.69101
+            },
+            {
+              'value_id': 'pressure',
+              'value': 865.096
+            }
+            {
+              'value_id': 'salinity',
+              'value': 0.0114
+            }
+          ],
+        }
+        """
+
+        if (isinstance(val, SBE16DataParticle)):
+            sample_dict = json.loads(val.generate_parsed())
+        else:
+            sample_dict = val
+
+        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
+            DataParticleValue.PARSED)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
+            DataParticleValue.JSON_DATA)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
+            list))
+        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+        for x in sample_dict['values']:
+            self.assertTrue(x['value_id'] in ['temp', 'conductivity', 'depth', 'salinity'])
+            self.assertTrue(isinstance(x['value'], float))
+
+
     @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 2400}}})
     def test_direct_access_telnet_mode(self):
         """
@@ -1951,5 +2005,136 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         log.warn("go_direct_access retval=" + str(retval.result))
         
         gevent.sleep(600)  # wait for manual telnet session to be run
+
+    #@unittest.skip("Not working; not sure why...Agent007 could not publish data...")
+    def test_autosample(self):
+        """
+        Test instrument driver execute interface to start and stop streaming
+        mode.
+        """
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+
+        # Make sure the sampling rate and transmission are sane.
+        params = {
+            Parameter.NAVG : 1,
+            Parameter.INTERVAL : 5,
+            Parameter.TXREALTIME : True
+        }
+        self.instrument_agent_client.set_resource(params)
+
+        self.data_subscribers.clear_sample_queue('parsed')
+
+        # Begin streaming.
+        cmd = AgentCommand(command=ProtocolEvent.START_AUTOSAMPLE)
+        retval = self.instrument_agent_client.execute_resource(cmd, timeout=30)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.STREAMING)
+
+        # Assert we got 3 samples.
+        samples = self.data_subscribers.get_samples(DataParticleValue.PARSED, 3, timeout=60)
+        self.assertGreaterEqual(len(samples), 3)
+
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
+
+        # Halt streaming.
+        cmd = AgentCommand(command=ProtocolEvent.STOP_AUTOSAMPLE)
+        retval = self.instrument_agent_client.execute_resource(cmd, timeout=30)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        self.doCleanups()
+
+
+    def test_poll(self):
+        """
+        Test observatory polling function.
+        """
+        # Set up all data subscriptions.  Stream names are defined
+        # in the driver PACKET_CONFIG dictionary
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        ###
+        # Poll for a few samples
+        ###
+
+        # make sure there aren't any junk samples in the parsed
+        # data queue.
+        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
+        cmd = AgentCommand(command=ProtocolEvent.ACQUIRE_SAMPLE)
+        reply = self.instrument_agent_client.execute_resource(cmd)
+
+        cmd = AgentCommand(command=ProtocolEvent.ACQUIRE_SAMPLE)
+        reply = self.instrument_agent_client.execute_resource(cmd)
+
+        cmd = AgentCommand(command=ProtocolEvent.ACQUIRE_SAMPLE)
+        reply = self.instrument_agent_client.execute_resource(cmd)
+
+        # Watch the parsed data queue and return once three samples
+        # have been read or the default timeout has been reached.
+        samples = self.data_subscribers.get_samples(DataParticleValue.PARSED, 3)
+        self.assertGreaterEqual(len(samples), 3)
+
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        self.doCleanups()
 
 
