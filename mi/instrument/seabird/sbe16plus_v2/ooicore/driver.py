@@ -17,6 +17,7 @@ import string
 from threading import Timer
 
 from mi.core.common import BaseEnum
+from mi.core.time import get_timestamp_delayed
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
@@ -87,6 +88,7 @@ class ProtocolEvent(BaseEnum):
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     FORCE_STATE = DriverEvent.FORCE_STATE
+    EXECUTE_CLOCK_SYNC = 'PROTOCOL_EVENT_EXECUTE_CLOCK_SYNC'
 
 class Capability(BaseEnum):
     """
@@ -99,6 +101,8 @@ class Capability(BaseEnum):
     SET = DriverEvent.SET
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+    EXECUTE_CLOCK_SYNC = 'PROTOCOL_EVENT_EXECUTE_CLOCK_SYNC'
+
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -298,6 +302,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST, self._handler_command_test)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXECUTE_CLOCK_SYNC, self._handler_command_clock_sync_clock)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_autosample_test_get)
@@ -405,10 +410,11 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             # Raise if the prompt returned does not match command or autosample.
             if prompt in [Prompt.COMMAND, Prompt.EXECUTED]:
                 # DHE: Need a base class that sets time on second edge.
-                str_utc_time = self._get_utc_time_at_second_edge()
-                log.info("Setting SBE16plus_v2 time to UTC: %s", str_utc_time) 
+                str_utc_time = get_timestamp_delayed("%d %b %Y %H:%M:%S")
+                #str_utc_time = self._get_utc_time_at_second_edge()
                 self._do_cmd_resp(Command.SET, Parameter.DATE_TIME,
                           str_utc_time, **kwargs)
+                log.info("SBE16plus_v2 time set to UTC: %s", str_utc_time) 
                 
                 next_state = ProtocolState.COMMAND
                 next_agent_state = ResourceAgentState.IDLE
@@ -558,6 +564,35 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = ResourceAgentState.DIRECT_ACCESS
 
         return (next_state, (next_agent_state, result))
+
+    def _handler_command_clock_sync_clock(self, *args, **kwargs):
+        """
+        sync clock close to a second edge 
+        @retval (next_state, result) tuple, (None, None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        timeout = kwargs.get('timeout', SBE16_TIMEOUT)
+        prompt = self._wakeup(timeout=timeout)
+        
+        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
+            error_msg = "Error synchronizing clock; instrument returned: " + prompt
+            raise InstrumentProtocolException(error_msg)
+
+        str_utc_time = get_timestamp_delayed("%d %b %Y %H:%M:%S")
+        # Using base class version
+        #str_utc_time = self._get_utc_time_at_second_edge()
+        self._do_cmd_resp(Command.SET, Parameter.DATE_TIME,
+                  str_utc_time, **kwargs)
+        log.info("SBE16plus_v2 time set to UTC: %s", str_utc_time) 
+
+        return (next_state, (next_agent_state, result))
+
 
     ########################################################################
     # Autosample handlers.
