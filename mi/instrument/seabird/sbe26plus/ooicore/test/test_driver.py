@@ -27,17 +27,8 @@ from mi.instrument.seabird.sbe26plus.test.test_driver import SBE26PlusIntFromIDK
 from mi.instrument.seabird.sbe26plus.test.test_driver import SBE26PlusQualFromIDK
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.instrument.seabird.sbe26plus.ooicore.driver import PACKET_CONFIG
-from prototype.sci_data.stream_defs import ctd_stream_definition
+#from prototype.sci_data.stream_defs import ctd_stream_definition
 
-InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
-    driver_class="InstrumentDriver",
-
-    instrument_agent_resource_id = '123xyz',
-    instrument_agent_name = 'seabird_sbe26plus_ooicore',
-    instrument_agent_packet_config = PACKET_CONFIG,
-    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
-)
 
 ###############################################################################
 #                                UNIT TESTS                                   #

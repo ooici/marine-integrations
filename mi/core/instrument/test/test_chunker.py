@@ -16,6 +16,7 @@ from nose.plugins.attrib import attr
 from pyon.util.unit_test import IonUnitTestCase
 from ooi.logging import log
 
+from mi.core.exceptions import SampleException
 from mi.core.instrument.chunker import StringChunker
 
 @attr('UNIT', group='mi')
@@ -51,7 +52,6 @@ class UnitTestStringChunker(IonUnitTestCase):
                       raw_data[match.end()-5:match.end()])
                 
         return return_list
-    
     
     def setUp(self):
         """ Setup a chunker for use in tests """
@@ -232,6 +232,31 @@ class UnitTestStringChunker(IonUnitTestCase):
         self.assertEquals(result, self.FRAGMENT_1) # Fragments got ripped up
         result = self._chunker.get_next_data()
         self.assertEquals(result, None)
+        
+    def test_funky_chunks(self):
+        def funky_sieve(data):
+            return [(3,6),(0,3)]
+
+        self._chunker = StringChunker(funky_sieve)
+        self._chunker.add_chunk("BarFoo")
+        result = self._chunker.get_next_data()
+        self.assertEquals(result, "Bar")
+        result = self._chunker.get_next_data()
+        self.assertEquals(result, "Foo")
+        
+        
+    def test_overlap(self):
+        self.assertFalse(StringChunker.overlaps([(0, 5)]))
+        self.assertFalse(StringChunker.overlaps([]))
+        self.assertTrue(StringChunker.overlaps([(0, 5), (3, 6)]))
+        self.assertTrue(StringChunker.overlaps([(0, 5), (5, 7), (6, 8)]))
+        self.assertTrue(StringChunker.overlaps([(0, 5), (6, 9), (5, 7)]))
+
+        def overlap_sieve(data):
+            return [(0,3),(2,6)]
+
+        self._chunker = StringChunker(overlap_sieve)
+        self.assertRaises(SampleException, self._chunker.add_chunk, "foobar")
                 
 @unittest.skip("Write this when a binary chunker is needed")
 @attr('UNIT', group='mi')
