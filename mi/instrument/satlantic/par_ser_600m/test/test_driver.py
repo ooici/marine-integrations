@@ -744,19 +744,20 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
-        self.assert_direct_access_telnet_init()
+        self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
         self.tcp_client.send_data("\r\n")
         self.tcp_client.expect("Invalid command")
 
-        self.assert_direct_access_telnet_exit()
+        self.assert_direct_access_stop_telnet()
 
     def test_poll(self):
         '''
         No polling for a single sample
         '''
-        self.assert_sample_polled(self.assertSampleDataParticle, DataParticleValue.PARSED)
+        self.assert_sample_polled(self.assertSampleDataParticle,
+                                  DataParticleValue.PARSED)
 
     def test_autosample(self):
         '''

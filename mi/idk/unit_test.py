@@ -630,7 +630,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.doCleanups()
 
-    def assert_direct_access_telnet_init(self, timeout = 600):
+    def assert_direct_access_start_telnet(self, timeout = 600):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
@@ -691,7 +691,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.assertTrue(self.tcp_client.expect("connected\r\n"))
 
-    def assert_direct_access_telnet_exit(self):
+    def assert_direct_access_stop_telnet(self):
         '''
         Exit out of direct access mode.  We do this by simply changing
         state to command mode.
