@@ -82,7 +82,7 @@ class InstrumentCmds(BaseEnum):
     READ_BATTERY_VOLTAGE               = 'BV'
     READ_ID                            = 'ID'
     START_MEASUREMENT_AT_SPECIFIC_TIME = 'SD'
-    START_MEASUREMENT_WITH_RECORDER    = 'SR'
+    START_MEASUREMENT_IMMEDIATE        = 'SR'
     CONFIRMATION                       = 'MC'        # confirm a break request
     # SAMPLE_AVG_TIME                    = 'A'
     # SAMPLE_INTERVAL_TIME               = 'M'
@@ -117,7 +117,7 @@ class ExportedInstrumentCommand(BaseEnum):
     GET_HW_CONFIGURATION = "EXPORTED_INSTRUMENT_CMD_GET_HW_CONFIGURATION"
     GET_HEAD_CONFIGURATION = "EXPORTED_INSTRUMENT_CMD_GET_HEAD_CONFIGURATION"
     START_MEASUREMENT_AT_SPECIFIC_TIME = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME"
-    START_MEASUREMENT_IMMEDIATELY = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATELY"
+    START_MEASUREMENT_IMMEDIATE = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE"
 
 class ProtocolEvent(BaseEnum):
     """
@@ -144,7 +144,7 @@ class ProtocolEvent(BaseEnum):
     GET_HW_CONFIGURATION = ExportedInstrumentCommand.GET_HW_CONFIGURATION
     GET_HEAD_CONFIGURATION = ExportedInstrumentCommand.GET_HEAD_CONFIGURATION
     START_MEASUREMENT_AT_SPECIFIC_TIME = ExportedInstrumentCommand.START_MEASUREMENT_AT_SPECIFIC_TIME
-    START_MEASUREMENT_IMMEDIATELY = ExportedInstrumentCommand.START_MEASUREMENT_IMMEDIATELY
+    START_MEASUREMENT_IMMEDIATE = ExportedInstrumentCommand.START_MEASUREMENT_IMMEDIATE
 
 class Capability(BaseEnum):
     """
@@ -163,7 +163,7 @@ class Capability(BaseEnum):
     GET_HW_CONFIGURATION = ProtocolEvent.GET_HW_CONFIGURATION
     GET_HEAD_CONFIGURATION = ProtocolEvent.GET_HEAD_CONFIGURATION
     START_MEASUREMENT_AT_SPECIFIC_TIME = ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME
-    START_MEASUREMENT_IMMEDIATELY = ProtocolEvent.START_MEASUREMENT_IMMEDIATELY
+    START_MEASUREMENT_IMMEDIATE = ProtocolEvent.START_MEASUREMENT_IMMEDIATE
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -510,7 +510,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_HW_CONFIGURATION, self._handler_command_get_hw_config)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_HEAD_CONFIGURATION, self._handler_command_get_head_config)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME, self._handler_command_start_measurement_specific_time)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_IMMEDIATELY, self._handler_command_start_measurement_immediate)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_IMMEDIATE, self._handler_command_start_measurement_immediate)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
@@ -880,7 +880,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         # Issue read clock command.
-        result = self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION, 
+        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_AT_SPECIFIC_TIME, 
                                    expected_prompt = InstrumentPrompts.Z_ACK)
 
         return (next_state, result)
@@ -892,7 +892,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         # Issue read clock command.
-        result = self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION, 
+        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_IMMEDIATE, 
                                    expected_prompt = InstrumentPrompts.Z_ACK)
 
         return (next_state, result)

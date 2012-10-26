@@ -224,6 +224,18 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         log.debug("read HEAD config returned: %s", response)
 
 
+    def test_instrument_start_measurement_immediate(self):
+        """
+        @brief Test for starting measurement immediate
+        """
+        self.put_driver_in_command_mode()
+        
+        # command the instrument to read the ID.
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_MEASUREMENT_IMMEDIATE)
+        
+        log.debug("read HW config returned: %s", response)
+
+
     def test_instrument_set(self):
         """
         @brief Test for setting instrument parameter
