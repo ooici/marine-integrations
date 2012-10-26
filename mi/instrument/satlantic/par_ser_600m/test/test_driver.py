@@ -652,7 +652,9 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         
         self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_POLL)        
         self.check_state(PARProtocolState.COMMAND)
-    
+
+
+
 
     @unittest.skip('Need to write this test')
     def test_reset(self):
@@ -688,53 +690,121 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.  
 
+    def assertSampleDataParticle(self, val):
+        """
+        Verify the value for a sbe37 sample data particle
 
-    @unittest.skip("skip for automatic tests")
-    def test_direct_access_telnet_mode_manually(self):
+        {
+          'quality_flag': 'ok',
+          'preferred_timestamp': 'driver_timestamp',
+          'stream_name': 'parsed',
+          'pkt_format_id': 'JSON_Data',
+          'pkt_version': 1,
+          'driver_timestamp': 3559843883.8029947,
+          'values': [
+            {'value_id': 'serial_num', 'value': '0226'},
+            {'value_id': 'timer', 'value': 7.17},
+            {'value_id': 'counts', 'value': 2157033280},
+            {'value_id': 'checksum', 'value': 27}
+          ],
+        }
+        """
+
+        if (isinstance(val, SatlanticPARDataParticle)):
+            sample_dict = json.loads(val.generate_parsed())
+        else:
+            sample_dict = val
+
+        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
+            DataParticleValue.PARSED)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
+            DataParticleValue.JSON_DATA)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
+            list))
+        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+        for x in sample_dict['values']:
+            self.assertTrue(x['value_id'] in ['serial_num', 'timer', 'counts', 'checksum'])
+            log.debug("ID: %s value: %s type: %s" % (x['value_id'], x['value'], type(x['value'])))
+            if(x['value_id'] == 'timer'):
+                self.assertTrue(isinstance(x['value'], float))
+            elif(x['value_id'] == 'serial_num'):
+                self.assertTrue(isinstance(x['value'], str))
+            elif(x['value_id'] == 'counts'):
+                self.assertTrue(isinstance(x['value'], int))
+            elif(x['value_id'] == 'checksum'):
+                self.assertTrue(isinstance(x['value'], int))
+            else:
+                # Shouldn't get here.  If we have then we aren't checking a parameter
+                self.assertFalse(True)
+
+    def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
+        self.assert_direct_access_telnet_init()
+        self.assertTrue(self.tcp_client)
 
+        self.tcp_client.send_data("\r\n")
+        self.tcp_client.expect("Invalid command")
+
+        self.assert_direct_access_telnet_exit()
+
+    def test_poll(self):
+        '''
+        No polling for a single sample
+        '''
+        self.assert_sample_polled(self.assertSampleDataParticle, DataParticleValue.PARSED)
+
+    def test_autosample(self):
+        '''
+        start and stop autosample and verify data particle
+        '''
+        self.assert_sample_autosample(self.assertSampleDataParticle,
+                                      DataParticleValue.PARSED)
+
+    def test_get_capabilities(self):
+        """
+        @brief Verify that the correct capabilities are returned from get_capabilities
+        at various driver/agent states.
+        """
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-    
-        with self.assertRaises(Conflict):
-            res_state = self.instrument_agent_client.get_resource_state()
-    
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        print("sent initialize; IA state = %s" %str(state))
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        res_state = self.instrument_agent_client.get_resource_state()
-        self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
-
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        print("sent go_active; IA state = %s" %str(state))
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        res_state = self.instrument_agent_client.get_resource_state()
-        self.assertEqual(res_state, DriverProtocolState.COMMAND)
-
         cmd = AgentCommand(command=ResourceAgentEvent.RUN)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        print("sent run; IA state = %s" %str(state))
-        self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        res_state = self.instrument_agent_client.get_resource_state()
-        self.assertEqual(res_state, DriverProtocolState.COMMAND)
+        agent_capabilities = []
+        unknown = []
+        driver_capabilities = []
+        driver_vars = []
+        retval = self.instrument_agent_client.get_capabilities()
+        for x in retval:
+            if x.cap_type == 1:
+                agent_capabilities.append(x.name)
+            elif x.cap_type == 2:
+                unknown.append(x.name)
+            elif x.cap_type == 3:
+                driver_capabilities.append(x.name)
+            elif x.cap_type == 4:
+                driver_vars.append(x.name)
+            else:
+                log.debug("*UNKNOWN* " + str(repr(x)))
 
-        # go direct access
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-                           kwargs={'session_type': DirectAccessTypes.telnet,
-                                   #kwargs={'session_type':DirectAccessTypes.vsp,
-                                   'session_timeout':600,
-                                   'inactivity_timeout':600})
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.warn("go_direct_access retval=" + str(retval.result))
-        
-        gevent.sleep(600)  # wait for manual telnet session to be run
+        log.debug("CAPABILITIES: %s" % str(agent_capabilities))
+        #--- Verify the following for ResourceAgentState.UNINITIALIZED
+        #self.assertEqual(agent_capabilities, ['RESOURCE_AGENT_EVENT_INITIALIZE'])
+        #self.assertEqual(unknown, ['example'])
+        #self.assertEqual(driver_capabilities, [])
+        #self.assertEqual(driver_vars, [])
+
+        #cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        #retval = self.instrument_agent_client.execute_agent(cmd)
+        #state = self.instrument_agent_client.get_agent_state()
+        #self.assertEqual(state, ResourceAgentState.INACTIVE)
+
