@@ -37,7 +37,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverEvent
-
+from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
@@ -1435,7 +1435,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         start_time = time.time()
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.TEST)
 
-        # Test the driver is in unknown state.
+        # Test the driver is in test state.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolState.TEST)
         
@@ -2006,7 +2006,67 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         
         gevent.sleep(600)  # wait for manual telnet session to be run
 
-    #@unittest.skip("Not working; not sure why...Agent007 could not publish data...")
+    def test_parameter_enum(self):
+        """
+        @ brief ProtocolState enum test
+
+            1. test that ProtocolState matches the expected enums from DriverProtocolState.
+            2. test that multiple distinct states do not resolve back to the same string.
+        """
+
+        self.assertEqual(Parameter.ALL, DriverParameter.ALL)
+
+        self.assertTrue(self.check_for_reused_values(DriverParameter))
+        self.assertTrue(self.check_for_reused_values(Parameter))
+
+
+    def test_protocol_event_enum(self):
+        """
+        @brief ProtocolState enum test
+
+            1. test that ProtocolState matches the expected enums from DriverProtocolState.
+            2. test that multiple distinct states do not resolve back to the same string.
+        """
+
+        self.assertEqual(ProtocolEvent.ENTER, DriverEvent.ENTER)
+        self.assertEqual(ProtocolEvent.EXIT, DriverEvent.EXIT)
+        self.assertEqual(ProtocolEvent.GET, DriverEvent.GET)
+        self.assertEqual(ProtocolEvent.SET, DriverEvent.SET)
+        self.assertEqual(ProtocolEvent.DISCOVER, DriverEvent.DISCOVER)
+        self.assertEqual(ProtocolEvent.ACQUIRE_SAMPLE, DriverEvent.ACQUIRE_SAMPLE)
+        self.assertEqual(ProtocolEvent.START_AUTOSAMPLE, DriverEvent.START_AUTOSAMPLE)
+        self.assertEqual(ProtocolEvent.STOP_AUTOSAMPLE, DriverEvent.STOP_AUTOSAMPLE)
+        self.assertEqual(ProtocolEvent.TEST, DriverEvent.TEST)
+        self.assertEqual(ProtocolEvent.RUN_TEST, DriverEvent.RUN_TEST)
+        self.assertEqual(ProtocolEvent.CALIBRATE, DriverEvent.CALIBRATE)
+        self.assertEqual(ProtocolEvent.EXECUTE_DIRECT, DriverEvent.EXECUTE_DIRECT)
+        self.assertEqual(ProtocolEvent.START_DIRECT, DriverEvent.START_DIRECT)
+        self.assertEqual(ProtocolEvent.STOP_DIRECT, DriverEvent.STOP_DIRECT)
+
+        self.assertTrue(self.check_for_reused_values(DriverEvent))
+        self.assertTrue(self.check_for_reused_values(ProtocolEvent))
+
+
+    def test_protocol_state_enum(self):
+        """
+        @ brief ProtocolState enum test
+
+            1. test that ProtocolState matches the expected enums from DriverProtocolState.
+            2. test that multiple distinct states do not resolve back to the same string.
+
+        """
+
+        self.assertEqual(ProtocolState.UNKNOWN, DriverProtocolState.UNKNOWN)
+        self.assertEqual(ProtocolState.COMMAND, DriverProtocolState.COMMAND)
+        self.assertEqual(ProtocolState.AUTOSAMPLE, DriverProtocolState.AUTOSAMPLE)
+        self.assertEqual(ProtocolState.TEST, DriverProtocolState.TEST)
+        self.assertEqual(ProtocolState.CALIBRATE, DriverProtocolState.CALIBRATE)
+        self.assertEqual(ProtocolState.DIRECT_ACCESS, DriverProtocolState.DIRECT_ACCESS)
+
+        self.assertTrue(self.check_for_reused_values(DriverProtocolState))
+        self.assertTrue(self.check_for_reused_values(ProtocolState))
+
+
     def test_autosample(self):
         """
         Test instrument driver execute interface to start and stop streaming
@@ -2078,7 +2138,7 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         self.doCleanups()
 
 
-    def test_poll(self):
+    def test_acquire_sample(self):
         """
         Test observatory polling function.
         """
@@ -2136,5 +2196,111 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
         self.doCleanups()
+
+
+    def test_execute_reset(self):
+        """
+        @brief Walk the driver into command mode and perform a reset
+        verifying it goes back to UNINITIALIZED, then walk it back to
+        COMMAND to test there are no glitches in RESET
+        """
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        # Test RESET
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+
+    @unittest.skip("Not working; not sure why...ServerError: 500 - 500 - gevent is only usable from a single thread...")
+    def test_execute_test(self):
+        """
+        Test the hardware testing mode.
+        """
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        #### From herehere down convert to agent-version
+        start_time = time.time()
+        #cmd = AgentCommand(command=ProtocolEvent.TEST)
+        cmd = AgentCommand(command=ResourceAgentEvent.TEST)
+
+        # Test the driver is in test state.
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.TEST)
+        
+        while state != ResourceAgentState.COMMAND:
+            gevent.sleep(5)
+            elapsed = time.time() - start_time
+            log.info('Device testing %f seconds elapsed.' % elapsed)
+            state = self.instrument_agent_client.get_agent_state()
+
+        """
+        # Verify we received the test result and it passed.
+        #test_results = [evt for evt in self.events if evt['type']==DriverAsyncEvent.TEST_RESULT]
+        test_results = [evt for evt in self.events if evt['type']==DriverAsyncEvent.RESULT]
+        self.assertTrue(len(test_results) == 1)
+        self.assertEqual(test_results[0]['value']['success'], 'Passed')
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        """
 
 
