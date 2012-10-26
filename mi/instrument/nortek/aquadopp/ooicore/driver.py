@@ -15,6 +15,7 @@ import time
 import string
 import re
 import copy
+import base64
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
@@ -42,6 +43,14 @@ NEWLINE = '\n\r'
 # default timeout.
 TIMEOUT = 10
 
+# set up configuration length and sync constants   
+USER_CONFIG_LEN = 512
+HW_CONFIG_LEN = 48
+HEAD_CONFIG_LEN = 224
+USER_SYNC_BYTES = '\xa5\x00\x00\x01'
+HW_SYNC_BYTES   = '\xa5\x05\x18\x00'
+HEAD_SYNC_BYTES = '\xa5\x04\x70\x00'
+
 # Packet config
 PACKET_CONFIG = {
     'parsed' : None,
@@ -66,10 +75,12 @@ class InstrumentCmds(BaseEnum):
     READ_REAL_TIME_CLOCK               = 'RC'        
     SET_REAL_TIME_CLOCK                = 'SC'
     CMD_WHAT_MODE                      = 'II'        # to determine the mode of the instrument
-    GET_USER_CONFIGURATION             = 'GC'
+    READ_USER_CONFIGURATION            = 'GC'
+    READ_HW_CONFIGURATION              = 'GP'
+    READ_HEAD_CONFIGURATION            = 'GH'
     POWER_DOWN                         = 'PD'     
     READ_BATTERY_VOLTAGE               = 'BV'
-    IDENTIFY                           = 'ID'
+    READ_ID                            = 'ID'
     START_MEASUREMENT_AT_SPECIFIC_TIME = 'SD'
     START_MEASUREMENT_WITH_RECORDER    = 'SR'
     CONFIRMATION                       = 'MC'        # confirm a break request
@@ -96,11 +107,23 @@ class ProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
+    
+class ExportedInstrumentCommand(BaseEnum):
+    READ_CLOCK = "EXPORTED_INSTRUMENT_CMD_READ_CLOCK"
+    READ_MODE = "EXPORTED_INSTRUMENT_CMD_READ_MODE"
+    POWER_DOWN = "EXPORTED_INSTRUMENT_CMD_POWER_DOWN"
+    READ_BATTERY_VOLTAGE = "EXPORTED_INSTRUMENT_CMD_READ_BATTERY_VOLTAGE"
+    READ_ID = "EXPORTED_INSTRUMENT_CMD_READ_ID"
+    GET_HW_CONFIGURATION = "EXPORTED_INSTRUMENT_CMD_GET_HW_CONFIGURATION"
+    GET_HEAD_CONFIGURATION = "EXPORTED_INSTRUMENT_CMD_GET_HEAD_CONFIGURATION"
+    START_MEASUREMENT_AT_SPECIFIC_TIME = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME"
+    START_MEASUREMENT_IMMEDIATELY = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATELY"
 
 class ProtocolEvent(BaseEnum):
     """
     Protocol events
     """
+    # common events from base class
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
     GET = DriverEvent.GET
@@ -111,6 +134,36 @@ class ProtocolEvent(BaseEnum):
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    
+    # instrument specific events
+    READ_CLOCK = ExportedInstrumentCommand.READ_CLOCK
+    READ_MODE = ExportedInstrumentCommand.READ_MODE
+    POWER_DOWN = ExportedInstrumentCommand.POWER_DOWN
+    READ_BATTERY_VOLTAGE = ExportedInstrumentCommand.READ_BATTERY_VOLTAGE
+    READ_ID = ExportedInstrumentCommand.READ_ID
+    GET_HW_CONFIGURATION = ExportedInstrumentCommand.GET_HW_CONFIGURATION
+    GET_HEAD_CONFIGURATION = ExportedInstrumentCommand.GET_HEAD_CONFIGURATION
+    START_MEASUREMENT_AT_SPECIFIC_TIME = ExportedInstrumentCommand.START_MEASUREMENT_AT_SPECIFIC_TIME
+    START_MEASUREMENT_IMMEDIATELY = ExportedInstrumentCommand.START_MEASUREMENT_IMMEDIATELY
+
+class Capability(BaseEnum):
+    """
+    Capabilities that are exposed to the user (subset of above)
+    """
+    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
+    START_DIRECT = ProtocolEvent.START_DIRECT
+    STOP_DIRECT = ProtocolEvent.STOP_DIRECT
+    EXECUTE_DIRECT = ProtocolEvent.EXECUTE_DIRECT
+    READ_CLOCK = ProtocolEvent.READ_CLOCK
+    READ_MODE = ProtocolEvent.READ_MODE
+    POWER_DOWN = ProtocolEvent.POWER_DOWN
+    READ_BATTERY_VOLTAGE = ProtocolEvent.READ_BATTERY_VOLTAGE
+    READ_ID = ProtocolEvent.READ_ID
+    GET_HW_CONFIGURATION = ProtocolEvent.GET_HW_CONFIGURATION
+    GET_HEAD_CONFIGURATION = ProtocolEvent.GET_HEAD_CONFIGURATION
+    START_MEASUREMENT_AT_SPECIFIC_TIME = ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME
+    START_MEASUREMENT_IMMEDIATELY = ProtocolEvent.START_MEASUREMENT_IMMEDIATELY
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -193,7 +246,7 @@ class Parameter(DriverParameter):
     TRANSMIT_PULSE_LENGTH_SECOND_LAG = 'TransmitPulseLengthSecondLag'
     USER_4_SPARE = 'User4Spare'
     QUAL_CONSTANTS = 'StageMatchFilterConstants'
-    
+                   
     
 class BinaryParameterDictVal(ParameterDictVal):
     
@@ -449,6 +502,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.READ_CLOCK, self._handler_command_read_clock)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.READ_MODE, self._handler_command_read_mode)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.POWER_DOWN, self._handler_command_power_down)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.READ_BATTERY_VOLTAGE, self._handler_command_read_battery_voltage)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.READ_ID, self._handler_command_read_id)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_HW_CONFIGURATION, self._handler_command_get_hw_config)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_HEAD_CONFIGURATION, self._handler_command_get_head_config)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME, self._handler_command_start_measurement_specific_time)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_IMMEDIATELY, self._handler_command_start_measurement_immediate)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
@@ -457,15 +519,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
 
-        # set up configuration indexing constants
-        # only user config returned for now
-        #self.HEAD_OFFSET = 48
-        #self.USER_OFFSET = self.HEAD_OFFSET + 224
-   
-        self.USER_OFFSET = 0
-        self.ACK_OFFSET = self.USER_OFFSET + 512
-        self.CONFIGURATION_RESPONSE_LENGTH = self.ACK_OFFSET + 2 
-               
+        # State state machine in UNKNOWN state.
+        self._protocol_fsm.start(ProtocolState.UNKNOWN)
+
+        self._add_response_handler(InstrumentCmds.READ_REAL_TIME_CLOCK, self._parse_read_clock_response)
+        self._add_response_handler(InstrumentCmds.CMD_WHAT_MODE, self._parse_what_mode_response)
+        self._add_response_handler(InstrumentCmds.READ_BATTERY_VOLTAGE, self._parse_read_battery_voltage_response)
+        self._add_response_handler(InstrumentCmds.READ_ID, self._parse_read_id)
+        self._add_response_handler(InstrumentCmds.READ_HW_CONFIGURATION, self._parse_read_hw_config)
+        self._add_response_handler(InstrumentCmds.READ_HEAD_CONFIGURATION, self._parse_read_head_config)
+
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
@@ -474,9 +537,11 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add sample handlers.
 
-        # State state machine in UNKNOWN state.
-        self._protocol_fsm.start(ProtocolState.UNKNOWN)
-
+    def _filter_capabilities(self, events):
+        """
+        """ 
+        events_out = [x for x in events if Capability.has(x)]
+        return events_out
 
     ########################################################################
     # overridden superclass methods
@@ -559,8 +624,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._promptbuf = ''
 
         # Send command.
-        log.debug('_do_cmd_resp: %s, timeout=%s, expected_prompt=%s (%s),' %
-                        (repr(cmd), timeout, expected_prompt, expected_prompt.encode("hex")))
+        log.debug('_do_cmd_resp: %s, timeout=%s, expected_prompt=%s (%s),' 
+                  % (repr(cmd), timeout, expected_prompt, expected_prompt.encode("hex")))
         self._connection.send(cmd)
 
         # Wait for the prompt, prepare result and return, timeout exception
@@ -623,6 +688,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         else:
             raise InstrumentStateException('Unknown state.')
 
+        log.debug('_handler_unknown_discover: state=%s', next_state)
         return (next_state, result)
 
     ########################################################################
@@ -720,6 +786,114 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         next_state = ProtocolState.DIRECT_ACCESS
+
+        return (next_state, result)
+
+    def _handler_command_read_clock(self):
+        """
+        """
+        next_state = None
+        result = None
+
+        # Issue read clock command.
+        result = self._do_cmd_resp(InstrumentCmds.READ_REAL_TIME_CLOCK, 
+                                   expected_prompt = InstrumentPrompts.Z_ACK)
+
+        return (next_state, result)
+
+    def _handler_command_read_mode(self):
+        """
+        """
+        next_state = None
+        result = None
+
+        # Issue read clock command.
+        result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE, 
+                                   expected_prompt = InstrumentPrompts.Z_ACK)
+
+        return (next_state, result)
+
+    def _handler_command_power_down(self):
+        """
+        """
+        next_state = None
+        result = None
+
+        # Issue read clock command.
+        result = self._do_cmd_resp(InstrumentCmds.POWER_DOWN, 
+                                   expected_prompt = InstrumentPrompts.Z_ACK)
+
+        return (next_state, result)
+
+    def _handler_command_read_battery_voltage(self):
+        """
+        """
+        next_state = None
+        result = None
+
+        # Issue read clock command.
+        result = self._do_cmd_resp(InstrumentCmds.READ_BATTERY_VOLTAGE, 
+                                   expected_prompt = InstrumentPrompts.Z_ACK)
+
+        return (next_state, result)
+
+    def _handler_command_read_id(self):
+        """
+        """
+        next_state = None
+        result = None
+
+        # Issue read clock command.
+        result = self._do_cmd_resp(InstrumentCmds.READ_ID, 
+                                   expected_prompt = InstrumentPrompts.Z_ACK)
+
+        return (next_state, result)
+
+    def _handler_command_get_hw_config(self):
+        """
+        """
+        next_state = None
+        result = None
+
+        # Issue read clock command.
+        result = self._do_cmd_resp(InstrumentCmds.READ_HW_CONFIGURATION, 
+                                   expected_prompt = InstrumentPrompts.Z_ACK)
+
+        return (next_state, result)
+
+    def _handler_command_get_head_config(self):
+        """
+        """
+        next_state = None
+        result = None
+
+        # Issue read clock command.
+        result = self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION, 
+                                   expected_prompt = InstrumentPrompts.Z_ACK)
+
+        return (next_state, result)
+
+    def _handler_command_start_measurement_specific_time(self):
+        """
+        """
+        next_state = None
+        result = None
+
+        # Issue read clock command.
+        result = self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION, 
+                                   expected_prompt = InstrumentPrompts.Z_ACK)
+
+        return (next_state, result)
+
+    def _handler_command_start_measurement_immediate(self):
+        """
+        """
+        next_state = None
+        result = None
+
+        # Issue read clock command.
+        result = self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION, 
+                                   expected_prompt = InstrumentPrompts.Z_ACK)
 
         return (next_state, result)
 
@@ -879,6 +1053,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add parameter handlers to parameter dict.
         
+        """
         self._param_dict.add(Parameter.REAL_TIME_CLOCK,
                              r'(.{6})',
                              lambda match : match.group(1),
@@ -897,7 +1072,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
                
-        """
         These are read only parameters and not processed for now
         # hardware config
         self._param_dict.add(Parameter.HW_SERIAL_NUMBER,
@@ -986,324 +1160,290 @@ class Protocol(CommandResponseInstrumentProtocol):
         
         # user config
         self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+4),
+                             r'^.{%s}(.{2}).*' % str(4),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.BLANKING_DISTANCE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+6),
+                             r'^.{%s}(.{2}).*' % str(6),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.RECEIVE_LENGTH,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+8),
+                             r'^.{%s}(.{2}).*' % str(8),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TIME_BETWEEN_PINGS,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+10),
+                             r'^.{%s}(.{2}).*' % str(10),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TIME_BETWEEN_BURST_SEQUENCES,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+12),
+                             r'^.{%s}(.{2}).*' % str(12),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMMBER_PINGS,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+14),
+                             r'^.{%s}(.{2}).*' % str(14),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.AVG_INTERVAL,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+16),
+                             r'^.{%s}(.{2}).*' % str(16),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.USER_NUMBER_BEAMS,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+18),
+                             r'^.{%s}(.{2}).*' % str(18),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TIMING_CONTROL_REGISTER,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+20),
+                             r'^.{%s}(.{2}).*' % str(20),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.POWER_CONTROL_REGISTER,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+22),
+                             r'^.{%s}(.{2}).*' % str(22),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.A1_1_SPARE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+24),
+                             r'^.{%s}(.{2}).*' % str(24),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.B0_1_SPARE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+26),
+                             r'^.{%s}(.{2}).*' % str(26),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.B1_1_SPARE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+28),
+                             r'^.{%s}(.{2}).*' % str(28),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.COMPASS_UPDATE_RATE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+30),
+                             r'^.{%s}(.{2}).*' % str(30),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.COORDINATE_SYSTEM,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+32),
+                             r'^.{%s}(.{2}).*' % str(32),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.NUMBER_BINS,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+34),
+                             r'^.{%s}(.{2}).*' % str(34),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.BIN_LENGTH,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+36),
+                             r'^.{%s}(.{2}).*' % str(36),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.MEASUREMENT_INTERVAL,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+38),
+                             r'^.{%s}(.{2}).*' % str(38),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.DEPLOYMENT_NAME,
-                             r'^.{%s}(.{6}).*' % str(self.USER_OFFSET+40),
+                             r'^.{%s}(.{6}).*' % str(40),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WRAP_MODE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+46),
+                             r'^.{%s}(.{2}).*' % str(46),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.CLOCK_DEPLOY,
-                             r'^.{%s}(.{6}).*' % str(self.USER_OFFSET+48),
+                             r'^.{%s}(.{6}).*' % str(48),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.DIAGNOSTIC_INTERVAL,
-                             r'^.{%s}(.{4}).*' % str(self.USER_OFFSET+54),
+                             r'^.{%s}(.{4}).*' % str(54),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.MODE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+58),
+                             r'^.{%s}(.{2}).*' % str(58),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ADJUSTMENT_SOUND_SPEED,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+60),
+                             r'^.{%s}(.{2}).*' % str(60),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+62),
+                             r'^.{%s}(.{2}).*' % str(62),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+64),
+                             r'^.{%s}(.{2}).*' % str(64),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMBER_PINGS_DIAGNOSTIC,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+66),
+                             r'^.{%s}(.{2}).*' % str(66),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.MODE_TEST,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+68),
+                             r'^.{%s}(.{2}).*' % str(68),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ANALOG_INPUT_ADDR,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+70),
+                             r'^.{%s}(.{2}).*' % str(70),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.SW_VERSION,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+72),
+                             r'^.{%s}(.{2}).*' % str(72),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.USER_1_SPARE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+74),
+                             r'^.{%s}(.{2}).*' % str(74),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.VELOCITY_ADJ_TABLE,
-                             r'^.{%s}(.{180}).*' % str(self.USER_OFFSET+76),
+                             r'^.{%s}(.{180}).*' % str(76),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.COMMENTS,
-                             r'^.{%s}(.{180}).*' % str(self.USER_OFFSET+256),
+                             r'^.{%s}(.{180}).*' % str(256),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_MEASUREMENT_MODE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+436),
+                             r'^.{%s}(.{2}).*' % str(436),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.DYN_PERCENTAGE_POSITION,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+438),
+                             r'^.{%s}(.{2}).*' % str(438),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_TRANSMIT_PULSE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+440),
+                             r'^.{%s}(.{2}).*' % str(440),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_BLANKING_DISTANCE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+442),
+                             r'^.{%s}(.{2}).*' % str(442),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_CELL_SIZE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+444),
+                             r'^.{%s}(.{2}).*' % str(444),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMBER_DIAG_SAMPLES,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+446),
+                             r'^.{%s}(.{2}).*' % str(446),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.A1_2_SPARE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+448),
+                             r'^.{%s}(.{2}).*' % str(448),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.B0_2_SPARE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+450),
+                             r'^.{%s}(.{2}).*' % str(450),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.B1_2_SPARE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+452),
+                             r'^.{%s}(.{2}).*' % str(452),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.USER_2_SPARE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+454),
+                             r'^.{%s}(.{2}).*' % str(454),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ANALOG_OUTPUT_SCALE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+456),
+                             r'^.{%s}(.{2}).*' % str(456),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.COORELATION_THRESHOLD,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+458),
+                             r'^.{%s}(.{2}).*' % str(458),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.USER_3_SPARE,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+460),
+                             r'^.{%s}(.{2}).*' % str(460),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
-                             r'^.{%s}(.{2}).*' % str(self.USER_OFFSET+462),
+                             r'^.{%s}(.{2}).*' % str(462),
                              lambda match : self._convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.USER_4_SPARE,
-                             r'^.{%s}(.{30}).*' % str(self.USER_OFFSET+464),
+                             r'^.{%s}(.{30}).*' % str(464),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.QUAL_CONSTANTS,
-                             r'^.{%s}(.{16}).*' % str(self.USER_OFFSET+494),
+                             r'^.{%s}(.{16}).*' % str(494),
                              lambda match : match.group(1),
                              lambda string : string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         
-    def _dump_user_config(self, input):
-        # dump user section
+    def _dump_config(self, input):
+        # dump config block
+        dump = ''
         for byte_index in range(0, len(input)):
             if byte_index % 0x10 == 0:
-                print('\n%03x  ' % byte_index),
-            print('%02x ' % ord(input[byte_index])),
-        print('')
+                if byte_index != 0:
+                    dump += '\n'   # no linefeed on first line
+                dump += '{:03x}  '.format(byte_index)
+            dump += '{:02x} '.format(ord(input[byte_index]))
+        #log.debug("dump = %s", dump)
+        return dump
     
-    def _check_configuration(self, input):
-        HW_SYNC_BYTES = '\xa5\x05\x18\x00'
-        HD_SYNC_BYTES = '\xa5\x04\x70\x00'
-        USER_SYNC_BYTES = '\xa5\x00\x00\x01'
+    def _check_configuration(self, input, sync, length):        
+        log.debug('_check_configuration: config=')
+        print self._dump_config(input[0:length-2])
+        if len(input) != length+2:
+            log.debug('_check_configuration: wrong length, expected length %d != %d' %(length+2, len(input)))
+            return False
         
-        log.debug('_check_configuration: user config=\n')
-        self._dump_user_config(input[self.USER_OFFSET:self.ACK_OFFSET])
         # check for ACK bytes
-        if input[self.ACK_OFFSET:self.ACK_OFFSET+2] != InstrumentPrompts.Z_ACK:
+        if input[length:length+2] != InstrumentPrompts.Z_ACK:
             log.debug('_check_configuration: ACK bytes in error %s != %s' 
-                      %(input[self.ACK_OFFSET:self.ACK_OFFSET+2].encode('hex'), InstrumentPrompts.Z_ACK.encode('hex')))
+                      %(input[length:length+2].encode('hex'), InstrumentPrompts.Z_ACK.encode('hex')))
             return False
         
-        # check the sync bytes for each of the configuration groups
-        """
-        if input[0:4] != HW_SYNC_BYTES:
-            log.debug('_check_configuration: hardware sync bytes in error %s!=%s' 
-                      %(input[0:3], HW_SYNC_BYTES))
+        # check the sync bytes 
+        if input[0:4] != sync:
+            log.debug('_check_configuration: sync bytes in error %s != %s' 
+                      %(input[0:4], sync))
             return False
-        if input[self.HEAD_OFFSET:self.HEAD_OFFSET+4] != HD_SYNC_BYTES:
-            log.debug('_check_configuration: head sync bytes in error %s != %s' 
-                      %(input[self.HEAD_OFFSET:self.HEAD_OFFSET+4], HD_SYNC_BYTES))
-            return False
-        """
-        if input[self.USER_OFFSET:self.USER_OFFSET+4] != USER_SYNC_BYTES:
-            log.debug('_check_configuration: hardware sync bytes in error %s != %s' 
-                      %(input[self.USER_OFFSET:self.USER_OFFSET+4], USER_SYNC_BYTES))
-            return False
-        
-        # check checksum bytes
-        
-        # check hardware checksum
-        """
-        calculated_checksum = self.CHECK_SUM_SEED
-        for word_index in range(0, self.HEAD_OFFSET-2, 2):
-            word_value = self._convert_word_to_int(input[word_index:word_index+2])
-            calculated_checksum = (calculated_checksum + word_value) % 0x10000
-            #log.debug('w_i=%d, c_c=%d' %(word_index, calculated_checksum))
-        sent_checksum = self._convert_word_to_int(input[self.HEAD_OFFSET-2:self.HEAD_OFFSET])
-        if sent_checksum != calculated_checksum:
-            log.debug('_check_configuration: hardware checksum in error %s != %s' 
-                      %(calculated_checksum, sent_checksum))
-            return False        
-        
-        # check head checksum
-        calculated_checksum = self.CHECK_SUM_SEED
-        for word_index in range(self.HEAD_OFFSET, self.USER_OFFSET-2, 2):
-            word_value = self._convert_word_to_int(input[word_index:word_index+2])
-            calculated_checksum = (calculated_checksum + word_value) % 0x10000
-            #log.debug('w_i=%d, c_c=%d' %(word_index, calculated_checksum))
-        sent_checksum = self._convert_word_to_int(input[self.USER_OFFSET-2:self.USER_OFFSET])
-        if sent_checksum != calculated_checksum:
-            log.debug('_check_configuration: head checksum in error %s != %s' 
-                      %(calculated_checksum, sent_checksum))
-            return False        
-        """
         
         # check user checksum
         calculated_checksum = self.CHECK_SUM_SEED
-        for word_index in range(self.USER_OFFSET, self.ACK_OFFSET-2, 2):
+        for word_index in range(0, length-2, 2):
             word_value = self._convert_word_to_int(input[word_index:word_index+2])
             calculated_checksum = (calculated_checksum + word_value) % 0x10000
             #log.debug('w_i=%d, c_c=%d' %(word_index, calculated_checksum))
         log.debug('_check_configuration: user c_c = %s' % calculated_checksum)
-        sent_checksum = self._convert_word_to_int(input[self.ACK_OFFSET-2:self.ACK_OFFSET])
+        sent_checksum = self._convert_word_to_int(input[length-2:length])
         if sent_checksum != calculated_checksum:
             log.debug('_check_configuration: user checksum in error %s != %s' 
                       %(calculated_checksum, sent_checksum))
@@ -1325,6 +1465,34 @@ class Protocol(CommandResponseInstrumentProtocol):
         old_config = self._param_dict.get_config()
         
         # get the RTC from the instrument
+        starttime = time.time()
+        timeout = 2
+
+        """
+        while True:
+            # Clear the prompt buffer.
+            self._promptbuf = ''
+
+            TO DO: rewrite this to read the clock
+            log.debug('Sending get_user_configuration command to the instrument.')
+            # Send get_user_cofig command to attempt to get user configuration.
+            self._connection.send(InstrumentCmds.GET_USER_CONFIGURATION)
+            for i in range(20):   # loop for 2 seconds waiting for response to complete
+                if len(self._promptbuf) == self.CONFIGURATION_RESPONSE_LENGTH:
+                    if self._check_configuration(self._promptbuf):                    
+                        self._param_dict.update(self._promptbuf)
+                        # Get new param dict config. If it differs from the old config,
+                        # tell driver superclass to publish a config change event.
+                        return
+                    break
+                time.sleep(.1)
+            log.debug('_update_params: get_user_configuration command response not right length %d, %s' % (len(self._promptbuf), self._promptbuf.encode("hex")))
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException()
+            
+            continue
+            """
         
         # get the battery voltage from the instrument
         
@@ -1341,10 +1509,10 @@ class Protocol(CommandResponseInstrumentProtocol):
 
             log.debug('Sending get_user_configuration command to the instrument.')
             # Send get_user_cofig command to attempt to get user configuration.
-            self._connection.send(InstrumentCmds.GET_USER_CONFIGURATION)
+            self._connection.send(InstrumentCmds.READ_USER_CONFIGURATION)
             for i in range(20):   # loop for 2 seconds waiting for response to complete
-                if len(self._promptbuf) == self.CONFIGURATION_RESPONSE_LENGTH:
-                    if self._check_configuration(self._promptbuf):                    
+                if len(self._promptbuf) == USER_CONFIG_LEN+2:
+                    if self._check_configuration(self._promptbuf, USER_SYNC_BYTES, USER_CONFIG_LEN):                    
                         self._param_dict.update(self._promptbuf)
                         # Get new param dict config. If it differs from the old config,
                         # tell driver superclass to publish a config change event.
@@ -1418,3 +1586,114 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._dump_user_config(output)                      
         
         return output
+    
+    def _parse_read_clock_response(self, response, prompt):
+        """ Parse the response from the instrument for a read clock command.
+        
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        # packed BCD format, so convert binary to hex to get value
+        # should be the 6 byte response ending with two ACKs
+        if (len(response) != 8):
+            log.warn("_parse_read_clock_response: Bad read clock response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read clock response. (%s)", response.encode('hex'))
+        log.debug("_parse_read_clock_response: response=%s", response.encode('hex')) 
+        time = str(response[2].encode('hex'))  # get day
+        time += '/' + str(response[5].encode('hex'))  # get month   
+        time += '/20' + str(response[4].encode('hex'))  # get year   
+        time += ' ' + str(response[3].encode('hex'))  # get hours   
+        time += ':' + str(response[0].encode('hex'))  # get minutes   
+        time += ':' + str(response[1].encode('hex'))  # get seconds   
+        return time
+
+    def _parse_what_mode_response(self, response, prompt):
+        """ Parse the response from the instrument for a 'what mode' command.
+        
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if (len(response) != 4):
+            log.warn("_parse_what_mode_response: Bad what mode response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid what mode response. (%s)", response.encode('hex'))
+        log.debug("_parse_what_mode_response: response=%s", response.encode('hex')) 
+        return self._convert_word_to_int(response[0:2])
+        
+
+    def _parse_read_battery_voltage_response(self, response, prompt):
+        """ Parse the response from the instrument for a read battery voltage command.
+        
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if (len(response) != 4):
+            log.warn("_parse_read_battery_voltage_response: Bad read battery voltage response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read battery voltage response. (%s)", response.encode('hex'))
+        log.debug("_parse_read_battery_voltage_response: response=%s", response.encode('hex')) 
+        return self._convert_word_to_int(response[0:2])
+        
+    def _parse_read_id(self, response, prompt):
+        """ Parse the response from the instrument for a read ID command.
+        
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if (len(response) != 16):
+            log.warn("_handler_command_read_id: Bad read ID response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read ID response. (%s)", response.encode('hex'))
+        log.debug("_handler_command_read_id: response=%s", response.encode('hex')) 
+        return response[0:14]
+        
+    def _parse_read_hw_config(self, response, prompt):
+        """ Parse the response from the instrument for a read hw config command.
+        
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if not self._check_configuration(self._promptbuf, HW_SYNC_BYTES, HW_CONFIG_LEN):                    
+            log.warn("_parse_read_hw_config: Bad read hw response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read hw response. (%s)", response.encode('hex'))
+        log.debug("_parse_read_hw_config: response=%s", response.encode('hex'))
+        parsed = {} 
+        parsed['SerialNo'] = response[4:18]  
+        parsed['Config'] = self._convert_word_to_int(response[18:20])  
+        parsed['Frequency'] = self._convert_word_to_int(response[20:22])  
+        parsed['PICversion'] = self._convert_word_to_int(response[22:24])  
+        parsed['HWrevision'] = self._convert_word_to_int(response[24:26])  
+        parsed['RecSize'] = self._convert_word_to_int(response[26:28])  
+        parsed['Status'] = self._convert_word_to_int(response[28:30])  
+        parsed['FWversion'] = response[42:46] 
+        return parsed
+        
+    def _parse_read_head_config(self, response, prompt):
+        """ Parse the response from the instrument for a read head command.
+        
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if not self._check_configuration(self._promptbuf, HEAD_SYNC_BYTES, HEAD_CONFIG_LEN):                    
+            log.warn("_parse_read_head_config: Bad read head response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read head response. (%s)", response.encode('hex'))
+        log.debug("_parse_read_head_config: response=%s", response.encode('hex')) 
+        parsed = {} 
+        parsed['Config'] = self._convert_word_to_int(response[4:6])  
+        parsed['Frequency'] = self._convert_word_to_int(response[6:8])  
+        parsed['Type'] = self._convert_word_to_int(response[8:10])  
+        parsed['SerialNo'] = response[10:22]  
+        #parsed['System'] = self._dump_config(response[22:198])
+        parsed['System'] = base64.b64encode(response[22:198])
+        parsed['NBeams'] = self._convert_word_to_int(response[220:222])  
+        return parsed
+                    
