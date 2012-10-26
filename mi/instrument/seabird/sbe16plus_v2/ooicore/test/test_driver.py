@@ -2278,6 +2278,7 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         start_time = time.time()
         #cmd = AgentCommand(command=ProtocolEvent.TEST)
         cmd = AgentCommand(command=ResourceAgentEvent.TEST)
+        retval = self.instrument_agent_client.execute_resource(cmd)
 
         # Test the driver is in test state.
         state = self.instrument_agent_client.get_agent_state()
