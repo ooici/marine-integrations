@@ -343,15 +343,6 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(Command.TT, self._parse_test_response)
         self._add_response_handler(Command.TP, self._parse_test_response)
 
-        # Add sample handlers.
-        # DHE: replaced the pattern because our borrowed SBE16 doesn't have a pressure sensor 
-        #self._sample_pattern = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'
-        self._sample_pattern = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+) *'
-        self._sample_pattern += r'(, *(-?\d+\.\d+))?(, *(-?\d+\.\d+))?'
-        self._sample_pattern += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'
-        self._sample_pattern += r'(, *(\d+)-(\d+)-(\d+), *(\d+):(\d+):(\d+))?'        
-        self._sample_regex = re.compile(self._sample_pattern)
-
         # State state machine in UNKNOWN state. 
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
