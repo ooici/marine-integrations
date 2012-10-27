@@ -692,7 +692,7 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
 
     def assertSampleDataParticle(self, val):
         """
-        Verify the value for a sbe37 sample data particle
+        Verify the value for a par sample data particle
 
         {
           'quality_flag': 'ok',
