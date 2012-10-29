@@ -332,6 +332,52 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
                 log.error(str(obj) + " has ambigous duplicate values for '" + str(k) + "'")
                 self.assertEqual(1, occurances[k])
 
+    def assert_chunker_sample(self, chunker, sample):
+        '''
+        Verify the chunker can parse a sample that comes in a single string
+        @param chunker: Chunker to use to do the parsing
+        @param sample: raw sample
+        '''
+        chunker.add_chunk(sample)
+        result = chunker.get_next_data()
+        self.assertEqual(result, sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, None)
+
+
+    def assert_chunker_fragmented_sample(self, chunker, sample):
+        '''
+        Verify the chunker can parse a sample that comes in fragmented
+        @param chunker: Chunker to use to do the parsing
+        @param sample: raw sample
+        '''
+        for c in sample:
+            chunker.add_chunk(c)
+            result = chunker.get_next_data()
+            if(result): break
+
+        self.assertEqual(result, sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, None)
+
+    def assert_chunker_combined_sample(self, chunker, sample):
+        '''
+        Verify the chunker can parse a sample that comes in combined
+        @param chunker: Chunker to use to do the parsing
+        @param sample: raw sample
+        '''
+        chunker.add_chunk(sample + sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, None)
 
 class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     """
@@ -500,23 +546,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.data_subscribers.start_data_subscribers()
         self.addCleanup(self.data_subscribers.stop_data_subscribers)
 
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.assert_enter_command_mode()
 
         ###
         # Poll for a few samples
@@ -549,10 +579,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         sampleDataAssert(self, samples.pop())
         sampleDataAssert(self, samples.pop())
 
-        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+        self.assert_reset()
 
         self.doCleanups()
 
@@ -569,26 +596,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.data_subscribers.start_data_subscribers()
         self.addCleanup(self.data_subscribers.stop_data_subscribers)
 
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.assert_enter_command_mode()
 
         self.data_subscribers.clear_sample_queue(sampleQueue)
 
@@ -622,18 +630,62 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
+        self.assert_reset()
+
+        self.doCleanups()
+
+    def assert_reset(self):
+        '''
+        Exist active state
+        '''
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-        self.doCleanups()
+    def assert_get_parameter(self, name, value):
+        '''
+        verify that parameters are got correctly.  Assumes we are in command mode.
+        '''
+        getParams = [ name ]
 
-    def assert_direct_access_start_telnet(self, timeout = 600):
-        """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
-        """
+        result = self.instrument_agent_client.get_resource(getParams)
+
+        self.assertEqual(result[name], value)
+
+    def assert_set_parameter(self, name, value):
+        '''
+        verify that parameters are set correctly.  Assumes we are in command mode.
+        '''
+        setParams = { name : value }
+        getParams = [ name ]
+
+        self.instrument_agent_client.set_resource(setParams)
+        result = self.instrument_agent_client.get_resource(getParams)
+
+        self.assertEqual(result[name], value)
+
+    def assert_read_only_parameter(self, name, value):
+        '''
+        verify that parameters are read only.  Ensure an exception is thrown
+        when set is called and that the value returned is the same as the
+        passed in value.
+        '''
+        setParams = { name : value }
+        getParams = [ name ]
+
+        # Call set, but verify the command failed.
+        #self.instrument_agent_client.set_resource(setParams)
+
+        # Call get and verify the value is correct.
+        #result = self.instrument_agent_client.get_resource(getParams)
+        #self.assertEqual(result[name], value)
+
+    def assert_enter_command_mode(self):
+        '''
+        Walk through IA states to get to command mode from uninitialized
+        '''
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
@@ -643,7 +695,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
-        print("sent initialize; IA state = %s" %str(state))
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         res_state = self.instrument_agent_client.get_resource_state()
@@ -652,7 +703,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
-        print("sent go_active; IA state = %s" %str(state))
         self.assertEqual(state, ResourceAgentState.IDLE)
 
         res_state = self.instrument_agent_client.get_resource_state()
@@ -661,11 +711,16 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         cmd = AgentCommand(command=ResourceAgentEvent.RUN)
         retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
-        print("sent run; IA state = %s" %str(state))
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, DriverProtocolState.COMMAND)
+
+    def assert_direct_access_start_telnet(self, timeout = 600):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+        self.assert_enter_command_mode()
 
         # go direct access
         cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,

@@ -35,6 +35,8 @@ from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentDataException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.chunker import StringChunker
 
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 
@@ -43,9 +45,9 @@ from mi.core.instrument.data_particle import DataParticle, DataParticleKey, Data
 ####################################################################
 
 # ex SATPAR0229,10.01,2206748544,234
-SAMPLE_PATTERN = r'SATPAR(?P<sernum>\d{4}),(?P<timer>\d{1,7}.\d\d),(?P<counts>\d{10}),(?P<checksum>\d{1,3})'
+SAMPLE_PATTERN = r'SATPAR(?P<sernum>\d{4}),(?P<timer>\d{1,7}.\d\d),(?P<counts>\d{10}),(?P<checksum>\d{1,3})\r\n'
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
-HEADER_PATTERN = r'Satlantic PAR Sensor\r\nCommand Console\r\nType \'help\' for a list of available commands.\r\nS/N: \d*\r\nFirmware: .*\r\n\r\n'
+HEADER_PATTERN = r'Satlantic Digital PAR Sensor\r\nCopyright \(C\) 2003, Satlantic Inc. All rights reserved.\r\nInstrument: (.*)\r\nS/N: (.*)\r\nFirmware: (.*)\r\n'
 HEADER_REGEX = re.compile(HEADER_PATTERN)
 init_pattern = r'Press <Ctrl\+C> for command console. \r\nInitializing system. Please wait...\r\n'
 init_regex = re.compile(init_pattern)
@@ -125,7 +127,10 @@ class PARCapability(BaseEnum):
 
 class Parameter(BaseEnum):
     MAXRATE = 'maxrate'
-    
+    FIRMWARE = 'firmware'
+    SERIAL = 'serial'
+    INSTRUMENT = 'instrument'
+
 class Prompt(BaseEnum):
     """
     Command Prompt
@@ -234,6 +239,9 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self.write_delay = WRITE_DELAY
         self._last_data_timestamp = None
         self.eoln = EOLN
+        self._firmware = None
+        self._serial = None
+        self._instrument = None
         
         self._protocol_fsm = InstrumentFSM(PARProtocolState, PARProtocolEvent, PARProtocolEvent.ENTER, PARProtocolEvent.EXIT)
         
@@ -287,16 +295,47 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'Maximum Frame Rate:\s+(\d+) Hz',
                              lambda match : int(match.group(1)),
                              self._int_to_string)
-    
+
+        self._param_dict.add(Parameter.INSTRUMENT, HEADER_PATTERN,
+            lambda match : match.group(1), str,
+            visibility=ParameterDictVisibility.READ_ONLY)
+
+        self._param_dict.add(Parameter.SERIAL, HEADER_PATTERN,
+                             lambda match : match.group(2), str,
+                             visibility=ParameterDictVisibility.READ_ONLY)
+
+        self._param_dict.add(Parameter.FIRMWARE, HEADER_PATTERN,
+                             lambda match : match.group(3), str,
+                             visibility=ParameterDictVisibility.READ_ONLY)
+
+        self._chunker = StringChunker(SatlanticPARInstrumentProtocol.sieve_function)
+
+    @staticmethod
+    def sieve_function(raw_data):
+        """ The method that splits samples
+        """
+        patterns = []
+        matchers = []
+        return_list = []
+
+        patterns.append((SAMPLE_PATTERN, re.MULTILINE|re.DOTALL))
+        patterns.append((HEADER_PATTERN, re.MULTILINE|re.DOTALL))
+
+        for pattern, flags in patterns:
+            matchers.append(re.compile(pattern, flags))
+
+        for matcher in matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
+
+        return return_list
+
+
     def _filter_capabilities(self, events):
         """
         """ 
         events_out = [x for x in events if PARCapability.has(x)]
         return events_out
-
-    def execute_foo(self):
-        """Test command"""
-        pass
 
     def get_config(self, *args, **kwargs):
         """ Get the entire configuration for the instrument
@@ -374,6 +413,9 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
+        self._do_cmd_no_resp(Command.EXIT_AND_RESET, None, write_delay=self.write_delay)
+        time.sleep(RESET_DELAY)
+
         # Break to command mode, then set next state to command mode
         # If we are doing this, we must be connected
         self._send_break()
@@ -411,7 +453,9 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
         result_vals = {}
-        
+
+        # All parameters that can be set by the instrument.  Explicitly
+        # excludes parameters from the instrument header.
         if (params == DriverParameter.ALL):
             params = [Parameter.MAXRATE]
 
@@ -421,23 +465,57 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         for param in params:
             if not Parameter.has(param):
                 raise InstrumentParameterException()
-            for attempt in range(RETRY):
-                # retry up to RETRY times
-                try:
-                    result_vals[param] = self._do_cmd_resp(Command.GET, param,
-                                                           expected_prompt=Prompt.COMMAND,
-                                                           write_delay=self.write_delay)
-                    break  # GET worked, so exit inner for loop
-                except InstrumentProtocolException as ex:
-                    pass   # GET failed, so retry again
+
+            if(param == Parameter.MAXRATE):
+                result_vals[param] = self._get_from_instrument(param)
             else:
-                # retries exhausted, so raise exception
-                raise ex
-                
+                result_vals[param] = self._get_from_cache(param)
+
         result = result_vals
             
         log.debug("Get finished, next: %s, result: %s", next_state, result) 
         return (next_state, result)
+
+    def _get_from_cache(self, param):
+        '''
+        Parameters read from the instrument header generated are cached in the
+        protocol.  These currently are firmware, serial number, and instrument
+        type. Currently I assume that the header has already been displayed
+        by the instrument already.  If we can't live with that assumption
+        we should augment this method.
+        @param param: name of the parameter.  None if value not cached.
+        @return: Stored value
+        '''
+
+        if(param == Parameter.FIRMWARE):
+            val = self._firmware
+        elif(param == Parameter.SERIAL):
+            val = self._serial
+        elif(param == Parameter.INSTRUMENT):
+            val = self._instrument
+
+        return val
+
+
+    def _get_from_instrument(self, param):
+        '''
+        instruct the instrument to get a parameter value from the instrument
+        @param param: name of the parameter
+        @return: value read from the instrument.  None otherwise.
+        @raise: InstrumentProtocolException when fail to get a response from the instrument
+        '''
+        for attempt in range(RETRY):
+            # retry up to RETRY times
+            try:
+                val = self._do_cmd_resp(Command.GET, param,
+                    expected_prompt=Prompt.COMMAND,
+                    write_delay=self.write_delay)
+                return val
+            except InstrumentProtocolException as ex:
+                pass   # GET failed, so retry again
+        else:
+            # retries exhausted, so raise exception
+            raise ex
 
     def _handler_command_set(self, params, *args, **kwargs):
         """Handle setting data from command mode
@@ -1043,7 +1121,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         # but not too fast
         if self._protocol_fsm.get_current_state() == PARProtocolState.COMMAND:
             return
-        
+
         # TODO: infinite loop bad idea
         while True:
             self._do_cmd_no_resp(Command.BREAK, timeout=timeout,
@@ -1072,23 +1150,27 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         
         if paLength > 0:
             CommandResponseInstrumentProtocol.got_data(self, paData)
-            
-            # If we are streaming, process the line buffer for samples, but it
-            # could have header stuff come out if you just got a break!
-            if (self._protocol_fsm.get_current_state() == PARProtocolState.AUTOSAMPLE or
-                self._protocol_fsm.get_current_state() == PARProtocolState.POLL):
-                if self.eoln in self._linebuf:
-                    lines = self._linebuf.split(self.eoln)
-                    for line in lines:
-                        if SAMPLE_REGEX.match(line):
-                            self._last_data_timestamp = time.time()
-                            
-                            # construct and publish data particles
-                            self._extract_sample(SatlanticPARDataParticle,
-                                                 SAMPLE_REGEX,
-                                                 line)                            
-                            
-                            self._linebuf = self._linebuf.replace(line+self.eoln, "") # been processed
+            self._chunker.add_chunk(paData)
+
+            chunk = self._chunker.get_next_data()
+            while(chunk):
+                self._extract_sample(SatlanticPARDataParticle, SAMPLE_REGEX, chunk)
+                self._extract_header(chunk)
+                chunk = self._chunker.get_next_data()
+
+    def _extract_header(self, chunk):
+        '''
+        Extract key parameters from the instrument header streamed on reset.  This method
+        caches the values internally in the protocol and return with get_resource calls.
+        @param chunk: header bytes from the instrument.
+        @return:
+        '''
+        match = HEADER_REGEX.match(chunk)
+        if match:
+            self._instrument = match.group(1)
+            self._serial = match.group(2)
+            self._firmware = match.group(3)
+
 
     def _confirm_autosample_mode(self):
         """Confirm we are in autosample mode
