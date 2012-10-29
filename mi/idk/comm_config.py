@@ -77,9 +77,13 @@ class CommConfig(object):
         @brief get a dictionary of configuration parameters.  This method should be sub classed to extend config
         @retval dictionary containing all config parameters.
         """
+        
+        if(self.data_port): self.data_port = int(self.data_port)
+        if(self.command_port): self.command_port = int(self.command_port)
+
         return { 'method': self.method(),
-                 'data_port': int(self.data_port),
-                 'command_port': int(self.command_port) }
+                 'data_port': self.data_port,
+                 'command_port': self.command_port }
 
 
     ###

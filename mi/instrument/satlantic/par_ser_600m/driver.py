@@ -162,7 +162,7 @@ class SatlanticPARInstrumentDriver(SingleConnectionInstrumentDriver):
     def _build_protocol(self):
         """ Construct driver protocol state machine """
         self._protocol = SatlanticPARInstrumentProtocol(self._driver_event)
-        
+
 class SatlanticPARDataParticleKey(BaseEnum):
     SERIAL_NUM = "serial_num"
     COUNTS = "counts"
@@ -243,6 +243,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.ACQUIRE_SAMPLE, self._handler_poll_acquire_sample)
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.START_POLL, self._handler_command_start_poll)
         self._protocol_fsm.add_handler(PARProtocolState.COMMAND, PARProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(PARProtocolState.AUTOSAMPLE, PARProtocolEvent.ENTER, self._handler_autosample_enter)
@@ -252,7 +253,6 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(PARProtocolState.POLL, PARProtocolEvent.ENTER, self._handler_poll_enter)
         self._protocol_fsm.add_handler(PARProtocolState.POLL, PARProtocolEvent.START_AUTOSAMPLE, self._handler_poll_start_autosample)
         self._protocol_fsm.add_handler(PARProtocolState.POLL, PARProtocolEvent.STOP_POLL, self._handler_poll_stop_poll)
-        self._protocol_fsm.add_handler(PARProtocolState.POLL, PARProtocolEvent.ACQUIRE_SAMPLE, self._handler_poll_acquire_sample)
         self._protocol_fsm.add_handler(PARProtocolState.POLL, PARProtocolEvent.RESET, self._handler_poll_reset)
         self._protocol_fsm.add_handler(PARProtocolState.DIRECT_ACCESS, PARProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(PARProtocolState.DIRECT_ACCESS, PARProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
@@ -293,7 +293,11 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         """ 
         events_out = [x for x in events if PARCapability.has(x)]
         return events_out
-    
+
+    def execute_foo(self):
+        """Test command"""
+        pass
+
     def get_config(self, *args, **kwargs):
         """ Get the entire configuration for the instrument
         
@@ -647,10 +651,15 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval return (next state, result)
         @throw InstrumentProtocolException For invalid command
         """
-        next_state = None
-        next_agent_state = None
+        next_state = PARProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
         result = None
-        
+
+        log.debug("Switch to polled mode")
+        self._switch_to_poll()
+        # Give the instrument a bit to keep up. 1 sec is not enough!
+        time.sleep(5)
+
         # This sometimes takes a few seconds, so stall after our sample cmd
         # and before the read/parse
         delay = self.write_delay + 2

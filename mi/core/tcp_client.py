@@ -5,6 +5,12 @@ from mi.core.log import get_logger ; log = get_logger()
 import gevent
 import socket
 
+# 'will echo' command sequence to be sent from DA telnet server
+# see RFCs 854 & 857
+WILL_ECHO_CMD = '\xff\xfd\x03\xff\xfb\x03\xff\xfb\x01'
+# 'do echo' command sequence to be sent back from telnet client
+DO_ECHO_CMD   = '\xff\xfb\x03\xff\xfd\x03\xff\xfd\x01'
+
 class TcpClient():
     '''
     Setup a tcp client to act as a telnet client for testing.
@@ -24,6 +30,12 @@ class TcpClient():
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.connect((self.host, self.port))
         self.s.settimeout(0.0)
+
+    def telnet_handshake(self):
+        if(self.expect(WILL_ECHO_CMD)):
+            self.send_data(DO_ECHO_CMD)
+            return True
+        return False
 
     def read_a_char(self):
         temp = self.s.recv(1024)
@@ -67,7 +79,8 @@ class TcpClient():
         try_count = 0
 
         while self.peek_at_buffer().find(target) == -1:
-            log.debug("WANT '%s:' READ: '%s'" % (target, str(self.peek_at_buffer())))
+            log.debug("WANT '%s:' READ (%d): '%s' HEX: %s" %
+                     (target, len(self.peek_at_buffer()), str(self.peek_at_buffer()), self.to_hex(self.peek_at_buffer())))
             gevent.sleep(sleep_time)
             try_count += 1
             if try_count > max_retries:
@@ -105,9 +118,28 @@ class TcpClient():
             log.debug("IN  [" + repr(data) + "]")
         return data
 
-    def send_data(self, data, debug):
+    def send_data(self, data, debug = 1):
         try:
             log.debug("OUT [" + repr(data) + "]")
             self.s.sendall(data)
         except:
             log.debug("*** send_data FAILED [" + debug + "] had an exception sending [" + data + "]")
+
+    def to_hex(self, s):
+        """
+        return a hex representation of a string
+        @param s: input bytes
+        @return: hex representation of the input
+        """
+        if(not len(s)): return None
+
+        lst = []
+        for ch in s:
+            hv = hex(ord(ch)).replace('0x', '')
+            if len(hv) == 1:
+                hv = '0'+hv
+
+            lst.append(hv.upper() + ' ')
+
+
+        return reduce(lambda x,y:x+y, lst)
