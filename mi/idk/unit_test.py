@@ -39,14 +39,18 @@ from mi.idk.common import Singleton
 from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.instrument_agent_client import InstrumentAgentDataSubscribers
 from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
+from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import TestNoCommConfig
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
+from pyon.core.exception import Conflict
 
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.tcp_client import TcpClient
 
 from interface.objects import AgentCommand
 
@@ -328,6 +332,52 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
                 log.error(str(obj) + " has ambigous duplicate values for '" + str(k) + "'")
                 self.assertEqual(1, occurances[k])
 
+    def assert_chunker_sample(self, chunker, sample):
+        '''
+        Verify the chunker can parse a sample that comes in a single string
+        @param chunker: Chunker to use to do the parsing
+        @param sample: raw sample
+        '''
+        chunker.add_chunk(sample)
+        result = chunker.get_next_data()
+        self.assertEqual(result, sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, None)
+
+
+    def assert_chunker_fragmented_sample(self, chunker, sample):
+        '''
+        Verify the chunker can parse a sample that comes in fragmented
+        @param chunker: Chunker to use to do the parsing
+        @param sample: raw sample
+        '''
+        for c in sample:
+            chunker.add_chunk(c)
+            result = chunker.get_next_data()
+            if(result): break
+
+        self.assertEqual(result, sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, None)
+
+    def assert_chunker_combined_sample(self, chunker, sample):
+        '''
+        Verify the chunker can parse a sample that comes in combined
+        @param chunker: Chunker to use to do the parsing
+        @param sample: raw sample
+        '''
+        chunker.add_chunk(sample + sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, None)
 
 class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     """
@@ -484,7 +534,233 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         log.debug("InstrumentDriverQualificationTestCase setUp Problem ABOVE")
 
         self.init_instrument_agent_client()
-            
+
+    def assert_sample_polled(self, sampleDataAssert, sampleQueue):
+        """
+        Test observatory polling function.
+
+        Verifies the acquire_status command.
+        """
+        # Set up all data subscriptions.  Stream names are defined
+        # in the driver PACKET_CONFIG dictionary
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        self.assert_enter_command_mode()
+
+        ###
+        # Poll for a few samples
+        ###
+
+        # make sure there aren't any junk samples in the parsed
+        # data queue.
+        log.debug("Acqire Sample")
+        self.data_subscribers.clear_sample_queue(sampleQueue)
+
+        cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
+        reply = self.instrument_agent_client.execute_resource(cmd)
+
+        log.debug("Acqire Sample")
+        cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
+        reply = self.instrument_agent_client.execute_resource(cmd)
+
+        log.debug("Acqire Sample")
+        cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
+        reply = self.instrument_agent_client.execute_resource(cmd)
+
+        # Watch the parsed data queue and return once three samples
+        # have been read or the default timeout has been reached.
+        samples = self.data_subscribers.get_samples(sampleQueue, 3)
+        self.assertGreaterEqual(len(samples), 3)
+        log.error("SAMPLE: %s" % samples)
+
+        # Verify
+        sampleDataAssert(self, samples.pop())
+        sampleDataAssert(self, samples.pop())
+        sampleDataAssert(self, samples.pop())
+
+        self.assert_reset()
+
+        self.doCleanups()
+
+    def assert_sample_autosample(self, sampleDataAssert, sampleQueue):
+        """
+        Test instrument driver execute interface to start and stop streaming
+        mode.
+
+        This command is only useful for testing one stream produced in
+        streaming mode at a time.  If your driver has multiple streams
+        then you will need to call this method more than once or use a
+        different test.
+        """
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        self.assert_enter_command_mode()
+
+        self.data_subscribers.clear_sample_queue(sampleQueue)
+
+        # Begin streaming.
+        cmd = AgentCommand(command=DriverEvent.START_AUTOSAMPLE)
+        retval = self.instrument_agent_client.execute_resource(cmd, timeout=30)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.STREAMING)
+
+        # Assert we got 3 samples.
+        samples = self.data_subscribers.get_samples(sampleQueue, 3)
+        self.assertGreaterEqual(len(samples), 3)
+
+        s = samples.pop()
+        log.debug("SAMPLE: %s" % s)
+        sampleDataAssert(s)
+
+        s = samples.pop()
+        log.debug("SAMPLE: %s" % s)
+        sampleDataAssert(s)
+
+        s = samples.pop()
+        log.debug("SAMPLE: %s" % s)
+        sampleDataAssert(s)
+
+        # Halt streaming.
+        cmd = AgentCommand(command=DriverEvent.STOP_AUTOSAMPLE)
+        retval = self.instrument_agent_client.execute_resource(cmd, timeout=30)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        self.assert_reset()
+
+        self.doCleanups()
+
+    def assert_reset(self):
+        '''
+        Exist active state
+        '''
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+    def assert_get_parameter(self, name, value):
+        '''
+        verify that parameters are got correctly.  Assumes we are in command mode.
+        '''
+        getParams = [ name ]
+
+        result = self.instrument_agent_client.get_resource(getParams)
+
+        self.assertEqual(result[name], value)
+
+    def assert_set_parameter(self, name, value):
+        '''
+        verify that parameters are set correctly.  Assumes we are in command mode.
+        '''
+        setParams = { name : value }
+        getParams = [ name ]
+
+        self.instrument_agent_client.set_resource(setParams)
+        result = self.instrument_agent_client.get_resource(getParams)
+
+        self.assertEqual(result[name], value)
+
+    def assert_read_only_parameter(self, name, value):
+        '''
+        verify that parameters are read only.  Ensure an exception is thrown
+        when set is called and that the value returned is the same as the
+        passed in value.
+        '''
+        setParams = { name : value }
+        getParams = [ name ]
+
+        # Call set, but verify the command failed.
+        #self.instrument_agent_client.set_resource(setParams)
+
+        # Call get and verify the value is correct.
+        #result = self.instrument_agent_client.get_resource(getParams)
+        #self.assertEqual(result[name], value)
+
+    def assert_enter_command_mode(self):
+        '''
+        Walk through IA states to get to command mode from uninitialized
+        '''
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        with self.assertRaises(Conflict):
+            res_state = self.instrument_agent_client.get_resource_state()
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(res_state, DriverProtocolState.COMMAND)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(res_state, DriverProtocolState.COMMAND)
+
+    def assert_direct_access_start_telnet(self, timeout = 600):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+        self.assert_enter_command_mode()
+
+        # go direct access
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
+            kwargs={'session_type': DirectAccessTypes.telnet,
+                    'session_timeout':timeout,
+                    'inactivity_timeout':timeout})
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        log.warn("go_direct_access retval=" + str(retval.result))
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
+
+        # start 'telnet' client with returned address and port
+        self.tcp_client = TcpClient(retval.result['ip_address'], retval.result['port'])
+
+        self.assertTrue(self.tcp_client.expect("Username: " ))
+        self.tcp_client.send_data("bob\r\n")
+
+        self.assertTrue(self.tcp_client.expect("token: "))
+        self.tcp_client.send_data(retval.result['token'] + "\r\n",)
+
+        self.assertTrue(self.tcp_client.telnet_handshake())
+
+        self.assertTrue(self.tcp_client.expect("connected\r\n"))
+
+    def assert_direct_access_stop_telnet(self):
+        '''
+        Exit out of direct access mode.  We do this by simply changing
+        state to command mode.
+        @return:
+        '''
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+
     def init_instrument_agent_client(self):
         log.info("Start Instrument Agent Client")
 
@@ -1064,132 +1340,3 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-
-class SocketTester():
-    """
-    This class is used to peek through sockets to see raw characters that have
-    come through. This is largely used in direct access tests.
-    """
-    buf = ""
-
-    def __init__(self, host, port):
-        self.buf = ""
-        self.host = host
-        self.port = port
-        # log.debug("OPEN SOCKET HOST = " + str(host) + " PORT = " + str(port))
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.connect((self.host, self.port))
-        self.s.settimeout(0.0)
-
-    def read_a_char(self):
-        c = None
-        if len(self.buf) > 0:
-            c = self.buf[0:1]
-            self.buf = self.buf[1:]
-        else:
-            self.buf = self.s.recv(1024)
-            log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
-
-        return c
-
-
-    def peek_at_buffer(self):
-        if len(self.buf) == 0:
-            try:
-                self.buf = self.s.recv(1024)
-                log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
-            except:
-                """
-                Ignore this exception, its harmless
-                """
-
-        return self.buf
-
-    def remove_from_buffer(self, remove):
-        log.debug("BUF WAS " + str(repr(self.buf)))
-        self.buf = self.buf.replace(remove, "")
-        log.debug("BUF IS '" + str(repr(self.buf)) + "'")
-
-    def get_data(self):
-        data = ""
-        try:
-            ret = ""
-
-            while True:
-                c = self.read_a_char()
-                if c == None:
-                    break
-                if c == '\n' or c == '':
-                    ret += c
-                    break
-                else:
-                    ret += c
-
-            data = ret
-        except AttributeError:
-            log.debug("CLOSING - GOT AN ATTRIBUTE ERROR")
-            self.s.close()
-        except:
-            data = ""
-
-        if data:
-            data = data.lower()
-            log.debug("IN  [" + repr(data) + "]")
-        return data
-
-    def send_data(self, data, debug):
-        try:
-            log.debug("OUT [" + repr(data) + "]")
-            self.s.sendall(data)
-        except:
-            log.debug("*** send_data FAILED [" + debug + "] had an exception sending [" + data + "]")
-            
-    def negotiate_telnet_session(self, cmd_result):
-        """
-        Go through the sequences of a DA session negotiation
-        
-        @param cmd_result The result of the GO_DIRECT command
-        """
-        try_count = 0
-        while self.peek_at_buffer().find("Username: ") == -1:
-            log.debug("WANT 'Username:' READ ==>" + str(self.peek_at_buffer()))
-            gevent.sleep(1)
-            try_count = try_count + 1
-            if try_count > 10:
-                raise InstrumentTimeoutException('I took longer than 10 seconds to get a Username: prompt')
-
-        self.remove_from_buffer("Username: ")
-        self.send_data("bob\r\n", "1")
-
-        try_count = 0
-        while self.peek_at_buffer().find("token: ") == -1:
-            log.debug("WANT 'token: ' READ ==>" + str(self.peek_at_buffer()))
-            gevent.sleep(1)
-            try_count = try_count + 1
-            if try_count > 10:
-                raise InstrumentTimeoutException('I took longer than 10 seconds to get a token: prompt')
-        self.remove_from_buffer("token: ")
-        self.send_data(cmd_result.result['token'] + "\r\n", "1")
-
-        # look for and swallow telnet negotiation string
-        try_count = 0
-        while self.peek_at_buffer().find(WILL_ECHO_CMD) == -1:
-            log.debug("WANT %s READ ==> %s" %(WILL_ECHO_CMD, str(self.peek_at_buffer())))
-            gevent.sleep(1)
-            try_count += 1
-            if try_count > 10:
-                raise InstrumentTimeoutException('It took longer than 10 seconds to get the telnet negotiation string')
-        self.remove_from_buffer(WILL_ECHO_CMD)
-        # send the telnet negotiation response string
-        self.send_data(DO_ECHO_CMD, "1")
-        
-        try_count = 0
-        while self.peek_at_buffer().find("connected\r\n") == -1:
-            log.debug("WANT 'connected\r\n' READ ==>" + str(self.peek_at_buffer()))
-            gevent.sleep(1)
-            self.peek_at_buffer()
-            try_count = try_count + 1
-            if try_count > 10:
-                raise InstrumentTimeoutException('I took longer than 10 seconds to get a connected prompt')
-
-        self.remove_from_buffer("connected\n")
