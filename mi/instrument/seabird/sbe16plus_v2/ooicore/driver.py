@@ -89,6 +89,7 @@ class ProtocolEvent(BaseEnum):
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     FORCE_STATE = DriverEvent.FORCE_STATE
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 class Capability(BaseEnum):
     """
@@ -102,6 +103,7 @@ class Capability(BaseEnum):
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 
 # Device specific parameters.
@@ -223,7 +225,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 class SBE16DataParticleKey(BaseEnum):
     TEMP = "temp"
     CONDUCTIVITY = "conductivity"
-    DEPTH = "depth"
+    PRESSURE = "pressure"
     SALINITY = "salinity"
 
 class SBE16DataParticle(DataParticle):
@@ -247,19 +249,18 @@ class SBE16DataParticle(DataParticle):
         try:
             temperature = float(match.group(1))
             conductivity = float(match.group(2))
-            depth = float(match.group(3))
+            pressure = float(match.group(3))
             salinity = float(match.group(4))
         except ValueError:
             raise SampleException("ValueError while decoding floats in data: [%s]" %
                                   self.raw_data)
         
-        #TODO:  Get 'temp', 'cond', and 'depth' from a paramdict
         result = [{DataParticleKey.VALUE_ID: SBE16DataParticleKey.TEMP,
                    DataParticleKey.VALUE: temperature},
                   {DataParticleKey.VALUE_ID: SBE16DataParticleKey.CONDUCTIVITY,
                    DataParticleKey.VALUE: conductivity},
-                  {DataParticleKey.VALUE_ID: SBE16DataParticleKey.DEPTH,
-                    DataParticleKey.VALUE: depth},
+                  {DataParticleKey.VALUE_ID: SBE16DataParticleKey.PRESSURE,
+                    DataParticleKey.VALUE: pressure},
                   {DataParticleKey.VALUE_ID: SBE16DataParticleKey.SALINITY,
                     DataParticleKey.VALUE: salinity}]
         
@@ -303,10 +304,12 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST, self._handler_command_test)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync_clock)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.ENTER, self._handler_test_enter)
         self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.EXIT, self._handler_test_exit)
         self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.RUN_TEST, self._handler_test_run_tests)
@@ -683,6 +686,19 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             
         return (next_state, result)
 
+    def _handler_command_autosample_acquire_status(self, *args, **kwargs):
+        """
+        Get device status
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        kwargs['timeout'] = 30
+        result = self._do_cmd_resp('ds', *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
     ########################################################################
     # Test handlers.
     ########################################################################
@@ -749,7 +765,6 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         self._driver_event(DriverAsyncEvent.AGENT_EVENT, ResourceAgentEvent.DONE)
 
         next_state = ProtocolState.COMMAND
- 
         return (next_state, result)
 
     ########################################################################
@@ -761,8 +776,6 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         Enter direct access state.
         """
 
-        print ">>>>>>>>>>>>>>>>>>>> DHE direct_access_enter <<<<<<<<<<<<<<<<<<<<"
-        
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.                
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)

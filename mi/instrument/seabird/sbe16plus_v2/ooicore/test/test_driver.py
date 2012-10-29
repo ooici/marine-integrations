@@ -2248,7 +2248,7 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
 
-    @unittest.skip("Not working; not sure why...ServerError: 500 - 500 - gevent is only usable from a single thread...")
+    #@unittest.skip("Not working; not sure why...ServerError: 500 - 500 - gevent is only usable from a single thread...")
     def test_execute_test(self):
         """
         Test the hardware testing mode.
@@ -2276,8 +2276,7 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
 
         #### From herehere down convert to agent-version
         start_time = time.time()
-        #cmd = AgentCommand(command=ProtocolEvent.TEST)
-        cmd = AgentCommand(command=ResourceAgentEvent.TEST)
+        cmd = AgentCommand(command=ProtocolEvent.TEST)
         retval = self.instrument_agent_client.execute_resource(cmd)
 
         # Test the driver is in test state.
@@ -2287,8 +2286,8 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         while state != ResourceAgentState.COMMAND:
             gevent.sleep(5)
             elapsed = time.time() - start_time
-            log.info('Device testing %f seconds elapsed.' % elapsed)
             state = self.instrument_agent_client.get_agent_state()
+            log.info('Device testing %f seconds elapsed. ResourceAgentState: %s' % (elapsed, state))
 
         """
         # Verify we received the test result and it passed.
@@ -2303,5 +2302,36 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
         """
+
+    def test_acquire_status(self):
+        """
+        Test ACQUIRE_STATUS 
+        """
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        #### From herehere down convert to agent-version
+        start_time = time.time()
+        cmd = AgentCommand(command=ProtocolEvent.ACQUIRE_SAMPLE)
+        retval = self.instrument_agent_client.execute_resource(cmd)
+
 
 
