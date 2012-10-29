@@ -54,26 +54,19 @@ from mi.core.instrument.chunker import StringChunker
 from mi.idk.unit_test import InstrumentDriverTestCase
 
 
-
-#from mi.instrument.seabird.sbe26plus.range import Range
-
 from pyon.agent.agent import ResourceAgentClient
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 
 from pyon.core.exception import BadRequest
 from pyon.core.exception import Conflict
-# newline.
+
 NEWLINE = '\r\n'
 
 # default timeout.
 TIMEOUT = 40
 
 
-
-
-#SAMPLE_REGEX = " DEFINED ELSEWHERE see self._sample_regexs"
-#SAMPLE_REGEX_MATCHER = re.compile(SAMPLE_REGEX, re.MULTILINE)
 
 TIDE_REGEX = r'(tide: start time = +\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+, p = +[\-\d.]+, pt = +[\-\d.]+, t = +[\-\d.]+.*?\r\n)'
 TIDE_REGEX_MATCHER = re.compile(TIDE_REGEX, re.MULTILINE)
@@ -89,6 +82,17 @@ SL_SLO_REGEX_MATCHER = re.compile(SL_SLO_REGEX, re.MULTILINE)
 
 TS_REGEX = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)' # .*?\r\n
 TS_REGEX_MATCHER = re.compile(TS_REGEX, re.MULTILINE)
+
+# May not have to be super inclusive with this pattern, as its only needed to enable the particle to process what is handed to it.
+DC_REGEX = r'(.)' #r'(SBE 26plus V .*?logging = [^\r\n]+)'
+DC_REGEX_MATCHER = re.compile(DC_REGEX, re.MULTILINE|re.DOTALL)
+
+# May not have to be super inclusive with this pattern, as its only needed to enable the particle to process what is handed to it.
+DS_REGEX = r'(.)' #r'(Pressure coefficients:.*?)S>'
+DS_REGEX_MATCHER = re.compile(DS_REGEX, re.MULTILINE|re.DOTALL)
+
+
+
 
 # Packet config
 STREAM_NAME_PARSED = DataParticleValue.PARSED
@@ -134,10 +138,10 @@ class InstrumentCmds(BaseEnum):
     #BAUD = 'baud'
     TAKE_SAMPLE = 'ts'
     INIT_LOGGING = 'initlogging'
-    SET_TIME = "settime"
+    #SET_TIME = "settime"
 
-    SEND_LAST = 'sl'
-    SEND_LAST_AND_SLEEP = 'slo'
+    #SEND_LAST = 'sl'
+    #SEND_LAST_AND_SLEEP = 'slo'
 
 class ProtocolState(BaseEnum):
     """
@@ -180,10 +184,11 @@ class ProtocolEvent(BaseEnum):
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     PING_DRIVER = DriverEvent.PING_DRIVER
 
-    SEND_LAST = 'PROTOCOL_EVENT_SEND_LAST'
-    SEND_LAST_AND_SLEEP = 'PROTOCOL_EVENT_SEND_LAST_AND_SLEEP'
+    #SEND_LAST = 'PROTOCOL_EVENT_SEND_LAST'
+    #SEND_LAST_AND_SLEEP = 'PROTOCOL_EVENT_SEND_LAST_AND_SLEEP'
 
-    EXECUTE_CLOCK_SYNC = 'PROTOCOL_EVENT_EXECUTE_CLOCK_SYNC'
+    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
     # aquire status add....
 
 class Capability(BaseEnum):
@@ -194,8 +199,8 @@ class Capability(BaseEnum):
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     #SETSAMPLING = ProtocolEvent.SETSAMPLING
-    EXECUTE_CLOCK_SYNC = ProtocolEvent.EXECUTE_CLOCK_SYNC
-    # aquire status add....
+    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
+    ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -344,7 +349,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 
 #remove TS stream,
 
-class tsKey(BaseEnum):
+class SBE26plusTakeSampleDataParticleKey(BaseEnum):
     PREASURE = "preasure"           # p = calculated and stored pressure (psia).
     PREASURE_TEMP = "preasure_temp" # pt = calculated pressure temperature (not stored) (C).
     TEMPERATURE = "temperature"     # t = calculated and stored temperature (C).
@@ -615,30 +620,6 @@ class SBE26plusStatisticsDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
 
-        '''
-
-        "Auto-Spectrum Statistics:" + NEWLINE +\
-        "   nAvgBand = 5" + NEWLINE +\
-        "   total variance = 1.0896e-05" + NEWLINE +\
-        "   total energy = 1.0939e-01" + NEWLINE +\
-        "   significant period = 5.3782e-01" + NEWLINE +\
-        "   significant wave height = 1.3204e-02" + NEWLINE +\
-        "" + NEWLINE +\
-
-        "Time Series Statistics:" + NEWLINE +\
-        "   wave integration time = 128" + NEWLINE +\
-        "   number of waves = 0" + NEWLINE +\
-        "   total variance = 1.1595e-05" + NEWLINE +\
-        "   total energy = 1.1640e-01" + NEWLINE +\
-        "   average wave height = 0.0000e+00" + NEWLINE +\
-        "   average wave period = 0.0000e+00" + NEWLINE +\
-        "   maximum wave height = 1.0893e-02" + NEWLINE +\
-        "   significant wave height = 0.0000e+00" + NEWLINE +\
-        "   significant wave period = 0.0000e+00" + NEWLINE +\
-        "   H1/10 = 0.0000e+00" + NEWLINE +\
-        "   H1/100 = 0.0000e+00" + NEWLINE +\
-        '''
-
         dtsd_matcher = re.compile(r'depth = +([\d.e+-]+), temperature = +([\d.e+-]+), salinity = +([\d.e+-]+), density = +([\d.e+-]+)')
 
         #going to err on the side of VERBOSE methinks...
@@ -757,6 +738,385 @@ class SBE26plusStatisticsDataParticle(DataParticle):
 
         return result
 
+class SBE26plusDeviceCalibrationDataParticleKey(BaseEnum):
+    PCALDATE = 'PCALDATE' # tuple,
+    PU0 = 'PU0' # float,
+    PY1 = 'PY1' # float,
+    PY2 = 'PY2' # float,
+    PY3 = 'PY3' # float,
+    PC1 = 'PC1' # float,
+    PC2 = 'PC2' # float,
+    PC3 = 'PC3' # float,
+    PD1 = 'PD1' # float,
+    PD2 = 'PD2' # float,
+    PT1 = 'PT1' # float,
+    PT2 = 'PT2' # float,
+    PT3 = 'PT3' # float,
+    PT4 = 'PT4' # float,
+    FACTORY_M = 'FACTORY_M' # float,
+    FACTORY_B = 'FACTORY_B' # float,
+    POFFSET = 'POFFSET' # float,
+    TCALDATE = 'TCALDATE' # tuple,
+    TA0 = 'TA0' # float,
+    TA1 = 'TA1' # float,
+    TA2 = 'TA2' # float,
+    TA3 = 'TA3' # float,
+    CCALDATE = 'CCALDATE' # tuple,
+    CG = 'CG' # float,
+    CH = 'CH' # float,
+    CI = 'CI' # float,
+    CJ = 'CJ' # float,
+    CTCOR = 'CTCOR' # float,
+    CPCOR = 'CPCOR' # float,
+    CSLOPE = 'CSLOPE' # float,
+
+class SBE26plusDeviceCalibrationDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+
+    def _build_parsed_values(self):
+        """
+        Take something in the autosample format and split it into
+        values with appropriate tags
+
+        @throws SampleException If there is a problem with sample creation
+        """
+
+        # SHould be converted to use the DS mechanism once the ds mechanism is working
+        # from below
+
+
+        log.debug("in SBE26plusDeviceCalibrationDataParticle._build_parsed_values")
+        single_var_matchers  = {
+            "PCALDATE": re.compile(r'Pressure coefficients: +(\d+-[a-zA-Z]+-\d+)'),
+            "PU0":      re.compile(r' +U0 = (-?[\d.e\-\+]+)'),
+            "PY1":      re.compile(r' +Y1 = (-?[\d.e\-\+]+)'),
+            "PY2":      re.compile(r' +Y2 = (-?[\d.e\-\+]+)'),
+            "PY3":      re.compile(r' +Y3 = (-?[\d.e\-\+]+)'),
+            "PC1":      re.compile(r' +C1 = (-?[\d.e\-\+]+)'),
+            "PC2":      re.compile(r' +C2 = (-?[\d.e\-\+]+)'),
+            "PC3":      re.compile(r' +C3 = (-?[\d.e\-\+]+)'),
+            "PD1":      re.compile(r' +D1 = (-?[\d.e\-\+]+)'),
+            "PD2":      re.compile(r' +D2 = (-?[\d.e\-\+]+)'),
+            "PT1":      re.compile(r' +T1 = (-?[\d.e\-\+]+)'),
+            "PT2":      re.compile(r' +T2 = (-?[\d.e\-\+]+)'),
+            "PT3":      re.compile(r' +T3 = (-?[\d.e\-\+]+)'),
+            "PT4":      re.compile(r' +T4 = (-?[\d.e\-\+]+)'),
+            "FACTORY_M":re.compile(r' +M = ([\d.]+)'),
+            "FACTORY_B":re.compile(r' +B = ([\d.]+)'),
+            "POFFSET":  re.compile(r' +OFFSET = (-?[\d.e\-\+]+)'),
+            "TCALDATE": re.compile(r'Temperature coefficients: +(\d+-[a-zA-Z]+-\d+)'),
+            "TA0":      re.compile(r' +TA0 = (-?[\d.e\-\+]+)'),
+            "TA1":      re.compile(r' +TA1 = (-?[\d.e\-\+]+)'),
+            "TA2":      re.compile(r' +TA2 = (-?[\d.e\-\+]+)'),
+            "TA3":      re.compile(r' +TA3 = (-?[\d.e\-\+]+)'),
+            "CCALDATE": re.compile(r'Conductivity coefficients: +(\d+-[a-zA-Z]+-\d+)'),
+            "CG":       re.compile(r' +CG = (-?[\d.e\-\+]+)'),
+            "CH":       re.compile(r' +CH = (-?[\d.e\-\+]+)'),
+            "CI":       re.compile(r' +CI = (-?[\d.e\-\+]+)'),
+            "CJ":       re.compile(r' +CJ = (-?[\d.e\-\+]+)'),
+            "CTCOR":    re.compile(r' +CTCOR = (-?[\d.e\-\+]+)'),
+            "CPCOR":    re.compile(r' +CPCOR = (-?[\d.e\-\+]+)'),
+            "CSLOPE":   re.compile(r' +CSLOPE = (-?[\d.e\-\+]+)')
+        }
+
+        result = []
+        #for line in self.raw_data.split(NEWLINE):
+        #    for (key, matcher) in single_var_matchers.iteritems():
+        #        match = single_var_matchers[key].match(line)
+        #        if match:
+        #            hit = "TEST" #match(1)
+        #            result.append({DataParticleKey.VALUE_ID: key, DataParticleKey.VALUE: hit})
+                #else:
+                #    result.append({DataParticleKey.VALUE_ID: key, DataParticleKey.VALUE: None})
+
+
+        return result
+
+class SBE26plusDeviceStatusDataParticleKey(BaseEnum):
+    # DS
+    DEVICE_VERSION = 'DEVICE_VERSION' # str,
+    SERIAL_NUMBER = 'SERIAL_NUMBER' # str,
+    DS_DEVICE_DATE_TIME = 'DateTime' # str for now, later ***
+    USER_INFO = 'USERINFO' # str,
+    QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER = 'QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER' # float,
+    QUARTZ_PREASURE_SENSOR_RANGE = 'QUARTZ_PREASURE_SENSOR_RANGE' # float,
+    EXTERNAL_TEMPERATURE_SENSOR = 'ExternalTemperature' # bool,
+    CONDUCTIVITY = 'CONDUCTIVITY' # bool,
+    IOP_MA = 'IOP_MA' # float,
+    VMAIN_V = 'VMAIN_V' # float,
+    VLITH_V = 'VLITH_V' # float,
+    LAST_SAMPLE_P = 'LAST_SAMPLE_P' # float,
+    LAST_SAMPLE_T = 'LAST_SAMPLE_T' # float,
+    LAST_SAMPLE_S = 'LAST_SAMPLE_S' # float,
+
+    # DS/SETSAMPLING
+    TIDE_INTERVAL = 'TIDE_INTERVAL' # int,
+    TIDE_MEASUREMENT_DURATION = 'TIDE_MEASUREMENT_DURATION' # int,
+    TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS = 'TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS' # int,
+    WAVE_SAMPLES_PER_BURST = 'WAVE_SAMPLES_PER_BURST' # float,
+    WAVE_SAMPLES_SCANS_PER_SECOND = 'WAVE_SAMPLES_SCANS_PER_SECOND' # 4.0 = 0.25
+    USE_START_TIME = 'USE_START_TIME' # bool,
+    #START_TIME = 'START_TIME' # ***
+    USE_STOP_TIME = 'USE_STOP_TIME' # bool,
+    #STOP_TIME = 'STOP_TIME' # ***
+    TXWAVESTATS = 'TXWAVESTATS' # bool,
+    TIDE_SAMPLES_PER_DAY = 'TIDE_SAMPLES_PER_DAY' # float,
+    WAVE_BURSTS_PER_DAY = 'WAVE_BURSTS_PER_DAY' # float,
+    MEMORY_ENDURANCE = 'MEMORY_ENDURANCE' # float,
+    NOMINAL_ALKALINE_BATTERY_ENDURANCE = 'NOMINAL_ALKALINE_BATTERY_ENDURANCE' # float,
+    TOTAL_RECORDED_TIDE_MEASUREMENTS = 'TOTAL_RECORDED_TIDE_MEASUREMENTS' # float,
+    TOTAL_RECORDED_WAVE_BURSTS = 'TOTAL_RECORDED_WAVE_BURSTS' # float,
+    TIDE_MEASUREMENTS_SINCE_LAST_START = 'TIDE_MEASUREMENTS_SINCE_LAST_START' # float,
+    WAVE_BURSTS_SINCE_LAST_START = 'WAVE_BURSTS_SINCE_LAST_START' # float,
+    TXREALTIME = 'TxTide' # bool,
+    TXWAVEBURST = 'TxWave' # bool,
+    NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' # int,
+    USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' # bool,
+    USE_MEASURED_TEMP_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_FOR_DENSITY_CALC'
+    AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR = 'AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR'
+    AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR = 'AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR'
+    PREASURE_SENSOR_HEIGHT_FROM_BOTTOM = 'PREASURE_SENSOR_HEIGHT_FROM_BOTTOM' # float,
+    SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND = 'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND' # int,
+    MIN_ALLOWABLE_ATTENUATION = 'MIN_ALLOWABLE_ATTENUATION' # float,
+    MIN_PERIOD_IN_AUTO_SPECTRUM = 'MIN_PERIOD_IN_AUTO_SPECTRUM' # float,
+    MAX_PERIOD_IN_AUTO_SPECTRUM = 'MAX_PERIOD_IN_AUTO_SPECTRUM' # float,
+    HANNING_WINDOW_CUTOFF = 'HANNING_WINDOW_CUTOFF' # float,
+    SHOW_PROGRESS_MESSAGES = 'SHOW_PROGRESS_MESSAGES' # bool,
+    STATUS = 'STATUS' # str,
+    LOGGING = 'LOGGING' # bool,
+
+class SBE26plusDeviceStatusDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+
+    def _build_parsed_values(self):
+        """
+        Take something in the autosample format and split it into
+        values with appropriate tags
+
+        @throws SampleException If there is a problem with sample creation
+        """
+        log.debug("in SBE26plusDeviceStatusDataParticle._build_parsed_values")
+        # VAR_LABEL: (regex, lambda)
+        single_var_matchers  = {
+            SBE26plusDeviceStatusDataParticleKey.DEVICE_VERSION:  (
+                re.compile(r'SBE 26plus V ([\w.]+) +SN (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)'),
+                lambda match : string.upper(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.SERIAL_NUMBER:  (
+                re.compile(r'SBE 26plus V ([\w.]+) +SN (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)'),
+                lambda match : string.upper(match.group(2))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.DS_DEVICE_DATE_TIME:  (
+                re.compile(r'SBE 26plus V ([\w.]+) +SN (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)'),
+                lambda match : string.upper(match.group(3))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.USER_INFO:  (
+                re.compile(r'user info=(.*)$'),
+                lambda match : string.upper(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER:  (
+                re.compile(r'quartz pressure sensor: serial number = ([\d.\-]+), range = ([\d.\-]+) psia'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.QUARTZ_PREASURE_SENSOR_RANGE:  (
+                re.compile(r'quartz pressure sensor: serial number = ([\d.\-]+), range = ([\d.\-]+) psia'),
+                lambda match : float(match.group(2))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.EXTERNAL_TEMPERATURE_SENSOR:  (
+                re.compile(r'(external|internal) temperature sensor'),
+                lambda match : False if (match.group(1)=='internal') else True
+            ),
+            SBE26plusDeviceStatusDataParticleKey.CONDUCTIVITY:  (
+                re.compile(r'conductivity = (YES|NO)'),
+                lambda match : False if (match.group(1)=='NO') else True
+            ),
+            SBE26plusDeviceStatusDataParticleKey.IOP_MA:  (
+                re.compile(r'iop = +([\d.\-]+) ma  vmain = +([\d.\-]+) V  vlith = +([\d.\-]+) V'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.VMAIN_V:  (
+                re.compile(r'iop = +([\d.\-]+) ma  vmain = +([\d.\-]+) V  vlith = +([\d.\-]+) V'),
+                lambda match : float(match.group(2))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.VLITH_V:  (
+                re.compile(r'iop = +([\d.\-]+) ma  vmain = +([\d.\-]+) V  vlith = +([\d.\-]+) V'),
+                lambda match : float(match.group(3))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_P:  (
+                re.compile(r'last sample: p = +([\d.\-]+), t = +([\d.\-]+)'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_T:  (
+                re.compile(r'last sample: p = +([\d.\-]+), t = +([\d.\-]+)'),
+                lambda match : float(match.group(2))
+            ),
+
+
+            # @TODO TEST THIS ONE
+            SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_S:  (
+                re.compile(r'last sample: .*?, s = +([\d.\-]+)'),
+                lambda match : float(match.group(1))
+            ),
+
+
+
+            SBE26plusDeviceStatusDataParticleKey.TIDE_INTERVAL:  (
+                re.compile(r'tide measurement: interval = (\d+).000 minutes, duration = ([\d.\-]+) seconds'),
+                lambda match : int(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENT_DURATION:  (
+                re.compile(r'tide measurement: interval = (\d+).000 minutes, duration = ([\d.\-]+) seconds'),
+                lambda match : int(match.group(2))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS:  (
+                re.compile(r'measure waves every ([\d.\-]+) tide samples'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_PER_BURST:  (
+                re.compile(r'([\d.\-]+) wave samples/burst at ([\d.\-]+) scans/sec, duration = ([\d.\-]+) seconds'),
+                lambda match : int(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_SCANS_PER_SECOND:  (
+                re.compile(r'([\d.\-]+) wave samples/burst at ([\d.\-]+) scans/sec, duration = ([\d.\-]+) seconds'),
+                lambda match : float(match.group(2))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS:  (
+                re.compile(r'([\d.\-]+) wave samples/burst at ([\d.\-]+) scans/sec, duration = ([\d.\-]+) seconds'),
+                lambda match : int(match.group(3))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.USE_START_TIME:  (
+                re.compile(r'logging start time = (do not) use start time'),
+                lambda match : False if (match.group(1)=='do not') else True
+            ),
+            SBE26plusDeviceStatusDataParticleKey.USE_STOP_TIME:  (
+                re.compile(r'logging stop time = (do not) use stop time'),
+                lambda match : False if (match.group(1)=='do not') else True
+            ),
+            SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_PER_DAY:  (
+                re.compile(r'tide samples/day = (\d+.\d+)'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_PER_DAY:  (
+                re.compile(r'wave bursts/day = (\d+.\d+)'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.MEMORY_ENDURANCE:  (
+                re.compile(r'memory endurance = (\d+.\d+) days'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.NOMINAL_ALKALINE_BATTERY_ENDURANCE:  (
+                re.compile(r'nominal alkaline battery endurance = (\d+.\d+) days'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_TIDE_MEASUREMENTS:  (
+                re.compile(r'total recorded tide measurements = ([\d.\-]+)'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_WAVE_BURSTS:  (
+                re.compile(r'total recorded wave bursts = ([\d.\-]+)'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENTS_SINCE_LAST_START:  (
+                re.compile(r'tide measurements since last start = ([\d.\-]+)'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_SINCE_LAST_START:  (
+                re.compile(r'wave bursts since last start = ([\d.\-]+)'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.TXREALTIME:  (
+                re.compile(r'transmit real-time tide data = (YES|NO)'),
+                lambda match : False if (match.group(1)=='NO') else True
+            ),
+            SBE26plusDeviceStatusDataParticleKey.TXWAVEBURST:  (
+                re.compile(r'transmit real-time wave burst data = (YES|NO)'),
+                lambda match : False if (match.group(1)=='NO') else True
+            ),
+            SBE26plusDeviceStatusDataParticleKey.TXWAVESTATS:  (
+                re.compile(r'transmit real-time wave statistics = (YES|NO)'),
+                lambda match : False if (match.group(1)=='NO') else True
+            ),
+            SBE26plusDeviceStatusDataParticleKey.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS:  (
+                re.compile(r' +number of wave samples per burst to use for wave statistics = (\d+)'),
+                lambda match : int(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC:  (
+                re.compile(r' +(do not|) use measured temperature and conductivity for density calculation'),
+                lambda match : False if (match.group(1)=='do not') else True
+            ),
+            SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_FOR_DENSITY_CALC:  (
+                re.compile(r' +(do not|) use measured temperature for density calculation'),
+                lambda match : True if (match.group(1)=='do not') else False
+            ),
+            SBE26plusDeviceStatusDataParticleKey.AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR:  (
+                re.compile(r' +average water temperature above the pressure sensor \(deg C\) = ([\d.]+)'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR:  (
+                re.compile(r' +average salinity above the pressure sensor \(PSU\) = ([\d.]+)'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.PREASURE_SENSOR_HEIGHT_FROM_BOTTOM: (
+                re.compile(r' +height of pressure sensor from bottom \(meters\) = ([\d.]+)'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND: (
+                re.compile(r' +number of spectral estimates for each frequency band = (\d+)'),
+                lambda match : int(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.MIN_ALLOWABLE_ATTENUATION: (
+                re.compile(r' +minimum allowable attenuation = ([\d.]+)'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.MIN_PERIOD_IN_AUTO_SPECTRUM: (
+                re.compile(r' +minimum period \(seconds\) to use in auto-spectrum = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.MAX_PERIOD_IN_AUTO_SPECTRUM: (
+                re.compile(r' +maximum period \(seconds\) to use in auto-spectrum = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.HANNING_WINDOW_CUTOFF: (
+                re.compile(r' +hanning window cutoff = ([\d.]+)'),
+                lambda match : float(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.SHOW_PROGRESS_MESSAGES: (
+                re.compile(r' +(do not show|show) progress messages'),
+                lambda match : True if (match.group(1)=='show') else False
+            ),
+            SBE26plusDeviceStatusDataParticleKey.STATUS: (
+                re.compile(r'status = (logging|waiting|stopped)'),
+                lambda match : string.upper(match.group(1))
+            ),
+            SBE26plusDeviceStatusDataParticleKey.LOGGING: (
+                re.compile(r'logging = (YES|NO)'),
+                lambda match : False if (match.group(1)=='NO') else True,
+            )
+        }
+
+
+        result = [] # Final storage for particle
+        vals = {}   # intermediate storage for particle values so they can be set to null first.
+
+        for (key, (matcher, l_func)) in single_var_matchers.iteritems():
+            vals[key] = None
+
+        for line in self.raw_data.split(NEWLINE):
+            for (key, (matcher, l_func)) in single_var_matchers.iteritems():
+                match = matcher.match(line)
+                if match:
+                    vals[key] = l_func(match)
+
+        for (key, val) in vals.iteritems():
+            result.append({DataParticleKey.VALUE_ID: key, DataParticleKey.VALUE: val})
+
+        return result
 
 class Protocol(CommandResponseInstrumentProtocol):
     """
@@ -790,7 +1150,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,                    self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SETSAMPLING,            self._handler_command_setsampling)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXECUTE_CLOCK_SYNC,     self._handler_execute_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC,             self._handler_command_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_aquire_status)
+
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION,           self._handler_command_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.INIT_LOGGING,           self._handler_command_init_logging)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
@@ -798,8 +1160,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_autosample_test_get)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SEND_LAST,           self._handler_command_autosample_send_last)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SEND_LAST_AND_SLEEP, self._handler_command_autosample_send_last_and_sleep)
+        #self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SEND_LAST,           self._handler_command_autosample_send_last)
+        #self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SEND_LAST_AND_SLEEP, self._handler_command_autosample_send_last_and_sleep)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,     self._handler_autosample_stop_autosample)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
@@ -824,8 +1186,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.SET,                         self._build_set_command)
         self._add_build_handler(InstrumentCmds.TAKE_SAMPLE,                 self._build_simple_command)
         self._add_build_handler(InstrumentCmds.INIT_LOGGING,                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.SEND_LAST_AND_SLEEP,         self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.SEND_LAST,                   self._build_simple_command)
+        #self._add_build_handler(InstrumentCmds.SEND_LAST_AND_SLEEP,         self._build_simple_command)
+        #self._add_build_handler(InstrumentCmds.SEND_LAST,                   self._build_simple_command)
 
 
         # Add response handlers for device commands.
@@ -835,8 +1197,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.SET,                      self._parse_set_response)
         self._add_response_handler(InstrumentCmds.TAKE_SAMPLE,              self._parse_ts_response)
         self._add_response_handler(InstrumentCmds.INIT_LOGGING,             self._parse_init_logging_response)
-        self._add_response_handler(InstrumentCmds.SEND_LAST_AND_SLEEP,      self._parse_sl_slo_response)
-        self._add_response_handler(InstrumentCmds.SEND_LAST,                self._parse_sl_slo_response)
+        #self._add_response_handler(InstrumentCmds.SEND_LAST_AND_SLEEP,      self._parse_sl_slo_response)
+        #self._add_response_handler(InstrumentCmds.SEND_LAST,                self._parse_sl_slo_response)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -998,13 +1360,26 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+    def _handler_command_aquire_status(self, *args, **kwargs):
+        """
+        @param args:
+        @param kwargs:
+        @return:
+        """
+        next_state = None
+        next_agent_state = None
+        kwargs['timeout'] = 30
+        result = self._do_cmd_resp('ds', *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
     def _handler_command_exit(self, *args, **kwargs):
         """
         Exit command state.
         """
         pass
 
-    def _handler_execute_clock_sync(self, *args, **kwargs):
+    def _handler_command_clock_sync(self, *args, **kwargs):
         """
         execute a clock sync on the leading edge of a second change
         @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
@@ -1025,14 +1400,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # lets clear out any past data so it doesnt confuse the command
         self._linebuf = ''
         self._promptbuf = ''
-        '''
-        t = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
-        t_last = t
 
-        while t == t_last:
-            t_last = t
-            t = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
-        '''
         str_val = self._param_dict.format(Parameter.DS_DEVICE_DATE_TIME, get_timestamp_delayed("%d %b %Y %H:%M:%S"))
         set_cmd = '%s=%s' % (Parameter.DS_DEVICE_DATE_TIME, str_val) + NEWLINE
         self._do_cmd_direct(set_cmd)
@@ -1040,10 +1408,10 @@ class Protocol(CommandResponseInstrumentProtocol):
 
 
         if response != set_cmd + Prompt.COMMAND:
-            raise InstrumentProtocolException("_handler_execute_clock_sync - response != set_cmd")
+            raise InstrumentProtocolException("_handler_clock_sync - response != set_cmd")
 
         if prompt != Prompt.COMMAND:
-            raise InstrumentProtocolException("_handler_execute_clock_sync - prompt != Prompt.COMMAND")
+            raise InstrumentProtocolException("_handler_clock_sync - prompt != Prompt.COMMAND")
 
 
         return (next_state, (next_agent_state, result))
@@ -1094,8 +1462,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                 # ONLY do next if a param for it is present
                 kwargs['expected_prompt'] = ", new value = "
                 self._do_cmd_resp(InstrumentCmds.SETSAMPLING, ss_params, **kwargs)
-
-            self._update_params()
+            else:
+                # if there were no ss_params, then update the params here,
+                # if there were ss_params, then setsampling will handle the updating.
+                self._update_params()
 
         return (next_state, result)
 
@@ -1320,13 +1690,12 @@ class Protocol(CommandResponseInstrumentProtocol):
 
             log.debug("WARNING!!! UNEXPECTED RESPONSE " + repr(response))
 
-        '''
+
         # Update params after changing them.
 
         self._update_params()
 
         # Verify that paramaters set via set are matching in the latest parameter scan.
-
 
         device_parameters = self._param_dict.get_config()
         for k in self._sampling_args.keys():
@@ -1341,8 +1710,6 @@ class Protocol(CommandResponseInstrumentProtocol):
             if self._sampling_args[k] != device_parameters[k]:
                 log.debug("FAILURE: " + str(k) + " was " + str(device_parameters[k]) + " and should have been " + str(self._sampling_args[k]))
                 raise InstrumentParameterException("FAILURE: " + str(k) + " was " + str(device_parameters[k]) + " and should have been " + str(self._sampling_args[k]))
-        '''
-
 
     def _split_params(self, **params):
         log.debug("PARAMS = " + str(params))
@@ -1376,7 +1743,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                 set_params[key] = value
 
         return(set_params, ss_params)
-
 
     ###############################
     # Init Logging
@@ -1504,7 +1870,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 result[key] = val
 
         return (next_state, result)
-
+    '''
     def _handler_command_autosample_send_last_and_sleep(self, *args, **kwargs):
         """
         """
@@ -1563,6 +1929,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         log.debug("self._promptbuf = " + repr(self._promptbuf))
         log.debug("self._linebuf = " + repr(self._linebuf))
+    '''
 
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
@@ -2107,7 +2474,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             lambda match : False if (match.group(1)=='NO') else True,
             self._true_false_to_string)
         ################################################
-
+        '''
         # dc
         dc_line_01 = r'Pressure coefficients: +(\d+-[a-zA-Z]+-\d+)'
         dc_line_02 = r' +U0 = (-?[\d.e\-\+]+)'
@@ -2294,6 +2661,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             dc_line_30,
             lambda match : float(match.group(1)),
             self._float_to_string)
+        '''
 
     def _update_params(self, *args, **kwargs):
         """
@@ -2311,7 +2679,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Issue display commands and parse results.
         timeout = kwargs.get('timeout', TIMEOUT)
         self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, timeout=timeout)
-        self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION, timeout=timeout)
+        #################################################################self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION, timeout=timeout)
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
@@ -2325,6 +2693,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         if prompt != Prompt.COMMAND:
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
+        log.debug("RESPONSE = " + str(response))
+        log.debug("AM I PUBLISHING A PARTICLE?")
+        sample = self._extract_sample(SBE26plusDeviceStatusDataParticle, DS_REGEX_MATCHER, response, True)
+        log.debug("DID I PUBLISH A PARTICLE?" + str(sample))
 
         for line in response.split(NEWLINE):
             hit_count = self._param_dict.multi_match_update(line)
@@ -2337,9 +2709,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         if prompt != Prompt.COMMAND:
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
-        for line in response.split(NEWLINE):
-            hit_count = self._param_dict.multi_match_update(line)
-            #log.debug("MATCH COUNT = " + str(hit_count))
+        log.debug("RESPONSE = " + str(response))
+        log.debug("AM I PUBLISHING A PARTICLE?")
+        sample = self._extract_sample(SBE26plusDeviceCalibrationDataParticle, DC_REGEX_MATCHER, response, True)
+        log.debug("DID I PUBLISH A PARTICLE?" + str(sample))
+
+
+        #for line in response.split(NEWLINE):
+        #    hit_count = self._param_dict.multi_match_update(line)
+
+        #return response???
+
+
 
     def _parse_ts_response(self, response, prompt):
         """
@@ -2358,7 +2739,10 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         sample = None
         for line in response.split(NEWLINE):
+            log.debug("RESPONSE = " + str(response))
+            log.debug("AM I PUBLISHING A PARTICLE?")
             sample = self._extract_sample(SBE26plusTakeSampleDataParticle, TS_REGEX_MATCHER, line, True)
+            log.debug("DID I PUBLISH A PARTICLE?" + str(sample))
             if sample:
                 break
 
@@ -2409,7 +2793,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                     self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk)
                     self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk)
                     self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk)
-
+                    #SBE26plusDeviceStatusDataParticle
+                    #SBE26plusDeviceCalibrationDataParticle
                     # Need to catch if its SL/SLO and return that result (publishing optional.
                     #self._extract_sample(SBE26plus__________DataParticle, SL_SLO_REGEX_MATCHER, chunk)
 

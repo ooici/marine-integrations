@@ -191,40 +191,40 @@ PARAMS = {
     Parameter.SHOW_PROGRESS_MESSAGES : bool,
     Parameter.STATUS : str,
     Parameter.LOGGING : bool,
-    '''
-    # DC # parameters verified to match 1:1 to DC output
-    Parameter.PCALDATE : tuple,
-    Parameter.PU0 : float,
-    Parameter.PY1 : float,
-    Parameter.PY2 : float,
-    Parameter.PY3 : float,
-    Parameter.PC1 : float,
-    Parameter.PC2 : float,
-    Parameter.PC3 : float,
-    Parameter.PD1 : float,
-    Parameter.PD2 : float,
-    Parameter.PT1 : float,
-    Parameter.PT2 : float,
-    Parameter.PT3 : float,
-    Parameter.PT4 : float,
-    Parameter.FACTORY_M : float,
-    Parameter.FACTORY_B : float,
-    Parameter.POFFSET : float,
-    Parameter.TCALDATE : tuple,
-    Parameter.TA0 : float,
-    Parameter.TA1 : float,
-    Parameter.TA2 : float,
-    Parameter.TA3 : float,
 
-    Parameter.CCALDATE : tuple,
-    Parameter.CG : float,
-    Parameter.CH : float,
-    Parameter.CI : float,
-    Parameter.CJ : float,
-    Parameter.CTCOR : float,
-    Parameter.CPCOR : float,
-    Parameter.CSLOPE : float,
-    '''
+    # DC # parameters verified to match 1:1 to DC output
+    #Parameter.PCALDATE : tuple,
+    #Parameter.PU0 : float,
+    #Parameter.PY1 : float,
+    #Parameter.PY2 : float,
+    #Parameter.PY3 : float,
+    #Parameter.PC1 : float,
+    #Parameter.PC2 : float,
+    #Parameter.PC3 : float,
+    #Parameter.PD1 : float,
+    #Parameter.PD2 : float,
+    #Parameter.PT1 : float,
+    #Parameter.PT2 : float,
+    #Parameter.PT3 : float,
+    #Parameter.PT4 : float,
+    #Parameter.FACTORY_M : float,
+    #Parameter.FACTORY_B : float,
+    #Parameter.POFFSET : float,
+    #Parameter.TCALDATE : tuple,
+    #Parameter.TA0 : float,
+    #Parameter.TA1 : float,
+    #Parameter.TA2 : float,
+    #Parameter.TA3 : float,
+
+    #Parameter.CCALDATE : tuple,
+    #Parameter.CG : float,
+    #Parameter.CH : float,
+    #Parameter.CI : float,
+    #Parameter.CJ : float,
+    #Parameter.CTCOR : float,
+    #Parameter.CPCOR : float,
+    #Parameter.CSLOPE : float,
+
     # End of DC
 }
 #################################### RULES ####################################
@@ -1678,11 +1678,9 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(repr(ID._protocol._protocol_fsm.events), repr(ProtocolEvent))
 
         state_handlers = {('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_STOP_AUTOSAMPLE'): '_handler_autosample_stop_autosample',
-                          ('DRIVER_STATE_AUTOSAMPLE', 'PROTOCOL_EVENT_SEND_LAST'): '_handler_command_autosample_send_last',
-                          ('DRIVER_STATE_AUTOSAMPLE', 'PROTOCOL_EVENT_SEND_LAST_AND_SLEEP'): '_handler_command_autosample_send_last_and_sleep',
-
-                          ('DRIVER_STATE_COMMAND', 'PROTOCOL_EVENT_EXECUTE_CLOCK_SYNC'): '_handler_execute_clock_sync',
-
+                          #('DRIVER_STATE_AUTOSAMPLE', 'PROTOCOL_EVENT_SEND_LAST'): '_handler_command_autosample_send_last',
+                          #('DRIVER_STATE_AUTOSAMPLE', 'PROTOCOL_EVENT_SEND_LAST_AND_SLEEP'): '_handler_command_autosample_send_last_and_sleep',
+                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_CLOCK_SYNC'): '_handler_command_clock_sync',
                           ('DRIVER_STATE_DIRECT_ACCESS', 'DRIVER_EVENT_ENTER'): '_handler_direct_access_enter',
                           ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_ENTER'): '_handler_command_enter',
                           ('DRIVER_STATE_UNKNOWN', 'DRIVER_EVENT_EXIT'): '_handler_unknown_exit',
@@ -1703,7 +1701,8 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
                           ('DRIVER_STATE_UNKNOWN', 'DRIVER_EVENT_DISCOVER'): '_handler_unknown_discover',
                           ('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_ENTER'): '_handler_autosample_enter',
                           ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_EXIT'): '_handler_command_exit',
-                          ('DRIVER_STATE_UNKNOWN', 'DRIVER_EVENT_ENTER'): '_handler_unknown_enter'}
+                          ('DRIVER_STATE_UNKNOWN', 'DRIVER_EVENT_ENTER'): '_handler_unknown_enter',
+                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_ACQUIRE_STATUS'): '_handler_command_aquire_status'}
 
         for key in ID._protocol._protocol_fsm.state_handlers.keys():
             self.assertEqual(ID._protocol._protocol_fsm.state_handlers[key].__func__.func_name,  state_handlers[key])
@@ -1749,9 +1748,9 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
 
         state_handlers = {('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_STOP_AUTOSAMPLE'): '_handler_autosample_stop_autosample',
-                          ('DRIVER_STATE_AUTOSAMPLE', 'PROTOCOL_EVENT_SEND_LAST'): '_handler_command_autosample_send_last',
-                          ('DRIVER_STATE_AUTOSAMPLE', 'PROTOCOL_EVENT_SEND_LAST_AND_SLEEP'): '_handler_command_autosample_send_last_and_sleep',
-                          ('DRIVER_STATE_COMMAND', 'PROTOCOL_EVENT_EXECUTE_CLOCK_SYNC'): '_handler_execute_clock_sync',
+                          #('DRIVER_STATE_AUTOSAMPLE', 'PROTOCOL_EVENT_SEND_LAST'): '_handler_command_autosample_send_last',
+                          #('DRIVER_STATE_AUTOSAMPLE', 'PROTOCOL_EVENT_SEND_LAST_AND_SLEEP'): '_handler_command_autosample_send_last_and_sleep',
+                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_CLOCK_SYNC'): '_handler_command_clock_sync',
                           ('DRIVER_STATE_DIRECT_ACCESS', 'DRIVER_EVENT_ENTER'): '_handler_direct_access_enter',
                           ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_ENTER'): '_handler_command_enter',
                           ('DRIVER_STATE_UNKNOWN', 'DRIVER_EVENT_EXIT'): '_handler_unknown_exit',
@@ -1772,9 +1771,13 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
                           ('DRIVER_STATE_UNKNOWN', 'DRIVER_EVENT_DISCOVER'): '_handler_unknown_discover',
                           ('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_ENTER'): '_handler_autosample_enter',
                           ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_EXIT'): '_handler_command_exit',
-                          ('DRIVER_STATE_UNKNOWN', 'DRIVER_EVENT_ENTER'): '_handler_unknown_enter'}
+                          ('DRIVER_STATE_UNKNOWN', 'DRIVER_EVENT_ENTER'): '_handler_unknown_enter',
+                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_ACQUIRE_STATUS'): '_handler_command_aquire_status'}
 
         for key in p._protocol_fsm.state_handlers.keys():
+            log.debug("W*****>>> " + str(key))
+            log.debug("X*****>>> " + str(p._protocol_fsm.state_handlers[key].__func__.func_name))
+            log.debug("Y*****>>> " + str(state_handlers[key]))
             self.assertEqual(p._protocol_fsm.state_handlers[key].__func__.func_name,  state_handlers[key])
             self.assertTrue(key in state_handlers)
 
@@ -1801,7 +1804,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
             log.debug(str(ret))
             master_list.append(getattr(c, k))
             self.assertEqual(len(ret), 1)
-        self.assertEqual(len(p._filter_capabilities(master_list)), 7)
+        self.assertEqual(len(p._filter_capabilities(master_list)), 5)
 
         # Negative Testing
         self.assertEqual(len(p._filter_capabilities(['BIRD', 'ABOVE', 'WATER'])), 0)
@@ -2279,10 +2282,9 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
         ret = p._parse_ds_response(SAMPLE_DS, Prompt.COMMAND)
         # assert that we know of 76 params
-        self.assertEqual(len(p._param_dict.get_keys()), 76)
-        print p._param_dict.get_keys()
-        # get
-        #
+        self.assertEqual(len(p._param_dict.get_keys()), 46) #76
+
+
         dic = self.convert_enum_to_dict(Parameter)
 
         """
@@ -2293,13 +2295,13 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
                 print "self.assertEqual(str(p._param_dict.get('" + k + "')),'" + str(p._param_dict.get(k)) + "')"
         """
 
-        self.assertEqual(p._param_dict.get('TA0'), None)
+        #DC#self.assertEqual(p._param_dict.get('TA0'), None)
         self.assertEqual(str(p._param_dict.get('HANNING_WINDOW_CUTOFF')),'0.1')
-        self.assertEqual(p._param_dict.get('FACTORY_M'), None)
-        self.assertEqual(p._param_dict.get('FACTORY_B'), None)
+        #DC#self.assertEqual(p._param_dict.get('FACTORY_M'), None)
+        #DC#self.assertEqual(p._param_dict.get('FACTORY_B'), None)
         self.assertEqual(str(p._param_dict.get('TIDE_MEASUREMENTS_SINCE_LAST_START')),'11.0')
-        self.assertEqual(p._param_dict.get('PY2'), None)
-        self.assertEqual(p._param_dict.get('PY3'), None)
+        #DC#self.assertEqual(p._param_dict.get('PY2'), None)
+        #DC#self.assertEqual(p._param_dict.get('PY3'), None)
         self.assertEqual(str(p._param_dict.get('TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS')),'6.0')
         self.assertEqual(str(p._param_dict.get('USE_STOP_TIME')),'False')
         self.assertEqual(str(p._param_dict.get('DateTime')),'05 OCT 2012  17:19:27')
@@ -2308,20 +2310,20 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(str(p._param_dict.get('USE_START_TIME')),'False')
         self.assertEqual(str(p._param_dict.get('IOP_MA')),'7.4')
         self.assertEqual(str(p._param_dict.get('QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER')),'122094.0')
-        self.assertEqual(p._param_dict.get('PU0'), None)
-        self.assertEqual(p._param_dict.get('TA1'), None)
+        #DC#self.assertEqual(p._param_dict.get('PU0'), None)
+        #DC#self.assertEqual(p._param_dict.get('TA1'), None)
         self.assertEqual(str(p._param_dict.get('CONDUCTIVITY')),'False')
-        self.assertEqual(p._param_dict.get('CSLOPE'), None)
-        self.assertEqual(p._param_dict.get('PT4'), None)
-        self.assertEqual(p._param_dict.get('PY1'), None)
-        self.assertEqual(p._param_dict.get('CCALDATE'), None)
-        self.assertEqual(p._param_dict.get('POFFSET'), None)
+        #DC#self.assertEqual(p._param_dict.get('CSLOPE'), None)
+        #DC#self.assertEqual(p._param_dict.get('PT4'), None)
+        #DC#self.assertEqual(p._param_dict.get('PY1'), None)
+        #DC#self.assertEqual(p._param_dict.get('CCALDATE'), None)
+        #DC#self.assertEqual(p._param_dict.get('POFFSET'), None)
         self.assertEqual(str(p._param_dict.get('MEMORY_ENDURANCE')),'258.0')
-        self.assertEqual(p._param_dict.get('TCALDATE'), None)
+        #DC#self.assertEqual(p._param_dict.get('TCALDATE'), None)
         self.assertEqual(str(p._param_dict.get('WAVE_BURSTS_PER_DAY')),'80.0')
-        self.assertEqual(p._param_dict.get('PD2'), None)
-        self.assertEqual(p._param_dict.get('PD1'), None)
-        self.assertEqual(p._param_dict.get('PT1'), None)
+        #DC#self.assertEqual(p._param_dict.get('PD2'), None)
+        #DC#self.assertEqual(p._param_dict.get('PD1'), None)
+        #DC#self.assertEqual(p._param_dict.get('PT1'), None)
         self.assertEqual(str(p._param_dict.get('DEVICE_VERSION')),'6.1E')
         self.assertEqual(str(p._param_dict.get('WAVE_SAMPLES_PER_BURST')),'512')
         self.assertEqual(str(p._param_dict.get('PREASURE_SENSOR_HEIGHT_FROM_BOTTOM')),'10.0')
@@ -2331,39 +2333,39 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(p._param_dict.get('LAST_SAMPLE_S'), None)
         self.assertEqual(str(p._param_dict.get('TIDE_SAMPLES_PER_DAY')),'480.0')
         self.assertEqual(str(p._param_dict.get('STATUS')),'STOPPED')
-        self.assertEqual(p._param_dict.get('CJ'), None)
+        #DC#self.assertEqual(p._param_dict.get('CJ'), None)
         self.assertEqual(p._param_dict.get('AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR'), None)
-        self.assertEqual(p._param_dict.get('CH'), None)
+        #DC#self.assertEqual(p._param_dict.get('CH'), None)
         self.assertEqual(str(p._param_dict.get('LOGGING')),'False')
         self.assertEqual(str(p._param_dict.get('TxTide')),'True')
-        self.assertEqual(p._param_dict.get('TA2'), None)
-        self.assertEqual(p._param_dict.get('TA3'), None)
+        #DC#self.assertEqual(p._param_dict.get('TA2'), None)
+        #DC#self.assertEqual(p._param_dict.get('TA3'), None)
         self.assertEqual(str(p._param_dict.get('TIDE_MEASUREMENT_DURATION')),'60')
-        self.assertEqual(p._param_dict.get('CG'), None)
+        #DC#self.assertEqual(p._param_dict.get('CG'), None)
         self.assertEqual(str(p._param_dict.get('ExternalTemperature')),'False')
-        self.assertEqual(p._param_dict.get('CTCOR'), None)
+        #DC#self.assertEqual(p._param_dict.get('CTCOR'), None)
         self.assertEqual(str(p._param_dict.get('MIN_PERIOD_IN_AUTO_SPECTRUM')),'0.0')
         self.assertEqual(str(p._param_dict.get('SHOW_PROGRESS_MESSAGES')),'True')
         self.assertEqual(str(p._param_dict.get('TxWave')),'True')
         self.assertEqual(str(p._param_dict.get('WAVE_BURSTS_SINCE_LAST_START')),'1.0')
-        self.assertEqual(p._param_dict.get('PC1'), None)
+        #DC#self.assertEqual(p._param_dict.get('PC1'), None)
         self.assertEqual(str(p._param_dict.get('MIN_ALLOWABLE_ATTENUATION')),'0.0025')
         self.assertEqual(str(p._param_dict.get('TXWAVESTATS')),'True')
-        self.assertEqual(p._param_dict.get('PT3'), None)
-        self.assertEqual(p._param_dict.get('PT2'), None)
+        #DC#self.assertEqual(p._param_dict.get('PT3'), None)
+        #DC#self.assertEqual(p._param_dict.get('PT2'), None)
         self.assertEqual(str(p._param_dict.get('USE_MEASURED_TEMP_FOR_DENSITY_CALC')),'False')
         self.assertEqual(str(p._param_dict.get('SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND')),'5')
-        self.assertEqual(p._param_dict.get('PCALDATE'), None)
+        #DC#self.assertEqual(p._param_dict.get('PCALDATE'), None)
         self.assertEqual(str(p._param_dict.get('QUARTZ_PREASURE_SENSOR_RANGE')),'300.0')
         self.assertEqual(str(p._param_dict.get('TOTAL_RECORDED_TIDE_MEASUREMENTS')),'5982.0')
         self.assertEqual(str(p._param_dict.get('TOTAL_RECORDED_WAVE_BURSTS')),'4525.0')
-        self.assertEqual(p._param_dict.get('PC2'), None)
-        self.assertEqual(p._param_dict.get('PC3'), None)
-        self.assertEqual(p._param_dict.get('USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC'), None)
-        self.assertEqual(p._param_dict.get('CI'), None)
+        #DC#self.assertEqual(p._param_dict.get('PC2'), None)
+        #DC#self.assertEqual(p._param_dict.get('PC3'), None)
+        #DC#self.assertEqual(p._param_dict.get('USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC'), None)
+        #DC#self.assertEqual(p._param_dict.get('CI'), None)
         self.assertEqual(str(p._param_dict.get('WAVE_SAMPLES_SCANS_PER_SECOND')),'4.0')
         self.assertEqual(str(p._param_dict.get('MAX_PERIOD_IN_AUTO_SPECTRUM')),'1000000.0')
-        self.assertEqual(p._param_dict.get('CPCOR'), None)
+        #DC#self.assertEqual(p._param_dict.get('CPCOR'), None)
         self.assertEqual(str(p._param_dict.get('USERINFO')),'OOI')
         self.assertEqual(str(p._param_dict.get('VLITH_V')),'9.0')
         self.assertEqual(str(p._param_dict.get('SERIAL_NUMBER')),'1329')
@@ -2392,7 +2394,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
         ret = p._parse_dc_response(SAMPLE_DC, Prompt.COMMAND)
         # assert that we know of 76 params
-        self.assertEqual(len(p._param_dict.get_keys()), 76)
+        self.assertEqual(len(p._param_dict.get_keys()), 46) #76
 
         # get
         #
@@ -2405,13 +2407,13 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
             else:
                 print "self.assertEqual(str(p._param_dict.get('" + k + "')),'" + str(p._param_dict.get(k)) + "')"
         """
-        self.assertEqual(str(p._param_dict.get('TA0')),'0.0002557341')
+        #DC#self.assertEqual(str(p._param_dict.get('TA0')),'0.0002557341')
         self.assertEqual(p._param_dict.get('HANNING_WINDOW_CUTOFF'), None)
-        self.assertEqual(str(p._param_dict.get('FACTORY_M')),'41943.0')
-        self.assertEqual(str(p._param_dict.get('FACTORY_B')),'2796.2')
+        #DC#self.assertEqual(str(p._param_dict.get('FACTORY_M')),'41943.0')
+        #DC#self.assertEqual(str(p._param_dict.get('FACTORY_B')),'2796.2')
         self.assertEqual(p._param_dict.get('TIDE_MEASUREMENTS_SINCE_LAST_START'), None)
-        self.assertEqual(str(p._param_dict.get('PY2')),'-10829.41')
-        self.assertEqual(str(p._param_dict.get('PY3')),'0.0')
+        #DC#self.assertEqual(str(p._param_dict.get('PY2')),'-10829.41')
+        #DC#self.assertEqual(str(p._param_dict.get('PY3')),'0.0')
         self.assertEqual(p._param_dict.get('TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS'), None)
         self.assertEqual(p._param_dict.get('USE_STOP_TIME'), None)
         self.assertEqual(p._param_dict.get('DateTime'), None)
@@ -2420,20 +2422,20 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(p._param_dict.get('USE_START_TIME'), None)
         self.assertEqual(p._param_dict.get('IOP_MA'), None)
         self.assertEqual(p._param_dict.get('QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER'), None)
-        self.assertEqual(str(p._param_dict.get('PU0')),'5.827424')
-        self.assertEqual(str(p._param_dict.get('TA1')),'0.0002493547')
+        #DC#self.assertEqual(str(p._param_dict.get('PU0')),'5.827424')
+        #DC#self.assertEqual(str(p._param_dict.get('TA1')),'0.0002493547')
         self.assertEqual(p._param_dict.get('CONDUCTIVITY'), None)
-        self.assertEqual(p._param_dict.get('CSLOPE'), None)
-        self.assertEqual(str(p._param_dict.get('PT4')),'31.09619')
-        self.assertEqual(str(p._param_dict.get('PY1')),'-3845.795')
-        self.assertEqual(p._param_dict.get('CCALDATE'), None)
-        self.assertEqual(str(p._param_dict.get('POFFSET')),'-0.1877')
+        #DC#self.assertEqual(p._param_dict.get('CSLOPE'), None)
+        #DC#self.assertEqual(str(p._param_dict.get('PT4')),'31.09619')
+        #DC#self.assertEqual(str(p._param_dict.get('PY1')),'-3845.795')
+        #DC#self.assertEqual(p._param_dict.get('CCALDATE'), None)
+        #DC#self.assertEqual(str(p._param_dict.get('POFFSET')),'-0.1877')
         self.assertEqual(p._param_dict.get('MEMORY_ENDURANCE'), None)
-        self.assertEqual(str(p._param_dict.get('TCALDATE')),'(30, 3, 2012)')
+        #DC#self.assertEqual(str(p._param_dict.get('TCALDATE')),'(30, 3, 2012)')
         self.assertEqual(p._param_dict.get('WAVE_BURSTS_PER_DAY'), None)
-        self.assertEqual(str(p._param_dict.get('PD2')),'0.0')
-        self.assertEqual(str(p._param_dict.get('PD1')),'0.025294')
-        self.assertEqual(str(p._param_dict.get('PT1')),'27.77282')
+        #DC#self.assertEqual(str(p._param_dict.get('PD2')),'0.0')
+        #DC#self.assertEqual(str(p._param_dict.get('PD1')),'0.025294')
+        #DC#self.assertEqual(str(p._param_dict.get('PT1')),'27.77282')
         self.assertEqual(p._param_dict.get('DEVICE_VERSION'), None)
         self.assertEqual(p._param_dict.get('WAVE_SAMPLES_PER_BURST'), None)
         self.assertEqual(p._param_dict.get('PREASURE_SENSOR_HEIGHT_FROM_BOTTOM'), None)
@@ -2443,39 +2445,39 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(p._param_dict.get('LAST_SAMPLE_S'), None)
         self.assertEqual(p._param_dict.get('TIDE_SAMPLES_PER_DAY'), None)
         self.assertEqual(p._param_dict.get('STATUS'), None)
-        self.assertEqual(p._param_dict.get('CJ'), None)
+        #DC#self.assertEqual(p._param_dict.get('CJ'), None)
         self.assertEqual(p._param_dict.get('AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR'), None)
-        self.assertEqual(p._param_dict.get('CH'), None)
+        #DC#self.assertEqual(p._param_dict.get('CH'), None)
         self.assertEqual(p._param_dict.get('LOGGING'), None)
         self.assertEqual(p._param_dict.get('TxTide'), None)
-        self.assertEqual(str(p._param_dict.get('TA2')),'-1.567218e-06')
-        self.assertEqual(str(p._param_dict.get('TA3')),'1.508124e-07')
+        #DC#self.assertEqual(str(p._param_dict.get('TA2')),'-1.567218e-06')
+        #DC#self.assertEqual(str(p._param_dict.get('TA3')),'1.508124e-07')
         self.assertEqual(p._param_dict.get('TIDE_MEASUREMENT_DURATION'), None)
-        self.assertEqual(p._param_dict.get('CG'), None)
+        #DC#self.assertEqual(p._param_dict.get('CG'), None)
         self.assertEqual(p._param_dict.get('ExternalTemperature'), None)
-        self.assertEqual(p._param_dict.get('CTCOR'), None)
+        #DC#self.assertEqual(p._param_dict.get('CTCOR'), None)
         self.assertEqual(p._param_dict.get('MIN_PERIOD_IN_AUTO_SPECTRUM'), None)
         self.assertEqual(p._param_dict.get('SHOW_PROGRESS_MESSAGES'), None)
         self.assertEqual(p._param_dict.get('TxWave'), None)
         self.assertEqual(p._param_dict.get('WAVE_BURSTS_SINCE_LAST_START'), None)
-        self.assertEqual(str(p._param_dict.get('PC1')),'2123.771')
+        #DC#self.assertEqual(str(p._param_dict.get('PC1')),'2123.771')
         self.assertEqual(p._param_dict.get('MIN_ALLOWABLE_ATTENUATION'), None)
         self.assertEqual(p._param_dict.get('TXWAVESTATS'), None)
-        self.assertEqual(str(p._param_dict.get('PT3')),'17.52851')
-        self.assertEqual(str(p._param_dict.get('PT2')),'0.391138')
+        #DC#self.assertEqual(str(p._param_dict.get('PT3')),'17.52851')
+        #DC#self.assertEqual(str(p._param_dict.get('PT2')),'0.391138')
         self.assertEqual(p._param_dict.get('USE_MEASURED_TEMP_FOR_DENSITY_CALC'), None)
         self.assertEqual(p._param_dict.get('SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND'), None)
-        self.assertEqual(str(p._param_dict.get('PCALDATE')),'(2, 4, 2012)')
+        #DC#self.assertEqual(str(p._param_dict.get('PCALDATE')),'(2, 4, 2012)')
         self.assertEqual(p._param_dict.get('QUARTZ_PREASURE_SENSOR_RANGE'), None)
         self.assertEqual(p._param_dict.get('TOTAL_RECORDED_TIDE_MEASUREMENTS'), None)
         self.assertEqual(p._param_dict.get('TOTAL_RECORDED_WAVE_BURSTS'), None)
-        self.assertEqual(str(p._param_dict.get('PC2')),'37.41653')
-        self.assertEqual(str(p._param_dict.get('PC3')),'-4014.654')
+        #DC#self.assertEqual(str(p._param_dict.get('PC2')),'37.41653')
+        #DC#self.assertEqual(str(p._param_dict.get('PC3')),'-4014.654')
         self.assertEqual(p._param_dict.get('USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC'), None)
-        self.assertEqual(p._param_dict.get('CI'), None)
+        #DC#self.assertEqual(p._param_dict.get('CI'), None)
         self.assertEqual(p._param_dict.get('WAVE_SAMPLES_SCANS_PER_SECOND'), None)
         self.assertEqual(p._param_dict.get('MAX_PERIOD_IN_AUTO_SPECTRUM'), None)
-        self.assertEqual(p._param_dict.get('CPCOR'), None)
+        #DC#self.assertEqual(p._param_dict.get('CPCOR'), None)
         self.assertEqual(p._param_dict.get('USERINFO'), None)
         self.assertEqual(p._param_dict.get('VLITH_V'), None)
         self.assertEqual(p._param_dict.get('SERIAL_NUMBER'), None)
@@ -2508,8 +2510,8 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         p = ID._protocol
 
         # Float
-        ret = p._build_set_command("irrelevant", Parameter.PU0, 5.827424)
-        self.assertEqual(ret, 'PU0=5.827424\r\n')
+        ret = p._build_set_command("irrelevant", Parameter.MIN_ALLOWABLE_ATTENUATION, 5.827424)
+        self.assertEqual(ret, 'MIN_ALLOWABLE_ATTENUATION=5.827424\r\n')
 
         # Boolean - Yes/No
         ret = p._build_set_command("irrelevant", Parameter.SHOW_PROGRESS_MESSAGES, True)
@@ -2519,9 +2521,10 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         ret = p._build_set_command("irrelevant", Parameter.USER_INFO, 'ooi_test')
         self.assertEqual(ret, 'USERINFO=ooi_test\r\n')
 
+        # Not used now DC set power removed.
         # Date (Tuple)
-        ret = p._build_set_command("irrelevant", Parameter.TCALDATE, (30, 8, 2012))
-        self.assertEqual(ret, 'TCALDATE=30-Aug-12\r\n')
+        # ret = p._build_set_command("irrelevant", Parameter.TCALDATE, (30, 8, 2012))
+        # self.assertEqual(ret, 'TCALDATE=30-Aug-12\r\n')
 
     def test_handler_command_set(self):
         """
@@ -2541,14 +2544,14 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
         params = {
             Parameter.EXTERNAL_TEMPERATURE_SENSOR : 5,
-            Parameter.PD1 : int(1),
-            Parameter.PD2 : True,
+            #DC#Parameter.PD1 : int(1),
+            #DC#Parameter.PD2 : True,
             }
         args = params
         kwargs = {}
 
         (next_state, result) = p._handler_command_set(args, **kwargs)
-        self.assertEqual(str(_do_cmd_resp_mock.mock_calls),"[call('set', 'ExternalTemperature', 5),\n call('set', 'PD2', True),\n call('set', 'PD1', 1),\n call('setsampling', {'ExternalTemperature': 5, 'PD2': True, 'PD1': 1}, expected_prompt=', new value = ')]")
+        self.assertEqual(str(_do_cmd_resp_mock.mock_calls),"[call('set', 'ExternalTemperature', 5)]")
         self.assertEqual(str(_update_params_mock.mock_calls), "[call()]")
         self.assertEqual(next_state, None)
         self.assertEqual(str(result), "_do_cmd_resp was returned")
@@ -2750,12 +2753,11 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         ID._protocol._protocol_fsm.current_state = ProtocolState.COMMAND
 
         ret = ID.get_resource_capabilities(*args, **kwargs)
-        for state in ['DRIVER_EVENT_ACQUIRE_SAMPLE', 'DRIVER_EVENT_SET',
-                      'DRIVER_EVENT_GET', 'PROTOCOL_EVENT_SETSAMPLING',
-                      'DRIVER_EVENT_START_AUTOSAMPLE']:
-            log.debug(str(state) + " in ret[0] = " + str(state in ret[0]))
+        for state in ['DRIVER_EVENT_ACQUIRE_STATUS', 'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                      'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
+
             self.assertTrue(state in ret[0])
-        self.assertEqual(len(ret[0]), 6)
+        self.assertEqual(len(ret[0]), 4)
 
 
 
@@ -2764,9 +2766,9 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         ID._protocol._protocol_fsm.current_state = ProtocolState.AUTOSAMPLE
 
         ret = ID.get_resource_capabilities(*args, **kwargs)
-        for state in ['DRIVER_EVENT_STOP_AUTOSAMPLE', 'DRIVER_EVENT_GET']:
+        for state in ['DRIVER_EVENT_STOP_AUTOSAMPLE']:
             self.assertTrue(state in ret[0])
-        self.assertEqual(len(ret[0]), 2)
+        self.assertEqual(len(ret[0]), 1)
 
         # Force State DIRECT_ACCESS
         ID._protocol._protocol_fsm.current_state = ProtocolState.DIRECT_ACCESS
@@ -2984,9 +2986,9 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         log.debug("get/set Test 1 - Conductivity = Y, small subset of possible parameters.")
         params = {
             Parameter.CONDUCTIVITY : True,
-            Parameter.PY1 : float(-3.859),
-            Parameter.PY2 : float(-10.25),
-            Parameter.PY3 : float(11.0),
+            #Parameter.PY1 : float(-3.859),
+            #Parameter.PY2 : float(-10.25),
+            #Parameter.PY3 : float(11.0),
             Parameter.TXWAVESTATS : False
         }
         reply = self.driver_client.cmd_dvr('set_resource', params)
@@ -2999,8 +3001,8 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         log.debug("get/set Test 2 - Conductivity = N, small subset of possible parameters.")
         params = {
             Parameter.CONDUCTIVITY : False,
-            Parameter.PT4 : float(27.90597),
-            Parameter.POFFSET : float(-0.1374),
+            #Parameter.PT4 : float(27.90597),
+            #Parameter.POFFSET : float(-0.1374),
         }
         reply = self.driver_client.cmd_dvr('set_resource', params)
         self.assertEqual(reply, None)
@@ -3012,10 +3014,10 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         log.debug("get/set Test 3 - internal temperature sensor, small subset of possible parameters.")
         params = {
             Parameter.DS_DEVICE_DATE_TIME : time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))),
-            Parameter.PCALDATE : (2, 4, 2013),
-            Parameter.TCALDATE : (2, 4, 2013),
+            #Parameter.PCALDATE : (2, 4, 2013),
+            #Parameter.TCALDATE : (2, 4, 2013),
             Parameter.EXTERNAL_TEMPERATURE_SENSOR : False,
-            Parameter.POFFSET : float(-0.1374),
+            #Parameter.POFFSET : float(-0.1374),
         }
         reply = self.driver_client.cmd_dvr('set_resource', params)
         self.assertEqual(reply, None)
@@ -3027,8 +3029,8 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         log.debug("get/set Test 4 - external temperature sensor, small subset of possible parameters.")
         params = {
             Parameter.EXTERNAL_TEMPERATURE_SENSOR : True,
-            Parameter.PD1 : float(50.02928),
-            Parameter.PD2 : float(31.712),
+            #Parameter.PD1 : float(50.02928),
+            #Parameter.PD2 : float(31.712),
         }
         reply = self.driver_client.cmd_dvr('set_resource', params)
         self.assertEqual(reply, None)
@@ -3039,36 +3041,36 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         log.debug("get/set Test 5 - get master set of possible parameters.")
         params = [
             # DC
-            Parameter.PCALDATE,
-            Parameter.PU0,
-            Parameter.PY1,
-            Parameter.PY2,
-            Parameter.PY3,
-            Parameter.PC1,
-            Parameter.PC2,
-            Parameter.PC3,
-            Parameter.PD1,
-            Parameter.PD2,
-            Parameter.PT1,
-            Parameter.PT2,
-            Parameter.PT3,
-            Parameter.PT4,
-            Parameter.FACTORY_M,
-            Parameter.FACTORY_B,
-            Parameter.POFFSET,
-            Parameter.TCALDATE,
-            Parameter.TA0,
-            Parameter.TA1,
-            Parameter.TA2,
-            Parameter.TA3,
-            Parameter.CCALDATE,
-            Parameter.CG,
-            Parameter.CH,
-            Parameter.CI,
-            Parameter.CJ,
-            Parameter.CTCOR,
-            Parameter.CPCOR,
-            Parameter.CSLOPE,
+            #Parameter.PCALDATE,
+            #Parameter.PU0,
+            #Parameter.PY1,
+            #Parameter.PY2,
+            #Parameter.PY3,
+            #Parameter.PC1,
+            #Parameter.PC2,
+            #Parameter.PC3,
+            #Parameter.PD1,
+            #Parameter.PD2,
+            #Parameter.PT1,
+            #Parameter.PT2,
+            #Parameter.PT3,
+            #Parameter.PT4,
+            #Parameter.FACTORY_M,
+            #Parameter.FACTORY_B,
+            #Parameter.POFFSET,
+            #Parameter.TCALDATE,
+            #Parameter.TA0,
+            #Parameter.TA1,
+            #Parameter.TA2,
+            #Parameter.TA3,
+            #Parameter.CCALDATE,
+            #Parameter.CG,
+            #Parameter.CH,
+            #Parameter.CI,
+            #Parameter.CJ,
+            #Parameter.CTCOR,
+            #Parameter.CPCOR,
+            #Parameter.CSLOPE,
 
             # DS
             Parameter.DEVICE_VERSION,
@@ -3140,8 +3142,8 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         log.debug("get/set Test 7 - Negative testing, broken values. Should get exception")
         params = {
             Parameter.EXTERNAL_TEMPERATURE_SENSOR : 5,
-            Parameter.PD1 : int(1),
-            Parameter.PD2 : True,
+            #Parameter.PD1 : int(1),
+            #Parameter.PD2 : True,
         }
         exception = False
         try:
@@ -3194,38 +3196,38 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
             Parameter.DS_DEVICE_DATE_TIME : time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))),
             Parameter.USER_INFO : "whoi",
 
-            Parameter.PCALDATE : (2, 4, 2013),
-            Parameter.PU0 : float(5.1),
-            Parameter.PY1 : float(-3910.859),
-            Parameter.PY2 : float(-10708.25),
-            Parameter.PY3 : float(0.0),
-            Parameter.PC1 : float(607.2786),
-            Parameter.PC2 : float(1.0),
-            Parameter.PC3 : float(-1024.374),
-            Parameter.PD1 : float(0.02928),
-            Parameter.PD2 : float(0.0),
-            Parameter.PT1 : float(27.83369),
-            Parameter.PT2 : float(0.607202),
-            Parameter.PT3 : float(18.21885),
-            Parameter.PT4 : float(27.90597),
-            Parameter.POFFSET : float(-0.1374),
-            Parameter.TCALDATE : (2, 4, 2013),
+            #Parameter.PCALDATE : (2, 4, 2013),
+            #Parameter.PU0 : float(5.1),
+            #Parameter.PY1 : float(-3910.859),
+            #Parameter.PY2 : float(-10708.25),
+            #Parameter.PY3 : float(0.0),
+            #Parameter.PC1 : float(607.2786),
+            #Parameter.PC2 : float(1.0),
+            #Parameter.PC3 : float(-1024.374),
+            #Parameter.PD1 : float(0.02928),
+            #Parameter.PD2 : float(0.0),
+            #Parameter.PT1 : float(27.83369),
+            #Parameter.PT2 : float(0.607202),
+            #Parameter.PT3 : float(18.21885),
+            #Parameter.PT4 : float(27.90597),
+            #Parameter.POFFSET : float(-0.1374),
+            #Parameter.TCALDATE : (2, 4, 2013),
 
             # params that I had that appeared corrupted.
             #Parameter.TA0 : float(1.2),
             # I believe this was the origional value.
-            Parameter.TA0 : float(1.2e-04),
-            Parameter.TA1 : float(0.0002558291),
-            Parameter.TA2 : float(-2.073449e-06),
-            Parameter.TA3 : float(1.640089e-07),
-            Parameter.CCALDATE : (28, 3, 2012),
-            Parameter.CG : float(-10.25348),
-            Parameter.CH : float(1.557569),
-            Parameter.CI : float(-0.001737222),
-            Parameter.CJ : float(0.0002268556),
-            Parameter.CTCOR : float(3.25e-06),
-            Parameter.CPCOR : float(-9.57e-08),
-            Parameter.CSLOPE : float(1.0),
+            #Parameter.TA0 : float(1.2e-04),
+            ##Parameter.TA1 : float(0.0002558291),
+            #Parameter.TA2 : float(-2.073449e-06),
+            #Parameter.TA3 : float(1.640089e-07),
+            #Parameter.CCALDATE : (28, 3, 2012),
+            #Parameter.CG : float(-10.25348),
+            #Parameter.CH : float(1.557569),
+            #Parameter.CI : float(-0.001737222),
+            #Parameter.CJ : float(0.0002268556),
+            #Parameter.CTCOR : float(3.25e-06),
+            #Parameter.CPCOR : float(-9.57e-08),
+            #Parameter.CSLOPE : float(1.0),
             Parameter.TXREALTIME : True,
             Parameter.TXWAVEBURST : True,
             Parameter.CONDUCTIVITY : True,
@@ -3242,6 +3244,8 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
     def test_set_sampling(self):
         """
         @brief Test device setsampling.
+
+        setsampling functionality now handled via set.  Below test converted to use set.
         """
         parameter_all = [
             Parameter.ALL
@@ -3332,7 +3336,8 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         # Set parameters and verify.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolState.COMMAND)
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SETSAMPLING, sampling_params)
+        #reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SETSAMPLING, sampling_params)
+        reply = self.driver_client.cmd_dvr('set_resource', sampling_params)
 
         self.assertEqual(reply, None)
 
@@ -3424,7 +3429,8 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolState.COMMAND)
 
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SETSAMPLING, sampling_params)
+        #reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SETSAMPLING, sampling_params)
+        reply = self.driver_client.cmd_dvr('set_resource', sampling_params)
 
         self.assertEqual(reply, None)
 
@@ -3521,7 +3527,8 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 
         exception = False
         try:
-            reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SETSAMPLING, sampling_params)
+            #reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SETSAMPLING, sampling_params)
+            reply = self.driver_client.cmd_dvr('set_resource', sampling_params)
         except InstrumentParameterException:
             exception = True
         self.assertTrue(exception)
@@ -3710,14 +3717,13 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # COMMAND
         (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
-        for state in ['DRIVER_EVENT_ACQUIRE_SAMPLE', 'DRIVER_EVENT_SET',
-                      'DRIVER_EVENT_GET', 'PROTOCOL_EVENT_SETSAMPLING',
-                      'DRIVER_EVENT_START_AUTOSAMPLE']:
+        for state in ['DRIVER_EVENT_ACQUIRE_STATUS', 'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                      'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
             self.assertTrue(state in res_cmds)
-        self.assertEqual(len(res_cmds), 6)
+        self.assertEqual(len(res_cmds), 4)
 
         # Verify all paramaters are present in res_params
-
+        '''
         # DC
         self.assertTrue(Parameter.PCALDATE in res_params)
         self.assertTrue(Parameter.PU0 in res_params)
@@ -3749,7 +3755,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertTrue(Parameter.CTCOR in res_params)
         self.assertTrue(Parameter.CPCOR in res_params)
         self.assertTrue(Parameter.CSLOPE in res_params)
-
+        '''
         # DS
         self.assertTrue(Parameter.DEVICE_VERSION in res_params)
         self.assertTrue(Parameter.SERIAL_NUMBER in res_params)
@@ -3810,9 +3816,9 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 
 
         (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
-        for state in ['DRIVER_EVENT_STOP_AUTOSAMPLE', 'DRIVER_EVENT_GET']:
+        for state in ['DRIVER_EVENT_STOP_AUTOSAMPLE']:
             self.assertTrue(state in res_cmds)
-        self.assertEqual(len(res_cmds), 2)
+        self.assertEqual(len(res_cmds), 1)
         reply = self.driver_client.cmd_dvr('execute_resource', Capability.STOP_AUTOSAMPLE)
 
         # Test the driver is in command mode.
@@ -3821,12 +3827,10 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 
 
         (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
-        for state in ['DRIVER_EVENT_ACQUIRE_SAMPLE', # 'PROTOCOL_EVENT_SET_TIME',
-                      'DRIVER_EVENT_SET', 'DRIVER_EVENT_GET', 'PROTOCOL_EVENT_SETSAMPLING',
-                      'DRIVER_EVENT_START_AUTOSAMPLE']:
-            log.error("STATE = " + str(state))
+        for state in ['DRIVER_EVENT_ACQUIRE_STATUS', 'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                      'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
             self.assertTrue(state in res_cmds)
-        self.assertEqual(len(res_cmds), 6)
+        self.assertEqual(len(res_cmds), 4)
 
 
     def test_connect_configure_disconnect(self):
@@ -4879,3 +4883,8 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         cmd = AgentCommand(command=ProtocolEvent.EXECUTE_CLOCK_SYNC)
         retval = self.instrument_agent_client.execute_resource(cmd)
         log.debug("EXECUTE_CLOCK_SYNC retval = " + repr(retval))
+
+    #
+    # Test that this returns text of ds, as well as publishes a ds particle.
+    #ProtocolEvent.ACQUIRE_STATUS
+    #
