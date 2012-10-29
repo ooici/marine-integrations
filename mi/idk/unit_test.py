@@ -873,31 +873,34 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         Walk through IA states to get to command mode from uninitialized
         '''
         state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+        if state == ResourceAgentState.UNINITIALIZED:
 
-        with self.assertRaises(Conflict):
+            with self.assertRaises(Conflict):
+                res_state = self.instrument_agent_client.get_resource_state()
+    
+            cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+            retval = self.instrument_agent_client.execute_agent(cmd)
+            state = self.instrument_agent_client.get_agent_state()
+            print("sent initialize; IA state = %s" %str(state))
+            self.assertEqual(state, ResourceAgentState.INACTIVE)
+    
             res_state = self.instrument_agent_client.get_resource_state()
-
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        res_state = self.instrument_agent_client.get_resource_state()
-        self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        res_state = self.instrument_agent_client.get_resource_state()
-        self.assertEqual(res_state, DriverProtocolState.COMMAND)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+            self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
+    
+            cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+            retval = self.instrument_agent_client.execute_agent(cmd)
+            state = self.instrument_agent_client.get_agent_state()
+            print("sent go_active; IA state = %s" %str(state))
+            self.assertEqual(state, ResourceAgentState.IDLE)
+    
+            res_state = self.instrument_agent_client.get_resource_state()
+            self.assertEqual(res_state, DriverProtocolState.COMMAND)
+    
+            cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+            retval = self.instrument_agent_client.execute_agent(cmd)
+            state = self.instrument_agent_client.get_agent_state()
+            print("sent run; IA state = %s" %str(state))
+            self.assertEqual(state, ResourceAgentState.COMMAND)
 
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, DriverProtocolState.COMMAND)
@@ -931,7 +934,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertTrue(self.tcp_client.telnet_handshake())
 
         self.assertTrue(self.tcp_client.expect("connected\r\n"))
-
+        
     def assert_direct_access_stop_telnet(self):
         '''
         Exit out of direct access mode.  We do this by simply changing

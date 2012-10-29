@@ -138,6 +138,7 @@ class DriverEvent(BaseEnum):
     CLOCK_SYNC = 'DRIVER_EVENT_CLOCK_SYNC'
     ACQUIRE_STATUS = 'DRIVER_EVENT_ACQUIRE_STATUS'
     
+    
 class DriverAsyncEvent(BaseEnum):
     """
     Asynchronous driver event types.
@@ -221,6 +222,7 @@ class InstrumentDriver(object):
         @raises NotImplementedException if not implemented by subclass.
         """
         raise NotImplementedException('disconnect() not implemented.')
+
 
     #############################################################
     # Command and control interface.
@@ -406,9 +408,14 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.SET, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.EXECUTE, self._handler_connected_protocol_event)
         self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.FORCE_STATE, self._handler_connected_protocol_event)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.START_DIRECT, self._handler_connected_start_direct_event)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, DriverEvent.STOP_DIRECT, self._handler_connected_stop_direct_event)
+        
             
         # Start state machine.
         self._connection_fsm.start(DriverConnectionState.UNCONFIGURED)
+        
+        self.pre_da_config = {}
                 
     #############################################################
     # Device connection interface.
@@ -442,7 +449,10 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @throws InstrumentConnectionException if the connection failed.
         """
         # Forward event and argument to the connection FSM.
-        return self._connection_fsm.on_event(DriverEvent.CONNECT, *args, **kwargs)
+        result = self._connection_fsm.on_event(DriverEvent.CONNECT, *args, **kwargs)
+        if args[0] and isinstance(args[0], dict):
+            self.set_init_params(args[0])
+        return result
     
     def disconnect(self, *args, **kwargs):
         """
@@ -452,6 +462,71 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         # Forward event and argument to the connection FSM.
         return self._connection_fsm.on_event(DriverEvent.DISCONNECT, *args, **kwargs)
 
+    #############################################################
+    # Configuration logic
+    #############################################################
+    def set_init_params(self, config):
+        """
+        Set the initialization parameters down in the protocol. These are the
+        values that should be set upon initialization or re-initialization of
+        a device.
+        @param config This default configuration assumes a simple name/value
+        dict of the parameters and their initialization parameters. Stranger
+        parameters can be adjusted by over riding this method.
+        @raise InstrumentParameterException If the config cannot be applied
+        """
+        if not isinstance(config, dict):
+            raise InstrumentParameterException("Incompatible initialization parameters")
+        
+        self._protocol.set_init_params(config)
+    
+    def apply_startup_params(self):
+        """
+        Apply the startup values previously stored in the protocol to
+        the running config of the live instrument. The startup values are the
+        values that are (1) marked as startup parameters and are (2) the "best"
+        value to use at startup. Preference is given to the previously-set init
+        value, then the default value, then the currently used value.
+        
+        This default method assumes a dict of parameter name and value for
+        the configuration.
+        @raise InstrumentParameterException If the config cannot be applied
+        """
+        config = self._protocol.get_startup_config()
+        
+        if not isinstance(config, dict):
+            raise InstrumentParameterException("Incompatible initialization parameters")
+        
+        self.set_resource(config)
+        
+    def get_running_config(self):
+        """
+        Return the configuration object that shows the instrument's running
+        configuration.
+        @retval The running configuration in the instruments config format. By
+        default, it is a dictionary of parameter names and values.
+        """
+        if self._protocol:
+            return self._protocol.get_running_config()
+                
+    def restore_direct_access_params(self, config):
+        """
+        Restore the correct values out of the full config that is given when
+        returning from direct access. By default, this takes a simple dict of
+        param name and value. Override this class as needed as it makes some
+        simple assumptions about how your instrument sets things.
+        
+        @param config The configuration that was previously saved (presumably
+        to disk somewhere by the driver that is working with this protocol)
+        """
+        vals = {}
+        # for each parameter that is read only, restore
+        da_params = self._protocol.get_direct_access_params()        
+        for param in da_params:
+            vals[param] = config[param]
+            
+        self.set_resource(vals)
+        
     #############################################################
     # Commande and control interface.
     #############################################################
@@ -535,7 +610,12 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @raises NotImplementedException if not implemented by subclass.                        
         """
         # Forward event and argument to the protocol FSM.
-        return self._connection_fsm.on_event(DriverEvent.EXECUTE, resource_cmd, *args, **kwargs)
+        if resource_cmd == DriverEvent.START_DIRECT:
+            return self._connection_fsm.on_event(DriverEvent.START_DIRECT, resource_cmd, *args, **kwargs)            
+        elif resource_cmd == DriverEvent.STOP_DIRECT:
+            return self._connection_fsm.on_event(DriverEvent.STOP_DIRECT, resource_cmd, *args, **kwargs)
+        else:
+            return self._connection_fsm.on_event(DriverEvent.EXECUTE, resource_cmd, *args, **kwargs)
 
     def test_force_state(self, *args, **kwargs):
         """
@@ -747,12 +827,35 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @param kwargs keyword arguments to pass on.
         @retval (next_state, result) tuple, (None, protocol result).
         """
-
         next_state = None
         result = self._protocol._protocol_fsm.on_event(event, *args, **kwargs)
-        
         return (next_state, result)
 
+    def _handler_connected_start_direct_event(self, event, *args, **kwargs):
+        """
+        Stash the current config first, then forward a driver command event
+        to the protocol FSM.
+        @param args positional arguments to pass on.
+        @param kwargs keyword arguments to pass on.
+        @retval (next_state, result) tuple, (None, protocol result).
+        """
+        next_state = None
+        self._pre_da_config = self.get_running_config()
+        result = self._protocol._protocol_fsm.on_event(event, *args, **kwargs)
+        return (next_state, result)
+    
+    def _handler_connected_stop_direct_event(self, event, *args, **kwargs):
+        """
+        Restore previous config first, then forward a driver command event
+        to the protocol FSM.
+        @param args positional arguments to pass on.
+        @param kwargs keyword arguments to pass on.
+        @retval (next_state, result) tuple, (None, protocol result).
+        """
+        next_state = None
+        result = self._protocol._protocol_fsm.on_event(event, *args, **kwargs)
+        self.restore_direct_access_params(self._pre_da_config)
+        return (next_state, result)
 
     ########################################################################
     # Helpers.

@@ -902,15 +902,19 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(SBE37Parameter.NAVG,
                              r'number of samples to average = (\d+)',
                              lambda match : int(match.group(1)),
-                             self._int_to_string)
+                             self._int_to_string,
+                             direct_access=True)
         self._param_dict.add(SBE37Parameter.SAMPLENUM,
                              r'samplenumber = (\d+), free = \d+',
                              lambda match : int(match.group(1)),
-                             self._int_to_string)
+                             self._int_to_string,
+                             startup_param=True)
         self._param_dict.add(SBE37Parameter.INTERVAL,
                              r'sample interval = (\d+) seconds',
                              lambda match : int(match.group(1)),
-                             self._int_to_string)
+                             self._int_to_string,
+                             default_value=1,
+                             startup_param=True)
         self._param_dict.add(SBE37Parameter.STORETIME,
                              r'(do not )?store time with each sample',
                              lambda match : False if match.group(1) else True,
@@ -926,7 +930,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(SBE37Parameter.SYNCWAIT,
                              r'wait time after serial sync sampling = (\d+) seconds',
                              lambda match : int(match.group(1)),
-                             self._int_to_string)
+                             self._int_to_string,
+                             startup_param=True)
         self._param_dict.add(SBE37Parameter.TCALDATE,
                              r'temperature: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
