@@ -822,7 +822,9 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         self.assert_set_parameter(Parameter.MAXRATE, 4)
         self.assert_set_parameter(Parameter.MAXRATE, 1)
 
-        self.assert_get_parameter(Parameter.FIRMWARE, 1)
+        self.assert_get_parameter(Parameter.FIRMWARE, "1.0.0")
+        self.assert_get_parameter(Parameter.SERIAL, "0226")
+        self.assert_get_parameter(Parameter.INSTRUMENT, "SATPAR")
 
         self.assert_reset()
 
