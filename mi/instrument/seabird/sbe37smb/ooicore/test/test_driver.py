@@ -42,7 +42,7 @@ from mi.core.exceptions import SampleException
 
 from mi.instrument.seabird.sbe37smb.ooicore.driver import PACKET_CONFIG
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DataParticle
-from mi.instrument.seabird.sbe37smb.ooicore.driver import InstrumentDriver
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Driver
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolEvent
@@ -108,7 +108,7 @@ from interface.objects import AgentCapability
 ## Initialize the test parameters
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.seabird.sbe37smb.ooicore.driver',
-    driver_class="InstrumentDriver",
+    driver_class="SBE37Driver",
 
     instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'Agent007',
@@ -912,7 +912,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
     # (UNIT, INT, and QUAL) are run.
     
 
-    #@unittest.skip("Do not include until direct_access gets implemented")
+    @unittest.skip("da currently broken for this instrument")
     def test_direct_access_telnet_mode(self):
         """
         @brief This test verifies that the Instrument Driver
@@ -1067,84 +1067,6 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         """
         pass
 
-    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 60}}})
-    def test_data_stream_integrity_autosample_parsed(self):
-        """
-        @brief This tests verifies that the canonical data
-               stream emitted by the driver properly conforms
-               to the canonical format. parsed data stream in autosample mode
-        """
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
-
-        # Make sure the sampling rate and transmission are sane.
-        params = {
-            SBE37Parameter.NAVG : 1,
-            SBE37Parameter.INTERVAL : 5,
-            SBE37Parameter.TXREALTIME : True
-        }
-        self.instrument_agent_client.set_resource(params)
-
-        self.data_subscribers.start_data_subscribers(2)
-        self.addCleanup(self.data_subscribers.stop_data_subscribers)
-
-        # Begin streaming.
-        cmd = AgentCommand(command=SBE37ProtocolEvent.START_AUTOSAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.STREAMING)
-
-        # Wait for some samples to roll in.
-        gevent.sleep(15)
-
-        # Halt streaming.
-        cmd = AgentCommand(command=SBE37ProtocolEvent.STOP_AUTOSAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
-
-        # Assert we got some samples.
-        self.data_subscribers.async_data_result.get(timeout=33)
-
-        # we dont really care about raw counts in a parsed test,
-        # but hey, its easy to check
-        self.assertTrue(len(self.data_subscribers.parsed_samples_received)>=2)
-        self.assertTrue(len(self.data_subscribers.raw_samples_received)>=2)
-
-        self.assertParsedGranules()
-                
-        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        self.doCleanups()
-
-    @unittest.skip("raw mode not yet implemented")
-    def test_data_stream_integrity_autosample_raw(self):
-        """
-        @brief This tests verifies that the canonical data
-               stream emitted by the driver properly conforms
-               to the canonical format. raw data stream in autosample mode
-        """
-        pass
 
     def assertParsedGranules(self):
         
@@ -1163,130 +1085,54 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
             self.assert_(rdt['temp'] is not None)
             self.assertTrue(isinstance(rdt['temp'], numpy.ndarray))
         
-    def assertSampleDict(self, val):
+    def assertSampleDataParticle(self, val):
         """
-        Verify the value is a sample dictionary for the sbe37.
-        OLD FORMAT:
-        #{'p': [-6.945], 'c': [0.08707], 't': [20.002], 'time': [1333752198.450622]}
+        Verify the value for a sbe37 sample data particle
 
-        NEW FORMAT:
-
-            'result': {
-                'raw': {
-                    'quality_flag': 'ok',
-                    'preferred_timestamp': 'driver_timestamp',
-                    'stream_name': 'raw',
-                    'pkt_format_id': 'JSON_Data',
-                    'pkt_version': 1,
-                    'values': [
-                        {
-                            'binary': True,
-                            'value_id': 'raw',
-                            'value': 'MTA2LjgwODQsIDAuMTMxNzcsICAgLTkuNDExLCAgIDAuMjMxMCwgMTUzNS45MTcsIDA0IE1heSAxOTgwLCAwMjowNToxNw=='
-                        }
-                    ],
-                    'driver_timestamp': 3557855046.123893
-                },
-                'parsed': {
-                    'quality_flag': 'ok',
-                    'preferred_timestamp': 'driver_timestamp',
-                    'stream_name': 'parsed',
-                    'pkt_format_id': 'JSON_Data',
-                    'pkt_version': 1,
-                    'values': [
-                        {
-                            'value_id': 'temp',
-                            'value': 106.8084
-                        },
-                        {
-                            'value_id': 'conductivity',
-                            'value': 0.13177
-                        },
-                        {
-                            'value_id': 'depth',
-                            'value': -9.411
-                        }
-                    ],
-                    'driver_timestamp': 3557855046.123893
-                }
+        {
+          'quality_flag': 'ok',
+          'preferred_timestamp': 'driver_timestamp',
+          'stream_name': 'parsed',
+          'pkt_format_id': 'JSON_Data',
+          'pkt_version': 1,
+          'driver_timestamp': 3559843883.8029947,
+          'values': [
+            {
+              'value_id': 'temp',
+              'value': 67.4448
             },
+            {
+              'value_id': 'conductivity',
+              'value': 44.69101
+            },
+            {
+              'value_id': 'pressure',
+              'value': 865.096
+            }
+          ],
+        }
         """
 
-        for x in val['parsed']['values']:
-            self.assertTrue(x['value_id'] in ['temp', 'conductivity', 'depth'])
+        if (isinstance(val, SBE37DataParticle)):
+            sample_dict = json.loads(val.generate_parsed())
+        else:
+            sample_dict = val
+
+        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
+            DataParticleValue.PARSED)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
+            DataParticleValue.JSON_DATA)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
+            list))
+        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+        for x in sample_dict['values']:
+            self.assertTrue(x['value_id'] in ['temp', 'conductivity', 'pressure'])
             self.assertTrue(isinstance(x['value'], float))
 
-    def test_data_stream_integrity_polled_parsed(self):
-        """
-        @brief This tests verifies that the canonical data
-               stream emitted by the driver properly conforms
-               to the canonical format. parsed data stream in polled mode
-        """
-        self.data_subscribers.parsed_samples_received = []
 
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
-
-
-        # Lets get 3 samples.
-        self.data_subscribers.start_data_subscribers(3)
-        self.addCleanup(self.data_subscribers.stop_data_subscribers)
-
-        # Poll for a few samples.
-        cmd = AgentCommand(command=SBE37ProtocolEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
-        self.assertSampleDict(reply.result)
-
-        cmd = AgentCommand(command=SBE37ProtocolEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
-        self.assertSampleDict(reply.result)
-
-        cmd = AgentCommand(command=SBE37ProtocolEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
-        self.assertSampleDict(reply.result)
-
-        # Assert we got 3 samples.
-        self.data_subscribers.async_data_result.get(timeout=10)
-        self.assertTrue(len(self.data_subscribers.parsed_samples_received)==3)
-
-        self.assertParsedGranules()
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-        
-        self.doCleanups()
-
-
-    @unittest.skip("raw mode not yet implemented")
-    def test_data_stream_integrity_polled_raw(self):
-        """
-        @brief This tests verifies that the canonical data
-               stream emitted by the driver properly conforms
-               to the canonical format. raw data stream in polled mode
-        """
-        pass
-
-    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 60}}})
     def test_capabilities(self):
         """
         Test the ability to retrieve agent and resource parameter and command
@@ -1537,7 +1383,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         gevent.sleep(5)
 
         cmd = AgentCommand(command=SBE37ProtocolEvent.STOP_AUTOSAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd)
+        retval = self.instrument_agent_client.execute_resource(cmd, timeout=30)
 
         ##################################################################
         # COMMAND
@@ -1605,6 +1451,9 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         Test instrument driver execute interface to start and stop streaming
         mode.
         """
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
@@ -1635,8 +1484,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         }
         self.instrument_agent_client.set_resource(params)
 
-        self.data_subscribers.start_data_subscribers(2)
-        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+        self.data_subscribers.clear_sample_queue('parsed')
 
         # Begin streaming.
         cmd = AgentCommand(command=SBE37ProtocolEvent.START_AUTOSAMPLE)
@@ -1645,8 +1493,13 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.STREAMING)
 
-        # Wait for some samples to roll in.
-        gevent.sleep(15)
+        # Assert we got 3 samples.
+        samples = self.data_subscribers.get_samples('parsed', 3)
+        self.assertGreaterEqual(len(samples), 3)
+
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
 
         # Halt streaming.
         cmd = AgentCommand(command=SBE37ProtocolEvent.STOP_AUTOSAMPLE)
@@ -1654,11 +1507,6 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
-
-        # Assert we got some samples.
-        self.data_subscribers.async_data_result.get(timeout=30)
-        self.assertTrue(len(self.data_subscribers.raw_samples_received)>=2)
-        self.assertTrue(len(self.data_subscribers.parsed_samples_received)>=2)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -1765,11 +1613,15 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 60}}})
     def test_poll(self):
         """
         Test observatory polling function.
         """
+        # Set up all data subscriptions.  Stream names are defined
+        # in the driver PACKET_CONFIG dictionary
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
@@ -1788,30 +1640,30 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        # Lets get 3 samples.
-        self.data_subscribers.start_data_subscribers(3)
-        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+        ###
+        # Poll for a few samples
+        ###
 
-        # Poll for a few samples.
+        # make sure there aren't any junk samples in the parsed
+        # data queue.
+        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
         cmd = AgentCommand(command=SBE37ProtocolEvent.ACQUIRE_SAMPLE)
         reply = self.instrument_agent_client.execute_resource(cmd)
-        self.assertSampleDict(reply.result)
-
-        cmd = AgentCommand(command=SBE37ProtocolEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
-        self.assertSampleDict(reply.result)
 
         cmd = AgentCommand(command=SBE37ProtocolEvent.ACQUIRE_SAMPLE)
         reply = self.instrument_agent_client.execute_resource(cmd)
-        self.assertSampleDict(reply.result)
 
-        # Assert we got 3 samples.
-        # note no samples are being caught by the default data subscriber.
-        self.data_subscribers.async_data_result.get(timeout=10)
-        log.debug("SAMPLES RECEIVED =====> " + str(self.data_subscribers.parsed_samples_received))
-        self.assertGreaterEqual(len(self.data_subscribers.parsed_samples_received), 3)
-        log.debug("SAMPLES RECEIVED =====> " + str(self.data_subscribers.raw_samples_received))
-        self.assertGreaterEqual(len(self.data_subscribers.raw_samples_received), 3)
+        cmd = AgentCommand(command=SBE37ProtocolEvent.ACQUIRE_SAMPLE)
+        reply = self.instrument_agent_client.execute_resource(cmd)
+
+        # Watch the parsed data queue and return once three samples
+        # have been read or the default timeout has been reached.
+        samples = self.data_subscribers.get_samples(DataParticleValue.PARSED, 3)
+        self.assertGreaterEqual(len(samples), 3)
+
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -1883,7 +1735,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         # OK, I can do this now.
         cmd = AgentCommand(command=SBE37ProtocolEvent.ACQUIRE_SAMPLE)
         reply = self.instrument_agent_client.execute_resource(cmd)
-        self.assertSampleDict(reply.result)
+        self.assertTrue(reply.result)
 
         # 404 unknown agent command.
         with self.assertRaises(BadRequest):

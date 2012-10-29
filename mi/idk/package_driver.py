@@ -121,13 +121,10 @@ class PackageDriver(object):
         """
         @brief Run all qualification tests for the driver and store the results for packaging
         """
-        return True
         log.info("-- Running qualification tests")
 
         test = NoseTest(self.metadata, log_file=self.log_path())
         test.report_header()
-
-        result = test.run_qualification()
 
         if(test.run_qualification()):
             log.info(" ++ Qualification tests passed")
@@ -145,12 +142,18 @@ class PackageDriver(object):
 
     def run(self):
         print "*** Starting Driver Packaging Process***"
-
-        if( self.run_qualification_tests() ):
+        
+        if len(sys.argv) == 2 and (sys.argv[1] == "--no-test"):
+            # clear the log file so it exists
+            f = open(self.log_path(), "w")
+            f.write("Tests manually bypassed with --no-test option\n")
+            f.close()
             self.package_driver()
-            print "Package Created: " + self.archive_path()
         else:
-            sys.exit()
+            if(self.run_qualification_tests()):
+                self.package_driver()
+
+        print "Package Created: " + self.archive_path()
 
     def zipfile(self):
         """
@@ -218,15 +221,19 @@ class PackageDriver(object):
 
     def _store_resource_files(self):
         """
-        @brief Store additional files added by the driver developer.  These files life in the driver resource dir.
+        @brief Store additional files added by the driver developer.  These
+        files live in the driver resource dir.
         """
-        log.debug( " -- Searching for developer added resource files." )
+        log.debug(" -- Searching for developer added resource files.")
+        resource_dir = self.generator.resource_dir()
 
-        for file in os.listdir(self.generator.resource_dir()):
-            log.debug("    ++ found: " + file)
-            desc = prompt.text( 'Describe ' + file )
-            self._add_file(self.generator.resource_dir() + "/" + file, 'resource', desc)
-
+        if os.path.exists(resource_dir):
+            for file in os.listdir(resource_dir):
+                log.debug("    ++ found: " + file)
+                desc = prompt.text('Describe ' + file)
+                self._add_file(resource_dir + "/" + file, 'resource', desc)
+        else:
+            log.debug(" --- No resource directory found, skipping...")
 
     def _add_file(self, source, destdir=None, description=None):
         """
@@ -237,7 +244,7 @@ class PackageDriver(object):
         if(destdir):
             dest = "%s/%s" % (destdir, filename)
 
-        log.debug( "archive %s to %s" % (filename, dest) )
+        log.debug("archive %s to %s" % (filename, dest))
 
         self.manifest().add_file(dest, description);
         self.zipfile().write(source, dest, self.zipfile_compression())

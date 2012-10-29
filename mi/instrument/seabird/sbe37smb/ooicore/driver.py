@@ -74,8 +74,6 @@ class SBE37Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
@@ -171,7 +169,7 @@ PACKET_CONFIG = {
 # Seabird Electronics 37-SMP MicroCAT Driver.
 ###############################################################################
 
-class InstrumentDriver(SingleConnectionInstrumentDriver):
+class SBE37Driver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass for SBE37 driver.
     Subclasses SingleConnectionInstrumentDriver with connection state
@@ -203,7 +201,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 class SBE37DataParticleKey(BaseEnum):
     TEMP = "temp"
     CONDUCTIVITY = "conductivity"
-    DEPTH = "depth"
+    DEPTH = "pressure"
     
 class SBE37DataParticle(DataParticle):
     """

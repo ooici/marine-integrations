@@ -447,7 +447,7 @@ class EggGenerator:
         return os.path.join(Config().template_dir(), 'setup.tmpl' )
 
     def _main_path(self):
-        return os.path.join(self._build_dir(), 'main.py' )
+        return os.path.join(self._build_dir(), 'mi/main.py' )
 
     def _main_template_path(self):
         return os.path.join(Config().template_dir(), 'main.tmpl' )
@@ -541,8 +541,8 @@ class EggGenerator:
             'author': self.metadata.author,
             'email': self.metadata.email,
             'url': 'http://www.oceanobservatories.org',
-            'driver_module': self._driver_module,
-            'driver_class': self._driver_class,
+            'driver_module': self._driver_module(),
+            'driver_class': self._driver_class(),
         }
 
     def _generate_main_file(self):
@@ -552,7 +552,7 @@ class EggGenerator:
         main_file= self._main_path()
         main_template = self._get_template(self._main_template_path())
 
-        log.debug("Create main.py file: %s" % main_file )
+        log.debug("Create mi/main.py file: %s" % main_file )
         log.debug("main.py template file: %s" % self._main_template_path())
         log.debug("main.py template date: %s" % self._setup_template_data())
 

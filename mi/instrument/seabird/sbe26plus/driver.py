@@ -41,12 +41,17 @@ from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVal
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.common import BaseEnum
+from mi.core.instrument.port_agent_client import PortAgentPacket
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+
+
+from prototype.sci_data.stream_defs import ctd_stream_definition
 
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.chunker import StringChunker
 
-from mi.core.instrument.port_agent_client import PortAgentPacket
+from mi.idk.unit_test import InstrumentDriverTestCase
 
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
 
 
 #from mi.instrument.seabird.sbe26plus.range import Range
@@ -65,13 +70,37 @@ TIMEOUT = 40
 
 
 
-# need to pull this out eventually...
+
+SAMPLE_REGEX = " DEFINED ELSEWHERE see self._sample_regexs"
+
+
+
+
+
 # Packet config
 STREAM_NAME_PARSED = DataParticleValue.PARSED
 STREAM_NAME_RAW = DataParticleValue.RAW
 PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
 
-SAMPLE_REGEX = " DEFINED ELSEWHERE see self._sample_regexs"
+PACKET_CONFIG = {
+    STREAM_NAME_PARSED : 'ctd_parsed_param_dict',
+    STREAM_NAME_RAW : 'ctd_raw_param_dict'
+}
+
+## Initialize the test parameters
+InstrumentDriverTestCase.initialize(
+    driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
+    driver_class="InstrumentDriver",
+
+    instrument_agent_resource_id = '123xyz',
+    instrument_agent_name = 'Agent007',
+    instrument_agent_packet_config = PACKET_CONFIG,
+    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
+)
+
+
+
+
 
 
 # Device specific parameters.
@@ -86,9 +115,7 @@ class InstrumentCmds(BaseEnum):
     DISPLAY_CALIBRATION = 'dc'
     START_LOGGING = 'start'
     STOP_LOGGING = 'stop'
-    UPLOAD_DATA_ASCII_FORMAT = 'dd'
-    GET_BYTE_COUNT = 'ByteCount'
-    SET_BYTE_COUNT = '*ByteCount'
+    #DISABLED# UPLOAD_DATA_ASCII_FORMAT = 'dd'
     SET = 'set'
     GET = 'get'
     #BAUD = 'baud'
@@ -96,6 +123,8 @@ class InstrumentCmds(BaseEnum):
     INIT_LOGGING = 'initlogging'
     SET_TIME = "settime"
 
+    SEND_LAST = 'sl'
+    SEND_LAST_AND_SLEEP = 'slo'
 
 class ProtocolState(BaseEnum):
     """
@@ -108,7 +137,6 @@ class ProtocolState(BaseEnum):
     #TEST = DriverProtocolState.TEST                        # May cause problems
     #CALIBRATE = DriverProtocolState.CALIBRATE              # May cause problems
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-
 
 class ProtocolEvent(BaseEnum):
     """
@@ -131,12 +159,17 @@ class ProtocolEvent(BaseEnum):
     #CALIBRATE = DriverEvent.CALIBRATE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     FORCE_STATE = DriverEvent.FORCE_STATE
-    UPLOAD_ASCII = 'PROTOCOL_EVENT_UPLOAD_ASCII'
+    #DISABLED#UPLOAD_ASCII = 'PROTOCOL_EVENT_UPLOAD_ASCII'
     QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
     INIT_LOGGING = 'PROTOCOL_EVENT_INIT_LOGGING'
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     PING_DRIVER = DriverEvent.PING_DRIVER
+
+    SEND_LAST = 'PROTOCOL_EVENT_SEND_LAST'
+    SEND_LAST_AND_SLEEP = 'PROTOCOL_EVENT_SEND_LAST_AND_SLEEP'
+
+    EXECUTE_CLOCK_SYNC = 'PROTOCOL_EVENT_EXECUTE_CLOCK_SYNC'
 
 class Capability(BaseEnum):
     """
@@ -146,10 +179,12 @@ class Capability(BaseEnum):
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     SETSAMPLING = ProtocolEvent.SETSAMPLING
-    UPLOAD_ASCII = ProtocolEvent.UPLOAD_ASCII
+    #DISABLED# UPLOAD_ASCII = ProtocolEvent.UPLOAD_ASCII
     GET = ProtocolEvent.GET
     SET = ProtocolEvent.SET
     #SET_TIME = ProtocolEvent.SET_TIME      # Disabling. This is inferior to using DateTime=
+
+    EXECUTE_CLOCK_SYNC = ProtocolEvent.EXECUTE_CLOCK_SYNC
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -245,10 +280,6 @@ class Parameter(DriverParameter):
     # *** Fields with *** Should be converted to use:
     #     ntp 4 64 bit timestamp http://stackoverflow.com/questions/8244204/ntp-timestamps-in-python
 
-
-
-
-
 # Device prompts.
 class Prompt(BaseEnum):
     """
@@ -328,7 +359,8 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 
         return self._connection_fsm.on_event(DriverEvent.EXECUTE, ProtocolEvent.START_AUTOSAMPLE, *args, **kwargs)
 
-
+    '''
+    #DISABLED#
     def dd(self, *args, **kwargs):
         """
         dump device data ascii.
@@ -341,6 +373,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
 
         return self._connection_fsm.on_event(DriverEvent.EXECUTE, ProtocolEvent.UPLOAD_ASCII, *args, **kwargs)
+    '''
 
     '''
     def baud(self, *args, **kwargs):
@@ -393,6 +426,31 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
 
         return self._connection_fsm.on_event(DriverEvent.EXECUTE, ProtocolEvent.INIT_LOGGING, *args, **kwargs)
+
+
+    def sl(self, *args, **kwargs):
+        """
+        Send last sample
+        @raises InstrumentParameterException if missing or invalid set parameters.
+        @raises InstrumentTimeoutException if could not wake device or no response.
+        @raises InstrumentProtocolException if set command not recognized.
+        @raises InstrumentStateException if command not allowed in current state.
+        @raises NotImplementedException if not implemented by subclass.
+        """
+
+        return self._connection_fsm.on_event(DriverEvent.EXECUTE, ProtocolEvent.SEND_LAST, *args, **kwargs)
+
+    def slo(self, *args, **kwargs):
+        """
+        Send last sample (sleep device)
+        @raises InstrumentParameterException if missing or invalid set parameters.
+        @raises InstrumentTimeoutException if could not wake device or no response.
+        @raises InstrumentProtocolException if set command not recognized.
+        @raises InstrumentStateException if command not allowed in current state.
+        @raises NotImplementedException if not implemented by subclass.
+        """
+
+        return self._connection_fsm.on_event(DriverEvent.EXECUTE, ProtocolEvent.SEND_LAST_AND_SLEEP, *args, **kwargs)
 
     def get_resource_params(self):
         """
@@ -527,7 +585,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SETSAMPLING,            self._handler_command_setsampling)
         #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET_TIME,               self._handler_command_set_time)
         #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.BAUD,                   self._handler_command_baud)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.UPLOAD_ASCII,           self._handler_command_upload_ascii)
+        #DISABLED#self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.UPLOAD_ASCII,           self._handler_command_upload_ascii)
+
+
+
+
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXECUTE_CLOCK_SYNC,     self._handler_execute_clock_sync)
+
+
+
+
+
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION,           self._handler_command_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.INIT_LOGGING,           self._handler_command_init_logging)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
@@ -535,6 +603,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_autosample_test_get)
+
+
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SEND_LAST,           self._handler_command_autosample_send_last)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SEND_LAST_AND_SLEEP, self._handler_command_autosample_send_last_and_sleep)
+
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,     self._handler_autosample_stop_autosample)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
@@ -556,11 +629,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.DISPLAY_CALIBRATION,         self._build_simple_command)
         self._add_build_handler(InstrumentCmds.START_LOGGING,               self._build_simple_command)
         self._add_build_handler(InstrumentCmds.STOP_LOGGING,                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT,    self._build_simple_command)
+        #DISABLED#self._add_build_handler(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT,    self._build_simple_command)
         #self._add_build_handler(InstrumentCmds.BAUD,                        self._build_baud_command)
         self._add_build_handler(InstrumentCmds.SET,                         self._build_set_command)
         self._add_build_handler(InstrumentCmds.TAKE_SAMPLE,                 self._build_simple_command)
         self._add_build_handler(InstrumentCmds.INIT_LOGGING,                self._build_simple_command)
+
+        self._add_build_handler(InstrumentCmds.SEND_LAST_AND_SLEEP,         self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SEND_LAST,                   self._build_simple_command)
+        self._add_response_handler(InstrumentCmds.SEND_LAST_AND_SLEEP,      self._parse_sl_slo_response)
+        self._add_response_handler(InstrumentCmds.SEND_LAST,      self._parse_sl_slo_response)
 
 
         # Add response handlers for device commands.
@@ -568,7 +646,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         #self._add_response_handler(InstrumentCmds.SET_TIME,                     self._parse_set_time_response)
         self._add_response_handler(InstrumentCmds.DISPLAY_STATUS,               self._parse_ds_response)
         self._add_response_handler(InstrumentCmds.DISPLAY_CALIBRATION,          self._parse_dc_response)
-        self._add_response_handler(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT,     self._parse_uplaad_data_ascii_response)
+        #DISABLED#self._add_response_handler(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT,     self._parse_uplaad_data_ascii_response)
         #self._add_response_handler(InstrumentCmds.BAUD,                         self._parse_baud_response)
         self._add_response_handler(InstrumentCmds.SET,                          self._parse_set_response)
         self._add_response_handler(InstrumentCmds.TAKE_SAMPLE,                  self._parse_ts_response)
@@ -721,6 +799,155 @@ class Protocol(CommandResponseInstrumentProtocol):
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
+        self._chunker = StringChunker(Protocol.sieve_function)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    @staticmethod
+    def sieve_function(raw_data):
+        """
+        The method that splits samples
+        """
+
+        # move this initialization to global space....
+        sieve_patterns = []
+        sieve_matchers = []
+        # Tide sample, Note may be missing last 2 fields...
+        sieve_patterns.append((r'(tide: start time = +\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+, p = +[\-\d.]+, pt = +[\-\d.]+, t = +[\-\d.]+).*?\r\n',
+                              re.MULTILINE))
+        # wave burst data
+        sieve_patterns.append((r'(wave: start time =.*?wave: end burst\r\n)',
+                              re.MULTILINE|re.DOTALL))
+        # statistics data
+        sieve_patterns.append((r'(deMeanTrend.*?H1/100 = [\d.e+]+\r\n)',
+                               re.MULTILINE|re.DOTALL))
+
+
+
+
+
+
+
+
+
+        for pattern, flags in sieve_patterns:
+            sieve_matchers.append(re.compile(pattern, flags))
+
+
+        return_list = []
+
+        for matcher in sieve_matchers:
+            for match in matcher.finditer(raw_data):
+                log.debug("GOT A MATCH!!!!   " +str((match.start(), match.end())) + str(raw_data[match.start(): match.end()]))
+                # if pattern matches, then append the chunk to the return_list
+
+                return_list.append((match.start(), match.end()))
+
+
+
+
+        log.debug("return_list =================================================================> " + repr(return_list))
+        return return_list
+
+
+
+
+
+        '''
+
+
+        if repr(line) != "''":
+            matched = False
+        for (pattern_regex, pattern_info) in self._sample_regexs.iteritems():
+            match = pattern_regex.match(line)
+            if match:
+                self.raw_sample = self.raw_sample + NEWLINE + line
+                (pattern_names, pattern_details) = pattern_info
+                count = 0
+                for val in match.groups():
+                    if True == pattern_details['list']:
+                        if False == self.parsed_sample.has_key(pattern_names[count]):
+                            self.parsed_sample[pattern_names[count]] = []
+                        self.parsed_sample[pattern_names[count]].append(val)
+                    else:
+                        self.parsed_sample[pattern_names[count]] = val
+                    count = count + 1
+                matched = True
+
+
+                if True == pattern_details['publish']:
+                    #@TODO Make sure this is the right timestamp
+                    #line will have the blob for the raw sample
+                    particle = particle_class(line,
+                        preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
+
+                    raw_sample = particle.generate_raw()
+                    parsed_sample = particle.generate_parsed()
+                    ##??
+                    raw_sample = dict(
+                        stream_name=STREAM_NAME_RAW,
+
+                        blob=self.raw_sample
+                    )
+
+                    parsed_sample = dict(
+                        stream_name=STREAM_NAME_PARSED,
+
+                        parsed=self.parsed_sample
+                    )
+
+
+                    if publish and self._driver_event:
+                        self._driver_event(DriverAsyncEvent.SAMPLE, raw_sample)
+                        self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
+                        #            sample = dict(parsed=json.loads(parsed_sample), raw=json.loads(raw_sample))
+                    return parsed_sample
+
+        if False == match:
+            log.debug("NOT USING LINE => " + repr(line))
+
+        '''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     def _filter_capabilities(self, events):
         """
         """
@@ -768,25 +995,22 @@ class Protocol(CommandResponseInstrumentProtocol):
             result = ResourceAgentState.STREAMING
 
         elif current_state == ProtocolState.COMMAND:
-            #log.info("SYNCING TIME WITH SENSOR")
-            #self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME,
-            #    time.strftime("%d %b %Y %H:%M:%S", time.localtime()), **kwargs)
             result = ResourceAgentState.IDLE
 
         elif current_state == ProtocolState.UNKNOWN:
 
             # Wakeup the device with timeout if passed.
 
-            delay = 0.1
+            delay = 0.5
 
             prompt = self._wakeup(timeout=timeout, delay=delay)
             prompt = self._wakeup(timeout)
 
-            # Set the state to change.
-            # Raise if the prompt returned does not match command or autosample.
+        # Set the state to change.
+        # Raise if the prompt returned does not match command or autosample.
 
-        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, timeout=timeout)
-
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS,timeout=timeout)
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION,timeout=timeout)
         pd = self._param_dict.get_config()
 
         if pd[Parameter.LOGGING] == True:
@@ -795,9 +1019,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         elif pd[Parameter.LOGGING] == False:
             next_state = ProtocolState.COMMAND
             result = ResourceAgentState.IDLE
-            log.info("SYNCING TIME WITH SENSOR")
-            self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME,
-                time.strftime("%d %b %Y %H:%M:%S", time.localtime()), **kwargs)
         else:
             raise InstrumentStateException('Unknown state.')
 
@@ -832,6 +1053,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
         # Command device to update parameters and send a config change event.
+
+        self._restore_da_params()
+
+        log.debug("*** IN _handler_command_enter(), updating params")
         self._update_params()
 
         # Tell driver superclass to send a state change event.
@@ -856,16 +1081,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         next_state = None
         result = None
-
         # Retrieve required parameter.
         # Raise if no parameter provided, or not a dict.
         try:
             params = args[0]
+            log.debug("######### params = " + str(repr(params)))
 
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
+
         if not isinstance(params, dict):
+
             raise InstrumentParameterException('Set parameters not a dict.')
 
         # For each key, val in the dict, issue set command to device.
@@ -874,6 +1101,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             for (key, val) in params.iteritems():
                 log.debug("KEY = " + str(key) + " VALUE = " + str(val))
                 result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
+
             self._update_params()
 
         return (next_state, result)
@@ -903,6 +1131,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
+        kwargs['expected_prompt'] = Prompt.COMMAND
+        kwargs['timeout'] = 30
+        log.info("SYNCING TIME WITH SENSOR")
+        self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME, time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))), **kwargs)
+
         next_state = None
         result = None
 
@@ -915,34 +1148,60 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
-    def _handler_command_start_direct(self):
+    def _handler_execute_clock_sync(self, *args, **kwargs):
         """
+        execute a clock sync on the leading edge of a second change
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
+
         next_state = None
+        next_agent_state = None
         result = None
 
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
+        timeout = kwargs.get('timeout', TIMEOUT)
+        delay = 5
+        prompt = self._wakeup(timeout=timeout, delay=delay)
+        time.sleep(2)
+
+        # lets clear out any past data so it doesnt confuse the command
+        self._linebuf = ''
+        self._promptbuf = ''
+
+        t = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+        t_last = t
+
+        while t == t_last:
+            t_last = t
+            t = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+
+        str_val = self._param_dict.format(Parameter.DS_DEVICE_DATE_TIME, t)
+        set_cmd = '%s=%s' % (Parameter.DS_DEVICE_DATE_TIME, str_val) + NEWLINE
+        self._do_cmd_direct(set_cmd)
+        (prompt, response) = self._get_response(timeout=30)
+
+
+        if response != set_cmd + Prompt.COMMAND:
+            raise InstrumentProtocolException("_handler_execute_clock_sync - response != set_cmd")
+
+        if prompt != Prompt.COMMAND:
+            raise InstrumentProtocolException("_handler_execute_clock_sync - prompt != Prompt.COMMAND")
+
 
         return (next_state, (next_agent_state, result))
+
+
+
+
+
+
 
     ###############################
     # Need to sort below
     ###############################
 
-    '''     # INFERIOR to using DateTime=
-    def _build_set_time_command(self, command_name, *args, **kwargs):
-        """
-        Build handler for setsampling command.
-        @param args[0] is a dict of the values to change
-        """
-
-        log.debug("TIME VALUE = " + repr(args))
-        self._set_time = args[0]
-        log.debug("TIME VALUE = " + repr(args))
-
-        return InstrumentCmds.SET_TIME + NEWLINE
-    '''
     def _build_setsampling_command(self, foo, *args, **kwargs):
         """
         Build handler for setsampling command.
@@ -953,7 +1212,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._sampling_args = args[0]
 
         return InstrumentCmds.SETSAMPLING + NEWLINE
-
 
     def _parse_init_logging_response(self, response, prompt):
         """
@@ -1143,59 +1401,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                 log.debug("FAILURE: " + str(k) + " was " + str(device_parameters[k]) + " and should have been " + str(self._sampling_args[k]))
                 raise InstrumentParameterException("FAILURE: " + str(k) + " was " + str(device_parameters[k]) + " and should have been " + str(self._sampling_args[k]))
 
-    ''' # Inferior to using DateTime=
-    def _parse_set_time_response(self, response, prompt):
-        """
-        @brief set the device time to the system time.
-        This command is inferior to setting DateTime via DateTime=
-        """
-        desired_prompt = ") = "
-        done = False
-        while not done:
-            (prompt, response) = self._get_response(expected_prompt=desired_prompt, timeout=30)
-            self._promptbuf = ''
-            self._linebuf = ''
-            time.sleep(0.1)
-            log.debug("RESPONSE = " + response)
-            if "month (1 - 12) = " in response:
-                self._connection.send(time.strftime("%m", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
-            elif "day (1 - 31) = "  in response:
-                self._connection.send(time.strftime("%d", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
-            elif "year (4 digits) = "  in response:
-                self._connection.send(time.strftime("%Y", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
-            elif "hour (0 - 23) = "  in response:
-                self._connection.send(time.strftime("%H", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
-            elif "minute (0 - 59) = "  in response:
-                self._connection.send(time.strftime("%M", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
-            elif "second (0 - 59) = "  in response:
-                self._connection.send(time.strftime("%S", time.strptime(self._set_time, "%d %b %Y %H:%M:%S")) + NEWLINE)
-                desired_prompt = 'S>'
-                #else:
-                #log.debug("NOT SURE WHAT TO DO WITH" + str(response + prompt))
-
-            if 'S>' == prompt:
-                done = True
-    '''
-
-    def _parse_uplaad_data_ascii_response(self, response, prompt): #(self, cmd, *args, **kwargs):
-        """
-        Parse handler for data dump command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        """
-        output = ""
-
-
-        (prompt, response) = self._get_line_of_response(timeout=10, line_delimiter=NEWLINE)
-        while True:
-            (prompt, response) = self._get_line_of_response(timeout=10, line_delimiter=NEWLINE, expected_prompt="S>")
-            if prompt == "S>":
-                return output
-            else:
-                output = output + response
-
-        raise InstrumentProtocolException('_parse_uplaad_data_ascii_response : I should never get here...')
-
     def _handler_command_setsampling(self, *args, **kwargs):
         """
         Perform a command-response on the device.
@@ -1212,31 +1417,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         kwargs['expected_prompt'] = ", new value = "
+
         result = self._do_cmd_resp(InstrumentCmds.SETSAMPLING, *args, **kwargs)
 
         return (next_state, result)
 
-    '''     # Inferior to using DateTime
-    def _handler_command_set_time(self, *args, **kwargs):
-        """
-        Perform a command-response on the device.
-        @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup and command timeout.
-        @retval resp_result The (possibly parsed) response result.
-        @raises InstrumentTimeoutException if the response did not occur in time.
-        @raises InstrumentProtocolException if command could not be built or if response
-        was not recognized.
-        """
-
-        next_state = None
-        result = None
-
-        kwargs['expected_prompt'] = ") = "
-        result = self._do_cmd_resp(InstrumentCmds.SET_TIME, *args, **kwargs)
-
-        return (next_state, result)
-    '''
     def _handler_command_quit_session(self, *args, **kwargs):
         """
         Perform a command-response on the device.
@@ -1268,25 +1453,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
-    def _handler_command_upload_ascii(self, *args, **kwargs):
-        """
-        Perform a command-response on the device.
-        @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup and command timeout.
-        @retval resp_result The (possibly parsed) response result.
-        @raises InstrumentTimeoutException if the response did not occur in time.
-        @raises InstrumentProtocolException if command could not be built or if response
-        was not recognized.
-        """
-
-        next_state = None
-        result = None
-
-        kwargs['expected_prompt'] = [NEWLINE, 'S>']
-        result = self._do_cmd_resp(InstrumentCmds.UPLOAD_DATA_ASCII_FORMAT, *args, **kwargs)
-
-        return (next_state, result)
 
     ###############################
     # Need to sort above
@@ -1302,6 +1468,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
+
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_autosample_exit(self, *args, **kwargs):
@@ -1390,10 +1557,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter direct access state.
         """
+
+        self._save_da_params()
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
         self._sent_cmds = []
 
     def _handler_direct_access_exit(self, *args, **kwargs):
@@ -1416,17 +1585,29 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+    def _handler_command_start_direct(self, *args, **kwargs):
+        """
+        """
+
+        next_state = None
+        result = None
+
+        next_state = ProtocolState.DIRECT_ACCESS
+        next_agent_state = ResourceAgentState.DIRECT_ACCESS
+
+        return (next_state, (next_agent_state, result))
+
     def _handler_direct_access_stop_direct(self):
         """
         @throw InstrumentProtocolException on invalid command
         """
+
         next_state = None
         result = None
 
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        #return (next_state, result)
         return (next_state, (next_agent_state, result))
 
     ########################################################################
@@ -1517,7 +1698,8 @@ class Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
         for line in response.split(NEWLINE):
-            name = self._param_dict.update(line)
+            hit_count = self._param_dict.multi_match_update(line)
+            #log.debug("MATCH COUNT = " + str(hit_count))
 
     def _parse_dc_response(self, response, prompt):
         """
@@ -1527,7 +1709,8 @@ class Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
         for line in response.split(NEWLINE):
-            name = self._param_dict.update(line)
+            hit_count = self._param_dict.multi_match_update(line)
+            #log.debug("MATCH COUNT = " + str(hit_count))
 
     def _parse_ts_response(self, response, prompt):
         """
@@ -1564,7 +1747,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         paLength = paPacket.get_data_size()
         paData = paPacket.get_data()
-
         if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
             # direct access mode
             if paLength > 0:
@@ -1583,22 +1765,61 @@ class Protocol(CommandResponseInstrumentProtocol):
                     # TODO: what about logging this as an event?
             return
 
+
+
+
+
+
+
+
+
+
+
+
+        # if in autosample mode, hand data to chunker by default, unless... a SL SLO is detected...
+
+
+
+
+
+
+
+
+
+
+
         if paLength > 0:
+            self._chunker.add_chunk(paData)
+            '''
             # Call the superclass to update line and prompt buffers.
             CommandResponseInstrumentProtocol.got_data(self, paData)
 
             # If in streaming mode, process the buffer for samples to publish.
             cur_state = self.get_current_state()
+
+            # SL/SLO output
+            # p = 429338.0625, t = 32.8599, s =  0.0000
+            # p = 429338.0312, t = 32.8863
+            # autosample examples
+            # tide: start time = 18 Oct 2012 16:53:34, p = 429338.0312, pt = 421105.875, t = 32.8912, c = -1.05512, s = 0.0000
+            # tide: start time = 18 Oct 2012 16:54:27, p = 429338.0312, pt = 421105.875, t = 32.8863
+            # tide: start time = 18 Oct 2012 16:58:55, p = 429338.0625, pt = 421105.656, t = 32.8599, c = -1.05512, s = 0.0000
+
+
             if cur_state == ProtocolState.AUTOSAMPLE:
                 if NEWLINE in self._linebuf:
                     lines = self._linebuf.split(NEWLINE)
                     self._linebuf = lines[-1]
                     for line in lines:
+                        #log.debug(":::::::::::::::::::::::::::::::::::::gobbling this with extract_sample -->" + str(line))
+                        # gobbling this with extract_sample -->p = 429338.0312, t = 32.9330, s =  0.0000
+                        # gobbling this with extract_sample -->tide: start time = 18 Oct 2012 16:42:34, p = 429338.0312, pt = 421105.968, t = 32.9330, c = -1.05512, s = 0.0000
                         self._extract_sample(SBE26plusDataParticle,  line)
+            '''
         else:
-            log.debug("got_data ignoring the data sent to it.....")
+            log.debug("got_data ignoring the data sent to it..... paData = " + str(paData))
 
-
+        #log.debug("leaving got_data paData = " + str(paData))
 
 
 
@@ -2205,6 +2426,133 @@ class Protocol(CommandResponseInstrumentProtocol):
             lambda match : float(match.group(1)),
             self._float_to_string)
 
+
+
+    def _save_da_params(self):
+        # Doing the ds command here causes issues.  I think we have to trust the last value that we
+        # fetched from a ds/dc
+
+        #self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, timeout=kwargs.get('timeout', TIMEOUT))
+
+        pd = self._param_dict.get_config()
+
+        self._da_save_dict = {}
+        for p in [Parameter.EXTERNAL_TEMPERATURE_SENSOR,
+                  Parameter.CONDUCTIVITY,
+                  Parameter.TXREALTIME,
+                  Parameter.TXWAVEBURST]:
+            self._da_save_dict[p] = pd[p]
+            log.debug("DIRECT ACCESS PARAM SAVE " + str(p) + " = " + str(self._da_save_dict[p]))
+
+    def _restore_da_params(self):
+
+        run = True
+        try:
+            if self._da_save_dict == None:
+                run = False
+        except:
+            run = False
+
+        if run == True:
+            # clear out the last command.
+            self._promptbuf = ''
+            self._linebuf = ''
+
+            for k in self._da_save_dict.keys():
+                v = self._da_save_dict[k]
+
+                try:
+                    str_val = self._param_dict.format(k, v)
+                    set_cmd = '%s=%s' % (k, str_val) + NEWLINE
+                    log.debug("DIRECT ACCESS PARAM RESTORE " + str(k) + "=" + str_val)
+                except KeyError:
+                    raise InstrumentParameterException('Unknown driver parameter %s' % param)
+
+                # clear out the last command.
+                self._promptbuf = ''
+                self._linebuf = ''
+                self._do_cmd_direct(set_cmd)
+
+                (prompt, response) = self._get_response(timeout=30)
+                while prompt != Prompt.COMMAND:
+                    if prompt == Prompt.CONFIRMATION_PROMPT:
+                        # clear out the last command.
+                        self._promptbuf = ''
+                        self._linebuf = ''
+                        self._do_cmd_direct("y" + NEWLINE)
+                        (prompt, response) = self._get_response(timeout=30)
+                    else:
+                        (prompt, response) = self._get_response(timeout=30)
+
+            self._da_save_dict = None
+            # clear out the last command.
+            self._promptbuf = ''
+            self._linebuf = ''
+
+    def _handler_command_autosample_send_last_and_sleep(self, *args, **kwargs):
+        """
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        log.debug("self._promptbuf = " + repr(self._promptbuf))
+        log.debug("self._linebuf = " + repr(self._linebuf))
+        self._linebuf = ''
+        self._promptbuf = ''
+
+
+
+        kwargs['timeout'] = 60
+        kwargs['expected_prompt'] = "S>"
+        result = self._do_cmd_resp(InstrumentCmds.SEND_LAST_AND_SLEEP, *args, **kwargs)
+        log.debug("result = " + repr(result))
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_autosample_send_last(self, *args, **kwargs):
+        """
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+
+        log.debug("self._promptbuf = " + repr(self._promptbuf))
+        log.debug("self._linebuf = " + repr(self._linebuf))
+        self._linebuf = ''
+        self._promptbuf = ''
+
+
+        kwargs['timeout'] = 60
+        kwargs['expected_prompt'] = "S>"
+        log.debug(":::::::::::::::::::::::::::::::::::::::::::::BEFORE")
+        result = self._do_cmd_resp(InstrumentCmds.SEND_LAST, *args, **kwargs)
+        log.debug("result = " + repr(result))
+        log.debug(":::::::::::::::::::::::::::::::::::::::::::::AFTER")
+        return (next_state, (next_agent_state, result))
+
+
+    def _parse_sl_slo_response(self, response, prompt):
+        """
+        Response handler for ts command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @retval sample dictionary containig c, t, d values.
+        @throws InstrumentProtocolException if ts command misunderstood.
+        @throws InstrumentSampleException if response did not contain a sample
+        """
+        log.debug("************ in _parse_sl_slo_response ")
+
+        log.debug("PROMPT = " + str(prompt) + " WANTED " + str(Prompt.COMMAND))
+        if prompt != Prompt.COMMAND:
+            raise InstrumentProtocolException('sl/slo command not recognized: %s', response)
+        log.debug("response = " + repr(response))
+
+
+        log.debug("self._promptbuf = " + repr(self._promptbuf))
+        log.debug("self._linebuf = " + repr(self._linebuf))
+
+
     ########################################################################
     # Static helpers to format set commands.
     ########################################################################
@@ -2324,3 +2672,4 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
 
         return time.strftime("%m%d%Y%H%M%S", time.strptime(date_time_string, "%d %b %Y %H:%M:%S"))
+

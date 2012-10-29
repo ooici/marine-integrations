@@ -66,17 +66,24 @@ class CommConfig(object):
         if( yamlInput ):
             self.config_type = yamlInput['comm'].get('method')
 
-            self.data_port = int(yamlInput['comm'].get('data_port'))
-            self.command_port = int(yamlInput['comm'].get('command_port'))
+            self.data_port = yamlInput['comm'].get('data_port')
+            self.command_port = yamlInput['comm'].get('command_port')
+
+            if(self.data_port): self.data_port = int(self.data_port)
+            if(self.command_port): self.command_port = int(self.command_port)
 
     def _config_dictionary(self):
         """
         @brief get a dictionary of configuration parameters.  This method should be sub classed to extend config
         @retval dictionary containing all config parameters.
         """
+        
+        if(self.data_port): self.data_port = int(self.data_port)
+        if(self.command_port): self.command_port = int(self.command_port)
+
         return { 'method': self.method(),
-                 'data_port': int(self.data_port),
-                 'command_port': int(self.command_port) }
+                 'data_port': self.data_port,
+                 'command_port': self.command_port }
 
 
     ###
