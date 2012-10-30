@@ -379,6 +379,43 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         result = chunker.get_next_data()
         self.assertEqual(result, None)
 
+    def assert_chunker_sample_with_noise(self, chunker, sample):
+        '''
+        Verify the chunker can parse a sample with noise on the
+        front or back of sample data
+        @param chunker: Chunker to use to do the parsing
+        @param sample: raw sample
+        '''
+        noise = "this is a bunch of noise to add to the sample\r\n"
+
+        # Try a sample with noise in the front
+        chunker.add_chunk(noise + sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, None)
+
+        # Now some noise in the back
+        chunker.add_chunk(sample + noise)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, None)
+
+        # There should still be some noise in the buffer, make sure
+        # we can still take a sample.
+        chunker.add_chunk(sample + noise)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, None)
+
 class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     """
     Base class for instrument driver unit tests

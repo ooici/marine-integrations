@@ -311,7 +311,10 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
         self.assert_chunker_fragmented_sample(chunker, VALID_HEADER)
 
         self.assert_chunker_combined_sample(chunker, VALID_SAMPLE)
-        self.assert_chunker_fragmented_sample(chunker, VALID_HEADER)
+        self.assert_chunker_combined_sample(chunker, VALID_HEADER)
+
+        self.assert_chunker_sample_with_noise(chunker, VALID_SAMPLE)
+        self.assert_chunker_sample_with_noise(chunker, VALID_HEADER)
 
     def test_extract_header(self):
         '''

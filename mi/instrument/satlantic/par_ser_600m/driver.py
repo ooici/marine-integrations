@@ -318,11 +318,11 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         matchers = []
         return_list = []
 
-        patterns.append((SAMPLE_PATTERN, re.MULTILINE|re.DOTALL))
-        patterns.append((HEADER_PATTERN, re.MULTILINE|re.DOTALL))
+        patterns.append(SAMPLE_PATTERN)
+        patterns.append(HEADER_PATTERN)
 
-        for pattern, flags in patterns:
-            matchers.append(re.compile(pattern, flags))
+        for pattern in patterns:
+            matchers.append(re.compile(pattern))
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
