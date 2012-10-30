@@ -77,22 +77,18 @@ WAVE_REGEX_MATCHER = re.compile(WAVE_REGEX, re.MULTILINE|re.DOTALL)
 STATS_REGEX = r'(deMeanTrend.*?H1/100 = [\d.e+]+\r\n)'
 STATS_REGEX_MATCHER = re.compile(STATS_REGEX, re.MULTILINE|re.DOTALL)
 
-SL_SLO_REGEX = r'(^p = +[\-\d.]+, t = +[\-\d.]+.*?\r\n)'
-SL_SLO_REGEX_MATCHER = re.compile(SL_SLO_REGEX, re.MULTILINE)
+#SL/SLO not to be supported at this time
+#SL_SLO_REGEX = r'(^p = +[\-\d.]+, t = +[\-\d.]+.*?\r\n)'
+#SL_SLO_REGEX_MATCHER = re.compile(SL_SLO_REGEX, re.MULTILINE)
 
 TS_REGEX = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)' # .*?\r\n
 TS_REGEX_MATCHER = re.compile(TS_REGEX, re.MULTILINE)
 
-# May not have to be super inclusive with this pattern, as its only needed to enable the particle to process what is handed to it.
-DC_REGEX = r'(.)' #r'(SBE 26plus V .*?logging = [^\r\n]+)'
+DC_REGEX = r'.*(Pressure coefficients.+?)\r\nS>' # dont need leading .* if .match() is changed to .search()
 DC_REGEX_MATCHER = re.compile(DC_REGEX, re.MULTILINE|re.DOTALL)
 
-# May not have to be super inclusive with this pattern, as its only needed to enable the particle to process what is handed to it.
-DS_REGEX = r'(.)' #r'(Pressure coefficients:.*?)S>'
+DS_REGEX = r'.*(SBE 26plus V.+?)\r\nS>'  # dont need leading .* if .match() is changed to .search()
 DS_REGEX_MATCHER = re.compile(DS_REGEX, re.MULTILINE|re.DOTALL)
-
-
-
 
 # Packet config
 STREAM_NAME_PARSED = DataParticleValue.PARSED
@@ -444,7 +440,7 @@ class SBE26plusTideSampleDataParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-
+        log.debug("in SBE26plusTideSampleDataParticle._build_parsed_values")
         pat1 = r'tide: start time = +(\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+), p = +([\-\d.]+), pt = +([\-\d.]+), t = +([\-\d.]+), c = +([\-\d.]+), s = +([\-\d.]+)\r\n'
         regex1 = re.compile(pat1)
         pat2 = r'tide: start time = +(\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+), p = +([\-\d.]+), pt = +([\-\d.]+), t = +([\-\d.]+)\r\n'
@@ -775,6 +771,26 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    @staticmethod
+    def _string_to_date(datestr, fmt):
+        """
+        Extract a date tuple from an sbe37 date string.
+        @param str a string containing date information in sbe37 format.
+        @retval a date tuple.
+        @throws InstrumentParameterException if datestr cannot be formatted to
+        a date.
+        """
+
+        if not isinstance(datestr, str):
+            raise InstrumentParameterException('Value %s is not a string.' % str(datestr))
+        try:
+            date_time = time.strptime(datestr, fmt)
+            date = (date_time[2],date_time[1],date_time[0])
+
+        except ValueError:
+            raise InstrumentParameterException('Value %s could not be formatted to a date.' % str(datestr))
+
+        return date
 
     def _build_parsed_values(self):
         """
@@ -784,54 +800,145 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
 
-        # SHould be converted to use the DS mechanism once the ds mechanism is working
-        # from below
-
-
         log.debug("in SBE26plusDeviceCalibrationDataParticle._build_parsed_values")
         single_var_matchers  = {
-            "PCALDATE": re.compile(r'Pressure coefficients: +(\d+-[a-zA-Z]+-\d+)'),
-            "PU0":      re.compile(r' +U0 = (-?[\d.e\-\+]+)'),
-            "PY1":      re.compile(r' +Y1 = (-?[\d.e\-\+]+)'),
-            "PY2":      re.compile(r' +Y2 = (-?[\d.e\-\+]+)'),
-            "PY3":      re.compile(r' +Y3 = (-?[\d.e\-\+]+)'),
-            "PC1":      re.compile(r' +C1 = (-?[\d.e\-\+]+)'),
-            "PC2":      re.compile(r' +C2 = (-?[\d.e\-\+]+)'),
-            "PC3":      re.compile(r' +C3 = (-?[\d.e\-\+]+)'),
-            "PD1":      re.compile(r' +D1 = (-?[\d.e\-\+]+)'),
-            "PD2":      re.compile(r' +D2 = (-?[\d.e\-\+]+)'),
-            "PT1":      re.compile(r' +T1 = (-?[\d.e\-\+]+)'),
-            "PT2":      re.compile(r' +T2 = (-?[\d.e\-\+]+)'),
-            "PT3":      re.compile(r' +T3 = (-?[\d.e\-\+]+)'),
-            "PT4":      re.compile(r' +T4 = (-?[\d.e\-\+]+)'),
-            "FACTORY_M":re.compile(r' +M = ([\d.]+)'),
-            "FACTORY_B":re.compile(r' +B = ([\d.]+)'),
-            "POFFSET":  re.compile(r' +OFFSET = (-?[\d.e\-\+]+)'),
-            "TCALDATE": re.compile(r'Temperature coefficients: +(\d+-[a-zA-Z]+-\d+)'),
-            "TA0":      re.compile(r' +TA0 = (-?[\d.e\-\+]+)'),
-            "TA1":      re.compile(r' +TA1 = (-?[\d.e\-\+]+)'),
-            "TA2":      re.compile(r' +TA2 = (-?[\d.e\-\+]+)'),
-            "TA3":      re.compile(r' +TA3 = (-?[\d.e\-\+]+)'),
-            "CCALDATE": re.compile(r'Conductivity coefficients: +(\d+-[a-zA-Z]+-\d+)'),
-            "CG":       re.compile(r' +CG = (-?[\d.e\-\+]+)'),
-            "CH":       re.compile(r' +CH = (-?[\d.e\-\+]+)'),
-            "CI":       re.compile(r' +CI = (-?[\d.e\-\+]+)'),
-            "CJ":       re.compile(r' +CJ = (-?[\d.e\-\+]+)'),
-            "CTCOR":    re.compile(r' +CTCOR = (-?[\d.e\-\+]+)'),
-            "CPCOR":    re.compile(r' +CPCOR = (-?[\d.e\-\+]+)'),
-            "CSLOPE":   re.compile(r' +CSLOPE = (-?[\d.e\-\+]+)')
+            SBE26plusDeviceCalibrationDataParticleKey.PCALDATE:  (
+                re.compile(r'Pressure coefficients: +(\d+-[a-zA-Z]+-\d+)'),
+                lambda match : self._string_to_date(match.group(1), '%d-%b-%y')
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.PU0:  (
+                re.compile(r' +U0 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.PY1:  (
+                re.compile(r' +Y1 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.PY2:  (
+                re.compile(r' +Y2 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.PY3:  (
+                re.compile(r' +Y3 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.PC1:  (
+                re.compile(r' +C1 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.PC2:  (
+                re.compile(r' +C2 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.PC3:  (
+                re.compile(r' +C3 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.PD1:  (
+                re.compile(r' +D1 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.PD2:  (
+                re.compile(r' +D2 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.PT1:  (
+                re.compile(r' +T1 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.PT2:  (
+                re.compile(r' +T2 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.PT3:  (
+                re.compile(r' +T3 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.PT4:  (
+                re.compile(r' +T4 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.FACTORY_M:  (
+                re.compile(r' +M = ([\d.]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.FACTORY_B:  (
+                re.compile(r' +B = ([\d.]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.POFFSET:  (
+                re.compile(r' +OFFSET = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.TCALDATE:  (
+                re.compile(r'Temperature coefficients: +(\d+-[a-zA-Z]+-\d+)'),
+                lambda match : self._string_to_date(match.group(1), '%d-%b-%y')
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.TA0:  (
+                re.compile(r' +TA0 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.TA1:  (
+                re.compile(r' +TA1 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.TA2:  (
+                re.compile(r' +TA2 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.TA3:  (
+                re.compile(r' +TA3 = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.CCALDATE:  (
+                re.compile(r'Conductivity coefficients: +(\d+-[a-zA-Z]+-\d+)'),
+                lambda match : self._string_to_date(match.group(1), '%d-%b-%y')
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.CG:  (
+                re.compile(r' +CG = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.CH:  (
+                re.compile(r' +CH = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.CI:  (
+                re.compile(r' +CI = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.CJ:  (
+                re.compile(r' +CJ = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.CTCOR:  (
+                re.compile(r' +CTCOR = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.CPCOR:  (
+                re.compile(r' +CPCOR = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE26plusDeviceCalibrationDataParticleKey.CSLOPE:  (
+                re.compile(r' +CSLOPE = (-?[\d.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
         }
 
-        result = []
-        #for line in self.raw_data.split(NEWLINE):
-        #    for (key, matcher) in single_var_matchers.iteritems():
-        #        match = single_var_matchers[key].match(line)
-        #        if match:
-        #            hit = "TEST" #match(1)
-        #            result.append({DataParticleKey.VALUE_ID: key, DataParticleKey.VALUE: hit})
-                #else:
-                #    result.append({DataParticleKey.VALUE_ID: key, DataParticleKey.VALUE: None})
 
+        result = [] # Final storage for particle
+        vals = {}   # intermediate storage for particle values so they can be set to null first.
+
+        for (key, (matcher, l_func)) in single_var_matchers.iteritems():
+            vals[key] = None
+
+        for line in self.raw_data.split(NEWLINE):
+            for (key, (matcher, l_func)) in single_var_matchers.iteritems():
+                match = matcher.match(line)
+                if match:
+                    vals[key] = l_func(match)
+
+        for (key, val) in vals.iteritems():
+            result.append({DataParticleKey.VALUE_ID: key, DataParticleKey.VALUE: val})
 
         return result
 
@@ -1216,7 +1323,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         sieve_matchers = [TIDE_REGEX_MATCHER,
                           WAVE_REGEX_MATCHER,
                           STATS_REGEX_MATCHER,
-                          SL_SLO_REGEX_MATCHER]
+                          DS_REGEX_MATCHER,
+                          DC_REGEX_MATCHER]
 
         return_list = []
 
@@ -2692,35 +2800,43 @@ class Protocol(CommandResponseInstrumentProtocol):
         Response handler for ds command
         """
         if prompt != Prompt.COMMAND:
-            raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
-        log.debug("RESPONSE = " + str(response))
-        log.debug("AM I PUBLISHING A PARTICLE?")
+            raise InstrumentProtocolException('ds command not recognized: %s.' % response)
+
         sample = self._extract_sample(SBE26plusDeviceStatusDataParticle, DS_REGEX_MATCHER, response, True)
-        log.debug("DID I PUBLISH A PARTICLE?" + str(sample))
+
 
         for line in response.split(NEWLINE):
             hit_count = self._param_dict.multi_match_update(line)
             #log.debug("MATCH COUNT = " + str(hit_count))
+
+        # return the Ds as text
+        match = DS_REGEX_MATCHER.search(response)
+        result = None
+
+        if match:
+            result = match.group(1)
+
+        return result
+
 
     def _parse_dc_response(self, response, prompt):
         """
         Response handler for dc command
         """
         if prompt != Prompt.COMMAND:
-            raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
+            raise InstrumentProtocolException('dc command not recognized: %s.' % response)
 
-        log.debug("RESPONSE = " + str(response))
-        log.debug("AM I PUBLISHING A PARTICLE?")
+        # publish a sample
         sample = self._extract_sample(SBE26plusDeviceCalibrationDataParticle, DC_REGEX_MATCHER, response, True)
-        log.debug("DID I PUBLISH A PARTICLE?" + str(sample))
 
+        # return the DC as text
+        match = DC_REGEX_MATCHER.search(response)
+        result = None
 
-        #for line in response.split(NEWLINE):
-        #    hit_count = self._param_dict.multi_match_update(line)
+        if match:
+            result = match.group(1)
 
-        #return response???
-
-
+        return result
 
     def _parse_ts_response(self, response, prompt):
         """
@@ -2756,8 +2872,52 @@ class Protocol(CommandResponseInstrumentProtocol):
         Callback for receiving new data from the device.
         """
 
+        # bring data in.
         paLength = paPacket.get_data_size()
         paData = paPacket.get_data()
+
+        # Short circuit out if we dont have any data.
+        '''
+        # Work on new way of doing it, test once can reach WOODSHOLE.
+
+        if paLength > 0:
+            current_state = self.get_current_state()
+            log.debug("in got_data() CURRENT_STATE = " + str(current_state))
+
+            if ProtocolState.DIRECT_ACCESS == current_state:
+                if self._driver_event:
+                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
+                    # TODO: what about logging this as an event?
+
+                log.debug("returning out of DIRECT_ACCESS
+                return
+
+            # Call the superclass to update line and prompt buffers.
+            CommandResponseInstrumentProtocol.got_data(self, paData)
+
+            # hand data to chunker by default
+            self._chunker.add_chunk(paData)
+
+            chunk = self._chunker.get_next_data()
+            while chunk != None:
+                # Determine what particle type it is and push accordingly
+
+                self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk)
+                self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk)
+                self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk)
+
+                # Not sure if these will ever be present in autosample, or if it will result in double
+                # packet sending.
+                # theoretically possible
+                self._extract_sample(SBE26plusDeviceCalibrationDataParticle, STATS_REGEX_MATCHER, chunk)
+                self._extract_sample(SBE26plusDeviceStatusDataParticle, STATS_REGEX_MATCHER, chunk)
+
+
+                # reload
+                chunk = self._chunker.get_next_data()
+
+
+        '''
 
 
 
@@ -2771,7 +2931,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                         # found a command echo, so remove it from data and delete the command form list
                         paData = string.replace(paData, oldest_sent_cmd, "", 1)
                         self._sent_cmds.pop(0)
-                if len(paData) > 0 and self._driver_event:
+                if self._driver_event:
                     self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
                     # TODO: what about logging this as an event?
             return
@@ -2787,16 +2947,20 @@ class Protocol(CommandResponseInstrumentProtocol):
 
                 self._chunker.add_chunk(paData)
                 chunk = self._chunker.get_next_data()
-                if chunk != None:
+                while chunk != None:
                     # Determine what particle type it is and push accordingly
 
                     self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk)
                     self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk)
                     self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk)
-                    #SBE26plusDeviceStatusDataParticle
-                    #SBE26plusDeviceCalibrationDataParticle
-                    # Need to catch if its SL/SLO and return that result (publishing optional.
-                    #self._extract_sample(SBE26plus__________DataParticle, SL_SLO_REGEX_MATCHER, chunk)
+
+                    # Not sure if these will ever be present in autosample.
+                    # theoretically possible
+                    self._extract_sample(SBE26plusDeviceCalibrationDataParticle, STATS_REGEX_MATCHER, chunk)
+                    self._extract_sample(SBE26plusDeviceStatusDataParticle, STATS_REGEX_MATCHER, chunk)
+
+                    # reload
+                    chunk = self._chunker.get_next_data()
 
     ########################################################################
     # Static helpers to format set commands.

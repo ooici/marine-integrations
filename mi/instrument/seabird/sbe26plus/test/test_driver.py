@@ -1651,10 +1651,10 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
 
 
-        for key in ['qs', 'set', 'setsampling', 'stop', 'dc', 'ts', 'start', 'slo', 'sl', 'initlogging', 'ds']:
+        for key in ['qs', 'set', 'stop', 'dc', 'ts', 'start', 'initlogging', 'ds']:
             self.assertTrue(key in ID._protocol._build_handlers.keys())
 
-        for key in ['set', 'setsampling', 'dc', 'ts', 'slo', 'sl', 'initlogging', 'ds']:
+        for key in ['set', 'dc', 'ts','initlogging', 'ds']:
             self.assertTrue(key in ID._protocol._response_handlers.keys())
 
         self.assertEqual(ID._protocol._last_data_receive_timestamp, None)
@@ -2239,7 +2239,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         #@TODO fix publishing.
         # INTERESTING. isusing SAMPLE_REGEX
         print _extract_sample_mock.mock_calls
-        self.assertEqual(len(_extract_sample_mock.mock_calls), 3) # was 560
+        self.assertEqual(len(_extract_sample_mock.mock_calls), 35)
         #@ TODO put below line back in and fix it once it is working
         #self.assertEqual(str(_extract_sample_mock.mock_calls), "3XXXXX")
 
@@ -2279,29 +2279,15 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         ID._build_protocol()
         p = ID._protocol
 
-
         ret = p._parse_ds_response(SAMPLE_DS, Prompt.COMMAND)
-        # assert that we know of 76 params
-        self.assertEqual(len(p._param_dict.get_keys()), 46) #76
 
+        # assert that we know of 46 params
+        self.assertEqual(len(p._param_dict.get_keys()), 46)
 
         dic = self.convert_enum_to_dict(Parameter)
 
-        """
-        for k in p._param_dict.get_keys():
-            if p._param_dict.get(k) is None:
-                print "self.assertEqual(p._param_dict.get('" + k + "'), None)"
-            else:
-                print "self.assertEqual(str(p._param_dict.get('" + k + "')),'" + str(p._param_dict.get(k)) + "')"
-        """
-
-        #DC#self.assertEqual(p._param_dict.get('TA0'), None)
         self.assertEqual(str(p._param_dict.get('HANNING_WINDOW_CUTOFF')),'0.1')
-        #DC#self.assertEqual(p._param_dict.get('FACTORY_M'), None)
-        #DC#self.assertEqual(p._param_dict.get('FACTORY_B'), None)
         self.assertEqual(str(p._param_dict.get('TIDE_MEASUREMENTS_SINCE_LAST_START')),'11.0')
-        #DC#self.assertEqual(p._param_dict.get('PY2'), None)
-        #DC#self.assertEqual(p._param_dict.get('PY3'), None)
         self.assertEqual(str(p._param_dict.get('TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS')),'6.0')
         self.assertEqual(str(p._param_dict.get('USE_STOP_TIME')),'False')
         self.assertEqual(str(p._param_dict.get('DateTime')),'05 OCT 2012  17:19:27')
@@ -2310,20 +2296,9 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(str(p._param_dict.get('USE_START_TIME')),'False')
         self.assertEqual(str(p._param_dict.get('IOP_MA')),'7.4')
         self.assertEqual(str(p._param_dict.get('QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER')),'122094.0')
-        #DC#self.assertEqual(p._param_dict.get('PU0'), None)
-        #DC#self.assertEqual(p._param_dict.get('TA1'), None)
         self.assertEqual(str(p._param_dict.get('CONDUCTIVITY')),'False')
-        #DC#self.assertEqual(p._param_dict.get('CSLOPE'), None)
-        #DC#self.assertEqual(p._param_dict.get('PT4'), None)
-        #DC#self.assertEqual(p._param_dict.get('PY1'), None)
-        #DC#self.assertEqual(p._param_dict.get('CCALDATE'), None)
-        #DC#self.assertEqual(p._param_dict.get('POFFSET'), None)
         self.assertEqual(str(p._param_dict.get('MEMORY_ENDURANCE')),'258.0')
-        #DC#self.assertEqual(p._param_dict.get('TCALDATE'), None)
         self.assertEqual(str(p._param_dict.get('WAVE_BURSTS_PER_DAY')),'80.0')
-        #DC#self.assertEqual(p._param_dict.get('PD2'), None)
-        #DC#self.assertEqual(p._param_dict.get('PD1'), None)
-        #DC#self.assertEqual(p._param_dict.get('PT1'), None)
         self.assertEqual(str(p._param_dict.get('DEVICE_VERSION')),'6.1E')
         self.assertEqual(str(p._param_dict.get('WAVE_SAMPLES_PER_BURST')),'512')
         self.assertEqual(str(p._param_dict.get('PREASURE_SENSOR_HEIGHT_FROM_BOTTOM')),'10.0')
@@ -2333,39 +2308,24 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(p._param_dict.get('LAST_SAMPLE_S'), None)
         self.assertEqual(str(p._param_dict.get('TIDE_SAMPLES_PER_DAY')),'480.0')
         self.assertEqual(str(p._param_dict.get('STATUS')),'STOPPED')
-        #DC#self.assertEqual(p._param_dict.get('CJ'), None)
         self.assertEqual(p._param_dict.get('AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR'), None)
-        #DC#self.assertEqual(p._param_dict.get('CH'), None)
         self.assertEqual(str(p._param_dict.get('LOGGING')),'False')
         self.assertEqual(str(p._param_dict.get('TxTide')),'True')
-        #DC#self.assertEqual(p._param_dict.get('TA2'), None)
-        #DC#self.assertEqual(p._param_dict.get('TA3'), None)
         self.assertEqual(str(p._param_dict.get('TIDE_MEASUREMENT_DURATION')),'60')
-        #DC#self.assertEqual(p._param_dict.get('CG'), None)
         self.assertEqual(str(p._param_dict.get('ExternalTemperature')),'False')
-        #DC#self.assertEqual(p._param_dict.get('CTCOR'), None)
         self.assertEqual(str(p._param_dict.get('MIN_PERIOD_IN_AUTO_SPECTRUM')),'0.0')
         self.assertEqual(str(p._param_dict.get('SHOW_PROGRESS_MESSAGES')),'True')
         self.assertEqual(str(p._param_dict.get('TxWave')),'True')
         self.assertEqual(str(p._param_dict.get('WAVE_BURSTS_SINCE_LAST_START')),'1.0')
-        #DC#self.assertEqual(p._param_dict.get('PC1'), None)
         self.assertEqual(str(p._param_dict.get('MIN_ALLOWABLE_ATTENUATION')),'0.0025')
         self.assertEqual(str(p._param_dict.get('TXWAVESTATS')),'True')
-        #DC#self.assertEqual(p._param_dict.get('PT3'), None)
-        #DC#self.assertEqual(p._param_dict.get('PT2'), None)
         self.assertEqual(str(p._param_dict.get('USE_MEASURED_TEMP_FOR_DENSITY_CALC')),'False')
         self.assertEqual(str(p._param_dict.get('SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND')),'5')
-        #DC#self.assertEqual(p._param_dict.get('PCALDATE'), None)
         self.assertEqual(str(p._param_dict.get('QUARTZ_PREASURE_SENSOR_RANGE')),'300.0')
         self.assertEqual(str(p._param_dict.get('TOTAL_RECORDED_TIDE_MEASUREMENTS')),'5982.0')
         self.assertEqual(str(p._param_dict.get('TOTAL_RECORDED_WAVE_BURSTS')),'4525.0')
-        #DC#self.assertEqual(p._param_dict.get('PC2'), None)
-        #DC#self.assertEqual(p._param_dict.get('PC3'), None)
-        #DC#self.assertEqual(p._param_dict.get('USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC'), None)
-        #DC#self.assertEqual(p._param_dict.get('CI'), None)
         self.assertEqual(str(p._param_dict.get('WAVE_SAMPLES_SCANS_PER_SECOND')),'4.0')
         self.assertEqual(str(p._param_dict.get('MAX_PERIOD_IN_AUTO_SPECTRUM')),'1000000.0')
-        #DC#self.assertEqual(p._param_dict.get('CPCOR'), None)
         self.assertEqual(str(p._param_dict.get('USERINFO')),'OOI')
         self.assertEqual(str(p._param_dict.get('VLITH_V')),'9.0')
         self.assertEqual(str(p._param_dict.get('SERIAL_NUMBER')),'1329')
@@ -2379,7 +2339,9 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         p._param_dict = _param_dict_mock
 
         ret = p._parse_ds_response(SAMPLE_DS, Prompt.COMMAND)
-        self.assertEqual(ret, None)
+        #self.assertEqual(ret, None)
+        self.assertEqual(ret, 'SBE 26plus V 6.1e  SN 1329    05 Oct 2012  17:19:27\r\nuser info=ooi\r\nquartz pressure sensor: serial number = 122094, range = 300 psia\r\ninternal temperature sensor\r\nconductivity = NO\r\niop =  7.4 ma  vmain = 16.2 V  vlith =  9.0 V\r\nlast sample: p = 14.5361, t = 23.8155\r\n\r\ntide measurement: interval = 3.000 minutes, duration = 60 seconds\r\nmeasure waves every 6 tide samples\r\n512 wave samples/burst at 4.00 scans/sec, duration = 128 seconds\r\nlogging start time = do not use start time\r\nlogging stop time = do not use stop time\r\n\r\ntide samples/day = 480.000\r\nwave bursts/day = 80.000\r\nmemory endurance = 258.0 days\r\nnominal alkaline battery endurance = 272.8 days\r\ntotal recorded tide measurements = 5982\r\ntotal recorded wave bursts = 4525\r\ntide measurements since last start = 11\r\nwave bursts since last start = 1\r\n\r\ntransmit real-time tide data = YES\r\ntransmit real-time wave burst data = YES\r\ntransmit real-time wave statistics = YES\r\nreal-time wave statistics settings:\r\n  number of wave samples per burst to use for wave statistics = 512\r\n  use measured temperature for density calculation\r\n  height of pressure sensor from bottom (meters) = 10.0\r\n  number of spectral estimates for each frequency band = 5\r\n  minimum allowable attenuation = 0.0025\r\n  minimum period (seconds) to use in auto-spectrum = 0.0e+00\r\n  maximum period (seconds) to use in auto-spectrum = 1.0e+06\r\n  hanning window cutoff = 0.10\r\n  show progress messages\r\n\r\nstatus = stopped by user\r\nlogging = NO, send start command to begin logging')
+
         # verify it passed all 44 lines to the update func
         self.assertEqual(len(_param_dict_mock.mock_calls), 44)
 
@@ -2393,6 +2355,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
 
         ret = p._parse_dc_response(SAMPLE_DC, Prompt.COMMAND)
+        log.debug("RET = " + str(ret))
         # assert that we know of 76 params
         self.assertEqual(len(p._param_dict.get_keys()), 46) #76
 
@@ -2492,7 +2455,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         ret = p._parse_dc_response(SAMPLE_DS, Prompt.COMMAND)
         self.assertEqual(ret, None)
         # verify it passed all 44 lines to the update func
-        self.assertEqual(len(_param_dict_mock.mock_calls), 44)
+        self.assertEqual(len(_param_dict_mock.mock_calls), 0)
 
     def test_build_set_command(self):
         """
@@ -2788,8 +2751,8 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
                                 "tide: start time = 22 Oct 2012 23:47:18, p = 429337.9687, pt = 421106.562, t = -3.2164, c = -1.05525, s = 0.000" + NEWLINE +
                                 SAMPLE_DATA)
 
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, 'p = 429337.7812, t = -3.2164\r\n')
+        #result = self._chunker.get_next_data()
+        #self.assertEquals(result, 'p = 429337.7812, t = -3.2164\r\n')
 
         result = self._chunker.get_next_data()
         self.assertEquals(result, 'tide: start time = 23 Oct 2012 01:08:08, p = 429337.8750, pt = 421107.187, t = -3.2164\r\n')
@@ -2851,7 +2814,8 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
         result = self._chunker.get_next_data()
         self.assertEquals(result, None)
-
+        '''
+        SL/SLO removed.
         self._chunker.add_chunk("p = 429337.7")
 
         result = self._chunker.get_next_data()
@@ -2867,6 +2831,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         result = self._chunker.get_next_data()
         self.assertEquals(result, 'p = 429337.7812, t = -3.2164\r\n')
 
+        '''
         self._chunker.add_chunk("tide: start time = 23 Oct 2012 01:08:08, p = 429")
 
 
@@ -2962,21 +2927,17 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # Test the driver is configured for comms.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        #state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        #state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolState.UNKNOWN)
         
         reply = self.driver_client.cmd_dvr('discover_state')
-        #reply = self.driver_client.cmd_dvr('discover_state')
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
-        #state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolState.COMMAND)
 
 
@@ -3040,38 +3001,6 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 
         log.debug("get/set Test 5 - get master set of possible parameters.")
         params = [
-            # DC
-            #Parameter.PCALDATE,
-            #Parameter.PU0,
-            #Parameter.PY1,
-            #Parameter.PY2,
-            #Parameter.PY3,
-            #Parameter.PC1,
-            #Parameter.PC2,
-            #Parameter.PC3,
-            #Parameter.PD1,
-            #Parameter.PD2,
-            #Parameter.PT1,
-            #Parameter.PT2,
-            #Parameter.PT3,
-            #Parameter.PT4,
-            #Parameter.FACTORY_M,
-            #Parameter.FACTORY_B,
-            #Parameter.POFFSET,
-            #Parameter.TCALDATE,
-            #Parameter.TA0,
-            #Parameter.TA1,
-            #Parameter.TA2,
-            #Parameter.TA3,
-            #Parameter.CCALDATE,
-            #Parameter.CG,
-            #Parameter.CH,
-            #Parameter.CI,
-            #Parameter.CJ,
-            #Parameter.CTCOR,
-            #Parameter.CPCOR,
-            #Parameter.CSLOPE,
-
             # DS
             Parameter.DEVICE_VERSION,
             Parameter.SERIAL_NUMBER,
@@ -3195,39 +3124,6 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         params = {
             Parameter.DS_DEVICE_DATE_TIME : time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))),
             Parameter.USER_INFO : "whoi",
-
-            #Parameter.PCALDATE : (2, 4, 2013),
-            #Parameter.PU0 : float(5.1),
-            #Parameter.PY1 : float(-3910.859),
-            #Parameter.PY2 : float(-10708.25),
-            #Parameter.PY3 : float(0.0),
-            #Parameter.PC1 : float(607.2786),
-            #Parameter.PC2 : float(1.0),
-            #Parameter.PC3 : float(-1024.374),
-            #Parameter.PD1 : float(0.02928),
-            #Parameter.PD2 : float(0.0),
-            #Parameter.PT1 : float(27.83369),
-            #Parameter.PT2 : float(0.607202),
-            #Parameter.PT3 : float(18.21885),
-            #Parameter.PT4 : float(27.90597),
-            #Parameter.POFFSET : float(-0.1374),
-            #Parameter.TCALDATE : (2, 4, 2013),
-
-            # params that I had that appeared corrupted.
-            #Parameter.TA0 : float(1.2),
-            # I believe this was the origional value.
-            #Parameter.TA0 : float(1.2e-04),
-            ##Parameter.TA1 : float(0.0002558291),
-            #Parameter.TA2 : float(-2.073449e-06),
-            #Parameter.TA3 : float(1.640089e-07),
-            #Parameter.CCALDATE : (28, 3, 2012),
-            #Parameter.CG : float(-10.25348),
-            #Parameter.CH : float(1.557569),
-            #Parameter.CI : float(-0.001737222),
-            #Parameter.CJ : float(0.0002268556),
-            #Parameter.CTCOR : float(3.25e-06),
-            #Parameter.CPCOR : float(-9.57e-08),
-            #Parameter.CSLOPE : float(1.0),
             Parameter.TXREALTIME : True,
             Parameter.TXWAVEBURST : True,
             Parameter.CONDUCTIVITY : True,
@@ -3336,7 +3232,6 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         # Set parameters and verify.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolState.COMMAND)
-        #reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SETSAMPLING, sampling_params)
         reply = self.driver_client.cmd_dvr('set_resource', sampling_params)
 
         self.assertEqual(reply, None)
@@ -3567,40 +3462,6 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         log.debug("REPLY = " + str(reply))
         #TODO verify sample.
 
-    '''
-    def test_baud_command(self):
-        """
-        Test baud command.
-        """
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.UNKNOWN)
-
-        reply = self.driver_client.cmd_dvr('discover_state')
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        # Test that the device responds correctly to the baud command.
-        # NOTE!! setting it to a baud that the tcp -> serial adapter is not
-        # set to will require you to have to reconfigure the tcp -> serial
-        # device to rescue the instrument.
-        reply = self.driver_client.cmd_dvr(InstrumentCmds.BAUD, 9600)
-        self.assertTrue(reply)
-    '''
-
     # works
     def test_init_logging(self):
         """
@@ -3723,39 +3584,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertEqual(len(res_cmds), 4)
 
         # Verify all paramaters are present in res_params
-        '''
-        # DC
-        self.assertTrue(Parameter.PCALDATE in res_params)
-        self.assertTrue(Parameter.PU0 in res_params)
-        self.assertTrue(Parameter.PY1 in res_params)
-        self.assertTrue(Parameter.PY2 in res_params)
-        self.assertTrue(Parameter.PY3 in res_params)
-        self.assertTrue(Parameter.PC1 in res_params)
-        self.assertTrue(Parameter.PC2 in res_params)
-        self.assertTrue(Parameter.PC3 in res_params)
-        self.assertTrue(Parameter.PD1 in res_params)
-        self.assertTrue(Parameter.PD2 in res_params)
-        self.assertTrue(Parameter.PT1 in res_params)
-        self.assertTrue(Parameter.PT2 in res_params)
-        self.assertTrue(Parameter.PT3 in res_params)
-        self.assertTrue(Parameter.PT4 in res_params)
-        self.assertTrue(Parameter.FACTORY_M in res_params)
-        self.assertTrue(Parameter.FACTORY_B in res_params)
-        self.assertTrue(Parameter.POFFSET in res_params)
-        self.assertTrue(Parameter.TCALDATE in res_params)
-        self.assertTrue(Parameter.TA0 in res_params)
-        self.assertTrue(Parameter.TA1 in res_params)
-        self.assertTrue(Parameter.TA2 in res_params)
-        self.assertTrue(Parameter.TA3 in res_params)
-        self.assertTrue(Parameter.CCALDATE in res_params)
-        self.assertTrue(Parameter.CG in res_params)
-        self.assertTrue(Parameter.CH in res_params)
-        self.assertTrue(Parameter.CI in res_params)
-        self.assertTrue(Parameter.CJ in res_params)
-        self.assertTrue(Parameter.CTCOR in res_params)
-        self.assertTrue(Parameter.CPCOR in res_params)
-        self.assertTrue(Parameter.CSLOPE in res_params)
-        '''
+
         # DS
         self.assertTrue(Parameter.DEVICE_VERSION in res_params)
         self.assertTrue(Parameter.SERIAL_NUMBER in res_params)
@@ -4069,6 +3898,185 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
+    def assertSampleDataParticle(self, val):
+        # NEED TO WRITE THIS USING
+        # https://github.com/ooici/marine-integrations/blob/master/mi/instrument/satlantic/par_ser_600m/test/test_driver.py as a guide.
+
+
+
+        """
+        SBE26plusTakeSampleDataParticle
+        {
+            "driver_timestamp": 3560540410.0512133,
+            "pkt_format_id": "JSON_Data",
+            "pkt_version": 1,
+            "preferred_timestamp": "driver_timestamp",
+            "quality_flag": "ok",
+            "stream_name": "parsed",
+            "values": [
+                {"value": -158.5166, "value_id": "preasure"},
+                {"value": -8392.3, "value_id": "preasure_temp"},
+                {"value": -3.2164, "value_id": "temperature"},
+                {"value": -1.02535, "value_id": "conductivity"},
+                {"value": 0.0, "value_id": "salinity"}
+            ]
+        }
+
+        SBE26plusTideSampleDataParticle
+        SBE26plusWaveBurstDataParticle
+        SBE26plusStatisticsDataParticle
+
+        SBE26plusDeviceCalibrationDataParticle
+        {
+            "driver_timestamp": 3560540530.089334,
+            "pkt_format_id": "JSON_Data",
+            "pkt_version": 1,
+            "preferred_timestamp": "driver_timestamp",
+            "quality_flag": "ok",
+            "stream_name": "parsed",
+            "values": [
+                {"value": 41943.0, "value_id": "FACTORY_M"},
+                {"value": 2796.2, "value_id": "FACTORY_B"},
+                {"value": -3845.795, "value_id": "PY1"},
+                {"value": -10829.41, "value_id": "PY2"},
+                {"value": 0.0, "value_id": "PY3"},
+                {"value": [2, 4, 2012], "value_id": "PCALDATE"},
+                {"value": null, "value_id": "CPCOR"},
+                {"value": 5.827424, "value_id": "PU0"},
+                {"value": null, "value_id": "CSLOPE"},
+                {"value": null, "value_id": "CCALDATE"},
+                {"value": -0.1877, "value_id": "POFFSET"},
+                {"value": [30, 3, 2012], "value_id": "TCALDATE"},
+                {"value": 0.0, "value_id": "PD2"},
+                {"value": 0.025294, "value_id": "PD1"},
+                {"value": null, "value_id": "CJ"},
+                {"value": null, "value_id": "CI"},
+                {"value": null, "value_id": "CH"},
+                {"value": 0.0002557341, "value_id": "TA0"},
+                {"value": 0.0002493547, "value_id": "TA1"},
+                {"value": -1.567218e-06, "value_id": "TA2"},
+                {"value": 1.508124e-07, "value_id": "TA3"},
+                {"value": null, "value_id": "CG"},
+                {"value": null, "value_id": "CTCOR"},
+                {"value": 31.09619, "value_id": "PT4"},
+                {"value": 17.52851, "value_id": "PT3"},
+                {"value": 0.391138, "value_id": "PT2"},
+                {"value": 27.77282, "value_id": "PT1"},
+                {"value": 37.41653, "value_id": "PC2"},
+                {"value": -4014.654, "value_id": "PC3"},
+                {"value": 2123.771, "value_id": "PC1"}
+            ]
+        }
+
+        SBE26plusDeviceStatusDataParticle
+
+        {
+            "driver_timestamp": 3560540530.18097,
+            "pkt_format_id": "JSON_Data",
+            "pkt_version": 1,
+            "preferred_timestamp": "driver_timestamp",
+            "quality_flag": "ok",
+            "stream_name": "parsed",
+            "values": [
+                {"value": 0.1, "value_id": "HANNING_WINDOW_CUTOFF"},
+                {"value": 300.0, "value_id": "QUARTZ_PREASURE_SENSOR_RANGE"},
+                {"value": 11.0, "value_id": "TIDE_MEASUREMENTS_SINCE_LAST_START"},
+                {"value": 6.0, "value_id": "TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS"},
+                {"value": false, "value_id": "USE_STOP_TIME"},
+                {"value": "05 OCT 2012  17:19:27", "value_id": "DateTime"},
+                {"value": 272.8, "value_id": "NOMINAL_ALKALINE_BATTERY_ENDURANCE"},
+                {"value": 3, "value_id": "TIDE_INTERVAL"},
+                {"value": 4.0, "value_id": "WAVE_SAMPLES_SCANS_PER_SECOND"},
+                {"value": 1000000.0, "value_id": "MAX_PERIOD_IN_AUTO_SPECTRUM"},
+                {"value": 122094.0, "value_id": "QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER"},
+                {"value": false, "value_id": "CONDUCTIVITY"},
+                {"value": 258.0, "value_id": "MEMORY_ENDURANCE"},
+                {"value": 80.0, "value_id": "WAVE_BURSTS_PER_DAY"},
+                {"value": "6.1E", "value_id": "DEVICE_VERSION"},
+                {"value": true, "value_id": "TxTide"},
+                {"value": 10.0, "value_id": "PREASURE_SENSOR_HEIGHT_FROM_BOTTOM"},
+                {"value": 23.8155, "value_id": "LAST_SAMPLE_T"},
+                {"value": 512, "value_id": "NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS"},
+                {"value": 14.5361, "value_id": "LAST_SAMPLE_P"},
+                {"value": null, "value_id": "LAST_SAMPLE_S"},
+                {"value": 5, "value_id": "SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND"},
+                {"value": "STOPPED", "value_id": "STATUS"},
+                {"value": null, "value_id": "AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR"},
+                {"value": false, "value_id": "LOGGING"},
+                {"value": 512, "value_id": "WAVE_SAMPLES_PER_BURST"},
+                {"value": 60, "value_id": "TIDE_MEASUREMENT_DURATION"},
+                {"value": 0.0, "value_id": "MIN_PERIOD_IN_AUTO_SPECTRUM"},
+                {"value": true, "value_id": "SHOW_PROGRESS_MESSAGES"},
+                {"value": true, "value_id": "TxWave"},
+                {"value": 1.0, "value_id": "WAVE_BURSTS_SINCE_LAST_START"},
+                {"value": 0.0025, "value_id": "MIN_ALLOWABLE_ATTENUATION"},
+                {"value": true, "value_id": "TXWAVESTATS"},
+                {"value": false, "value_id": "USE_MEASURED_TEMP_FOR_DENSITY_CALC"},
+                {"value": false, "value_id": "ExternalTemperature"},
+                {"value": 5982.0, "value_id": "TOTAL_RECORDED_TIDE_MEASUREMENTS"},
+                {"value": 4525.0, "value_id": "TOTAL_RECORDED_WAVE_BURSTS"},
+                {"value": null, "value_id": "USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC"},
+                {"value": false, "value_id": "USE_START_TIME"},
+                {"value": 7.4, "value_id": "IOP_MA"},
+                {"value": "OOI", "value_id": "USERINFO"},
+                {"value": 9.0, "value_id": "VLITH_V"},
+                {"value": "1329", "value_id": "SERIAL_NUMBER"},
+                {"value": 480.0, "value_id": "TIDE_SAMPLES_PER_DAY"},
+                {"value": 16.2, "value_id": "VMAIN_V"},
+                {"value": null, "value_id": "AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR"}
+            ]
+        }
+        """
+
+        """
+        Verify the value for a par sample data particle
+
+        {
+          'quality_flag': 'ok',
+          'preferred_timestamp': 'driver_timestamp',
+          'stream_name': 'parsed',
+          'pkt_format_id': 'JSON_Data',
+          'pkt_version': 1,
+          'driver_timestamp': 3559843883.8029947,
+          'values': [
+            {'value_id': 'serial_num', 'value': '0226'},
+            {'value_id': 'timer', 'value': 7.17},
+            {'value_id': 'counts', 'value': 2157033280},
+            {'value_id': 'checksum', 'value': 27}
+          ],
+        }
+        """
+        '''
+        if (isinstance(val, SatlanticPARDataParticle)):
+            sample_dict = json.loads(val.generate_parsed())
+        else:
+            sample_dict = val
+
+        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
+            DataParticleValue.PARSED)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
+            DataParticleValue.JSON_DATA)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
+            list))
+        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+        for x in sample_dict['values']:
+            self.assertTrue(x['value_id'] in ['serial_num', 'timer', 'counts', 'checksum'])
+            log.debug("ID: %s value: %s type: %s" % (x['value_id'], x['value'], type(x['value'])))
+            if(x['value_id'] == 'timer'):
+                self.assertTrue(isinstance(x['value'], float))
+            elif(x['value_id'] == 'serial_num'):
+                self.assertTrue(isinstance(x['value'], str))
+            elif(x['value_id'] == 'counts'):
+                self.assertTrue(isinstance(x['value'], int))
+            elif(x['value_id'] == 'checksum'):
+                self.assertTrue(isinstance(x['value'], int))
+            else:
+                # Shouldn't get here.  If we have then we aren't checking a parameter
+                self.assertFalse(True)
+        '''
 
     ###
     #    Add instrument specific qualification tests
@@ -4084,23 +4092,7 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         @TODO needs to be fixed once the IDK data_subscribers and event_subscribers are fixed
         """
 
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.assert_enter_command_mode()
 
 
 
@@ -4115,41 +4107,6 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        self.assertTrue(False)
         self.data_subscribers.no_samples = 2
 
         # Begin streaming.
@@ -4185,161 +4142,21 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 2400}}})
+
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test verifies that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
 
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+        self.tcp_client.send_data("\r\n")
+        self.tcp_client.expect("S>")
 
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.assert_direct_access_stop_telnet()
 
 
-        gevent.sleep(5)  # wait for mavs4 to go back to sleep if it was sleeping
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-                            kwargs={'session_type': DirectAccessTypes.telnet,
-                                    #kwargs={'session_type':DirectAccessTypes.vsp,
-                                    'session_timeout':6000,
-                                    'inactivity_timeout':6000})
-
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        state = self.instrument_agent_client.get_agent_state()
-
-        self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
-
-        log.info("GO_DIRECT_ACCESS retval=" + str(retval.result))
-
-        # start 'telnet' client with returned address and port
-        s = TcpClient(retval.result['ip_address'], retval.result['port'])
-
-        # look for and swallow 'Username' prompt
-
-        try_count = 0
-        while s.peek_at_buffer().find("Username: ") == -1:
-            log.debug("WANT 'Username:' READ ==>" + str(s.peek_at_buffer()))
-            gevent.sleep(1)
-            try_count += 1
-            if try_count > 10:
-                raise Timeout('It took longer than 10 seconds to get a Username: prompt')
-
-        s.remove_from_buffer("Username: ")
-        # send some username string
-        s.send_data("bob\r\n", "1")
-        # look for and swallow 'token' prompt
-
-        try_count = 0
-        while s.peek_at_buffer().find("token: ") == -1:
-            log.debug("WANT 'token: ' READ ==>" + str(s.peek_at_buffer()))
-            gevent.sleep(1)
-            try_count += 1
-            if try_count > 10:
-                raise Timeout('It took longer than 10 seconds to get a token: prompt')
-
-        s.remove_from_buffer("token: ")
-        # send the returned token
-        s.send_data(retval.result['token'] + "\r\n", "1")
-
-
-        # look for and swallow telnet negotiation string
-        try_count = 0
-        while s.peek_at_buffer().find(WILL_ECHO_CMD) == -1:
-            log.debug("WANT %s READ ==> %s" %(WILL_ECHO_CMD, str(s.peek_at_buffer())))
-            gevent.sleep(1)
-            try_count += 1
-            if try_count > 10:
-                raise Timeout('It took longer than 10 seconds to get the telnet negotiation string')
-        s.remove_from_buffer(WILL_ECHO_CMD)
-        # send the telnet negotiation response string
-        s.send_data(DO_ECHO_CMD, "1")
-
-        # look for and swallow 'connected' indicator
-        try_count = 0
-        while s.peek_at_buffer().find("connected\r\n") == -1:
-            log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
-            gevent.sleep(1)
-            try_count += 1
-            if try_count > 10:
-                raise Timeout('It took longer than 10 seconds to get a connected prompt')
-        s.remove_from_buffer("connected\r\n")
-
-        s.send_data("\r\n", "1")
-        gevent.sleep(2)
-
-        try_count = 0
-        while s.peek_at_buffer().find("S>") == -1:
-            log.debug("BUFFER = '" + repr(s.peek_at_buffer()) + "'")
-            self.assertNotEqual(try_count, 15)
-            try_count += 1
-            gevent.sleep(2)
-        log.debug("FELL OUT!")
-
-        s.remove_from_buffer("\r\nS>")
-        s.remove_from_buffer("S>")
-        try_count = 0
-        s.send_data("ts\r\n", "1")
-
-        while s.peek_at_buffer().find("ts") == -1:
-            log.debug("BUFFER = '" + repr(s.peek_at_buffer()) + "'")
-            self.assertNotEqual(try_count, 15)
-            try_count += 1
-            gevent.sleep(20)
-        s.remove_from_buffer("ts")
-
-        while s.peek_at_buffer().find("\r\nS>") == -1:
-            log.debug("BUFFER = '" + repr(s.peek_at_buffer()) + "'")
-            self.assertNotEqual(try_count, 15)
-            try_count += 1
-            gevent.sleep(20)
-
-        #pattern = re.compile(" ([0-9\-\.]+) +([0-9\-\.]+) +([0-9\-\.]+) +([0-9\-\.]+) +([0-9\-\.]+)")
-        pattern = re.compile(" ([0-9\-\.]+) +([0-9\-\.]+) +([0-9\-\.]+)")
-
-        matches = 0
-        n = 0
-        while n < 100:
-            n = n + 1
-            gevent.sleep(1)
-            data = s.peek_at_buffer()
-            log.debug("READ ==>" + str(repr(data)))
-            m = pattern.search(data)
-            if m != None:
-                log.debug("MATCHES ==>" + str(m.lastindex))
-                matches = m.lastindex
-                if matches == 3:
-                    break
-
-        log.debug("MATCHES = " + str(matches))
-        #self.assertTrue(matches == 3) # verify that we found at least 3 fields.
-
-        # RAW READ GOT ''ts -159.0737 -8387.75  -3.2164 -1.02535   0.0000\r\nS>''
-
-        # exit direct access
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
-
-
-        # verify params are restored. TBD
-
-
-    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 1200}}})
+    #@patch.dict(CFG, {'endpoint':{'receive':{'timeout': 1200}}})
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -4539,8 +4356,9 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE) #*****
         retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
+        self.check_state(ResourceAgentState.INACTIVE)
+        #state = self.instrument_agent_client.get_agent_state()
+        #self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         # Lets try RUN too early....
 
@@ -4557,8 +4375,9 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE) #*****
         retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
+        self.check_state(ResourceAgentState.IDLE)
+        #state = self.instrument_agent_client.get_agent_state()
+        #self.assertEqual(state, ResourceAgentState.IDLE)
 
         # Lets try INITIALIZE too late....
 
@@ -4575,8 +4394,9 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command=ResourceAgentEvent.RUN) #*****
         retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.check_state(ResourceAgentState.COMMAND)
+        #state = self.instrument_agent_client.get_agent_state()
+        #self.assertEqual(state, ResourceAgentState.COMMAND)
 
         # Lets try RUN too when in COMMAND....
 
@@ -4588,8 +4408,9 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
             exception_happened = True
             log.debug("5 - RUN - Caught expected exception = " + str(ex.__class__.__name__))
         self.assertTrue(exception_happened)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.check_state(ResourceAgentState.COMMAND)
+        #state = self.instrument_agent_client.get_agent_state()
+        #self.assertEqual(state, ResourceAgentState.COMMAND)
 
         # Lets try INITIALIZE too late....
 
@@ -4601,8 +4422,9 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
             exception_happened = True
             log.debug("6 - INITIALIZE - Caught expected exception = " + str(ex.__class__.__name__))
         self.assertTrue(exception_happened)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.check_state(ResourceAgentState.COMMAND)
+        #state = self.instrument_agent_client.get_agent_state()
+        #self.assertEqual(state, ResourceAgentState.COMMAND)
 
         # Lets try GO_ACTIVE too late....
 
@@ -4614,8 +4436,10 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
             exception_happened = True
             log.debug("7 - GO_ACTIVE - Caught expected exception = " + str(ex.__class__.__name__))
         self.assertTrue(exception_happened)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        self.check_state(ResourceAgentState.COMMAND)
+        #state = self.instrument_agent_client.get_agent_state()
+        #self.assertEqual(state, ResourceAgentState.COMMAND)
 
     def test_execute_reset(self):
         """
@@ -4623,81 +4447,28 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         verifying it goes back to UNINITIALIZED, then walk it back to
         COMMAND to test there are no glitches in RESET
         """
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.assert_enter_command_mode()
 
         # Test RESET
 
-        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+        self.assert_reset()
 
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.assert_enter_command_mode()
 
     def test_acquire_sample(self):
         """
         @brief Acquire a sample.
-
-        @todo this will need to be re-worked once publishing is working.
         """
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
 
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+
 
         cmd = AgentCommand(command=Capability.ACQUIRE_SAMPLE)
         retval = self.instrument_agent_client.execute_resource(cmd)
 
-        self.assertEqual(retval.status, 0)
-        self.assertEqual(retval.type_, 'AgentCommandResult')
-        self.assertEqual(retval.command, Capability.ACQUIRE_SAMPLE)
-        # AssertionError: {'stream_name': 'parsed', 'parsed': {'p': '-159.4619', 'c': '-1.02535', 's': '0.0000', 'pt': '-8384.70', 't': '-3.2164'}} != 'parsed'
-        self.assertEqual(retval.result, 'parsed')
+        self.assert_sample_polled(self.assertSampleDataParticle,
+            DataParticleValue.PARSED)
 
     def test_connect_disconnect(self):
         """
@@ -4705,23 +4476,7 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
 
         @todo this will need to be re-worked once publishing is working.
         """
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.assert_enter_command_mode()
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
@@ -4734,23 +4489,7 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         a discover opoeration it reverts to the system time.
         """
 
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.assert_enter_command_mode()
 
         params = {
             Parameter.DS_DEVICE_DATE_TIME : "01 Jan 2001 01:01:01",
@@ -4783,101 +4522,12 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
 
 
     @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 240}}})
-    def test_autosample_with_sl_slo(self):
-        """
-        @brief Test instrument driver execute interface to start and stop streaming
-        mode.
-
-        @TODO needs to be fixed once the IDK data_subscribers and event_subscribers are fixed
-        """
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
-
-
-
-        """
-        # Make sure the sampling rate and transmission are sane.
-        params = {
-            SBE37Parameter.NAVG : 1,
-            SBE37Parameter.INTERVAL : 5,
-            SBE37Parameter.TXREALTIME : True
-        }
-        self.instrument_agent_client.set_param(params)
-        """
-
-        self.data_subscribers.no_samples = 2
-
-        # Begin streaming.
-        cmd = AgentCommand(command=ProtocolEvent.START_AUTOSAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd)
-
-
-
-        gevent.sleep(60)
-
-        cmd = AgentCommand(command=ProtocolEvent.SEND_LAST)
-        retval = self.instrument_agent_client.execute_resource(cmd)
-        log.debug("SL = " + repr(retval))
-        cmd = AgentCommand(command=ProtocolEvent.SEND_LAST_AND_SLEEP)
-        retval = self.instrument_agent_client.execute_resource(cmd)
-        log.debug("SLO = " + repr(retval))
-
-        # Halt streaming.
-        cmd = AgentCommand(command=ProtocolEvent.STOP_AUTOSAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
-
-        # Assert we got some samples.
-        #self.assertTrue(self.data_subscribers.samples_received > self.data_subscribers.no_samples)
-        #self.assertTrue(non_accurate_seconds_count < 1200)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 240}}})
     def test_execute_clock_sync(self):
         """
         @brief Test Test EXECUTE_CLOCK_SYNC command.
         """
 
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.assert_enter_command_mode()
 
 
         cmd = AgentCommand(command=ProtocolEvent.EXECUTE_CLOCK_SYNC)
