@@ -95,6 +95,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
 ###############################################################################
 @attr('INT', group='mi')
 class IntFromIDK(InstrumentDriverIntegrationTestCase):
+    
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
@@ -204,7 +205,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         """
         self.put_driver_in_command_mode()
         
-        # command the instrument to read the ID.
+        # command the instrument to read the hw config.
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.GET_HW_CONFIGURATION)
         
         log.debug("read HW config returned: %s", response)
@@ -216,7 +217,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         """
         self.put_driver_in_command_mode()
         
-        # command the instrument to read the ID.
+        # command the instrument to read the head config.
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.GET_HEAD_CONFIGURATION)
         
         log.debug("r[sys]=%s", response['System'])
@@ -230,10 +231,11 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         """
         self.put_driver_in_command_mode()
         
-        # command the instrument to read the ID.
+        # command the instrument to start measurement immediate.
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_MEASUREMENT_IMMEDIATE)
-        
-        log.debug("read HW config returned: %s", response)
+        for loop in range(0, 12):
+            # spin allowing PA and driver to run (simple gevent.sleep() doesn't do it)
+            gevent.sleep(10)  # wait for measurement to complete               
 
 
     def test_instrument_set(self):

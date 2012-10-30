@@ -28,10 +28,15 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.exceptions import InstrumentTimeoutException, \
                                InstrumentParameterException, \
                                InstrumentProtocolException, \
-                               InstrumentStateException
+                               InstrumentStateException, \
+                               SampleException
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictVal
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
+from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+
+
 from mi.core.common import InstErrorCode
 
 from mi.core.log import get_logger ; log = get_logger()
@@ -43,13 +48,30 @@ NEWLINE = '\n\r'
 # default timeout.
 TIMEOUT = 10
 
-# set up configuration length and sync constants   
+# set up the 'structure' lengths (in bytes) and sync/id/size constants   
 USER_CONFIG_LEN = 512
+USER_CONFIG_SYNC_BYTES = '\xa5\x00\x00\x01'
 HW_CONFIG_LEN = 48
+HW_CONFIG_SYNC_BYTES   = '\xa5\x05\x18\x00'
 HEAD_CONFIG_LEN = 224
-USER_SYNC_BYTES = '\xa5\x00\x00\x01'
-HW_SYNC_BYTES   = '\xa5\x05\x18\x00'
-HEAD_SYNC_BYTES = '\xa5\x04\x70\x00'
+HEAD_CONFIG_SYNC_BYTES = '\xa5\x04\x70\x00'
+VELOCITY_DATA_LEN = 42
+VELOCITY_DATA_SYNC_BYTES = '\xa5\x01\x15\x00'
+DIAGNOSTIC_DATA_HEADER_LEN = 36
+DIAGNOSTIC_DATA_HEADER_SYNC_BYTES = '\xa5\x06\x12\x00'
+DIAGNOSTIC_DATA_LEN = 42
+DIAGNOSTIC_DATA_SYNC_BYTES = '\xa5\x80\x15\x00'
+
+sample_structures = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
+                     [DIAGNOSTIC_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
+                     [DIAGNOSTIC_DATA_HEADER_SYNC_BYTES, DIAGNOSTIC_DATA_HEADER_LEN]]
+
+VELOCITY_DATA_PATTERN = r'^%s(.*)' % VELOCITY_DATA_SYNC_BYTES,
+VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN)
+DIAGNOSTIC_DATA_HEADER_PATTERN = r'^%s(.*)' % DIAGNOSTIC_DATA_HEADER_SYNC_BYTES,
+DIAGNOSTIC_DATA_HEADER_REGEX = re.compile(DIAGNOSTIC_DATA_HEADER_PATTERN)
+DIAGNOSTIC_DATA_PATTERN = r'^%s(.*)' % DIAGNOSTIC_DATA_SYNC_BYTES,
+DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN)
 
 # Packet config
 PACKET_CONFIG = {
@@ -410,6 +432,61 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         self._protocol = Protocol(InstrumentPrompts, NEWLINE, self._driver_event)
 
+
+###############################################################################
+# Data particles
+###############################################################################
+
+class AquadoppDwVelocityDataParticleKey(BaseEnum):
+    SERIAL_NUM = "serial_num"
+    COUNTS = "counts"
+    TIMER = "timer"
+    CHECKSUM = "checksum"
+    
+class AquadoppDwVelocityDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure for the
+    Satlantic PAR sensor. Overrides the building of values, and the rest comes
+    along for free.
+    """
+    def _build_parsed_values(self):
+        """
+        Take something in the sample format and split it into
+        a PAR values (with an appropriate tag)
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = VELOCITY_DATA_REGEX.match(self.raw_data)
+        
+        if not match:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+            
+        sernum = str(match.group(1))
+        timer = float(match.group(2))
+        counts = int(match.group(3))
+        checksum = int(match.group(4))
+        
+        if not sernum:
+            raise SampleException("No serial number value parsed")
+        if not timer:
+            raise SampleException("No timer value parsed")
+        if not counts:
+            raise SampleException("No counts value parsed")
+        if not checksum:
+            raise SampleException("No checksum value parsed")
+        
+        #TODO: Get 'temp', 'cond', and 'depth' from a paramdict
+        result = [{DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.SERIAL_NUM,
+                   DataParticleKey.VALUE: sernum},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.TIMER,
+                   DataParticleKey.VALUE: timer},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.COUNTS,
+                    DataParticleKey.VALUE: counts},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.CHECKSUM,
+                    DataParticleKey.VALUE: checksum}]
+        
+        return result
+
 ###############################################################################
 # Protocol
 ################################################################################
@@ -473,8 +550,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         Parameter.QUAL_CONSTANTS,
         ]
     
-    CHECK_SUM_SEED = 0xb58c
-
     
     def __init__(self, prompts, newline, driver_event):
         """
@@ -522,6 +597,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
+        # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.READ_REAL_TIME_CLOCK, self._parse_read_clock_response)
         self._add_response_handler(InstrumentCmds.CMD_WHAT_MODE, self._parse_what_mode_response)
         self._add_response_handler(InstrumentCmds.READ_BATTERY_VOLTAGE, self._parse_read_battery_voltage_response)
@@ -529,14 +605,49 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.READ_HW_CONFIGURATION, self._parse_read_hw_config)
         self._add_response_handler(InstrumentCmds.READ_HEAD_CONFIGURATION, self._parse_read_head_config)
 
-        # Construct the parameter dictionary containing device parameters,
-        # current parameter values, and set formatting functions.
+        # Construct the parameter dictionary containing device parameters, current parameter values, and set formatting functions.
         self._build_param_dict()
 
-        # Add response handlers for device commands.
+        # create chunker for processing instrument samples.
+        self._chunker = StringChunker(Protocol.chunker_sieve_function)
 
-        # Add sample handlers.
-
+    @staticmethod
+    def convert_word_to_int(word):
+        low_byte = ord(word[0])
+        high_byte = 0x100 * ord(word[1])
+        #log.debug('w=%s, l=%d, h=%d, v=%d' %(word.encode('hex'), low_byte, high_byte, low_byte + high_byte))
+        return low_byte + high_byte
+    
+    @staticmethod
+    def calculate_checksum(input, length):
+        #log.debug("calculate_checksum: input=%s, length=%d", input.encode('hex'), length)
+        CHECK_SUM_SEED = 0xb58c
+        calculated_checksum = CHECK_SUM_SEED
+        for word_index in range(0, length-2, 2):
+            word_value = Protocol.convert_word_to_int(input[word_index:word_index+2])
+            calculated_checksum = (calculated_checksum + word_value) % 0x10000
+            #log.debug('w_i=%d, c_c=%d' %(word_index, calculated_checksum))
+        return calculated_checksum
+            
+    @staticmethod
+    def chunker_sieve_function(raw_data):
+        """ The method that detects data sample structures from instrument
+        """
+        return_list = []
+        
+        for structure_sync, structure_len in sample_structures:
+            start = raw_data.find(structure_sync)
+            if start != -1:    # found a sync pattern
+                if start+structure_len <= len(raw_data):    # only check the CRC if all of the structure has arrived
+                    calculated_checksum = Protocol.calculate_checksum(raw_data[start:start+structure_len], structure_len)
+                    #log.debug('chunker_sieve_function: calculated checksum = %s' % calculated_checksum)
+                    sent_checksum = Protocol.convert_word_to_int(raw_data[start+structure_len-2:start+structure_len])
+                    if sent_checksum == calculated_checksum:
+                        return_list.append((start, start+structure_len))        
+                        #log.debug("chunker_sieve_function: found %s", raw_data[start:start+structure_len].encode('hex'))
+                
+        return return_list
+    
     def _filter_capabilities(self, events):
         """
         """ 
@@ -568,15 +679,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         if paLength > 0:
             # Call the superclass to update line and prompt buffers.
             CommandResponseInstrumentProtocol.got_data(self, paData)
-    
-            # If in streaming mode, process the buffer for samples to publish.
-            cur_state = self.get_current_state()
-            if cur_state == ProtocolState.AUTOSAMPLE:
-                if NEWLINE in self._linebuf:
-                    lines = self._linebuf.split(NEWLINE)
-                    self._linebuf = lines[-1]
-                    for line in lines:
-                        self._extract_sample(line)  
+            self._chunker.add_chunk(paData)
+            structure = self._chunker.get_next_data()
+            while(structure):
+                log.debug("got_data: detected structure = %s", structure.encode('hex'))
+                #self._extract_sample(SatlanticPARDataParticle, SAMPLE_REGEX, structure)
+                structure = self._chunker.get_next_data()
+
 
     def _get_response(self, timeout=5, expected_prompt=None):
         """
@@ -1030,12 +1139,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
     
-    def _convert_word_to_int(self, word):
-        low_byte = ord(word[0])
-        high_byte = 0x100 * ord(word[1])
-        #log.debug('w=%s, l=%d, h=%d, v=%d' %(word.encode('hex'), low_byte, high_byte, low_byte + high_byte))
-        return low_byte + high_byte
-    
     def _word_to_string(self, value):
         low_byte = value & 0xff
         high_byte = (value & 0xff00) >> 8
@@ -1081,32 +1184,32 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HW_CONFIG,
                              r'^.{18}(.{2}).*',
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HW_FREQUENCY,
                              r'^.{20}(.{2}).*',
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PIC_VERSION,
                              r'^.{22}(.{2}).*',
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HW_REVISION,
                              r'^.{24}(.{2}).*',
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.REC_SIZE,
                              r'^.{26}(.{2}).*',
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.STATUS,
                              r'^.{28}(.{2}).*',
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HW_SPARE,
@@ -1123,17 +1226,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         # head config
         self._param_dict.add(Parameter.HEAD_CONFIG,
                              r'^.{%s}(.{2}).*' % str(self.HEAD_OFFSET+4),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HEAD_FREQUENCY,
                              r'^.{%s}(.{2}).*' % str(self.HEAD_OFFSET+6),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HEAD_TYPE,
                              r'^.{%s}(.{2}).*' % str(self.HEAD_OFFSET+8),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HEAD_SERIAL_NUMBER,
@@ -1153,7 +1256,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HEAD_NUMBER_BEAMS,
                              r'^.{%s}(.{2}).*' % str(self.HEAD_OFFSET+220),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         """
@@ -1161,52 +1264,52 @@ class Protocol(CommandResponseInstrumentProtocol):
         # user config
         self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH,
                              r'^.{%s}(.{2}).*' % str(4),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.BLANKING_DISTANCE,
                              r'^.{%s}(.{2}).*' % str(6),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.RECEIVE_LENGTH,
                              r'^.{%s}(.{2}).*' % str(8),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TIME_BETWEEN_PINGS,
                              r'^.{%s}(.{2}).*' % str(10),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TIME_BETWEEN_BURST_SEQUENCES,
                              r'^.{%s}(.{2}).*' % str(12),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMMBER_PINGS,
                              r'^.{%s}(.{2}).*' % str(14),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.AVG_INTERVAL,
                              r'^.{%s}(.{2}).*' % str(16),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.USER_NUMBER_BEAMS,
                              r'^.{%s}(.{2}).*' % str(18),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TIMING_CONTROL_REGISTER,
                              r'^.{%s}(.{2}).*' % str(20),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.POWER_CONTROL_REGISTER,
                              r'^.{%s}(.{2}).*' % str(22),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.A1_1_SPARE,
@@ -1226,27 +1329,27 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.COMPASS_UPDATE_RATE,
                              r'^.{%s}(.{2}).*' % str(30),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.COORDINATE_SYSTEM,
                              r'^.{%s}(.{2}).*' % str(32),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.NUMBER_BINS,
                              r'^.{%s}(.{2}).*' % str(34),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.BIN_LENGTH,
                              r'^.{%s}(.{2}).*' % str(36),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.MEASUREMENT_INTERVAL,
                              r'^.{%s}(.{2}).*' % str(38),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.DEPLOYMENT_NAME,
@@ -1256,7 +1359,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WRAP_MODE,
                              r'^.{%s}(.{2}).*' % str(46),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.CLOCK_DEPLOY,
@@ -1271,42 +1374,42 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.MODE,
                              r'^.{%s}(.{2}).*' % str(58),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ADJUSTMENT_SOUND_SPEED,
                              r'^.{%s}(.{2}).*' % str(60),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
                              r'^.{%s}(.{2}).*' % str(62),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC,
                              r'^.{%s}(.{2}).*' % str(64),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMBER_PINGS_DIAGNOSTIC,
                              r'^.{%s}(.{2}).*' % str(66),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.MODE_TEST,
                              r'^.{%s}(.{2}).*' % str(68),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ANALOG_INPUT_ADDR,
                              r'^.{%s}(.{2}).*' % str(70),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.SW_VERSION,
                              r'^.{%s}(.{2}).*' % str(72),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.USER_1_SPARE,
@@ -1326,32 +1429,32 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_MEASUREMENT_MODE,
                              r'^.{%s}(.{2}).*' % str(436),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.DYN_PERCENTAGE_POSITION,
                              r'^.{%s}(.{2}).*' % str(438),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_TRANSMIT_PULSE,
                              r'^.{%s}(.{2}).*' % str(440),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_BLANKING_DISTANCE,
                              r'^.{%s}(.{2}).*' % str(442),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_CELL_SIZE,
                              r'^.{%s}(.{2}).*' % str(444),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMBER_DIAG_SAMPLES,
                              r'^.{%s}(.{2}).*' % str(446),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.A1_2_SPARE,
@@ -1376,12 +1479,12 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ANALOG_OUTPUT_SCALE,
                              r'^.{%s}(.{2}).*' % str(456),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.COORELATION_THRESHOLD,
                              r'^.{%s}(.{2}).*' % str(458),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.USER_3_SPARE,
@@ -1391,7 +1494,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
                              r'^.{%s}(.{2}).*' % str(462),
-                             lambda match : self._convert_word_to_int(match.group(1)),
+                             lambda match : Protocol.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.USER_4_SPARE,
@@ -1436,14 +1539,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                       %(input[0:4], sync))
             return False
         
-        # check user checksum
-        calculated_checksum = self.CHECK_SUM_SEED
-        for word_index in range(0, length-2, 2):
-            word_value = self._convert_word_to_int(input[word_index:word_index+2])
-            calculated_checksum = (calculated_checksum + word_value) % 0x10000
-            #log.debug('w_i=%d, c_c=%d' %(word_index, calculated_checksum))
+        # check checksum
+        calculated_checksum = Protocol.calculate_checksum(input, length)
         log.debug('_check_configuration: user c_c = %s' % calculated_checksum)
-        sent_checksum = self._convert_word_to_int(input[length-2:length])
+        sent_checksum = Protocol.convert_word_to_int(input[length-2:length])
         if sent_checksum != calculated_checksum:
             log.debug('_check_configuration: user checksum in error %s != %s' 
                       %(calculated_checksum, sent_checksum))
@@ -1512,7 +1611,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._connection.send(InstrumentCmds.READ_USER_CONFIGURATION)
             for i in range(20):   # loop for 2 seconds waiting for response to complete
                 if len(self._promptbuf) == USER_CONFIG_LEN+2:
-                    if self._check_configuration(self._promptbuf, USER_SYNC_BYTES, USER_CONFIG_LEN):                    
+                    if self._check_configuration(self._promptbuf, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):                    
                         self._param_dict.update(self._promptbuf)
                         # Get new param dict config. If it differs from the old config,
                         # tell driver superclass to publish a config change event.
@@ -1577,7 +1676,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         
         checksum = self.CHECK_SUM_SEED
         for word_index in range(0, len(output), 2):
-            word_value = self._convert_word_to_int(output[word_index:word_index+2])
+            word_value = Protocol.convert_word_to_int(output[word_index:word_index+2])
             checksum = (checksum + word_value) % 0x10000
             #log.debug('w_i=%d, c_c=%d' %(word_index, calculated_checksum))
         log.debug('_create_set_output: user checksum = %s' % checksum)
@@ -1621,7 +1720,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.warn("_parse_what_mode_response: Bad what mode response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid what mode response. (%s)", response.encode('hex'))
         log.debug("_parse_what_mode_response: response=%s", response.encode('hex')) 
-        return self._convert_word_to_int(response[0:2])
+        return Protocol.convert_word_to_int(response[0:2])
         
 
     def _parse_read_battery_voltage_response(self, response, prompt):
@@ -1636,7 +1735,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.warn("_parse_read_battery_voltage_response: Bad read battery voltage response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid read battery voltage response. (%s)", response.encode('hex'))
         log.debug("_parse_read_battery_voltage_response: response=%s", response.encode('hex')) 
-        return self._convert_word_to_int(response[0:2])
+        return Protocol.convert_word_to_int(response[0:2])
         
     def _parse_read_id(self, response, prompt):
         """ Parse the response from the instrument for a read ID command.
@@ -1660,18 +1759,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval return The time as a string
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        if not self._check_configuration(self._promptbuf, HW_SYNC_BYTES, HW_CONFIG_LEN):                    
+        if not self._check_configuration(self._promptbuf, HW_CONFIG_SYNC_BYTES, HW_CONFIG_LEN):                    
             log.warn("_parse_read_hw_config: Bad read hw response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid read hw response. (%s)", response.encode('hex'))
         log.debug("_parse_read_hw_config: response=%s", response.encode('hex'))
         parsed = {} 
         parsed['SerialNo'] = response[4:18]  
-        parsed['Config'] = self._convert_word_to_int(response[18:20])  
-        parsed['Frequency'] = self._convert_word_to_int(response[20:22])  
-        parsed['PICversion'] = self._convert_word_to_int(response[22:24])  
-        parsed['HWrevision'] = self._convert_word_to_int(response[24:26])  
-        parsed['RecSize'] = self._convert_word_to_int(response[26:28])  
-        parsed['Status'] = self._convert_word_to_int(response[28:30])  
+        parsed['Config'] = Protocol.convert_word_to_int(response[18:20])  
+        parsed['Frequency'] = Protocol.convert_word_to_int(response[20:22])  
+        parsed['PICversion'] = Protocol.convert_word_to_int(response[22:24])  
+        parsed['HWrevision'] = Protocol.convert_word_to_int(response[24:26])  
+        parsed['RecSize'] = Protocol.convert_word_to_int(response[26:28])  
+        parsed['Status'] = Protocol.convert_word_to_int(response[28:30])  
         parsed['FWversion'] = response[42:46] 
         return parsed
         
@@ -1683,17 +1782,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval return The time as a string
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        if not self._check_configuration(self._promptbuf, HEAD_SYNC_BYTES, HEAD_CONFIG_LEN):                    
+        if not self._check_configuration(self._promptbuf, HEAD_CONFIG_SYNC_BYTES, HEAD_CONFIG_LEN):                    
             log.warn("_parse_read_head_config: Bad read head response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid read head response. (%s)", response.encode('hex'))
         log.debug("_parse_read_head_config: response=%s", response.encode('hex')) 
         parsed = {} 
-        parsed['Config'] = self._convert_word_to_int(response[4:6])  
-        parsed['Frequency'] = self._convert_word_to_int(response[6:8])  
-        parsed['Type'] = self._convert_word_to_int(response[8:10])  
+        parsed['Config'] = Protocol.convert_word_to_int(response[4:6])  
+        parsed['Frequency'] = Protocol.convert_word_to_int(response[6:8])  
+        parsed['Type'] = Protocol.convert_word_to_int(response[8:10])  
         parsed['SerialNo'] = response[10:22]  
         #parsed['System'] = self._dump_config(response[22:198])
         parsed['System'] = base64.b64encode(response[22:198])
-        parsed['NBeams'] = self._convert_word_to_int(response[220:222])  
+        parsed['NBeams'] = Protocol.convert_word_to_int(response[220:222])  
         return parsed
                     
