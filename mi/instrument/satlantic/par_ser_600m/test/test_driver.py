@@ -41,6 +41,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import AgentCapabilityType
 
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARInstrumentProtocol
 from mi.instrument.satlantic.par_ser_600m.driver import PARProtocolState
@@ -790,6 +791,7 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
                 # Shouldn't get here.  If we have then we aren't checking a parameter
                 self.assertFalse(True)
 
+    @unittest.skip("Just because")
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -846,20 +848,20 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         ##################
 
         capabilities = {
-            'agent_command': [
+            AgentCapabilityType.AGENT_COMMAND: [
                 ResourceAgentEvent.CLEAR,
                 ResourceAgentEvent.RESET,
                 ResourceAgentEvent.GO_DIRECT_ACCESS,
                 ResourceAgentEvent.GO_INACTIVE,
                 ResourceAgentEvent.PAUSE
             ],
-            'agent_parameter': ['example'],
-            'resource_command': [
+            AgentCapabilityType.AGENT_PARAMETER: ['example'],
+            AgentCapabilityType.RESOURCE_COMMAND: [
                 DriverEvent.SET, DriverEvent.ACQUIRE_SAMPLE, DriverEvent.GET,
                 PARProtocolEvent.START_POLL, DriverEvent.START_AUTOSAMPLE
             ],
-            'resource_interface': None,
-            'resource_parameter': [
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: [
                 Parameter.INSTRUMENT, Parameter.SERIAL, Parameter.MAXRATE, Parameter.FIRMWARE
 
             ],
@@ -871,14 +873,14 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         #  Polled Mode
         ##################
 
-        capabilities['agent_command'] = [
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = [
             ResourceAgentEvent.CLEAR,
             ResourceAgentEvent.RESET,
             ResourceAgentEvent.GO_DIRECT_ACCESS,
             ResourceAgentEvent.GO_INACTIVE,
             ResourceAgentEvent.PAUSE,
         ]
-        capabilities['resource_command'] = [
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
             DriverEvent.START_AUTOSAMPLE, DriverEvent.RESET, PARProtocolEvent.STOP_POLL
         ]
 
@@ -893,8 +895,8 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         #  Streaming Mode
         ##################
 
-        capabilities['agent_command'] = [ ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
-        capabilities['resource_command'] =  [
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
             PARProtocolEvent.START_POLL,
             DriverEvent.STOP_AUTOSAMPLE,
             DriverEvent.RESET
@@ -908,10 +910,10 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         #  Uninitialized Mode
         #######################
 
-        capabilities['agent_command'] = [ResourceAgentEvent.INITIALIZE]
-        capabilities['resource_command'] = []
-        capabilities['resource_interface'] = []
-        capabilities['resource_parameter'] = []
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.INITIALIZE]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
