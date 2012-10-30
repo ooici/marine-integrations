@@ -818,6 +818,7 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         self.assert_sample_autosample(self.assertSampleDataParticle,
                                       DataParticleValue.PARSED)
 
+
     def test_get_set_parameters(self):
         '''
         verify that all parameters can be get set properly
