@@ -802,13 +802,14 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
 
         self.assert_direct_access_stop_telnet()
 
+    @unittest.skip("polled mode note implemented")
     def test_poll(self):
         '''
         No polling for a single sample
         '''
+
         #self.assert_sample_polled(self.assertSampleDataParticle,
         #                          DataParticleValue.PARSED)
-        pass
 
     def test_autosample(self):
         '''
@@ -816,6 +817,7 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         '''
         self.assert_sample_autosample(self.assertSampleDataParticle,
                                       DataParticleValue.PARSED)
+
 
     def test_get_set_parameters(self):
         '''

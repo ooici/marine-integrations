@@ -729,14 +729,9 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval return (next state, result)
         @throw InstrumentProtocolException For invalid command
         """
-        next_state = PARProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+        next_state = None
+        next_agent_state = None
         result = None
-
-        log.debug("Switch to polled mode")
-        self._switch_to_poll()
-        # Give the instrument a bit to keep up. 1 sec is not enough!
-        time.sleep(5)
 
         # This sometimes takes a few seconds, so stall after our sample cmd
         # and before the read/parse
