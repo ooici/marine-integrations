@@ -28,6 +28,7 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import ResourceAgentEvent
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
@@ -159,7 +160,7 @@ class Prompt(BaseEnum):
     EXECUTED = '<Executed/>'
 
 # SBE16 newline.
-SBE16_NEWLINE = '\r\n'
+NEWLINE = '\r\n'
 
 # SBE16 default timeout.
 SBE16_TIMEOUT = 10
@@ -170,7 +171,12 @@ SAMPLE_PATTERN += r'(, *(-?\d+\.\d+))?(, *(-?\d+\.\d+))?'
 SAMPLE_PATTERN += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'    
 SAMPLE_PATTERN += r'(, *(\d+)-(\d+)-(\d+), *(\d+):(\d+):(\d+))?'
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
-        
+
+# pattern for the first line of the 'ds' command
+STATUS_PATTERN =  r'SBE 16plus V *(\d+.\d+) *SERIAL NO. *(\d+) *(\d+ *[a-zA-Z]+ *\d+ *\d+:\d+:\d+)\r\n'
+STATUS_PATTERN += r'vbatt = (\d+.\d+), *vlith *= *(\d+.\d+), *ioper *= *(\d+.\d+ *[a-zA-Z]+), *ipump *= *(\d+.\d+ *[a-zA-Z]+)'
+STATUS_REGEX = re.compile(STATUS_PATTERN)
+
 # Packet config for SBE37 data granules.
 STREAM_NAME_PARSED = DataParticleValue.PARSED
 STREAM_NAME_RAW = DataParticleValue.RAW
@@ -219,7 +225,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = SBE16Protocol(Prompt, SBE16_NEWLINE, self._driver_event)
+        self._protocol = SBE16Protocol(Prompt, NEWLINE, self._driver_event)
 
 
 class SBE16DataParticleKey(BaseEnum):
@@ -263,6 +269,64 @@ class SBE16DataParticle(DataParticle):
                     DataParticleKey.VALUE: pressure},
                   {DataParticleKey.VALUE_ID: SBE16DataParticleKey.SALINITY,
                     DataParticleKey.VALUE: salinity}]
+        
+        return result
+
+
+class SBE16StatusParticleKey(BaseEnum):
+    FIRMWARE_VERSION = "firmware_version"
+    SERIAL_NUMBER = "serial_number"
+    DATE_TIME = "date_time"
+    VBATT = "vbatt"
+    VLITH = "vlith"
+    IOPER = "ioper"
+    IPUMP = "ipump"
+
+class SBE16StatusParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    def _build_parsed_values(self):
+        """
+        Take something in the autosample/TS format and split it into
+        C, T, and D values (with appropriate tags)
+        
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = STATUS_REGEX.match(self.raw_data)
+        
+        if not match:
+            raise SampleException("No regex match of parsed status data: [%s]" %
+                                  self.raw_data)
+            
+        try:
+            firmware_version = str(match.group(1))
+            serial_number = str(match.group(2))
+            date_time = str(match.group(3))
+            vbatt = str(match.group(4))
+            vlith = str(match.group(5))
+            ioper = str(match.group(6))
+            ipump = str(match.group(7))
+            
+        except ValueError:
+            raise SampleException("ValueError while decoding status: [%s]" %
+                                  self.raw_data)
+        
+        result = [{DataParticleKey.VALUE_ID: SBE16StatusParticleKey.FIRMWARE_VERSION,
+                   DataParticleKey.VALUE: firmware_version},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.SERIAL_NUMBER,
+                   DataParticleKey.VALUE: serial_number},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.DATE_TIME,
+                    DataParticleKey.VALUE: date_time},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.VBATT,
+                    DataParticleKey.VALUE: vbatt},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.VLITH,
+                    DataParticleKey.VALUE: vlith},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.IOPER,
+                    DataParticleKey.VALUE: ioper},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.IPUMP,
+                    DataParticleKey.VALUE: ipump}]
         
         return result
 
@@ -348,6 +412,32 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
 
         # State state machine in UNKNOWN state. 
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
+        
+        self._chunker = StringChunker(self.sieve_function)
+        
+
+    @staticmethod
+    def sieve_function(raw_data):
+        """ The method that splits samples
+        """
+        patterns = []
+        matchers = []
+        return_list = []
+
+        patterns.append((SAMPLE_PATTERN, 
+                         re.MULTILINE|re.DOTALL))
+
+        patterns.append((STATUS_PATTERN, 
+                         re.MULTILINE|re.DOTALL))
+
+        for pattern, flags in patterns:
+            matchers.append(re.compile(pattern, flags))
+
+        for matcher in matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
+
+        return return_list
 
     def _filter_capabilities(self, events):
         """
@@ -830,7 +920,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         """
         Send a newline to attempt to wake the SBE16 device.
         """
-        self._connection.send(SBE16_NEWLINE)
+        self._connection.send(NEWLINE)
                 
     def _update_params(self, *args, **kwargs):
         """
@@ -862,7 +952,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         @param cmd the simple sbe16 command to format.
         @retval The command to be sent to the device.
         """
-        return cmd+SBE16_NEWLINE
+        return cmd+NEWLINE
     
     def _build_set_command(self, cmd, param, val):
         """
@@ -881,7 +971,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
                 param = 'sampleinterval'
 
             set_cmd = '%s=%s' % (param, str_val)
-            set_cmd = set_cmd + SBE16_NEWLINE
+            set_cmd = set_cmd + NEWLINE
             
         except KeyError:
             raise InstrumentParameterException('Unknown driver parameter %s' % param)
@@ -909,7 +999,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]: 
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
-        for line in response.split(SBE16_NEWLINE):
+        for line in response.split(NEWLINE):
             if 'sample interval' in line:
                 for sline in line.split(','):
                     #print 'DHE: split this: ' + sline.lstrip()
@@ -931,7 +1021,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
             raise InstrumentProtocolException('dcal command not recognized: %s.' % response)
             
-        for line in response.split(SBE16_NEWLINE):
+        for line in response.split(NEWLINE):
             self._param_dict.update(line)
         
     def _parse_ts_response(self, response, prompt):
@@ -948,7 +1038,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException('ts command not recognized: %s', response)
         
         sample = None
-        for line in response.split(SBE16_NEWLINE):
+        for line in response.split(NEWLINE):
             sample = self._extract_sample(SBE16DataParticle, SAMPLE_REGEX, line, True)
             if sample:
                 break
@@ -1016,8 +1106,8 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             # If in streaming mode, process the buffer for samples to publish.
             cur_state = self.get_current_state()
             if cur_state == ProtocolState.AUTOSAMPLE:
-                if SBE16_NEWLINE in self._linebuf:
-                    #lines = self._linebuf.split(SBE16_NEWLINE)
+                if NEWLINE in self._linebuf:
+                    #lines = self._linebuf.split(NEWLINE)
                     lines = self._linebuf.splitlines(1)
                     self._linebuf = lines[-1]
                     for line in lines:
@@ -1025,10 +1115,47 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
                         The above split can leave a zero-length line in list,
                         so only call extract_sample if len greater than zero.
                         """
-                        if len(line) > 0 and line.endswith(SBE16_NEWLINE):
+                        if len(line) > 0 and line.endswith(NEWLINE):
                             sample = self._extract_sample(SBE16DataParticle, 
                                                           SAMPLE_REGEX,
                                                           line)
+                
+    def new_got_data(self, paPacket):
+        """
+        Callback for receiving new data from the device.
+        """
+        length = paPacket.get_data_size()
+        data = paPacket.get_data()
+        tempLength = len(data)
+
+        if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
+            # direct access mode
+            if length > 0:
+                #mi_logger.debug("SBE16Protocol._got_data(): <" + data + ">")
+                # check for echoed commands from instrument (TODO: this should only be done for telnet?)
+                if len(self._sent_cmds) > 0:
+                    # there are sent commands that need to have there echoes filtered out
+                    oldest_sent_cmd = self._sent_cmds[0]
+                    if string.count(data, oldest_sent_cmd) > 0:
+                        # found a command echo, so remove it from data and delete the command from list
+                        data = string.replace(data, oldest_sent_cmd, "", 1)
+                        self._sent_cmds.pop(0)
+                if len(data) > 0 and self._driver_event:
+                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
+                    # TODO: what about logging this as an event?
+            return
+
+        if length > 0:
+            
+            # Call the superclass to update line and prompt buffers.
+            CommandResponseInstrumentProtocol.got_data(self, data)
+
+            self._chunker.add_chunk(data)
+
+            chunk = self._chunker.get_next_data()
+            while(chunk):
+                self._extract_sample(SBE16StatusParticle, STATUS_REGEX, chunk)
+                chunk = self._chunker.get_next_data()
                 
     def _build_param_dict(self):
         """

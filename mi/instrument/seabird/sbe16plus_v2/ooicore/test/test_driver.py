@@ -46,7 +46,9 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import PACKET_CONFIG
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import NEWLINE
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16DataParticle
+from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import SBE16StatusParticle
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import InstrumentDriver
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import ProtocolState
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import ProtocolEvent
@@ -143,6 +145,22 @@ PARAMS = {
     #Parameter.SYNCWAIT : int,
 }
 
+"""
+Test Inputs
+"""
+VALID_SAMPLE = "24.0088,  0.00001,   -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n"
+# A beginning fragment (truncated)
+VALID_SAMPLE_FRAG_01 = "24.0088,  0.00001"
+# Ending fragment (the remainder of the above frag)
+VALID_SAMPLE_FRAG_02 = ", -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n"
+# A full sample plus a beginning frag of another sample
+VALID_SAMPLE_FRAG_03 = "24.0088,  0.00001, -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n24.0088,  0.00001"
+# A full sample plus a beginning frag of another sample
+INVALID_SAMPLE = "bogus sample 03 Oct 2012 20:59:04\r\n24.0088,  0.00001"
+
+DS_RESPONSE = 'SBE 16plus V 2.2  SERIAL NO. 6841    29 Oct 2012 20:20:55' + NEWLINE + \
+               'vbatt = 12.9, vlith =  8.5, ioper =  61.2 ma, ipump = 255.5 ma' 
+
 class RequiredCapabilities(BaseEnum):
     """
     Required Capabilities
@@ -166,19 +184,6 @@ class RequiredAutoSampleCapabilities(BaseEnum):
     """
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     GET = DriverEvent.GET
-
-"""
-Test Inputs
-"""
-VALID_SAMPLE = "24.0088,  0.00001,   -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n"
-# A beginning fragment (truncated)
-VALID_SAMPLE_FRAG_01 = "24.0088,  0.00001"
-# Ending fragment (the remainder of the above frag)
-VALID_SAMPLE_FRAG_02 = ", -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n"
-# A full sample plus a beginning frag of another sample
-VALID_SAMPLE_FRAG_03 = "24.0088,  0.00001, -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n24.0088,  0.00001"
-# A full sample plus a beginning frag of another sample
-INVALID_SAMPLE = "bogus sample 03 Oct 2012 20:59:04\r\n24.0088,  0.00001"
 
 
 #################################### RULES ####################################
@@ -234,7 +239,67 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
             elif stream_type == 'parsed':
                 self.parsed_stream_received += 1
 
+    def test_status_line(self):
+        particle = SBE16StatusParticle(DS_RESPONSE, port_timestamp = 3558720820.531179)
+        parsed = particle.generate_parsed()
 
+    def test_new_got_data(self):
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = InstrumentDriver(self.my_event_callback)
+        
+        """
+        Put the driver into test mode
+        """
+        test_driver.set_test_mode(True)
+
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Force driver to AUTOSAMPLE state
+        """
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        self.reset_test_vars()
+        test_sample = DS_RESPONSE
+        
+        paPacket = PortAgentPacket()         
+        paPacket.attach_data(test_sample)
+        paPacket.pack_header()
+  
+        test_driver._protocol.new_got_data(paPacket)
+        
+
+                
     """
     Test that the get_resource_params() method returns a list of params
     that matches what we expect.
