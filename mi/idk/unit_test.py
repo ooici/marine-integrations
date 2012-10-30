@@ -53,6 +53,7 @@ from pyon.core.exception import Conflict
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.tcp_client import TcpClient
+from mi.core.common import BaseEnum
 
 from interface.objects import AgentCommand
 
@@ -942,11 +943,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         InstrumentDriverTestCase.tearDown(self)
 
 
-    def test_common_qualification(self):
-        self.assertTrue(1)
-
-    # FIXED
-    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 1200}}})
     def test_instrument_agent_common_state_model_lifecycle(self):
         """
         @brief Test agent state transitions.
@@ -1097,7 +1093,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
 
-    # FIXED
     def test_instrument_agent_to_instrument_driver_connectivity(self):
         """
         @brief This test verifies that the instrument agent can
@@ -1141,6 +1136,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
 
 
+    @unittest.skip("not an integration tests, should be in unit tests")
     def test_instrument_error_code_enum(self):
         """
         @brief check InstErrorCode for consistency
@@ -1150,6 +1146,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         pass
 
 
+    @unittest.skip("not an integration tests, should be in unit tests")
     def test_driver_connection_state_enum(self):
         """
         @brief check DriverConnectionState for consistency
@@ -1162,18 +1159,19 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.assertTrue(self.check_for_reused_values(DriverConnectionState))
 
-    # FIXED
+    @unittest.skip("not an integration tests, should be in unit tests")
     def test_resource_agent_event_enum(self):
 
         self.assertTrue(self.check_for_reused_values(ResourceAgentEvent))
 
 
-    # FIXED
+    @unittest.skip("not an integration tests, should be in unit tests")
     def test_resource_agent_state_enum(self):
 
         self.assertTrue(self.check_for_reused_values(ResourceAgentState))
 
 
+    @unittest.skip("not an integration tests, should be in unit tests")
     def check_for_reused_values(self, obj):
         """
         @author Roger Unwin
@@ -1195,6 +1193,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         return match == outer_match
 
 
+    @unittest.skip("not an integration tests, should be in unit tests")
     def test_driver_async_event_enum(self):
         """
         @ brief ProtocolState enum test
@@ -1427,6 +1426,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         pass
 
+    @unittest.skip("redundant test")
     def test_instrument_driver_to_physical_instrument_interoperability(self):
         """
         @Brief this test is the integreation test test_connect
@@ -1452,6 +1452,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         pass
 
+    @unittest.skip("redundant test")
     def test_initialize(self):
         """
         Test agent initialize command. This causes creation of
