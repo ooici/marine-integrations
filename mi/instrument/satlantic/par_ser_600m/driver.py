@@ -1143,7 +1143,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                     # TODO: what about logging this as an event?
             return
 
-        if paLength > 0 and self.get_current_state() == PARProtocolState.AUTOSAMPLE:
+        if paLength > 0:
             CommandResponseInstrumentProtocol.got_data(self, paData)
             self._chunker.add_chunk(paData)
 
