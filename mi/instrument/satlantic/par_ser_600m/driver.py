@@ -1142,8 +1142,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                     self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
                     # TODO: what about logging this as an event?
             return
-        
-        if paLength > 0:
+
+        if paLength > 0 and self.get_current_state() == PARProtocolState.AUTOSAMPLE:
             CommandResponseInstrumentProtocol.got_data(self, paData)
             self._chunker.add_chunk(paData)
 
