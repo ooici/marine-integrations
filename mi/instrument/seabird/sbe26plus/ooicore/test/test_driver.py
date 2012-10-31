@@ -25,9 +25,12 @@ from nose.plugins.attrib import attr
 from mi.instrument.seabird.sbe26plus.test.test_driver import SBE26PlusUnitFromIDK
 from mi.instrument.seabird.sbe26plus.test.test_driver import SBE26PlusIntFromIDK
 from mi.instrument.seabird.sbe26plus.test.test_driver import SBE26PlusQualFromIDK
-from mi.idk.unit_test import InstrumentDriverTestCase
+
 from mi.instrument.seabird.sbe26plus.ooicore.driver import PACKET_CONFIG
-#from prototype.sci_data.stream_defs import ctd_stream_definition
+
+
+
+from prototype.sci_data.stream_defs import ctd_stream_definition
 
 
 ###############################################################################

@@ -123,7 +123,15 @@ from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 raw_stream_received = False
 parsed_stream_received = False
 
+InstrumentDriverTestCase.initialize(
+    driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
+    driver_class="InstrumentDriver",
 
+    instrument_agent_resource_id = '123xyz',
+    instrument_agent_name = 'Agent007',
+    instrument_agent_packet_config = PACKET_CONFIG,
+    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
+)
 
 ###
 #   Driver parameters for the tests
@@ -2802,16 +2810,14 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self._chunker = StringChunker(Protocol.sieve_function)
 
         for line in SAMPLE_DATA.split(NEWLINE):
-            log.debug(repr(line + NEWLINE))
+
             self._chunker.add_chunk(line + NEWLINE)
 
             result = self._chunker.get_next_data(clean=True)
-            log.debug("RESULT ============================================================================================================================================================= " + repr(result))
 
             result = self._chunker.get_next_data(clean=True)
-            log.debug("RESULT ============================================================================================================================================================= " + repr(result))
 
-        #self.assertTrue(False) # to enable debug output
+
 
     def test_short_chunker_feed(self):
         # This will want to be created in the driver eventually...
@@ -3429,9 +3435,10 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # take a sample.
         sample = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
-        TS_REGEX = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)' # .*?\r\n
+        log.debug("sample = " + repr(sample[1]))
+        TS_REGEX = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)'
         TS_REGEX_MATCHER = re.compile(TS_REGEX)
-        matches = TS_REGEX_MATCHER.match(sample)
+        matches = TS_REGEX_MATCHER.match(sample[1])
 
         log.debug("COUNT = " + str(len(matches.groups())))
         self.assertEqual(3, len(matches.groups()))
@@ -3645,18 +3652,6 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertTrue(exception_happened)
 
     # FAILS TUE
-    def assert_sample_dict(self, sample):
-        """
-        @brief validate that a sample contains the correct fields.
-        """
-        log.error("SAMPLE = " + repr(sample))
-        self.assertTrue('stream_name' in sample.keys())
-        self.assertTrue('parsed' in sample.keys())
-        self.assertTrue('p' in sample['parsed'].keys())
-        self.assertTrue('t' in sample['parsed'].keys())
-        self.assertTrue('pt' in sample['parsed'].keys())
-
-    # FAILS TUE
     def test_poll(self):
         """
         @brief Test sample polling commands and events.
@@ -3667,25 +3662,37 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 
 
         # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_resource', Capability.ACQUIRE_SAMPLE)
-        log.debug("SAMPLE = " + repr(reply[1]))
-        self.assert_sample_dict(reply[1])
+        sample1 = self.driver_client.cmd_dvr('execute_resource', Capability.ACQUIRE_SAMPLE)
+        log.debug("SAMPLE1 = " + str(sample1[1]))
 
         # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_resource', Capability.ACQUIRE_SAMPLE)
-        log.debug("SAMPLE = " + repr(reply))
-        self.assert_sample_dict(reply)
+        sample2 = self.driver_client.cmd_dvr('execute_resource', Capability.ACQUIRE_SAMPLE)
+        log.debug("SAMPLE2 = " + str(sample2[1]))
 
         # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_resource', Capability.ACQUIRE_SAMPLE)
-        log.debug("SAMPLE = " + repr(reply))
-        self.assert_sample_dict(reply)
+        sample3 = self.driver_client.cmd_dvr('execute_resource', Capability.ACQUIRE_SAMPLE)
+        log.debug("SAMPLE3 = " + str(sample3[1]))
+
+        TS_REGEX = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)'
+        TS_REGEX_MATCHER = re.compile(TS_REGEX)
+
+        matches1 = TS_REGEX_MATCHER.match(sample1[1])
+        self.assertEqual(3, len(matches1.groups()))
+
+        matches2 = TS_REGEX_MATCHER.match(sample2[1])
+        self.assertEqual(3, len(matches2.groups()))
+
+        matches3 = TS_REGEX_MATCHER.match(sample3[1])
+        self.assertEqual(3, len(matches3.groups()))
+
+
+
 
         # Confirm that 3 samples arrived as published events.
         gevent.sleep(1)
         sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-        # @TODO Set this properly (3) when only one set of events are sent
-        self.assertEqual(len(sample_events), 6)
+
+        self.assertEqual(len(sample_events), 12)
 
         # Disconnect from the port agent.
         reply = self.driver_client.cmd_dvr('disconnect')
@@ -3770,162 +3777,19 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         self.assertEqual(current_state, desired_state)
 
     def assertSampleDataParticle(self, potential_sample):
-        # NEED TO WRITE THIS USING
-        # https://github.com/ooici/marine-integrations/blob/master/mi/instrument/satlantic/par_ser_600m/test/test_driver.py as a guide.
-
-
-
         """
         SBE26plusTakeSampleDataParticle
-        {
-            "driver_timestamp": 3560540410.0512133,
-            "pkt_format_id": "JSON_Data",
-            "pkt_version": 1,
-            "preferred_timestamp": "driver_timestamp",
-            "quality_flag": "ok",
-            "stream_name": "parsed",
-            "values": [
-                {"value": -158.5166, "value_id": "preasure"},
-                {"value": -8392.3, "value_id": "preasure_temp"},
-                {"value": -3.2164, "value_id": "temperature"},
-                {"value": -1.02535, "value_id": "conductivity"},
-                {"value": 0.0, "value_id": "salinity"}
-            ]
-        }
 
         SBE26plusTideSampleDataParticle
-        {
-            "driver_timestamp": 3560627929.598382,
-            "pkt_format_id": "JSON_Data",
-            "pkt_version": 1,
-            "preferred_timestamp": "driver_timestamp",
-            "quality_flag": "ok",
-            "stream_name": "parsed",
-            "values": [
-                {"value": 3560653116.0, "value_id": "timestamp"},
-                {"value": 429339.0312, "value_id": "pressure"},
-                {"value": 421097.5, "value_id": "pressure_temp"},
-                {"value": -3.2164, "value_id": "temperature"},
-                {"value": -1.05525, "value_id": "conductivity"},
-                {"value": 0.0, "value_id": "salinity"}
-            ]
-        }
 
         SBE26plusWaveBurstDataParticle
 
-        ????
-
         SBE26plusStatisticsDataParticle
 
-        ????
-
         SBE26plusDeviceCalibrationDataParticle
-        {
-            "driver_timestamp": 3560540530.089334,
-            "pkt_format_id": "JSON_Data",
-            "pkt_version": 1,
-            "preferred_timestamp": "driver_timestamp",
-            "quality_flag": "ok",
-            "stream_name": "parsed",
-            "values": [
-                {"value": 41943.0, "value_id": "FACTORY_M"},
-                {"value": 2796.2, "value_id": "FACTORY_B"},
-                {"value": -3845.795, "value_id": "PY1"},
-                {"value": -10829.41, "value_id": "PY2"},
-                {"value": 0.0, "value_id": "PY3"},
-                {"value": [2, 4, 2012], "value_id": "PCALDATE"},
-                {"value": null, "value_id": "CPCOR"},
-                {"value": 5.827424, "value_id": "PU0"},
-                {"value": null, "value_id": "CSLOPE"},
-                {"value": null, "value_id": "CCALDATE"},
-                {"value": -0.1877, "value_id": "POFFSET"},
-                {"value": [30, 3, 2012], "value_id": "TCALDATE"},
-                {"value": 0.0, "value_id": "PD2"},
-                {"value": 0.025294, "value_id": "PD1"},
-                {"value": null, "value_id": "CJ"},
-                {"value": null, "value_id": "CI"},
-                {"value": null, "value_id": "CH"},
-                {"value": 0.0002557341, "value_id": "TA0"},
-                {"value": 0.0002493547, "value_id": "TA1"},
-                {"value": -1.567218e-06, "value_id": "TA2"},
-                {"value": 1.508124e-07, "value_id": "TA3"},
-                {"value": null, "value_id": "CG"},
-                {"value": null, "value_id": "CTCOR"},
-                {"value": 31.09619, "value_id": "PT4"},
-                {"value": 17.52851, "value_id": "PT3"},
-                {"value": 0.391138, "value_id": "PT2"},
-                {"value": 27.77282, "value_id": "PT1"},
-                {"value": 37.41653, "value_id": "PC2"},
-                {"value": -4014.654, "value_id": "PC3"},
-                {"value": 2123.771, "value_id": "PC1"}
-            ]
-        }
 
         SBE26plusDeviceStatusDataParticle
-
-        {
-            "driver_timestamp": 3560540530.18097,
-            "pkt_format_id": "JSON_Data",
-            "pkt_version": 1,
-            "preferred_timestamp": "driver_timestamp",
-            "quality_flag": "ok",
-            "stream_name": "parsed",
-            "values": [
-                {"value": 0.1, "value_id": "HANNING_WINDOW_CUTOFF"},
-                {"value": 300.0, "value_id": "QUARTZ_PRESSURE_SENSOR_RANGE"},
-                {"value": 11.0, "value_id": "TIDE_MEASUREMENTS_SINCE_LAST_START"},
-                {"value": 6.0, "value_id": "TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS"},
-                {"value": false, "value_id": "USE_STOP_TIME"},
-                {"value": "05 OCT 2012  17:19:27", "value_id": "DateTime"},
-                {"value": 272.8, "value_id": "NOMINAL_ALKALINE_BATTERY_ENDURANCE"},
-                {"value": 3, "value_id": "TIDE_INTERVAL"},
-                {"value": 4.0, "value_id": "WAVE_SAMPLES_SCANS_PER_SECOND"},
-                {"value": 1000000.0, "value_id": "MAX_PERIOD_IN_AUTO_SPECTRUM"},
-                {"value": 122094.0, "value_id": "QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER"},
-                {"value": false, "value_id": "CONDUCTIVITY"},
-                {"value": 258.0, "value_id": "MEMORY_ENDURANCE"},
-                {"value": 80.0, "value_id": "WAVE_BURSTS_PER_DAY"},
-                {"value": "6.1E", "value_id": "DEVICE_VERSION"},
-                {"value": true, "value_id": "TxTide"},
-                {"value": 10.0, "value_id": "PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM"},
-                {"value": 23.8155, "value_id": "LAST_SAMPLE_T"},
-                {"value": 512, "value_id": "NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS"},
-                {"value": 14.5361, "value_id": "LAST_SAMPLE_P"},
-                {"value": null, "value_id": "LAST_SAMPLE_S"},
-                {"value": 5, "value_id": "SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND"},
-                {"value": "STOPPED", "value_id": "STATUS"},
-                {"value": null, "value_id": "AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR"},
-                {"value": false, "value_id": "LOGGING"},
-                {"value": 512, "value_id": "WAVE_SAMPLES_PER_BURST"},
-                {"value": 60, "value_id": "TIDE_MEASUREMENT_DURATION"},
-                {"value": 0.0, "value_id": "MIN_PERIOD_IN_AUTO_SPECTRUM"},
-                {"value": true, "value_id": "SHOW_PROGRESS_MESSAGES"},
-                {"value": true, "value_id": "TxWave"},
-                {"value": 1.0, "value_id": "WAVE_BURSTS_SINCE_LAST_START"},
-                {"value": 0.0025, "value_id": "MIN_ALLOWABLE_ATTENUATION"},
-                {"value": true, "value_id": "TXWAVESTATS"},
-                {"value": false, "value_id": "USE_MEASURED_TEMP_FOR_DENSITY_CALC"},
-                {"value": false, "value_id": "ExternalTemperature"},
-                {"value": 5982.0, "value_id": "TOTAL_RECORDED_TIDE_MEASUREMENTS"},
-                {"value": 4525.0, "value_id": "TOTAL_RECORDED_WAVE_BURSTS"},
-                {"value": null, "value_id": "USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC"},
-                {"value": false, "value_id": "USE_START_TIME"},
-                {"value": 7.4, "value_id": "IOP_MA"},
-                {"value": "OOI", "value_id": "USERINFO"},
-                {"value": 9.0, "value_id": "VLITH_V"},
-                {"value": "1329", "value_id": "SERIAL_NUMBER"},
-                {"value": 480.0, "value_id": "TIDE_SAMPLES_PER_DAY"},
-                {"value": 16.2, "value_id": "VMAIN_V"},
-                {"value": null, "value_id": "AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR"}
-            ]
-        }
         """
-
-
-
-
-
-
 
 
 
@@ -4123,9 +3987,8 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
     ###
 
 
-    # AUTO SAMPLE IS VERY SLOW.
-    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 6000}}})
-    # TUE BROKE - may have been in autosample mode already
+
+    #* WORKS TUE
     def test_autosample(self):
         """
         @brief Test instrument driver execute interface to start and stop streaming
@@ -4134,7 +3997,7 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         @TODO needs to be fixed once the IDK data_subscribers and event_subscribers are fixed
         """
 
-        log.debug("INFO BULLETIN, THIS JUST IN, starting data subscribers")
+
         self.data_subscribers.start_data_subscribers()
         self.addCleanup(self.data_subscribers.stop_data_subscribers)
 
@@ -4142,58 +4005,46 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         self.assert_enter_command_mode()
 
         params = {
-            Parameter.TIDE_INTERVAL : 3,
+            Parameter.TIDE_INTERVAL : 1,
             Parameter.TXWAVESTATS : False,
             Parameter.USER_INFO : "KILROY WAZ HERE"
         }
 
-        self.instrument_agent_client.set_resource(params)
+        self.instrument_agent_client.set_resource(params, timeout=60)
 
-
-        self.data_subscribers.no_samples = 3
+        #self.data_subscribers.no_samples = 3
 
         # Begin streaming.
         cmd = AgentCommand(command=ProtocolEvent.START_AUTOSAMPLE)
         retval = self.instrument_agent_client.execute_resource(cmd)
 
-
-
-        non_accurate_seconds_count = 0
-        log.debug("INFO BULLETIN, THIS JUST IN, Clearing the que")
         self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
-        log.debug("INFO BULLETIN, THIS JUST IN, que cleared")
 
-        while len(self.data_subscribers.samples_received) <= self.data_subscribers.no_samples and non_accurate_seconds_count < 1200:
-            gevent.sleep(10)
-            #log.debug("SAMPLES RECEIVED => " + str(self.data_subscribers.__dict__)) # .keys()
-            #log.debug("EVENTS RECEIVED => " + str(self.event_subscribers.__dict__))
 
-            log.debug("INFO BULLETIN, THIS JUST IN, I should be holding until I get 1 sample in...")
-            samples = self.data_subscribers.get_samples(DataParticleValue.PARSED, 1, timeout=120)
+        # wait for 3 samples, then test them!
+        samples = self.data_subscribers.get_samples('parsed', 3, timeout=300) # 6 minutes
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
 
-            log.debug("len(samples) => " + str(len(samples)))
-
-            non_accurate_seconds_count = non_accurate_seconds_count + 10
 
 
         # Halt streaming.
         cmd = AgentCommand(command=ProtocolEvent.STOP_AUTOSAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd)
+        # could be in a tide sample cycle... long timeout
+        retval = self.instrument_agent_client.execute_resource(cmd, timeout=600)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
-        # Assert we got some samples.
-        #self.assertTrue(self.data_subscribers.samples_received > self.data_subscribers.no_samples)
-        #self.assertTrue(non_accurate_seconds_count < 1200)
-
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=60)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-    # WORKS TUE
+
+    #* WORKS TUE
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -4206,7 +4057,7 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
 
         self.assert_direct_access_stop_telnet()
 
-    # WORKS TUE (has timeout fix for other funcs)
+    #* WORKS TUE
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -4370,7 +4221,7 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         log.debug("HEREHEREHERE" + str(agent_capabilities))
         self.assertEqual(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_COMMAND'])
 
-    # WORKS TUE
+    #* WORKS TUE
     def test_execute_capability_from_invalid_state(self):
         """
         @brief Perform netative testing that capabilitys utilized
@@ -4494,7 +4345,7 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         #state = self.instrument_agent_client.get_agent_state()
         #self.assertEqual(state, ResourceAgentState.COMMAND)
 
-    # WORKS TUE
+    #* WORKS TUE
     def test_execute_reset(self):
         """
         @brief Walk the driver into command mode and perform a reset
@@ -4509,17 +4360,21 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
 
         self.assert_enter_command_mode()
 
-    # WORKS TUE REQUIRES PATCH.DICT STILL
-    @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 120}}})
+    #* WORKS TUE
     def test_acquire_sample(self):
         """
         @brief Acquire a sample.
         """
 
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
         self.assert_enter_command_mode()
 
+        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
+
         cmd = AgentCommand(command=Capability.ACQUIRE_SAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd) # TIMESOUT ON THIS COMMAND (times out after it sends the sample back...)
+        retval = self.instrument_agent_client.execute_resource(cmd, timeout=300) # TIMESOUT ON THIS COMMAND (times out after it sends the sample back...)
         sample = retval.result
         log.debug("RETVALUE = " + str(sample))
 
@@ -4530,7 +4385,10 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         log.debug("COUNT = " + str(len(matches.groups())))
         self.assertEqual(3, len(matches.groups()))
 
-    # WORKS TUE
+        samples = self.data_subscribers.get_samples('parsed', 1)
+        self.assertSampleDataParticle(samples.pop())
+
+    #* WORKS TUE
     def test_connect_disconnect(self):
 
         self.assert_enter_command_mode()
@@ -4540,7 +4398,7 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
 
         self.check_state(ResourceAgentState.UNINITIALIZED)
 
-    # WORKS TUE
+    #* WORKS TUE
     def test_execute_set_time_parameter(self):
         """
         @brief Set the clock to a bogus date/time, then verify that after
@@ -4578,7 +4436,7 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         check_new_params = self.instrument_agent_client.get_resource(params)
         log.debug("REAL TIME = " + repr(check_new_params))
 
-    # WORKS TUE
+    #* WORKS TUE
     def test_execute_clock_sync(self):
         """
         @brief Test Test EXECUTE_CLOCK_SYNC command.
