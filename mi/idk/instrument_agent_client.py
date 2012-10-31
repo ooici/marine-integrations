@@ -436,9 +436,6 @@ class InstrumentAgentDataSubscribers(object):
                 except:
                     pass
 
-        self.data_subscribers = {}
-        self.samples_received = {}
-
     def _listen(self, sub):
         """
         Pass in a subscriber here, this will make it listen in a background greenlet.
@@ -479,13 +476,16 @@ class InstrumentAgentEventSubscribers(object):
         self.event_subscribers.start()
         self.event_subscribers._ready_event.wait(timeout=5)
 
-    def __del__(self):
-        self.event_subscribers.stop()
 
-    def clear_events(self):
-        '''
-        clear all event data
-        '''
-        self.no_events = None
-        self.events_received = []
+    def stop(self):
+        try:
+            self.event_subscribers.stop()
+        except Exception as ex:
+            log.warn("Failed to stop event subscriber gracefully (%s)" % ex)
+
+        self.event_subscribers = []
+
+
+
+
 

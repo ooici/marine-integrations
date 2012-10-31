@@ -73,7 +73,7 @@ from pyon.agent.agent import ResourceAgentEvent
 # Do not remove this import.  It is for package building.
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
-GO_ACTIVE_TIMEOUT=30
+GO_ACTIVE_TIMEOUT=160
 
 class AgentCapabilityType(BaseEnum):
     AGENT_COMMAND = 'agent_command'
@@ -554,14 +554,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
     @classmethod
     def setUpClass(cls):
         cls.init_port_agent()
-        cls.init_data_subscribers()
-        cls.init_event_subscribers()
 
     @classmethod
     def tearDownClass(cls):
         cls.stop_port_agent()
-        cls.stop_data_subscribers()
-        cls.stop_event()
 
     def setUp(self):
         """
@@ -569,8 +565,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         InstrumentDriverTestCase.setUp(self)
         self.port_agent = self.test_config.port_agent
-        self.data_subscribers = self.test_config.data_subscribers
-        self.event_subscribers = self.test_config.event_subscribers
         self.instrument_agent_manager = InstrumentAgentClient();
         self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
 
@@ -582,6 +576,57 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.instrument_agent_resource_id)
 
         self.init_instrument_agent_client()
+
+        self.event_subscribers.events_received = []
+
+
+    def tearDown(self):
+        """
+        @brief Test teardown
+        """
+        log.debug("InstrumentDriverQualificationTestCase tearDown")
+        self.instrument_agent_manager.stop_container()
+        self.event_subscribers.stop()
+        InstrumentDriverTestCase.tearDown(self)
+
+
+    def init_instrument_agent_client(self):
+        log.info("Start Instrument Agent Client")
+
+        # Driver config
+        driver_config = {
+            'dvr_mod' : self.test_config.driver_module,
+            'dvr_cls' : self.test_config.driver_class,
+            'workdir' : self.test_config.working_dir,
+            'process_type' : self.test_config.driver_process_type,
+
+            'comms_config' : self.port_agent_comm_config()
+        }
+
+        # Create agent config.
+        agent_config = {
+            'driver_config' : driver_config,
+            'stream_config' : self.data_subscribers.stream_config,
+            'agent'         : {'resource_id': self.test_config.instrument_agent_resource_id},
+            'test_mode' : True  ## Enable a poison pill. If the spawning process dies
+            ## shutdown the daemon process.
+        }
+
+
+        # ROGER message_headers
+
+        # Start instrument agent client.
+        self.instrument_agent_manager.start_client(
+            name=self.test_config.instrument_agent_name,
+            module=self.test_config.instrument_agent_module,
+            cls=self.test_config.instrument_agent_class,
+            config=agent_config,
+            resource_id=self.test_config.instrument_agent_resource_id,
+            deploy_file=self.test_config.container_deploy_file
+        )
+
+        self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
+
 
 
     def assert_capabilities(self, capabilities):
@@ -713,6 +758,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         different test.
         """
         self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
 
         self.assert_enter_command_mode()
 
@@ -826,7 +872,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         '''
         Walk through IA states to get to command mode from uninitialized
         '''
-        self.event_subscribers.clear_events()
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
@@ -914,55 +959,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, result_state)
 
-    def init_instrument_agent_client(self):
-        log.info("Start Instrument Agent Client")
-
-        # Driver config
-        driver_config = {
-            'dvr_mod' : self.test_config.driver_module,
-            'dvr_cls' : self.test_config.driver_class,
-            'workdir' : self.test_config.working_dir,
-            'process_type' : self.test_config.driver_process_type,
-
-            'comms_config' : self.port_agent_comm_config()
-        }
-
-        # Create agent config.
-        agent_config = {
-            'driver_config' : driver_config,
-            'stream_config' : self.data_subscribers.stream_config,
-            'agent'         : {'resource_id': self.test_config.instrument_agent_resource_id},
-            'test_mode' : True  ## Enable a poison pill. If the spawning process dies
-            ## shutdown the daemon process.
-        }
 
 
-        # ROGER message_headers
-
-        # Start instrument agent client.
-        self.instrument_agent_manager.start_client(
-            name=self.test_config.instrument_agent_name,
-            module=self.test_config.instrument_agent_module,
-            cls=self.test_config.instrument_agent_class,
-            config=agent_config,
-            resource_id=self.test_config.instrument_agent_resource_id,
-            deploy_file=self.test_config.container_deploy_file
-        )
-
-        self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
-
-
-
-    def tearDown(self):
-        """
-        @brief Test teardown
-        """
-        log.debug("InstrumentDriverQualificationTestCase tearDown")
-        self.instrument_agent_manager.stop_container()
-        InstrumentDriverTestCase.tearDown(self)
-
-
-    @unittest.skip("test")
     def test_instrument_agent_common_state_model_lifecycle(self):
         """
         @brief Test agent state transitions.
@@ -1003,7 +1001,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                 * ResourceAgentState.CALIBRATE
                 * ResourceAgentState.BUSY
         """
-
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
@@ -1114,7 +1111,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
 
-    @unittest.skip("test")
     def test_instrument_agent_to_instrument_driver_connectivity(self):
         """
         @brief This test verifies that the instrument agent can
@@ -1246,7 +1242,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         unique_set = Set(item for item in list_in)
         return [(item) for item in unique_set]
 
-    @unittest.skip("test")
     def test_driver_notification_messages(self):
         """
         @brief This tests event messages from the driver.  The following

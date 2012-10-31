@@ -741,7 +741,6 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.  
 
-    @unittest.skip("testing")
     def assertSampleDataParticle(self, val):
         """
         Verify the value for a par sample data particle
@@ -814,7 +813,6 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         #self.assert_sample_polled(self.assertSampleDataParticle,
         #                          DataParticleValue.PARSED)
 
-    #@unittest.skip("testing")
     def test_autosample(self):
         '''
         start and stop autosample and verify data particle
@@ -823,7 +821,6 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
                                       DataParticleValue.PARSED)
 
 
-    @unittest.skip("testing")
     def test_get_set_parameters(self):
         '''
         verify that all parameters can be get set properly
@@ -839,7 +836,6 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
 
         self.assert_reset()
 
-    #@unittest.skip("testing")
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
