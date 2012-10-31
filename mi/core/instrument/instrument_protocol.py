@@ -97,7 +97,6 @@ class InstrumentProtocol(object):
         @todo Figure out how the agent wants the results for a single poll
             and return them that way from here
         """
-
         sample = None
         if regex.match(line):
         
@@ -106,7 +105,6 @@ class InstrumentProtocol(object):
             
             raw_sample = particle.generate_raw()
             parsed_sample = particle.generate_parsed()
-            
             if publish and self._driver_event:
                 self._driver_event(DriverAsyncEvent.SAMPLE, raw_sample)
     
@@ -194,11 +192,12 @@ class InstrumentProtocol(object):
         """
         return self._param_dict.get_direct_access_list()
         
-    def get_running_config(self):
+    def get_cached_config(self):
         """
-        Return the configuration object that shows the instrument's running
-        configuration.
-        @retval The running configuration in the instruments config format. By
+        Return the configuration object that shows the instrument's 
+        configuration as cached in the parameter dictionary...usually in
+        sync with the instrument, but accessible when offline...
+        @retval The cached configuration in the instruments config format. By
         default, it is a dictionary of parameter names and values.
         """
         assert self._param_dict != None

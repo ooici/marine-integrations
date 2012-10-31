@@ -499,15 +499,15 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         
         self.set_resource(config)
         
-    def get_running_config(self):
+    def get_cached_config(self):
         """
-        Return the configuration object that shows the instrument's running
-        configuration.
+        Return the configuration object that shows the instrument's
+        configuration as cached in the protocol parameter dictionary.
         @retval The running configuration in the instruments config format. By
         default, it is a dictionary of parameter names and values.
         """
         if self._protocol:
-            return self._protocol.get_running_config()
+            return self._protocol.get_cached_config()
                 
     def restore_direct_access_params(self, config):
         """
@@ -840,7 +840,8 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @retval (next_state, result) tuple, (None, protocol result).
         """
         next_state = None
-        self._pre_da_config = self.get_running_config()
+        self._pre_da_config = self.get_resource(DriverEvent.GET,
+                                                [DriverParameter.ALL])
         result = self._protocol._protocol_fsm.on_event(event, *args, **kwargs)
         return (next_state, result)
     

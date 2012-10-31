@@ -988,7 +988,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         self.driver_client.cmd_dvr("set_init_params", startup_config)
         self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.SYNCWAIT:3})     
         self.driver_client.cmd_dvr("apply_startup_params") # result now matches instrument
-        result = self.driver_client.cmd_dvr("get_running_config")
+        result = self.driver_client.cmd_dvr("get_resource",[DriverParameter.ALL])
         self.assertNotEquals(result[SBE37Parameter.NAVG], 2) # not a startup param
         self.assertEquals(result[SBE37Parameter.SAMPLENUM], 2) # init param
         self.assertEquals(result[SBE37Parameter.INTERVAL], 1) # default param
@@ -1002,7 +1002,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.SAMPLENUM:10})
         self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.INTERVAL:10}) 
         self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.SYNCWAIT:10})
-        result = self.driver_client.cmd_dvr("get_running_config")
+        result = self.driver_client.cmd_dvr("get_resource",[DriverParameter.ALL])
         self.assertEquals(result[SBE37Parameter.NAVG], 10) # not a startup param
         self.assertEquals(result[SBE37Parameter.SAMPLENUM], 10) # init param
         self.assertEquals(result[SBE37Parameter.INTERVAL], 10) # default param
@@ -1010,7 +1010,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 
         # confirm re-apply
         self.driver_client.cmd_dvr("apply_startup_params")
-        result = self.driver_client.cmd_dvr("get_running_config")
+        result = self.driver_client.cmd_dvr("get_resource",[DriverParameter.ALL])
         self.assertEquals(result[SBE37Parameter.NAVG], 10) # not a startup param
         self.assertEquals(result[SBE37Parameter.SAMPLENUM], 2) # init param
         self.assertEquals(result[SBE37Parameter.INTERVAL], 1) # default param

@@ -38,7 +38,7 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
         self.protocol = InstrumentProtocol(protocol_callback)
     
     def test_extraction(self):
-        sample_line = "SATPAR0229,10.01,2206748544,234"
+        sample_line = "SATPAR0229,10.01,2206748544,234\r\n"
         result = self.protocol._extract_sample(SatlanticPARDataParticle,
                                                SAMPLE_REGEX,
                                                sample_line,
@@ -86,7 +86,7 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
         instrument protocol.
         """
         # set some values
-        log.debug("first param_dict: %s", self.protocol._param_dict.get_config())
+        log.debug("First param_dict: %s", self.protocol._param_dict.get_config())
         self.protocol._param_dict.add("foo", r'foo=(.*)',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
@@ -102,18 +102,18 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
                 
         self.assertEquals(self.protocol._param_dict.get("foo"), 10)
         self.assertEquals(self.protocol._param_dict.get("bar"), 15)
-        result = self.protocol.get_running_config()
+        result = self.protocol.get_cached_config()
         self.assertEquals(result['foo'], 10)
         self.assertEquals(result['bar'], 15)
 
         self.protocol._param_dict.update("bar=20")
-        result = self.protocol.get_running_config()
+        result = self.protocol.get_cached_config()
         self.assertEquals(result['foo'], 10)
         self.assertEquals(result['bar'], 20)
         self.assertEquals(self.protocol._param_dict.get("bar"), 20)
         
         # get and check the running config
-        result = self.protocol.get_running_config()
+        result = self.protocol.get_cached_config()
         self.assertTrue(isinstance(result, dict))
         self.assertEquals(result['foo'], 10)
         self.assertEquals(result['bar'], 20)

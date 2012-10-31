@@ -21,6 +21,7 @@ from mi.core.exceptions import TestModeException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
+from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 
 @attr('UNIT', group='mi')
@@ -128,7 +129,7 @@ class TestUnitInstrumentDriver(IonUnitTestCase):
         self.assertTrue(self.driver._protocol._param_dict.get("bar"), 20)
         
         # pretend to go into direct access mode,
-        running_config = self.driver._protocol.get_running_config()
+        running_config = self.driver._protocol.get_cached_config()
         #   make some changes to both, (foo to 100, bar to 200)
         self.driver._protocol._param_dict.update("foo=100")
         self.driver._protocol._param_dict.update("bar=200")        
@@ -139,11 +140,12 @@ class TestUnitInstrumentDriver(IonUnitTestCase):
         self.assertTrue(self.driver._protocol._param_dict.get("foo"), 10)
         self.assertTrue(self.driver._protocol._param_dict.get("bar"), 200)
         
-    def test_get_running_config(self):
+    def test_get_cached_config(self):
         """
-        Verifies that the driver kicks out a running config
+        Verifies that the driver kicks out a cached config. Not connected, but
+        thats what it is headed...
         """
-        running_config = self.driver.get_running_config()
+        running_config = self.driver.get_cached_config()
         self.assertEquals(running_config["foo"], 10)
         self.assertEquals(running_config["bar"], 15)        
         
@@ -173,7 +175,7 @@ class TestUnitInstrumentDriver(IonUnitTestCase):
         self.driver.apply_startup_params()
 
         # check the values on the other end
-        running_config = self.driver._protocol.get_running_config()
+        running_config = self.driver._protocol.get_cached_config()
         
         # confirm that the default values were set back appropriately.
         self.assertTrue(self.driver._protocol._param_dict.get("foo"), 100)
