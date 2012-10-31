@@ -25,6 +25,7 @@ from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProt
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.instrument.instrument_driver import DriverState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
@@ -64,31 +65,27 @@ from pyon.core.exception import Conflict
 NEWLINE = '\r\n'
 
 # default timeout.
-TIMEOUT = 40
+TIMEOUT = 10
 
 
 
 TIDE_REGEX = r'(tide: start time = +\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+, p = +[\-\d.]+, pt = +[\-\d.]+, t = +[\-\d.]+.*?\r\n)'
-TIDE_REGEX_MATCHER = re.compile(TIDE_REGEX, re.MULTILINE)
+TIDE_REGEX_MATCHER = re.compile(TIDE_REGEX)
 
 WAVE_REGEX = r'(wave: start time =.*?wave: end burst\r\n)'
-WAVE_REGEX_MATCHER = re.compile(WAVE_REGEX, re.MULTILINE|re.DOTALL)
+WAVE_REGEX_MATCHER = re.compile(WAVE_REGEX, re.DOTALL)
 
 STATS_REGEX = r'(deMeanTrend.*?H1/100 = [\d.e+]+\r\n)'
-STATS_REGEX_MATCHER = re.compile(STATS_REGEX, re.MULTILINE|re.DOTALL)
-
-#SL/SLO not to be supported at this time
-#SL_SLO_REGEX = r'(^p = +[\-\d.]+, t = +[\-\d.]+.*?\r\n)'
-#SL_SLO_REGEX_MATCHER = re.compile(SL_SLO_REGEX, re.MULTILINE)
+STATS_REGEX_MATCHER = re.compile(STATS_REGEX, re.DOTALL)
 
 TS_REGEX = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)' # .*?\r\n
-TS_REGEX_MATCHER = re.compile(TS_REGEX, re.MULTILINE)
+TS_REGEX_MATCHER = re.compile(TS_REGEX)
 
 DC_REGEX = r'.*(Pressure coefficients.+?)\r\nS>' # dont need leading .* if .match() is changed to .search()
-DC_REGEX_MATCHER = re.compile(DC_REGEX, re.MULTILINE|re.DOTALL)
+DC_REGEX_MATCHER = re.compile(DC_REGEX, re.DOTALL)
 
 DS_REGEX = r'.*(SBE 26plus V.+?)\r\nS>'  # dont need leading .* if .match() is changed to .search()
-DS_REGEX_MATCHER = re.compile(DS_REGEX, re.MULTILINE|re.DOTALL)
+DS_REGEX_MATCHER = re.compile(DS_REGEX, re.DOTALL)
 
 # Packet config
 STREAM_NAME_PARSED = DataParticleValue.PARSED
@@ -242,8 +239,8 @@ class Parameter(DriverParameter):
     SERIAL_NUMBER = 'SERIAL_NUMBER' # str,
     DS_DEVICE_DATE_TIME = 'DateTime' # str for now, later ***
     USER_INFO = 'USERINFO' # str,
-    QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER = 'QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER' # float,
-    QUARTZ_PREASURE_SENSOR_RANGE = 'QUARTZ_PREASURE_SENSOR_RANGE' # float,
+    QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER = 'QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER' # float,
+    QUARTZ_PRESSURE_SENSOR_RANGE = 'QUARTZ_PRESSURE_SENSOR_RANGE' # float,
     EXTERNAL_TEMPERATURE_SENSOR = 'ExternalTemperature' # bool,
     CONDUCTIVITY = 'CONDUCTIVITY' # bool,
     IOP_MA = 'IOP_MA' # float,
@@ -277,9 +274,9 @@ class Parameter(DriverParameter):
     NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' # int,
     USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' # bool,
     USE_MEASURED_TEMP_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_FOR_DENSITY_CALC'
-    AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR = 'AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR'
-    AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR = 'AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR'
-    PREASURE_SENSOR_HEIGHT_FROM_BOTTOM = 'PREASURE_SENSOR_HEIGHT_FROM_BOTTOM' # float,
+    AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR'
+    AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = 'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR'
+    PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM = 'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM' # float,
     SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND = 'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND' # int,
     MIN_ALLOWABLE_ATTENUATION = 'MIN_ALLOWABLE_ATTENUATION' # float,
     MIN_PERIOD_IN_AUTO_SPECTRUM = 'MIN_PERIOD_IN_AUTO_SPECTRUM' # float,
@@ -346,8 +343,8 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 #remove TS stream,
 
 class SBE26plusTakeSampleDataParticleKey(BaseEnum):
-    PREASURE = "preasure"           # p = calculated and stored pressure (psia).
-    PREASURE_TEMP = "preasure_temp" # pt = calculated pressure temperature (not stored) (C).
+    PRESSURE = "PRESSURE"           # p = calculated and stored pressure (psia).
+    PRESSURE_TEMP = "PRESSURE_temp" # pt = calculated pressure temperature (not stored) (C).
     TEMPERATURE = "temperature"     # t = calculated and stored temperature (C).
     CONDUCTIVITY = "conductivity"   # c = calculated and stored conductivity (S/m)
     SALINITY = "salinity"           # s = calculated salinity (not stored) (psu).
@@ -386,15 +383,15 @@ class SBE26plusTakeSampleDataParticle(DataParticle):
                               self.raw_data)
 
         # initialize
-        preasure = None
-        preasure_temp = None
+        PRESSURE = None
+        PRESSURE_temp = None
         temperature = None
         conductivity = None
         salinity = None
 
         if 2 < count:
-            preasure = float(match.group(1))
-            preasure_temp = float(match.group(2))
+            PRESSURE = float(match.group(1))
+            PRESSURE_temp = float(match.group(2))
             temperature = float(match.group(3))
 
 
@@ -404,10 +401,10 @@ class SBE26plusTakeSampleDataParticle(DataParticle):
 
 
 
-        result = [{DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.PREASURE,
-                   DataParticleKey.VALUE: preasure},
-                  {DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.PREASURE_TEMP,
-                   DataParticleKey.VALUE: preasure_temp},
+        result = [{DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.PRESSURE,
+                   DataParticleKey.VALUE: PRESSURE},
+                  {DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.PRESSURE_TEMP,
+                   DataParticleKey.VALUE: PRESSURE_temp},
                   {DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.TEMPERATURE,
                    DataParticleKey.VALUE: temperature},
                   {DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.CONDUCTIVITY,
@@ -421,8 +418,8 @@ class SBE26plusTakeSampleDataParticle(DataParticle):
 
 class SBE26plusTideSampleDataParticleKey(BaseEnum):
     TIMESTAMP = "timestamp"
-    PREASURE = "preasure"           # p = calculated and stored pressure (psia).
-    PRESSURE_TEMP = "preasure_temp" # pt = calculated pressure temperature (not stored) (C).
+    PRESSURE = "pressure"           # p = calculated and stored pressure (psia).
+    PRESSURE_TEMP = "pressure_temp" # pt = calculated pressure temperature (not stored) (C).
     TEMPERATURE = "temperature"     # t = calculated and stored temperature (C).
     CONDUCTIVITY = "conductivity"   # c = calculated and stored conductivity (S/m)
     SALINITY = "salinity"           # s = calculated salinity (not stored) (psu).
@@ -948,8 +945,8 @@ class SBE26plusDeviceStatusDataParticleKey(BaseEnum):
     SERIAL_NUMBER = 'SERIAL_NUMBER' # str,
     DS_DEVICE_DATE_TIME = 'DateTime' # str for now, later ***
     USER_INFO = 'USERINFO' # str,
-    QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER = 'QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER' # float,
-    QUARTZ_PREASURE_SENSOR_RANGE = 'QUARTZ_PREASURE_SENSOR_RANGE' # float,
+    QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER = 'QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER' # float,
+    QUARTZ_PRESSURE_SENSOR_RANGE = 'QUARTZ_PRESSURE_SENSOR_RANGE' # float,
     EXTERNAL_TEMPERATURE_SENSOR = 'ExternalTemperature' # bool,
     CONDUCTIVITY = 'CONDUCTIVITY' # bool,
     IOP_MA = 'IOP_MA' # float,
@@ -983,9 +980,9 @@ class SBE26plusDeviceStatusDataParticleKey(BaseEnum):
     NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' # int,
     USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' # bool,
     USE_MEASURED_TEMP_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_FOR_DENSITY_CALC'
-    AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR = 'AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR'
-    AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR = 'AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR'
-    PREASURE_SENSOR_HEIGHT_FROM_BOTTOM = 'PREASURE_SENSOR_HEIGHT_FROM_BOTTOM' # float,
+    AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR'
+    AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = 'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR'
+    PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM = 'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM' # float,
     SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND = 'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND' # int,
     MIN_ALLOWABLE_ATTENUATION = 'MIN_ALLOWABLE_ATTENUATION' # float,
     MIN_PERIOD_IN_AUTO_SPECTRUM = 'MIN_PERIOD_IN_AUTO_SPECTRUM' # float,
@@ -1027,11 +1024,11 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 re.compile(r'user info=(.*)$'),
                 lambda match : string.upper(match.group(1))
             ),
-            SBE26plusDeviceStatusDataParticleKey.QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER:  (
+            SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER:  (
                 re.compile(r'quartz pressure sensor: serial number = ([\d.\-]+), range = ([\d.\-]+) psia'),
                 lambda match : float(match.group(1))
             ),
-            SBE26plusDeviceStatusDataParticleKey.QUARTZ_PREASURE_SENSOR_RANGE:  (
+            SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_RANGE:  (
                 re.compile(r'quartz pressure sensor: serial number = ([\d.\-]+), range = ([\d.\-]+) psia'),
                 lambda match : float(match.group(2))
             ),
@@ -1161,15 +1158,15 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 re.compile(r' +(do not|) use measured temperature for density calculation'),
                 lambda match : True if (match.group(1)=='do not') else False
             ),
-            SBE26plusDeviceStatusDataParticleKey.AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR:  (
+            SBE26plusDeviceStatusDataParticleKey.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR:  (
                 re.compile(r' +average water temperature above the pressure sensor \(deg C\) = ([\d.]+)'),
                 lambda match : float(match.group(1))
             ),
-            SBE26plusDeviceStatusDataParticleKey.AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR:  (
+            SBE26plusDeviceStatusDataParticleKey.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR:  (
                 re.compile(r' +average salinity above the pressure sensor \(PSU\) = ([\d.]+)'),
                 lambda match : float(match.group(1))
             ),
-            SBE26plusDeviceStatusDataParticleKey.PREASURE_SENSOR_HEIGHT_FROM_BOTTOM: (
+            SBE26plusDeviceStatusDataParticleKey.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: (
                 re.compile(r' +height of pressure sensor from bottom \(meters\) = ([\d.]+)'),
                 lambda match : float(match.group(1))
             ),
@@ -1289,6 +1286,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.DISPLAY_CALIBRATION,         self._build_simple_command)
         self._add_build_handler(InstrumentCmds.START_LOGGING,               self._build_simple_command)
         self._add_build_handler(InstrumentCmds.STOP_LOGGING,                self._build_simple_command)
+
+
 
         self._add_build_handler(InstrumentCmds.SET,                         self._build_set_command)
         self._add_build_handler(InstrumentCmds.TAKE_SAMPLE,                 self._build_simple_command)
@@ -1463,7 +1462,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         next_agent_state = None
         result = None
-        kwargs['timeout'] = 30
+
+        kwargs['timeout'] = 300 # samples can take a long time
+
         result = self._do_cmd_resp('ts', *args, **kwargs)
 
         return (next_state, (next_agent_state, result))
@@ -1501,9 +1502,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         timeout = kwargs.get('timeout', TIMEOUT)
-        delay = 5
+        delay = 1
         prompt = self._wakeup(timeout=timeout, delay=delay)
-        time.sleep(2)
 
         # lets clear out any past data so it doesnt confuse the command
         self._linebuf = ''
@@ -1511,16 +1511,15 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         str_val = self._param_dict.format(Parameter.DS_DEVICE_DATE_TIME, get_timestamp_delayed("%d %b %Y %H:%M:%S"))
         set_cmd = '%s=%s' % (Parameter.DS_DEVICE_DATE_TIME, str_val) + NEWLINE
-        self._do_cmd_direct(set_cmd)
-        (prompt, response) = self._get_response(timeout=30)
 
+        self._do_cmd_direct(set_cmd)
+        (prompt, response) = self._get_response() #timeout=30)
 
         if response != set_cmd + Prompt.COMMAND:
             raise InstrumentProtocolException("_handler_clock_sync - response != set_cmd")
 
         if prompt != Prompt.COMMAND:
             raise InstrumentProtocolException("_handler_clock_sync - prompt != Prompt.COMMAND")
-
 
         return (next_state, (next_agent_state, result))
 
@@ -1729,20 +1728,20 @@ class Protocol(CommandResponseInstrumentProtocol):
                 else:
                     self._connection.send(NEWLINE)
             elif "average water temperature above the pressure sensor (deg C) = " in response:
-                if 'AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR']) + NEWLINE)
+                if 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR' in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args['AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR']) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
 
             elif "average salinity above the pressure sensor (PSU) = " in response:
-                if 'AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR']) + NEWLINE)
+                if 'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR' in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args['AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR']) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
 
             elif "height of pressure sensor from bottom (meters) = " in response:
-                if 'PREASURE_SENSOR_HEIGHT_FROM_BOTTOM' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['PREASURE_SENSOR_HEIGHT_FROM_BOTTOM']) + NEWLINE)
+                if 'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM' in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args['PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM']) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
             elif "number of spectral estimates for each frequency band = " in response:
@@ -1835,9 +1834,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS',
                 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC',
                 'USE_MEASURED_TEMP_FOR_DENSITY_CALC',
-                'AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR',
-                'AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR',
-                'PREASURE_SENSOR_HEIGHT_FROM_BOTTOM',
+                'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR',
+                'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR',
+                'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM',
                 'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND',
                 'MIN_ALLOWABLE_ATTENUATION',
                 'MIN_PERIOD_IN_AUTO_SPECTRUM',
@@ -1978,66 +1977,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                 result[key] = val
 
         return (next_state, result)
-    '''
-    def _handler_command_autosample_send_last_and_sleep(self, *args, **kwargs):
-        """
-        """
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        log.debug("self._promptbuf = " + repr(self._promptbuf))
-        log.debug("self._linebuf = " + repr(self._linebuf))
-        self._linebuf = ''
-        self._promptbuf = ''
-
-        kwargs['timeout'] = 60
-        kwargs['expected_prompt'] = "\r\n"
-        result = self._do_cmd_resp(InstrumentCmds.SEND_LAST_AND_SLEEP, *args, **kwargs)
-        log.debug("result = " + repr(result))
-        return (next_state, (next_agent_state, result))
-
-    def _handler_command_autosample_send_last(self, *args, **kwargs):
-        """
-        """
-        next_state = None
-        next_agent_state = None
-        result = None
-
-
-        log.debug("self._promptbuf = " + repr(self._promptbuf))
-        log.debug("self._linebuf = " + repr(self._linebuf))
-        self._linebuf = ''
-        self._promptbuf = ''
-
-        kwargs['timeout'] = 60
-        kwargs['expected_prompt'] = "S>"
-        log.debug(":::::::::::::::::::::::::::::::::::::::::::::BEFORE")
-        result = self._do_cmd_resp(InstrumentCmds.SEND_LAST, *args, **kwargs)
-        log.debug("result = " + repr(result))
-        log.debug(":::::::::::::::::::::::::::::::::::::::::::::AFTER")
-        return (next_state, (next_agent_state, result))
-
-    def _parse_sl_slo_response(self, response, prompt):
-        """
-        Response handler for ts command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @retval sample dictionary containig c, t, d values.
-        @throws InstrumentProtocolException if ts command misunderstood.
-        @throws InstrumentSampleException if response did not contain a sample
-        """
-        log.debug("************ in _parse_sl_slo_response ")
-
-        log.debug("PROMPT = " + str(prompt) + " WANTED " + str(Prompt.COMMAND))
-        if prompt != Prompt.COMMAND:
-            raise InstrumentProtocolException('sl/slo command not recognized: %s', response)
-        log.debug("response = " + repr(response))
-
-
-        log.debug("self._promptbuf = " + repr(self._promptbuf))
-        log.debug("self._linebuf = " + repr(self._linebuf))
-    '''
 
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
@@ -2319,13 +2258,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         #
         # Next 2 work together to pull 2 values out of a single line.
         #
-        self._param_dict.add(Parameter.QUARTZ_PREASURE_SENSOR_SERIAL_NUMBER,
+        self._param_dict.add(Parameter.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER,
             ds_line_03,
             lambda match : float(match.group(1)),
             self._float_to_string,
             multi_match=True)
 
-        self._param_dict.add(Parameter.QUARTZ_PREASURE_SENSOR_RANGE,
+        self._param_dict.add(Parameter.QUARTZ_PRESSURE_SENSOR_RANGE,
             ds_line_03,
             lambda match : float(match.group(2)),
             self._float_to_string,
@@ -2527,17 +2466,17 @@ class Protocol(CommandResponseInstrumentProtocol):
             lambda match : True if (match.group(1)=='do not') else False,
             self._true_false_to_string)
 
-        self._param_dict.add(Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PREASURE_SENSOR,
+        self._param_dict.add(Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR,
             ds_line_26,
             lambda match : float(match.group(1)),
             self._float_to_string)
 
-        self._param_dict.add(Parameter.AVERAGE_SALINITY_ABOVE_PREASURE_SENSOR,
+        self._param_dict.add(Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR,
             ds_line_27,
             lambda match : float(match.group(1)),
             self._float_to_string)
 
-        self._param_dict.add(Parameter.PREASURE_SENSOR_HEIGHT_FROM_BOTTOM,
+        self._param_dict.add(Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM,
             ds_line_28,
             lambda match : float(match.group(1)),
             self._float_to_string)
@@ -2581,195 +2520,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             ds_line_36,
             lambda match : False if (match.group(1)=='NO') else True,
             self._true_false_to_string)
-        ################################################
-        '''
-        # dc
-        dc_line_01 = r'Pressure coefficients: +(\d+-[a-zA-Z]+-\d+)'
-        dc_line_02 = r' +U0 = (-?[\d.e\-\+]+)'
-        dc_line_03 = r' +Y1 = (-?[\d.e\-\+]+)'
-        dc_line_04 = r' +Y2 = (-?[\d.e\-\+]+)'
-        dc_line_05 = r' +Y3 = (-?[\d.e\-\+]+)'
-        dc_line_06 = r' +C1 = (-?[\d.e\-\+]+)'
-        dc_line_07 = r' +C2 = (-?[\d.e\-\+]+)'
-        dc_line_08 = r' +C3 = (-?[\d.e\-\+]+)'
-        dc_line_09 = r' +D1 = (-?[\d.e\-\+]+)'
-        dc_line_10 = r' +D2 = (-?[\d.e\-\+]+)'
-        dc_line_11 = r' +T1 = (-?[\d.e\-\+]+)'
-        dc_line_12 = r' +T2 = (-?[\d.e\-\+]+)'
-        dc_line_13 = r' +T3 = (-?[\d.e\-\+]+)'
-        dc_line_14 = r' +T4 = (-?[\d.e\-\+]+)'
-        dc_line_15 = r' +M = ([\d.]+)'
-        dc_line_16 = r' +B = ([\d.]+)'
-        dc_line_17 = r' +OFFSET = (-?[\d.e\-\+]+)'
-        dc_line_18 = r'Temperature coefficients: +(\d+-[a-zA-Z]+-\d+)'
-        dc_line_19 = r' +TA0 = (-?[\d.e\-\+]+)'
-        dc_line_20 = r' +TA1 = (-?[\d.e\-\+]+)'
-        dc_line_21 = r' +TA2 = (-?[\d.e\-\+]+)'
-        dc_line_22 = r' +TA3 = (-?[\d.e\-\+]+)'
-        dc_line_23 = r'Conductivity coefficients: +(\d+-[a-zA-Z]+-\d+)'
-        dc_line_24 = r' +CG = (-?[\d.e\-\+]+)'
-        dc_line_25 = r' +CH = (-?[\d.e\-\+]+)'
-        dc_line_26 = r' +CI = (-?[\d.e\-\+]+)'
-        dc_line_27 = r' +CJ = (-?[\d.e\-\+]+)'
-        dc_line_28 = r' +CTCOR = (-?[\d.e\-\+]+)'
-        dc_line_29 = r' +CPCOR = (-?[\d.e\-\+]+)'
-        dc_line_30 = r' +CSLOPE = (-?[\d.e\-\+]+)'
-        # S>
 
-
-        # DC
-        self._param_dict.add(Parameter.PCALDATE,
-            dc_line_01,
-            lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
-            self._date_to_string)
-
-        self._param_dict.add(Parameter.PU0,
-            dc_line_02,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PY1,
-            dc_line_03,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PY2,
-            dc_line_04,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PY3,
-            dc_line_05,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PC1,
-            dc_line_06,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PC2,
-            dc_line_07,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PC3,
-            dc_line_08,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PD1,
-            dc_line_09,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PD2,
-            dc_line_10,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PT1,
-            dc_line_11,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PT2,
-            dc_line_12,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PT3,
-            dc_line_13,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PT4,
-            dc_line_14,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.FACTORY_M,
-            dc_line_15,
-            lambda match : float(match.group(1)),
-            self._float_to_string,
-            visibility=ParameterDictVisibility.READ_ONLY)
-
-        self._param_dict.add(Parameter.FACTORY_B,
-            dc_line_16,
-            lambda match : float(match.group(1)),
-            self._float_to_string,
-            visibility=ParameterDictVisibility.READ_ONLY)
-
-        self._param_dict.add(Parameter.POFFSET,
-            dc_line_17,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.TCALDATE,
-            dc_line_18,
-            lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
-            self._date_to_string)
-
-        self._param_dict.add(Parameter.TA0,
-            dc_line_19,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.TA1,
-            dc_line_20,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.TA2,
-            dc_line_21,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.TA3,
-            dc_line_22,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.CCALDATE,
-            dc_line_23,
-            lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
-            self._date_to_string)
-
-        self._param_dict.add(Parameter.CG,
-            dc_line_24,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.CH,
-            dc_line_25,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.CI,
-            dc_line_26,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.CJ,
-            dc_line_27,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.CTCOR,
-            dc_line_28,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.CPCOR,
-            dc_line_29,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.CSLOPE,
-            dc_line_30,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-        '''
 
     def _update_params(self, *args, **kwargs):
         """
@@ -2818,7 +2569,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return result
 
-
     def _parse_dc_response(self, response, prompt):
         """
         Response handler for dc command
@@ -2847,25 +2597,25 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if ts command misunderstood.
         @throws InstrumentSampleException if response did not contain a sample
         """
-        log.debug("************ in _parse_ts_response ")
 
-        log.debug("PROMPT = " + str(prompt) + " WANTED " + str(Prompt.COMMAND))
+
         if prompt != Prompt.COMMAND:
             raise InstrumentProtocolException('ts command not recognized: %s', response)
 
-        sample = None
         for line in response.split(NEWLINE):
-            log.debug("RESPONSE = " + str(response))
-            log.debug("AM I PUBLISHING A PARTICLE?")
+            sample = None
             sample = self._extract_sample(SBE26plusTakeSampleDataParticle, TS_REGEX_MATCHER, line, True)
-            log.debug("DID I PUBLISH A PARTICLE?" + str(sample))
             if sample:
+                log.debug("GOT A SAMPLE!!!!")
+                match = TS_REGEX_MATCHER.match(line)
+                result = match.group(0)
                 break
 
         if not sample:
             raise SampleException('Response did not contain sample: %s' % repr(response))
 
-        return sample
+        log.debug("_parse_ts_response RETURNING RESULT=" + str(result))
+        return result
 
     def got_data(self, paPacket):
         """
@@ -2877,9 +2627,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         paData = paPacket.get_data()
 
         # Short circuit out if we dont have any data.
-        '''
-        # Work on new way of doing it, test once can reach WOODSHOLE.
 
+        # Work on new way of doing it, test once can reach WOODSHOLE.
+        '''
         if paLength > 0:
             current_state = self.get_current_state()
             log.debug("in got_data() CURRENT_STATE = " + str(current_state))
@@ -2889,7 +2639,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                     self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
                     # TODO: what about logging this as an event?
 
-                log.debug("returning out of DIRECT_ACCESS
+                log.debug("returning out of DIRECT_ACCESS")
                 return
 
             # Call the superclass to update line and prompt buffers.
@@ -2915,12 +2665,12 @@ class Protocol(CommandResponseInstrumentProtocol):
 
                 # reload
                 chunk = self._chunker.get_next_data()
-
-
         '''
 
 
 
+
+        #"""
         if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
             # direct access mode
             if paLength > 0:
@@ -2962,6 +2712,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                     # reload
                     chunk = self._chunker.get_next_data()
 
+        #"""
     ########################################################################
     # Static helpers to format set commands.
     ########################################################################

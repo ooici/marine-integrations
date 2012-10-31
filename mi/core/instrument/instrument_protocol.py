@@ -19,6 +19,7 @@ import os
 import signal
 import re
 import json
+import gevent
 
 from mi.core.common import BaseEnum, InstErrorCode
 from mi.core.instrument.data_particle import DataParticleKey
@@ -512,7 +513,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             # Send a line return and wait a sec.
             log.debug('Sending wakeup.')
             self._send_wakeup()
-            time.sleep(delay)
+            gevent.sleep(delay)
 
             for item in self._prompts.list():
                 #log.debug("GOT " + repr(self._promptbuf))
