@@ -318,11 +318,11 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         matchers = []
         return_list = []
 
-        patterns.append((SAMPLE_PATTERN, re.MULTILINE|re.DOTALL))
-        patterns.append((HEADER_PATTERN, re.MULTILINE|re.DOTALL))
+        patterns.append(SAMPLE_PATTERN)
+        patterns.append(HEADER_PATTERN)
 
-        for pattern, flags in patterns:
-            matchers.append(re.compile(pattern, flags))
+        for pattern in patterns:
+            matchers.append(re.compile(pattern))
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
@@ -729,14 +729,9 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval return (next state, result)
         @throw InstrumentProtocolException For invalid command
         """
-        next_state = PARProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+        next_state = None
+        next_agent_state = None
         result = None
-
-        log.debug("Switch to polled mode")
-        self._switch_to_poll()
-        # Give the instrument a bit to keep up. 1 sec is not enough!
-        time.sleep(5)
 
         # This sometimes takes a few seconds, so stall after our sample cmd
         # and before the read/parse
@@ -1147,7 +1142,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                     self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
                     # TODO: what about logging this as an event?
             return
-        
+
         if paLength > 0:
             CommandResponseInstrumentProtocol.got_data(self, paData)
             self._chunker.add_chunk(paData)

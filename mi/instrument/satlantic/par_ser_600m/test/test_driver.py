@@ -25,6 +25,7 @@ from mi.core.common import InstErrorCode
 from mi.core.instrument.instrument_driver import DriverState
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_protocol import InterfaceType
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
@@ -40,6 +41,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import AgentCapabilityType
 
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARInstrumentProtocol
 from mi.instrument.satlantic.par_ser_600m.driver import PARProtocolState
@@ -311,7 +313,10 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
         self.assert_chunker_fragmented_sample(chunker, VALID_HEADER)
 
         self.assert_chunker_combined_sample(chunker, VALID_SAMPLE)
-        self.assert_chunker_fragmented_sample(chunker, VALID_HEADER)
+        self.assert_chunker_combined_sample(chunker, VALID_HEADER)
+
+        self.assert_chunker_sample_with_noise(chunker, VALID_SAMPLE)
+        self.assert_chunker_sample_with_noise(chunker, VALID_HEADER)
 
     def test_extract_header(self):
         '''
@@ -786,6 +791,7 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
                 # Shouldn't get here.  If we have then we aren't checking a parameter
                 self.assertFalse(True)
 
+    @unittest.skip("Just because")
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -798,13 +804,14 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
 
         self.assert_direct_access_stop_telnet()
 
+    @unittest.skip("polled mode note implemented")
     def test_poll(self):
         '''
         No polling for a single sample
         '''
+
         #self.assert_sample_polled(self.assertSampleDataParticle,
         #                          DataParticleValue.PARSED)
-        pass
 
     def test_autosample(self):
         '''
@@ -812,6 +819,7 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         '''
         self.assert_sample_autosample(self.assertSampleDataParticle,
                                       DataParticleValue.PARSED)
+
 
     def test_get_set_parameters(self):
         '''
@@ -833,41 +841,80 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         @brief Verify that the correct capabilities are returned from get_capabilities
         at various driver/agent states.
         """
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        self.assert_enter_command_mode()
 
-        agent_capabilities = []
-        unknown = []
-        driver_capabilities = []
-        driver_vars = []
-        retval = self.instrument_agent_client.get_capabilities()
-        for x in retval:
-            if x.cap_type == 1:
-                agent_capabilities.append(x.name)
-            elif x.cap_type == 2:
-                unknown.append(x.name)
-            elif x.cap_type == 3:
-                driver_capabilities.append(x.name)
-            elif x.cap_type == 4:
-                driver_vars.append(x.name)
-            else:
-                log.debug("*UNKNOWN* " + str(repr(x)))
+        ##################
+        #  Command Mode
+        ##################
 
-        log.debug("CAPABILITIES: %s" % str(agent_capabilities))
-        #--- Verify the following for ResourceAgentState.UNINITIALIZED
-        #self.assertEqual(agent_capabilities, ['RESOURCE_AGENT_EVENT_INITIALIZE'])
-        #self.assertEqual(unknown, ['example'])
-        #self.assertEqual(driver_capabilities, [])
-        #self.assertEqual(driver_vars, [])
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: [
+                ResourceAgentEvent.CLEAR,
+                ResourceAgentEvent.RESET,
+                ResourceAgentEvent.GO_DIRECT_ACCESS,
+                ResourceAgentEvent.GO_INACTIVE,
+                ResourceAgentEvent.PAUSE
+            ],
+            AgentCapabilityType.AGENT_PARAMETER: ['example'],
+            AgentCapabilityType.RESOURCE_COMMAND: [
+                DriverEvent.SET, DriverEvent.ACQUIRE_SAMPLE, DriverEvent.GET,
+                PARProtocolEvent.START_POLL, DriverEvent.START_AUTOSAMPLE
+            ],
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: [
+                Parameter.INSTRUMENT, Parameter.SERIAL, Parameter.MAXRATE, Parameter.FIRMWARE
 
-        #cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        #retval = self.instrument_agent_client.execute_agent(cmd)
-        #state = self.instrument_agent_client.get_agent_state()
-        #self.assertEqual(state, ResourceAgentState.INACTIVE)
+            ],
+        }
+
+        self.assert_capabilities(capabilities)
+
+        ##################
+        #  Polled Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = [
+            ResourceAgentEvent.CLEAR,
+            ResourceAgentEvent.RESET,
+            ResourceAgentEvent.GO_DIRECT_ACCESS,
+            ResourceAgentEvent.GO_INACTIVE,
+            ResourceAgentEvent.PAUSE,
+        ]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
+            DriverEvent.START_AUTOSAMPLE, DriverEvent.RESET, PARProtocolEvent.STOP_POLL
+        ]
+
+        self.assert_switch_driver_state(PARProtocolEvent.START_POLL, DriverProtocolState.POLL)
+
+        self.assert_capabilities(capabilities)
+
+        self.assert_switch_driver_state(PARProtocolEvent.STOP_POLL, DriverProtocolState.COMMAND)
+
+
+        ##################
+        #  Streaming Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+            PARProtocolEvent.START_POLL,
+            DriverEvent.STOP_AUTOSAMPLE,
+            DriverEvent.RESET
+        ]
+
+        self.assert_start_autosample()
+        self.assert_capabilities(capabilities)
+        self.assert_stop_autosample()
+
+        #######################
+        #  Uninitialized Mode
+        #######################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.INITIALIZE]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
+        self.assert_capabilities(capabilities)
 
