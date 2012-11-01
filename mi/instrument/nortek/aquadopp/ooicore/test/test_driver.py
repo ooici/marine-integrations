@@ -36,6 +36,8 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
+
 
 from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolState
 from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolEvent
@@ -44,6 +46,8 @@ from mi.instrument.nortek.aquadopp.ooicore.driver import Parameter
 from interface.objects import AgentCommand
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+
+from mi.instrument.nortek.aquadopp.ooicore.driver import Capability
 
 ###
 #   Driver parameters for the tests
@@ -286,6 +290,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualFromIDK(InstrumentDriverQualificationTestCase):
+    
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
@@ -298,45 +303,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
-        cmd = AgentCommand(command='power_down')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent power_down; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
-
-        cmd = AgentCommand(command='power_up')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent power_up; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command='initialize')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent initialize; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
-
-        cmd = AgentCommand(command='go_active')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent go_active; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.IDLE)
-
-        cmd = AgentCommand(command='run')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_current_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent run; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
+        self.assert_enter_command_mode()
 
         # go direct access
         cmd = AgentCommand(command='go_direct_access',
@@ -349,6 +316,17 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         
         gevent.sleep(600)  # wait for manual telnet session to be run
 
+    def test_aquire_sample(self):
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
 
+        self.assert_enter_command_mode()
 
+        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
+
+        cmd = AgentCommand(command=Capability.START_MEASUREMENT_IMMEDIATE)
+        self.instrument_agent_client.execute_resource(cmd) 
+        sample = self.data_subscribers.get_samples('parsed', 1, timeout=60) 
+        log.debug("test_aquire_sample: sample=%s", sample)
+        #self.assertSampleDataParticle(samples.pop())
 

@@ -25,6 +25,7 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.exceptions import InstrumentTimeoutException, \
                                InstrumentParameterException, \
                                InstrumentProtocolException, \
@@ -66,11 +67,11 @@ sample_structures = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
                      [DIAGNOSTIC_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
                      [DIAGNOSTIC_DATA_HEADER_SYNC_BYTES, DIAGNOSTIC_DATA_HEADER_LEN]]
 
-VELOCITY_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})' % VELOCITY_DATA_SYNC_BYTES,
+VELOCITY_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})' % VELOCITY_DATA_SYNC_BYTES
 VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN)
-DIAGNOSTIC_DATA_HEADER_PATTERN = r'^%s(.*)' % DIAGNOSTIC_DATA_HEADER_SYNC_BYTES,
+DIAGNOSTIC_DATA_HEADER_PATTERN = r'^%s(.*)' % DIAGNOSTIC_DATA_HEADER_SYNC_BYTES
 DIAGNOSTIC_DATA_HEADER_REGEX = re.compile(DIAGNOSTIC_DATA_HEADER_PATTERN)
-DIAGNOSTIC_DATA_PATTERN = r'^%s(.*)' % DIAGNOSTIC_DATA_SYNC_BYTES,
+DIAGNOSTIC_DATA_PATTERN = r'^%s(.*)' % DIAGNOSTIC_DATA_SYNC_BYTES
 DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN)
 
 # Packet config
@@ -499,7 +500,9 @@ class AquadoppDwVelocityDataParticle(DataParticle):
         heading = BinaryProtocolParameterDict.convert_word_to_int(match.group(6))
         pitch = BinaryProtocolParameterDict.convert_word_to_int(match.group(7))
         roll = BinaryProtocolParameterDict.convert_word_to_int(match.group(8))
+        pressure = match.group(9) * 0x1000
         status = match.group(10)
+        pressure += BinaryProtocolParameterDict.convert_word_to_int(match.group(11))
         temperature = BinaryProtocolParameterDict.convert_word_to_int(match.group(12))
         velocity_beam1 = BinaryProtocolParameterDict.convert_word_to_int(match.group(13))
         velocity_beam2 = BinaryProtocolParameterDict.convert_word_to_int(match.group(14))
@@ -526,6 +529,8 @@ class AquadoppDwVelocityDataParticle(DataParticle):
             raise SampleException("No roll value parsed")
         if not status:
             raise SampleException("No status value parsed")
+        if not pressure:
+            raise SampleException("No pressure value parsed")
         if not temperature:
             raise SampleException("No temperature value parsed")
         if not velocity_beam1:
@@ -559,6 +564,8 @@ class AquadoppDwVelocityDataParticle(DataParticle):
                    DataParticleKey.VALUE: roll},
                   {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.STATUS,
                    DataParticleKey.VALUE: status},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.PRESSURE,
+                   DataParticleKey.VALUE: pressure},
                   {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.TEMPERATURE,
                    DataParticleKey.VALUE: temperature},
                   {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.VELOCITY_BEAM1,
@@ -658,10 +665,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add event handlers for protocol state machine.
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_get)
@@ -676,10 +681,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME, self._handler_command_start_measurement_specific_time)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_IMMEDIATE, self._handler_command_start_measurement_immediate)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
 
@@ -831,12 +834,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    def _handler_unknown_exit(self, *args, **kwargs):
-        """
-        Exit unknown state.
-        """
-        pass
-
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state of instrument; can be COMMAND or AUTOSAMPLE.
@@ -850,19 +847,19 @@ class Protocol(CommandResponseInstrumentProtocol):
         prompt = self._get_mode(timeout)
         if prompt == InstrumentPrompts.COMMAND_MODE:
             next_state = ProtocolState.COMMAND
-            result = ProtocolState.COMMAND
+            result = ResourceAgentState.IDLE
         elif prompt == InstrumentPrompts.CONFIRMATION:    
             next_state = ProtocolState.AUTOSAMPLE
-            result = ProtocolState.AUTOSAMPLE
+            result = ResourceAgentState.STREAMING
         elif prompt == InstrumentPrompts.Z_ACK:
             log.debug('_handler_unknown_discover: promptbuf=%s (%s)' %(self._promptbuf, self._promptbuf.encode("hex")))
             if InstrumentModes.COMMAND in self._promptbuf:
                 next_state = ProtocolState.COMMAND
-                result = ProtocolState.COMMAND
+                result = ResourceAgentState.IDLE
             elif (InstrumentModes.MEASUREMENT in self._promptbuf or 
                  InstrumentModes.CONFIRMATION in self._promptbuf):
                 next_state = ProtocolState.AUTOSAMPLE
-                result = ProtocolState.AUTOSAMPLE
+                result = ResourceAgentState.STREAMING
             else:
                 raise InstrumentStateException('Unknown state.')
         else:
@@ -949,6 +946,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
         next_state = None
+        next_agent_state = None
         result = None
 
         # Issue start command and switch to autosample if successful.
@@ -956,8 +954,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                                    expected_prompt = InstrumentPrompts.Z_ACK, *args, **kwargs)
                 
         next_state = ProtocolState.AUTOSAMPLE        
+        next_agent_state = ResourceAgentState.STREAMING
         
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_start_direct(self):
         """
@@ -965,117 +964,129 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
+        next_agent_state = ResourceAgentState.DIRECT_ACCESS
         next_state = ProtocolState.DIRECT_ACCESS
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_read_clock(self):
         """
         """
         next_state = None
+        next_agent_state = None
         result = None
 
         # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.READ_REAL_TIME_CLOCK, 
                                    expected_prompt = InstrumentPrompts.Z_ACK)
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_read_mode(self):
         """
         """
         next_state = None
+        next_agent_state = None
         result = None
 
         # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE, 
                                    expected_prompt = InstrumentPrompts.Z_ACK)
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_power_down(self):
         """
         """
         next_state = None
+        next_agent_state = None
         result = None
 
         # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.POWER_DOWN, 
                                    expected_prompt = InstrumentPrompts.Z_ACK)
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_read_battery_voltage(self):
         """
         """
         next_state = None
+        next_agent_state = None
         result = None
 
         # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.READ_BATTERY_VOLTAGE, 
                                    expected_prompt = InstrumentPrompts.Z_ACK)
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_read_id(self):
         """
         """
         next_state = None
+        next_agent_state = None
         result = None
 
         # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.READ_ID, 
                                    expected_prompt = InstrumentPrompts.Z_ACK)
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_get_hw_config(self):
         """
         """
         next_state = None
+        next_agent_state = None
         result = None
 
         # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.READ_HW_CONFIGURATION, 
                                    expected_prompt = InstrumentPrompts.Z_ACK)
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_get_head_config(self):
         """
         """
         next_state = None
+        next_agent_state = None
         result = None
 
         # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION, 
                                    expected_prompt = InstrumentPrompts.Z_ACK)
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_start_measurement_specific_time(self):
         """
         """
         next_state = None
+        next_agent_state = None
         result = None
 
         # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_AT_SPECIFIC_TIME, 
                                    expected_prompt = InstrumentPrompts.Z_ACK)
+        # TODO: what state should the driver/IA go to? Should this command even be exported?
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_start_measurement_immediate(self):
         """
         """
         next_state = None
+        next_agent_state = None
         result = None
 
         # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_IMMEDIATE, 
                                    expected_prompt = InstrumentPrompts.Z_ACK)
+        # TODO: what state should the driver/IA go to? Should this command even be exported?
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Autosample handlers.
@@ -1088,12 +1099,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    def _handler_autosample_exit(self, *args, **kwargs):
-        """
-        Exit autosample state.
-        """
-        pass
 
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
@@ -1118,8 +1123,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                           expected_prompt = InstrumentPrompts.Z_ACK, *args, **kwargs)
 
         next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Direct access handlers.
@@ -1134,12 +1140,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
         self._sent_cmds = []
-
-    def _handler_direct_access_exit(self, *args, **kwargs):
-        """
-        Exit direct access state.
-        """
-        pass
 
     def _handler_direct_access_execute_direct(self, data):
         """
@@ -1162,8 +1162,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Common handlers.
@@ -1611,7 +1612,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             return False
         
         # check checksum
-        calculated_checksum = Protocol.calculate_checksum(input, length)
+        calculated_checksum = BinaryProtocolParameterDict.calculate_checksum(input, length)
         log.debug('_check_configuration: user c_c = %s' % calculated_checksum)
         sent_checksum = BinaryProtocolParameterDict.convert_word_to_int(input[length-2:length])
         if sent_checksum != calculated_checksum:
