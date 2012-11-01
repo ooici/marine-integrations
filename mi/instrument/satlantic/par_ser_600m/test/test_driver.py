@@ -341,7 +341,7 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
     def check_state(self, expected_state):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, expected_state)
-        
+
 
     def put_instrument_in_command_mode(self):
         """Wrap the steps and asserts for going into command mode.
@@ -383,7 +383,22 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
                 
         self.check_state(PARProtocolState.COMMAND)
-        
+
+
+    def test_startup_configuration(self):
+        '''
+        Test that the startup configuration is applied correctly
+        '''
+        self.put_instrument_in_command_mode()
+
+        result = self.driver_client.cmd_dvr('apply_startup_params')
+
+        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.MAXRATE])
+
+        self.assertEquals(reply, {Parameter.MAXRATE: 2})
+
+        reply = self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE: 1})
+
 
     def test_configuration(self):
         """

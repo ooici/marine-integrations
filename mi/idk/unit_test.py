@@ -102,11 +102,13 @@ class InstrumentDriverTestConfig(Singleton):
     instrument_agent_packet_config = None
     instrument_agent_stream_encoding = 'ION R2'
     instrument_agent_stream_definition = None
-    
+
+    driver_startup_config = {}
+
     container_deploy_file = 'res/deploy/r2deploy.yml'
     
     initialized   = False
-    
+
     def initialize(self, *args, **kwargs):
         self.driver_module = kwargs.get('driver_module')
         self.driver_class  = kwargs.get('driver_class')
@@ -134,7 +136,10 @@ class InstrumentDriverTestConfig(Singleton):
 
         if kwargs.get('driver_process_type'):
             self.container_deploy_file = kwargs.get('driver_process_type')
-        
+
+        if kwargs.get('driver_startup_config'):
+            self.driver_startup_config = kwargs.get('driver_startup_config')
+
         self.initialized = True
 
 class InstrumentDriverTestCase(IonIntegrationTestCase):
@@ -273,6 +278,7 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
             'workdir'      : self.test_config.working_dir,
             'comms_config' : self.port_agent_comm_config(),
             'process_type' : self.test_config.driver_process_type,
+            'startup_config' : self.test_config.driver_startup_config
         }
 
         self.driver_process = DriverProcess.get_process(driver_config, True)
@@ -289,6 +295,10 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
             log.debug("before 'process_echo'")
             retval = driver_client.cmd_dvr('process_echo', 'Test.') # data=? RU
             log.debug("after 'process_echo'")
+
+            startup_config = driver_config.get('startup_config')
+            retval = driver_client.cmd_dvr('set_init_params', startup_config)
+
             self.driver_client = driver_client
         except Exception, e:
             self.driver_process.stop()
@@ -432,14 +442,6 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     """
     Base class for instrument driver unit tests
     """
-    @classmethod
-    def setUpClass(cls):
-        cls.init_port_agent()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.stop_port_agent()
-
     def compare_parsed_data_particle(self, particle_type, raw_input, happy_structure):
         """
         Compare a data particle created with the raw input string to the structure
@@ -600,7 +602,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'workdir' : self.test_config.working_dir,
             'process_type' : self.test_config.driver_process_type,
 
-            'comms_config' : self.port_agent_comm_config()
+            'comms_config' : self.port_agent_comm_config(),
+
+            'startup_config' : self.test_config.driver_startup_config
         }
 
         # Create agent config.
@@ -611,9 +615,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'test_mode' : True  ## Enable a poison pill. If the spawning process dies
             ## shutdown the daemon process.
         }
-
-
-        # ROGER message_headers
 
         # Start instrument agent client.
         self.instrument_agent_manager.start_client(
