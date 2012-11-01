@@ -1192,54 +1192,6 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         
         return (success, response)        
                 
-    def old_got_data(self, paPacket):
-        """
-        Callback for receiving new data from the device.
-        """
-        length = paPacket.get_data_size()
-        data = paPacket.get_data()
-        tempLength = len(data)
-
-        if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
-            # direct access mode
-            if length > 0:
-                #mi_logger.debug("SBE16Protocol._got_data(): <" + data + ">")
-                # check for echoed commands from instrument (TODO: this should only be done for telnet?)
-                if len(self._sent_cmds) > 0:
-                    # there are sent commands that need to have there echoes filtered out
-                    oldest_sent_cmd = self._sent_cmds[0]
-                    if string.count(data, oldest_sent_cmd) > 0:
-                        # found a command echo, so remove it from data and delete the command from list
-                        data = string.replace(data, oldest_sent_cmd, "", 1)
-                        self._sent_cmds.pop(0)
-                if len(data) > 0 and self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
-                    # TODO: what about logging this as an event?
-            return
-
-        if length > 0:
-            
-            # Call the superclass to update line and prompt buffers.
-            CommandResponseInstrumentProtocol.got_data(self, data)
-
-            # If in streaming mode, process the buffer for samples to publish.
-            cur_state = self.get_current_state()
-            if cur_state == ProtocolState.AUTOSAMPLE:
-                if NEWLINE in self._linebuf:
-                    #lines = self._linebuf.split(NEWLINE)
-                    lines = self._linebuf.splitlines(1)
-                    self._linebuf = lines[-1]
-                    for line in lines:
-                        """
-                        The above split can leave a zero-length line in list,
-                        so only call extract_sample if len greater than zero.
-                        """
-                        if len(line) > 0 and line.endswith(NEWLINE):
-                            log.debug("calling extract sample") 
-                            sample = self._extract_sample(SBE16DataParticle, 
-                                                          SAMPLE_REGEX,
-                                                          line)
-                
     def got_data(self, paPacket):
         """
         Callback for receiving new data from the device.
@@ -1272,15 +1224,13 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             # Call the superclass to update line and prompt buffers.
             CommandResponseInstrumentProtocol.got_data(self, data)
 
-            if self.get_current_state() == ProtocolState.AUTOSAMPLE:
-        
-                self._chunker.add_chunk(data)
-        
+            self._chunker.add_chunk(data)
+    
+            chunk = self._chunker.get_next_data()
+            while (chunk):
+                self._extract_sample(SBE16DataParticle, SAMPLE_REGEX, chunk)
+                self._extract_sample(SBE16StatusParticle, STATUS_REGEX, chunk)
                 chunk = self._chunker.get_next_data()
-                while (chunk):
-                    self._extract_sample(SBE16DataParticle, SAMPLE_REGEX, chunk)
-                    self._extract_sample(SBE16StatusParticle, STATUS_REGEX, chunk)
-                    chunk = self._chunker.get_next_data()
                 
     def _build_param_dict(self):
         """
