@@ -160,7 +160,7 @@ VALID_SAMPLE_FRAG_03 = "24.0088,  0.00001, -0.000,   0.0117, 03 Oct 2012 20:59:0
 # A full sample plus a beginning frag of another sample
 INVALID_SAMPLE = "bogus sample 03 Oct 2012 20:59:04\r\n24.0088,  0.00001"
 
-DS_RESPONSE = 'SBE 16plus V 2.2  SERIAL NO. 6841    29 Oct 2012 20:20:55' + NEWLINE + \
+VALID_DS_RESPONSE = 'SBE 16plus V 2.2  SERIAL NO. 6841    29 Oct 2012 20:20:55' + NEWLINE + \
                'vbatt = 12.9, vlith =  8.5, ioper =  61.2 ma, ipump = 255.5 ma,' + NEWLINE + \
                'status = not logging' + NEWLINE + \
                'samples = 3684, free = 4382858' + NEWLINE + \
@@ -178,6 +178,8 @@ DS_RESPONSE = 'SBE 16plus V 2.2  SERIAL NO. 6841    29 Oct 2012 20:20:55' + NEWL
                'output salinity = yes, output sound velocity = no' + NEWLINE + \
                'serial sync mode disabled' + NEWLINE
 
+
+INVALID_DS_RESPONSE = 'bogus 2.2  SERIAL NO. 6841    29 Oct 2012 20:20:55'
 
 class RequiredCapabilities(BaseEnum):
     """
@@ -261,7 +263,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         particle = SBE16StatusParticle(DS_RESPONSE, port_timestamp = 3558720820.531179)
         parsed = particle.generate_parsed()
 
-    def test_new_got_data(self):
+    def test_got_data(self):
         """
         Create a mock port agent
         """
@@ -308,13 +310,38 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
         self.reset_test_vars()
-        test_sample = DS_RESPONSE
+        test_sample = INVALID_DS_RESPONSE
         
         paPacket = PortAgentPacket()         
         paPacket.attach_data(test_sample)
         paPacket.pack_header()
   
         test_driver._protocol.got_data(paPacket)
+
+        self.assertTrue(self.raw_stream_received is 0)
+        self.assertTrue(self.parsed_stream_received is 0)
+        
+        test_sample = VALID_DS_RESPONSE
+        
+        paPacket = PortAgentPacket()         
+        paPacket.attach_data(test_sample)
+        paPacket.pack_header()
+  
+        test_driver._protocol.got_data(paPacket)
+
+        self.assertTrue(self.raw_stream_received is 1)
+        self.assertTrue(self.parsed_stream_received is 1)
+        
+        test_sample = VALID_DS_RESPONSE
+        
+        paPacket = PortAgentPacket()         
+        paPacket.attach_data(test_sample)
+        paPacket.pack_header()
+  
+        test_driver._protocol.got_data(paPacket)
+
+        self.assertTrue(self.raw_stream_received is 2)
+        self.assertTrue(self.parsed_stream_received is 2)
         
                 
     """
@@ -654,8 +681,8 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
   
         test_driver._protocol.got_data(paPacket)
         
-        self.assertTrue(self.raw_stream_received is 0)
-        self.assertTrue(self.parsed_stream_received is 0)
+        self.assertTrue(self.raw_stream_received is 1)
+        self.assertTrue(self.parsed_stream_received is 1)
         
         """
         This valid sample SHOULD be published because the _linebuf should be cleared
@@ -669,8 +696,8 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
   
         test_driver._protocol.got_data(paPacket)
         
-        self.assertTrue(self.raw_stream_received is 1)
-        self.assertTrue(self.parsed_stream_received is 1)
+        self.assertTrue(self.raw_stream_received is 2)
+        self.assertTrue(self.parsed_stream_received is 2)
         
 
     """
@@ -2326,15 +2353,12 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         self.assertEqual(state, ResourceAgentState.STREAMING)
 
         # Assert we got 3 samples.
-        #samples = self.data_subscribers.get_samples(DataParticleValue.PARSED, 3, timeout=60)
-        #self.assertGreaterEqual(len(samples), 3)
-
-        samples = self.data_subscribers.get_samples(DataParticleValue.PARSED, 1, timeout=60)
-        self.assertGreaterEqual(len(samples), 1)
+        samples = self.data_subscribers.get_samples(DataParticleValue.PARSED, 3, timeout=60)
+        self.assertGreaterEqual(len(samples), 3)
 
         self.assertSampleDataParticle(samples.pop())
-        #self.assertSampleDataParticle(samples.pop())
-        #self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
 
         # Halt streaming.
         cmd = AgentCommand(command=ProtocolEvent.STOP_AUTOSAMPLE)

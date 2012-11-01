@@ -165,7 +165,7 @@ NEWLINE = '\r\n'
 # SBE16 default timeout.
 SBE16_TIMEOUT = 10
                 
-SAMPLE_PATTERN = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'     # T, C, D/P
+SAMPLE_PATTERN = r'#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'     # T, C, D/P
 SAMPLE_PATTERN += r',? *(-?\d+\.\d+)?'                                  # Salinity
 SAMPLE_PATTERN += r'(, *(-?\d+\.\d+))?(, *(-?\d+\.\d+))?'
 SAMPLE_PATTERN += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'    
@@ -548,13 +548,8 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         return_list = []
 
         patterns.append((SAMPLE_PATTERN)) 
-        #                 re.MULTILINE|re.DOTALL))
 
-        #patterns.append((STATUS_PATTERN)) 
-        #                 re.MULTILINE|re.DOTALL))
-
-        #for pattern, flags in patterns:
-        #    matchers.append(re.compile(pattern, flags))
+        patterns.append((STATUS_PATTERN)) 
 
         for pattern in patterns:
             matchers.append(re.compile(pattern))
@@ -1128,7 +1123,6 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         for line in response.split(NEWLINE):
             if 'sample interval' in line:
                 for sline in line.split(','):
-                    #print 'DHE: split this: ' + sline.lstrip()
                     self._param_dict.update(sline.lstrip())
             elif 'output salinity' in line:
                 for sline in line.split(','):
@@ -1241,7 +1235,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
                         so only call extract_sample if len greater than zero.
                         """
                         if len(line) > 0 and line.endswith(NEWLINE):
-                            print "====> DHE TEMPTEMP calling extract sample"
+                            log.debug("calling extract sample") 
                             sample = self._extract_sample(SBE16DataParticle, 
                                                           SAMPLE_REGEX,
                                                           line)
@@ -1254,7 +1248,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         data = paPacket.get_data()
         tempLength = len(data)
         
-        print "--> DHE: got_data(): " + data
+        #print "--> DHE: got_data(): " + data
 
         if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
             # direct access mode
@@ -1282,10 +1276,8 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         
                 self._chunker.add_chunk(data)
         
-                print "==> DHE TEMPTEMP ADDING CHUNK"
                 chunk = self._chunker.get_next_data()
                 while (chunk):
-                    print "====> DHE TEMPTEMP new_got_data calling extract sample"
                     self._extract_sample(SBE16DataParticle, SAMPLE_REGEX, chunk)
                     self._extract_sample(SBE16StatusParticle, STATUS_REGEX, chunk)
                     chunk = self._chunker.get_next_data()
