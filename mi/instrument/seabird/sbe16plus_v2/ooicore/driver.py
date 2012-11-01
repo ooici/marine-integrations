@@ -173,8 +173,23 @@ SAMPLE_PATTERN += r'(, *(\d+)-(\d+)-(\d+), *(\d+):(\d+):(\d+))?'
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
 
 # pattern for the first line of the 'ds' command
-STATUS_PATTERN =  r'SBE 16plus V *(\d+.\d+) *SERIAL NO. *(\d+) *(\d+ *[a-zA-Z]+ *\d+ *\d+:\d+:\d+)\r\n'
-STATUS_PATTERN += r'vbatt = (\d+.\d+), *vlith *= *(\d+.\d+), *ioper *= *(\d+.\d+ *[a-zA-Z]+), *ipump *= *(\d+.\d+ *[a-zA-Z]+)'
+STATUS_PATTERN =  r'SBE 16plus V *(\d+.\d+) *SERIAL NO. *(\d+) *(\d+ *[a-zA-Z]+ *\d+ *\d+:\d+:\d+) *\r\n'
+STATUS_PATTERN += r'vbatt = (\d+.\d+), *vlith *= *(\d+.\d+), *ioper *= *(\d+.\d+ *[a-zA-Z]+), *ipump *= *(\d+.\d+ *[a-zA-Z]+), *\r\n'
+STATUS_PATTERN += r'status *= *(\w+ +\w+) *\r\n'
+STATUS_PATTERN += r'samples *= *(\d+), free *= *(\d+) *\r\n' 
+STATUS_PATTERN += r'sample interval *= *(\d+ *\w+), *number of measurements per sample *= *(\d+) *\r\n' 
+STATUS_PATTERN += r'pump *= *(.*) *, *delay before sampling *= *(\d+.\d+ *\w+) *\r\n'  
+STATUS_PATTERN += r'transmit real-time *= *(\w+) *\r\n'  
+STATUS_PATTERN += r'battery cutoff *= *(\d+.\d+ \w+) *\r\n' 
+STATUS_PATTERN += r'pressure sensor *= *(.+) *, range *= *(\d+.\d+) *\r\n' 
+STATUS_PATTERN += r'SBE 38 *= *(.+), *SBE 50 *= *(.+), *WETLABS *= *(.+), *OPTODE *= *(.+), *Gas Tension Device *= *(\w+) *\r\n' 
+STATUS_PATTERN += r'Ext Volt 0 *= *(\w+), Ext Volt 1 *= *(\w+) *\r\n'  
+STATUS_PATTERN += r'Ext Volt 2 *= *(\w+), Ext Volt 3 *= *(\w+) *\r\n'  
+STATUS_PATTERN += r'Ext Volt 4 *= *(\w+), Ext Volt 5 *= *(\w+) *\r\n'  
+STATUS_PATTERN += r'echo characters = (\w+) *\r\n'  
+STATUS_PATTERN += r'output format = ([ a-zA-Z]+) *\r\n'  
+STATUS_PATTERN += r'output salinity = ([ a-zA-Z]+) *, output sound velocity = ([ a-zA-Z]+) *\r\n'  
+STATUS_PATTERN += r'serial sync mode *([ a-zA-Z]+) *'  
 STATUS_REGEX = re.compile(STATUS_PATTERN)
 
 # Packet config for SBE37 data granules.
@@ -281,6 +296,33 @@ class SBE16StatusParticleKey(BaseEnum):
     VLITH = "vlith"
     IOPER = "ioper"
     IPUMP = "ipump"
+    STATUS = "status"
+    SAMPLES = "samples"
+    FREE = "free"
+    SAMPLE_INTERVAL = "sample_interval"
+    MEASUREMENTS_PER_SAMPLE = "measurements_per_sample"
+    RUN_PUMP_DURING_SAMPLE = "run_pump_during_sample"
+    DELAY_BEFORE_SAMPLING = "delay_before_sampling"
+    TX_REAL_TIME = "tx_real_time"
+    BATTERY_CUTOFF = "battery_cutoff"
+    PRESSURE_SENSOR = "pressure_sensor"
+    RANGE = "range"
+    SBE38 = "sbe38"
+    SBE50 = "sbe50"
+    WETLABS = "wetlabs"
+    OPTODE = "optode"
+    GAS_TENSION_DEVICE = "gas_tension_device"
+    EXT_VOLT_0 = "ext_volt_0"
+    EXT_VOLT_1 = "ext_volt_1"
+    EXT_VOLT_2 = "ext_volt_2"
+    EXT_VOLT_3 = "ext_volt_3"
+    EXT_VOLT_4 = "ext_volt_4"
+    EXT_VOLT_5 = "ext_volt_5"
+    ECHO_CHARACTERS = "echo_characters"
+    OUTPUT_FORMAT = "output_format"
+    OUTPUT_SALINITY = "output_salinity"
+    OUTPUT_SOUND_VELOCITY = "output_sound_velocity"
+    SERIAL_SYNC_MODE = "serial_sync_mode"
 
 class SBE16StatusParticle(DataParticle):
     """
@@ -308,6 +350,33 @@ class SBE16StatusParticle(DataParticle):
             vlith = str(match.group(5))
             ioper = str(match.group(6))
             ipump = str(match.group(7))
+            status = str(match.group(8))
+            samples = str(match.group(9))
+            free = str(match.group(10))
+            sample_interval = str(match.group(11))
+            measurements_per_sample = str(match.group(12))
+            run_pump_during_sample = str(match.group(13))
+            delay_before_sampling = str(match.group(14))
+            tx_real_time = str(match.group(15))
+            battery_cutoff = str(match.group(16))
+            pressure_sensor = str(match.group(17))
+            range = str(match.group(18))
+            sbe38 = str(match.group(19))
+            sbe50 = str(match.group(20))
+            wetlabs = str(match.group(21))
+            optode = str(match.group(22))
+            gas_tension_device = str(match.group(23))
+            ext_volt_0 = str(match.group(24))
+            ext_volt_1 = str(match.group(25))
+            ext_volt_2 = str(match.group(26))
+            ext_volt_3 = str(match.group(27))
+            ext_volt_4 = str(match.group(28))
+            ext_volt_5 = str(match.group(29))
+            echo_characters = str(match.group(30))
+            output_format = str(match.group(31))
+            output_salinity = str(match.group(32))
+            output_sound_velocity = str(match.group(33))
+            serial_sync_mode = str(match.group(34))
             
         except ValueError:
             raise SampleException("ValueError while decoding status: [%s]" %
@@ -326,7 +395,61 @@ class SBE16StatusParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.IOPER,
                     DataParticleKey.VALUE: ioper},
                   {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.IPUMP,
-                    DataParticleKey.VALUE: ipump}]
+                    DataParticleKey.VALUE: ipump},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.STATUS,
+                    DataParticleKey.VALUE: status},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.SAMPLES,
+                    DataParticleKey.VALUE: samples},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.FREE,
+                    DataParticleKey.VALUE: free},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.SAMPLE_INTERVAL,
+                    DataParticleKey.VALUE: sample_interval},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.MEASUREMENTS_PER_SAMPLE,
+                    DataParticleKey.VALUE: measurements_per_sample},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.RUN_PUMP_DURING_SAMPLE,
+                    DataParticleKey.VALUE: run_pump_during_sample},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.DELAY_BEFORE_SAMPLING,
+                    DataParticleKey.VALUE: delay_before_sampling},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.TX_REAL_TIME,
+                    DataParticleKey.VALUE: tx_real_time},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.BATTERY_CUTOFF,
+                    DataParticleKey.VALUE: battery_cutoff},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.PRESSURE_SENSOR,
+                    DataParticleKey.VALUE: pressure_sensor},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.RANGE,
+                    DataParticleKey.VALUE: range},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.SBE38,
+                    DataParticleKey.VALUE: sbe38},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.SBE50,
+                    DataParticleKey.VALUE: sbe50},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.WETLABS,
+                    DataParticleKey.VALUE: wetlabs},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.OPTODE,
+                    DataParticleKey.VALUE: optode},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.GAS_TENSION_DEVICE,
+                    DataParticleKey.VALUE: gas_tension_device},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.EXT_VOLT_0,
+                    DataParticleKey.VALUE: ext_volt_0},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.EXT_VOLT_1,
+                    DataParticleKey.VALUE: ext_volt_1},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.EXT_VOLT_2,
+                    DataParticleKey.VALUE: ext_volt_2},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.EXT_VOLT_3,
+                    DataParticleKey.VALUE: ext_volt_3},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.EXT_VOLT_4,
+                    DataParticleKey.VALUE: ext_volt_4},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.EXT_VOLT_5,
+                    DataParticleKey.VALUE: ext_volt_5},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.ECHO_CHARACTERS,
+                    DataParticleKey.VALUE: echo_characters},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.OUTPUT_FORMAT,
+                    DataParticleKey.VALUE: output_format},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.OUTPUT_SALINITY,
+                    DataParticleKey.VALUE: output_salinity},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.OUTPUT_SOUND_VELOCITY,
+                    DataParticleKey.VALUE: output_sound_velocity},
+                  {DataParticleKey.VALUE_ID: SBE16StatusParticleKey.SERIAL_SYNC_MODE,
+                    DataParticleKey.VALUE: serial_sync_mode}]
         
         return result
 
@@ -424,14 +547,17 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         matchers = []
         return_list = []
 
-        patterns.append((SAMPLE_PATTERN, 
-                         re.MULTILINE|re.DOTALL))
+        patterns.append((SAMPLE_PATTERN)) 
+        #                 re.MULTILINE|re.DOTALL))
 
-        patterns.append((STATUS_PATTERN, 
-                         re.MULTILINE|re.DOTALL))
+        #patterns.append((STATUS_PATTERN)) 
+        #                 re.MULTILINE|re.DOTALL))
 
-        for pattern, flags in patterns:
-            matchers.append(re.compile(pattern, flags))
+        #for pattern, flags in patterns:
+        #    matchers.append(re.compile(pattern, flags))
+
+        for pattern in patterns:
+            matchers.append(re.compile(pattern))
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
@@ -785,7 +911,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         kwargs['timeout'] = 30
-        result = self._do_cmd_resp('ds', *args, **kwargs)
+        result = self._do_cmd_no_resp('ds', *args, **kwargs)
 
         return (next_state, (next_agent_state, result))
 
@@ -1006,7 +1132,6 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
                     self._param_dict.update(sline.lstrip())
             elif 'output salinity' in line:
                 for sline in line.split(','):
-                    print ' ==========> DHE TEMP: split this: ' + sline.lstrip()
                     self._param_dict.update(sline.lstrip())
             else: 
                 self._param_dict.update(line)
@@ -1073,7 +1198,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         
         return (success, response)        
                 
-    def got_data(self, paPacket):
+    def old_got_data(self, paPacket):
         """
         Callback for receiving new data from the device.
         """
@@ -1116,17 +1241,20 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
                         so only call extract_sample if len greater than zero.
                         """
                         if len(line) > 0 and line.endswith(NEWLINE):
+                            print "====> DHE TEMPTEMP calling extract sample"
                             sample = self._extract_sample(SBE16DataParticle, 
                                                           SAMPLE_REGEX,
                                                           line)
                 
-    def new_got_data(self, paPacket):
+    def got_data(self, paPacket):
         """
         Callback for receiving new data from the device.
         """
         length = paPacket.get_data_size()
         data = paPacket.get_data()
         tempLength = len(data)
+        
+        print "--> DHE: got_data(): " + data
 
         if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
             # direct access mode
@@ -1146,16 +1274,21 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
             return
 
         if length > 0:
-            
+                
             # Call the superclass to update line and prompt buffers.
             CommandResponseInstrumentProtocol.got_data(self, data)
 
-            self._chunker.add_chunk(data)
-
-            chunk = self._chunker.get_next_data()
-            while(chunk):
-                self._extract_sample(SBE16StatusParticle, STATUS_REGEX, chunk)
+            if self.get_current_state() == ProtocolState.AUTOSAMPLE:
+        
+                self._chunker.add_chunk(data)
+        
+                print "==> DHE TEMPTEMP ADDING CHUNK"
                 chunk = self._chunker.get_next_data()
+                while (chunk):
+                    print "====> DHE TEMPTEMP new_got_data calling extract sample"
+                    self._extract_sample(SBE16DataParticle, SAMPLE_REGEX, chunk)
+                    self._extract_sample(SBE16StatusParticle, STATUS_REGEX, chunk)
+                    chunk = self._chunker.get_next_data()
                 
     def _build_param_dict(self):
         """

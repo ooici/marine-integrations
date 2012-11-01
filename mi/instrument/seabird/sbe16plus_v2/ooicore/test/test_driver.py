@@ -148,7 +148,9 @@ PARAMS = {
 """
 Test Inputs
 """
-VALID_SAMPLE = "24.0088,  0.00001,   -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n"
+VALID_SAMPLE = "# 20.0918,  0.00001,   -0.168,   0.0101, 31 Oct 2012 20:44:14\r\n"
+VALID_SAMPLE2 = "24.0088,  0.00001,   -0.000,   0.0117, 03 Oct 2012 20:59:04\r\n"
+
 # A beginning fragment (truncated)
 VALID_SAMPLE_FRAG_01 = "24.0088,  0.00001"
 # Ending fragment (the remainder of the above frag)
@@ -159,7 +161,23 @@ VALID_SAMPLE_FRAG_03 = "24.0088,  0.00001, -0.000,   0.0117, 03 Oct 2012 20:59:0
 INVALID_SAMPLE = "bogus sample 03 Oct 2012 20:59:04\r\n24.0088,  0.00001"
 
 DS_RESPONSE = 'SBE 16plus V 2.2  SERIAL NO. 6841    29 Oct 2012 20:20:55' + NEWLINE + \
-               'vbatt = 12.9, vlith =  8.5, ioper =  61.2 ma, ipump = 255.5 ma' 
+               'vbatt = 12.9, vlith =  8.5, ioper =  61.2 ma, ipump = 255.5 ma,' + NEWLINE + \
+               'status = not logging' + NEWLINE + \
+               'samples = 3684, free = 4382858' + NEWLINE + \
+               'sample interval = 10 seconds, number of measurements per sample = 10' + NEWLINE + \
+               'pump = run pump during sample, delay before sampling = 0.0 seconds' + NEWLINE + \
+               'transmit real-time = yes' + NEWLINE + \
+               'battery cutoff =  7.5 volts' + NEWLINE + \
+               'pressure sensor = strain gauge, range = 160.0' + NEWLINE + \
+               'SBE 38 = no, SBE 50 = no, WETLABS = no, OPTODE = no, Gas Tension Device = no' + NEWLINE + \
+               'Ext Volt 0 = no, Ext Volt 1 = no' + NEWLINE + \
+               'Ext Volt 2 = no, Ext Volt 3 = no' + NEWLINE + \
+               'Ext Volt 4 = no, Ext Volt 5 = no' + NEWLINE + \
+               'echo characters = yes' + NEWLINE + \
+               'output format = converted decimal' + NEWLINE + \
+               'output salinity = yes, output sound velocity = no' + NEWLINE + \
+               'serial sync mode disabled' + NEWLINE
+
 
 class RequiredCapabilities(BaseEnum):
     """
@@ -296,9 +314,8 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         paPacket.attach_data(test_sample)
         paPacket.pack_header()
   
-        test_driver._protocol.new_got_data(paPacket)
+        test_driver._protocol.got_data(paPacket)
         
-
                 
     """
     Test that the get_resource_params() method returns a list of params
@@ -1812,12 +1829,11 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
     # Qualification tests live in the base class.  This class is extended
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.
-    pass
 
     def assertSampleDataParticle(self, val):
         """
         Verify the value for a sbe16 sample data particle
-
+    
         {
           'quality_flag': 'ok',
           'preferred_timestamp': 'driver_timestamp',
@@ -1845,12 +1861,12 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
           ],
         }
         """
-
+    
         if (isinstance(val, SBE16DataParticle)):
             sample_dict = json.loads(val.generate_parsed())
         else:
             sample_dict = val
-
+    
         self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
             DataParticleValue.PARSED)
         self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
@@ -1860,11 +1876,141 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
             list))
         self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
         self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
-
+    
         for x in sample_dict['values']:
-            self.assertTrue(x['value_id'] in ['temp', 'conductivity', 'depth', 'salinity'])
+            self.assertTrue(x['value_id'] in ['temp', 'conductivity', 'pressure', 'salinity'])
             self.assertTrue(isinstance(x['value'], float))
-
+    
+    
+    def assertStatusParticle(self, val):
+        """
+        Verify the value for a sbe16 sample data particle
+    
+        {
+          'quality_flag': 'ok',
+          'preferred_timestamp': 'driver_timestamp',
+          'stream_name': 'parsed',
+          'pkt_format_id': 'JSON_Data',
+          'pkt_version': 1,
+          'driver_timestamp': 3559843883.8029947,
+          'values': [
+            {
+              'value_id': 'firmware_version',
+              'value': '2.2'
+            },
+            {
+              'value_id': 'serial_number',
+              'value': 'some string'
+            },
+            {
+              'value_id': 'date_time',
+              'value': 'some_string'
+            },
+            {
+              'value_id': 'vbatt',
+              'value': 'some string'
+            },
+            {
+              'value_id': 'vlith',
+              'value': 'some string'
+            }, ... (and so on)
+            
+          ],
+        }
+        """
+    
+        if (isinstance(val, SBE16StatusParticle)):
+            sample_dict = json.loads(val.generate_parsed())
+        else:
+            sample_dict = val
+    
+        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
+            DataParticleValue.PARSED)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
+            DataParticleValue.JSON_DATA)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
+            list))
+        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+    
+        for x in sample_dict['values']:
+            if (x['value_id'] not in [
+                'firmware_version', 
+                'serial_number',
+                'date_time', 
+                'vbatt', 
+                'vlith',
+                "ioper",
+                "ipump",
+                "status",
+                "samples",
+                "free",
+                "sample_interval",
+                "measurements_per_sample",
+                "run_pump_during_sample",
+                "delay_before_sampling",
+                "tx_real_time",
+                "battery_cutoff",
+                "pressure_sensor",
+                "range",
+                "sbe38",
+                "sbe50",
+                "wetlabs",
+                "optode",
+                "gas_tension_device",
+                "ext_volt_0",
+                "ext_volt_1",
+                "ext_volt_2",
+                "ext_volt_3",
+                "ext_volt_4",
+                "ext_volt_5",
+                "echo_characters",
+                "output_format",
+                "output_salinity",
+                "output_sound_velocity",
+                "serial_sync_mode"
+            ]):
+                print str(x['value_id']) + " NOT in stream!"
+    
+        for x in sample_dict['values']:
+            self.assertTrue(x['value_id'] in [
+                'firmware_version', 
+                'serial_number',
+                'date_time', 
+                'vbatt', 
+                'vlith',
+                "ioper",
+                "ipump",
+                "status",
+                "samples",
+                "free",
+                "sample_interval",
+                "measurements_per_sample",
+                "run_pump_during_sample",
+                "delay_before_sampling",
+                "tx_real_time",
+                "battery_cutoff",
+                "pressure_sensor",
+                "range",
+                "sbe38",
+                "sbe50",
+                "wetlabs",
+                "optode",
+                "gas_tension_device",
+                "ext_volt_0",
+                "ext_volt_1",
+                "ext_volt_2",
+                "ext_volt_3",
+                "ext_volt_4",
+                "ext_volt_5",
+                "echo_characters",
+                "output_format",
+                "output_salinity",
+                "output_sound_velocity",
+                "serial_sync_mode"
+            ])
+            self.assertTrue(isinstance(x['value'], str))
 
     @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 2400}}})
     def test_direct_access_telnet_mode(self):
@@ -2132,7 +2278,7 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         self.assertTrue(self.check_for_reused_values(ProtocolState))
 
 
-    def test_autosample(self):
+    def old_test_autosample(self):
         """
         Test instrument driver execute interface to start and stop streaming
         mode.
@@ -2180,12 +2326,15 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         self.assertEqual(state, ResourceAgentState.STREAMING)
 
         # Assert we got 3 samples.
-        samples = self.data_subscribers.get_samples(DataParticleValue.PARSED, 3, timeout=60)
-        self.assertGreaterEqual(len(samples), 3)
+        #samples = self.data_subscribers.get_samples(DataParticleValue.PARSED, 3, timeout=60)
+        #self.assertGreaterEqual(len(samples), 3)
+
+        samples = self.data_subscribers.get_samples(DataParticleValue.PARSED, 1, timeout=60)
+        self.assertGreaterEqual(len(samples), 1)
 
         self.assertSampleDataParticle(samples.pop())
-        self.assertSampleDataParticle(samples.pop())
-        self.assertSampleDataParticle(samples.pop())
+        #self.assertSampleDataParticle(samples.pop())
+        #self.assertSampleDataParticle(samples.pop())
 
         # Halt streaming.
         cmd = AgentCommand(command=ProtocolEvent.STOP_AUTOSAMPLE)
@@ -2261,6 +2410,60 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
         self.doCleanups()
+
+    def test_sample_polled(self):
+        '''
+        No polling for a single sample
+        '''
+        self.assert_sample_polled(self.assertSampleDataParticle,
+                                  DataParticleValue.PARSED)
+        pass
+
+    def test_sample_autosample(self):
+        '''
+        No polling for a single sample
+        '''
+        self.assert_sample_autosample(self.assertSampleDataParticle,
+                                  DataParticleValue.PARSED)
+        pass
+
+    def test_acquire_status(self):
+        '''
+        No polling for a single sample
+        '''
+        self.assert_acquire_status(self.assertStatusParticle,
+                                   DataParticleValue.PARSED)
+        pass
+
+    def old_test_acquire_status(self):
+        """
+        Test ACQUIRE_STATUS 
+        """
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
+        cmd = AgentCommand(command=ProtocolEvent.ACQUIRE_STATUS)
+        retval = self.instrument_agent_client.execute_resource(cmd)
+
 
 
     def test_execute_reset(self):
@@ -2367,36 +2570,6 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
         """
-
-    def test_acquire_status(self):
-        """
-        Test ACQUIRE_STATUS 
-        """
-        self.data_subscribers.start_data_subscribers()
-        self.addCleanup(self.data_subscribers.stop_data_subscribers)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
-
-        #### From herehere down convert to agent-version
-        start_time = time.time()
-        cmd = AgentCommand(command=ProtocolEvent.ACQUIRE_SAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd)
 
 
 
