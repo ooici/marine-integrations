@@ -791,7 +791,6 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
                 # Shouldn't get here.  If we have then we aren't checking a parameter
                 self.assertFalse(True)
 
-    @unittest.skip("Just because")
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
