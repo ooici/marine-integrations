@@ -415,7 +415,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         # Start state machine.
         self._connection_fsm.start(DriverConnectionState.UNCONFIGURED)
         
-        self.pre_da_config = {}
+        self._pre_da_config = {}
                 
     #############################################################
     # Device connection interface.
@@ -450,7 +450,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         """
         # Forward event and argument to the connection FSM.
         result = self._connection_fsm.on_event(DriverEvent.CONNECT, *args, **kwargs)
-        if args[0] and isinstance(args[0], dict):
+        if len(args) > 0 and isinstance(args[0], dict):
             self.set_init_params(args[0])
         return result
     
@@ -840,8 +840,8 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @retval (next_state, result) tuple, (None, protocol result).
         """
         next_state = None
-        self._pre_da_config = self.get_resource(DriverEvent.GET,
-                                                [DriverParameter.ALL])
+        self._pre_da_config = self.get_resource(DriverParameter.ALL)
+
         result = self._protocol._protocol_fsm.on_event(event, *args, **kwargs)
         return (next_state, result)
     
