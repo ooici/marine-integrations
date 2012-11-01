@@ -15,9 +15,10 @@ from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 #from mi.core.instrument.data_particle import DataParticle
-from mi.instrument.satlantic.par_ser_600m.ooicore.driver import SAMPLE_REGEX
-from mi.instrument.satlantic.par_ser_600m.ooicore.driver import SatlanticPARDataParticle
+from mi.instrument.satlantic.par_ser_600m.driver import SAMPLE_REGEX
+from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticle
 from pyon.util.unit_test import IonUnitTestCase
+from mi.core.exceptions import InstrumentParameterException
 
 @attr('UNIT', group='mi')
 class TestUnitInstrumentProtocol(IonUnitTestCase):
@@ -37,7 +38,7 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
         self.protocol = InstrumentProtocol(protocol_callback)
     
     def test_extraction(self):
-        sample_line = "SATPAR0229,10.01,2206748544,234"
+        sample_line = "SATPAR0229,10.01,2206748544,234\r\n"
         result = self.protocol._extract_sample(SatlanticPARDataParticle,
                                                SAMPLE_REGEX,
                                                sample_line,
@@ -77,6 +78,90 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
         InstrumentAgent via the event callback.
         """
         # similar to above
-        self.assertTrue(False)    
+        self.assertTrue(False)
         
-    
+    def test_get_running_config(self):
+        """
+        Checks to see that one can successfully get the running config from an
+        instrument protocol.
+        """
+        # set some values
+        log.debug("First param_dict: %s", self.protocol._param_dict.get_config())
+        self.protocol._param_dict.add("foo", r'foo=(.*)',
+                             lambda match : int(match.group(1)),
+                             lambda x : str(x),
+                             direct_access=True,
+                             default_value=10)
+        self.protocol._param_dict.set_default("foo") # test hack to set w/o fetch
+        self.protocol._param_dict.add("bar", r'bar=(.*)',
+                             lambda match : int(match.group(1)),
+                             lambda x : str(x),
+                             direct_access=False,
+                             default_value=15)
+        self.protocol._param_dict.set_default("bar")
+                
+        self.assertEquals(self.protocol._param_dict.get("foo"), 10)
+        self.assertEquals(self.protocol._param_dict.get("bar"), 15)
+        result = self.protocol.get_cached_config()
+        self.assertEquals(result['foo'], 10)
+        self.assertEquals(result['bar'], 15)
+
+        self.protocol._param_dict.update("bar=20")
+        result = self.protocol.get_cached_config()
+        self.assertEquals(result['foo'], 10)
+        self.assertEquals(result['bar'], 20)
+        self.assertEquals(self.protocol._param_dict.get("bar"), 20)
+        
+        # get and check the running config
+        result = self.protocol.get_cached_config()
+        self.assertTrue(isinstance(result, dict))
+        self.assertEquals(result['foo'], 10)
+        self.assertEquals(result['bar'], 20)
+
+    def test_init_values(self):
+        """
+        Test getting and setting the initialization value for a parameter
+        """
+        # set an additional value for test
+        self.protocol._param_dict.add("foo", r'foo=(.*)',
+                             lambda match : int(match.group(1)),
+                             lambda x : str(x),
+                             direct_access=True,
+                             startup_param=True,
+                             default_value=10)
+        self.protocol._param_dict.add("bar", r'bar=(.*)',
+                             lambda match : int(match.group(1)),
+                             lambda x : str(x),
+                             direct_access=False,
+                             startup_param=True,
+                             default_value=15)
+        self.protocol._param_dict.add("baz", r'baz=(.*)',
+                             lambda match : int(match.group(1)),
+                             lambda x : str(x),
+                             direct_access=True,
+                             default_value=20)
+        self.protocol._param_dict.add("bat", r'bat=(.*)',
+                             lambda match : int(match.group(1)),
+                             lambda x : str(x),
+                             startup_param=False,
+                             default_value=20)
+        self.protocol._param_dict.add("qux", r'qux=(.*)',
+                             lambda match : int(match.group(1)),
+                             lambda x : str(x),
+                             startup_param=True)
+        self.protocol._param_dict.update("qux=6666")
+        
+        # mark init params
+        self.assertRaises(InstrumentParameterException,
+                          self.protocol.set_init_params, [])
+        self.protocol.set_init_params({"foo": 1111, "baz":2222})
+        
+        # get new startup config
+        result = self.protocol.get_startup_config()
+        
+        self.assertEquals(len(result), 3)
+        self.assertEquals(result["foo"], 1111) # init param
+        self.assertEquals(result["bar"], 15)   # default param
+        self.assertEquals(result["qux"], 6666) # set param
+        
+        
