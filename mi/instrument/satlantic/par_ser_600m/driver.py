@@ -1125,34 +1125,16 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                                  write_delay=write_delay)
             if self._confirm_command_mode():
                 break  
-            
-    def got_data(self, paPacket):
-        """ 
-        Callback for receiving new data from the device.
-        The port agent object fires this when data is received
-        @param paPacket The packet of data that was received
-        """
-        paLength = paPacket.get_data_size()
-        paData = paPacket.get_data()
 
-        if self.get_current_state() == PARProtocolState.DIRECT_ACCESS:
-            # direct access mode
-            if paLength > 0:
-                log.debug("SatlanticPARInstrumentProtocol.got_data(): <" + paData + ">") 
-                if self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
-                    # TODO: what about logging this as an event?
-            return
 
-        if paLength > 0:
-            CommandResponseInstrumentProtocol.got_data(self, paData)
-            self._chunker.add_chunk(paData)
+    def _got_chunk(self, chunk):
+        '''
+        extract samples from a chunk of data
+        @param chunk: bytes to parse into a sample.
+        '''
+        self._extract_sample(SatlanticPARDataParticle, SAMPLE_REGEX, chunk)
+        self._extract_header(chunk)
 
-            chunk = self._chunker.get_next_data()
-            while(chunk):
-                self._extract_sample(SatlanticPARDataParticle, SAMPLE_REGEX, chunk)
-                self._extract_header(chunk)
-                chunk = self._chunker.get_next_data()
 
     def _extract_header(self, chunk):
         '''

@@ -6,9 +6,6 @@
 @brief Base classes for instrument driver tests.  
 """
 
-# Import pyon first for monkey patching.
-from mi.core.log import get_logger ; log = get_logger()
-
 from mock import patch
 from pyon.core.bootstrap import CFG
 
@@ -24,6 +21,9 @@ from sets import Set
 # If you DO care about couch content make sure you do a force_clean when needed.
 from pyon.core import bootstrap
 bootstrap.testing = False
+
+# Import pyon first for monkey patching.
+from mi.core.log import get_logger ; log = get_logger()
 
 import gevent
 import json
@@ -73,7 +73,7 @@ from pyon.agent.agent import ResourceAgentEvent
 # Do not remove this import.  It is for package building.
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
-GO_ACTIVE_TIMEOUT=160
+GO_ACTIVE_TIMEOUT=60
 
 class AgentCapabilityType(BaseEnum):
     AGENT_COMMAND = 'agent_command'
@@ -951,6 +951,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
 
 
+    @unittest.skip("testing")
     def test_instrument_agent_common_state_model_lifecycle(self):
         """
         @brief Test agent state transitions.
@@ -1101,6 +1102,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
 
+    @unittest.skip("testing")
     def test_instrument_agent_to_instrument_driver_connectivity(self):
         """
         @brief This test verifies that the instrument agent can
@@ -1232,6 +1234,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         unique_set = Set(item for item in list_in)
         return [(item) for item in unique_set]
 
+    @unittest.skip("testing")
     def test_driver_notification_messages(self):
         """
         @brief This tests event messages from the driver.  The following
