@@ -416,6 +416,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._connection_fsm.start(DriverConnectionState.UNCONFIGURED)
         
         self._pre_da_config = {}
+        self._pre_connect_config = {}
                 
     #############################################################
     # Device connection interface.
@@ -450,8 +451,11 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         """
         # Forward event and argument to the connection FSM.
         result = self._connection_fsm.on_event(DriverEvent.CONNECT, *args, **kwargs)
+        init_config = {}
         if len(args) > 0 and isinstance(args[0], dict):
-            self.set_init_params(args[0])
+            init_config = args[0]
+
+        self.set_init_params(init_config)
         return result
     
     def disconnect(self, *args, **kwargs):
@@ -470,6 +474,11 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         Set the initialization parameters down in the protocol. These are the
         values that should be set upon initialization or re-initialization of
         a device.
+
+        If the protocol hasn't been setup yet cache the config.  Next time
+        this method is called, if you call it with an empty config it will
+        read from the cache.
+
         @param config This default configuration assumes a simple name/value
         dict of the parameters and their initialization parameters. Stranger
         parameters can be adjusted by over riding this method.
@@ -477,8 +486,14 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         """
         if not isinstance(config, dict):
             raise InstrumentParameterException("Incompatible initialization parameters")
-        
-        self._protocol.set_init_params(config)
+
+        if(self._protocol):
+            if(len(config)):
+                self._protocol.set_init_params(config)
+            elif(len(self._pre_connect_config)):
+                self._protocol.set_init_params(self._pre_connect_config)
+        else:
+            self._pre_connect_config = config
     
     def apply_startup_params(self):
         """

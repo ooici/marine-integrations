@@ -294,7 +294,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.MAXRATE,
                              r'Maximum Frame Rate:\s+(\d+) Hz',
                              lambda match : int(match.group(1)),
-                             self._int_to_string)
+                             self._int_to_string,
+                             startup_param=True)
 
         self._param_dict.add(Parameter.INSTRUMENT, HEADER_PATTERN,
             lambda match : match.group(1), str,
