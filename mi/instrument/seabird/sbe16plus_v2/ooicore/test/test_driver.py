@@ -138,7 +138,8 @@ PARAMS = {
     Parameter.PTCB1 : float,
     Parameter.PTCB2 : float,
     Parameter.POFFSET : float,
-    Parameter.DATE_TIME : str
+    Parameter.DATE_TIME : str,
+    Parameter.LOGGING : bool
     # DHE this doesn't show up in the status unless the
     # SYNCMODE is enabled.  Need to change the test to
     # test for SYNCMODE and if true test for SYNCWAIT
@@ -260,7 +261,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
                 self.parsed_stream_received += 1
 
     def test_status_line(self):
-        particle = SBE16StatusParticle(DS_RESPONSE, port_timestamp = 3558720820.531179)
+        particle = SBE16StatusParticle(VALID_DS_RESPONSE, port_timestamp = 3558720820.531179)
         parsed = particle.generate_parsed()
 
     def test_got_data(self):
@@ -946,8 +947,8 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         self.assertEqual(str(_update_params_mock.mock_calls), "[call()]")
         self.assertEqual(str(_update_driver_event.mock_calls), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
 
-
-    def test_initialize_time(self):
+    @unittest.skip("This is here for manual debugging.")    
+    def test_manually(self):
         """
         """
         """
@@ -1122,14 +1123,12 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         """
         self.assertEqual(set(params.keys()), set(correct_params.keys()))
         for (key, val) in params.iteritems():
+            if key == Parameter.DATE_TIME: 
+                continue
             correct_val = correct_params[key]
             if isinstance(val, float):
                 # Verify to 5% of the larger value.
                 max_val = max(abs(val), abs(correct_val))
-                #
-                # DHE TEMPTEMP
-                #
-                print 'val = ' + str(val) + ', correct_val = ' + str(correct_val) + ', delta = ' + str(max_val*.01)
                 self.assertAlmostEqual(val, correct_val, delta=max_val*.01)
 
             else:
@@ -1998,7 +1997,8 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
                 "output_sound_velocity",
                 "serial_sync_mode"
             ]):
-                print str(x['value_id']) + " NOT in stream!"
+                error_string = str(x['value_id']) + " NOT in stream!"
+                log.error(error_string)
     
         for x in sample_dict['values']:
             self.assertTrue(x['value_id'] in [
@@ -2440,7 +2440,7 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         No polling for a single sample
         '''
         self.assert_sample_polled(self.assertSampleDataParticle,
-                                  DataParticleValue.PARSED)
+                                  DataParticleValue.PARSED, timeout = 60)
         pass
 
     def test_sample_autosample(self):
@@ -2448,7 +2448,7 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         No polling for a single sample
         '''
         self.assert_sample_autosample(self.assertSampleDataParticle,
-                                  DataParticleValue.PARSED)
+                                  DataParticleValue.PARSED, timeout = 60)
         pass
 
     def test_acquire_status(self):

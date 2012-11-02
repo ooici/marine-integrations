@@ -699,7 +699,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE), res_iface)
         self.assertEqual(capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER), res_pars)
 
-    def assert_sample_polled(self, sampleDataAssert, sampleQueue):
+    def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout = 10):
         """
         Test observatory polling function.
 
@@ -734,20 +734,20 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         # Watch the parsed data queue and return once three samples
         # have been read or the default timeout has been reached.
-        samples = self.data_subscribers.get_samples(sampleQueue, 3)
+        samples = self.data_subscribers.get_samples(sampleQueue, 3, timeout = timeout)
         self.assertGreaterEqual(len(samples), 3)
         log.error("SAMPLE: %s" % samples)
 
         # Verify
-        sampleDataAssert(self, samples.pop())
-        sampleDataAssert(self, samples.pop())
-        sampleDataAssert(self, samples.pop())
+        sampleDataAssert(samples.pop())
+        sampleDataAssert(samples.pop())
+        sampleDataAssert(samples.pop())
 
         self.assert_reset()
 
         self.doCleanups()
 
-    def assert_sample_autosample(self, sampleDataAssert, sampleQueue):
+    def assert_sample_autosample(self, sampleDataAssert, sampleQueue, timeout = 10):
         """
         Test instrument driver execute interface to start and stop streaming
         mode.
@@ -768,7 +768,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assert_start_autosample()
 
         # Assert we got 3 samples.
-        samples = self.data_subscribers.get_samples(sampleQueue, 3)
+        samples = self.data_subscribers.get_samples(sampleQueue, 3, timeout = timeout)
         self.assertGreaterEqual(len(samples), 3)
 
         s = samples.pop()

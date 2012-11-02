@@ -143,6 +143,7 @@ class Parameter(DriverParameter):
     PTCB2 = 'PTCB2'
     POFFSET = 'POFFSET'
     DATE_TIME = "DateTime"
+    LOGGING = "logging"
     # DHE This doesn't show up in status when SYNCMODE
     # is disabled, so the tests fail.  Commenting out for 
     # now.  Bill F. said that we won't be using SYNCWAIT .
@@ -593,42 +594,44 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if the device response does not correspond to
         an expected state.
         """
+        
+        current_state = self._protocol_fsm.get_current_state()
+        
         next_state = None
         next_agent_state = None
 
-        current_state = self._protocol_fsm.get_current_state()
-        
-        # Driver can only be started in streaming, command or unknown.
-        if current_state == ProtocolState.AUTOSAMPLE:
+        timeout = kwargs.get('timeout', SBE16_TIMEOUT)
+        prompt = self._wakeup(timeout)
+        prompt = self._wakeup(timeout)
+
+        """
+        get the configuration parameters; one of the params is the logging 
+        parameter, which tells us if we're in AUTOSAMPLE or not.
+        """
+        self._do_cmd_resp(Command.DS,timeout=timeout)
+        self._do_cmd_resp(Command.DCAL,timeout=timeout)
+        config = self._param_dict.get_config()
+
+        logging_state = config[Parameter.LOGGING]
+        log.debug("SBE16plus_v2 logging state is: %s", str(logging_state))
+        if logging_state == True:
+            next_state = ProtocolState.AUTOSAMPLE
             next_agent_state = ResourceAgentState.STREAMING
-        
-        elif current_state == ProtocolState.COMMAND:
+        elif logging_state == False:
+            """
+            Set the time here; might want to move this to somewhere else
+            """
+            str_utc_time = get_timestamp_delayed("%d %b %Y %H:%M:%S")
+            self._do_cmd_resp(Command.SET, Parameter.DATE_TIME,
+                      str_utc_time, **kwargs)
+            log.info("SBE16plus_v2 time set to UTC: %s", str_utc_time) 
+
+            next_state = ProtocolState.COMMAND
             next_agent_state = ResourceAgentState.IDLE
-        
-        elif current_state == ProtocolState.UNKNOWN:        
-            # Wakeup the device with timeout if passed.
-            timeout = kwargs.get('timeout', SBE16_TIMEOUT)
-            prompt = self._wakeup(timeout)
-            prompt = self._wakeup(timeout)
-            
-            # Set the state to change.
-            # Raise if the prompt returned does not match command or autosample.
-            if prompt in [Prompt.COMMAND, Prompt.EXECUTED]:
-                # DHE: Need a base class that sets time on second edge.
-                str_utc_time = get_timestamp_delayed("%d %b %Y %H:%M:%S")
-                #str_utc_time = self._get_utc_time_at_second_edge()
-                self._do_cmd_resp(Command.SET, Parameter.DATE_TIME,
-                          str_utc_time, **kwargs)
-                log.info("SBE16plus_v2 time set to UTC: %s", str_utc_time) 
-                
-                next_state = ProtocolState.COMMAND
-                next_agent_state = ResourceAgentState.IDLE
-            elif prompt == Prompt.AUTOSAMPLE:
-                next_state = ProtocolState.AUTOSAMPLE
-                next_agent_state = ResourceAgentState.STREAMING
-            else:
-                errorString = 'Failure to recognize device prompt: ' + prompt
-                raise InstrumentProtocolException(errorString) 
+        else:
+            errorString = 'Unknown state based on value of configuration parameter LOGGING: ' + str(logging_state)
+            log.error(errorString)
+            raise InstrumentStateException(errorString)
             
         return (next_state, next_agent_state)
 
@@ -1052,7 +1055,6 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if ds/dc misunderstood.
         """
 
-        
         # Get old param dict config.
         old_config = self._param_dict.get_config()
         
@@ -1259,15 +1261,8 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
                              r'sample interval = (\d+) seconds',
                              lambda match : int(match.group(1)),
                              self._int_to_string)
-        # DHE: 16plus does not do this
-        #self._param_dict.add(Parameter.STORETIME,
-        #                     r'(do not )?store time with each sample',
-        #                     lambda match : False if match.group(1) else True,
-        #                     self._true_false_to_string)
         self._param_dict.add(Parameter.TXREALTIME,
-                             #r'(do not )?transmit real-time data',
                              r'transmit real-time = (yes|no)',
-                             #lambda match : False if match.group(1) else True,
                              lambda match : True if match.group(1)=='yes' else False,
                              self._true_false_to_string)
         self._param_dict.add(Parameter.SYNCMODE,
@@ -1322,23 +1317,10 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
                              r' +J = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        #
-        # DHE SBE16 doesn't have this parameter
-        #
-        #self._param_dict.add(Parameter.WBOTC,
-        #                     r' +WBOTC = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                     self._float_to_string)
-        #
-        # DHE SBE16 different than SBE16
-        #
         self._param_dict.add(Parameter.CTCOR,
                              r' +CTCOR = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
                              self._float_to_string)
-        #
-        # DHE SBE16 different than SBE16
-        #
         self._param_dict.add(Parameter.CPCOR,
                              r' +CPCOR = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
@@ -1386,29 +1368,16 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.POFFSET,
                              r' +POFFSET = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string),
+                             self._float_to_string)
         self._param_dict.add(Parameter.DATE_TIME,
                              r'SBE 16plus V ([\w.]+) +SERIAL NO. (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)', 
                              lambda match : string.upper(match.group(3)),
                              self._string_to_numeric_date_time_string)
+        self._param_dict.add(Parameter.LOGGING,
+                             r'status = (not )?logging',
+                             lambda match : False if (match.group(1)) else True,
+                             self._true_false_to_string)
                              
-        #self._param_dict.add(Parameter.RCALDATE,
-        #                     r'rtc: +((\d+)-([a-zA-Z]+)-(\d+))',
-        #                     lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
-        #                     self._date_to_string)
-        #self._param_dict.add(Parameter.RTCA0,
-        #                     r' +RTCA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                     self._float_to_string)
-        #self._param_dict.add(Parameter.RTCA1,
-        #                     r' +RTCA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                     self._float_to_string)
-        #self._param_dict.add(Parameter.RTCA2,
-        #                     r' +RTCA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-        #                     lambda match : float(match.group(1)),
-        #                     self._float_to_string)
-    
 
     ########################################################################
     # Static helpers to format set commands.

@@ -398,9 +398,14 @@ class RunInstrument(IonIntegrationTestCase):
     
             res_state = self._ia_client.get_resource_state()
             print "DriverState: " + str(res_state)
-    
-            cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-            retval = self._ia_client.execute_agent(cmd)
+
+            """
+            If the agent is in STREAMING state, it will not accept the run
+            command.
+            """
+            if state != ResourceAgentState.STREAMING:    
+                cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+                retval = self._ia_client.execute_agent(cmd)
 
             state = self._ia_client.get_agent_state()
             print "AgentState: " + str(state)
