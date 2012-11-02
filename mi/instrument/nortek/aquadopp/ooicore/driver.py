@@ -59,7 +59,7 @@ HEAD_CONFIG_SYNC_BYTES = '\xa5\x04\x70\x00'
 VELOCITY_DATA_LEN = 42
 VELOCITY_DATA_SYNC_BYTES = '\xa5\x01\x15\x00'
 DIAGNOSTIC_DATA_HEADER_LEN = 36
-DIAGNOSTIC_DATA_HEADER_SYNC_BYTES = '\xa5\x06\x12\x00'
+DIAGNOSTIC_DATA_HEADER_SYNC_BYTES = '\xa5\x06'
 DIAGNOSTIC_DATA_LEN = 42
 DIAGNOSTIC_DATA_SYNC_BYTES = '\xa5\x80\x15\x00'
 
@@ -69,9 +69,9 @@ sample_structures = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
 
 VELOCITY_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})' % VELOCITY_DATA_SYNC_BYTES
 VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN)
-DIAGNOSTIC_DATA_HEADER_PATTERN = r'^%s(.*)' % DIAGNOSTIC_DATA_HEADER_SYNC_BYTES
+DIAGNOSTIC_DATA_HEADER_PATTERN = r'^%s(.{1})(.{1})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{1})(.{1})(.{1})' % DIAGNOSTIC_DATA_HEADER_SYNC_BYTES
 DIAGNOSTIC_DATA_HEADER_REGEX = re.compile(DIAGNOSTIC_DATA_HEADER_PATTERN)
-DIAGNOSTIC_DATA_PATTERN = r'^%s(.*)' % DIAGNOSTIC_DATA_SYNC_BYTES
+DIAGNOSTIC_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})' % DIAGNOSTIC_DATA_SYNC_BYTES
 DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN)
 
 # Packet config
@@ -406,6 +406,17 @@ class BinaryProtocolParameterDict(ProtocolParameterDict):
             calculated_checksum = (calculated_checksum + word_value) % 0x10000
             #log.debug('w_i=%d, c_c=%d' %(word_index, calculated_checksum))
         return calculated_checksum
+
+    @staticmethod
+    def convert_time(response):
+        time = str(response[2].encode('hex'))  # get day
+        time += '/' + str(response[5].encode('hex'))  # get month   
+        time += '/20' + str(response[4].encode('hex'))  # get year   
+        time += ' ' + str(response[3].encode('hex'))  # get hours   
+        time += ':' + str(response[0].encode('hex'))  # get minutes   
+        time += ':' + str(response[1].encode('hex'))  # get seconds   
+        return time
+    
             
 
 ###############################################################################
@@ -455,6 +466,109 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 # Data particles
 ###############################################################################
 
+class AquadoppDwDiagnosticHeaderDataParticleKey(BaseEnum):
+    ANALOG1 = "analog1"
+    ANALOG2 = "analog2"
+    COUNT = "count"
+    ANALOG1 = "analog1"
+    PRESSURE = "pressure"
+    VELOCITY_BEAM1 = "velocity_beam1"
+    VELOCITY_BEAM2 = "velocity_beam2"
+    VELOCITY_BEAM3 = "velocity_beam3"
+    AMPLITUDE_BEAM1 = "amplitude_beam1"
+    AMPLITUDE_BEAM2 = "amplitude_beam2"
+    AMPLITUDE_BEAM3 = "amplitude_beam3"
+    CORRELATION_BEAM1 = "correlation_beam1"
+    CORRELATION_BEAM2 = "correlation_beam2"
+    CORRELATION_BEAM3 = "correlation_beam3"
+            
+class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
+    """
+    Routine for parsing diagnostic data header into a data particle structure for the Aquadopp DW sensor. 
+    """
+    def _build_parsed_values(self):
+        """
+        Take something in the diagnostic data header sample format and parse it into
+        values with appropriate tags.
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = DIAGNOSTIC_DATA_HEADER_REGEX.match(self.raw_data)
+        
+        if not match:
+            raise SampleException("AquadoppDwDiagnosticHeaderDataParticle: No regex match of parsed sample data: [%s]", self.decoded_raw)
+        
+        analog2 = ord(match.group(4)) * 0x100
+        analog2 += ord(match.group(1))
+        count = ord(match.group(2))
+        pressure = ord(match.group(3)) * 0x10000
+        pressure += BinaryProtocolParameterDict.convert_word_to_int(match.group(5))
+        analog1 = BinaryProtocolParameterDict.convert_word_to_int(match.group(6))
+        velocity_beam1 = BinaryProtocolParameterDict.convert_word_to_int(match.group(7))
+        velocity_beam2 = BinaryProtocolParameterDict.convert_word_to_int(match.group(8))
+        velocity_beam3 = BinaryProtocolParameterDict.convert_word_to_int(match.group(9))
+        amplitude_beam1 = ord(match.group(10))
+        amplitude_beam2 = ord(match.group(11))
+        amplitude_beam3 = ord(match.group(12))
+        correlation_beam1 = ord(match.group(13))
+        correlation_beam2 = ord(match.group(14))
+        correlation_beam3 = ord(match.group(15))
+        
+        if None == analog1:
+            raise SampleException("No analog1 value parsed")
+        if None == analog2:
+            raise SampleException("No analog2 value parsed")
+        if None == count:
+            raise SampleException("No count value parsed")
+        if None == pressure:
+            raise SampleException("No pressure value parsed")
+        if None == velocity_beam1:
+            raise SampleException("No velocity_beam1 value parsed")
+        if None == velocity_beam2:
+            raise SampleException("No velocity_beam2 value parsed")
+        if None == velocity_beam3:
+            raise SampleException("No velocity_beam3 value parsed")
+        if None == amplitude_beam1:
+            raise SampleException("No amplitude_beam1 value parsed")
+        if None == amplitude_beam2:
+            raise SampleException("No amplitude_beam2 value parsed")
+        if None == amplitude_beam3:
+            raise SampleException("No amplitude_beam3 value parsed")
+        if None == correlation_beam1:
+            raise SampleException("No correlation_beam1 value parsed")
+        if None == correlation_beam2:
+            raise SampleException("No correlation_beam2 value parsed")
+        if None == correlation_beam3:
+            raise SampleException("No correlation_beam3 value parsed")
+        
+        result = [{DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.ANALOG1,
+                   DataParticleKey.VALUE: analog1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.ANALOG2,
+                   DataParticleKey.VALUE: analog2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.COUNT,
+                   DataParticleKey.VALUE: count},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PRESSURE,
+                   DataParticleKey.VALUE: pressure},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.VELOCITY_BEAM1,
+                   DataParticleKey.VALUE: velocity_beam1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.VELOCITY_BEAM2,
+                   DataParticleKey.VALUE: velocity_beam2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.VELOCITY_BEAM3,
+                   DataParticleKey.VALUE: velocity_beam3},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.AMPLITUDE_BEAM1,
+                   DataParticleKey.VALUE: amplitude_beam1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.AMPLITUDE_BEAM2,
+                   DataParticleKey.VALUE: amplitude_beam2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.AMPLITUDE_BEAM3,
+                   DataParticleKey.VALUE: amplitude_beam3},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.CORRELATION_BEAM1,
+                   DataParticleKey.VALUE: correlation_beam1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.CORRELATION_BEAM2,
+                   DataParticleKey.VALUE: correlation_beam2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.CORRELATION_BEAM3,
+                   DataParticleKey.VALUE: correlation_beam3}]
+ 
+        return result
+    
 class AquadoppDwVelocityDataParticleKey(BaseEnum):
     TIMESTAMP = "timestamp"
     ERROR = "error"
@@ -474,11 +588,9 @@ class AquadoppDwVelocityDataParticleKey(BaseEnum):
     AMPLITUDE_BEAM2 = "amplitude_beam2"
     AMPLITUDE_BEAM3 = "amplitude_beam3"
         
-    
 class AquadoppDwVelocityDataParticle(DataParticle):
     """
-    Routine for parsing velocity data into a data particle structure for the
-    Aquadopp DW sensor. 
+    Routine for parsing velocity data into a data particle structure for the Aquadopp DW sensor. 
     """
     def _build_parsed_values(self):
         """
@@ -490,9 +602,11 @@ class AquadoppDwVelocityDataParticle(DataParticle):
         
         if not match:
             raise SampleException("AquadoppDwVelocityDataParticle: No regex match of parsed sample data: [%s]", self.decoded_raw)
-            
         
-        timestamp = self._convert_time(match.group(1))
+        return self._build_particle(match)
+            
+    def _build_particle(self, match):
+        timestamp = BinaryProtocolParameterDict.convert_time(match.group(1))
         error = BinaryProtocolParameterDict.convert_word_to_int(match.group(2))
         analog1 = BinaryProtocolParameterDict.convert_word_to_int(match.group(3))
         battery_voltage = BinaryProtocolParameterDict.convert_word_to_int(match.group(4))
@@ -500,50 +614,50 @@ class AquadoppDwVelocityDataParticle(DataParticle):
         heading = BinaryProtocolParameterDict.convert_word_to_int(match.group(6))
         pitch = BinaryProtocolParameterDict.convert_word_to_int(match.group(7))
         roll = BinaryProtocolParameterDict.convert_word_to_int(match.group(8))
-        pressure = match.group(9) * 0x1000
-        status = match.group(10)
+        pressure = ord(match.group(9)) * 0x10000
+        status = ord(match.group(10))
         pressure += BinaryProtocolParameterDict.convert_word_to_int(match.group(11))
         temperature = BinaryProtocolParameterDict.convert_word_to_int(match.group(12))
         velocity_beam1 = BinaryProtocolParameterDict.convert_word_to_int(match.group(13))
         velocity_beam2 = BinaryProtocolParameterDict.convert_word_to_int(match.group(14))
         velocity_beam3 = BinaryProtocolParameterDict.convert_word_to_int(match.group(15))
-        amplitude_beam1 = BinaryProtocolParameterDict.convert_word_to_int(match.group(16))
-        amplitude_beam2 = BinaryProtocolParameterDict.convert_word_to_int(match.group(17))
-        amplitude_beam3 = BinaryProtocolParameterDict.convert_word_to_int(match.group(18))
+        amplitude_beam1 = ord(match.group(16))
+        amplitude_beam2 = ord(match.group(17))
+        amplitude_beam3 = ord(match.group(18))
         
-        if not timestamp:
+        if None == timestamp:
             raise SampleException("No timestamp parsed")
-        if not error:
+        if None == error:
             raise SampleException("No error value parsed")
-        if not analog1:
+        if None == analog1:
             raise SampleException("No analog1 value parsed")
-        if not battery_voltage:
+        if None == battery_voltage:
             raise SampleException("No battery_voltage value parsed")
-        if not sound_speed:
+        if None == sound_speed:
             raise SampleException("No sound_speed value parsed")
-        if not heading:
+        if None == heading:
             raise SampleException("No heading value parsed")
-        if not pitch:
+        if None == pitch:
             raise SampleException("No pitch value parsed")
-        if not roll:
+        if None == roll:
             raise SampleException("No roll value parsed")
-        if not status:
+        if None == status:
             raise SampleException("No status value parsed")
-        if not pressure:
+        if None == pressure:
             raise SampleException("No pressure value parsed")
-        if not temperature:
+        if None == temperature:
             raise SampleException("No temperature value parsed")
-        if not velocity_beam1:
+        if None == velocity_beam1:
             raise SampleException("No velocity_beam1 value parsed")
-        if not velocity_beam2:
+        if None == velocity_beam2:
             raise SampleException("No velocity_beam2 value parsed")
-        if not velocity_beam3:
+        if None == velocity_beam3:
             raise SampleException("No velocity_beam3 value parsed")
-        if not amplitude_beam1:
+        if None == amplitude_beam1:
             raise SampleException("No amplitude_beam1 value parsed")
-        if not amplitude_beam2:
+        if None == amplitude_beam2:
             raise SampleException("No amplitude_beam2 value parsed")
-        if not amplitude_beam3:
+        if None == amplitude_beam3:
             raise SampleException("No amplitude_beam3 value parsed")
         
         result = [{DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.TIMESTAMP,
@@ -579,9 +693,28 @@ class AquadoppDwVelocityDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM2,
                    DataParticleKey.VALUE: amplitude_beam2},
                   {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM3,
-                    DataParticleKey.VALUE: amplitude_beam3}]
-        
+                   DataParticleKey.VALUE: amplitude_beam3}]
+ 
         return result
+
+class AquadoppDwDiagnosticDataParticle(AquadoppDwVelocityDataParticle):
+    """
+    Routine for parsing diagnostic data into a data particle structure for the Aquadopp DW sensor. 
+    This structure is the same as the velocity data, so particle is built with the same method
+    """
+    def _build_parsed_values(self):
+        """
+        Take something in the diagnostic data sample format and parse it into
+        values with appropriate tags.
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = DIAGNOSTIC_DATA_REGEX.match(self.raw_data)
+        
+        if not match:
+            raise SampleException("AquadoppDwDiagnosticDataParticle: No regex match of parsed sample data: [%s]", self.decoded_raw)
+        
+        return self._build_particle(match)
+            
 
 ###############################################################################
 # Protocol
@@ -757,7 +890,9 @@ class Protocol(CommandResponseInstrumentProtocol):
             structure = self._chunker.get_next_data()
             while(structure):
                 log.debug("got_data: detected structure = %s", structure.encode('hex'))
-                #self._extract_sample(SatlanticPARDataParticle, SAMPLE_REGEX, structure)
+                self._extract_sample(AquadoppDwVelocityDataParticle, VELOCITY_DATA_REGEX, structure)
+                self._extract_sample(AquadoppDwDiagnosticDataParticle, DIAGNOSTIC_DATA_REGEX, structure)
+                self._extract_sample(AquadoppDwDiagnosticHeaderDataParticle, DIAGNOSTIC_DATA_HEADER_REGEX, structure)
                 structure = self._chunker.get_next_data()
 
 
@@ -1701,15 +1836,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
-    def _extract_sample(self, line, publish=True):
-        """
-        Extract sample from a response line if present and publish to agent.
-        @param line string to match for sample.
-        @param publsih boolean to publish sample (default True).
-        @retval Sample dictionary if present or None.
-        """
-        return  # TODO remove this when sample format is known
-        
     def  _get_mode(self, timeout, delay=1):
         """
         _wakeup is replaced by this method for this instrument to search for 
@@ -1758,15 +1884,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         
         return output
     
-    def _convert_time(self, response):
-        time = str(response[2].encode('hex'))  # get day
-        time += '/' + str(response[5].encode('hex'))  # get month   
-        time += '/20' + str(response[4].encode('hex'))  # get year   
-        time += ' ' + str(response[3].encode('hex'))  # get hours   
-        time += ':' + str(response[0].encode('hex'))  # get minutes   
-        time += ':' + str(response[1].encode('hex'))  # get seconds   
-        return time
-    
     def _parse_read_clock_response(self, response, prompt):
         """ Parse the response from the instrument for a read clock command.
         
@@ -1781,7 +1898,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.warn("_parse_read_clock_response: Bad read clock response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid read clock response. (%s)", response.encode('hex'))
         log.debug("_parse_read_clock_response: response=%s", response.encode('hex')) 
-        time = self._convert_time(response)   
+        time = BinaryProtocolParameterDict.convert_time(response)   
         return time
 
     def _parse_what_mode_response(self, response, prompt):

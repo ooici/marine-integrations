@@ -326,7 +326,12 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command=Capability.START_MEASUREMENT_IMMEDIATE)
         self.instrument_agent_client.execute_resource(cmd) 
-        sample = self.data_subscribers.get_samples('parsed', 1, timeout=60) 
+        
+        for loop in range(0, 12):
+            # spin allowing PA and driver to run (simple gevent.sleep() doesn't do it)
+            gevent.sleep(10)  # wait for measurement to complete               
+
+        sample = self.data_subscribers.get_samples('parsed', 1) 
         log.debug("test_aquire_sample: sample=%s", sample)
         #self.assertSampleDataParticle(samples.pop())
 
