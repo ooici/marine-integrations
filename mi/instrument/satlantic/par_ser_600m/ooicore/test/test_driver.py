@@ -6,6 +6,7 @@ from mi.instrument.satlantic.par_ser_600m.driver import PACKET_CONFIG
 from mi.instrument.satlantic.par_ser_600m.test.test_driver import SatlanticParProtocolUnitTest
 from mi.instrument.satlantic.par_ser_600m.test.test_driver import SatlanticParProtocolIntegrationTest
 from mi.instrument.satlantic.par_ser_600m.test.test_driver import SatlanticParProtocolQualificationTest
+from mi.instrument.satlantic.par_ser_600m.driver import Parameter
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 
@@ -16,6 +17,10 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id = 'satlantic_par_ser_600m_ooicore',
     instrument_agent_name = 'satlantic_par_ser_600m_ooicore_agent',
     instrument_agent_packet_config = PACKET_CONFIG,
+
+    driver_startup_config = {
+        Parameter.MAXRATE: 2
+    }
 )
 
 @attr('UNIT', group='mi')

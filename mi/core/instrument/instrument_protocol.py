@@ -65,6 +65,10 @@ class InstrumentProtocol(object):
         # The parameter dictionary.
         self._param_dict = ProtocolParameterDict()
 
+        # The spot to stash a configuration before going into direct access
+        # mode
+        self._pre_direct_access_config = None
+
     ########################################################################
     # Helper methods
     ########################################################################
@@ -94,7 +98,6 @@ class InstrumentProtocol(object):
         @todo Figure out how the agent wants the results for a single poll
             and return them that way from here
         """
-
         sample = None
         if regex.match(line):
         
@@ -103,7 +106,6 @@ class InstrumentProtocol(object):
             
             raw_sample = particle.generate_raw()
             parsed_sample = particle.generate_parsed()
-            
             if publish and self._driver_event:
                 self._driver_event(DriverAsyncEvent.SAMPLE, raw_sample)
     
@@ -137,6 +139,71 @@ class InstrumentProtocol(object):
 
         return events
 
+    #############################################################
+    # Configuration logic
+    #############################################################
+    
+    def set_init_params(self, config):
+        """
+        Set the initialization parameters to the given values in the protocol
+        parameter dictionary. 
+        @param config The parameter_name/value to set in the initialization
+            fields of the parameter dictionary
+        @raise InstrumentParameterException If the config cannot be set
+        """
+        if not isinstance(config, dict):
+            raise InstrumentParameterException("Invalid init config format")
+            
+        for name in config.keys():
+            self._param_dict.set_init_value(name, config[name])
+    
+    def get_startup_config(self):
+        """
+        Gets the startup configuration for the instrument. The parameters
+        returned are marked as startup, and the values are the best as chosen
+        from the initialization, default, and current parameters.
+        
+        @retval The dict of parameter_name/values (override this method if it
+            is more involved for a specific instrument) that should be set at
+            a higher level.
+        """
+        return_dict = {}
+        start_list = self._param_dict.get_startup_list()
+        assert isinstance(start_list, list)
+        
+        for param in start_list:
+            result = self._param_dict.get_init_value(param)
+            if result:
+                return_dict[param] = result
+            else:
+                result = self._param_dict.get_default_value(param)
+                if result:
+                    return_dict[param] = result
+                else:
+                    return_dict[param] = self._param_dict.get(param)
+        
+        return return_dict
+        
+    def get_direct_access_params(self):
+        """
+        Get the list of direct access parameters, useful for restoring direct
+        access configurations up in the driver.
+        
+        @retval a list of direct access parameter names
+        """
+        return self._param_dict.get_direct_access_list()
+        
+    def get_cached_config(self):
+        """
+        Return the configuration object that shows the instrument's 
+        configuration as cached in the parameter dictionary...usually in
+        sync with the instrument, but accessible when offline...
+        @retval The cached configuration in the instruments config format. By
+        default, it is a dictionary of parameter names and values.
+        """
+        assert self._param_dict != None
+        return self._param_dict.get_config()
+        
     ########################################################################
     # Command build and response parse handlers.
     ########################################################################            

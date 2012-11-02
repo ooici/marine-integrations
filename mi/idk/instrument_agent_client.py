@@ -476,3 +476,16 @@ class InstrumentAgentEventSubscribers(object):
         self.event_subscribers.start()
         self.event_subscribers._ready_event.wait(timeout=5)
 
+
+    def stop(self):
+        try:
+            self.event_subscribers.stop()
+        except Exception as ex:
+            log.warn("Failed to stop event subscriber gracefully (%s)" % ex)
+
+        self.event_subscribers = []
+
+
+
+
+

@@ -39,7 +39,11 @@ class ParameterDictVal(object):
                  submenu_read=None,
                  menu_path_write=None,
                  submenu_write=None,
-                 multi_match=False):
+                 multi_match=False,
+                 direct_access=False,
+                 startup_param=False,
+                 default_value=None,
+                 init_value=None):
         """
         Parameter value constructor.
         @param name The parameter name.
@@ -64,6 +68,10 @@ class ParameterDictVal(object):
         self.submenu_write = submenu_write
         self.visibility = visibility
         self.multi_match = multi_match
+        self.direct_access = direct_access
+        self.startup_param = startup_param
+        self.default_value = default_value
+        self.init_value = init_value
 
     def update(self, input):
         """
@@ -94,18 +102,14 @@ class ProtocolParameterDict(object):
         """
         Constructor.        
         """
-        self._param_dict= {}
+        self._param_dict = {}
         
-    """
-    def add(self, name, pattern, f_getval, f_format, value=None,
-            visibility=ParameterDictVisibility.READ_WRITE,
-            menu_path_read=None, menu_path_write=None):
-    """
     def add(self, name, pattern, f_getval, f_format, value=None,
             visibility=ParameterDictVisibility.READ_WRITE,
             menu_path_read=None, submenu_read=None,
             menu_path_write=None, submenu_write=None,
-            multi_match=False):
+            multi_match=False, direct_access=False, startup_param=False,
+            default_value=None, init_value=None):
         """
         Add a parameter object to the dictionary.
         @param name The parameter name.
@@ -116,6 +120,14 @@ class ProtocolParameterDict(object):
         the access to this parameter is
         @param menu_path The path of menu options required to get to the parameter
         value display when presented in a menu-based instrument
+        @param direct_access T/F for tagging this as a direct access parameter
+        to be saved and restored in and out of direct access
+        @param startup_param T/F for tagging this as a startup parameter to be
+        applied when the instrument is first configured
+        @param default_value The default value to use for this parameter when
+        a value is needed, but no other instructions have been provided.
+        @param init_value The value that a parameter should be set to during
+        initialization or re-initialization
         @param value The parameter value (initializes to None).        
         """
         val = ParameterDictVal(name, pattern, f_getval, f_format,
@@ -125,7 +137,11 @@ class ProtocolParameterDict(object):
                                submenu_read=submenu_read,
                                menu_path_write=menu_path_write,
                                submenu_write=submenu_write,
-                               multi_match=multi_match)
+                               multi_match=multi_match,
+                               direct_access=direct_access,
+                               startup_param=startup_param,
+                               default_value=default_value,
+                               init_value=init_value)
         self._param_dict[name] = val
         
     def get(self, name):
@@ -136,6 +152,22 @@ class ProtocolParameterDict(object):
         """
         return self._param_dict[name].value
         
+    def get_init_value(self, name):
+        """
+        Get a parameter's init value from the dictionary.
+        @param name Name of the value to be retrieved.
+        @raises KeyError if the name is invalid.
+        """
+        return self._param_dict[name].init_value
+
+    def get_default_value(self, name):
+        """
+        Get a parameter's default value from the dictionary.
+        @param name Name of the value to be retrieved.
+        @raises KeyError if the name is invalid.
+        """
+        return self._param_dict[name].default_value
+    
     def set(self, name, value):
         """
         Set a parameter value in the dictionary.
@@ -145,6 +177,26 @@ class ProtocolParameterDict(object):
         """
         log.debug("setting " + name + " to " + str(value))
         self._param_dict[name] = value
+        
+    def set_default(self, name):
+        """
+        Set the value to the default value stored in the param dict
+        @raise KeyError if the name is invalid
+        @raise ValueError if the default_value is missing
+        """
+        if self._param_dict[name].default_value:
+            self._param_dict[name].value = self._param_dict[name].default_value
+        else:
+            raise ValueError("Missing default value")
+            
+    def set_init_value(self, name, value):
+        """
+        Set the value to the default value stored in the param dict
+        @param The parameter name to add to
+        @param The value to set for the initialization variable
+        @raise KeyError if the name is invalid
+        """
+        self._param_dict[name].init_value = value
         
     # DHE Added
     def get_menu_path_read(self, name):
@@ -216,9 +268,7 @@ class ProtocolParameterDict(object):
         @retval The name that was successfully updated, None if not updated
         """
         for (name, val) in self._param_dict.iteritems():
-            log.debug("NAME/VAL = " + str(name) + "/" + str(val))
             if val.update(input):
-                log.debug("RETURNING NAME = " + str(name))
                 return name
         return False
     
@@ -249,4 +299,30 @@ class ProtocolParameterDict(object):
         """
         return self._param_dict.keys()
 
+    def get_direct_access_list(self):
+        """
+        Return a list of parameter names that are tagged as direct access
+        parameters
         
+        @retval A list of parameter names, possibly empty
+        """
+        return_val = []
+        for key in self._param_dict.keys():
+            if self._param_dict[key].direct_access == True:
+                return_val.append(key)
+        
+        return return_val
+        
+    def get_startup_list(self):
+        """
+        Return a list of parameter names that are tagged as startup parameters
+        
+        @retval A list of parameter names, possibly empty
+        """
+        return_val = []
+        for key in self._param_dict.keys():
+            if self._param_dict[key].startup_param == True:
+                return_val.append(key)
+        
+        return return_val
+    

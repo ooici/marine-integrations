@@ -41,6 +41,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import AgentCapabilityType
 
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARInstrumentProtocol
 from mi.instrument.satlantic.par_ser_600m.driver import PARProtocolState
@@ -340,7 +341,7 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
     def check_state(self, expected_state):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, expected_state)
-        
+
 
     def put_instrument_in_command_mode(self):
         """Wrap the steps and asserts for going into command mode.
@@ -382,7 +383,22 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.driver_client.cmd_dvr('execute_resource', PARProtocolEvent.STOP_AUTOSAMPLE)
                 
         self.check_state(PARProtocolState.COMMAND)
-        
+
+
+    def test_startup_configuration(self):
+        '''
+        Test that the startup configuration is applied correctly
+        '''
+        self.put_instrument_in_command_mode()
+
+        result = self.driver_client.cmd_dvr('apply_startup_params')
+
+        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.MAXRATE])
+
+        self.assertEquals(reply, {Parameter.MAXRATE: 2})
+
+        reply = self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE: 1})
+
 
     def test_configuration(self):
         """
@@ -846,20 +862,20 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         ##################
 
         capabilities = {
-            'agent_command': [
+            AgentCapabilityType.AGENT_COMMAND: [
                 ResourceAgentEvent.CLEAR,
                 ResourceAgentEvent.RESET,
                 ResourceAgentEvent.GO_DIRECT_ACCESS,
                 ResourceAgentEvent.GO_INACTIVE,
                 ResourceAgentEvent.PAUSE
             ],
-            'agent_parameter': ['example'],
-            'resource_command': [
+            AgentCapabilityType.AGENT_PARAMETER: ['example'],
+            AgentCapabilityType.RESOURCE_COMMAND: [
                 DriverEvent.SET, DriverEvent.ACQUIRE_SAMPLE, DriverEvent.GET,
                 PARProtocolEvent.START_POLL, DriverEvent.START_AUTOSAMPLE
             ],
-            'resource_interface': None,
-            'resource_parameter': [
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: [
                 Parameter.INSTRUMENT, Parameter.SERIAL, Parameter.MAXRATE, Parameter.FIRMWARE
 
             ],
@@ -871,14 +887,14 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         #  Polled Mode
         ##################
 
-        capabilities['agent_command'] = [
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = [
             ResourceAgentEvent.CLEAR,
             ResourceAgentEvent.RESET,
             ResourceAgentEvent.GO_DIRECT_ACCESS,
             ResourceAgentEvent.GO_INACTIVE,
             ResourceAgentEvent.PAUSE,
         ]
-        capabilities['resource_command'] = [
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
             DriverEvent.START_AUTOSAMPLE, DriverEvent.RESET, PARProtocolEvent.STOP_POLL
         ]
 
@@ -893,8 +909,8 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         #  Streaming Mode
         ##################
 
-        capabilities['agent_command'] = [ ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
-        capabilities['resource_command'] =  [
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
             PARProtocolEvent.START_POLL,
             DriverEvent.STOP_AUTOSAMPLE,
             DriverEvent.RESET
@@ -908,10 +924,10 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         #  Uninitialized Mode
         #######################
 
-        capabilities['agent_command'] = [ResourceAgentEvent.INITIALIZE]
-        capabilities['resource_command'] = []
-        capabilities['resource_interface'] = []
-        capabilities['resource_parameter'] = []
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.INITIALIZE]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
 
         self.assert_reset()
         self.assert_capabilities(capabilities)

@@ -294,7 +294,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.MAXRATE,
                              r'Maximum Frame Rate:\s+(\d+) Hz',
                              lambda match : int(match.group(1)),
-                             self._int_to_string)
+                             self._int_to_string,
+                             startup_param=True)
 
         self._param_dict.add(Parameter.INSTRUMENT, HEADER_PATTERN,
             lambda match : match.group(1), str,
@@ -1142,7 +1143,7 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                     self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
                     # TODO: what about logging this as an event?
             return
-        
+
         if paLength > 0:
             CommandResponseInstrumentProtocol.got_data(self, paData)
             self._chunker.add_chunk(paData)
