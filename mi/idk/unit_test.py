@@ -889,6 +889,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             print("sent run; IA state = %s" %str(state))
             self.assertEqual(state, ResourceAgentState.COMMAND)
 
+        state = self.instrument_agent_client.get_agent_state()
+        if state == ResourceAgentState.STREAMING:
+            self.assert_stop_autosample()
+
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, DriverProtocolState.COMMAND)
 
