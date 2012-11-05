@@ -171,7 +171,7 @@ class SatlanticPARInstrumentDriver(SingleConnectionInstrumentDriver):
 class SatlanticPARDataParticleKey(BaseEnum):
     SERIAL_NUM = "serial_num"
     COUNTS = "counts"
-    TIMER = "timer"
+    TIMER = "elapsed_time"
     CHECKSUM = "checksum"
     
 class SatlanticPARDataParticle(DataParticle):
