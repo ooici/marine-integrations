@@ -769,7 +769,7 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
           'driver_timestamp': 3559843883.8029947,
           'values': [
             {'value_id': 'serial_num', 'value': '0226'},
-            {'value_id': 'timer', 'value': 7.17},
+            {'value_id': 'elapsed_time', 'value': 7.17},
             {'value_id': 'counts', 'value': 2157033280},
             {'value_id': 'checksum', 'value': 27}
           ],
@@ -792,9 +792,9 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
 
         for x in sample_dict['values']:
-            self.assertTrue(x['value_id'] in ['serial_num', 'timer', 'counts', 'checksum'])
+            self.assertTrue(x['value_id'] in ['serial_num', 'elapsed_time', 'counts', 'checksum'])
             log.debug("ID: %s value: %s type: %s" % (x['value_id'], x['value'], type(x['value'])))
-            if(x['value_id'] == 'timer'):
+            if(x['value_id'] == 'elapsed_time'):
                 self.assertTrue(isinstance(x['value'], float))
             elif(x['value_id'] == 'serial_num'):
                 self.assertTrue(isinstance(x['value'], str))
