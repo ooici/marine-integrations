@@ -11,56 +11,28 @@ None.
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
-import string
-
 import re
 import time
-from mi.core.time import *
+import string
 import ntplib
-
+from mi.core.time import get_timestamp_delayed
+from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
-
-
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
-from mi.core.instrument.instrument_driver import DriverState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
-
-from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
-
-from mi.core.log import get_logger ; log = get_logger()
-
-# Experimental
-from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
-from mi.core.instrument.protocol_param_dict import ParameterDictVal
-from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
-from mi.core.common import BaseEnum
-from mi.core.instrument.port_agent_client import PortAgentPacket
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-
-
-from prototype.sci_data.stream_defs import ctd_stream_definition
-
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 from mi.core.instrument.chunker import StringChunker
-
-from mi.idk.unit_test import InstrumentDriverTestCase
-
-
-from pyon.agent.agent import ResourceAgentClient
 from pyon.agent.agent import ResourceAgentState
-from pyon.agent.agent import ResourceAgentEvent
 
-from pyon.core.exception import BadRequest
-from pyon.core.exception import Conflict
 
 NEWLINE = '\r\n'
 
@@ -97,16 +69,7 @@ PACKET_CONFIG = {
     STREAM_NAME_RAW : 'ctd_raw_param_dict'
 }
 
-## Initialize the test parameters
-InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
-    driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = '123xyz',
-    instrument_agent_name = 'Agent007',
-    instrument_agent_packet_config = PACKET_CONFIG,
-    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
-)
 
 
 
@@ -125,16 +88,11 @@ class InstrumentCmds(BaseEnum):
     DISPLAY_CALIBRATION = 'dc'
     START_LOGGING = 'start'
     STOP_LOGGING = 'stop'
-    #DISABLED# UPLOAD_DATA_ASCII_FORMAT = 'dd'
     SET = 'set'
     GET = 'get'
-    #BAUD = 'baud'
     TAKE_SAMPLE = 'ts'
     INIT_LOGGING = 'initlogging'
-    #SET_TIME = "settime"
 
-    #SEND_LAST = 'sl'
-    #SEND_LAST_AND_SLEEP = 'slo'
 
 class ProtocolState(BaseEnum):
     """
@@ -144,8 +102,6 @@ class ProtocolState(BaseEnum):
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
-    #TEST = DriverProtocolState.TEST                        # May cause problems
-    #CALIBRATE = DriverProtocolState.CALIBRATE              # May cause problems
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
 
 class ProtocolEvent(BaseEnum):
@@ -164,25 +120,18 @@ class ProtocolEvent(BaseEnum):
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     SETSAMPLING = 'PROTOCOL_EVENT_SETSAMPLING'
-    # SET_TIME = 'PROTOCOL_EVENT_SET_TIME'          # Disabling. This is inferior to using DateTime=
-    #TEST = DriverEvent.TEST
-    #RUN_TEST = DriverEvent.RUN_TEST
-    #CALIBRATE = DriverEvent.CALIBRATE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     FORCE_STATE = DriverEvent.FORCE_STATE
-    #DISABLED#UPLOAD_ASCII = 'PROTOCOL_EVENT_UPLOAD_ASCII'
     QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
     INIT_LOGGING = 'PROTOCOL_EVENT_INIT_LOGGING'
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     PING_DRIVER = DriverEvent.PING_DRIVER
 
-    #SEND_LAST = 'PROTOCOL_EVENT_SEND_LAST'
-    #SEND_LAST_AND_SLEEP = 'PROTOCOL_EVENT_SEND_LAST_AND_SLEEP'
 
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-    # aquire status add....
+
 
 class Capability(BaseEnum):
     """
@@ -191,7 +140,6 @@ class Capability(BaseEnum):
     ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    #SETSAMPLING = ProtocolEvent.SETSAMPLING
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
     ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
 
@@ -200,39 +148,6 @@ class Parameter(DriverParameter):
     """
     Device parameters
     """
-    # DC
-    '''
-    PCALDATE = 'PCALDATE' # tuple,
-    PU0 = 'PU0' # float,
-    PY1 = 'PY1' # float,
-    PY2 = 'PY2' # float,
-    PY3 = 'PY3' # float,
-    PC1 = 'PC1' # float,
-    PC2 = 'PC2' # float,
-    PC3 = 'PC3' # float,
-    PD1 = 'PD1' # float,
-    PD2 = 'PD2' # float,
-    PT1 = 'PT1' # float,
-    PT2 = 'PT2' # float,
-    PT3 = 'PT3' # float,
-    PT4 = 'PT4' # float,
-    FACTORY_M = 'FACTORY_M' # float,
-    FACTORY_B = 'FACTORY_B' # float,
-    POFFSET = 'POFFSET' # float,
-    TCALDATE = 'TCALDATE' # tuple,
-    TA0 = 'TA0' # float,
-    TA1 = 'TA1' # float,
-    TA2 = 'TA2' # float,
-    TA3 = 'TA3' # float,
-    CCALDATE = 'CCALDATE' # tuple,
-    CG = 'CG' # float,
-    CH = 'CH' # float,
-    CI = 'CI' # float,
-    CJ = 'CJ' # float,
-    CTCOR = 'CTCOR' # float,
-    CPCOR = 'CPCOR' # float,
-    CSLOPE = 'CSLOPE' # float,
-    '''
 
     # DS
     DEVICE_VERSION = 'DEVICE_VERSION' # str,
@@ -257,9 +172,7 @@ class Parameter(DriverParameter):
     WAVE_SAMPLES_PER_BURST = 'WAVE_SAMPLES_PER_BURST' # float,
     WAVE_SAMPLES_SCANS_PER_SECOND = 'WAVE_SAMPLES_SCANS_PER_SECOND' # 4.0 = 0.25
     USE_START_TIME = 'USE_START_TIME' # bool,
-    #START_TIME = 'START_TIME' # ***
     USE_STOP_TIME = 'USE_STOP_TIME' # bool,
-    #STOP_TIME = 'STOP_TIME' # ***
     TXWAVESTATS = 'TXWAVESTATS' # bool,
     TIDE_SAMPLES_PER_DAY = 'TIDE_SAMPLES_PER_DAY' # float,
     WAVE_BURSTS_PER_DAY = 'WAVE_BURSTS_PER_DAY' # float,
@@ -343,8 +256,8 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 #remove TS stream,
 
 class SBE26plusTakeSampleDataParticleKey(BaseEnum):
-    PRESSURE = "PRESSURE"           # p = calculated and stored pressure (psia).
-    PRESSURE_TEMP = "PRESSURE_temp" # pt = calculated pressure temperature (not stored) (C).
+    PRESSURE = "pressure"           # p = calculated and stored pressure (psia).
+    PRESSURE_TEMP = "pressure_temp" # pt = calculated pressure temperature (not stored) (C).
     TEMPERATURE = "temperature"     # t = calculated and stored temperature (C).
     CONDUCTIVITY = "conductivity"   # c = calculated and stored conductivity (S/m)
     SALINITY = "salinity"           # s = calculated salinity (not stored) (psu).
@@ -732,36 +645,36 @@ class SBE26plusStatisticsDataParticle(DataParticle):
         return result
 
 class SBE26plusDeviceCalibrationDataParticleKey(BaseEnum):
-    PCALDATE = 'PCALDATE' # tuple,
-    PU0 = 'PU0' # float,
-    PY1 = 'PY1' # float,
-    PY2 = 'PY2' # float,
-    PY3 = 'PY3' # float,
-    PC1 = 'PC1' # float,
-    PC2 = 'PC2' # float,
-    PC3 = 'PC3' # float,
-    PD1 = 'PD1' # float,
-    PD2 = 'PD2' # float,
-    PT1 = 'PT1' # float,
-    PT2 = 'PT2' # float,
-    PT3 = 'PT3' # float,
-    PT4 = 'PT4' # float,
-    FACTORY_M = 'FACTORY_M' # float,
-    FACTORY_B = 'FACTORY_B' # float,
-    POFFSET = 'POFFSET' # float,
-    TCALDATE = 'TCALDATE' # tuple,
-    TA0 = 'TA0' # float,
-    TA1 = 'TA1' # float,
-    TA2 = 'TA2' # float,
-    TA3 = 'TA3' # float,
-    CCALDATE = 'CCALDATE' # tuple,
-    CG = 'CG' # float,
-    CH = 'CH' # float,
-    CI = 'CI' # float,
-    CJ = 'CJ' # float,
-    CTCOR = 'CTCOR' # float,
-    CPCOR = 'CPCOR' # float,
-    CSLOPE = 'CSLOPE' # float,
+    PCALDATE = 'pcaldate' # tuple,
+    PU0 = 'pu0' # float,
+    PY1 = 'py1' # float,
+    PY2 = 'py2' # float,
+    PY3 = 'py3' # float,
+    PC1 = 'pc1' # float,
+    PC2 = 'pc2' # float,
+    PC3 = 'pc3' # float,
+    PD1 = 'pd1' # float,
+    PD2 = 'pd2' # float,
+    PT1 = 'pt1' # float,
+    PT2 = 'pt2' # float,
+    PT3 = 'pt3' # float,
+    PT4 = 'pt4' # float,
+    FACTORY_M = 'factory_m' # float,
+    FACTORY_B = 'factory_b' # float,
+    POFFSET = 'poffset' # float,
+    TCALDATE = 'tcaldate' # tuple,
+    TA0 = 'ta0' # float,
+    TA1 = 'ta1' # float,
+    TA2 = 'ta2' # float,
+    TA3 = 'ta3' # float,
+    CCALDATE = 'ccaldate' # tuple,
+    CG = 'cg' # float,
+    CH = 'ch' # float,
+    CI = 'ci' # float,
+    CJ = 'cj' # float,
+    CTCOR = 'ctcor' # float,
+    CPCOR = 'cpcor' # float,
+    CSLOPE = 'cslope' # float,
 
 class SBE26plusDeviceCalibrationDataParticle(DataParticle):
     """
@@ -1264,8 +1177,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_autosample_test_get)
-        #self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SEND_LAST,           self._handler_command_autosample_send_last)
-        #self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SEND_LAST_AND_SLEEP, self._handler_command_autosample_send_last_and_sleep)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,     self._handler_autosample_stop_autosample)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
@@ -1292,8 +1203,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.SET,                         self._build_set_command)
         self._add_build_handler(InstrumentCmds.TAKE_SAMPLE,                 self._build_simple_command)
         self._add_build_handler(InstrumentCmds.INIT_LOGGING,                self._build_simple_command)
-        #self._add_build_handler(InstrumentCmds.SEND_LAST_AND_SLEEP,         self._build_simple_command)
-        #self._add_build_handler(InstrumentCmds.SEND_LAST,                   self._build_simple_command)
 
 
         # Add response handlers for device commands.
@@ -1303,8 +1212,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.SET,                      self._parse_set_response)
         self._add_response_handler(InstrumentCmds.TAKE_SAMPLE,              self._parse_ts_response)
         self._add_response_handler(InstrumentCmds.INIT_LOGGING,             self._parse_init_logging_response)
-        #self._add_response_handler(InstrumentCmds.SEND_LAST_AND_SLEEP,      self._parse_sl_slo_response)
-        #self._add_response_handler(InstrumentCmds.SEND_LAST,                self._parse_sl_slo_response)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -1329,14 +1236,13 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         for matcher in sieve_matchers:
             for match in matcher.finditer(raw_data):
-                #log.debug("GOT A MATCH!!!!   " +str((match.start(), match.end())) + str(raw_data[match.start(): match.end()]))
-
                 return_list.append((match.start(), match.end()))
 
         return return_list
 
     def _filter_capabilities(self, events):
         """
+        Return a list of currently available capabilities.
         """
         events_out = [x for x in events if Capability.has(x)]
         return events_out
@@ -1463,9 +1369,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        kwargs['timeout'] = 300 # samples can take a long time
+        kwargs['timeout'] = 45 # samples can take a long time
 
-        result = self._do_cmd_resp('ts', *args, **kwargs)
+        result = self._do_cmd_resp(InstrumentCmds.TAKE_SAMPLE, *args, **kwargs)
 
         return (next_state, (next_agent_state, result))
 
@@ -2386,16 +2292,6 @@ class Protocol(CommandResponseInstrumentProtocol):
             lambda match : False if (match.group(1)=='do not') else True,
             self._true_false_to_string)
 
-        #self._param_dict.add(Parameter.START_TIME,
-        #    ds_line_11,
-        #    lambda match : string.upper(match.group(1)),
-        #    self._string_to_string) # will need to make this a date time once that is sorted out
-
-        #self._param_dict.add(Parameter.STOP_TIME,
-        #    ds_line_12,
-        #    lambda match : string.upper(match.group(1)),
-        #    self._string_to_string) # will need to make this a date time once that is sorted out
-
         self._param_dict.add(Parameter.TIDE_SAMPLES_PER_DAY,
             ds_line_13,
             lambda match : float(match.group(1)),
@@ -2558,7 +2454,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         for line in response.split(NEWLINE):
             hit_count = self._param_dict.multi_match_update(line)
-            #log.debug("MATCH COUNT = " + str(hit_count))
 
         # return the Ds as text
         match = DS_REGEX_MATCHER.search(response)
@@ -2670,7 +2565,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
 
 
-        #"""
         if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
             # direct access mode
             if paLength > 0:
@@ -2712,7 +2606,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                     # reload
                     chunk = self._chunker.get_next_data()
 
-        #"""
+
     ########################################################################
     # Static helpers to format set commands.
     ########################################################################
