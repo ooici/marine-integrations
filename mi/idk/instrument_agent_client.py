@@ -50,7 +50,7 @@ from pyon.event.event import EventSubscriber
 #from interface.objects import StreamQuery
 
 DEFAULT_DEPLOY = 'res/deploy/r2deploy.yml'
-DEFAULT_PARAM_DICT = 'data_particle_raw_param_dict'
+DEFAULT_PARAM_DICT = 'ctd_raw_param_dict'
 
 class FakeProcess(LocalContextMixin):
     """
@@ -331,8 +331,9 @@ class InstrumentAgentDataSubscribers(object):
 
             stream_def_id = pubsub_client.create_stream_definition(name=stream_name,
                                                                    parameter_dictionary_id=pd_id)
-            pd = pubsub_client.read_stream_definition(stream_def_id).parameter_dictionary
-            
+            #pd = pubsub_client.read_stream_definition(stream_def_id).parameter_dictionary
+            pd = None
+
             stream_id, stream_route = pubsub_client.create_stream(name=stream_name,
                                                 exchange_point='science_data',
                                                 stream_definition_id=stream_def_id)

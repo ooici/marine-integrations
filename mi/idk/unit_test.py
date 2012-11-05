@@ -6,9 +6,6 @@
 @brief Base classes for instrument driver tests.  
 """
 
-# Import pyon first for monkey patching.
-from mi.core.log import get_logger ; log = get_logger()
-
 from mock import patch
 from pyon.core.bootstrap import CFG
 
@@ -24,6 +21,9 @@ from sets import Set
 # If you DO care about couch content make sure you do a force_clean when needed.
 from pyon.core import bootstrap
 bootstrap.testing = False
+
+# Import pyon first for monkey patching.
+from mi.core.log import get_logger ; log = get_logger()
 
 import gevent
 import json
@@ -73,7 +73,7 @@ from pyon.agent.agent import ResourceAgentEvent
 # Do not remove this import.  It is for package building.
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
-GO_ACTIVE_TIMEOUT=160
+GO_ACTIVE_TIMEOUT=60
 
 class AgentCapabilityType(BaseEnum):
     AGENT_COMMAND = 'agent_command'
@@ -159,7 +159,7 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
     
     # Port agent process object.
     port_agent = None
-    
+
     def setUp(self):
         """
         @brief Setup test cases.
@@ -220,17 +220,20 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         return CommConfig.get_config_from_file(config_file)
         
 
-    @classmethod
-    def init_port_agent(cls):
+    def init_port_agent(self):
         """
         @brief Launch the driver process and driver client.  This is used in the
         integration and qualification tests.  The port agent abstracts the physical
         interface with the instrument.
         @retval return the pid to the logger process
         """
-        log.info("Startup Port Agent")
+        if(self.port_agent):
+            log.error("Port agent already initialized")
+            return
 
-        comm_config = cls.get_comm_config()
+        log.debug("Startup Port Agent")
+
+        comm_config = self.get_comm_config()
 
         config = {
             'device_addr' : comm_config.device_addr,
@@ -243,26 +246,28 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
             'log_level': 5,
         }
 
-        port_agent = PortAgentProcess.launch_process(config, timeout = 60,
-            test_mode = True)
+        port_agent = PortAgentProcess.launch_process(config, timeout = 60, test_mode = True)
 
         port = port_agent.get_data_port()
         pid  = port_agent.get_pid()
 
         log.info('Started port agent pid %s listening at port %s' % (pid, port))
 
-        cls.test_config.port_agent = port_agent
+        self.addCleanup(self.stop_port_agent)
+        self.port_agent = port_agent
         return port
 
-    @classmethod
-    def stop_port_agent(cls):
+
+    def stop_port_agent(self):
         """
         Stop the port agent.
         """
-        log.info("Stop port agent: cls=%s" %cls)
-        if cls.test_config.port_agent:
+        log.info("Stop port agent")
+        if self.port_agent:
             log.debug("found port agent, now stop it")
-            cls.test_config.port_agent.stop()
+            self.port_agent.stop()
+
+        self.port_agent = None
 
     
     def init_driver_process_client(self):
@@ -473,23 +478,13 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     
 
 class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must inherit from here to get _start_container
-    @classmethod
-    def setUpClass(cls):
-        log.debug("InstrumentDriverIntegrationTestCase.setUpClass")
-        cls.init_port_agent()
-
-    @classmethod
-    def tearDownClass(cls):
-        log.debug("InstrumentDriverIntegrationTestCase.tearDownClass")
-        cls.stop_port_agent()
-
     def setUp(self):
         """
         @brief Setup test cases.
         """
         log.debug("InstrumentDriverIntegrationTestCase.setUp")
+        self.init_port_agent()
         InstrumentDriverTestCase.setUp(self)
-        self.port_agent = self.test_config.port_agent
 
         log.debug("InstrumentDriverIntegrationTestCase setUp")
         self.init_driver_process_client()
@@ -552,21 +547,12 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
 
 class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.init_port_agent()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.stop_port_agent()
-
     def setUp(self):
         """
         @brief Setup test cases.
         """
         InstrumentDriverTestCase.setUp(self)
-        self.port_agent = self.test_config.port_agent
+        self.init_port_agent()
         self.instrument_agent_manager = InstrumentAgentClient();
         self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
 
@@ -965,6 +951,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
 
 
+    @unittest.skip("testing")
     def test_instrument_agent_common_state_model_lifecycle(self):
         """
         @brief Test agent state transitions.
@@ -1115,6 +1102,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
 
+    @unittest.skip("testing")
     def test_instrument_agent_to_instrument_driver_connectivity(self):
         """
         @brief This test verifies that the instrument agent can
@@ -1246,6 +1234,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         unique_set = Set(item for item in list_in)
         return [(item) for item in unique_set]
 
+    @unittest.skip("testing")
     def test_driver_notification_messages(self):
         """
         @brief This tests event messages from the driver.  The following
