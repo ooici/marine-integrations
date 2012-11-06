@@ -686,7 +686,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE), res_iface)
         self.assertEqual(capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER), res_pars)
 
-    def assert_sample_polled(self, sampleDataAssert, sampleQueue):
+    def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout=10):
         """
         Test observatory polling function.
 
@@ -709,15 +709,15 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.data_subscribers.clear_sample_queue(sampleQueue)
 
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd, timeout=30)
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
         log.debug("Acqire Sample")
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd, timeout=30)
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
         log.debug("Acqire Sample")
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd, timeout=30)
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
         # Watch the parsed data queue and return once three samples
         # have been read or the default timeout has been reached.

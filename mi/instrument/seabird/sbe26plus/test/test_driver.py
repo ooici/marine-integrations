@@ -82,25 +82,11 @@ from prototype.sci_data.stream_defs import ctd_stream_definition
 raw_stream_received = False
 parsed_stream_received = False
 
-InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
-    driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = '123xyz',
-    instrument_agent_name = 'Agent007',
-    instrument_agent_packet_config = PACKET_CONFIG,
-    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
-)
 
 ###
 #   Driver parameters for the tests
 ###
-
-# 'will echo' command sequence to be sent from DA telnet server
-# see RFCs 854 & 857
-WILL_ECHO_CMD = '\xff\xfd\x03\xff\xfb\x03\xff\xfb\x01'
-# 'do echo' command sequence to be sent back from telnet client
-DO_ECHO_CMD   = '\xff\xfb\x03\xff\xfd\x03\xff\xfd\x01'
 
 PARAMS = {
     # DS # parameters - contains all setsampling parameters
@@ -1360,84 +1346,6 @@ BAD_SAMPLE_DATA =\
         "   H1/100 = 0.0000e+00" + NEWLINE +\
         "tide: start time = 05 Oct 2012 01:13:54, p = 14.5384, pt = 24.205, t = 23.8363" + NEWLINE
 
-'''
-class TcpClient():
-    # for direct access testing
-    buf = ""
-
-    def __init__(self, host, port):
-        self.buf = ""
-        self.host = host
-        self.port = port
-        # log.debug("OPEN SOCKET HOST = " + str(host) + " PORT = " + str(port))
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.connect((self.host, self.port))
-        self.s.settimeout(0.0)
-
-    def read_a_char(self):
-        temp = self.s.recv(1024)
-        if len(temp) > 0:
-            log.debug("read_a_char got '" + str(repr(temp)) + "'")
-            self.buf += temp
-        if len(self.buf) > 0:
-            c = self.buf[0:1]
-            self.buf = self.buf[1:]
-        else:
-            c = None
-        return c
-
-    def peek_at_buffer(self):
-        if len(self.buf) == 0:
-            try:
-                self.buf = self.s.recv(1024)
-                log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
-            except:
-                """
-                Ignore this exception, its harmless
-                """
-        return self.buf
-
-    def remove_from_buffer(self, remove):
-        log.debug("BUF WAS " + str(repr(self.buf)))
-        self.buf = self.buf.replace(remove, "")
-        log.debug("BUF IS '" + str(repr(self.buf)) + "'")
-
-    def get_data(self):
-        data = ""
-        try:
-            ret = ""
-
-            while True:
-                c = self.read_a_char()
-                if c == None:
-                    break
-                if c == '\n' or c == '':
-                    ret += c
-                    break
-                else:
-                    ret += c
-
-            data = ret
-        except AttributeError:
-            log.debug("CLOSING - GOT AN ATTRIBUTE ERROR")
-            self.s.close()
-        except:
-            data = ""
-
-        if data:
-            data = data.lower()
-            log.debug("IN  [" + repr(data) + "]")
-        return data
-
-    def send_data(self, data, debug):
-        try:
-            log.debug("OUT [" + repr(data) + "]")
-            self.s.sendall(data)
-        except:
-            log.debug("*** send_data FAILED [" + debug + "] had an exception sending [" + data + "]")
-'''
-
-
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
@@ -1533,7 +1441,10 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(ID._connection_fsm.current_state, DriverConnectionState.UNCONFIGURED)
 
     def test_instrument_driver_build_protocol(self):
-        #@TODO add tests for ID._protocol._sample_regexs
+        """
+        mock create an instance instrument driver protocol object. Verify that it supports available commands.
+        verify the handlers are present and correctly associated.
+        """
 
         ID = InstrumentDriver(self.my_event_callback)
         ID._build_protocol()
@@ -1544,8 +1455,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(ID._protocol._linebuf, '')
         self.assertEqual(ID._protocol._promptbuf, '')
         self.assertEqual(ID._protocol._datalines, [])
-
-
 
         for key in ['qs', 'set', 'stop', 'dc', 'ts', 'start', 'initlogging', 'ds']:
             self.assertTrue(key in ID._protocol._build_handlers.keys())
@@ -1574,8 +1483,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(repr(ID._protocol._protocol_fsm.events), repr(ProtocolEvent))
 
         state_handlers = {('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_STOP_AUTOSAMPLE'): '_handler_autosample_stop_autosample',
-                          #('DRIVER_STATE_AUTOSAMPLE', 'PROTOCOL_EVENT_SEND_LAST'): '_handler_command_autosample_send_last',
-                          #('DRIVER_STATE_AUTOSAMPLE', 'PROTOCOL_EVENT_SEND_LAST_AND_SLEEP'): '_handler_command_autosample_send_last_and_sleep',
                           ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_CLOCK_SYNC'): '_handler_command_clock_sync',
                           ('DRIVER_STATE_DIRECT_ACCESS', 'DRIVER_EVENT_ENTER'): '_handler_direct_access_enter',
                           ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_ENTER'): '_handler_command_enter',
@@ -1622,8 +1529,8 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
     def test_protocol(self):
         """
+        Create a mock instance of Protocol.  Assert that state handlers in the FSM and handlers are created correctly.
         """
-        #@TODO add tests for p._sample_regexs
 
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         p = Protocol(Prompt, NEWLINE, my_event_callback)
@@ -1640,8 +1547,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
 
         state_handlers = {('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_STOP_AUTOSAMPLE'): '_handler_autosample_stop_autosample',
-                          #('DRIVER_STATE_AUTOSAMPLE', 'PROTOCOL_EVENT_SEND_LAST'): '_handler_command_autosample_send_last',
-                          #('DRIVER_STATE_AUTOSAMPLE', 'PROTOCOL_EVENT_SEND_LAST_AND_SLEEP'): '_handler_command_autosample_send_last_and_sleep',
                           ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_CLOCK_SYNC'): '_handler_command_clock_sync',
                           ('DRIVER_STATE_DIRECT_ACCESS', 'DRIVER_EVENT_ENTER'): '_handler_direct_access_enter',
                           ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_ENTER'): '_handler_command_enter',
@@ -1677,9 +1582,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
             self.assertEqual(p._protocol_fsm.state_handlers[key].__func__.func_name,  state_handlers[key])
             self.assertTrue(key in p._protocol_fsm.state_handlers)
 
-        # no longer used
-        #self.assertEqual(p.parsed_sample, {})
-        #self.assertEqual(p.raw_sample, '')
 
     def test_protocol_filter_capabilities(self):
         """
@@ -1711,6 +1613,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
     def test_protocol_handler_unknown_enter(self):
         """
+        mock call _handler_unknown_enter and verify that it performs teh correct sub-calls
         """
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         p = Protocol(Prompt, NEWLINE, my_event_callback)
@@ -1722,6 +1625,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
     def test_protocol_handler_unknown_exit(self):
         """
+        mock call _handler_unknown_exit and verify that it performs teh correct sub-calls
         """
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         p = Protocol(Prompt, NEWLINE, my_event_callback)
@@ -1768,8 +1672,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
         _wakeup_mock.reset_mock()
         do_cmd_resp_mock.reset_mock()
-
-
 
         v.value = True
         p._param_dict.set(Parameter.LOGGING, v)
@@ -1842,8 +1744,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(result, 'RESOURCE_AGENT_STATE_IDLE')
         self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
         self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
-
-
 
         #
         # current_state = ProtocolState.AUTOSAMPLE
@@ -1922,6 +1822,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
     def test_protocol_handler_command_enter(self):
         """
+        mock call _handler_command_enter and verify that it performs teh correct sub-calls
         """
         ID = InstrumentDriver(self.my_event_callback)
         ID._build_protocol()
@@ -1994,14 +1895,12 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
     def test_protocol_got_data(self):
         """
-
+        verify the got_data method handles valid data, invalid data, no data in various FSM modes.
         """
         ID = InstrumentDriver(self.my_event_callback)
         ID._build_protocol()
         p = ID._protocol
         paPacket = PortAgentPacket()
-
-
 
         #
         # DIRECT_ACCESS mode, zero length data
@@ -2024,8 +1923,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         ret = p.got_data(paPacket)
         self.assertEqual(ret, None)
         self.assertEqual(str(_driver_event_mock.mock_calls), "[]")
-
-
 
         #
         # DIRECT_ACCESS mode, valid data
@@ -2052,17 +1949,12 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(ret, None)
         self.assertEqual(str(_driver_event_mock.mock_calls), "[call('DRIVER_ASYNC_EVENT_DIRECT_ACCESS', '\\r\\n 14.5128 24.34 23.9912 111111\\r\\nS>')]")
 
-
-
-
-
         #
         # AUTOSAMPLE mode, valid data
         #
 
         p._protocol_fsm.current_state = ProtocolState.AUTOSAMPLE
         self.assertEqual(p.get_current_state(), ProtocolState.AUTOSAMPLE)
-
 
         # mock out _extract_sample as we are only looking at got_data
         _extract_sample_mock = Mock(spec="extract_sample")
@@ -2078,18 +1970,13 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertTrue(len(paPacket.get_data()) > 0)
         ret = p.got_data(paPacket)
         self.assertEqual(ret, None)
-        #@ TODO put below line back in and fix it once it is working
-        #self.assertEqual(str(_extract_sample_mock.mock_calls), "3XXXXX")
-
 
         #
         # AUTOSAMPLE mode, no data
         #
 
-
         p._protocol_fsm.current_state = ProtocolState.AUTOSAMPLE
         self.assertEqual(p.get_current_state(), ProtocolState.AUTOSAMPLE)
-
 
         # mock out _extract_sample as we are only looking at got_data
         _extract_sample_mock = Mock(spec="extract_sample")
@@ -2114,7 +2001,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         p._protocol_fsm.current_state = ProtocolState.AUTOSAMPLE
         self.assertEqual(p.get_current_state(), ProtocolState.AUTOSAMPLE)
 
-
         # mock out _extract_sample as we are only looking at got_data
         _extract_sample_mock = Mock(spec="extract_sample")
         p._extract_sample = _extract_sample_mock
@@ -2131,8 +2017,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(ret, None)
 
         self.assertEqual(len(_extract_sample_mock.mock_calls), 35)
-        #@ TODO put below line back in and fix it once it is working
-        #self.assertEqual(str(_extract_sample_mock.mock_calls), "3XXXXX")
 
     @unittest.skip('re-enable once DataParticle is working.')
     def test_extract_sample(self):
@@ -3857,15 +3741,24 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
+        self.assert_enter_command_mode()
+        params = [Parameter.EXTERNAL_TEMPERATURE_SENSOR]
+        check_new_params = self.instrument_agent_client.get_resource(params)
+        self.assertTrue(check_new_params[Parameter.EXTERNAL_TEMPERATURE_SENSOR])
+
+        # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet(timeout=600)
         self.assertTrue(self.tcp_client)
-
-        self.tcp_client.send_data("\r\n")
+        self.tcp_client.send_data(Parameter.EXTERNAL_TEMPERATURE_SENSOR + "=N\r\n")
         self.tcp_client.expect("S>")
 
         self.assert_direct_access_stop_telnet()
 
-
+        # verify the setting got restored.
+        self.assert_enter_command_mode()
+        params = [Parameter.EXTERNAL_TEMPERATURE_SENSOR]
+        check_new_params = self.instrument_agent_client.get_resource(params)
+        self.assertTrue(check_new_params[Parameter.EXTERNAL_TEMPERATURE_SENSOR])
 
     def test_get_capabilities(self):
         """
@@ -4167,37 +4060,10 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
 
         self.assert_enter_command_mode()
 
-    def test_acquire_sample_simple(self):
-        """
-        """
-        self.assert_sample_polled(self.assertSampleDataParticle, 'parsed')
-
     def test_acquire_sample(self):
         """
-        @brief Acquire a sample.
         """
-
-        self.data_subscribers.start_data_subscribers()
-        self.addCleanup(self.data_subscribers.stop_data_subscribers)
-
-        self.assert_enter_command_mode()
-
-        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
-
-        cmd = AgentCommand(command=Capability.ACQUIRE_SAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd, timeout=300) # TIMESOUT ON THIS COMMAND (times out after it sends the sample back...)
-        sample = retval.result
-        log.debug("RETVALUE = " + str(sample))
-
-        TS_REGEX = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)' # .*?\r\n
-        TS_REGEX_MATCHER = re.compile(TS_REGEX)
-        matches = TS_REGEX_MATCHER.match(sample)
-
-        log.debug("COUNT = " + str(len(matches.groups())))
-        self.assertEqual(3, len(matches.groups()))
-
-        samples = self.data_subscribers.get_samples('parsed', 1)
-        self.assertSampleDataParticle(samples.pop())
+        self.assert_sample_polled(self.assertSampleDataParticle, 'parsed', timeout=30)
 
     def test_connect_disconnect(self):
 
@@ -4243,7 +4109,10 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
             Parameter.DS_DEVICE_DATE_TIME,
         ]
         check_new_params = self.instrument_agent_client.get_resource(params)
-        log.debug("REAL TIME = " + repr(check_new_params))
+
+        # Now verify that at least the date matches
+        lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+        self.assertTrue(lt[:12].upper() in check_new_params[Parameter.DS_DEVICE_DATE_TIME].upper())
 
     def test_execute_clock_sync(self):
         """
@@ -4253,6 +4122,13 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         self.assert_enter_command_mode()
 
         self.assert_switch_driver_state(ProtocolEvent.CLOCK_SYNC, ProtocolState.COMMAND)
+
+        # Now verify that at least the date matches
+        params = [Parameter.DS_DEVICE_DATE_TIME]
+        check_new_params = self.instrument_agent_client.get_resource(params)
+        lt = time.strftime("%d %b %Y  %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+
+        self.assertTrue(lt[:12].upper() in check_new_params[Parameter.DS_DEVICE_DATE_TIME].upper())
 
     #
     # Test that this returns text of ds, as well as publishes a ds particle.

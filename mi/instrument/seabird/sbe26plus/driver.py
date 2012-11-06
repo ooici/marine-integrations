@@ -974,14 +974,10 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 lambda match : float(match.group(2))
             ),
 
-
-            # @TODO TEST THIS ONE
             SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_S:  (
                 re.compile(r'last sample: .*?, s = +([\d.\-]+)'),
                 lambda match : float(match.group(1))
             ),
-
-
 
             SBE26plusDeviceStatusDataParticleKey.TIDE_INTERVAL:  (
                 re.compile(r'tide measurement: interval = (\d+).000 minutes, duration = ([\d.\-]+) seconds'),
@@ -2577,7 +2573,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                         self._sent_cmds.pop(0)
                 if self._driver_event:
                     self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
-                    # TODO: what about logging this as an event?
+
             return
 
         if paLength > 0:
