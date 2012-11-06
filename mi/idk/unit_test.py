@@ -686,7 +686,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE), res_iface)
         self.assertEqual(capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER), res_pars)
 
-    def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout = 10):
+    def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout=10):
         """
         Test observatory polling function.
 
@@ -709,15 +709,15 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.data_subscribers.clear_sample_queue(sampleQueue)
 
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
         log.debug("Acqire Sample")
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
         log.debug("Acqire Sample")
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
         # Watch the parsed data queue and return once three samples
         # have been read or the default timeout has been reached.
@@ -875,7 +875,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
     
             cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-            retval = self.instrument_agent_client.execute_agent(cmd)
+            retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT)
             state = self.instrument_agent_client.get_agent_state()
             print("sent go_active; IA state = %s" %str(state))
             
@@ -908,7 +908,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, DriverProtocolState.COMMAND)
 
-    def assert_direct_access_start_telnet(self, timeout = 600):
+    def assert_direct_access_start_telnet(self, timeout=600):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
@@ -948,7 +948,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT) # ~9s to run
+
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
