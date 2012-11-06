@@ -1,0 +1,428 @@
+"""
+@package mi.instrument.seabird.sbe54tps.ooicore.test.test_driver
+@file /Users/unwin/OOI/Workspace/code/marine-integrations/mi/instrument/seabird/sbe54tps/ooicore/driver.py
+@author Roger Unwin
+@brief Test cases for ooicore driver
+
+USAGE:
+ Make tests verbose and provide stdout
+   * From the IDK
+       $ bin/test_driver
+       $ bin/test_driver -u
+       $ bin/test_driver -i
+       $ bin/test_driver -q
+
+   * From pyon
+       $ bin/nosetests -s -v /Users/unwin/OOI/Workspace/code/marine-integrations/mi/instrument/seabird/sbe54tps/ooicore
+       $ bin/nosetests -s -v /Users/unwin/OOI/Workspace/code/marine-integrations/mi/instrument/seabird/sbe54tps/ooicore -a UNIT
+       $ bin/nosetests -s -v /Users/unwin/OOI/Workspace/code/marine-integrations/mi/instrument/seabird/sbe54tps/ooicore -a INT
+       $ bin/nosetests -s -v /Users/unwin/OOI/Workspace/code/marine-integrations/mi/instrument/seabird/sbe54tps/ooicore -a QUAL
+"""
+
+__author__ = 'Roger Unwin'
+__license__ = 'Apache 2.0'
+
+import unittest
+
+from nose.plugins.attrib import attr
+from mock import Mock
+
+from mi.core.log import get_logger ; log = get_logger()
+
+# MI imports.
+from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import InstrumentDriverUnitTestCase
+from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
+from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+
+from interface.objects import AgentCommand
+
+from mi.core.instrument.logger_client import LoggerClient
+
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverProtocolState
+
+from ion.agents.instrument.instrument_agent import InstrumentAgentState
+from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+
+from mi.instrument.seabird.sbe54tps.ooicore.driver import ooicoreInstrumentDriver
+from mi.instrument.seabird.sbe54tps.ooicore.driver import State
+from mi.instrument.seabird.sbe54tps.ooicore.driver import Parameter
+from mi.instrument.seabird.sbe54tps.ooicore.driver import PACKET_CONFIG
+
+
+###
+#   Driver parameters for the tests
+###
+InstrumentDriverTestCase.initialize(
+    driver_module='mi.instrument.seabird.sbe54tps.ooicore.driver',
+    driver_class="ooicoreInstrumentDriver",
+
+    instrument_agent_resource_id = 'IQM9B7',
+    instrument_agent_name = 'seabird_sbe54tps_ooicore',
+    instrument_agent_packet_config = {},
+    instrument_agent_stream_definition = {}
+)
+
+#################################### RULES ####################################
+#                                                                             #
+# Common capabilities in the base class                                       #
+#                                                                             #
+# Instrument specific stuff in the derived class                              #
+#                                                                             #
+# Generator spits out either stubs or comments describing test this here,     #
+# test that there.                                                            #
+#                                                                             #
+# Qualification tests are driven through the instrument_agent                 #
+#                                                                             #
+###############################################################################
+
+
+###############################################################################
+#                                UNIT TESTS                                   #
+#         Unit tests test the method calls and parameters using Mock.         #
+###############################################################################
+@attr('UNIT', group='mi')
+class UnitFromIDK(InstrumentDriverUnitTestCase):
+	###
+	# 	Reset test verification variables.  The purpose of this method is
+	#	to reset the test verification variables to initial values.  The
+	#	individual tests should cause the variables to be set (for instance,
+	#	raw_stream_received would be set to True), and the tests should verify
+	#	that the variables have been set to the expected values.
+	###
+    def reset_test_vars(self):	
+        self.raw_stream_received = False
+        self.parsed_stream_received = False
+
+	###
+	#	This is the callback that would normally publish events 
+	#	(streams, state transitions, etc.).
+	#	Use this method to test for existence of events and to examine their
+	#	attributes for correctness.
+	###         	
+    def my_event_callback(self, event):
+        event_type = event['type']
+        print str(event)
+        if event_type == DriverAsyncEvent.SAMPLE:
+            sample_value = event['value']
+            stream_type = sample_value['stream_name']
+            if stream_type == 'raw':
+                self.raw_stream_received = True
+            elif stream_type == 'parsed':
+                self.parsed_stream_received = True
+    
+    ###
+    #    Add instrument specific unit tests
+    ###
+    @unittest.skip('Instrument Driver Developer: test_valid_complete_sample skipped: please complete this test!')
+    def test_valid_complete_sample(self):
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=LoggerClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """       
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to the DISCONNECTED state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Force the driver into AUTOSAMPLE state so that it will parse and 
+        publish samples
+        """        
+        test_driver.set_test_mode(True)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        """
+        - Reset test verification variables.
+        - Construct a complete sample
+        - Pass to got_data()
+        - Verify that raw and parsed streams have been received
+        """
+        self.reset_test_vars()
+        test_sample = "Insert sample here with appropriate line terminator"
+
+        test_driver._protocol.got_data(test_sample)
+        
+        self.assertTrue(self.raw_stream_received)
+        self.assertTrue(self.parsed_stream_received)
+
+    @unittest.skip('Instrument Driver Developer: test_invalid_sample skipped: please complete this test!')
+    def test_invalid_complete_sample(self):
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=LoggerClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """       
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to the DISCONNECTED state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Force the driver into AUTOSAMPLE state so that it will parse and 
+        publish samples
+        """        
+        test_driver.set_test_mode(True)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        """
+        - Reset test verification variables.
+        - Construct a complete sample
+        - Pass to got_data()
+        - Verify that raw and parsed streams have been received
+        """
+        self.reset_test_vars()
+        test_sample = "Invalid Sample"
+
+        test_driver._protocol.got_data(test_sample)
+        
+        self.assertFalse(self.raw_stream_received)
+        self.assertFalse(self.parsed_stream_received)
+
+    @unittest.skip('Instrument Driver Developer: test_fragmented_complete_sample skipped: please complete this test!')
+    def test_fragmented_complete_sample(self):
+        """
+        Simulate a complete sample that arrives in separate invocations of got_data();
+        result should be a complete sample published 
+        """
+        
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=LoggerClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Force the driver into AUTOSAMPLE state so that it will parse and 
+        publish samples
+        """        
+        test_driver.set_test_mode(True)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        """
+        - Reset test verification variables.
+        - Construct a fragment of a sample stream
+        - Pass to got_data()
+        - Verify that raw and parsed streams have NOT been received
+        """
+        self.reset_test_vars()
+        test_sample = "Insert a fragment of a sample here, i.e., the beginning " + \
+        	"of a sample, but not a complete sample.  The remainder will be " + \
+        	"sent in a separate message."
+
+        test_driver._protocol.got_data(test_sample)
+        
+        self.assertFalse(self.raw_stream_received)
+        self.assertFalse(self.parsed_stream_received)
+
+        """
+        - Construct the remaining fragment of the sample stream
+        - Pass to got_data()
+        - Verify that raw and parsed streams have been received
+        """
+        test_sample = "Insert a remainder of the above sample here"
+
+        test_driver._protocol.got_data(test_sample)
+        
+        self.assertTrue(self.raw_stream_received)
+        self.assertTrue(self.parsed_stream_received)
+                
+    @unittest.skip('Instrument Driver Developer: test_concatenated_fragmented_sample skipped: please complete this test!')
+    def test_concatenated_fragmented_sample(self):
+        """
+        Simulate a complete sample that arrives in with a fragment concatenated.  The concatenated fragment
+        should have have a terminator.  A separate invocations of got_data() will have the remainder;
+        result should be a complete sample published 
+        """
+        
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=LoggerClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """                  
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to that state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        """
+        Force the driver into AUTOSAMPLE state so that it will parse and 
+        publish samples
+        """        
+        test_driver.set_test_mode(True)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_current_state()
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+
+        """
+        - Reset test verification variables.
+        - Construct a sample stream with a concatenated fragment
+        - Pass to got_data()
+        - Verify that raw and parsed streams have been received
+        - Later, when the final fragment has been send, verify that raw and
+          parsed streams have been received.
+        """
+        self.reset_test_vars()
+        test_sample = "Insert a complete sample here."
+
+        """
+        - Add the beginning of another sample stream
+        - Pass to got_data()
+        """
+        test_sample += "Add the beginning of another sample stream here, but just a fragment: the rest will come" + \
+            "in another message." 
+
+        test_driver._protocol.got_data(test_sample)
+        
+        self.assertTrue(self.raw_stream_received)
+        self.assertTrue(self.parsed_stream_received)
+
+        """
+        - Reset test verification variables
+        - Construct the final fragment of a sample stream
+        - Pass to got_data()
+        - Verify that raw and parsed streams have been received
+        """
+        self.reset_test_vars()
+        test_sample = \
+            "Insert the remainder of the fragmented sample that was added to the stream above."
+
+        test_driver._protocol.got_data(test_sample)
+        
+        self.assertTrue(self.raw_stream_received)
+        self.assertTrue(self.parsed_stream_received)
+
+
+###############################################################################
+#                            INTEGRATION TESTS                                #
+#     Integration test test the direct driver / instrument interaction        #
+#     but making direct calls via zeromq.                                     #
+#     - Common Integration tests test the driver through the instrument agent #
+#     and common for all drivers (minimum requirement for ION ingestion)      #
+###############################################################################
+@attr('INT', group='mi')
+class IntFromIDK(InstrumentDriverIntegrationTestCase):
+    def setUp(self):
+        InstrumentDriverIntegrationTestCase.setUp(self)
+
+    ###
+    #    Add instrument specific integration tests
+    ###
+
+
+###############################################################################
+#                            QUALIFICATION TESTS                              #
+# Device specific qualification tests are for                                 #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('QUAL', group='mi')
+class QualFromIDK(InstrumentDriverQualificationTestCase):
+    def setUp(self):
+        InstrumentDriverQualificationTestCase.setUp(self)
+
+    ###
+    #    Add instrument specific qualification tests
+    ###
+
+
