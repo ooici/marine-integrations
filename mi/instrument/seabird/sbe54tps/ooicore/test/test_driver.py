@@ -51,6 +51,8 @@ from mi.instrument.seabird.sbe54tps.ooicore.driver import State
 from mi.instrument.seabird.sbe54tps.ooicore.driver import Parameter
 from mi.instrument.seabird.sbe54tps.ooicore.driver import PACKET_CONFIG
 
+# SAMPLE DATA FOR TESTING
+from mi.instrument.seabird.sbe54tps.ooicore.test.sample_data import *
 
 ###
 #   Driver parameters for the tests
