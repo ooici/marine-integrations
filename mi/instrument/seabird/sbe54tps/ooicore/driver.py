@@ -33,6 +33,11 @@ NEWLINE = '\r\n'
 # default timeout.
 TIMEOUT = 10
 
+STATUS_DATA_REGEX = r"(<StatusData DeviceType='.*?</StatusData>)"
+STATUS_DATA_REGEX_MATCHER = re.compile(STATUS_DATA_REGEX)
+
+
+
 # Packet config\
 STREAM_NAME_PARSED = DataParticleValue.PARSED
 STREAM_NAME_RAW = DataParticleValue.RAW
@@ -225,13 +230,193 @@ class ProtocolEvent(BaseEnum):
 
 
 
+######################################### PARTICLES #############################
+
+
+class SBE54tpsStatusDataParticleKey(BaseEnum):
+    DEVICE_TYPE = "device_type"
+    SERIAL_NUMBER = "serial_number"
+    DATE_TIME = "date_time"
+    EVENT_COUNT = "event_count"
+    MAIN_SUPPLY_VOLTAGE = "main_supply_voltage"
+    NUMBER_OF_SAMPLES = "number_of_samples"
+    BYTES_USED = "bytes_used"
+    BYTES_FREE = "bytes_free"
+
+
+class SBE54tpsStatusDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    def _build_parsed_values(self):
+        """
+        Take something in the autosample format and split it into
+        values with appropriate tags
+
+        @throws SampleException If there is a problem with sample creation
+        """
+
+
+
+
+'''
+S>getsd
+getsd
+
+
+<StatusData DeviceType='SBE54' SerialNumber='05400012'>
+<DateTime>2012-11-06T10:55:44</DateTime>
+<EventSummary numEvents='573'/>
+<Power>
+<MainSupplyVoltage>23.3</MainSupplyVoltage>
+</Power>
+<MemorySummary>
+<Samples>22618</Samples>
+<Bytes>341504</Bytes>
+<BytesFree>133876224</BytesFree>
+</MemorySummary>
+</StatusData>
+<Executed/>
+S>
+'''
+
+        single_var_matchers  = {
+            SBE54tpsStatusDataParticleKey.DEVICE_TYPE:
+                re.compile(r"StatusData DeviceType='([^']+'"),
+            SBE54tpsStatusDataParticleKey.SERIAL_NUMBER:
+                re.compile(r"SerialNumber='(\d+)'"),
+            SBE54tpsStatusDataParticleKey.DATE_TIME:
+                re.compile(r"<DateTime>([^<]+)</DateTime>"),
+            SBE54tpsStatusDataParticleKey.EVENT_COUNT:
+                re.compile(r"<EventSummary numEvents='(\d+)'/>"),
+            SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE:
+                re.compile(r"<MainSupplyVoltage>(\d+)</MainSupplyVoltage>"),
+            SBE54tpsStatusDataParticleKey.NUMBER_OF_SAMPLES:
+                re.compile(r"<Samples>(\d+)</Samples>"),
+            SBE54tpsStatusDataParticleKey.BYTES_USED:
+                re.compile(r"<Bytes>(\d+)</Bytes>"),
+            SBE54tpsStatusDataParticleKey.BYTES_FREE:
+                re.compile(r"<BytesFree>(\d+)</BytesFree>")
+        }
+
+        # Initialize
+
+        single_var_matches  = {
+            SBE54tpsStatusDataParticleKey.DEVICE_TYPE: None,
+            SBE54tpsStatusDataParticleKey.SERIAL_NUMBER: None,
+            SBE54tpsStatusDataParticleKey.DATE_TIME: None,
+            SBE54tpsStatusDataParticleKey.EVENT_COUNT: None,
+            SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE: None,
+            SBE54tpsStatusDataParticleKey.NUMBER_OF_SAMPLES: None,
+            SBE54tpsStatusDataParticleKey.BYTES_USED: None,
+            SBE54tpsStatusDataParticleKey.BYTES_FREE: None
+        }
+
+        for line in self.raw_data.split(NEWLINE):
+            for (key, matcher) in single_var_matchers:
+                match = single_var_matchers[key].match(line)
+                if match:
+
+                    # str
+                    if key in [
+                        SBE54tpsStatusDataParticleKey.DEVICE_TYPE
+                    ]:
+                        single_var_matches[key] = match(1)
+                    # int
+                    elif key in [
+                        SBE54tpsStatusDataParticleKey.SERIAL_NUMBER
+                    ]:
+                        single_var_matches[key] = int(match(1))
+                    #float
+                    elif key in [
+
+                    ]:
+                        single_var_matches[key] = float(match(1))
+                    # datetime
+                    elif key in [
+                        SBE54tpsStatusDataParticleKey.DATE_TIME
+                    ]:
+                        single_var_matches[key] = float(match(1))
+
+        return result
+
+
+
+S>getcd
+getcd
+<ConfigurationData DeviceType='SBE54' SerialNumber='05400012'>
+<CalibrationCoefficients>
+<AcqOscCalDate>2012-02-20</AcqOscCalDate>
+<FRA0>5.999926E+06</FRA0>
+<FRA1>5.792290E-03</FRA1>
+<FRA2>-1.195664E-07</FRA2>
+<FRA3>7.018589E-13</FRA3>
+<PressureSerialNum>121451</PressureSerialNum>
+<PressureCalDate>2011-06-01</PressureCalDate>
+<pu0>5.820407E+00</pu0>
+<py1>-3.845374E+03</py1>
+<py2>-1.078882E+04</py2>
+<py3>0.000000E+00</py3>
+<pc1>-2.700543E+04</pc1>
+<pc2>-1.738438E+03</pc2>
+<pc3>7.629962E+04</pc3>
+<pd1>3.739600E-02</pd1>
+<pd2>0.000000E+00</pd2>
+<pt1>3.027306E+01</pt1>
+<pt2>2.231025E-01</pt2>
+<pt3>5.398972E+01</pt3>
+<pt4>1.455506E+02</pt4>
+<poffset>0.000000E+00</poffset>
+<prange>6.000000E+03</prange>
+</CalibrationCoefficients>
+<Settings
+batteryType='0'
+baudRate='9600'
+enableAlerts='0'
+uploadType='0'
+samplePeriod='15'
+/>
+</ConfigurationData>
+<Executed/>
 
 
 
 
 
 
+S>getec
+getec
+<EventSummary numEvents='573' maxStack='354'/>
+<EventList DeviceType='SBE54' SerialNumber='05400012'>
+<Event type='PowerOnReset' count='25'/>
+<Event type='PowerFailReset' count='25'/>
+<Event type='SerialByteErr' count='9'/>
+<Event type='CMDBuffOflow' count='1'/>
+<Event type='SerialRxOflow' count='255'/>
+<Event type='LowBattery' count='255'/>
+<Event type='SignalErr' count='1'/>
+<Event type='Error10' count='1'/>
+<Event type='Error12' count='1'/>
+</EventList>
+<Executed/>
+S>
 
+S>gethd
+gethd
+<HardwareData DeviceType='SBE54' SerialNumber='05400012'>
+<Manufacturer>Sea-Bird Electronics, Inc</Manufacturer>
+<FirmwareVersion>SBE54 V1.3-6MHZ</FirmwareVersion>
+<FirmwareDate>Mar 22 2007</FirmwareDate>
+<HardwareVersion>41477A.1</HardwareVersion>
+<HardwareVersion>41478A.1T</HardwareVersion>
+<PCBSerialNum>NOT SET</PCBSerialNum>
+<PCBSerialNum>NOT SET</PCBSerialNum>
+<PCBType>1</PCBType>
+<MfgDate>Jun 27 2007</MfgDate>
+</HardwareData>
+<Executed/>
+S>
 
 
 
@@ -274,6 +459,20 @@ class Parameter(DriverParameter):
 
 
 
+
+
+
+
+
+to do aquire sample, will need to:
+stop
+SetSamplePeriod=1
+collect a sample
+stop
+restore sample period.
+
+
+######################################### /PARTICLES #############################
 
 # Device prompts.
 class Prompt(BaseEnum):
