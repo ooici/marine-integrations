@@ -709,15 +709,15 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.data_subscribers.clear_sample_queue(sampleQueue)
 
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=30)
 
         log.debug("Acqire Sample")
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=30)
 
         log.debug("Acqire Sample")
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=30)
 
         # Watch the parsed data queue and return once three samples
         # have been read or the default timeout has been reached.
@@ -726,9 +726,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         log.error("SAMPLE: %s" % samples)
 
         # Verify
-        sampleDataAssert(self, samples.pop())
-        sampleDataAssert(self, samples.pop())
-        sampleDataAssert(self, samples.pop())
+        sampleDataAssert(samples.pop())
+        sampleDataAssert(samples.pop())
+        sampleDataAssert(samples.pop())
 
         self.assert_reset()
 
@@ -936,7 +936,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT) # ~9s to run
+
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 

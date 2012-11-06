@@ -2152,15 +2152,9 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         for line in data.split(NEWLINE):
             ret = p._extract_sample(SBE26plusDataParticle, line)
 
-
-
         # Verify it published 2 packets
         self.assertEqual(len(_driver_event_mock.mock_calls), 2)
-        """
-        print _driver_event_mock.mock_calls
-        [call('DRIVER_ASYNC_EVENT_SAMPLE', {'stream_name': 'raw', 'blob': '\r\nwave: ptfreq = 171791.359\r\ndepth =    0.000, temperature = 23.840, salinity = 35.000, density = 1023.690\r\n   nAvgBand = 5\r\n   total variance = 1.0896e-05\r\n   total energy = 1.0939e-01\r\n   significant period = 5.3782e-01\r\n   significant wave height = 1.3204e-02\r\n   wave integration time = 128\r\n   number of waves = 0\r\n   total variance = 1.1595e-05\r\n   total energy = 1.1640e-01\r\n   average wave height = 0.0000e+00\r\n   average wave period = 0.0000e+00\r\n   maximum wave height = 1.0893e-02\r\n   significant wave height = 0.0000e+00\r\n   significant wave period = 0.0000e+00\r\n   H1/10 = 0.0000e+00\r\n   H1/100 = 0.0000e+00', 'time': [1349456065.638729]}),
-         call('DRIVER_ASYNC_EVENT_SAMPLE', {'stream_name': 'parsed', 'parsed': {'significant_period': '5.3782e-01', 'maximum_wave_height': '1.0893e-02', 'temperature': '23.840', 'significant_wave_period': '0.0000e+00', 'density': '1023.690', 'average_wave_height': '0.0000e+00', 'number_of_waves': '0', 'average_wave_period': '0.0000e+00', 'total_variance': '1.1595e-05', 'salinity': '35.000', 'depth': '0.000', 'total_energy': '1.1640e-01', 'height_highest_10_percent_waves': '0.0000e+00', 'nAvgBand': '5', 'height_highest_1_percent_waves': '0.0000e+00', 'wave_ptfreq': '171791.359', 'significant_wave_height': '0.0000e+00', 'wave_integration_time': '128'}, 'time': [1349456065.638729]})]
-        """
+
 
     def test_parse_ds_response(self):
         """
@@ -2243,7 +2237,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         ID = InstrumentDriver(self.my_event_callback)
         ID._build_protocol()
         p = ID._protocol
-
 
         ret = p._parse_dc_response(SAMPLE_DC, Prompt.COMMAND)
         log.debug("RET = " + str(ret))
@@ -2428,7 +2421,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
                 resp = p.fake_responses.pop(0)
             except:
                 resp = (Prompt.COMMAND, "out of data")
-                print resp
             return resp
         p._get_response = _get_response_mock
         _update_params_mock = Mock()
@@ -2729,7 +2721,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
     #    Add instrument specific integration tests
     ###
 
-    def assertParamDict(self, pd, all_params=False):
+    def assert_param_dict(self, pd, all_params=False):
         """
         Verify all device parameters exist and are correct type.
         """
@@ -2754,16 +2746,6 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
                 else:
                     log.debug("*** Skipping " + key + " Because value is None ***")
 
-    # need to rename this to a better name
-    def assert_returned_parameters_match_set_parameters(self, params, reply):
-        for label in params.keys():
-            log.debug("ASSERTING " + label + " = " + str(params[label]) + " == " + str(reply[label]))
-            try:
-                self.assertEqual(params[label], reply[label])
-            except:
-                log.debug(label + " WAS NOT IN 'reply' " + str(reply))
-
-    # WORKS TUE
     def test_get_set(self):
         """
         Test device parameter access.
@@ -2800,7 +2782,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertEqual(reply, None)
 
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assertParamDict(reply)
+        self.assert_param_dict(reply)
 
 
         log.debug("get/set Test 2 - Conductivity = N, small subset of possible parameters.")
@@ -2811,7 +2793,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertEqual(reply, None)
 
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assertParamDict(reply)
+        self.assert_param_dict(reply)
 
 
         log.debug("get/set Test 3 - internal temperature sensor, small subset of possible parameters.")
@@ -2823,7 +2805,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertEqual(reply, None)
 
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assertParamDict(reply)
+        self.assert_param_dict(reply)
 
 
         log.debug("get/set Test 4 - external temperature sensor, small subset of possible parameters.")
@@ -2834,7 +2816,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertEqual(reply, None)
 
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assertParamDict(reply)
+        self.assert_param_dict(reply)
 
         log.debug("get/set Test 5 - get master set of possible parameters.")
         params = [
@@ -2892,7 +2874,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         ]
 
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assertParamDict(reply)
+        self.assert_param_dict(reply)
 
         log.debug("get/set Test 6 - get master set of possible parameters using array containing Parameter.ALL")
 
@@ -2902,7 +2884,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         ]
 
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assertParamDict(reply)
+        self.assert_param_dict(reply)
 
 
         log.debug("get/set Test 7 - Negative testing, broken values. Should get exception")
@@ -2940,7 +2922,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertEqual(reply, None)
 
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assertParamDict(reply)
+        self.assert_param_dict(reply)
 
 
         log.debug("get/set Test 10 - Negative testing, None instead of dict")
@@ -2952,7 +2934,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertTrue(exception)
 
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assertParamDict(reply)
+        self.assert_param_dict(reply)
 
 
 
@@ -2969,7 +2951,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertEqual(reply, None)
 
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assertParamDict(reply)
+        self.assert_param_dict(reply)
 
 
     # WORKS TUE
@@ -3268,7 +3250,8 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 
     def test_take_sample(self):
         """
-        @brief Test device parameter access.
+        @brief execute the take_sample (ts) command and verify that a line with at
+        least 3 floats is returned, indicating a acceptable sample.
         """
 
         self.put_instrument_in_command_mode()
@@ -3296,6 +3279,10 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
     def test_quit_session(self):
         """
         @brief Test quit session command.
+        quit session causes the instrument to enter a timedout state where it uses less power.
+
+        this test wakes it up after placing it in the timedout (quit session) state, then
+        verifies it can obtain paramaters to assert the instrument is working.
         """
 
         self.put_instrument_in_command_mode()
@@ -3314,7 +3301,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
             Parameter.ALL
         ]
         reply = self.driver_client.cmd_dvr('get_resource', params)
-        self.assertParamDict(reply)
+        self.assert_param_dict(reply)
 
     def test_get_resource_capabilities(self):
         """
@@ -3822,10 +3809,7 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         """
         @brief Test instrument driver execute interface to start and stop streaming
         mode.
-
-        @TODO needs to be fixed once the IDK data_subscribers and event_subscribers are fixed
         """
-
 
         self.data_subscribers.start_data_subscribers()
         self.addCleanup(self.data_subscribers.stop_data_subscribers)
@@ -3849,14 +3833,11 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
 
         self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
 
-
         # wait for 3 samples, then test them!
         samples = self.data_subscribers.get_samples('parsed', 3, timeout=300) # 6 minutes
         self.assertSampleDataParticle(samples.pop())
         self.assertSampleDataParticle(samples.pop())
         self.assertSampleDataParticle(samples.pop())
-
-
 
         # Halt streaming.
         cmd = AgentCommand(command=ProtocolEvent.STOP_AUTOSAMPLE)
@@ -3883,6 +3864,8 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         self.tcp_client.expect("S>")
 
         self.assert_direct_access_stop_telnet()
+
+
 
     def test_get_capabilities(self):
         """
@@ -4183,6 +4166,11 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         self.assert_reset()
 
         self.assert_enter_command_mode()
+
+    def test_acquire_sample_simple(self):
+        """
+        """
+        self.assert_sample_polled(self.assertSampleDataParticle, 'parsed')
 
     def test_acquire_sample(self):
         """
