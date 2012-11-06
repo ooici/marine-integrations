@@ -726,9 +726,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         log.error("SAMPLE: %s" % samples)
 
         # Verify
-        sampleDataAssert(self, samples.pop())
-        sampleDataAssert(self, samples.pop())
-        sampleDataAssert(self, samples.pop())
+        sampleDataAssert(samples.pop())
+        sampleDataAssert(samples.pop())
+        sampleDataAssert(samples.pop())
 
         self.assert_reset()
 
