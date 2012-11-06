@@ -721,7 +721,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         # Watch the parsed data queue and return once three samples
         # have been read or the default timeout has been reached.
-        samples = self.data_subscribers.get_samples(sampleQueue, 3)
+        samples = self.data_subscribers.get_samples(sampleQueue, 3, timeout = timeout)
         self.assertGreaterEqual(len(samples), 3)
         log.error("SAMPLE: %s" % samples)
 
@@ -734,7 +734,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.doCleanups()
 
-    def assert_sample_autosample(self, sampleDataAssert, sampleQueue):
+    def assert_sample_autosample(self, sampleDataAssert, sampleQueue, timeout = 10):
         """
         Test instrument driver execute interface to start and stop streaming
         mode.
@@ -755,7 +755,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assert_start_autosample()
 
         # Assert we got 3 samples.
-        samples = self.data_subscribers.get_samples(sampleQueue, 3)
+        samples = self.data_subscribers.get_samples(sampleQueue, 3, timeout = timeout)
         self.assertGreaterEqual(len(samples), 3)
 
         s = samples.pop()
@@ -878,20 +878,32 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT)
             state = self.instrument_agent_client.get_agent_state()
             print("sent go_active; IA state = %s" %str(state))
-            self.assertEqual(state, ResourceAgentState.IDLE)
+            
+            if state == ResourceAgentState.STREAMING:
+                """ 
+                The instrument is in autosample; take it out of autosample,
+                which will cause the driver and agent to transition to COMMAND
+                """
+                self.assert_stop_autosample()
+            else:
+                cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+                retval = self.instrument_agent_client.execute_agent(cmd)
+                
+            #res_state = self.instrument_agent_client.get_resource_state()
+            #self.assertEqual(res_state, DriverProtocolState.COMMAND)
+
+            #state = self.instrument_agent_client.get_agent_state()
+            #print("sent run; IA state = %s" %str(state))
+            #self.assertEqual(state, ResourceAgentState.COMMAND)
     
-            res_state = self.instrument_agent_client.get_resource_state()
-            self.assertEqual(res_state, DriverProtocolState.COMMAND)
-    
-            cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-            retval = self.instrument_agent_client.execute_agent(cmd)
-            state = self.instrument_agent_client.get_agent_state()
-            print("sent run; IA state = %s" %str(state))
-            self.assertEqual(state, ResourceAgentState.COMMAND)
+            #cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+            #retval = self.instrument_agent_client.execute_agent(cmd)
+            #state = self.instrument_agent_client.get_agent_state()
+            #print("sent run; IA state = %s" %str(state))
 
         state = self.instrument_agent_client.get_agent_state()
-        if state == ResourceAgentState.STREAMING:
-            self.assert_stop_autosample()
+        print("sent run; IA state = %s" %str(state))
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, DriverProtocolState.COMMAND)
