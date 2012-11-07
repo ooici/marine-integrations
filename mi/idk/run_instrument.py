@@ -51,6 +51,7 @@ from interface.objects import CapabilityType
 from interface.objects import AgentCapability
 from interface.services.icontainer_agent import ContainerAgentClient
 from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
+from interface.services.dm.idataset_management_service import DatasetManagementServiceClient
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -80,6 +81,7 @@ IA_NAME = 'Agent007'
 IA_MOD = 'ion.agents.instrument.instrument_agent'
 IA_CLS = 'InstrumentAgent'
 
+DEFAULT_PARAM_DICT = 'ctd_raw_param_dict'
 
 
 class FakeProcess(LocalContextMixin):
@@ -108,6 +110,7 @@ class RunInstrument(IonIntegrationTestCase):
         self._pagent = None
         self.monitor_window = monitor
         self.subcriber_window = subscriber
+        self.stream_config = {}
         
         self._cleanups = []
 
@@ -283,7 +286,8 @@ class RunInstrument(IonIntegrationTestCase):
         """
         # Create a pubsub client to create streams.
         pubsub_client = PubsubManagementServiceClient(node=self.container.node)
-                
+        dataset_management = DatasetManagementServiceClient() 
+           
         # Create streams and subscriptions for each stream named in driver.
         self._stream_config = {}
 
@@ -293,13 +297,25 @@ class RunInstrument(IonIntegrationTestCase):
         }
 
         for (stream_name, param_dict_name) in streams.iteritems():
+            pd_id = dataset_management.read_parameter_dictionary_by_name(DEFAULT_PARAM_DICT, id_only=True)
+            if (not pd_id):
+                log.error("No pd_id found for param_dict '%s'" % DEFAULT_PARAM_DICT)
+
+            stream_def_id = pubsub_client.create_stream_definition(name=stream_name,
+                                                                   parameter_dictionary_id=pd_id)
+            pd = None
             stream_id, stream_route = pubsub_client.create_stream(name=stream_name,
-                                                exchange_point='science_data')
-            pd = get_param_dict(param_dict_name)
+                                                exchange_point='science_data',
+                                                stream_definition_id=stream_def_id)
+
             stream_config = dict(stream_route=stream_route,
+                                 routing_key=stream_route.routing_key,
+                                 exchange_point=stream_route.exchange_point,
                                  stream_id=stream_id,
-                                 parameter_dictionary=pd.dump())
-            self._stream_config[stream_name] = stream_config
+                                 stream_definition_ref=stream_def_id,
+                                 parameter_dictionary=pd)
+
+            self.stream_config[stream_name] = stream_config    
 
     def _start_data_subscribers(self, count):
         """

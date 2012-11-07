@@ -105,6 +105,8 @@ class Capability(BaseEnum):
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+    TEST = DriverEvent.TEST
+    DISCOVER = DriverEvent.DISCOVER
 
 
 # Device specific parameters.
@@ -119,29 +121,6 @@ class Parameter(DriverParameter):
     INTERVAL = 'INTERVAL'
     TXREALTIME = 'TXREALTIME'
     SYNCMODE = 'SYNCMODE'
-    TCALDATE = 'TCALDATE'
-    TA0 = 'TA0'
-    TA1 = 'TA1'
-    TA2 = 'TA2'
-    TA3 = 'TA3'
-    CCALDATE = 'CCALDATE'
-    CG = 'CG'
-    CH = 'CH'
-    CI = 'CI'
-    CJ = 'CJ'
-    CTCOR = 'CTCOR'
-    CPCOR = 'CPCOR'
-    PCALDATE = 'PCALDATE'
-    PA0 = 'PA0'
-    PA1 = 'PA1'
-    PA2 = 'PA2'
-    PTCA0 = 'PTCA0'
-    PTCA1 = 'PTCA1'
-    PTCA2 = 'PTCA2'
-    PTCB0 = 'PTCB0'
-    PTCB1 = 'PTCB1'
-    PTCB2 = 'PTCB2'
-    POFFSET = 'POFFSET'
     DATE_TIME = "DateTime"
     LOGGING = "logging"
     # DHE This doesn't show up in status when SYNCMODE
@@ -1194,7 +1173,7 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         
         return (success, response)        
                 
-    def got_data(self, paPacket):
+    def now_in_instrument_protocol_got_data(self, paPacket):
         """
         Callback for receiving new data from the device.
         """
@@ -1233,7 +1212,16 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
                 self._extract_sample(SBE16DataParticle, SAMPLE_REGEX, chunk)
                 self._extract_sample(SBE16StatusParticle, STATUS_REGEX, chunk)
                 chunk = self._chunker.get_next_data()
-                
+
+    def _got_chunk(self, chunk):
+        """
+        The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
+        with the appropriate particle objects and REGEXes. 
+        """
+        self._extract_sample(SBE16DataParticle, SAMPLE_REGEX, chunk)
+        self._extract_sample(SBE16StatusParticle, STATUS_REGEX, chunk)
+        
+                        
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with SBE16 parameters.
@@ -1244,7 +1232,8 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.OUTPUTSAL,
                              r'output salinity = (no)?',
                              lambda match : False if match.group(1) else True,
-                             self._true_false_to_string)
+                             self._true_false_to_string,
+                             startup_param = True)
         self._param_dict.add(Parameter.OUTPUTSV,
                              r'output sound velocity = (no)?',
                              lambda match : False if match.group(1) else True,
@@ -1268,7 +1257,8 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.SYNCMODE,
                              r'serial sync mode (enabled|disabled)',
                              lambda match : False if (match.group(1)=='disabled') else True,
-                             self._true_false_to_string)
+                             self._true_false_to_string,
+                             startup_param = True)
         # DHE This doesn't show up in status when SYNCMODE
         # is disabled, so the tests fail.  Commenting out for 
         # now.
@@ -1276,99 +1266,6 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         #                     r'wait time after serial sync sampling = (\d+) seconds',
         #                     lambda match : int(match.group(1)),
         #                     self._int_to_string)
-        self._param_dict.add(Parameter.TCALDATE,
-                             r'temperature: +((\d+)-([a-zA-Z]+)-(\d+))',
-                             lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
-                             self._date_to_string)
-        self._param_dict.add(Parameter.TA0,
-                             #r' +TA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             r' +TA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.TA1,
-                             r' +TA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.TA2,
-                             r' +TA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.TA3,
-                             r' +TA3 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.CCALDATE,
-                             r'conductivity: +((\d+)-([a-zA-Z]+)-(\d+))',
-                             lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
-                             self._date_to_string)
-        self._param_dict.add(Parameter.CG,
-                             r' +G = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.CH,
-                             r' +H = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.CI,
-                             r' +I = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.CJ,
-                             r' +J = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.CTCOR,
-                             r' +CTCOR = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.CPCOR,
-                             r' +CPCOR = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.PCALDATE,
-                             r'pressure .+ ((\d+)-([a-zA-Z]+)-(\d+))',
-                             lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
-                             self._date_to_string)
-        self._param_dict.add(Parameter.PA0,
-                             r' +PA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.PA1,
-                             r' +PA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.PA2,
-                             r' +PA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.PTCA0,
-                             r' +PTCA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.PTCA1,
-                             r' +PTCA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.PTCA2,
-                             r' +PTCA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.PTCB0,
-                             r' +PTCB0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                            self._float_to_string)
-        self._param_dict.add(Parameter.PTCB1,
-                             r' +PTCB1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.PTCB2,
-                             r' +PTCB2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
-        self._param_dict.add(Parameter.POFFSET,
-                             r' +POFFSET = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
-                             lambda match : float(match.group(1)),
-                             self._float_to_string)
         self._param_dict.add(Parameter.DATE_TIME,
                              r'SBE 16plus V ([\w.]+) +SERIAL NO. (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)', 
                              lambda match : string.upper(match.group(3)),

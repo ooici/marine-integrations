@@ -114,30 +114,6 @@ PARAMS = {
     Parameter.SAMPLENUM : int,
     Parameter.INTERVAL : int,
     Parameter.TXREALTIME : bool,
-    Parameter.SYNCMODE : bool,
-    Parameter.TCALDATE : tuple,
-    Parameter.TA0 : float,
-    Parameter.TA1 : float,
-    Parameter.TA2 : float,
-    Parameter.TA3 : float,
-    Parameter.CCALDATE : tuple,
-    Parameter.CG : float,
-    Parameter.CH : float,
-    Parameter.CI : float,
-    Parameter.CJ : float,
-    Parameter.CTCOR : float,
-    Parameter.CPCOR : float,
-    Parameter.PCALDATE : tuple,
-    Parameter.PA0 : float,
-    Parameter.PA1 : float,
-    Parameter.PA2 : float,
-    Parameter.PTCA0 : float,
-    Parameter.PTCA1 : float,
-    Parameter.PTCA2 : float,
-    Parameter.PTCB0 : float,
-    Parameter.PTCB1 : float,
-    Parameter.PTCB2 : float,
-    Parameter.POFFSET : float,
     Parameter.DATE_TIME : str,
     Parameter.LOGGING : bool
     # DHE this doesn't show up in the status unless the
@@ -2595,5 +2571,15 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
 
         """
 
-
-
+    def test_get_all_parameters(self):
+        
+        self.assert_enter_command_mode()
+        self.assert_get_parameter(Parameter.OUTPUTSAL, True)
+        self.assert_get_parameter(Parameter.OUTPUTSV, False)
+        self.assert_get_parameter(Parameter.NAVG, 10)
+        self.assert_get_parameter(Parameter.INTERVAL, 11)
+        self.assert_get_parameter(Parameter.TXREALTIME, True)
+        self.assert_get_parameter(Parameter.SYNCMODE, False)
+        #self.assert_get_parameter(Parameter.DATETIME, False)
+        #self.assert_get_parameter(Parameter.LOGGING, False)
+        #self.assert_get_parameter(Parameter.SAMPLENUM, False)
