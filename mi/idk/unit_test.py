@@ -709,15 +709,15 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.data_subscribers.clear_sample_queue(sampleQueue)
 
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
         log.debug("Acqire Sample")
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
         log.debug("Acqire Sample")
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
         # Watch the parsed data queue and return once three samples
         # have been read or the default timeout has been reached.
@@ -875,28 +875,40 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
     
             cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-            retval = self.instrument_agent_client.execute_agent(cmd)
+            retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT)
             state = self.instrument_agent_client.get_agent_state()
             print("sent go_active; IA state = %s" %str(state))
-            self.assertEqual(state, ResourceAgentState.IDLE)
+            
+            if state == ResourceAgentState.STREAMING:
+                """ 
+                The instrument is in autosample; take it out of autosample,
+                which will cause the driver and agent to transition to COMMAND
+                """
+                self.assert_stop_autosample()
+            else:
+                cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+                retval = self.instrument_agent_client.execute_agent(cmd)
+                
+            #res_state = self.instrument_agent_client.get_resource_state()
+            #self.assertEqual(res_state, DriverProtocolState.COMMAND)
+
+            #state = self.instrument_agent_client.get_agent_state()
+            #print("sent run; IA state = %s" %str(state))
+            #self.assertEqual(state, ResourceAgentState.COMMAND)
     
-            res_state = self.instrument_agent_client.get_resource_state()
-            self.assertEqual(res_state, DriverProtocolState.COMMAND)
-    
-            cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-            retval = self.instrument_agent_client.execute_agent(cmd)
-            state = self.instrument_agent_client.get_agent_state()
-            print("sent run; IA state = %s" %str(state))
-            self.assertEqual(state, ResourceAgentState.COMMAND)
+            #cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+            #retval = self.instrument_agent_client.execute_agent(cmd)
+            #state = self.instrument_agent_client.get_agent_state()
+            #print("sent run; IA state = %s" %str(state))
 
         state = self.instrument_agent_client.get_agent_state()
-        if state == ResourceAgentState.STREAMING:
-            self.assert_stop_autosample()
+        print("sent run; IA state = %s" %str(state))
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, DriverProtocolState.COMMAND)
 
-    def assert_direct_access_start_telnet(self, timeout = 600):
+    def assert_direct_access_start_telnet(self, timeout=600):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
@@ -936,7 +948,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT) # ~9s to run
+
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
