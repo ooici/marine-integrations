@@ -93,13 +93,14 @@ class InstrumentCmds(BaseEnum):
     #### Setup - General ####
     #########################
     # INITIALIZE = "*Init"                                                  # DO NOT IMPLEMENT
+    SET_SAMPLE_PERIOD = "SetSamplePeriod"
     SET_TIME = "SetTime"
     SET_BATTERY_TYPE = "SetBatteryType"
 
     #############################
     #### Setup – Data Output ####
     #############################
-    ENABLE_ALERTS ="SetEnableAlerts"
+    SET_ENABLE_ALERTS ="SetEnableAlerts"
 
     ##################
     #### Sampling ####

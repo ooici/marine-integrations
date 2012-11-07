@@ -428,3 +428,73 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
     ###
 
 
+    def check_state(self, desired_state):
+        #@todo promote this to base class already....
+        current_state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(current_state, desired_state)
+
+
+    def assert_SBE54tpsStatusDataParticle(self, prospective_particle):
+        """
+        @param prospective_particle:
+        @return:
+        """
+    def assert_SBE54tpsConfigurationDataParticle(self, prospective_particle):
+        """
+        @param prospective_particle:
+        @return:
+        """
+    def assert_SBE54tpsEventCounterDataParticle(self, prospective_particle):
+        """
+        @param prospective_particle:
+        @return:
+        """
+    def assert_SBE54tpsHardwareDataParticle(self, prospective_particle):
+        """
+        @param prospective_particle:
+        @return:
+        """
+    def assert_SBE54tpsSampleDataParticle(self, prospective_particle):
+        """
+        @param prospective_particle:
+        @return:
+        """
+
+    def test_direct_access_telnet_mode(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+
+        stop
+        <WARNING>
+        Instrument will automatically start sampling
+        if no valid commands received for 2 minutes
+        </WARNING>
+        <Executed/>
+        S>SetSamplePeriod=99
+        SetSamplePeriod=99
+        <Executed/>
+        S>
+        """
+        self.assert_enter_command_mode()
+
+        param_name = Parameter.XXXXXXXXXXXXXXXXXXXXXREPLACE
+        param_new_value = 90
+
+
+        params = [param_name]
+        check_new_params = self.instrument_agent_client.get_resource(params)
+        self.assertTrue(check_new_params[param_name])
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.send_data(param_name + "=" + str(param_new_value) + "\r\n")
+        self.tcp_client.expect("S>")
+
+        self.assert_direct_access_stop_telnet()
+
+        # verify the setting got restored.
+        self.assert_enter_command_mode()
+        params = [param_name]
+        check_new_params = self.instrument_agent_client.get_resource(params)
+        self.assertTrue(check_new_params[param_name])

@@ -87,3 +87,9 @@ SAMPLE_GETHD =  "S>gethd" + NEWLINE +\
                 "</HardwareData>" + NEWLINE +\
                 "<Executed/>" + NEWLINE +\
                 "S>"
+
+SAMPLE_SAMPLE = "<Sample Num='5947' Type='Pressure'>" + NEWLINE +\
+                "<Time>2012-11-07T12:21:25</Time>" + NEWLINE +\
+                "<PressurePSI>13.9669</PressurePSI>" + NEWLINE +\
+                "<PTemp>18.9047</PTemp>" + NEWLINE +\
+                "</Sample>"
