@@ -120,13 +120,8 @@ class Parameter(DriverParameter):
     SAMPLENUM = 'SAMPLENUM'
     INTERVAL = 'INTERVAL'
     TXREALTIME = 'TXREALTIME'
-    SYNCMODE = 'SYNCMODE'
     DATE_TIME = "DateTime"
     LOGGING = "logging"
-    # DHE This doesn't show up in status when SYNCMODE
-    # is disabled, so the tests fail.  Commenting out for 
-    # now.  Bill F. said that we won't be using SYNCWAIT .
-    #SYNCWAIT = 'SYNCWAIT'
     
 # Device prompts.
 class Prompt(BaseEnum):
@@ -1254,18 +1249,6 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
                              r'transmit real-time = (yes|no)',
                              lambda match : True if match.group(1)=='yes' else False,
                              self._true_false_to_string)
-        self._param_dict.add(Parameter.SYNCMODE,
-                             r'serial sync mode (enabled|disabled)',
-                             lambda match : False if (match.group(1)=='disabled') else True,
-                             self._true_false_to_string,
-                             startup_param = True)
-        # DHE This doesn't show up in status when SYNCMODE
-        # is disabled, so the tests fail.  Commenting out for 
-        # now.
-        #self._param_dict.add(Parameter.SYNCWAIT,
-        #                     r'wait time after serial sync sampling = (\d+) seconds',
-        #                     lambda match : int(match.group(1)),
-        #                     self._int_to_string)
         self._param_dict.add(Parameter.DATE_TIME,
                              r'SBE 16plus V ([\w.]+) +SERIAL NO. (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)', 
                              lambda match : string.upper(match.group(3)),
