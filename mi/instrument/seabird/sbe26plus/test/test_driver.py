@@ -2522,6 +2522,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
         #self.assertTrue(False) # to enable debug output
 
+    @unittest.skip("Think there might be a better way to run this tests")
     def test_chunker_line_by_line(self):
         # This will want to be created in the driver eventually...
         self._chunker = StringChunker(Protocol.sieve_function)
