@@ -22,6 +22,7 @@ USAGE:
 __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
+from gevent import monkey; monkey.patch_all()
 import gevent
 import unittest
 
@@ -237,9 +238,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         
         # command the instrument to start measurement immediate.
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_MEASUREMENT_IMMEDIATE)
-        for loop in range(0, 12):
-            # spin allowing PA and driver to run (simple gevent.sleep() doesn't do it)
-            gevent.sleep(10)  # wait for measurement to complete               
+        gevent.sleep(100)  # wait for measurement to complete               
 
 
     def test_instrument_set(self):
@@ -250,7 +249,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # Grab a subset of parameters.
         params = [
-            Parameter.MEASUREMENT_INTERVAL
+            Parameter.WRAP_MODE
             ]
         reply = self.driver_client.cmd_dvr('get_resource', params)
         #self.assertParamDict(reply)        
@@ -260,7 +259,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         
         # Construct new parameters to set.
         new_params = {
-            Parameter.MEASUREMENT_INTERVAL : orig_params[Parameter.MEASUREMENT_INTERVAL] + 1
+            Parameter.WRAP_MODE : 1
         }
         
         # Set parameters and verify.
@@ -327,11 +326,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         cmd = AgentCommand(command=Capability.START_MEASUREMENT_IMMEDIATE)
         self.instrument_agent_client.execute_resource(cmd) 
         
-        for loop in range(0, 12):
-            # spin allowing PA and driver to run (simple gevent.sleep() doesn't do it)
-            gevent.sleep(10)  # wait for measurement to complete               
-
-        sample = self.data_subscribers.get_samples('parsed', 1) 
+        sample = self.data_subscribers.get_samples('parsed', 1, timeout = 100) 
         log.debug("test_aquire_sample: sample=%s", sample)
         #self.assertSampleDataParticle(samples.pop())
 

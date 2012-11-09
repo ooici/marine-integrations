@@ -62,6 +62,7 @@ DIAGNOSTIC_DATA_HEADER_LEN = 36
 DIAGNOSTIC_DATA_HEADER_SYNC_BYTES = '\xa5\x06'
 DIAGNOSTIC_DATA_LEN = 42
 DIAGNOSTIC_DATA_SYNC_BYTES = '\xa5\x80\x15\x00'
+CHECK_SUM_SEED = 0xb58c
 
 sample_structures = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
                      [DIAGNOSTIC_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
@@ -105,7 +106,7 @@ class InstrumentCmds(BaseEnum):
     READ_BATTERY_VOLTAGE               = 'BV'
     READ_ID                            = 'ID'
     START_MEASUREMENT_AT_SPECIFIC_TIME = 'SD'
-    START_MEASUREMENT_IMMEDIATE        = 'SR'
+    START_MEASUREMENT_IMMEDIATE        = 'ST'
     CONFIRMATION                       = 'MC'        # confirm a break request
     # SAMPLE_AVG_TIME                    = 'A'
     # SAMPLE_INTERVAL_TIME               = 'M'
@@ -225,7 +226,7 @@ class Parameter(DriverParameter):
     RECEIVE_LENGTH = "ReceiveLength"                             # T3
     TIME_BETWEEN_PINGS = "TimeBetweenPings"                      # T4
     TIME_BETWEEN_BURST_SEQUENCES = "TimeBetweenBurstSequences"   # T5 
-    NUMMBER_PINGS = "NumberPings"     # number of beam sequences per burst
+    NUMBER_PINGS = "NumberPings"     # number of beam sequences per burst
     AVG_INTERVAL = "AvgInterval"
     USER_NUMBER_BEAMS = "UserNumberOfBeams" 
     TIMING_CONTROL_REGISTER = "TimingControlRegister"
@@ -264,7 +265,7 @@ class Parameter(DriverParameter):
     B1_2_SPARE = 'B1_2Spare'
     USER_2_SPARE = 'User2Spare'
     ANALOG_OUTPUT_SCALE = 'AnalogOutputScale'
-    COORELATION_THRESHOLD = 'CoorelationThreshold'
+    CORRELATION_THRESHOLD = 'CorrelationThreshold'
     USER_3_SPARE = 'User3Spare'
     TRANSMIT_PULSE_LENGTH_SECOND_LAG = 'TransmitPulseLengthSecondLag'
     USER_4_SPARE = 'User4Spare'
@@ -399,7 +400,6 @@ class BinaryProtocolParameterDict(ProtocolParameterDict):
     @staticmethod
     def calculate_checksum(input, length):
         #log.debug("calculate_checksum: input=%s, length=%d", input.encode('hex'), length)
-        CHECK_SUM_SEED = 0xb58c
         calculated_checksum = CHECK_SUM_SEED
         for word_index in range(0, length-2, 2):
             word_value = BinaryProtocolParameterDict.convert_word_to_int(input[word_index:word_index+2])
@@ -733,7 +733,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Parameter.RECEIVE_LENGTH,
         Parameter.TIME_BETWEEN_PINGS,
         Parameter.TIME_BETWEEN_BURST_SEQUENCES, 
-        Parameter.NUMMBER_PINGS,
+        Parameter.NUMBER_PINGS,
         Parameter.AVG_INTERVAL,
         Parameter.USER_NUMBER_BEAMS, 
         Parameter.TIMING_CONTROL_REGISTER,
@@ -772,7 +772,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Parameter.B1_2_SPARE,
         Parameter.USER_2_SPARE,
         Parameter.ANALOG_OUTPUT_SCALE,
-        Parameter.COORELATION_THRESHOLD,
+        Parameter.CORRELATION_THRESHOLD,
         Parameter.USER_3_SPARE,
         Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
         Parameter.USER_4_SPARE,
@@ -1494,7 +1494,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
-        self._param_dict.add(Parameter.NUMMBER_PINGS,
+        self._param_dict.add(Parameter.NUMBER_PINGS,
                              r'^.{%s}(.{2}).*' % str(14),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
                              self._word_to_string,
@@ -1689,7 +1689,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
                              self._word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
-        self._param_dict.add(Parameter.COORELATION_THRESHOLD,
+        self._param_dict.add(Parameter.CORRELATION_THRESHOLD,
                              r'^.{%s}(.{2}).*' % str(458),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
                              self._word_to_string,
@@ -1872,7 +1872,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         for name in self.UserParameters:
             output += parameters.format_parameter(name)
         
-        checksum = self.CHECK_SUM_SEED
+        checksum = CHECK_SUM_SEED
         for word_index in range(0, len(output), 2):
             word_value = BinaryProtocolParameterDict.convert_word_to_int(output[word_index:word_index+2])
             checksum = (checksum + word_value) % 0x10000
@@ -1880,7 +1880,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug('_create_set_output: user checksum = %s' % checksum)
 
         output += self._word_to_string(checksum)
-        self._dump_user_config(output)                      
+        self._dump_config(output)                      
         
         return output
     
