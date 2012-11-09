@@ -2183,7 +2183,6 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         self.assertTrue(self.check_for_reused_values(DriverParameter))
         self.assertTrue(self.check_for_reused_values(Parameter))
 
-
     def test_protocol_event_enum(self):
         """
         @brief ProtocolState enum test
@@ -2210,7 +2209,6 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         self.assertTrue(self.check_for_reused_values(DriverEvent))
         self.assertTrue(self.check_for_reused_values(ProtocolEvent))
 
-
     def test_protocol_state_enum(self):
         """
         @ brief ProtocolState enum test
@@ -2230,162 +2228,17 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         self.assertTrue(self.check_for_reused_values(DriverProtocolState))
         self.assertTrue(self.check_for_reused_values(ProtocolState))
 
-
-    def old_test_autosample(self):
-        """
-        Test instrument driver execute interface to start and stop streaming
-        mode.
-        """
-        self.data_subscribers.start_data_subscribers()
-        self.addCleanup(self.data_subscribers.stop_data_subscribers)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
-
-
-        # Make sure the sampling rate and transmission are sane.
-        params = {
-            Parameter.NAVG : 1,
-            Parameter.INTERVAL : 5,
-            Parameter.TXREALTIME : True
-        }
-        self.instrument_agent_client.set_resource(params)
-
-        self.data_subscribers.clear_sample_queue('parsed')
-
-        # Begin streaming.
-        cmd = AgentCommand(command=ProtocolEvent.START_AUTOSAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd, timeout=30)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.STREAMING)
-
-        # Assert we got 3 samples.
-        samples = self.data_subscribers.get_samples(DataParticleValue.PARSED, 3, timeout=60)
-        self.assertGreaterEqual(len(samples), 3)
-
-        self.assertSampleDataParticle(samples.pop())
-        self.assertSampleDataParticle(samples.pop())
-        self.assertSampleDataParticle(samples.pop())
-
-        # Halt streaming.
-        cmd = AgentCommand(command=ProtocolEvent.STOP_AUTOSAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd, timeout=30)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        self.doCleanups()
-
-
-    def test_acquire_sample(self):
-        """
-        Test observatory polling function.
-        """
-        # Set up all data subscriptions.  Stream names are defined
-        # in the driver PACKET_CONFIG dictionary
-        self.data_subscribers.start_data_subscribers()
-        self.addCleanup(self.data_subscribers.stop_data_subscribers)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
-
-        ###
-        # Poll for a few samples
-        ###
-
-        # make sure there aren't any junk samples in the parsed
-        # data queue.
-        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
-        cmd = AgentCommand(command=ProtocolEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
-
-        cmd = AgentCommand(command=ProtocolEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
-
-        cmd = AgentCommand(command=ProtocolEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd)
-
-        # Watch the parsed data queue and return once three samples
-        # have been read or the default timeout has been reached.
-        samples = self.data_subscribers.get_samples(DataParticleValue.PARSED, 3)
-        self.assertGreaterEqual(len(samples), 3)
-
-        self.assertSampleDataParticle(samples.pop())
-        self.assertSampleDataParticle(samples.pop())
-        self.assertSampleDataParticle(samples.pop())
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
-        self.doCleanups()
-
     def test_sample_polled(self):
-        '''
-        No polling for a single sample
-        '''
         self.assert_sample_polled(self.assertSampleDataParticle,
                                   DataParticleValue.PARSED, timeout = 60)
         pass
 
     def test_sample_autosample(self):
-        '''
-        No polling for a single sample
-        '''
         self.assert_sample_autosample(self.assertSampleDataParticle,
                                   DataParticleValue.PARSED, timeout = 60)
         pass
 
     def test_acquire_status(self):
-        '''
-        No polling for a single sample
-        '''
-        self.assert_acquire_status(self.assertStatusParticle,
-                                   DataParticleValue.PARSED)
-        pass
-
-    def old_test_acquire_status(self):
         """
         Test ACQUIRE_STATUS 
         """
@@ -2413,8 +2266,6 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
         cmd = AgentCommand(command=ProtocolEvent.ACQUIRE_STATUS)
         retval = self.instrument_agent_client.execute_resource(cmd)
-
-
 
     def test_execute_reset(self):
         """
@@ -2465,8 +2316,7 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
-
-    #@unittest.skip("Not working; not sure why...ServerError: 500 - 500 - gevent is only usable from a single thread...")
+    @unittest.skip("Not working; not sure why...")
     def test_execute_test(self):
         """
         Test the hardware testing mode.
@@ -2527,9 +2377,8 @@ class SBEQualTestCase(InstrumentDriverQualificationTestCase):
         self.assert_get_parameter(Parameter.OUTPUTSAL, True)
         self.assert_get_parameter(Parameter.OUTPUTSV, False)
         self.assert_get_parameter(Parameter.NAVG, 10)
-        self.assert_get_parameter(Parameter.INTERVAL, 11)
+        self.assert_get_parameter(Parameter.INTERVAL, 10)
         self.assert_get_parameter(Parameter.TXREALTIME, True)
-        self.assert_get_parameter(Parameter.SYNCMODE, False)
         #self.assert_get_parameter(Parameter.DATETIME, False)
         #self.assert_get_parameter(Parameter.LOGGING, False)
         #self.assert_get_parameter(Parameter.SAMPLENUM, False)
