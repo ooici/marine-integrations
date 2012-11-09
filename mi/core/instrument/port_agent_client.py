@@ -64,7 +64,7 @@ class PortAgentPacket():
         self.__length = int(up_header[OFFSET_UP_LENGTH]) - HEADER_SIZE
         self.__recv_checksum  = int(up_header[OFFSET_UP_CHECKSUM])
 
-    def pack_header(self, packet_type):
+    def pack_header(self):
         """
         Given a type and length, pack a header to be sent to the port agent.
         """
@@ -74,7 +74,7 @@ class PortAgentPacket():
             TODO: throw an exception here?
             """
         else:
-            self.__type = packet_type
+            self.__type = DATA_FROM_DRIVER
             self.__length = len(self.__data)
             
             up_header = (0xa3, 0x9d, 0x7a, self.__type, self.__length + HEADER_SIZE, 0, 0, 0)
