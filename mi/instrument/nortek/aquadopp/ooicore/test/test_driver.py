@@ -25,6 +25,7 @@ __license__ = 'Apache 2.0'
 from gevent import monkey; monkey.patch_all()
 import gevent
 import unittest
+import re
 
 from nose.plugins.attrib import attr
 
@@ -101,13 +102,15 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
 @attr('INT', group='mi')
 class IntFromIDK(InstrumentDriverIntegrationTestCase):
     
+    protocol_state = ''
+    
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
     def check_state(self, expected_state):
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, expected_state)
-        return state
+        self.protocol_state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(self.protocol_state, expected_state)
+        return 
         
     def put_driver_in_command_mode(self):
         """Wrap the steps and asserts for going into command mode.
@@ -131,13 +134,21 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         # Discover what state the instrument is in and set the protocol state accordingly.
         self.driver_client.cmd_dvr('discover_state')
 
-        # Test that the driver protocol is in state command.
-        self.check_state(ProtocolState.COMMAND)
+        try:
+            # Test that the driver protocol is in state command.
+            self.check_state(ProtocolState.COMMAND)
+        except:
+            self.assertEqual(self.protocol_state, ProtocolState.AUTOSAMPLE)
+            # Put the driver in command mode
+            self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+            # Test that the driver protocol is in state command.
+            self.check_state(ProtocolState.COMMAND)
+
 
 
     def test_instrument_wakeup(self):
         """
-        @brief Test for instrument wakeup, expects instrument to be in 'command' state
+        @brief Test for instrument wakeup, puts instrument in 'command' state
         """
         self.put_driver_in_command_mode()
 
@@ -152,7 +163,8 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
         
         log.debug("read clock returned: %s", response)
-
+        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
+ 
 
     def test_instrument_read_mode(self):
         """
@@ -164,6 +176,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_MODE)
         
         log.debug("what mode returned: %s", response)
+        self.assertTrue(2, response[1])
 
 
     def test_instrument_power_down(self):
@@ -173,11 +186,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.put_driver_in_command_mode()
         
         # command the instrument to power down.
-        try:
-            response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.POWER_DOWN)
-        except:
-            log.debug("power down failed")
-            return
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.POWER_DOWN)
         
 
     def test_instrument_read_battery_voltage(self):
@@ -190,6 +199,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_BATTERY_VOLTAGE)
         
         log.debug("read battery voltage returned: %s", response)
+        self.assertTrue(isinstance(response[1], int))
 
 
     def test_instrument_read_id(self):
@@ -202,34 +212,54 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
         
         log.debug("read ID returned: %s", response)
+        self.assertTrue(re.search(r'AQD 9984.*', response[1]))
 
 
     def test_instrument_read_hw_config(self):
         """
         @brief Test for reading HW config
         """
+        
+        hw_config = {'Status': 4, 
+                     'RecSize': 144, 
+                     'SerialNo': 'AQD 9984      ', 
+                     'FWversion': '3.37', 
+                     'Frequency': 65535, 
+                     'PICversion': 0, 
+                     'HWrevision': 4, 
+                     'Config': 4}
+        
         self.put_driver_in_command_mode()
         
         # command the instrument to read the hw config.
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.GET_HW_CONFIGURATION)
         
         log.debug("read HW config returned: %s", response)
+        self.assertEqual(hw_config, response[1])
 
 
     def test_instrument_read_head_config(self):
         """
         @brief Test for reading HEAD config
         """
+        
+        head_config = {'Config': 16447, 
+                       'SerialNo': 'A3L 5258\x00\x00\x00\x00', 
+                       'System': 'QQBBAEEAAADFCx76HvoAAM/1MQqfDJ8MnwzTs1v8AC64/8aweQHgLsP/uAsAAAAA//8AAAEAAAABAAAAAAAAAAAA//8AAP//AAD//wAAAAAAAP//AQAAAAAA/////wAAAAAJALLvww7JBQMB2BtnKsnLL/yuJ9oAIs20AcQmAP//f2sDov9rA7R97f31/oD+5XsiAC4A9f8AAAAAAAAAAAAAAAAAAAAAVRUQDhAOECc=', 
+                       'Frequency': 2000, 
+                       'NBeams': 3, 
+                       'Type': 0}
+
         self.put_driver_in_command_mode()
         
         # command the instrument to read the head config.
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.GET_HEAD_CONFIGURATION)
         
-        log.debug("r[sys]=%s", response['System'])
-        
         log.debug("read HEAD config returned: %s", response)
+        self.assertEqual(head_config, response[1])
 
 
+    @unittest.skip("skip until issue with instrument recorder resolved, command fails with NACK from instrument")
     def test_instrument_start_measurement_immediate(self):
         """
         @brief Test for starting measurement immediate
@@ -238,6 +268,18 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         
         # command the instrument to start measurement immediate.
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_MEASUREMENT_IMMEDIATE)
+        gevent.sleep(100)  # wait for measurement to complete               
+
+
+    @unittest.skip("skip until issue with instrument recorder resolved, command fails with NACK from instrument")
+    def test_instrument_start_measurement_at_specific_time(self):
+        """
+        @brief Test for starting measurement immediate
+        """
+        self.put_driver_in_command_mode()
+        
+        # command the instrument to start measurement immediate.
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME)
         gevent.sleep(100)  # wait for measurement to complete               
 
 
@@ -258,14 +300,35 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         orig_params = reply
         
         # Construct new parameters to set.
+        new_wrap_mode = 1 if orig_params[Parameter.WRAP_MODE]==0 else 0
+        log.debug('old=%d, new=%d' %(orig_params[Parameter.WRAP_MODE], new_wrap_mode))
+        new_params = {
+            Parameter.WRAP_MODE : new_wrap_mode
+        }
+        
+        # Set parameter and verify.
+        reply = self.driver_client.cmd_dvr('set_resource', new_params)
+        
+        reply = self.driver_client.cmd_dvr('get_resource', params)
+        self.assertEqual(new_params[Parameter.WRAP_MODE], reply[Parameter.WRAP_MODE])
+
+        # Reset parameter to original value and verify.
+        reply = self.driver_client.cmd_dvr('set_resource', orig_params)
+        
+        reply = self.driver_client.cmd_dvr('get_resource', params)
+        self.assertEqual(orig_params[Parameter.WRAP_MODE], reply[Parameter.WRAP_MODE])
+
+        # set wrap_mode to 1 to leave instrument with wrap mode enabled
         new_params = {
             Parameter.WRAP_MODE : 1
         }
         
-        # Set parameters and verify.
+        # Set parameter and verify.
         reply = self.driver_client.cmd_dvr('set_resource', new_params)
-
-
+        
+        reply = self.driver_client.cmd_dvr('get_resource', params)
+        self.assertEqual(new_params[Parameter.WRAP_MODE], reply[Parameter.WRAP_MODE])
+        
     def test_instrument_start_stop_autosample(self):
         """
         @brief Test for putting instrument in 'auto-sample' state

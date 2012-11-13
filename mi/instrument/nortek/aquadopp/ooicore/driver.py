@@ -106,7 +106,8 @@ class InstrumentCmds(BaseEnum):
     READ_BATTERY_VOLTAGE               = 'BV'
     READ_ID                            = 'ID'
     START_MEASUREMENT_AT_SPECIFIC_TIME = 'SD'
-    START_MEASUREMENT_IMMEDIATE        = 'ST'
+    START_MEASUREMENT_IMMEDIATE        = 'SR'
+    START_MEASUREMENT_WITHOUT_RECORDER = 'ST'
     CONFIRMATION                       = 'MC'        # confirm a break request
     # SAMPLE_AVG_TIME                    = 'A'
     # SAMPLE_INTERVAL_TIME               = 'M'
