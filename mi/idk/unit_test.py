@@ -686,7 +686,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE), res_iface)
         self.assertEqual(capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER), res_pars)
 
-    def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout=10):
+    def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout = 10):
         """
         Test observatory polling function.
 

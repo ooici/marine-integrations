@@ -31,6 +31,7 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import ResourceAgentEvent
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
@@ -319,6 +320,29 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
+
+        self._chunker = StringChunker(self.sieve_function)
+
+
+    @staticmethod
+    def sieve_function(raw_data):
+        """ The method that splits samples
+        """
+        patterns = []
+        matchers = []
+        return_list = []
+
+        patterns.append((SAMPLE_PATTERN)) 
+
+        for pattern in patterns:
+            matchers.append(re.compile(pattern))
+
+        for matcher in matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
+
+        return return_list
+
         
     def _filter_capabilities(self, events):
         """
@@ -846,7 +870,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         return (success, response)
 
-    def got_data(self, paPacket):
+    def now_in_instrument_protocol_got_data(self, paPacket):
         """
         Callback for receiving new data from the device.
         """
@@ -884,6 +908,14 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                         self._extract_sample(SBE37DataParticle, SAMPLE_REGEX,
                                              line)
 
+    def _got_chunk(self, chunk):
+        """
+        The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
+        with the appropriate particle objects and REGEXes. 
+        """
+        self._extract_sample(SBE37DataParticle, SAMPLE_REGEX, chunk)
+
+        
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with SBE37 parameters.

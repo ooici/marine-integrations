@@ -13,13 +13,15 @@ nitty-gritty interaction with individual instruments in the system.
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
+from gevent import monkey; monkey.patch_all()
+import gevent
+
 import logging
 import time
 import os
 import signal
 import re
 import json
-import gevent
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -99,6 +101,7 @@ class InstrumentProtocol(object):
         @todo Figure out how the agent wants the results for a single poll
             and return them that way from here
         """
+
         sample = None
         if regex.match(line):
         
