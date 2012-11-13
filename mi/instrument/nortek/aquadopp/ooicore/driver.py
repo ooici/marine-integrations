@@ -279,7 +279,12 @@ class BinaryParameterDictVal(ParameterDictVal):
                  menu_path_read=None,
                  submenu_read=None,
                  menu_path_write=None,
-                 submenu_write=None):
+                 submenu_write=None,                 
+                 multi_match=False,
+                 direct_access=False,
+                 startup_param=False,
+                 default_value=None,
+                 init_value=None):
         """
         Parameter value constructor.
         @param name The parameter name.
@@ -304,6 +309,11 @@ class BinaryParameterDictVal(ParameterDictVal):
         self.menu_path_write = menu_path_write
         self.submenu_write = submenu_write
         self.visibility = visibility
+        self.multi_match = multi_match
+        self.direct_access = direct_access
+        self.startup_param = startup_param
+        self.default_value = default_value
+        self.init_value = init_value
 
     def update(self, input):
         """
@@ -334,7 +344,9 @@ class BinaryProtocolParameterDict(ProtocolParameterDict):
     def add(self, name, pattern, f_getval, f_format, value=None,
             visibility=ParameterDictVisibility.READ_WRITE,
             menu_path_read=None, submenu_read=None,
-            menu_path_write=None, submenu_write=None):
+            menu_path_write=None, submenu_write=None,
+            multi_match=False, direct_access=False, startup_param=False,
+            default_value=None, init_value=None):
         """
         Add a parameter object to the dictionary.
         @param name The parameter name.
@@ -345,6 +357,14 @@ class BinaryProtocolParameterDict(ProtocolParameterDict):
         the access to this parameter is
         @param menu_path The path of menu options required to get to the parameter
         value display when presented in a menu-based instrument
+        @param direct_access T/F for tagging this as a direct access parameter
+        to be saved and restored in and out of direct access
+        @param startup_param T/F for tagging this as a startup parameter to be
+        applied when the instrument is first configured
+        @param default_value The default value to use for this parameter when
+        a value is needed, but no other instructions have been provided.
+        @param init_value The value that a parameter should be set to during
+        initialization or re-initialization
         @param value The parameter value (initializes to None).        
         """
         val = BinaryParameterDictVal(name, pattern, f_getval, f_format,
@@ -353,7 +373,12 @@ class BinaryProtocolParameterDict(ProtocolParameterDict):
                                      menu_path_read=menu_path_read,
                                      submenu_read=submenu_read,
                                      menu_path_write=menu_path_write,
-                                     submenu_write=submenu_write)
+                                     submenu_write=submenu_write,
+                                     multi_match=multi_match,
+                                     direct_access=direct_access,
+                                     startup_param=startup_param,
+                                     default_value=default_value,
+                                     init_value=init_value)
         self._param_dict[name] = val
         
     def update(self, input):
@@ -865,36 +890,15 @@ class Protocol(CommandResponseInstrumentProtocol):
     # overridden superclass methods
     ########################################################################
 
-    def got_data(self, paPacket):
+    def _got_chunk(self, structure):
         """
-        Callback for receiving new data from the device.
-        The port agent object fires this when data is received
-        @param paPacket The packet of data that was received
+        The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
+        with the appropriate particle objects and REGEXes. 
         """
-        paLength = paPacket.get_data_size()
-        paData = paPacket.get_data()
-
-        if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
-            # direct access mode
-            if paLength > 0:
-                log.debug("mavs4InstrumentProtocol._got_data(): <" + paData + ">") 
-                if self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
-                    # TODO: what about logging this as an event?
-            return
-        
-        if paLength > 0:
-            # Call the superclass to update line and prompt buffers.
-            CommandResponseInstrumentProtocol.got_data(self, paData)
-            self._chunker.add_chunk(paData)
-            structure = self._chunker.get_next_data()
-            while(structure):
-                log.debug("got_data: detected structure = %s", structure.encode('hex'))
-                self._extract_sample(AquadoppDwVelocityDataParticle, VELOCITY_DATA_REGEX, structure)
-                self._extract_sample(AquadoppDwDiagnosticDataParticle, DIAGNOSTIC_DATA_REGEX, structure)
-                self._extract_sample(AquadoppDwDiagnosticHeaderDataParticle, DIAGNOSTIC_DATA_HEADER_REGEX, structure)
-                structure = self._chunker.get_next_data()
-
+        log.debug("_got_chunk: detected structure = %s", structure.encode('hex'))
+        self._extract_sample(AquadoppDwVelocityDataParticle, VELOCITY_DATA_REGEX, structure)
+        self._extract_sample(AquadoppDwDiagnosticDataParticle, DIAGNOSTIC_DATA_REGEX, structure)
+        self._extract_sample(AquadoppDwDiagnosticHeaderDataParticle, DIAGNOSTIC_DATA_HEADER_REGEX, structure)
 
     def _get_response(self, timeout=5, expected_prompt=None):
         """
