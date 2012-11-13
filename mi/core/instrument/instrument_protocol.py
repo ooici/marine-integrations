@@ -13,6 +13,9 @@ nitty-gritty interaction with individual instruments in the system.
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
+from gevent import monkey; monkey.patch_all()
+import gevent
+
 import logging
 import time
 import os
@@ -20,19 +23,19 @@ import signal
 import re
 import json
 
+from mi.core.log import get_logger ; log = get_logger()
+
 from mi.core.common import BaseEnum, InstErrorCode
 from mi.core.instrument.data_particle import DataParticleKey
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverProtocolState
 
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import NotImplementedException
-
-from mi.core.log import get_logger ; log = get_logger()
-
 
 class InterfaceType(BaseEnum):
     """The methods of connecting to a device"""
@@ -71,13 +74,14 @@ class InstrumentProtocol(object):
     ########################################################################
     # Helper methods
     ########################################################################
-    def got_data(self, data):
+    def got_data(self, port_agent_packet):
         """
         Called by the instrument connection when data is available.
          Defined in subclasses.
         """
+        log.error("base got_data.  Who called me?")
         pass
-    
+
     def _extract_sample(self, particle_class, regex, line, publish=True):
         """
         Extract sample from a response line if present and publish "raw" and
@@ -97,6 +101,7 @@ class InstrumentProtocol(object):
         @todo Figure out how the agent wants the results for a single poll
             and return them that way from here
         """
+
         sample = None
         if regex.match(line):
         
@@ -274,7 +279,6 @@ class InstrumentProtocol(object):
     # Static helpers to format set commands.
     ########################################################################
 
-    @staticmethod
     def _true_false_to_string(v):
         """
         Write a boolean value to string formatted for "generic" set operations.
@@ -535,15 +539,42 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
     ########################################################################
     # Incomming data callback.
     ########################################################################            
-    def got_data(self, data):
+    def got_data(self, port_agent_packet):
         """
         Called by the instrument connection when data is available.
-        Append line and prompt buffers. Extended by device specific
-        subclasses.
+        Append line and prompt buffers.
+
+        Also add data to the chunker and when received call got_chunk
+        to publish results.
         """
 
+        data_length = port_agent_packet.get_data_size()
+        data = port_agent_packet.get_data()
+
+        log.info("Got Data: %s" % data)
+
+        if data_length > 0:
+            if self.get_current_state() == DriverProtocolState.DIRECT_ACCESS:
+                self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
+
+            self.add_to_buffer(data)
+
+            self._chunker.add_chunk(data)
+
+            chunk = self._chunker.get_next_data()
+            while(chunk):
+                self._got_chunk(chunk)
+                chunk = self._chunker.get_next_data()
+
+
+
+    def add_to_buffer(self, data):
+        '''
+        Add a chunk of data to the internal data buffers
+        @param data: bytes to add to the buffer
+        '''
         # Update the line and prompt buffers.
-        self._linebuf += data        
+        self._linebuf += data
         self._promptbuf += data
         self._last_data_timestamp = time.time()
 
@@ -579,7 +610,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             # Send a line return and wait a sec.
             log.debug('Sending wakeup.')
             self._send_wakeup()
-            time.sleep(delay)
+            gevent.sleep(delay)
 
             for item in self._prompts.list():
                 #log.debug("GOT " + repr(self._promptbuf))
@@ -938,8 +969,5 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         Append line and prompt buffers. Extended by device specific
         subclasses.
         """
-
-        self._linebuf += data        
-        self._promptbuf += data
-        self._last_data_timestamp = time.time()    
+        CommandResponseInstrumentProtocol.got_data(self, data)
 

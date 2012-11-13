@@ -1067,7 +1067,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.warn("go_direct_access retval=" + str(retval.result))
 
-        s = SocketTester(retval.result['ip_address'], retval.result['port'])
+        s = TcpClient(retval.result['ip_address'], retval.result['port'])
         s.telnet_handshake()
         
         s.send_data("ts\r\n", "1")

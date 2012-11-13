@@ -52,6 +52,8 @@ class CommConfig(object):
         @param metadata IDK Metadata object
         """
         self.config_file_path = None
+        self.data_port = None
+        self.command_port = None
         if config_file_path:
             self.read_from_file(config_file_path)
 

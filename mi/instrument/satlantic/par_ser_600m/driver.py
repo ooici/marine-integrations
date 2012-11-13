@@ -171,7 +171,7 @@ class SatlanticPARInstrumentDriver(SingleConnectionInstrumentDriver):
 class SatlanticPARDataParticleKey(BaseEnum):
     SERIAL_NUM = "serial_num"
     COUNTS = "counts"
-    TIMER = "timer"
+    TIMER = "elapsed_time"
     CHECKSUM = "checksum"
     
 class SatlanticPARDataParticle(DataParticle):
@@ -294,7 +294,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.MAXRATE,
                              r'Maximum Frame Rate:\s+(\d+) Hz',
                              lambda match : int(match.group(1)),
-                             self._int_to_string)
+                             self._int_to_string,
+                             startup_param=True)
 
         self._param_dict.add(Parameter.INSTRUMENT, HEADER_PATTERN,
             lambda match : match.group(1), str,
@@ -1124,34 +1125,16 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                                  write_delay=write_delay)
             if self._confirm_command_mode():
                 break  
-            
-    def got_data(self, paPacket):
-        """ 
-        Callback for receiving new data from the device.
-        The port agent object fires this when data is received
-        @param paPacket The packet of data that was received
-        """
-        paLength = paPacket.get_data_size()
-        paData = paPacket.get_data()
 
-        if self.get_current_state() == PARProtocolState.DIRECT_ACCESS:
-            # direct access mode
-            if paLength > 0:
-                log.debug("SatlanticPARInstrumentProtocol.got_data(): <" + paData + ">") 
-                if self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
-                    # TODO: what about logging this as an event?
-            return
 
-        if paLength > 0:
-            CommandResponseInstrumentProtocol.got_data(self, paData)
-            self._chunker.add_chunk(paData)
+    def _got_chunk(self, chunk):
+        '''
+        extract samples from a chunk of data
+        @param chunk: bytes to parse into a sample.
+        '''
+        self._extract_sample(SatlanticPARDataParticle, SAMPLE_REGEX, chunk)
+        self._extract_header(chunk)
 
-            chunk = self._chunker.get_next_data()
-            while(chunk):
-                self._extract_sample(SatlanticPARDataParticle, SAMPLE_REGEX, chunk)
-                self._extract_header(chunk)
-                chunk = self._chunker.get_next_data()
 
     def _extract_header(self, chunk):
         '''

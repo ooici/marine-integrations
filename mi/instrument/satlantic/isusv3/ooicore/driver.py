@@ -1044,7 +1044,7 @@ class Protocol(MenuInstrumentProtocol):
                         so only call extract_sample if len greater than zero.
                         Also, we could have the beginning fragment of a sample,
                         which we don't want to parse yet, so only extract_sample
-                        if the line ends lith the instrument terminator.
+                        if the line ends with the instrument terminator.
                         """
                         if len(line) > 0 and line.endswith(INSTRUMENT_NEWLINE):
                             self._extract_sample(line)

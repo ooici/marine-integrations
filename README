@@ -22,7 +22,7 @@ INSTALL prequisite software for COI-services
     brew doctor
 - git 1.7.7: Use brew or download the Mac or Linux installer and run it
 - libevent libyaml zeromq couchdb python rabbitmq hdf5 pkg-config netcdf freetype, if not already present:
-    brew install libevent libyaml zeromq couchdb python rabbitmq hdf5 pkg-config netcdf freetype
+    brew install libevent libyaml zeromq couchdb python rabbitmq hdf5 pkg-config netcdf freetype spatialindex
 - pip
     easy_install pip
 - virtualenv
