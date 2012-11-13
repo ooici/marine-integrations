@@ -429,36 +429,368 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
 
     def check_state(self, desired_state):
+        """
+        Transitions to the desired state, then verifies it has indeed made it to that state.
+        @param desired_state: the state to transition to.
+        """
         #@todo promote this to base class already....
+
         current_state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(current_state, desired_state)
+
+    def assert_command_and_state(self, agent_command, desired_state):
+        """
+        Execute an agent command, and verify the desired state is achieved.
+        @param agent_command: the agent command to execute
+        @param desired_state: the state that should result
+        """
+
+        cmd = AgentCommand(command=agent_command)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        self.check_state(desired_state)
 
 
     def assert_SBE54tpsStatusDataParticle(self, prospective_particle):
         """
-        @param prospective_particle:
-        @return:
+        @param prospective_particle: a perfect particle of SBE54tpsStatusDataParticle or FAIL!!!!
         """
+        if (isinstance(potential_sample, SBE54tpsStatusDataParticle)):
+
+            log.debug("GOT A SBE54tpsStatusDataParticle")
+            sample_dict = json.loads(val.generate_parsed())
+
+            self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
+                DataParticleValue.PARSED)
+            self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
+                DataParticleValue.JSON_DATA)
+            self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+            self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
+                list))
+            self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+            self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+            for x in sample_dict['values']:
+                self.assertTrue(x['value_id'] in [
+                    SBE54tpsStatusDataParticle.DEVICE_TYPE,
+                    SBE54tpsStatusDataParticle.SERIAL_NUMBER,
+                    SBE54tpsStatusDataParticle.DATE_TIME,
+                    SBE54tpsStatusDataParticle.EVENT_COUNT,
+                    SBE54tpsStatusDataParticle.MAIN_SUPPLY_VOLTAGE,
+                    SBE54tpsStatusDataParticle.NUMBER_OF_SAMPLES,
+                    SBE54tpsStatusDataParticle.BYTES_USED,
+                    SBE54tpsStatusDataParticle.BYTES_FREE
+                ])
+
+                # CHECK THAT THE TYPES ARE CORRECT IN THE DICT.
+                # str
+                if x['value_id'] in [
+                    SBE54tpsStatusDataParticleKey.DEVICE_TYPE
+                ]:
+                    self.assertTrue(isinstance(x['value'], str))
+                # int
+                elif x['value_id'] in [
+                    SBE54tpsStatusDataParticleKey.SERIAL_NUMBER,
+                    SBE54tpsStatusDataParticleKey.EVENT_COUNT,
+                    SBE54tpsStatusDataParticleKey.NUMBER_OF_SAMPLES,
+                    SBE54tpsStatusDataParticleKey.BYTES_USED,
+                    SBE54tpsStatusDataParticleKey.BYTES_FREE
+                ]:
+                    self.assertTrue(isinstance(x['value'], int))
+                #float
+                elif x['value_id'] in [
+                    SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE
+                ]:
+                    self.assertTrue(isinstance(x['value'], float))
+                # datetime
+                elif x['value_id'] in [
+                    SBE54tpsStatusDataParticleKey.DATE_TIME
+                ]:
+                    # @TODO add a date_time parser here
+                    self.assertTrue(isinstance(x['value'], time.struct_time))
+                else:
+                    # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
+                    self.assertTrue(False)
+
     def assert_SBE54tpsConfigurationDataParticle(self, prospective_particle):
         """
-        @param prospective_particle:
-        @return:
+        @param prospective_particle: a perfect particle of SBE54tpsStatusDataParticle or FAIL!!!!
         """
+        if (isinstance(potential_sample, SBE54tpsConfigurationDataParticle)):
+
+            log.debug("GOT A SBE54tpsConfigurationDataParticle")
+            sample_dict = json.loads(val.generate_parsed())
+
+            self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
+                DataParticleValue.PARSED)
+            self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
+                DataParticleValue.JSON_DATA)
+            self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+            self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
+                list))
+            self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+            self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+            for x in sample_dict['values']:
+                self.assertTrue(x['value_id'] in [
+                    SBE54tpsConfigurationDataParticleKey.DEVICE_TYPE,
+                    SBE54tpsConfigurationDataParticleKey.PRESSURE_SERIAL_NUM,
+                    SBE54tpsConfigurationDataParticleKey.SERIAL_NUMBER,
+                    SBE54tpsConfigurationDataParticleKey.BATTERY_TYPE,
+                    SBE54tpsConfigurationDataParticleKey.ENABLE_ALERTS,
+                    SBE54tpsConfigurationDataParticleKey.UPLOAD_TYPE,
+                    SBE54tpsConfigurationDataParticleKey.SAMPLE_PERIOD,
+                    SBE54tpsConfigurationDataParticleKey.FRA0,
+                    SBE54tpsConfigurationDataParticleKey.FRA1,
+                    SBE54tpsConfigurationDataParticleKey.FRA2,
+                    SBE54tpsConfigurationDataParticleKey.FRA3,
+                    SBE54tpsConfigurationDataParticleKey.PU0,
+                    SBE54tpsConfigurationDataParticleKey.PY1,
+                    SBE54tpsConfigurationDataParticleKey.PY2,
+                    SBE54tpsConfigurationDataParticleKey.PY3,
+                    SBE54tpsConfigurationDataParticleKey.PC1,
+                    SBE54tpsConfigurationDataParticleKey.PC2,
+                    SBE54tpsConfigurationDataParticleKey.PC3,
+                    SBE54tpsConfigurationDataParticleKey.PD1,
+                    SBE54tpsConfigurationDataParticleKey.PD2,
+                    SBE54tpsConfigurationDataParticleKey.PT1,
+                    SBE54tpsConfigurationDataParticleKey.PT2,
+                    SBE54tpsConfigurationDataParticleKey.PT3,
+                    SBE54tpsConfigurationDataParticleKey.PT4,
+                    SBE54tpsConfigurationDataParticleKey.PRESSURE_OFFSET,
+                    SBE54tpsConfigurationDataParticleKey.PRESSURE_RANGE,
+                    SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE,
+                    SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE
+                ])
+
+                # CHECK THAT THE TYPES ARE CORRECT IN THE DICT.
+                # str
+                if key in [
+                    SBE54tpsConfigurationDataParticleKey.DEVICE_TYPE,
+                    SBE54tpsConfigurationDataParticleKey.PRESSURE_SERIAL_NUM,
+                    ]:
+                    self.assertTrue(isinstance(x['value'], str))
+
+                # int
+                elif key in [
+                    SBE54tpsConfigurationDataParticleKey.SERIAL_NUMBER,
+                    SBE54tpsConfigurationDataParticleKey.BATTERY_TYPE,
+                    SBE54tpsConfigurationDataParticleKey.ENABLE_ALERTS,
+                    SBE54tpsConfigurationDataParticleKey.UPLOAD_TYPE,
+                    SBE54tpsConfigurationDataParticleKey.SAMPLE_PERIOD,
+                ]:
+                    self.assertTrue(isinstance(x['value'], int))
+
+                #float
+                elif key in [
+                    SBE54tpsConfigurationDataParticleKey.FRA0,
+                    SBE54tpsConfigurationDataParticleKey.FRA1,
+                    SBE54tpsConfigurationDataParticleKey.FRA2,
+                    SBE54tpsConfigurationDataParticleKey.FRA3,
+                    SBE54tpsConfigurationDataParticleKey.PU0,
+                    SBE54tpsConfigurationDataParticleKey.PY1,
+                    SBE54tpsConfigurationDataParticleKey.PY2,
+                    SBE54tpsConfigurationDataParticleKey.PY3,
+                    SBE54tpsConfigurationDataParticleKey.PC1,
+                    SBE54tpsConfigurationDataParticleKey.PC2,
+                    SBE54tpsConfigurationDataParticleKey.PC3,
+                    SBE54tpsConfigurationDataParticleKey.PD1,
+                    SBE54tpsConfigurationDataParticleKey.PD2,
+                    SBE54tpsConfigurationDataParticleKey.PT1,
+                    SBE54tpsConfigurationDataParticleKey.PT2,
+                    SBE54tpsConfigurationDataParticleKey.PT3,
+                    SBE54tpsConfigurationDataParticleKey.PT4,
+                    SBE54tpsConfigurationDataParticleKey.PRESSURE_OFFSET,
+                    SBE54tpsConfigurationDataParticleKey.PRESSURE_RANGE,
+                ]:
+                    self.assertTrue(isinstance(x['value'], float))
+
+                # date
+                elif key in [
+                    SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE,
+                    SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE
+                ]:
+                    # @TODO add a date parser here
+                    self.assertTrue(isinstance(x['value'], time.struct_time))
+                else:
+                    # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
+                    self.assertTrue(False)
+
     def assert_SBE54tpsEventCounterDataParticle(self, prospective_particle):
         """
-        @param prospective_particle:
-        @return:
+        @param prospective_particle: a perfect particle of SBE54tpsEventCounterDataParticle or FAIL!!!!
         """
+        if (isinstance(potential_sample, SBE54tpsEventCounterDataParticle)):
+
+            log.debug("GOT A SBE54tpsEventCounterDataParticle")
+            sample_dict = json.loads(val.generate_parsed())
+
+            self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
+                DataParticleValue.PARSED)
+            self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
+                DataParticleValue.JSON_DATA)
+            self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+            self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
+                list))
+            self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+            self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+            for x in sample_dict['values']:
+                self.assertTrue(x['value_id'] in [
+                    SBE54tpsEventCounterDataParticleKey.NUMBER_EVENTS,
+                    SBE54tpsEventCounterDataParticleKey.MAX_STACK,
+                    SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE,
+                    SBE54tpsEventCounterDataParticleKey.SERIAL_NUMBER,
+                    SBE54tpsEventCounterDataParticleKey.POWER_ON_RESET,
+                    SBE54tpsEventCounterDataParticleKey.POWER_FAIL_RESET,
+                    SBE54tpsEventCounterDataParticleKey.SERIAL_BYTE_ERROR,
+                    SBE54tpsEventCounterDataParticleKey.COMMAND_BUFFER_OVERFLOW,
+                    SBE54tpsEventCounterDataParticleKey.SERIAL_RECEIVE_OVERFLOW,
+                    SBE54tpsEventCounterDataParticleKey.LOW_BATTERY,
+                    SBE54tpsEventCounterDataParticleKey.SIGNAL_ERROR,
+                    SBE54tpsEventCounterDataParticleKey.ERROR_10,
+                    SBE54tpsEventCounterDataParticleKey.ERROR_12
+                ])
+
+                # CHECK THAT THE TYPES ARE CORRECT IN THE DICT.
+                # int
+                if key in [
+                    SBE54tpsEventCounterDataParticleKey.NUMBER_EVENTS,
+                    SBE54tpsEventCounterDataParticleKey.MAX_STACK,
+                    SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE,
+                    SBE54tpsEventCounterDataParticleKey.SERIAL_NUMBER,
+                    SBE54tpsEventCounterDataParticleKey.POWER_ON_RESET,
+                    SBE54tpsEventCounterDataParticleKey.POWER_FAIL_RESET,
+                    SBE54tpsEventCounterDataParticleKey.SERIAL_BYTE_ERROR,
+                    SBE54tpsEventCounterDataParticleKey.COMMAND_BUFFER_OVERFLOW,
+                    SBE54tpsEventCounterDataParticleKey.SERIAL_RECEIVE_OVERFLOW,
+                    SBE54tpsEventCounterDataParticleKey.LOW_BATTERY,
+                    SBE54tpsEventCounterDataParticleKey.SIGNAL_ERROR,
+                    SBE54tpsEventCounterDataParticleKey.ERROR_10,
+                    SBE54tpsEventCounterDataParticleKey.ERROR_12
+                ]:
+                    self.assertTrue(isinstance(x['value'], int))
+                else:
+                    # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
+                    self.assertTrue(False)
+
     def assert_SBE54tpsHardwareDataParticle(self, prospective_particle):
         """
-        @param prospective_particle:
-        @return:
+        @param prospective_particle: a perfect particle of SBE54tpsHardwareDataParticle or FAIL!!!!
         """
+        if (isinstance(potential_sample, SBE54tpsHardwareDataParticle)):
+
+            log.debug("GOT A SBE54tpsHardwareDataParticle")
+            sample_dict = json.loads(val.generate_parsed())
+
+            self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
+                DataParticleValue.PARSED)
+            self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
+                DataParticleValue.JSON_DATA)
+            self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+            self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
+                list))
+            self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+            self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+            for x in sample_dict['values']:
+                self.assertTrue(x['value_id'] in [
+                    SBE54tpsHardwareDataParticleKey.DEVICE_TYPE,
+                    SBE54tpsHardwareDataParticleKey.MANUFACTURER,
+                    SBE54tpsHardwareDataParticleKey.FIRMWARE_VERSION,
+                    SBE54tpsHardwareDataParticleKey.HARDWARE_VERSION,
+                    SBE54tpsHardwareDataParticleKey.PCB_SERIAL_NUMBER,
+                    SBE54tpsHardwareDataParticleKey.PCB_TYPE,
+                    SBE54tpsHardwareDataParticleKey.SERIAL_NUMBER,
+                    SBE54tpsHardwareDataParticleKey.FIRMWARE_DATE,
+                    SBE54tpsHardwareDataParticleKey.MANUFACTUR_DATE
+                ])
+
+                # CHECK THAT THE TYPES ARE CORRECT IN THE DICT.
+                # str
+                if key in [
+                    SBE54tpsHardwareDataParticleKey.DEVICE_TYPE,
+                    SBE54tpsHardwareDataParticleKey.MANUFACTURER,
+                    SBE54tpsHardwareDataParticleKey.FIRMWARE_VERSION,
+                    SBE54tpsHardwareDataParticleKey.HARDWARE_VERSION,
+                    SBE54tpsHardwareDataParticleKey.PCB_SERIAL_NUMBER,
+                    SBE54tpsHardwareDataParticleKey.PCB_TYPE
+                    ]:
+                    self.assertTrue(isinstance(x['value'], str))
+
+                # int
+                elif key in [
+                    SBE54tpsHardwareDataParticleKey.SERIAL_NUMBER
+                    ]:
+                    self.assertTrue(isinstance(x['value'], int))
+
+                # date
+                elif key in [
+                    SBE54tpsHardwareDataParticleKey.FIRMWARE_DATE,
+                    SBE54tpsHardwareDataParticleKey.MANUFACTUR_DATE
+                ]:
+                    # @TODO add a date parser here
+                    self.assertTrue(isinstance(x['value'], time.struct_time))
+                else:
+                    # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
+                    self.assertTrue(False)
+
     def assert_SBE54tpsSampleDataParticle(self, prospective_particle):
         """
-        @param prospective_particle:
-        @return:
+        @param prospective_particle: a perfect particle of SBE54tpsSampleDataParticle or FAIL!!!!
         """
+        if (isinstance(potential_sample, SBE54tpsSampleDataParticle)):
+
+            log.debug("GOT A SBE54tpsSampleDataParticle")
+            sample_dict = json.loads(val.generate_parsed())
+
+            self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
+                DataParticleValue.PARSED)
+            self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
+                DataParticleValue.JSON_DATA)
+            self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+            self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
+                list))
+            self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+            self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+            for x in sample_dict['values']:
+                self.assertTrue(x['value_id'] in [
+                    SBE54tpsSampleDataParticleKey.SAMPLE_TYPE,
+                    SBE54tpsSampleDataParticleKey.SAMPLE_NUMBER,
+                    SBE54tpsSampleDataParticleKey.PRESSURE,
+                    SBE54tpsSampleDataParticleKey.PRESSURE_TEMP,
+                    SBE54tpsSampleDataParticleKey.SAMPLE_TIMESTAMP
+                ])
+
+                # CHECK THAT THE TYPES ARE CORRECT IN THE DICT.
+                # str
+                if key in [
+                    SBE54tpsSampleDataParticleKey.SAMPLE_TYPE
+                    ]:
+                    self.assertTrue(isinstance(x['value'], str))
+
+                # int
+                elif key in [
+                    SBE54tpsSampleDataParticleKey.SAMPLE_NUMBER
+                    ]:
+                    self.assertTrue(isinstance(x['value'], int))
+
+                #float
+                elif key in [
+                    SBE54tpsSampleDataParticleKey.PRESSURE,
+                    SBE54tpsSampleDataParticleKey.PRESSURE_TEMP
+                    ]:
+                    self.assertTrue(isinstance(x['value'], float))
+
+                # date
+                elif key in [
+                    SBE54tpsSampleDataParticleKey.SAMPLE_TIMESTAMP
+                ]:
+                    # @TODO add a date parser here
+                    self.assertTrue(isinstance(x['value'], time.struct_time))
+                else:
+                    # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
+                    self.assertTrue(False)
 
     def test_direct_access_telnet_mode(self):
         """
@@ -498,3 +830,153 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         params = [param_name]
         check_new_params = self.instrument_agent_client.get_resource(params)
         self.assertTrue(check_new_params[param_name])
+
+    def test_autosample(self):
+        """
+        @brief Test instrument driver execute interface to start and stop streaming
+        mode.
+        """
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+
+        self.assert_enter_command_mode()
+
+        # lets sample FAST!
+        params = {
+            SET_SAMPLE_PERIOD: 10
+        }
+
+        self.instrument_agent_client.set_resource(params, timeout=10)
+
+        # Begin streaming.
+        cmd = AgentCommand(command=ProtocolEvent.START_AUTOSAMPLE)
+        retval = self.instrument_agent_client.execute_resource(cmd)
+
+        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
+
+        # wait for 3 samples, then test them!
+        samples = self.data_subscribers.get_samples('parsed', 3, timeout=60) # 1 minutes
+        self.assert_SBE54tpsSampleDataParticle(samples.pop())
+        self.assert_SBE54tpsSampleDataParticle(samples.pop())
+        self.assert_SBE54tpsSampleDataParticle(samples.pop())
+
+        # Halt streaming.
+        cmd = AgentCommand(command=ProtocolEvent.STOP_AUTOSAMPLE)
+
+        retval = self.instrument_agent_client.execute_resource(cmd, timeout=10)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=10)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+
+    def assert_capabilitys_present(self, agent_capabilities, required_capabilities):
+        """
+        Verify that both lists are the same, order independent.
+        @param agent_capabilities
+        @param required_capabilities
+        """
+
+        for agent_capability in agent_capabilities:
+            self.assertTrue(agent_capability in required_capabilities)
+
+        for desired_capability in required_capabilities:
+            self.assertTrue(desired_capability in agent_capabilities)
+
+
+    def get_current_capabilities(self):
+        """
+        return a list of currently available capabilities
+        """
+        result = self.instrument_agent_client.get_capabilities()
+        for x in result:
+            if x.cap_type == 1:
+                agent_capabilities.append(x.name)
+            elif x.cap_type == 2:
+                unknown.append(x.name)
+            elif x.cap_type == 3:
+                driver_capabilities.append(x.name)
+            elif x.cap_type == 4:
+                driver_vars.append(x.name)
+            else:
+                log.debug("*UNKNOWN* " + str(repr(x)))
+
+        return (agent_capabilities, unknown, driver_capabilities, driver_vars)
+
+
+    def test_get_capabilities(self):
+        """
+        @brief Verify that the correct capabilities are returned from get_capabilities
+        at various driver/agent states.
+
+        This one needs to be re-written rather than copy/pasted to develop a better more reusable pattern.
+        """
+
+        self.check_state(ResourceAgentState.UNINITIALIZED)
+        (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
+        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_INITIALIZE'])
+        self.assert_capabilitys_present(driver_capabilities, [])
+
+
+        self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE)
+        (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
+        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_ACTIVE', 'RESOURCE_AGENT_EVENT_RESET'])
+        self.assert_capabilitys_present(driver_capabilities, [])
+
+
+        self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentEvent.GO_ACTIVE)
+        (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
+        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_INACTIVE', 'RESOURCE_AGENT_EVENT_RESET',
+                                                             'RESOURCE_AGENT_EVENT_RUN'])
+        self.assert_capabilitys_present(driver_capabilities, [])
+
+
+        self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentEvent.RUN)
+        (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
+        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_CLEAR', 'RESOURCE_AGENT_EVENT_RESET',
+                                                             'RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS',
+                                                             'RESOURCE_AGENT_EVENT_GO_INACTIVE',
+                                                             'RESOURCE_AGENT_EVENT_PAUSE'])
+        self.assert_capabilitys_present(driver_capabilities, ['DRIVER_EVENT_ACQUIRE_STATUS',
+                                                              'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                                              'DRIVER_EVENT_START_AUTOSAMPLE',
+                                                              'DRIVER_EVENT_CLOCK_SYNC'])
+
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
+            kwargs={'session_type': DirectAccessTypes.telnet,
+                    #kwargs={'session_type':DirectAccessTypes.vsp,
+                    'session_timeout':600,
+                    'inactivity_timeout':600})
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        self.check_state(ResourceAgentState.DIRECT_ACCESS)
+        (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
+        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_COMMAND'])
+        self.assert_capabilitys_present(driver_capabilities, [])
+
+
+        # Can we walk the states backwards?
+        self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentEvent.RUN)
+        self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentEvent.GO_ACTIVE)
+        self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE)
+
+
+    def test_execute_clock_sync(self):
+        """
+        @brief Test Test EXECUTE_CLOCK_SYNC command.
+        """
+        self.assert_enter_command_mode()
+
+        self.assert_command_and_state(ProtocolEvent.CLOCK_SYNC, ProtocolState.COMMAND)
+        # clocl should now be synced
+
+        # Now verify that at least the date matches
+        params = [Parameter.DS_DEVICE_DATE_TIME]
+        check_new_params = self.instrument_agent_client.get_resource(params)
+        lt = time.strftime("%d %b %Y  %H:%M:%S", time.gmtime(time.mktime(time.localtime())))

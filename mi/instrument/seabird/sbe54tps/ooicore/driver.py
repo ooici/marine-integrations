@@ -93,14 +93,14 @@ class InstrumentCmds(BaseEnum):
     #### Setup - General ####
     #########################
     # INITIALIZE = "*Init"                                                  # DO NOT IMPLEMENT
-    SET_SAMPLE_PERIOD = "SetSamplePeriod"
-    SET_TIME = "SetTime"
-    SET_BATTERY_TYPE = "SetBatteryType"
+    SET_SAMPLE_PERIOD = "SetSamplePeriod"                  # VARIABLE
+    SET_TIME = "SetTime"                                   # VARIABLE       # S>settime=2006-01-15T13:31:00
+    SET_BATTERY_TYPE = "SetBatteryType"                    # VARIABLE
 
     #############################
     #### Setup – Data Output ####
     #############################
-    SET_ENABLE_ALERTS ="SetEnableAlerts"
+    SET_ENABLE_ALERTS ="SetEnableAlerts"                   # VARIABLE
 
     ##################
     #### Sampling ####
@@ -117,7 +117,7 @@ class InstrumentCmds(BaseEnum):
     # GET_LAST_PRESSURE_SAMPLES = "GetLastPSamples"                         # DO NOT IMPLEMENT
     # GET_LAST_REFERENCE_SAMPLES = "GetLastRSamples"                        # DO NOT IMPLEMENT
     # GET_REFERENCE_SAMPLES_LIST = "GetRSampleList"                         # DO NOT IMPLEMENT
-    SET_UPLOAD_TYPE = "SetUploadType"
+    SET_UPLOAD_TYPE = "SetUploadType"                      # VARIABLE
     # UPLOAD_DATA = "UploadData"                                            # DO NOT IMPLEMENT
 
     ####################
@@ -196,6 +196,41 @@ class InstrumentCmds(BaseEnum):
     # SetPT4=F                  F= pressure sensor T4.
     # SET_PRESSURE_SENSOR_T4 = "SetPT4"                                     # DO NOT IMPLEMENT
 
+# Device specific parameters.
+class Parameter(DriverParameter):
+    """
+    Seems like this should be populated, but not sure for this one
+    """
+
+    SET_SAMPLE_PERIOD = "SetSamplePeriod"
+    SET_TIME = "SetTime"
+    SET_BATTERY_TYPE = "SetBatteryType"
+    SET_ENABLE_ALERTS = "SetEnableAlerts"
+    SET_UPLOAD_TYPE = "SetUploadType"
+
+    # Calibration Parameters
+    #SetAcqOscCalDate="SetAcqOscCalDate" # S
+    #SetFRA0="SetFRA0" # F
+    #SetFRA1="SetFRA1" # F
+    #SetFRA2="SetFRA2" # F
+    #SetFRA3="SetFRA3" # F
+    #SetPressureCalDate="SetPressureCalDate" # S
+    #SetPressureSerialNum="SetPressureSerialNum" # S
+    #SetPRange="SetPRange" # F
+    #SetPOffset="SetPOffset" # F
+    #SetPU0="SetPU0" # F
+    #SetPY1="SetPY1" # F
+    #SetPY2="SetPY2" # F
+    #SetPY3="SetPY3" # F
+    #SetPC1="SetPC1" # F
+    #SetPC2="SetPC2" # F
+    #SetPC3="SetPC3" # F
+    #SetPD1="SetPD1" # F
+    #SetPD2="SetPD2" # F
+    #SetPT1="SetPT1" # F
+    #SetPT2="SetPT2" # F
+    #SetPT3="SetPT3" # F
+    #SetPT4="SetPT4" # F
 
 
 
@@ -970,16 +1005,32 @@ class Protocol(CommandResponseInstrumentProtocol):
                             ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER,                  self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT,                   self._handler_unknown_exit)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER,               self._handler_unknown_discover)
+        #self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)  ##???? from unknown state?
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.FORCE_STATE,            self._handler_unknown_force_state)   ######
+
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER,                  self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT,                   self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,         self._handler_command_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,       self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,                    self._handler_command_get)  ###
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)  ###
+
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC,             self._handler_command_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_aquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
+
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,     self._handler_autosample_stop_autosample)
+
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,             self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT,      self._handler_direct_access_stop_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT,   self._handler_direct_access_execute_direct)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
