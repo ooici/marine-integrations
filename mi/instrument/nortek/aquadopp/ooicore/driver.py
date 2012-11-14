@@ -59,7 +59,7 @@ HEAD_CONFIG_SYNC_BYTES = '\xa5\x04\x70\x00'
 VELOCITY_DATA_LEN = 42
 VELOCITY_DATA_SYNC_BYTES = '\xa5\x01\x15\x00'
 DIAGNOSTIC_DATA_HEADER_LEN = 36
-DIAGNOSTIC_DATA_HEADER_SYNC_BYTES = '\xa5\x06'
+DIAGNOSTIC_DATA_HEADER_SYNC_BYTES = '\xa5\x06\x12\x00'
 DIAGNOSTIC_DATA_LEN = 42
 DIAGNOSTIC_DATA_SYNC_BYTES = '\xa5\x80\x15\x00'
 CHECK_SUM_SEED = 0xb58c
@@ -68,11 +68,11 @@ sample_structures = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
                      [DIAGNOSTIC_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
                      [DIAGNOSTIC_DATA_HEADER_SYNC_BYTES, DIAGNOSTIC_DATA_HEADER_LEN]]
 
-VELOCITY_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})' % VELOCITY_DATA_SYNC_BYTES
+VELOCITY_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % VELOCITY_DATA_SYNC_BYTES
 VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN)
-DIAGNOSTIC_DATA_HEADER_PATTERN = r'^%s(.{1})(.{1})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{1})(.{1})(.{1})' % DIAGNOSTIC_DATA_HEADER_SYNC_BYTES
+DIAGNOSTIC_DATA_HEADER_PATTERN = r'^%s(.{2})(.{2})(.{1})(.{1})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{8})' % DIAGNOSTIC_DATA_HEADER_SYNC_BYTES
 DIAGNOSTIC_DATA_HEADER_REGEX = re.compile(DIAGNOSTIC_DATA_HEADER_PATTERN)
-DIAGNOSTIC_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})' % DIAGNOSTIC_DATA_SYNC_BYTES
+DIAGNOSTIC_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % DIAGNOSTIC_DATA_SYNC_BYTES
 DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN)
 
 # Packet config
@@ -396,6 +396,16 @@ class BinaryProtocolParameterDict(ProtocolParameterDict):
                 return False
         return True
     
+    def get_config(self):
+        """
+        Retrieve the configuration (all key values not ending in 'Spare').
+        """
+        config = {}
+        for (key, val) in self._param_dict.iteritems():
+            if not key.endswith('Spare'):
+                config[key] = val.value
+        return config
+    
     def set_from_value(self, name, value):
         """
         Set a parameter value in the dictionary.
@@ -415,6 +425,17 @@ class BinaryProtocolParameterDict(ProtocolParameterDict):
         @raises KeyError if the parameter name is invalid.
         """
         return self._param_dict[name].f_format(self._param_dict[name].value)
+
+    def get_keys(self):
+        """
+        Return list of device parameters available.  These are a subset of all the parameters
+        """
+        list = []
+        for param in self._param_dict.keys():
+            if not param.endswith('Spare'):
+                list.append(param) 
+        log.debug('get_keys: list=%s' %list)
+        return list
 
     @staticmethod
     def convert_word_to_int(word):
@@ -463,19 +484,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
 
-    ########################################################################
-    # Superclass overrides for resource query.
-    ########################################################################
-
-    def get_resource_params(self):
-        """
-        Return list of device parameters available.  These are a subset of all the parameters
-        """
-        list = []
-        for param in Parameter:
-            if not param.endswith('Spare'):
-                list.append(param) 
-        return list
 
     ########################################################################
     # Protocol builder.
@@ -493,20 +501,21 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 ###############################################################################
 
 class AquadoppDwDiagnosticHeaderDataParticleKey(BaseEnum):
-    ANALOG1 = "analog1"
-    ANALOG2 = "analog2"
-    COUNT = "count"
-    ANALOG1 = "analog1"
-    PRESSURE = "pressure"
-    VELOCITY_BEAM1 = "velocity_beam1"
-    VELOCITY_BEAM2 = "velocity_beam2"
-    VELOCITY_BEAM3 = "velocity_beam3"
-    AMPLITUDE_BEAM1 = "amplitude_beam1"
-    AMPLITUDE_BEAM2 = "amplitude_beam2"
-    AMPLITUDE_BEAM3 = "amplitude_beam3"
-    CORRELATION_BEAM1 = "correlation_beam1"
-    CORRELATION_BEAM2 = "correlation_beam2"
-    CORRELATION_BEAM3 = "correlation_beam3"
+    RECORDS = "records"
+    CELL = "cell"
+    NOISE1 = "noise1"
+    NOISE2 = "noise2"
+    NOISE3 = "noise3"
+    NOISE4 = "noise4"
+    PROCESSING_MAGNITUDE_BEAM1 = "processing_magnitude_beam1"
+    PROCESSING_MAGNITUDE_BEAM2 = "processing_magnitude_beam2"
+    PROCESSING_MAGNITUDE_BEAM3 = "processing_magnitude_beam3"
+    PROCESSING_MAGNITUDE_BEAM4 = "processing_magnitude_beam4"
+    DISTANCE1 = "distance1"
+    DISTANCE2 = "distance2"
+    DISTANCE3 = "distance3"
+    DISTANCE4 = "distance4"
+    
             
 class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
     """
@@ -523,76 +532,80 @@ class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
         if not match:
             raise SampleException("AquadoppDwDiagnosticHeaderDataParticle: No regex match of parsed sample data: [%s]", self.decoded_raw)
         
-        analog2 = ord(match.group(4)) * 0x100
-        analog2 += ord(match.group(1))
-        count = ord(match.group(2))
-        pressure = ord(match.group(3)) * 0x10000
-        pressure += BinaryProtocolParameterDict.convert_word_to_int(match.group(5))
-        analog1 = BinaryProtocolParameterDict.convert_word_to_int(match.group(6))
-        velocity_beam1 = BinaryProtocolParameterDict.convert_word_to_int(match.group(7))
-        velocity_beam2 = BinaryProtocolParameterDict.convert_word_to_int(match.group(8))
-        velocity_beam3 = BinaryProtocolParameterDict.convert_word_to_int(match.group(9))
-        amplitude_beam1 = ord(match.group(10))
-        amplitude_beam2 = ord(match.group(11))
-        amplitude_beam3 = ord(match.group(12))
-        correlation_beam1 = ord(match.group(13))
-        correlation_beam2 = ord(match.group(14))
-        correlation_beam3 = ord(match.group(15))
+        records = BinaryProtocolParameterDict.convert_word_to_int(match.group(1))
+        cell = BinaryProtocolParameterDict.convert_word_to_int(match.group(2))
+        noise1 = ord(match.group(3))
+        noise2 = ord(match.group(4))
+        noise3 = ord(match.group(5))
+        noise4 = ord(match.group(6))
+        proc_magn_beam1 = BinaryProtocolParameterDict.convert_word_to_int(match.group(7))
+        proc_magn_beam2 = BinaryProtocolParameterDict.convert_word_to_int(match.group(8))
+        proc_magn_beam3 = BinaryProtocolParameterDict.convert_word_to_int(match.group(9))
+        proc_magn_beam4 = BinaryProtocolParameterDict.convert_word_to_int(match.group(10))
+        distance1 = BinaryProtocolParameterDict.convert_word_to_int(match.group(11))
+        distance2 = BinaryProtocolParameterDict.convert_word_to_int(match.group(12))
+        distance3 = BinaryProtocolParameterDict.convert_word_to_int(match.group(13))
+        distance4 = BinaryProtocolParameterDict.convert_word_to_int(match.group(14))
         
-        if None == analog1:
-            raise SampleException("No analog1 value parsed")
-        if None == analog2:
-            raise SampleException("No analog2 value parsed")
-        if None == count:
-            raise SampleException("No count value parsed")
-        if None == pressure:
-            raise SampleException("No pressure value parsed")
-        if None == velocity_beam1:
-            raise SampleException("No velocity_beam1 value parsed")
-        if None == velocity_beam2:
-            raise SampleException("No velocity_beam2 value parsed")
-        if None == velocity_beam3:
-            raise SampleException("No velocity_beam3 value parsed")
-        if None == amplitude_beam1:
-            raise SampleException("No amplitude_beam1 value parsed")
-        if None == amplitude_beam2:
-            raise SampleException("No amplitude_beam2 value parsed")
-        if None == amplitude_beam3:
-            raise SampleException("No amplitude_beam3 value parsed")
-        if None == correlation_beam1:
-            raise SampleException("No correlation_beam1 value parsed")
-        if None == correlation_beam2:
-            raise SampleException("No correlation_beam2 value parsed")
-        if None == correlation_beam3:
-            raise SampleException("No correlation_beam3 value parsed")
+        if None == records:
+            raise SampleException("No records value parsed")
+        if None == cell:
+            raise SampleException("No cell value parsed")
+        if None == noise1:
+            raise SampleException("No noise1 value parsed")
+        if None == noise2:
+            raise SampleException("No noise2 value parsed")
+        if None == noise3:
+            raise SampleException("No noise3 value parsed")
+        if None == noise4:
+            raise SampleException("No noise4 value parsed")
+        if None == proc_magn_beam1:
+            raise SampleException("No proc_magn_beam1 value parsed")
+        if None == proc_magn_beam2:
+            raise SampleException("No proc_magn_beam2 value parsed")
+        if None == proc_magn_beam3:
+            raise SampleException("No proc_magn_beam3 value parsed")
+        if None == proc_magn_beam4:
+            raise SampleException("No proc_magn_beam4 value parsed")
+        if None == distance1:
+            raise SampleException("No distance1 value parsed")
+        if None == distance2:
+            raise SampleException("No distance2 value parsed")
+        if None == distance3:
+            raise SampleException("No distance3 value parsed")
+        if None == distance4:
+            raise SampleException("No distance4 value parsed")
         
-        result = [{DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.ANALOG1,
-                   DataParticleKey.VALUE: analog1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.ANALOG2,
-                   DataParticleKey.VALUE: analog2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.COUNT,
-                   DataParticleKey.VALUE: count},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PRESSURE,
-                   DataParticleKey.VALUE: pressure},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.VELOCITY_BEAM1,
-                   DataParticleKey.VALUE: velocity_beam1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.VELOCITY_BEAM2,
-                   DataParticleKey.VALUE: velocity_beam2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.VELOCITY_BEAM3,
-                   DataParticleKey.VALUE: velocity_beam3},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.AMPLITUDE_BEAM1,
-                   DataParticleKey.VALUE: amplitude_beam1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.AMPLITUDE_BEAM2,
-                   DataParticleKey.VALUE: amplitude_beam2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.AMPLITUDE_BEAM3,
-                   DataParticleKey.VALUE: amplitude_beam3},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.CORRELATION_BEAM1,
-                   DataParticleKey.VALUE: correlation_beam1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.CORRELATION_BEAM2,
-                   DataParticleKey.VALUE: correlation_beam2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.CORRELATION_BEAM3,
-                   DataParticleKey.VALUE: correlation_beam3}]
+        result = [{DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS,
+                   DataParticleKey.VALUE: records},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.CELL,
+                   DataParticleKey.VALUE: cell},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE1,
+                   DataParticleKey.VALUE: noise1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE2,
+                   DataParticleKey.VALUE: noise2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE3,
+                   DataParticleKey.VALUE: noise3},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE4,
+                   DataParticleKey.VALUE: noise4},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM1,
+                   DataParticleKey.VALUE: proc_magn_beam1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM2,
+                   DataParticleKey.VALUE: proc_magn_beam2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM3,
+                   DataParticleKey.VALUE: proc_magn_beam3},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM4,
+                   DataParticleKey.VALUE: proc_magn_beam4},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE1,
+                   DataParticleKey.VALUE: distance1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE2,
+                   DataParticleKey.VALUE: distance2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE3,
+                   DataParticleKey.VALUE: distance3},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE4,
+                   DataParticleKey.VALUE: distance4}]
  
+        log.debug('AquadoppDwDiagnosticHeaderDataParticle: particle=%s' %result)
         return result
     
 class AquadoppDwVelocityDataParticleKey(BaseEnum):
@@ -629,7 +642,9 @@ class AquadoppDwVelocityDataParticle(DataParticle):
         if not match:
             raise SampleException("AquadoppDwVelocityDataParticle: No regex match of parsed sample data: [%s]", self.decoded_raw)
         
-        return self._build_particle(match)
+        result = self._build_particle(match)
+        log.debug('AquadoppDwVelocityDataParticle: particle=%s' %result)
+        return result
             
     def _build_particle(self, match):
         timestamp = BinaryProtocolParameterDict.convert_time(match.group(1))
@@ -739,7 +754,9 @@ class AquadoppDwDiagnosticDataParticle(AquadoppDwVelocityDataParticle):
         if not match:
             raise SampleException("AquadoppDwDiagnosticDataParticle: No regex match of parsed sample data: [%s]", self.decoded_raw)
         
-        return self._build_particle(match)
+        result = self._build_particle(match)
+        log.debug('AquadoppDwDiagnosticDataParticle: particle=%s' %result)
+        return result
             
 
 ###############################################################################

@@ -38,6 +38,7 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 
 
@@ -63,6 +64,48 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config = {},
     instrument_agent_stream_definition = {}
 )
+
+params_dict = {
+    Parameter.TRANSMIT_PULSE_LENGTH : int,
+    Parameter.BLANKING_DISTANCE : int,
+    Parameter.RECEIVE_LENGTH : int,
+    Parameter.TIME_BETWEEN_PINGS : int,
+    Parameter.TIME_BETWEEN_BURST_SEQUENCES : int,
+    Parameter.NUMBER_PINGS : int,
+    Parameter.AVG_INTERVAL : int,
+    Parameter.USER_NUMBER_BEAMS : int,
+    Parameter.TIMING_CONTROL_REGISTER : int,
+    Parameter.POWER_CONTROL_REGISTER : int,
+    Parameter.COMPASS_UPDATE_RATE : int,
+    Parameter.COORDINATE_SYSTEM : int,
+    Parameter.NUMBER_BINS : int,
+    Parameter.BIN_LENGTH : int,
+    Parameter.MEASUREMENT_INTERVAL : int,
+    Parameter.DEPLOYMENT_NAME : str,
+    Parameter.WRAP_MODE : int,
+    Parameter.CLOCK_DEPLOY : str,
+    Parameter.DIAGNOSTIC_INTERVAL : str,
+    Parameter.MODE : int,
+    Parameter.ADJUSTMENT_SOUND_SPEED : int,
+    Parameter.NUMBER_SAMPLES_DIAGNOSTIC : int,
+    Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC : int,
+    Parameter.NUMBER_PINGS_DIAGNOSTIC : int,
+    Parameter.MODE_TEST : int,
+    Parameter.ANALOG_INPUT_ADDR : int,
+    Parameter.SW_VERSION : int,
+    Parameter.VELOCITY_ADJ_TABLE : str,
+    Parameter.COMMENTS : str,
+    Parameter.WAVE_MEASUREMENT_MODE : int,
+    Parameter.DYN_PERCENTAGE_POSITION : int,
+    Parameter.WAVE_TRANSMIT_PULSE : int,
+    Parameter.WAVE_BLANKING_DISTANCE : int,
+    Parameter.WAVE_CELL_SIZE : int,
+    Parameter.NUMBER_DIAG_SAMPLES : int,
+    Parameter.ANALOG_OUTPUT_SCALE : int,
+    Parameter.CORRELATION_THRESHOLD : int,
+    Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG : int,
+    Parameter.QUAL_CONSTANTS : str}
+
 
 #################################### RULES ####################################
 #                                                                             #
@@ -107,6 +150,22 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
+    def assertParamDictionariesEqual(self, pd1, pd2, all_params=False):
+        """
+        Verify all device parameters exist and are correct type.
+        """
+        if all_params:
+            self.assertEqual(set(pd1.keys()), set(pd2.keys()))
+            #print str(pd1)
+            #print str(pd2)
+            for (key, type_val) in pd2.iteritems():
+                #print key
+                self.assertTrue(isinstance(pd1[key], type_val))
+        else:
+            for (key, val) in pd1.iteritems():
+                self.assertTrue(pd2.has_key(key))
+                self.assertTrue(isinstance(val, pd2[key]))
+    
     def check_state(self, expected_state):
         self.protocol_state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(self.protocol_state, expected_state)
@@ -289,6 +348,11 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         """
         self.put_driver_in_command_mode()
 
+        # Get all device parameters. Confirm all expected keys are retrieved
+        # and have correct type.
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        self.assertParamDictionariesEqual(reply, params_dict, True)
+
         # Grab a subset of parameters.
         params = [
             Parameter.WRAP_MODE
@@ -340,10 +404,18 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         self.check_state(ProtocolState.AUTOSAMPLE)
            
+        gevent.sleep(100)
+
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
                 
         self.check_state(ProtocolState.COMMAND)
                         
+        # Verify we received at least 2 samples.
+        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
+        log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
+        log.debug('samples=%s' %sample_events)
+        self.assertTrue(len(sample_events) >= 2)
+
     def test_capabilities(self):
         """
         Test get_resource_capaibilties in command state and autosample state;
@@ -364,26 +436,66 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         
         autosample_capabilities = ['DRIVER_EVENT_STOP_AUTOSAMPLE']
         
+        params_list = [
+            Parameter.TRANSMIT_PULSE_LENGTH,
+            Parameter.BLANKING_DISTANCE,
+            Parameter.RECEIVE_LENGTH,
+            Parameter.TIME_BETWEEN_PINGS,
+            Parameter.TIME_BETWEEN_BURST_SEQUENCES, 
+            Parameter.NUMBER_PINGS,
+            Parameter.AVG_INTERVAL,
+            Parameter.USER_NUMBER_BEAMS, 
+            Parameter.TIMING_CONTROL_REGISTER,
+            Parameter.POWER_CONTROL_REGISTER,
+            Parameter.COMPASS_UPDATE_RATE,  
+            Parameter.COORDINATE_SYSTEM,
+            Parameter.NUMBER_BINS,
+            Parameter.BIN_LENGTH,
+            Parameter.MEASUREMENT_INTERVAL,
+            Parameter.DEPLOYMENT_NAME,
+            Parameter.WRAP_MODE,
+            Parameter.CLOCK_DEPLOY,
+            Parameter.DIAGNOSTIC_INTERVAL,
+            Parameter.MODE,
+            Parameter.ADJUSTMENT_SOUND_SPEED,
+            Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
+            Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC,
+            Parameter.NUMBER_PINGS_DIAGNOSTIC,
+            Parameter.MODE_TEST,
+            Parameter.ANALOG_INPUT_ADDR,
+            Parameter.SW_VERSION,
+            Parameter.VELOCITY_ADJ_TABLE,
+            Parameter.COMMENTS,
+            Parameter.WAVE_MEASUREMENT_MODE,
+            Parameter.DYN_PERCENTAGE_POSITION,
+            Parameter.WAVE_TRANSMIT_PULSE,
+            Parameter.WAVE_BLANKING_DISTANCE,
+            Parameter.WAVE_CELL_SIZE,
+            Parameter.NUMBER_DIAG_SAMPLES,
+            Parameter.ANALOG_OUTPUT_SCALE,
+            Parameter.CORRELATION_THRESHOLD,
+            Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
+            Parameter.QUAL_CONSTANTS,
+            ]
+        
         self.put_driver_in_command_mode()
 
-        #required_capabilities = RequiredCommandCapabilities.list()
         # Get the capabilities of the driver.
         driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
-        driver_capabilities = driver_capabilities[0]
-        log.debug('test_capabilities: command mode capabilities=%s' %driver_capabilities)
-        self.assertEqual(command_capabilities, driver_capabilities)
+        self.assertTrue(command_capabilities == driver_capabilities[0])
+        log.debug('dc=%s' %sorted(driver_capabilities[1]))
+        log.debug('pl=%s' %sorted(params_list))
+        self.assertTrue(sorted(params_list) == sorted(driver_capabilities[1]))
 
         # Put the driver in autosample
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
 
         self.check_state(ProtocolState.AUTOSAMPLE)
 
-        #required_capabilities = RequiredAutoSampleCapabilities.list()
         # Get the capabilities of the driver.
         driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
-        driver_capabilities = driver_capabilities[0]
         log.debug('test_capabilities: autosample mode capabilities=%s' %driver_capabilities)
-        self.assert_set_complete(autosample_capabilities, driver_capabilities)
+        self.assertTrue(autosample_capabilities == driver_capabilities[0])
 
                
 ###############################################################################
