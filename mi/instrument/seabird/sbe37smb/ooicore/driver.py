@@ -870,7 +870,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         return (success, response)
 
-    def now_in_instrument_protocol_got_data(self, paPacket):
+    def got_data(self, paPacket):
         """
         Callback for receiving new data from the device.
         """
@@ -896,7 +896,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         if paLength > 0:
             # Call the superclass to update line and prompt buffers.
-            CommandResponseInstrumentProtocol.got_data(self, paData)
+            self.add_to_buffer(paData)
 
             # If in streaming mode, process the buffer for samples to publish.
             cur_state = self.get_current_state()
