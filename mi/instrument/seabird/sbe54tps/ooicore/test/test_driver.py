@@ -26,6 +26,7 @@ import unittest
 
 from nose.plugins.attrib import attr
 from mock import Mock
+import re
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -46,8 +47,8 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from mi.instrument.seabird.sbe54tps.ooicore.driver import ooicoreInstrumentDriver
-from mi.instrument.seabird.sbe54tps.ooicore.driver import State
+from mi.instrument.seabird.sbe54tps.ooicore.driver import InstrumentDriver
+from mi.instrument.seabird.sbe54tps.ooicore.driver import ProtocolState
 from mi.instrument.seabird.sbe54tps.ooicore.driver import Parameter
 from mi.instrument.seabird.sbe54tps.ooicore.driver import PACKET_CONFIG
 
@@ -59,7 +60,7 @@ from mi.instrument.seabird.sbe54tps.ooicore.test.sample_data import *
 ###
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.seabird.sbe54tps.ooicore.driver',
-    driver_class="ooicoreInstrumentDriver",
+    driver_class="InstrumentDriver",
 
     instrument_agent_resource_id = 'IQM9B7',
     instrument_agent_name = 'seabird_sbe54tps_ooicore',
