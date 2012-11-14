@@ -26,7 +26,6 @@ from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.log import get_logger ; log = get_logger()
 
-
 # newline.
 NEWLINE = '\r\n'
 
@@ -34,11 +33,26 @@ NEWLINE = '\r\n'
 TIMEOUT = 10
 
 STATUS_DATA_REGEX = r"(<StatusData DeviceType='.*?</StatusData>)"
-STATUS_DATA_REGEX_MATCHER = re.compile(STATUS_DATA_REGEX)
+STATUS_DATA_REGEX_MATCHER = re.compile(STATUS_DATA_REGEX, re.DOTALL)
+
+CONFIGURATION_DATA_REGEX = r"(<ConfigurationData DeviceType=.*?</ConfigurationData>)"
+CONFIGURATION_DATA_REGEX_MATCHER = re.compile(CONFIGURATION_DATA_REGEX, re.DOTALL)
+
+EVENT_COUNTER_DATA_REGEX = r"(<EventSummary numEvents='.*?</EventList>)"
+EVENT_COUNTER_DATA_REGEX_MATCHER = re.compile(EVENT_COUNTER_DATA_REGEX, re.DOTALL)
+
+HARDWARE_DATA_REGEX = r"(<HardwareData DeviceType='.*?</HardwareData>)"
+HARDWARE_DATA_REGEX_MATCHER = re.compile(HARDWARE_DATA_REGEX, re.DOTALL)
+
+SAMPLE_DATA_REGEX = r"<Sample Num='.*?</Sample>"
+SAMPLE_DATA_REGEX_MATCHER = re.compile(SAMPLE_DATA_REGEX, re.DOTALL)
 
 
 
-# Packet config\
+
+
+
+# Packet config
 STREAM_NAME_PARSED = DataParticleValue.PARSED
 STREAM_NAME_RAW = DataParticleValue.RAW
 PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
@@ -79,13 +93,14 @@ class InstrumentCmds(BaseEnum):
     #### Setup - General ####
     #########################
     # INITIALIZE = "*Init"                                                  # DO NOT IMPLEMENT
-    SET_TIME = "SetTime"
-    SET_BATTERY_TYPE = "SetBatteryType"
+    SET_SAMPLE_PERIOD = "SetSamplePeriod"                  # VARIABLE
+    SET_TIME = "SetTime"                                   # VARIABLE       # S>settime=2006-01-15T13:31:00
+    SET_BATTERY_TYPE = "SetBatteryType"                    # VARIABLE
 
     #############################
     #### Setup – Data Output ####
     #############################
-    ENABLE_ALERTS ="SetEnableAlerts"
+    SET_ENABLE_ALERTS ="SetEnableAlerts"                   # VARIABLE
 
     ##################
     #### Sampling ####
@@ -102,7 +117,7 @@ class InstrumentCmds(BaseEnum):
     # GET_LAST_PRESSURE_SAMPLES = "GetLastPSamples"                         # DO NOT IMPLEMENT
     # GET_LAST_REFERENCE_SAMPLES = "GetLastRSamples"                        # DO NOT IMPLEMENT
     # GET_REFERENCE_SAMPLES_LIST = "GetRSampleList"                         # DO NOT IMPLEMENT
-    SET_UPLOAD_TYPE = "SetUploadType"
+    SET_UPLOAD_TYPE = "SetUploadType"                      # VARIABLE
     # UPLOAD_DATA = "UploadData"                                            # DO NOT IMPLEMENT
 
     ####################
@@ -181,6 +196,41 @@ class InstrumentCmds(BaseEnum):
     # SetPT4=F                  F= pressure sensor T4.
     # SET_PRESSURE_SENSOR_T4 = "SetPT4"                                     # DO NOT IMPLEMENT
 
+# Device specific parameters.
+class Parameter(DriverParameter):
+    """
+    Seems like this should be populated, but not sure for this one
+    """
+
+    SET_SAMPLE_PERIOD = "SetSamplePeriod"
+    SET_TIME = "SetTime"
+    SET_BATTERY_TYPE = "SetBatteryType"
+    SET_ENABLE_ALERTS = "SetEnableAlerts"
+    SET_UPLOAD_TYPE = "SetUploadType"
+
+    # Calibration Parameters
+    #SetAcqOscCalDate="SetAcqOscCalDate" # S
+    #SetFRA0="SetFRA0" # F
+    #SetFRA1="SetFRA1" # F
+    #SetFRA2="SetFRA2" # F
+    #SetFRA3="SetFRA3" # F
+    #SetPressureCalDate="SetPressureCalDate" # S
+    #SetPressureSerialNum="SetPressureSerialNum" # S
+    #SetPRange="SetPRange" # F
+    #SetPOffset="SetPOffset" # F
+    #SetPU0="SetPU0" # F
+    #SetPY1="SetPY1" # F
+    #SetPY2="SetPY2" # F
+    #SetPY3="SetPY3" # F
+    #SetPC1="SetPC1" # F
+    #SetPC2="SetPC2" # F
+    #SetPC3="SetPC3" # F
+    #SetPD1="SetPD1" # F
+    #SetPD2="SetPD2" # F
+    #SetPT1="SetPT1" # F
+    #SetPT2="SetPT2" # F
+    #SetPT3="SetPT3" # F
+    #SetPT4="SetPT4" # F
 
 
 
@@ -243,7 +293,6 @@ class SBE54tpsStatusDataParticleKey(BaseEnum):
     BYTES_USED = "bytes_used"
     BYTES_FREE = "bytes_free"
 
-
 class SBE54tpsStatusDataParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
@@ -251,35 +300,11 @@ class SBE54tpsStatusDataParticle(DataParticle):
     """
     def _build_parsed_values(self):
         """
-        Take something in the autosample format and split it into
+        Take something in the StatusData format and split it into
         values with appropriate tags
 
         @throws SampleException If there is a problem with sample creation
         """
-
-
-
-
-'''
-S>getsd
-getsd
-
-
-<StatusData DeviceType='SBE54' SerialNumber='05400012'>
-<DateTime>2012-11-06T10:55:44</DateTime>
-<EventSummary numEvents='573'/>
-<Power>
-<MainSupplyVoltage>23.3</MainSupplyVoltage>
-</Power>
-<MemorySummary>
-<Samples>22618</Samples>
-<Bytes>341504</Bytes>
-<BytesFree>133876224</BytesFree>
-</MemorySummary>
-</StatusData>
-<Executed/>
-S>
-'''
 
         single_var_matchers  = {
             SBE54tpsStatusDataParticleKey.DEVICE_TYPE:
@@ -323,103 +348,537 @@ S>
                         SBE54tpsStatusDataParticleKey.DEVICE_TYPE
                     ]:
                         single_var_matches[key] = match(1)
+
                     # int
                     elif key in [
-                        SBE54tpsStatusDataParticleKey.SERIAL_NUMBER
+                        SBE54tpsStatusDataParticleKey.SERIAL_NUMBER,
+                        SBE54tpsStatusDataParticleKey.EVENT_COUNT,
+                        SBE54tpsStatusDataParticleKey.NUMBER_OF_SAMPLES,
+                        SBE54tpsStatusDataParticleKey.BYTES_USED,
+                        SBE54tpsStatusDataParticleKey.BYTES_FREE
                     ]:
                         single_var_matches[key] = int(match(1))
+
                     #float
                     elif key in [
-
+                        SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE
                     ]:
                         single_var_matches[key] = float(match(1))
+
                     # datetime
                     elif key in [
                         SBE54tpsStatusDataParticleKey.DATE_TIME
                     ]:
-                        single_var_matches[key] = float(match(1))
+                        # @TODO add a date_time parser here
+                        single_var_matches[key] = match(1)
+
+                    else:
+                        raise SampleException("Unknown variable type in SBE54tpsStatusDataParticle._build_parsed_values")
+
+        result = []
+        for (key, value) in single_var_matches:
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: value})
 
         return result
 
+class SBE54tpsConfigurationDataParticleKey(BaseEnum):
+    DEVICE_TYPE = "device_type"
+    SERIAL_NUMBER = "serial_number"
+    ACQ_OSC_CAL_DATE = "acquisition_crystal_calibration_date"
+    FRA0 = "fra0"
+    FRA1 = "fra1"
+    FRA2 = "fra2"
+    FRA3 = "fra3"
+    PRESSURE_SERIAL_NUM = "pressure_serial_number"
+    PRESSURE_CAL_DATE = "pressure_calibration_date"
+    PU0 = "pu0"
+    PY1 = "py1"
+    PY2 = "py2"
+    PY3 = "py3"
+    PC1 = "pc1"
+    PC2 = "pc2"
+    PC3 = "pc3"
+    PD1 = "pd1"
+    PD2 = "pd2"
+    PT1 = "pt1"
+    PT2 = "pt2"
+    PT3 = "pt3"
+    PT4 = "pt4"
+    PRESSURE_OFFSET = "pressure_sensor_offset" # pisa
+    PRESSURE_RANGE = "pressure_sensor_full_scale_range" # pisa
+    BATTERY_TYPE = "battery_type"
+    BAUD_RATE = "baud_rate"
+    ENABLE_ALERTS = "enable_alerts"
+    UPLOAD_TYPE = "upload_type"
+    SAMPLE_PERIOD = "sample_period"
+
+class SBE54tpsConfigurationDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    def _build_parsed_values(self):
+        """
+        Take something in the StatusData format and split it into
+        values with appropriate tags
+
+        @throws SampleException If there is a problem with sample creation
+        """
 
 
-S>getcd
-getcd
-<ConfigurationData DeviceType='SBE54' SerialNumber='05400012'>
-<CalibrationCoefficients>
-<AcqOscCalDate>2012-02-20</AcqOscCalDate>
-<FRA0>5.999926E+06</FRA0>
-<FRA1>5.792290E-03</FRA1>
-<FRA2>-1.195664E-07</FRA2>
-<FRA3>7.018589E-13</FRA3>
-<PressureSerialNum>121451</PressureSerialNum>
-<PressureCalDate>2011-06-01</PressureCalDate>
-<pu0>5.820407E+00</pu0>
-<py1>-3.845374E+03</py1>
-<py2>-1.078882E+04</py2>
-<py3>0.000000E+00</py3>
-<pc1>-2.700543E+04</pc1>
-<pc2>-1.738438E+03</pc2>
-<pc3>7.629962E+04</pc3>
-<pd1>3.739600E-02</pd1>
-<pd2>0.000000E+00</pd2>
-<pt1>3.027306E+01</pt1>
-<pt2>2.231025E-01</pt2>
-<pt3>5.398972E+01</pt3>
-<pt4>1.455506E+02</pt4>
-<poffset>0.000000E+00</poffset>
-<prange>6.000000E+03</prange>
-</CalibrationCoefficients>
-<Settings
-batteryType='0'
-baudRate='9600'
-enableAlerts='0'
-uploadType='0'
-samplePeriod='15'
-/>
-</ConfigurationData>
-<Executed/>
+        single_var_matchers  = {
+            SBE54tpsConfigurationDataParticleKey.DEVICE_TYPE:
+                re.compile(r"ConfigurationData DeviceType='([^']+)' "),
+            SBE54tpsConfigurationDataParticleKey.SERIAL_NUMBER:
+                re.compile(r" SerialNumber='(\d+)'>"),
+            SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE:
+                re.compile(r"<AcqOscCalDate>([0-9\-]+)</AcqOscCalDate>"),
+            SBE54tpsConfigurationDataParticleKey.FRA0:
+                re.compile(r"<FRA0>([0-9E+-.]+)</FRA0>"),
+            SBE54tpsConfigurationDataParticleKey.FRA1:
+                re.compile(r"<FRA1>([0-9E+-.]+)</FRA1>"),
+            SBE54tpsConfigurationDataParticleKey.FRA2:
+                re.compile(r"<FRA2>([0-9E+-.]+)</FRA2>"),
+            SBE54tpsConfigurationDataParticleKey.FRA3:
+                re.compile(r"<FRA3>([0-9E+-.]+)</FRA3>"),
+            SBE54tpsConfigurationDataParticleKey.PRESSURE_SERIAL_NUM:
+                re.compile(r"<PressureSerialNum>(\d+)</PressureSerialNum>"),
+            SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE:
+                re.compile(r"<PressureCalDate>([0-9\-]+)</PressureCalDate>"),
+            SBE54tpsConfigurationDataParticleKey.PU0:
+                re.compile(r"<pu0>([0-9E+-.]+)</pu0>"),
+            SBE54tpsConfigurationDataParticleKey.PY1:
+                re.compile(r"<py1>([0-9E+-.]+)</py1>"),
+            SBE54tpsConfigurationDataParticleKey.PY2:
+                re.compile(r"<py2>([0-9E+-.]+)</py2>"),
+            SBE54tpsConfigurationDataParticleKey.PY3:
+                re.compile(r"<py3>([0-9E+-.]+)</py3>"),
+            SBE54tpsConfigurationDataParticleKey.PC1:
+                re.compile(r"<pc1>([0-9E+-.]+)</pc1>"),
+            SBE54tpsConfigurationDataParticleKey.PC2:
+                re.compile(r"<pc2>([0-9E+-.]+)</pc2>"),
+            SBE54tpsConfigurationDataParticleKey.PC3:
+                re.compile(r"<pc3>([0-9E+-.]+)</pc3>"),
+            SBE54tpsConfigurationDataParticleKey.PD1:
+                re.compile(r"<pd1>([0-9E+-.]+)</pd1>"),
+            SBE54tpsConfigurationDataParticleKey.PD2:
+                re.compile(r"<pd2>([0-9E+-.]+)</pd2>"),
+            SBE54tpsConfigurationDataParticleKey.PT1:
+                re.compile(r"<pt1>([0-9E+-.]+)</pt1>"),
+            SBE54tpsConfigurationDataParticleKey.PT2:
+                re.compile(r"<pt2>([0-9E+-.]+)</pt2>"),
+            SBE54tpsConfigurationDataParticleKey.PT3:
+                re.compile(r"<pt3>([0-9E+-.]+)</pt3>"),
+            SBE54tpsConfigurationDataParticleKey.PT4:
+                re.compile(r"<pt4>([0-9E+-.]+)</pt4>"),
+            SBE54tpsConfigurationDataParticleKey.PRESSURE_OFFSET:
+                re.compile(r"<poffset>([0-9E+-.]+)</poffset>"),
+            SBE54tpsConfigurationDataParticleKey.PRESSURE_RANGE:
+                re.compile(r"<prange>([0-9E+-.]+)</prange>"),
+            SBE54tpsConfigurationDataParticleKey.BATTERY_TYPE:
+                re.compile(r"batteryType='(\d+)'"),
+            SBE54tpsConfigurationDataParticleKey.BAUD_RATE:
+                re.compile(r"baudRate='(\d+)'"),
+            SBE54tpsConfigurationDataParticleKey.ENABLE_ALERTS:
+                re.compile(r"enableAlerts='(\d+)'"),
+            SBE54tpsConfigurationDataParticleKey.UPLOAD_TYPE:
+                re.compile(r"uploadType='(\d+)'"),
+            SBE54tpsConfigurationDataParticleKey.SAMPLE_PERIOD:
+                re.compile(r"samplePeriod='(\d+)'")
+        }
+
+        # Initialize
+
+        single_var_matches  = {
+            SBE54tpsConfigurationDataParticleKey.DEVICE_TYPE: None,
+            SBE54tpsConfigurationDataParticleKey.SERIAL_NUMBER: None,
+            SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE: None,
+            SBE54tpsConfigurationDataParticleKey.FRA0: None,
+            SBE54tpsConfigurationDataParticleKey.FRA1: None,
+            SBE54tpsConfigurationDataParticleKey.FRA2: None,
+            SBE54tpsConfigurationDataParticleKey.FRA3: None,
+            SBE54tpsConfigurationDataParticleKey.PRESSURE_SERIAL_NUM: None,
+            SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE: None,
+            SBE54tpsConfigurationDataParticleKey.PU0: None,
+            SBE54tpsConfigurationDataParticleKey.PY1: None,
+            SBE54tpsConfigurationDataParticleKey.PY2: None,
+            SBE54tpsConfigurationDataParticleKey.PY3: None,
+            SBE54tpsConfigurationDataParticleKey.PC1: None,
+            SBE54tpsConfigurationDataParticleKey.PC2: None,
+            SBE54tpsConfigurationDataParticleKey.PC3: None,
+            SBE54tpsConfigurationDataParticleKey.PD1: None,
+            SBE54tpsConfigurationDataParticleKey.PD2: None,
+            SBE54tpsConfigurationDataParticleKey.PT1: None,
+            SBE54tpsConfigurationDataParticleKey.PT2: None,
+            SBE54tpsConfigurationDataParticleKey.PT3: None,
+            SBE54tpsConfigurationDataParticleKey.PT4: None,
+            SBE54tpsConfigurationDataParticleKey.PRESSURE_OFFSET: None,
+            SBE54tpsConfigurationDataParticleKey.PRESSURE_RANGE: None,
+            SBE54tpsConfigurationDataParticleKey.BATTERY_TYPE: None,
+            SBE54tpsConfigurationDataParticleKey.BAUD_RATE: None,
+            SBE54tpsConfigurationDataParticleKey.ENABLE_ALERTS: None,
+            SBE54tpsConfigurationDataParticleKey.UPLOAD_TYPE: None,
+            SBE54tpsConfigurationDataParticleKey.SAMPLE_PERIOD: None
+        }
+
+        for line in self.raw_data.split(NEWLINE):
+            for (key, matcher) in single_var_matchers:
+                match = single_var_matchers[key].match(line)
+                if match:
+
+                    # str
+                    if key in [
+                        SBE54tpsConfigurationDataParticleKey.DEVICE_TYPE,
+                        SBE54tpsConfigurationDataParticleKey.PRESSURE_SERIAL_NUM,
+                    ]:
+                        single_var_matches[key] = match(1)
+
+                    # int
+                    elif key in [
+                        SBE54tpsConfigurationDataParticleKey.SERIAL_NUMBER,
+                        SBE54tpsConfigurationDataParticleKey.BATTERY_TYPE,
+                        SBE54tpsConfigurationDataParticleKey.ENABLE_ALERTS,
+                        SBE54tpsConfigurationDataParticleKey.UPLOAD_TYPE,
+                        SBE54tpsConfigurationDataParticleKey.SAMPLE_PERIOD
+                    ]:
+                        single_var_matches[key] = int(match(1))
+
+                    #float
+                    elif key in [
+                        SBE54tpsConfigurationDataParticleKey.FRA0,
+                        SBE54tpsConfigurationDataParticleKey.FRA1,
+                        SBE54tpsConfigurationDataParticleKey.FRA2,
+                        SBE54tpsConfigurationDataParticleKey.FRA3,
+                        SBE54tpsConfigurationDataParticleKey.PU0,
+                        SBE54tpsConfigurationDataParticleKey.PY1,
+                        SBE54tpsConfigurationDataParticleKey.PY2,
+                        SBE54tpsConfigurationDataParticleKey.PY3,
+                        SBE54tpsConfigurationDataParticleKey.PC1,
+                        SBE54tpsConfigurationDataParticleKey.PC2,
+                        SBE54tpsConfigurationDataParticleKey.PC3,
+                        SBE54tpsConfigurationDataParticleKey.PD1,
+                        SBE54tpsConfigurationDataParticleKey.PD2,
+                        SBE54tpsConfigurationDataParticleKey.PT1,
+                        SBE54tpsConfigurationDataParticleKey.PT2,
+                        SBE54tpsConfigurationDataParticleKey.PT3,
+                        SBE54tpsConfigurationDataParticleKey.PT4,
+                        SBE54tpsConfigurationDataParticleKey.PRESSURE_OFFSET,
+                        SBE54tpsConfigurationDataParticleKey.PRESSURE_RANGE
+                    ]:
+                        single_var_matches[key] = float(match(1))
+
+                    # date
+                    elif key in [
+                        SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE,
+                        SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE
+                    ]:
+                        # @TODO add a date parser here
+                        single_var_matches[key] = match(1)
+
+                    else:
+                        raise SampleException("Unknown variable type in SBE54tpsConfigurationDataParticle._build_parsed_values")
+
+        result = []
+        for (key, value) in single_var_matches:
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: value})
+
+        return result
+
+class SBE54tpsEventCounterDataParticleKey(BaseEnum):
+    NUMBER_EVENTS = "number_events"
+    MAX_STACK = "max_stack"
+    DEVICE_TYPE = "device_type"
+    SERIAL_NUMBER = "serial_number"
+    POWER_ON_RESET = "power_on_reset"
+    POWER_FAIL_RESET = "power_fail_reset"
+    SERIAL_BYTE_ERROR = "serial_byte_error"
+    COMMAND_BUFFER_OVERFLOW = "command_buffer_overflow"
+    SERIAL_RECEIVE_OVERFLOW = "serial_receive_overflow"
+    LOW_BATTERY = "low_battery"
+    SIGNAL_ERROR = "signal_error"
+    ERROR_10 = "error_10"
+    ERROR_12 = "error_12"
+
+class SBE54tpsEventCounterDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    def _build_parsed_values(self):
+        """
+        Take something in the StatusData format and split it into
+        values with appropriate tags
+
+        @throws SampleException If there is a problem with sample creation
+        """
+
+        single_var_matchers  = {
+            SBE54tpsEventCounterDataParticleKey.NUMBER_EVENTS:
+                re.compile(r"EventSummary numEvents='(\d+)' "),
+            SBE54tpsEventCounterDataParticleKey.MAX_STACK:
+                re.compile(r" maxStack='(\d+)'/>"),
+            SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE:
+                re.compile(r"<EventList DeviceType='([^']+)' "),
+            SBE54tpsEventCounterDataParticleKey.SERIAL_NUMBER:
+                re.compile(r" SerialNumber='(\d+)'>"),
+            SBE54tpsEventCounterDataParticleKey.POWER_ON_RESET:
+                re.compile(r"<Event type='PowerOnReset' count='(\d+)'/>"),
+            SBE54tpsEventCounterDataParticleKey.POWER_FAIL_RESET:
+                re.compile(r"<Event type='PowerFailReset' count='(\d+)'/>"),
+            SBE54tpsEventCounterDataParticleKey.SERIAL_BYTE_ERROR:
+                re.compile(r"<Event type='SerialByteErr' count='(\d+)'/>"),
+            SBE54tpsEventCounterDataParticleKey.COMMAND_BUFFER_OVERFLOW:
+                re.compile(r"<Event type='CMDBuffOflow' count='(\d+)'/>"),
+            SBE54tpsEventCounterDataParticleKey.SERIAL_RECEIVE_OVERFLOW:
+                re.compile(r"<Event type='SerialRxOflow' count='(\d+)'/>"),
+            SBE54tpsEventCounterDataParticleKey.LOW_BATTERY:
+                re.compile(r"<Event type='LowBattery' count='(\d+)'/>"),
+            SBE54tpsEventCounterDataParticleKey.SIGNAL_ERROR:
+                re.compile(r"<Event type='SignalErr' count='(\d+)'/>"),
+            SBE54tpsEventCounterDataParticleKey.ERROR_10:
+                re.compile(r"<Event type='Error10' count='(\d+)'/>"),
+            SBE54tpsEventCounterDataParticleKey.ERROR_12:
+                re.compile(r"<Event type='Error12' count='(\d+)'/>")
+        }
 
 
+        # Initialize
 
+        single_var_matches  = {
+            SBE54tpsEventCounterDataParticleKey.NUMBER_EVENTS: None,
+            SBE54tpsEventCounterDataParticleKey.MAX_STACK: None,
+            SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE: None,
+            SBE54tpsEventCounterDataParticleKey.SERIAL_NUMBER: None,
+            SBE54tpsEventCounterDataParticleKey.POWER_ON_RESET: None,
+            SBE54tpsEventCounterDataParticleKey.POWER_FAIL_RESET: None,
+            SBE54tpsEventCounterDataParticleKey.SERIAL_BYTE_ERROR: None,
+            SBE54tpsEventCounterDataParticleKey.COMMAND_BUFFER_OVERFLOW: None,
+            SBE54tpsEventCounterDataParticleKey.SERIAL_RECEIVE_OVERFLOW: None,
+            SBE54tpsEventCounterDataParticleKey.LOW_BATTERY: None,
+            SBE54tpsEventCounterDataParticleKey.SIGNAL_ERROR: None,
+            SBE54tpsEventCounterDataParticleKey.ERROR_10: None,
+            SBE54tpsEventCounterDataParticleKey.ERROR_12: None
+        }
 
+        for line in self.raw_data.split(NEWLINE):
+            for (key, matcher) in single_var_matchers:
+                match = single_var_matchers[key].match(line)
+                if match:
+                    # int
+                    if key in [
+                        SBE54tpsEventCounterDataParticleKey.NUMBER_EVENTS,
+                        SBE54tpsEventCounterDataParticleKey.MAX_STACK,
+                        SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE,
+                        SBE54tpsEventCounterDataParticleKey.SERIAL_NUMBER,
+                        SBE54tpsEventCounterDataParticleKey.POWER_ON_RESET,
+                        SBE54tpsEventCounterDataParticleKey.POWER_FAIL_RESET,
+                        SBE54tpsEventCounterDataParticleKey.SERIAL_BYTE_ERROR,
+                        SBE54tpsEventCounterDataParticleKey.COMMAND_BUFFER_OVERFLOW,
+                        SBE54tpsEventCounterDataParticleKey.SERIAL_RECEIVE_OVERFLOW,
+                        SBE54tpsEventCounterDataParticleKey.LOW_BATTERY,
+                        SBE54tpsEventCounterDataParticleKey.SIGNAL_ERROR,
+                        SBE54tpsEventCounterDataParticleKey.ERROR_10,
+                        SBE54tpsEventCounterDataParticleKey.ERROR_12
+                    ]:
+                        single_var_matches[key] = int(match(1))
+                    else:
+                        raise SampleException("Unknown variable type in SBE54tpsEventCounterDataParticle._build_parsed_values")
 
+        result = []
+        for (key, value) in single_var_matches:
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: value})
 
-S>getec
-getec
-<EventSummary numEvents='573' maxStack='354'/>
-<EventList DeviceType='SBE54' SerialNumber='05400012'>
-<Event type='PowerOnReset' count='25'/>
-<Event type='PowerFailReset' count='25'/>
-<Event type='SerialByteErr' count='9'/>
-<Event type='CMDBuffOflow' count='1'/>
-<Event type='SerialRxOflow' count='255'/>
-<Event type='LowBattery' count='255'/>
-<Event type='SignalErr' count='1'/>
-<Event type='Error10' count='1'/>
-<Event type='Error12' count='1'/>
-</EventList>
-<Executed/>
-S>
+        return result
 
-S>gethd
-gethd
-<HardwareData DeviceType='SBE54' SerialNumber='05400012'>
-<Manufacturer>Sea-Bird Electronics, Inc</Manufacturer>
-<FirmwareVersion>SBE54 V1.3-6MHZ</FirmwareVersion>
-<FirmwareDate>Mar 22 2007</FirmwareDate>
-<HardwareVersion>41477A.1</HardwareVersion>
-<HardwareVersion>41478A.1T</HardwareVersion>
-<PCBSerialNum>NOT SET</PCBSerialNum>
-<PCBSerialNum>NOT SET</PCBSerialNum>
-<PCBType>1</PCBType>
-<MfgDate>Jun 27 2007</MfgDate>
-</HardwareData>
-<Executed/>
-S>
+class SBE54tpsHardwareDataParticleKey(BaseEnum):
+    DEVICE_TYPE = "device_type"
+    SERIAL_NUMBER = "serial_number"
+    MANUFACTURER = "manufacturer"
+    FIRMWARE_VERSION = "firmware_version"
+    FIRMWARE_DATE = "firmware_date"
+    HARDWARE_VERSION = "hardware_version"
+    PCB_SERIAL_NUMBER = "pcb_serial_number"
+    PCB_TYPE = "pcb_type"
+    MANUFACTUR_DATE = "manufactur_date"
 
+class SBE54tpsHardwareDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    def _build_parsed_values(self):
+        """
+        Take something in the StatusData format and split it into
+        values with appropriate tags
 
+        @throws SampleException If there is a problem with sample creation
+        """
 
+        single_var_matchers  = {
+            SBE54tpsHardwareDataParticleKey.DEVICE_TYPE:
+                re.compile(r"<HardwareData DeviceType='[^']+' "),
+            SBE54tpsHardwareDataParticleKey.SERIAL_NUMBER:
+                re.compile(r" SerialNumber='(\d+)'>"),
+            SBE54tpsHardwareDataParticleKey.MANUFACTURER:
+                re.compile(r"<Manufacturer>([^<]+)</Manufacturer>"),
+            SBE54tpsHardwareDataParticleKey.FIRMWARE_VERSION:
+                re.compile(r"<FirmwareVersion>([^<]+)</FirmwareVersion>"),
+            SBE54tpsHardwareDataParticleKey.FIRMWARE_DATE:
+                re.compile(r"<FirmwareDate>([^<]+)</FirmwareDate>"),
+            SBE54tpsHardwareDataParticleKey.HARDWARE_VERSION:
+                re.compile(r"<HardwareVersion>([^<]+)</HardwareVersion>"),
+            SBE54tpsHardwareDataParticleKey.PCB_SERIAL_NUMBER:
+                re.compile(r"<PCBSerialNum>([^<]+)</PCBSerialNum>"),
+            SBE54tpsHardwareDataParticleKey.PCB_TYPE:
+                re.compile(r"<PCBType>([^<]+)</PCBType>"),
+            SBE54tpsHardwareDataParticleKey.MANUFACTUR_DATE:
+                re.compile(r"<MfgDate>([^<]+)</MfgDate>")
+        }
+
+        # Initialize
+        single_var_matches  = {
+            SBE54tpsHardwareDataParticleKey.DEVICE_TYPE: None,
+            SBE54tpsHardwareDataParticleKey.SERIAL_NUMBER: None,
+            SBE54tpsHardwareDataParticleKey.MANUFACTURER: None,
+            SBE54tpsHardwareDataParticleKey.FIRMWARE_VERSION: None,
+            SBE54tpsHardwareDataParticleKey.FIRMWARE_DATE: None,
+            SBE54tpsHardwareDataParticleKey.HARDWARE_VERSION: [],
+            SBE54tpsHardwareDataParticleKey.PCB_SERIAL_NUMBER: [],
+            SBE54tpsHardwareDataParticleKey.PCB_TYPE: None,
+            SBE54tpsHardwareDataParticleKey.MANUFACTUR_DATE: None
+        }
+
+        for line in self.raw_data.split(NEWLINE):
+            for (key, matcher) in single_var_matchers:
+                match = single_var_matchers[key].match(line)
+                if match:
+
+                    # str
+                    if key in [
+                        SBE54tpsHardwareDataParticleKey.DEVICE_TYPE,
+                        SBE54tpsHardwareDataParticleKey.MANUFACTURER,
+                        SBE54tpsHardwareDataParticleKey.FIRMWARE_VERSION,
+                        SBE54tpsHardwareDataParticleKey.HARDWARE_VERSION,
+                        SBE54tpsHardwareDataParticleKey.PCB_SERIAL_NUMBER,
+                        SBE54tpsHardwareDataParticleKey.PCB_TYPE
+                    ]:
+                        if single_var_matches[key] != None:
+                            single_var_matches[key].append(match(1))
+                        else:
+                            single_var_matches[key] = match(1)
+
+                    # int
+                    elif key in [
+                        SBE54tpsHardwareDataParticleKey.SERIAL_NUMBER
+                    ]:
+                        single_var_matches[key] = int(match(1))
+
+                    # date
+                    elif key in [
+                        SBE54tpsHardwareDataParticleKey.FIRMWARE_DATE,
+                        SBE54tpsHardwareDataParticleKey.MANUFACTUR_DATE
+                    ]:
+                        # @TODO add a date parser here
+                        single_var_matches[key] = match(1)
+
+                    else:
+                        raise SampleException("Unknown variable type in SBE54tpsConfigurationDataParticle._build_parsed_values")
+
+        result = []
+        for (key, value) in single_var_matches:
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: value})
+
+        return result
+
+class SBE54tpsSampleDataParticleKey(BaseEnum):
+    SAMPLE_NUMBER = "sample_number"
+    SAMPLE_TYPE = "sample_type"
+    SAMPLE_TIMESTAMP = "sample_timestamp"
+    PRESSURE = "pressure" # psi
+    PRESSURE_TEMP = "pressure_temp"
+
+class SBE54tpsSampleDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    def _build_parsed_values(self):
+        """
+        Take something in the StatusData format and split it into
+        values with appropriate tags
+
+        @throws SampleException If there is a problem with sample creation
+        """
+
+        single_var_matchers  = {
+            SBE54tpsSampleDataParticleKey.SAMPLE_NUMBER:
+                re.compile(r"<Sample Num='(\d+)' "),
+            SBE54tpsSampleDataParticleKey.SAMPLE_TYPE:
+                re.compile(r" Type='([^']+)'>"),
+            SBE54tpsSampleDataParticleKey.SAMPLE_TIMESTAMP:
+                re.compile(r"<Time>([^<]+)</Time>"),
+            SBE54tpsSampleDataParticleKey.PRESSURE:
+                re.compile(r"<PressurePSI>([0-9.+-]+)</PressurePSI>"),
+            SBE54tpsSampleDataParticleKey.PRESSURE_TEMP:
+                re.compile(r"<PTemp>([0-9.+-]+)</PTemp>")
+        }
+
+        # Initialize
+        single_var_matches  = {
+            SBE54tpsSampleDataParticleKey.SAMPLE_NUMBER: None,
+            SBE54tpsSampleDataParticleKey.SAMPLE_TYPE: None,
+            SBE54tpsSampleDataParticleKey.SAMPLE_TIMESTAMP: None,
+            SBE54tpsSampleDataParticleKey.PRESSURE: None,
+            SBE54tpsSampleDataParticleKey.PRESSURE_TEMP: None
+        }
+
+        for line in self.raw_data.split(NEWLINE):
+            for (key, matcher) in single_var_matchers:
+                match = single_var_matchers[key].match(line)
+                if match:
+
+                    # str
+                    if key in [
+                        SBE54tpsSampleDataParticleKey.SAMPLE_TYPE
+                    ]:
+                        if single_var_matches[key] != None:
+                            single_var_matches[key].append(match(1))
+                        else:
+                            single_var_matches[key] = match(1)
+
+                    # int
+                    elif key in [
+                        SBE54tpsSampleDataParticleKey.SAMPLE_NUMBER
+                    ]:
+                        single_var_matches[key] = int(match(1))
+
+                    # float
+                    elif key in [
+                        SBE54tpsSampleDataParticleKey.PRESSURE,
+                        SBE54tpsSampleDataParticleKey.PRESSURE_TEMP
+                    ]:
+                        single_var_matches[key] = float(match(1))
+
+                    # date_time
+                    elif key in [
+                        SBE54tpsSampleDataParticleKey.SAMPLE_TIMESTAMP
+                    ]:
+                        # @TODO add a date parser here
+                        single_var_matches[key] = match(1)
+
+                    else:
+                        raise SampleException("Unknown variable type in SBE54tpsConfigurationDataParticle._build_parsed_values")
+
+        result = []
+        for (key, value) in single_var_matches:
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: value})
+
+        return result
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -462,7 +921,7 @@ class Parameter(DriverParameter):
 
 
 
-
+"""
 
 to do aquire sample, will need to:
 stop
@@ -470,7 +929,7 @@ SetSamplePeriod=1
 collect a sample
 stop
 restore sample period.
-
+"""
 
 ######################################### /PARTICLES #############################
 
@@ -546,16 +1005,32 @@ class Protocol(CommandResponseInstrumentProtocol):
                             ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER,                  self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT,                   self._handler_unknown_exit)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER,               self._handler_unknown_discover)
+        #self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)  ##???? from unknown state?
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.FORCE_STATE,            self._handler_unknown_force_state)   ######
+
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER,                  self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT,                   self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,         self._handler_command_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,       self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,                    self._handler_command_get)  ###
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)  ###
+
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC,             self._handler_command_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_aquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
+
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,     self._handler_autosample_stop_autosample)
+
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,             self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT,      self._handler_direct_access_stop_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT,   self._handler_direct_access_execute_direct)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
