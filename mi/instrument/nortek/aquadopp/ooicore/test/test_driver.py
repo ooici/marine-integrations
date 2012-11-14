@@ -344,6 +344,47 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
                 
         self.check_state(ProtocolState.COMMAND)
                         
+    def test_capabilities(self):
+        """
+        Test get_resource_capaibilties in command state and autosample state;
+        should be different in each.
+        """
+        
+        command_capabilities = ['EXPORTED_INSTRUMENT_CMD_READ_ID', 
+                                'EXPORTED_INSTRUMENT_CMD_GET_HW_CONFIGURATION', 
+                                'DRIVER_EVENT_START_DIRECT', 
+                                'EXPORTED_INSTRUMENT_CMD_READ_CLOCK', 
+                                'EXPORTED_INSTRUMENT_CMD_GET_HEAD_CONFIGURATION', 
+                                'EXPORTED_INSTRUMENT_CMD_POWER_DOWN', 
+                                'EXPORTED_INSTRUMENT_CMD_READ_MODE', 
+                                'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME', 
+                                'EXPORTED_INSTRUMENT_CMD_READ_BATTERY_VOLTAGE', 
+                                'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE', 
+                                'DRIVER_EVENT_START_AUTOSAMPLE']
+        
+        autosample_capabilities = ['DRIVER_EVENT_STOP_AUTOSAMPLE']
+        
+        self.put_driver_in_command_mode()
+
+        #required_capabilities = RequiredCommandCapabilities.list()
+        # Get the capabilities of the driver.
+        driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
+        driver_capabilities = driver_capabilities[0]
+        log.debug('test_capabilities: command mode capabilities=%s' %driver_capabilities)
+        self.assertEqual(command_capabilities, driver_capabilities)
+
+        # Put the driver in autosample
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
+
+        self.check_state(ProtocolState.AUTOSAMPLE)
+
+        #required_capabilities = RequiredAutoSampleCapabilities.list()
+        # Get the capabilities of the driver.
+        driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
+        driver_capabilities = driver_capabilities[0]
+        log.debug('test_capabilities: autosample mode capabilities=%s' %driver_capabilities)
+        self.assert_set_complete(autosample_capabilities, driver_capabilities)
+
                
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
