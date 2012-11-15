@@ -1168,7 +1168,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         next_state = ProtocolState.COMMAND
         result = ResourceAgentState.IDLE
-
+        next_state = None
 
         return (next_state, result)
 
