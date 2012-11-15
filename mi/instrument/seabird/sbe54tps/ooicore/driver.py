@@ -15,6 +15,8 @@ __license__ = 'Apache 2.0'
 
 import string
 import re
+import time
+import ntplib
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
@@ -26,6 +28,12 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.log import get_logger ; log = get_logger()
+
+
+from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import SampleException
+from mi.core.exceptions import InstrumentStateException
+from mi.core.exceptions import InstrumentProtocolException
 
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 from mi.core.instrument.chunker import StringChunker
@@ -331,7 +339,7 @@ class SBE54tpsStatusDataParticle(DataParticle):
 
         single_var_matchers  = {
             SBE54tpsStatusDataParticleKey.DEVICE_TYPE:
-                re.compile(r"StatusData DeviceType='([^']+'"),
+                re.compile(r"StatusData DeviceType='([^']+)'"),
             SBE54tpsStatusDataParticleKey.SERIAL_NUMBER:
                 re.compile(r"SerialNumber='(\d+)'"),
             SBE54tpsStatusDataParticleKey.DATE_TIME:
@@ -403,7 +411,7 @@ class SBE54tpsStatusDataParticle(DataParticle):
                         raise SampleException("Unknown variable type in SBE54tpsStatusDataParticle._build_parsed_values")
 
         result = []
-        for (key, value) in single_var_matches:
+        for (key, value) in single_var_matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
 
@@ -553,7 +561,7 @@ class SBE54tpsConfigurationDataParticle(DataParticle):
             for (key, matcher) in single_var_matchers.iteritems():
                 match = single_var_matchers[key].match(line)
                 if match:
-
+                    log.debug("KEY = " + repr(key))
                     # str
                     if key in [
                         SBE54tpsConfigurationDataParticleKey.DEVICE_TYPE,
@@ -567,7 +575,8 @@ class SBE54tpsConfigurationDataParticle(DataParticle):
                         SBE54tpsConfigurationDataParticleKey.BATTERY_TYPE,
                         SBE54tpsConfigurationDataParticleKey.ENABLE_ALERTS,
                         SBE54tpsConfigurationDataParticleKey.UPLOAD_TYPE,
-                        SBE54tpsConfigurationDataParticleKey.SAMPLE_PERIOD
+                        SBE54tpsConfigurationDataParticleKey.SAMPLE_PERIOD,
+                        SBE54tpsConfigurationDataParticleKey.BAUD_RATE
                     ]:
                         single_var_matches[key] = int(match.group(1))
 
@@ -612,7 +621,7 @@ class SBE54tpsConfigurationDataParticle(DataParticle):
                         raise SampleException("Unknown variable type in SBE54tpsConfigurationDataParticle._build_parsed_values")
 
         result = []
-        for (key, value) in single_var_matches:
+        for (key, value) in single_var_matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
 
@@ -719,7 +728,7 @@ class SBE54tpsEventCounterDataParticle(DataParticle):
                         raise SampleException("Unknown variable type in SBE54tpsEventCounterDataParticle._build_parsed_values")
 
         result = []
-        for (key, value) in single_var_matches:
+        for (key, value) in single_var_matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
 
@@ -751,7 +760,7 @@ class SBE54tpsHardwareDataParticle(DataParticle):
 
         single_var_matchers  = {
             SBE54tpsHardwareDataParticleKey.DEVICE_TYPE:
-                re.compile(r"<HardwareData DeviceType='[^']+' "),
+                re.compile(r"<HardwareData DeviceType='([^']+)' "),
             SBE54tpsHardwareDataParticleKey.SERIAL_NUMBER:
                 re.compile(r" SerialNumber='(\d+)'>"),
             SBE54tpsHardwareDataParticleKey.MANUFACTURER:
@@ -787,7 +796,7 @@ class SBE54tpsHardwareDataParticle(DataParticle):
             for (key, matcher) in single_var_matchers.iteritems():
                 match = single_var_matchers[key].match(line)
                 if match:
-
+                    log.debug("MATCH 1 = " + repr(match.group(1)))
                     # str
                     if key in [
                         SBE54tpsHardwareDataParticleKey.DEVICE_TYPE,
@@ -797,10 +806,7 @@ class SBE54tpsHardwareDataParticle(DataParticle):
                         SBE54tpsHardwareDataParticleKey.PCB_SERIAL_NUMBER,
                         SBE54tpsHardwareDataParticleKey.PCB_TYPE
                     ]:
-                        if single_var_matches[key] != None:
-                            single_var_matches[key].append(match.group(1))
-                        else:
-                            single_var_matches[key] = match.group(1)
+                        single_var_matches[key] = match.group(1)
 
                     # int
                     elif key in [
@@ -824,7 +830,7 @@ class SBE54tpsHardwareDataParticle(DataParticle):
                         raise SampleException("Unknown variable type in SBE54tpsConfigurationDataParticle._build_parsed_values")
 
         result = []
-        for (key, value) in single_var_matches:
+        for (key, value) in single_var_matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
 
@@ -875,16 +881,12 @@ class SBE54tpsSampleDataParticle(DataParticle):
         for line in self.raw_data.split(NEWLINE):
             for (key, matcher) in single_var_matchers.iteritems():
                 match = single_var_matchers[key].match(line)
-                log.debug("MATCH = " + repr(match))
                 if match:
                     # str
                     if key in [
                         SBE54tpsSampleDataParticleKey.SAMPLE_TYPE
                     ]:
-                        if single_var_matches[key] != None:
-                            single_var_matches[key].append(match.group(1))
-                        else:
-                            single_var_matches[key] = match.group(1)
+                        single_var_matches[key] = match.group(1)
 
                     # int
                     elif key in [
@@ -914,7 +916,7 @@ class SBE54tpsSampleDataParticle(DataParticle):
                         raise SampleException("Unknown variable type in SBE54tpsConfigurationDataParticle._build_parsed_values")
 
         result = []
-        for (key, value) in single_var_matches:
+        for (key, value) in single_var_matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
 
@@ -1024,12 +1026,25 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCmds.GET_CONFIGURATION_DATA, self._build_simple_command)
-
+        self._add_build_handler(InstrumentCmds.GET_STATUS_DATA, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.GET_EVENT_COUNTER_DATA, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.GET_HARDWARE_DATA, self._build_simple_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.GET_CONFIGURATION_DATA, self._parse_gc_response)
+        self._add_response_handler(InstrumentCmds.GET_STATUS_DATA, self._parse_gs_response)
+        self._add_response_handler(InstrumentCmds.GET_EVENT_COUNTER_DATA, self._parse_ec_response)
+        self._add_response_handler(InstrumentCmds.GET_HARDWARE_DATA, self._parse_hd_response)
 
         # Add sample handlers.
+
+
+
+
+
+
+
+
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -1078,9 +1093,23 @@ class Protocol(CommandResponseInstrumentProtocol):
 
 
 
-    def _parse_gc_response(self, response, prompt): #(self, cmd, *args, **kwargs):
+    def _parse_gc_response(self, response, prompt):
         log.debug("IN _parse_gc_response RESPONSE = " + repr(response))
         return response
+
+    def _parse_gs_response(self, response, prompt):
+        log.debug("IN _parse_gs_response RESPONSE = " + repr(response))
+        return response
+
+    def _parse_ec_response(self, response, prompt):
+        log.debug("IN _parse_ec_response RESPONSE = " + repr(response))
+        return response
+
+    def _parse_hd_response(self, response, prompt):
+        log.debug("IN _parse_hd_response RESPONSE = " + repr(response))
+        return response
+
+
 
 
     ########################################################################
@@ -1142,7 +1171,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         timeout = kwargs.get('timeout', TIMEOUT)
         log.debug("%%% IN _handler_unknown_discover NEED TO WRITE THIS METHOD.....")
-        timeout = kwargs.get('timeout', TIMEOUT)
+
 
         next_state = None
         result = None
@@ -1161,6 +1190,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
 
         elif current_state == ProtocolState.UNKNOWN:
+            delay = 0.5
             prompt = self._wakeup(timeout=timeout, delay=delay)
             log.debug("_handler_unknown_discover in UNKNOWN got prompt " + repr(prompt))
 
@@ -1168,7 +1198,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         next_state = ProtocolState.COMMAND
         result = ResourceAgentState.IDLE
-        next_state = None
+
 
         return (next_state, result)
 
@@ -1305,6 +1335,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         start
         <Executed/>
         """
+
+        log.debug("%%% IN _handler_command_start_autosample")
+
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
@@ -1385,7 +1418,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                 log.debug("KEY = " + str(key) + " VALUE = " + str(val))
                 result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
                 log.debug("**********************RESULT************* = " + str(result))
-
 
     def _handler_command_clock_sync(self, *args, **kwargs):
         """
@@ -1511,7 +1543,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
-
     def _handler_autosample_exit(self, *args, **kwargs):
         """
         Exit autosample state.
@@ -1531,9 +1562,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+
+        #self._save_da_params()
+        log.debug("%%%%%%%%%%%%%%%%%%%%%%%% IN _handler_direct_access_enter")
+        #self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
         self._sent_cmds = []
+        log.debug("%%%%%%%%%%%%%%%%%%%%%%%% LEAVING _handler_direct_access_enter")
+
 
     def _save_da_params(self):
         # Doing the ds command here causes issues.  I think we have to trust the last value that we
@@ -1560,8 +1597,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
 
         NEEDS TO BE FINISHED
-
-
 
         called from _handler_command_enter, as it behaves poorly
         if caled from _handler_direct_access_exit
@@ -1624,7 +1659,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_direct_access_execute_direct(self, data):
         """
         """
-        log.debug("%%% IN _handler_direct_access_execute_direct")
+        log.debug("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% IN _handler_direct_access_execute_direct")
         next_state = None
         result = None
         next_agent_state = None
@@ -1641,7 +1676,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throw InstrumentProtocolException on invalid command
         """
 
-        log.debug("%%% IN _handler_direct_access_stop_direct")
+        log.debug("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% IN _handler_direct_access_stop_direct")
 
         next_state = None
         result = None
@@ -1727,12 +1762,20 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
 
         log.debug("%%% IN _got_chunk")
-        self._extract_sample(SBE54tpsStatusDataParticle, STATUS_DATA_REGEX_MATCHER, chunk)
-        self._extract_sample(SBE54tpsConfigurationDataParticle, CONFIGURATION_DATA_REGEX_MATCHER, chunk)
-        self._extract_sample(SBE54tpsEventCounterDataParticle, EVENT_COUNTER_DATA_REGEX_MATCHER, chunk)
-        self._extract_sample(SBE54tpsHardwareDataParticle, HARDWARE_DATA_REGEX_MATCHER, chunk)
-        self._extract_sample(SBE54tpsSampleDataParticle, SAMPLE_DATA_REGEX_MATCHER, chunk)
+        result = self._extract_sample(SBE54tpsStatusDataParticle, STATUS_DATA_REGEX_MATCHER, chunk)
+        log.debug("%%% IN _got_chunk result = " + repr(result))
+        result = self._extract_sample(SBE54tpsConfigurationDataParticle, CONFIGURATION_DATA_REGEX_MATCHER, chunk)
+        log.debug("%%% IN _got_chunk result = " + repr(result))
+        result = self._extract_sample(SBE54tpsEventCounterDataParticle, EVENT_COUNTER_DATA_REGEX_MATCHER, chunk)
+        log.debug("%%% IN _got_chunk result = " + repr(result))
+        result = self._extract_sample(SBE54tpsHardwareDataParticle, HARDWARE_DATA_REGEX_MATCHER, chunk)
+        log.debug("%%% IN _got_chunk result = " + repr(result))
+        result = self._extract_sample(SBE54tpsSampleDataParticle, SAMPLE_DATA_REGEX_MATCHER, chunk)
+        log.debug("%%% IN _got_chunk result = " + repr(result))
 
+        #
+        # If this detects a sample, send a event change even t whenever a SAMPLE_DATA_REGEX_MATCHER
+        #
 
 
     def _send_wakeup(self):
@@ -1765,6 +1808,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("_update_params 2")
         # Issue display commands and parse results.
         timeout = kwargs.get('timeout', TIMEOUT)
+
+        '''
         log.debug("_update_params 3")
         response = self._do_cmd_resp(InstrumentCmds.GET_CONFIGURATION_DATA, timeout=timeout)
         log.debug("_update_params 4")
@@ -1782,7 +1827,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("_update_params 10")
         log.debug("GET_HARDWARE_DATA response = " + repr(response))
         log.debug("_update_params 11")
-
+        '''
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()

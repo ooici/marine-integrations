@@ -975,52 +975,6 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         log.debug("%%% STATE NOW ResourceAgentState.COMMAND")
 
-
-
-
-
-
-        agent_capabilities = []
-        unknown = []
-        driver_capabilities = []
-        driver_vars = []
-        retval = self.instrument_agent_client.get_capabilities()
-
-        for x in retval:
-            if x.cap_type == 1:
-                agent_capabilities.append(x.name)
-            elif x.cap_type == 2:
-                unknown.append(x.name)
-            elif x.cap_type == 3:
-                driver_capabilities.append(x.name)
-            elif x.cap_type == 4:
-                driver_vars.append(x.name)
-            else:
-                log.debug("*UNKNOWN* " + str(repr(x)))
-
-        #--- Verify the following for ResourceAgentState.COMMAND
-        self.assertEqual(agent_capabilities, ['RESOURCE_AGENT_EVENT_CLEAR', 'RESOURCE_AGENT_EVENT_RESET',
-                                              'RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS',
-                                              'RESOURCE_AGENT_EVENT_GO_INACTIVE',
-                                              'RESOURCE_AGENT_EVENT_PAUSE'])
-        self.assertEqual(unknown, ['example'])
-        self.assertEqual(driver_capabilities, ['DRIVER_EVENT_ACQUIRE_STATUS',
-                                               'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                               'DRIVER_EVENT_START_AUTOSAMPLE',
-                                               'DRIVER_EVENT_CLOCK_SYNC'])
-        # Assert all PARAMS are present.
-
-
-
-
-
-
-
-
-
-
-
-
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
         self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_CLEAR', 'RESOURCE_AGENT_EVENT_RESET',
                                                              'RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS',
@@ -1038,7 +992,12 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                     #kwargs={'session_type':DirectAccessTypes.vsp,
                     'session_timeout':600,
                     'inactivity_timeout':600})
+
+
+
         retval = self.instrument_agent_client.execute_agent(cmd)
+
+
         self.check_state(ResourceAgentState.DIRECT_ACCESS)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
         self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_COMMAND'])

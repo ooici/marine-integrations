@@ -110,7 +110,7 @@ class InstrumentFSM():
         if self.states.has(next_state):
             self._on_transition(next_state, *args, **kwargs)
         else:
-            log.debug("No next state'" + repr(next_state) + "', remaining in current state.")
+            log.debug("No next state'" + repr(next_state) + "', remaining in current_state.")
                 
         return result
             
