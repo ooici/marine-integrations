@@ -154,6 +154,7 @@ class ProtocolEvent(BaseEnum):
     GET = DriverEvent.GET
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
+    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     START_DIRECT = DriverEvent.START_DIRECT
@@ -414,6 +415,13 @@ class BinaryProtocolParameterDict(ProtocolParameterDict):
         @raises KeyError if the name is invalid.
         """
         log.debug("BinaryProtocolParameterDict.set_from_value(): name=%s, value=%s" %(name, value))
+        if self.f_format == self._word_to_string:
+            if not isinstance(value, int):
+                raise InstrumentParameterException('Unable to set parameter %s to %s: value not an integer' %(name, value))
+        else:
+            if not isinstance(value, str):
+                raise InstrumentParameterException('Unable to set parameter %s to %s: value not a string' %(name, value))
+                
         self._param_dict[name].value = value
         
     def format_parameter(self, name):
@@ -1079,7 +1087,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 log.debug('setting %s to %s' %(name, value))
                 parameters.set_from_value(name, value)
         except Exception as ex:
-            raise InstrumentProtocolException('Unable to set parameter %s to %s: %s' %(name, value, ex))
+            raise InstrumentParameterException('Unable to set parameter %s to %s: %s' %(name, value, ex))
             
         output = self._create_set_output(parameters)
         

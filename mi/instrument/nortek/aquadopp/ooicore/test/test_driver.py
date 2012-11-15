@@ -41,6 +41,9 @@ from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 
+from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import InstrumentStateException
+from mi.core.exceptions import InstrumentCommandException
 
 from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolState
 from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolEvent
@@ -496,8 +499,107 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
         log.debug('test_capabilities: autosample mode capabilities=%s' %driver_capabilities)
         self.assertTrue(autosample_capabilities == driver_capabilities[0])
-
                
+    def test_errors(self):
+        """
+        Test response to erroneous commands and parameters.
+        """
+        
+        # Test that the driver is in state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
+
+        # Assert for an unknown driver command.
+        with self.assertRaises(InstrumentCommandException):
+            self.driver_client.cmd_dvr('bogus_command')
+
+        # Assert for a known command, invalid state.
+        with self.assertRaises(InstrumentStateException):
+            self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
+
+        # Assert we forgot the comms parameter.
+        with self.assertRaises(InstrumentParameterException):
+            self.driver_client.cmd_dvr('configure')
+
+        # Assert we send a bad config object (not a dict).
+        with self.assertRaises(InstrumentParameterException):
+            BOGUS_CONFIG = 'not a config dict'            
+            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+            
+        # Assert we send a bad config object (missing addr value).
+        with self.assertRaises(InstrumentParameterException):
+            BOGUS_CONFIG = self.port_agent_comm_config().copy()
+            BOGUS_CONFIG.pop('addr')
+            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+
+        # Assert we send a bad config object (bad addr value).
+        with self.assertRaises(InstrumentParameterException):
+            BOGUS_CONFIG = self.port_agent_comm_config().copy()
+            BOGUS_CONFIG['addr'] = ''
+            self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+        
+        # Configure driver and transition to disconnected.
+        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test that the driver is in state disconnected.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Assert for a known command, invalid state.
+        with self.assertRaises(InstrumentStateException):
+            self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
+
+        self.driver_client.cmd_dvr('connect')
+                
+        # Test the driver is in unknown state.
+        self.check_state(ProtocolState.UNKNOWN)
+
+        # Assert for a known command, invalid state.
+        with self.assertRaises(InstrumentStateException):
+            self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
+                
+        reply = self.driver_client.cmd_dvr('discover_state')
+
+        # Test the driver is in command mode.
+        self.check_state(ProtocolState.COMMAND)
+
+        # Assert for a known command, invalid state.
+        with self.assertRaises(InstrumentStateException):
+            self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+        
+        # Assert for a known command, invalid state.
+        with self.assertRaises(InstrumentStateException):
+            self.driver_client.cmd_dvr('connect')
+        
+        # Assert get fails without a parameter.
+        with self.assertRaises(InstrumentParameterException):
+            self.driver_client.cmd_dvr('get_resource')
+            
+        # Assert get fails with a bad parameter (not ALL or a list).
+        with self.assertRaises(InstrumentParameterException):
+            bogus_params = 'I am a bogus param list.'
+            self.driver_client.cmd_dvr('get_resource', bogus_params)
+            
+        # Assert get fails with a bad parameter (not ALL or a list).
+        with self.assertRaises(InstrumentParameterException):
+            bogus_params = [
+                'a bogus parameter name',
+                Parameter.ADJUSTMENT_SOUND_SPEED
+                ]
+            self.driver_client.cmd_dvr('get_resource', bogus_params)        
+        
+        # Assert we cannot set a bogus parameter.
+        with self.assertRaises(InstrumentParameterException):
+            bogus_params = {
+                'a bogus parameter name' : 'bogus value'
+            }
+            self.driver_client.cmd_dvr('set_resource', bogus_params)
+            
+        # Assert we cannot set a real parameter to a bogus value.
+        with self.assertRaises(InstrumentParameterException):
+            bogus_params = {
+                Parameter.ADJUSTMENT_SOUND_SPEED : 'bogus value'
+            }
+            self.driver_client.cmd_dvr('set_resource', bogus_params)
+        
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
