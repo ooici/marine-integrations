@@ -108,6 +108,7 @@ class InstrumentCmds(BaseEnum):
     START_MEASUREMENT_AT_SPECIFIC_TIME = 'SD'
     START_MEASUREMENT_IMMEDIATE        = 'SR'
     START_MEASUREMENT_WITHOUT_RECORDER = 'ST'
+    ACQUIRE_DATA                       = 'AD'
     CONFIRMATION                       = 'MC'        # confirm a break request
     # SAMPLE_AVG_TIME                    = 'A'
     # SAMPLE_INTERVAL_TIME               = 'M'
@@ -851,6 +852,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_get)
@@ -965,7 +967,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', 5)
-        expected_prompt = kwargs.get('expected_prompt', None)
+        expected_prompt = kwargs.get('expected_prompt', InstrumentPrompts.Z_ACK)
                             
         # Clear line and prompt buffers for result.
         self._linebuf = ''
@@ -1101,6 +1103,21 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._update_params()
             
         return (next_state, result)
+
+    def _handler_command_acquire_sample(self, *args, **kwargs):
+        """
+        Acquire sample from aquadopp.
+        @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).        
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, *args, **kwargs)
+        
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """

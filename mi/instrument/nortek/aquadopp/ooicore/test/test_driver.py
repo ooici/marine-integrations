@@ -396,6 +396,25 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertEqual(new_params[Parameter.WRAP_MODE], reply[Parameter.WRAP_MODE])
         
+    def test_instrument_poll(self):
+        """
+        Test sample polling commands and events.
+        """
+
+        self.put_driver_in_command_mode()
+
+        # command the instrument to auto-sample mode.
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
+
+        # wait for some samples to be generated
+        gevent.sleep(100)
+
+        # Verify we received at least 4 samples.
+        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
+        log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
+        #log.debug('samples=%s' %sample_events)
+        self.assertTrue(len(sample_events) >= 4)
+
     def test_instrument_start_stop_autosample(self):
         """
         @brief Test for putting instrument in 'auto-sample' state
@@ -440,7 +459,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         # wait for some samples to be generated
         gevent.sleep(100)
 
-        # Verify we received at least 2 samples.
+        # Verify we received at least 4 samples.
         sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
         log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
         #log.debug('samples=%s' %sample_events)
