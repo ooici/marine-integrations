@@ -407,18 +407,50 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         self.check_state(ProtocolState.AUTOSAMPLE)
            
+        # re-initialize the driver and re-discover instrument state (should be in autosample)
+        # Transition driver to disconnected.
+        self.driver_client.cmd_dvr('disconnect')
+
+        # Test the driver is disconnected.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Transition driver to unconfigured.
+        self.driver_client.cmd_dvr('initialize')
+    
+        # Test the driver is unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver and transition to disconnected.
+        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test that the driver is in state disconnected.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Setup the protocol state machine and the connection to port agent.
+        self.driver_client.cmd_dvr('connect')
+
+        # Test that the driver protocol is in state unknown.
+        self.check_state(ProtocolState.UNKNOWN)
+
+        # Discover what state the instrument is in and set the protocol state accordingly.
+        self.driver_client.cmd_dvr('discover_state')
+
+        self.check_state(ProtocolState.AUTOSAMPLE)
+
+        # wait for some samples to be generated
         gevent.sleep(100)
 
+        # Verify we received at least 2 samples.
+        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
+        log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
+        #log.debug('samples=%s' %sample_events)
+        self.assertTrue(len(sample_events) >= 4)
+
+        # stop autosample and return to command mode
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
                 
         self.check_state(ProtocolState.COMMAND)
                         
-        # Verify we received at least 2 samples.
-        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-        log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
-        log.debug('samples=%s' %sample_events)
-        self.assertTrue(len(sample_events) >= 2)
-
     def test_capabilities(self):
         """
         Test get_resource_capaibilties in command state and autosample state;
@@ -600,6 +632,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
             }
             self.driver_client.cmd_dvr('set_resource', bogus_params)
         
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
