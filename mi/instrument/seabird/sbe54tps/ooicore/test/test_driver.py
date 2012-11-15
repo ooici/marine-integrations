@@ -54,7 +54,8 @@ from mi.instrument.seabird.sbe54tps.ooicore.driver import PACKET_CONFIG
 
 # SAMPLE DATA FOR TESTING
 from mi.instrument.seabird.sbe54tps.ooicore.test.sample_data import *
-
+from pyon.agent.agent import ResourceAgentState
+from pyon.agent.agent import ResourceAgentEvent
 ###
 #   Driver parameters for the tests
 ###
@@ -808,7 +809,30 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         <Executed/>
         S>
         """
+
+
+        self.check_state(ResourceAgentState.UNINITIALIZED)
+        self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE)
+
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
+        state = self.instrument_agent_client.get_agent_state()
+        log.debug("RESOURCE_STATE = " + repr(res_state))
+        log.debug("AGENT_STATE = " + repr(state))
+        '''
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: RESOURCE_STATE = 'DRIVER_STATE_UNCONFIGURED'
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: AGENT_STATE = 'RESOURCE_AGENT_STATE_INACTIVE'
+        '''
+
+
+
+        self.assert_command_and_state(ResourceAgentEvent.GO_ACTIVE, ResourceAgentState.COMMAND)
+
         self.assert_enter_command_mode()
+
+
+
+        #self.assert_enter_command_mode()
 
         param_name = Parameter.XXXXXXXXXXXXXXXXXXXXXREPLACE
         param_new_value = 90
@@ -896,6 +920,12 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         return a list of currently available capabilities
         """
         result = self.instrument_agent_client.get_capabilities()
+
+        agent_capabilities = []
+        unknown = []
+        driver_capabilities = []
+        driver_vars = []
+
         for x in result:
             if x.cap_type == 1:
                 agent_capabilities.append(x.name)
@@ -924,26 +954,79 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_INITIALIZE'])
         self.assert_capabilitys_present(driver_capabilities, [])
 
+        log.debug("%%% STATE NOW ResourceAgentState.UNINITIALIZED")
 
         self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
         self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_ACTIVE', 'RESOURCE_AGENT_EVENT_RESET'])
         self.assert_capabilitys_present(driver_capabilities, [])
 
+        log.debug("%%% STATE NOW ResourceAgentState.INACTIVE")
 
-        self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentEvent.GO_ACTIVE)
+        self.assert_command_and_state(ResourceAgentEvent.GO_ACTIVE, ResourceAgentState.IDLE)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
         self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_INACTIVE', 'RESOURCE_AGENT_EVENT_RESET',
                                                              'RESOURCE_AGENT_EVENT_RUN'])
         self.assert_capabilitys_present(driver_capabilities, [])
 
+        log.debug("%%% STATE NOW ResourceAgentState.IDLE")
 
-        self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentEvent.RUN)
+        self.assert_command_and_state(ResourceAgentEvent.RUN, ResourceAgentState.COMMAND)
+
+        log.debug("%%% STATE NOW ResourceAgentState.COMMAND")
+
+
+
+
+
+
+        agent_capabilities = []
+        unknown = []
+        driver_capabilities = []
+        driver_vars = []
+        retval = self.instrument_agent_client.get_capabilities()
+
+        for x in retval:
+            if x.cap_type == 1:
+                agent_capabilities.append(x.name)
+            elif x.cap_type == 2:
+                unknown.append(x.name)
+            elif x.cap_type == 3:
+                driver_capabilities.append(x.name)
+            elif x.cap_type == 4:
+                driver_vars.append(x.name)
+            else:
+                log.debug("*UNKNOWN* " + str(repr(x)))
+
+        #--- Verify the following for ResourceAgentState.COMMAND
+        self.assertEqual(agent_capabilities, ['RESOURCE_AGENT_EVENT_CLEAR', 'RESOURCE_AGENT_EVENT_RESET',
+                                              'RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS',
+                                              'RESOURCE_AGENT_EVENT_GO_INACTIVE',
+                                              'RESOURCE_AGENT_EVENT_PAUSE'])
+        self.assertEqual(unknown, ['example'])
+        self.assertEqual(driver_capabilities, ['DRIVER_EVENT_ACQUIRE_STATUS',
+                                               'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                               'DRIVER_EVENT_START_AUTOSAMPLE',
+                                               'DRIVER_EVENT_CLOCK_SYNC'])
+        # Assert all PARAMS are present.
+
+
+
+
+
+
+
+
+
+
+
+
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
         self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_CLEAR', 'RESOURCE_AGENT_EVENT_RESET',
                                                              'RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS',
                                                              'RESOURCE_AGENT_EVENT_GO_INACTIVE',
                                                              'RESOURCE_AGENT_EVENT_PAUSE'])
+        log.debug("DRIVER_CAPABILITIES = " + repr(driver_capabilities))
         self.assert_capabilitys_present(driver_capabilities, ['DRIVER_EVENT_ACQUIRE_STATUS',
                                                               'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                                               'DRIVER_EVENT_START_AUTOSAMPLE',
@@ -967,7 +1050,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentEvent.GO_ACTIVE)
         self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE)
 
-
+    # BROKE
     def test_execute_clock_sync(self):
         """
         @brief Test Test EXECUTE_CLOCK_SYNC command.
@@ -981,3 +1064,13 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         params = [Parameter.DS_DEVICE_DATE_TIME]
         check_new_params = self.instrument_agent_client.get_resource(params)
         lt = time.strftime("%d %b %Y  %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+
+    # BROKE
+    def test_connect_disconnect(self):
+
+        self.assert_enter_command_mode()
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        self.check_state(ResourceAgentState.UNINITIALIZED)

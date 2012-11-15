@@ -28,6 +28,8 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.chunker import StringChunker
+from pyon.agent.agent import ResourceAgentState
 # newline.
 NEWLINE = '\r\n'
 
@@ -200,6 +202,57 @@ class InstrumentCmds(BaseEnum):
 
 
 
+class ProtocolState(BaseEnum):
+    """
+    Protocol states
+    enum.
+    """
+    UNKNOWN = DriverProtocolState.UNKNOWN
+    COMMAND = DriverProtocolState.COMMAND
+    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
+    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
+    #TEST = DriverProtocolState.TEST
+    #CALIBRATE = DriverProtocolState.CALIBRATE
+
+
+class ProtocolEvent(BaseEnum):
+    """
+    Protocol events
+    """
+
+    ENTER = DriverEvent.ENTER
+    EXIT = DriverEvent.EXIT
+    # Do we need these here?
+    GET = DriverEvent.GET
+    SET = DriverEvent.SET
+    DISCOVER = DriverEvent.DISCOVER
+
+    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+
+    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    FORCE_STATE = DriverEvent.FORCE_STATE
+
+    INIT_LOGGING = 'PROTOCOL_EVENT_INIT_LOGGING'
+    START_DIRECT = DriverEvent.START_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
+    PING_DRIVER = DriverEvent.PING_DRIVER
+
+    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+
+class Capability(BaseEnum):
+    """
+    Protocol events that should be exposed to users (subset of above).
+    """
+    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
+    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
+    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
+    ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
+
+
 # Device specific parameters.
 class Parameter(DriverParameter):
     """
@@ -237,52 +290,17 @@ class Parameter(DriverParameter):
     # PRESSURE_SENSOR_T3 = "pt3" # F
     # PRESSURE_SENSOR_T4 = "pt4" # F
 
-
-
-class ProtocolState(BaseEnum):
+# Device prompts.
+class Prompt(BaseEnum):
     """
-    Protocol states
-    enum.
+    io prompts.
     """
-    UNKNOWN = DriverProtocolState.UNKNOWN
-    COMMAND = DriverProtocolState.COMMAND
-    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
-    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    #TEST = DriverProtocolState.TEST
-    #CALIBRATE = DriverProtocolState.CALIBRATE
+    COMMAND = "<Executed/>\r\nS>"
 
+    AUTOSAMPLE = "<Executed/>\r\n"
 
-class ProtocolEvent(BaseEnum):
-    """
-    Protocol events
-    """
-    FORCE_STATE = DriverEvent.FORCE_STATE
-
-    ENTER = DriverEvent.ENTER
-    EXIT = DriverEvent.EXIT
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
-    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-
-    DISCOVER = DriverEvent.DISCOVER
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-
-    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
-
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-
-    INIT_LOGGING = 'PROTOCOL_EVENT_INIT_LOGGING'
-
-    # Do we need these here?
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
-
-    PING_DRIVER = DriverEvent.PING_DRIVER
-
-
-
+    BAD_COMMAND_AUTOSAMPLE = "<Error.*?\r\n<Executed/>\r\n" # REGEX ALERT
+    BAD_COMMAND = "<Error.*?\r\n<Executed/>\r\nS>" # REGEX ALERT
 
 
 ######################################### PARTICLES #############################
@@ -344,7 +362,7 @@ class SBE54tpsStatusDataParticle(DataParticle):
         }
 
         for line in self.raw_data.split(NEWLINE):
-            for (key, matcher) in single_var_matchers:
+            for (key, matcher) in single_var_matchers.iteritems():
                 match = single_var_matchers[key].match(line)
                 if match:
 
@@ -352,7 +370,7 @@ class SBE54tpsStatusDataParticle(DataParticle):
                     if key in [
                         SBE54tpsStatusDataParticleKey.DEVICE_TYPE
                     ]:
-                        single_var_matches[key] = match(1)
+                        single_var_matches[key] = match.group(1)
 
                     # int
                     elif key in [
@@ -362,13 +380,13 @@ class SBE54tpsStatusDataParticle(DataParticle):
                         SBE54tpsStatusDataParticleKey.BYTES_USED,
                         SBE54tpsStatusDataParticleKey.BYTES_FREE
                     ]:
-                        single_var_matches[key] = int(match(1))
+                        single_var_matches[key] = int(match.group(1))
 
                     #float
                     elif key in [
                         SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE
                     ]:
-                        single_var_matches[key] = float(match(1))
+                        single_var_matches[key] = float(match.group(1))
 
                     # datetime
                     elif key in [
@@ -376,7 +394,7 @@ class SBE54tpsStatusDataParticle(DataParticle):
                     ]:
                         # 2012-11-13T17:56:42
                         # yyyy-mm-ddThh:mm:ss
-                        text_timestamp = match(1)
+                        text_timestamp = match.group(1)
                         py_timestamp = time.strptime(text_timestamp, "%Y-%m-%dT%H:%M:%S")
                         timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
                         single_var_matches[key] = timestamp
@@ -532,7 +550,7 @@ class SBE54tpsConfigurationDataParticle(DataParticle):
         }
 
         for line in self.raw_data.split(NEWLINE):
-            for (key, matcher) in single_var_matchers:
+            for (key, matcher) in single_var_matchers.iteritems():
                 match = single_var_matchers[key].match(line)
                 if match:
 
@@ -541,7 +559,7 @@ class SBE54tpsConfigurationDataParticle(DataParticle):
                         SBE54tpsConfigurationDataParticleKey.DEVICE_TYPE,
                         SBE54tpsConfigurationDataParticleKey.PRESSURE_SERIAL_NUM,
                     ]:
-                        single_var_matches[key] = match(1)
+                        single_var_matches[key] = match.group(1)
 
                     # int
                     elif key in [
@@ -551,7 +569,7 @@ class SBE54tpsConfigurationDataParticle(DataParticle):
                         SBE54tpsConfigurationDataParticleKey.UPLOAD_TYPE,
                         SBE54tpsConfigurationDataParticleKey.SAMPLE_PERIOD
                     ]:
-                        single_var_matches[key] = int(match(1))
+                        single_var_matches[key] = int(match.group(1))
 
                     #float
                     elif key in [
@@ -575,7 +593,7 @@ class SBE54tpsConfigurationDataParticle(DataParticle):
                         SBE54tpsConfigurationDataParticleKey.PRESSURE_OFFSET,
                         SBE54tpsConfigurationDataParticleKey.PRESSURE_RANGE
                     ]:
-                        single_var_matches[key] = float(match(1))
+                        single_var_matches[key] = float(match.group(1))
 
                     # date
                     elif key in [
@@ -585,7 +603,7 @@ class SBE54tpsConfigurationDataParticle(DataParticle):
                         # ISO8601-2000 format.
                         # yyyy-mm-dd
                         # 2007-03-01
-                        text_timestamp = match(1)
+                        text_timestamp = match.group(1)
                         py_timestamp = time.strptime(text_timestamp, "%Y-%m-%d")
                         timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
                         single_var_matches[key] = timestamp
@@ -677,7 +695,7 @@ class SBE54tpsEventCounterDataParticle(DataParticle):
         }
 
         for line in self.raw_data.split(NEWLINE):
-            for (key, matcher) in single_var_matchers:
+            for (key, matcher) in single_var_matchers.iteritems():
                 match = single_var_matchers[key].match(line)
                 if match:
                     # int
@@ -696,7 +714,7 @@ class SBE54tpsEventCounterDataParticle(DataParticle):
                         SBE54tpsEventCounterDataParticleKey.ERROR_10,
                         SBE54tpsEventCounterDataParticleKey.ERROR_12
                     ]:
-                        single_var_matches[key] = int(match(1))
+                        single_var_matches[key] = int(match.group(1))
                     else:
                         raise SampleException("Unknown variable type in SBE54tpsEventCounterDataParticle._build_parsed_values")
 
@@ -766,7 +784,7 @@ class SBE54tpsHardwareDataParticle(DataParticle):
         }
 
         for line in self.raw_data.split(NEWLINE):
-            for (key, matcher) in single_var_matchers:
+            for (key, matcher) in single_var_matchers.iteritems():
                 match = single_var_matchers[key].match(line)
                 if match:
 
@@ -780,15 +798,15 @@ class SBE54tpsHardwareDataParticle(DataParticle):
                         SBE54tpsHardwareDataParticleKey.PCB_TYPE
                     ]:
                         if single_var_matches[key] != None:
-                            single_var_matches[key].append(match(1))
+                            single_var_matches[key].append(match.group(1))
                         else:
-                            single_var_matches[key] = match(1)
+                            single_var_matches[key] = match.group(1)
 
                     # int
                     elif key in [
                         SBE54tpsHardwareDataParticleKey.SERIAL_NUMBER
                     ]:
-                        single_var_matches[key] = int(match(1))
+                        single_var_matches[key] = int(match.group(1))
 
                     # date
                     elif key in [
@@ -797,7 +815,7 @@ class SBE54tpsHardwareDataParticle(DataParticle):
                     ]:
                         # <FirmwareDate>Mar 22 2007</FirmwareDate>
                         # <MfgDate>Jun 27 2007</MfgDate>
-                        text_timestamp = match(1)
+                        text_timestamp = match.group(1)
                         py_timestamp = time.strptime(text_timestamp, "%b %d %Y")
                         timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
                         single_var_matches[key] = timestamp
@@ -855,31 +873,31 @@ class SBE54tpsSampleDataParticle(DataParticle):
         }
 
         for line in self.raw_data.split(NEWLINE):
-            for (key, matcher) in single_var_matchers:
+            for (key, matcher) in single_var_matchers.iteritems():
                 match = single_var_matchers[key].match(line)
+                log.debug("MATCH = " + repr(match))
                 if match:
-
                     # str
                     if key in [
                         SBE54tpsSampleDataParticleKey.SAMPLE_TYPE
                     ]:
                         if single_var_matches[key] != None:
-                            single_var_matches[key].append(match(1))
+                            single_var_matches[key].append(match.group(1))
                         else:
-                            single_var_matches[key] = match(1)
+                            single_var_matches[key] = match.group(1)
 
                     # int
                     elif key in [
                         SBE54tpsSampleDataParticleKey.SAMPLE_NUMBER
                     ]:
-                        single_var_matches[key] = int(match(1))
+                        single_var_matches[key] = int(match.group(1))
 
                     # float
                     elif key in [
                         SBE54tpsSampleDataParticleKey.PRESSURE,
                         SBE54tpsSampleDataParticleKey.PRESSURE_TEMP
                     ]:
-                        single_var_matches[key] = float(match(1))
+                        single_var_matches[key] = float(match.group(1))
 
                     # date_time
                     elif key in [
@@ -887,7 +905,7 @@ class SBE54tpsSampleDataParticle(DataParticle):
                     ]:
                         # <Time>2012-11-07T12:21:25</Time>
                         # yyyy-mm-ddThh:mm:ss
-                        text_timestamp = match(1)
+                        text_timestamp = match.group(1)
                         py_timestamp = time.strptime(text_timestamp, "%Y-%m-%dT%H:%M:%S")
                         timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
                         single_var_matches[key] = timestamp
@@ -907,17 +925,6 @@ class SBE54tpsSampleDataParticle(DataParticle):
 
 ######################################### /PARTICLES #############################
 
-# Device prompts.
-class Prompt(BaseEnum):
-    """
-    io prompts.
-    """
-    COMMAND = "<Executed/>\r\nS>"
-
-    AUTOSAMPLE = "<Executed/>\r\n"
-
-    BAD_COMMAND_AUTOSAMPLE = "<Error.*?\r\n<Executed/>\r\n" # REGEX ALERT
-    BAD_COMMAND = "<Error.*?\r\n<Executed/>\r\nS>" # REGEX ALERT
 
 ###############################################################################
 # Driver
@@ -984,8 +991,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER,                  self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT,                   self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER,               self._handler_unknown_discover)
-        #self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)  ##???? from unknown state?
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.FORCE_STATE,            self._handler_unknown_force_state)   ######
+        #self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)  ##???? from unknown state?
+
+
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.FORCE_STATE,            self._handler_unknown_force_state)   ######
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER,                  self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT,                   self._handler_command_exit)
@@ -1013,8 +1023,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._build_param_dict()
 
         # Add build handlers for device commands.
+        self._add_build_handler(InstrumentCmds.GET_CONFIGURATION_DATA, self._build_simple_command)
+
 
         # Add response handlers for device commands.
+        self._add_response_handler(InstrumentCmds.GET_CONFIGURATION_DATA, self._parse_gc_response)
 
         # Add sample handlers.
 
@@ -1024,6 +1037,50 @@ class Protocol(CommandResponseInstrumentProtocol):
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
+        self._chunker = StringChunker(Protocol.sieve_function)
+
+
+
+    @staticmethod
+    def sieve_function(raw_data):
+        """
+        The method that splits samples
+        """
+
+
+        sieve_matchers = [STATUS_DATA_REGEX_MATCHER,
+                          CONFIGURATION_DATA_REGEX_MATCHER,
+                          EVENT_COUNTER_DATA_REGEX_MATCHER,
+                          HARDWARE_DATA_REGEX_MATCHER,
+                          SAMPLE_DATA_REGEX_MATCHER]
+
+        return_list = []
+
+        for matcher in sieve_matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
+
+        return return_list
+
+    def _filter_capabilities(self, events):
+        """
+        Return a list of currently available capabilities.
+        @TODO CANDIDATE FOR PROMOTING TO BASE CLASS.
+        """
+
+        log.debug("%%% IN _filter_capabilities in state " + repr(self._protocol_fsm.get_current_state()))
+
+        log.debug("%%% - EVENTS_IN = " + repr(events))
+        events_out = [x for x in events if Capability.has(x)]
+        log.debug("%%% - EVENTS_OUT = " + repr(events_out))
+
+        return events_out
+
+
+
+    def _parse_gc_response(self, response, prompt): #(self, cmd, *args, **kwargs):
+        log.debug("IN _parse_gc_response RESPONSE = " + repr(response))
+        return response
 
 
     ########################################################################
@@ -1036,6 +1093,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
+        log.debug("%%% IN _handler_unknown_enter")
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_unknown_force_state(self, *args, **kwargs):
@@ -1056,25 +1114,91 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
+
+
+
+
+
+
+
+
+
+
+
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state
         @retval (next_state, result)
+
+
+        The prompts should be enough to determine if state is AUTOSAMPLE or COMMAND.
+
+        Prompt.COMMAND
+        Prompt.AUTOSAMPLE
+
+        Prompt.BAD_COMMAND_AUTOSAMPLE
+        Prompt.BAD_COMMAND
         """
+
+        timeout = kwargs.get('timeout', TIMEOUT)
+        log.debug("%%% IN _handler_unknown_discover NEED TO WRITE THIS METHOD.....")
+        timeout = kwargs.get('timeout', TIMEOUT)
+
         next_state = None
         result = None
 
-        """
-        Need to work out what to put in here, likely based by sending a new linbe and analyzing the prompt.
-        """
+        current_state = self._protocol_fsm.get_current_state()
+        log.debug("_handler_unknown_discover I currently think i am in state " + repr(current_state))
+
+        if current_state == ProtocolState.AUTOSAMPLE:
+            result = ResourceAgentState.STREAMING
+
+        elif current_state == ProtocolState.COMMAND:
+
+            # If I think I am in COMMAND state, I better verify that.
+            result = ResourceAgentState.IDLE
+
+
+
+        elif current_state == ProtocolState.UNKNOWN:
+            prompt = self._wakeup(timeout=timeout, delay=delay)
+            log.debug("_handler_unknown_discover in UNKNOWN got prompt " + repr(prompt))
+
+        # HARD CODED. FIX/CHANGE/REVISIT THIS
+
+        next_state = ProtocolState.COMMAND
+        result = ResourceAgentState.IDLE
 
 
         return (next_state, result)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def _handler_unknown_exit(self, *args, **kwargs):
         """
         Exit unknown state.
         """
+        log.debug("%%% IN _handler_unknown_exit")
         pass
 
 
@@ -1095,11 +1219,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
 
+
+        log.debug("%%% IN _handler_command_enter")
         self._restore_da_params()
         log.debug("*** IN _handler_command_enter(), updating params")
         self._update_params()
-
+        log.debug("*** AFTER _update_params()")
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        log.debug("*** AFTER _driver_event()")
 
     def _handler_command_acquire_sample(self, *args, **kwargs):
         """
@@ -1138,6 +1265,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param kwargs:
         @return:
         """
+
+        log.debug("%%% IN _handler_command_aquire_status")
+
         next_state = None
         next_agent_state = None
         '''
@@ -1147,7 +1277,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         GetHD Get and display hardware data.
         '''
 
-        result = self._do_cmd_resp('ds', *args, **kwargs)
+        #result = self._do_cmd_resp('ds', *args, **kwargs)
+        result = "NOT IMPLEMENTED"
 
         return (next_state, (next_agent_state, result))
 
@@ -1187,6 +1318,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
         @throws InstrumentParameterException if missing or invalid parameter.
         """
+
+        log.debug("%%% IN _handler_command_get")
+
         next_state = None
         result = None
 
@@ -1228,6 +1362,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for set command.
         @throws InstrumentProtocolException if set command could not be built or misunderstood.
         """
+
+        log.debug("%%% IN _handler_command_set")
+
         next_state = None
         result = None
 
@@ -1258,6 +1395,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
+
+        log.debug("%%% IN _handler_command_clock_sync")
 
         next_state = None
         next_agent_state = None
@@ -1298,6 +1437,88 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Exit command state.
         """
+
+        log.debug("%%% IN _handler_command_exit")
+
+        pass
+
+    ########################################################################
+    # Autosample handlers.
+    ########################################################################
+
+    def _handler_autosample_enter(self, *args, **kwargs):
+        """
+        Enter autosample state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_command_start_autosample(self, *args, **kwargs):
+        """
+        Switch into autosample mode.
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        kwargs['expected_prompt'] = Prompt.COMMAND
+        kwargs['timeout'] = 30
+        log.info("SYNCING TIME WITH SENSOR")
+        #self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME, time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))), **kwargs)
+        self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME, get_timestamp_delayed("%d %b %Y %H:%M:%S"), **kwargs)
+
+        next_state = None
+        result = None
+
+
+        # Issue start command and switch to autosample if successful.
+        self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, *args, **kwargs)
+
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_autosample_stop_autosample(self, *args, **kwargs):
+        """
+        Stop autosample and switch back to command mode.
+        @retval (next_state, result) tuple, (ProtocolState.COMMAND,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command misunderstood or
+        incorrect prompt received.
+        """
+
+        log.debug("%%% IN _handler_autosample_stop_autosample")
+
+        next_state = None
+        result = None
+
+        # Wake up the device, continuing until autosample prompt seen.
+        timeout = kwargs.get('timeout', TIMEOUT)
+        self._wakeup_until(timeout, Prompt.AUTOSAMPLE)
+
+        # Issue the stop command.
+        self._do_cmd_resp(InstrumentCmds.STOP_LOGGING, *args, **kwargs)
+
+        # Prompt device until command prompt is seen.
+        self._wakeup_until(timeout, Prompt.COMMAND)
+
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        return (next_state, (next_agent_state, result))
+
+
+    def _handler_autosample_exit(self, *args, **kwargs):
+        """
+        Exit autosample state.
+        """
+
+        log.debug("%%% IN _handler_autosample_exit")
+
         pass
 
     ########################################################################
@@ -1318,6 +1539,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Doing the ds command here causes issues.  I think we have to trust the last value that we
         # fetched from a ds/dc
 
+        log.debug("%%% IN _save_da_params")
 
         pd = self._param_dict.get_config()
 
@@ -1345,6 +1567,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         if caled from _handler_direct_access_exit
         @return:
         """
+
+        log.debug("%%% IN _restore_da_params")
+
         run = True
         try:
             if self._da_save_dict == None:
@@ -1393,11 +1618,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Exit direct access state.
         """
+        log.debug("%%% IN _handler_direct_access_exit")
         pass
 
     def _handler_direct_access_execute_direct(self, data):
         """
         """
+        log.debug("%%% IN _handler_direct_access_execute_direct")
         next_state = None
         result = None
         next_agent_state = None
@@ -1413,6 +1640,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         @throw InstrumentProtocolException on invalid command
         """
+
+        log.debug("%%% IN _handler_direct_access_stop_direct")
 
         next_state = None
         result = None
@@ -1468,6 +1697,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if the parameter is not valid or
         if the formatting function could not accept the value passed.
         """
+
+        log.debug("%%% IN _build_set_command")
+
         try:
             str_val = self._param_dict.format(param, val)
             set_cmd = 'SET%s=%s' % (param, str_val)
@@ -1486,40 +1718,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         # Add parameter handlers to parameter dict.
 
-    '''
-
-    This SHOULD be a relic now...
-
-    def got_data(self, data):
-        """
-        Callback for receiving new data from the device.
-        """
-        # got data callback for direct access only
-        # TODO: should we have a generic got_data in the base class that does something useful??  Is this code
-        # TODO: instrument specific?
-        if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
-            # direct access mode
-            if len(data) > 0:
-                log.debug("Protocol._got_data(): <" + data + ">")
-                # check for echoed commands from instrument (TODO: this should only be done for telnet?)
-                if len(self._sent_cmds) > 0:
-                    # there are sent commands that need to have there echoes filtered out
-                    oldest_sent_cmd = self._sent_cmds[0]
-                    if string.count(data, oldest_sent_cmd) > 0:
-                        # found a command echo, so remove it from data and delete the command form list
-                        data = string.replace(data, oldest_sent_cmd, "", 1)
-                        self._sent_cmds.pop(0)
-                if len(data) > 0 and self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
-                    # TODO: what about logging this as an event?
-            return
-    '''
+        log.debug("%%% IN _build_param_dict")
 
     def _got_chunk(self, chunk):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
+
+        log.debug("%%% IN _got_chunk")
         self._extract_sample(SBE54tpsStatusDataParticle, STATUS_DATA_REGEX_MATCHER, chunk)
         self._extract_sample(SBE54tpsConfigurationDataParticle, CONFIGURATION_DATA_REGEX_MATCHER, chunk)
         self._extract_sample(SBE54tpsEventCounterDataParticle, EVENT_COUNTER_DATA_REGEX_MATCHER, chunk)
@@ -1532,7 +1739,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Send a newline to attempt to wake the sbe26plus device.
         """
-
+        log.debug("%%% IN _send_wakeup")
         self._connection.send(NEWLINE)
 
     def _build_simple_command(self, cmd):
@@ -1541,5 +1748,45 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param cmd the simple sbe37 command to format.
         @retval The command to be sent to the device.
         """
-
+        log.debug("%%% IN _build_simple_command")
         return cmd + NEWLINE
+
+    def _update_params(self, *args, **kwargs):
+        """
+        Update the parameter dictionary. Wake the device then issue
+        display status and display calibration commands. The parameter
+        dict will match line output and udpate itself.
+        @throws InstrumentTimeoutException if device cannot be timely woken.
+        @throws InstrumentProtocolException if ds/dc misunderstood.
+        """
+        log.debug("_update_params 1")
+        # Get old param dict config.
+        old_config = self._param_dict.get_config()
+        log.debug("_update_params 2")
+        # Issue display commands and parse results.
+        timeout = kwargs.get('timeout', TIMEOUT)
+        log.debug("_update_params 3")
+        response = self._do_cmd_resp(InstrumentCmds.GET_CONFIGURATION_DATA, timeout=timeout)
+        log.debug("_update_params 4")
+        log.debug("GET_CONFIGURATION_DATA response = " + repr(response))
+        log.debug("_update_params 5")
+        response = self._do_cmd_resp(InstrumentCmds.GET_STATUS_DATA, timeout=timeout)
+        log.debug("_update_params 6")
+        log.debug("GET_STATUS_DATA response = " + repr(response))
+        log.debug("_update_params 7")
+        response = self._do_cmd_resp(InstrumentCmds.GET_EVENT_COUNTER_DATA, timeout=timeout)
+        log.debug("_update_params 8")
+        log.debug("GET_EVENT_COUNTER_DATA response = " + repr(response))
+        log.debug("_update_params 9")
+        response = self._do_cmd_resp(InstrumentCmds.GET_HARDWARE_DATA, timeout=timeout)
+        log.debug("_update_params 10")
+        log.debug("GET_HARDWARE_DATA response = " + repr(response))
+        log.debug("_update_params 11")
+
+        # Get new param dict config. If it differs from the old config,
+        # tell driver superclass to publish a config change event.
+        new_config = self._param_dict.get_config()
+        if new_config != old_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
+        log.debug("_update_params 12")
