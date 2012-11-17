@@ -37,12 +37,13 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 from interface.objects import AgentCommand
-
+from mi.idk.util import convert_enum_to_dict
 from mi.core.instrument.logger_client import LoggerClient
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_fsm import InstrumentFSM
 
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
@@ -51,11 +52,22 @@ from mi.instrument.seabird.sbe54tps.ooicore.driver import InstrumentDriver
 from mi.instrument.seabird.sbe54tps.ooicore.driver import ProtocolState
 from mi.instrument.seabird.sbe54tps.ooicore.driver import Parameter
 from mi.instrument.seabird.sbe54tps.ooicore.driver import PACKET_CONFIG
-
+from mi.instrument.seabird.sbe54tps.ooicore.driver import ProtocolEvent
+from mi.instrument.seabird.sbe54tps.ooicore.driver import Capability
+from mi.instrument.seabird.sbe54tps.ooicore.driver import Prompt
+from mi.instrument.seabird.sbe54tps.ooicore.driver import Protocol
+from mi.instrument.seabird.sbe54tps.ooicore.driver import InstrumentCmds
+from mi.instrument.seabird.sbe54tps.ooicore.driver import NEWLINE
 # SAMPLE DATA FOR TESTING
 from mi.instrument.seabird.sbe54tps.ooicore.test.sample_data import *
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
+
+from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
+from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException
+from mi.core.instrument.instrument_driver import DriverParameter, DriverConnectionState, DriverAsyncEvent
+from mi.core.instrument.chunker import StringChunker
+
 ###
 #   Driver parameters for the tests
 ###
@@ -68,6 +80,11 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config = {},
     instrument_agent_stream_definition = {}
 )
+
+
+# Globals
+raw_stream_received = False
+parsed_stream_received = False
 
 #################################### RULES ####################################
 #                                                                             #
@@ -89,6 +106,8 @@ InstrumentDriverTestCase.initialize(
 ###############################################################################
 @attr('UNIT', group='mi')
 class UnitFromIDK(InstrumentDriverUnitTestCase):
+    def setUp(self):
+        InstrumentDriverUnitTestCase.setUp(self)
 	###
 	# 	Reset test verification variables.  The purpose of this method is
 	#	to reset the test verification variables to initial values.  The
@@ -106,76 +125,27 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
 	#	Use this method to test for existence of events and to examine their
 	#	attributes for correctness.
 	###         	
+
     def my_event_callback(self, event):
+        log.debug("event = " + repr(event))
         event_type = event['type']
-        print str(event)
+
         if event_type == DriverAsyncEvent.SAMPLE:
             sample_value = event['value']
-            stream_type = sample_value['stream_name']
-            if stream_type == 'raw':
-                self.raw_stream_received = True
-            elif stream_type == 'parsed':
-                self.parsed_stream_received = True
-    
+            # the event is coming back as a string
+
+            if 'raw' in sample_value:
+                # I hate using a global, but this self is not a shared self with the test
+                global raw_stream_received
+                raw_stream_received = True
+                log.debug("GOT A RAW")
+            elif 'parsed' in sample_value:
+                global parsed_stream_received
+                parsed_stream_received = True
+                log.debug("GOT A PARSED")
     ###
     #    Add instrument specific unit tests
     ###
-    @unittest.skip('Instrument Driver Developer: test_valid_complete_sample skipped: please complete this test!')
-    def test_valid_complete_sample(self):
-        """
-        Create a mock port agent
-        """
-        mock_port_agent = Mock(spec=LoggerClient)
-
-        """
-        Instantiate the driver class directly (no driver client, no driver
-        client, no zmq driver process, no driver process; just own the driver)
-        """       
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
-        
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-        
-        """
-        Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to the DISCONNECTED state
-        """
-        config = {'mock_port_agent' : mock_port_agent}
-        test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-        
-        """
-        Invoke the connect method of the driver: should connect to mock
-        port agent.  Verify that the connection FSM transitions to CONNECTED,
-        (which means that the FSM should now be reporting the ProtocolState).
-        """
-        test_driver.connect()
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        """
-        Force the driver into AUTOSAMPLE state so that it will parse and 
-        publish samples
-        """        
-        test_driver.set_test_mode(True)
-        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
-
-        """
-        - Reset test verification variables.
-        - Construct a complete sample
-        - Pass to got_data()
-        - Verify that raw and parsed streams have been received
-        """
-        self.reset_test_vars()
-        test_sample = "Insert sample here with appropriate line terminator"
-
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
 
     @unittest.skip('Instrument Driver Developer: test_invalid_sample skipped: please complete this test!')
     def test_invalid_complete_sample(self):
@@ -188,7 +158,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """       
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        test_driver = InstrumentDriver(self.my_event_callback)
         
         current_state = test_driver.get_current_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
@@ -250,7 +220,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        test_driver = InstrumentDriver(self.my_event_callback)
         
         current_state = test_driver.get_current_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
@@ -309,94 +279,834 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         
         self.assertTrue(self.raw_stream_received)
         self.assertTrue(self.parsed_stream_received)
-                
-    @unittest.skip('Instrument Driver Developer: test_concatenated_fragmented_sample skipped: please complete this test!')
-    def test_concatenated_fragmented_sample(self):
-        """
-        Simulate a complete sample that arrives in with a fragment concatenated.  The concatenated fragment
-        should have have a terminator.  A separate invocations of got_data() will have the remainder;
-        result should be a complete sample published 
-        """
-        
-        """
-        Create a mock port agent
-        """
-        mock_port_agent = Mock(spec=LoggerClient)
 
+    def test_protocol_filter_capabilities(self):
         """
-        Instantiate the driver class directly (no driver client, no driver
-        client, no zmq driver process, no driver process; just own the driver)
-        """                  
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
-        
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-        
+        This tests driver filter_capabilities.
+        Iterate through available capabilities, and verify that they can pass successfully through the filter.
+        Test silly made up capabilities to verify they are blocked by filter.
         """
-        Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to that state
-        """
-        config = {'mock_port_agent' : mock_port_agent}
-        test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-        
-        """
-        Invoke the connect method of the driver: should connect to mock
-        port agent.  Verify that the connection FSM transitions to CONNECTED,
-        (which means that the FSM should now be reporting the ProtocolState).
-        """
-        test_driver.connect()
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
-        """
-        Force the driver into AUTOSAMPLE state so that it will parse and 
-        publish samples
-        """        
-        test_driver.set_test_mode(True)
-        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
+        p = Protocol(Prompt, NEWLINE, my_event_callback)
+        c = Capability()
 
-        """
-        - Reset test verification variables.
-        - Construct a sample stream with a concatenated fragment
-        - Pass to got_data()
-        - Verify that raw and parsed streams have been received
-        - Later, when the final fragment has been send, verify that raw and
-          parsed streams have been received.
-        """
-        self.reset_test_vars()
-        test_sample = "Insert a complete sample here."
+        master_list = []
+        for k in convert_enum_to_dict(c):
+            ret = p._filter_capabilities([getattr(c, k)])
+            log.debug(str(ret))
+            master_list.append(getattr(c, k))
+            self.assertEqual(len(ret), 1)
+        self.assertEqual(len(p._filter_capabilities(master_list)), 5)
 
-        """
-        - Add the beginning of another sample stream
-        - Pass to got_data()
-        """
-        test_sample += "Add the beginning of another sample stream here, but just a fragment: the rest will come" + \
-            "in another message." 
+        # Negative Testing
+        self.assertEqual(len(p._filter_capabilities(['BIRD', 'ABOVE', 'WATER'])), 0)
+        try:
+            self.assertEqual(len(p._filter_capabilities(None)), 0)
+        except TypeError:
+            pass
 
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
+        self.assertEqual(str(my_event_callback.mock_calls), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
 
+    def test_prompts(self):
         """
-        - Reset test verification variables
-        - Construct the final fragment of a sample stream
-        - Pass to got_data()
-        - Verify that raw and parsed streams have been received
+        Verify that the prompts enumeration has no duplicate values that might cause confusion
         """
-        self.reset_test_vars()
-        test_sample = \
-            "Insert the remainder of the fragmented sample that was added to the stream above."
+        prompts = Prompt()
+        self.assert_enum_has_no_duplicates(prompts)
 
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
+    def test_instrument_commands_for_duplicates(self):
+        """
+        Verify that the InstrumentCmds enumeration has no duplicate values that might cause confusion
+        """
+        cmds = InstrumentCmds()
+        self.assert_enum_has_no_duplicates(cmds)
 
+    def test_protocol_state_for_duplicates(self):
+        """
+        Verify that the ProtocolState enumeration has no duplicate values that might cause confusion
+        """
+        ps = ProtocolState()
+        self.assert_enum_has_no_duplicates(ps)
+
+    def test_protocol_event_for_duplicates(self):
+        """
+        Verify that the ProtocolEvent enumeration has no duplicate values that might cause confusion
+        """
+        pe = ProtocolEvent()
+        self.assert_enum_has_no_duplicates(pe)
+
+    def test_capability_for_duplicates(self):
+        """
+        Verify that the Capability enumeration has no duplicate values that might cause confusion
+        """
+        c = Capability()
+        self.assert_enum_has_no_duplicates(c)
+
+    def test_parameter_for_duplicates(self):
+        # Test ProtocolState.  Verify no Duplications.
+        p = Parameter()
+        self.assert_enum_has_no_duplicates(p)
+
+    def test_instrument_driver_init_(self):
+        """
+        @brief Test that the InstrumentDriver constructors correctly build a Driver instance.
+        # should call instrument/instrument_driver SingleConnectionInstrumentDriver.__init__
+        # which will call InstrumentDriver.__init__, then create a _connection_fsm and start it.
+        """
+
+        ID = InstrumentDriver(self.my_event_callback)
+        self.assertEqual(ID._connection, None)
+        self.assertEqual(ID._protocol, None)
+        self.assertTrue(isinstance(ID._connection_fsm, InstrumentFSM))
+        self.assertEqual(ID._connection_fsm.current_state, DriverConnectionState.UNCONFIGURED)
+
+    def test_instrument_driver_build_protocol(self):
+        """
+        mock create an instance instrument driver protocol object. Verify that it supports available commands.
+        verify the handlers are present and correctly associated.
+        """
+
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+
+        self.assertEqual(ID._protocol._newline, NEWLINE)
+        self.assertEqual(ID._protocol._prompts, Prompt)
+        self.assertEqual(ID._protocol._driver_event, ID._driver_event)
+        self.assertEqual(ID._protocol._linebuf, '')
+        self.assertEqual(ID._protocol._promptbuf, '')
+        self.assertEqual(ID._protocol._datalines, [])
+
+
+        for key in [
+            InstrumentCmds.GET_CONFIGURATION_DATA,
+            InstrumentCmds.GET_STATUS_DATA,
+            InstrumentCmds.GET_EVENT_COUNTER_DATA,
+            InstrumentCmds.GET_HARDWARE_DATA
+        ]:
+            self.assertTrue(key in ID._protocol._build_handlers.keys())
+
+        for key in [
+            InstrumentCmds.GET_CONFIGURATION_DATA,
+            InstrumentCmds.GET_STATUS_DATA,
+            InstrumentCmds.GET_EVENT_COUNTER_DATA,
+            InstrumentCmds.GET_HARDWARE_DATA
+        ]:
+            self.assertTrue(key in ID._protocol._response_handlers.keys())
+
+        self.assertEqual(ID._protocol._last_data_receive_timestamp, None)
+        self.assertEqual(ID._protocol._connection, None)
+
+        p = Parameter()
+        '''
+        # skip until protocol_param_dict is implemented
+        for labels_value in ID._protocol._param_dict._param_dict.keys():
+            log.debug("Verifying " + labels_value + " is present")
+            match = False
+            for i in [v for v in dir(p) if not callable(getattr(p,v))]:
+                key = getattr(p, i)
+                if key == labels_value:
+                    match = True
+            self.assertTrue(match)
+        '''
+
+        self.assertEqual(ID._protocol._protocol_fsm.enter_event, 'DRIVER_EVENT_ENTER')
+        self.assertEqual(ID._protocol._protocol_fsm.exit_event, 'DRIVER_EVENT_EXIT')
+        self.assertEqual(ID._protocol._protocol_fsm.previous_state, None)
+        self.assertEqual(ID._protocol._protocol_fsm.current_state, 'DRIVER_STATE_UNKNOWN')
+        self.assertEqual(repr(ID._protocol._protocol_fsm.states), repr(ProtocolState))
+        self.assertEqual(repr(ID._protocol._protocol_fsm.events), repr(ProtocolEvent))
+
+
+        state_handlers = {  (ProtocolState.UNKNOWN, ProtocolEvent.ENTER): '_handler_unknown_enter',
+                            (ProtocolState.UNKNOWN, ProtocolEvent.EXIT): '_handler_unknown_exit',
+                            (ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER): '_handler_unknown_discover',
+                            (ProtocolState.UNKNOWN, ProtocolEvent.FORCE_STATE): '_handler_unknown_force_state',
+
+
+                            (ProtocolState.COMMAND, ProtocolEvent.FORCE_STATE): '_handler_unknown_force_state',
+
+                            (ProtocolState.COMMAND, ProtocolEvent.ENTER): '_handler_command_enter',
+                            (ProtocolState.COMMAND, ProtocolEvent.EXIT): '_handler_command_exit',
+                            (ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE): '_handler_command_acquire_sample',
+                            (ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE): '_handler_command_start_autosample',
+                            (ProtocolState.COMMAND, ProtocolEvent.GET): '_handler_command_get',
+                            (ProtocolState.COMMAND, ProtocolEvent.SET): '_handler_command_set',
+
+                            (ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC): '_handler_command_clock_sync',
+                            (ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS): '_handler_command_aquire_status',
+                            (ProtocolState.COMMAND, ProtocolEvent.START_DIRECT): '_handler_command_start_direct',
+
+                            (ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER): '_handler_autosample_enter',
+                            (ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT): '_handler_autosample_exit',
+                            (ProtocolState.AUTOSAMPLE, ProtocolEvent.GET): '_handler_command_get',
+                            (ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE): '_handler_autosample_stop_autosample',
+
+                            (ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER): '_handler_direct_access_enter',
+                            (ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT): '_handler_direct_access_exit',
+                            (ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT): '_handler_direct_access_stop_direct',
+                            (ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT): '_handler_direct_access_execute_direct'}
+
+
+
+        for key in ID._protocol._protocol_fsm.state_handlers.keys():
+            self.assertEqual(ID._protocol._protocol_fsm.state_handlers[key].__func__.func_name,  state_handlers[key])
+            self.assertTrue(key in state_handlers)
+
+        for key in state_handlers.keys():
+            self.assertEqual(ID._protocol._protocol_fsm.state_handlers[key].__func__.func_name,  state_handlers[key])
+            self.assertTrue(key in ID._protocol._protocol_fsm.state_handlers)
+
+    def test_protocol(self):
+        """
+        Create a mock instance of Protocol.  Assert that state handlers in the FSM and handlers are created correctly.
+        """
+
+        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
+        p = Protocol(Prompt, NEWLINE, my_event_callback)
+        self.assertEqual(str(my_event_callback.mock_calls), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
+
+        p._protocol_fsm
+
+        self.assertEqual(p._protocol_fsm.enter_event, 'DRIVER_EVENT_ENTER')
+        self.assertEqual(p._protocol_fsm.exit_event, 'DRIVER_EVENT_EXIT')
+        self.assertEqual(p._protocol_fsm.previous_state, None)
+        self.assertEqual(p._protocol_fsm.current_state, 'DRIVER_STATE_UNKNOWN')
+        self.assertEqual(repr(p._protocol_fsm.states), repr(ProtocolState))
+        self.assertEqual(repr(p._protocol_fsm.events), repr(ProtocolEvent))
+
+
+        state_handlers = {  (ProtocolState.UNKNOWN, ProtocolEvent.ENTER): '_handler_unknown_enter',
+                            (ProtocolState.UNKNOWN, ProtocolEvent.EXIT): '_handler_unknown_exit',
+                            (ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER): '_handler_unknown_discover',
+                            (ProtocolState.UNKNOWN, ProtocolEvent.FORCE_STATE): '_handler_unknown_force_state',
+
+
+                            (ProtocolState.COMMAND, ProtocolEvent.FORCE_STATE): '_handler_unknown_force_state',
+
+                            (ProtocolState.COMMAND, ProtocolEvent.ENTER): '_handler_command_enter',
+                            (ProtocolState.COMMAND, ProtocolEvent.EXIT): '_handler_command_exit',
+                            (ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE): '_handler_command_acquire_sample',
+                            (ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE): '_handler_command_start_autosample',
+                            (ProtocolState.COMMAND, ProtocolEvent.GET): '_handler_command_get',
+                            (ProtocolState.COMMAND, ProtocolEvent.SET): '_handler_command_set',
+
+                            (ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC): '_handler_command_clock_sync',
+                            (ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS): '_handler_command_aquire_status',
+                            (ProtocolState.COMMAND, ProtocolEvent.START_DIRECT): '_handler_command_start_direct',
+
+                            (ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER): '_handler_autosample_enter',
+                            (ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT): '_handler_autosample_exit',
+                            (ProtocolState.AUTOSAMPLE, ProtocolEvent.GET): '_handler_command_get',
+                            (ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE): '_handler_autosample_stop_autosample',
+
+                            (ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER): '_handler_direct_access_enter',
+                            (ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT): '_handler_direct_access_exit',
+                            (ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT): '_handler_direct_access_stop_direct',
+                            (ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT): '_handler_direct_access_execute_direct'}
+
+        for key in p._protocol_fsm.state_handlers.keys():
+            log.debug("W*****>>> " + str(key))
+            log.debug("X*****>>> " + str(p._protocol_fsm.state_handlers[key].__func__.func_name))
+            log.debug("Y*****>>> " + str(state_handlers[key]))
+            self.assertEqual(p._protocol_fsm.state_handlers[key].__func__.func_name,  state_handlers[key])
+            self.assertTrue(key in state_handlers)
+
+        for key in state_handlers.keys():
+            self.assertEqual(p._protocol_fsm.state_handlers[key].__func__.func_name,  state_handlers[key])
+            self.assertTrue(key in p._protocol_fsm.state_handlers)
+
+    def test_protocol_filter_capabilities(self):
+        """
+        This tests driver filter_capabilities.
+        Iterate through available capabilities, and verify that they can pass successfully through the filter.
+        Test silly made up capabilities to verify they are blocked by filter.
+        """
+
+        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
+        p = Protocol(Prompt, NEWLINE, my_event_callback)
+        c = Capability()
+
+        master_list = []
+        for k in convert_enum_to_dict(c):
+            ret = p._filter_capabilities([getattr(c, k)])
+            log.debug(str(ret))
+            master_list.append(getattr(c, k))
+            self.assertEqual(len(ret), 1)
+        self.assertEqual(len(p._filter_capabilities(master_list)), 5)
+
+        # Negative Testing
+        self.assertEqual(len(p._filter_capabilities(['BIRD', 'ABOVE', 'WATER'])), 0)
+        try:
+            self.assertEqual(len(p._filter_capabilities(None)), 0)
+        except TypeError:
+            pass
+
+        self.assertEqual(str(my_event_callback.mock_calls), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
+
+    def test_protocol_handler_unknown_enter(self):
+        """
+        mock call _handler_unknown_enter and verify that it performs teh correct sub-calls
+        """
+        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
+        p = Protocol(Prompt, NEWLINE, my_event_callback)
+
+        args = []
+        kwargs =  {}
+        p._handler_unknown_enter(*args, **kwargs)
+        self.assertEqual(str(my_event_callback.call_args_list), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE'),\n call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
+
+    def test_protocol_handler_unknown_exit(self):
+        """
+        mock call _handler_unknown_exit and verify that it performs teh correct sub-calls
+        """
+        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
+        p = Protocol(Prompt, NEWLINE, my_event_callback)
+
+        args = []
+        kwargs =  {}
+        p._handler_unknown_exit(*args, **kwargs)
+        self.assertEqual(str(my_event_callback.call_args_list), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
+
+
+    @unittest.skip('Need to write unknown_discover')
+    def test_protocol_handler_unknown_discover(self):
+        """
+        Test 3 paths through the func ( ProtocolState.UNKNOWN, ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE)
+            For each test 3 paths of Parameter.LOGGING = ( True, False, Other )
+        """
+
+
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+        #
+        # current_state = ProtocolState.UNKNOWN
+        #
+
+        ID._protocol._protocol_fsm.current_state = ProtocolState.UNKNOWN
+
+        args = []
+        kwargs = ({'timeout': 30,})
+
+        do_cmd_resp_mock = Mock(spec="do_cmd_resp_mock")
+        p._do_cmd_resp = do_cmd_resp_mock
+        _wakeup_mock = Mock(spec="wakeup_mock")
+        p._wakeup = _wakeup_mock
+
+        v = Mock(spec="val")
+        v.value = None
+        p._param_dict.set(Parameter.LOGGING, v)
+        ex_caught = False
+        try:
+            (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
+        except InstrumentStateException:
+            ex_caught = True
+        self.assertTrue(ex_caught)
+        self.assertEqual(str(_wakeup_mock.mock_calls), '[call(delay=0.5, timeout=30), call(30)]')
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
+        _wakeup_mock.reset_mock()
+        do_cmd_resp_mock.reset_mock()
+
+        v.value = True
+        p._param_dict.set(Parameter.LOGGING, v)
+        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
+        self.assertEqual(next_state, 'DRIVER_STATE_AUTOSAMPLE')
+        self.assertEqual(result, 'RESOURCE_AGENT_STATE_STREAMING')
+        self.assertEqual(str(_wakeup_mock.mock_calls), '[call(delay=0.5, timeout=30), call(30)]')
+
+        self.assertEqual("[call('ds', timeout=30), call('dc', timeout=30)]", str(do_cmd_resp_mock.mock_calls))
+
+        _wakeup_mock.reset_mock()
+        do_cmd_resp_mock.reset_mock()
+
+        v.value = False
+        p._param_dict.set(Parameter.LOGGING, v)
+        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
+        self.assertEqual(next_state, 'DRIVER_STATE_COMMAND')
+        self.assertEqual(result, 'RESOURCE_AGENT_STATE_IDLE')
+        self.assertEqual(str(_wakeup_mock.mock_calls), '[call(delay=0.5, timeout=30), call(30)]')
+        self.assertTrue("[call('ds', timeout=30), call('dc', timeout=30)]" in str(do_cmd_resp_mock.mock_calls))
+
+        #
+        # current_state = ProtocolState.COMMAND
+        #
+
+        _wakeup_mock.reset_mock()
+        do_cmd_resp_mock.reset_mock()
+
+        p._protocol_fsm.current_state = ProtocolState.COMMAND
+
+        args = []
+        kwargs =  dict({'timeout': 30,})
+
+        do_cmd_resp_mock = Mock(spec="do_cmd_resp_mock")
+        p._do_cmd_resp = do_cmd_resp_mock
+        _wakeup_mock = Mock(spec="wakeup_mock")
+        p._wakeup = _wakeup_mock
+
+        v = Mock(spec="val")
+        v.value = None
+        p._param_dict.set(Parameter.LOGGING, v)
+        ex_caught = False
+        try:
+            (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
+        except InstrumentStateException:
+            ex_caught = True
+        self.assertTrue(ex_caught)
+        self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
+        _wakeup_mock.reset_mock()
+        do_cmd_resp_mock.reset_mock()
+
+        v = Mock(spec="val")
+
+        v.value = True
+        p._param_dict.set(Parameter.LOGGING, v)
+        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
+        self.assertEqual(next_state, 'DRIVER_STATE_AUTOSAMPLE')
+        self.assertEqual(result, 'RESOURCE_AGENT_STATE_STREAMING')
+        self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
+
+        _wakeup_mock.reset_mock()
+        do_cmd_resp_mock.reset_mock()
+
+        v.value = False
+        p._param_dict.set(Parameter.LOGGING, v)
+        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
+        self.assertEqual(next_state, 'DRIVER_STATE_COMMAND')
+        self.assertEqual(result, 'RESOURCE_AGENT_STATE_IDLE')
+        self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
+
+        #
+        # current_state = ProtocolState.AUTOSAMPLE
+        #
+
+        _wakeup_mock.reset_mock()
+        do_cmd_resp_mock.reset_mock()
+
+        p._protocol_fsm.current_state = ProtocolState.COMMAND
+
+        args = []
+        kwargs =  dict({'timeout': 30,})
+
+        do_cmd_resp_mock = Mock(spec="do_cmd_resp_mock")
+        p._do_cmd_resp = do_cmd_resp_mock
+        _wakeup_mock = Mock(spec="wakeup_mock")
+        p._wakeup = _wakeup_mock
+
+        v = Mock(spec="val")
+        v.value = None
+        p._param_dict.set(Parameter.LOGGING, v)
+        ex_caught = False
+        try:
+            (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
+        except InstrumentStateException:
+            ex_caught = True
+        self.assertTrue(ex_caught)
+        self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
+        _wakeup_mock.reset_mock()
+        do_cmd_resp_mock.reset_mock()
+
+        v = Mock(spec="val")
+
+        v.value = True
+        p._param_dict.set(Parameter.LOGGING, v)
+        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
+        self.assertEqual(next_state, 'DRIVER_STATE_AUTOSAMPLE')
+        self.assertEqual(result, 'RESOURCE_AGENT_STATE_STREAMING')
+        self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
+
+        _wakeup_mock.reset_mock()
+        do_cmd_resp_mock.reset_mock()
+
+        v.value = False
+        p._param_dict.set(Parameter.LOGGING, v)
+        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
+        self.assertEqual(next_state, 'DRIVER_STATE_COMMAND')
+        self.assertEqual(result, 'RESOURCE_AGENT_STATE_IDLE')
+        self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
+        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
+
+    def test_protocol_unknown_force_state(self):
+        """
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+
+        args = []
+        kwargs =  dict({'timeout': 30,})
+        ex_caught = False
+        try:
+            (next_state, result) = p._handler_unknown_force_state(*args, **kwargs)
+        except InstrumentParameterException:
+            ex_caught = True
+        self.assertTrue(ex_caught)
+
+        kwargs = dict({'timeout': 30,
+                       'state': 'ARDVARK'})
+
+        (next_state, result) = p._handler_unknown_force_state(*args, **kwargs)
+        self.assertEqual(next_state, 'ARDVARK')
+        self.assertEqual(result, 'ARDVARK')
+
+    def test_protocol_handler_command_enter(self):
+        """
+        mock call _handler_command_enter and verify that it performs teh correct sub-calls
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+        _update_params_mock = Mock(spec="update_params")
+        p._update_params = _update_params_mock
+
+        _update_driver_event = Mock(spec="driver_event")
+        p._driver_event = _update_driver_event
+        args = []
+        kwargs =  dict({'timeout': 30,})
+
+        ret = p._handler_command_enter(*args, **kwargs)
+        self.assertEqual(ret, None)
+        self.assertEqual(str(_update_params_mock.mock_calls), "[call()]")
+        self.assertEqual(str(_update_driver_event.mock_calls), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
+
+    @unittest.skip('Need to write unknown_discover')
+    def parse_getcd_response(self):
+        """
+        @return:
+        """
+
+    @unittest.skip('Need to write unknown_discover')
+    def parse_getsd_response(self):
+        """
+        @return:
+        """
+
+    @unittest.skip('Need to write unknown_discover')
+    def parse_getec_response(self):
+        """
+        @return:
+        """
+
+    @unittest.skip('Need to write unknown_discover')
+    def parse_gethd_response(self):
+        """
+        @return:
+        """
+
+    @unittest.skip('Skip until _build_param_dict completed')
+    def test_build_set_command(self):
+        """
+        verify the build set command performs correctly
+        should return setvar=value\r\n
+        test for float, string, date, Boolean
+        PU0 FLOAT 5.827424
+        SHOW_PROGRESS_MESSAGES True Boolean
+        self.assertEqual(str(p._param_dict.get('TCALDATE')),'(30, 3, 2012)')
+        USER_INFO OOI str,
+        TIDE_INTERVAL
+
+
+        Int BATTERY_TYPE = "BatteryType"        # SetBatteryType
+        Int BAUD_RATE = "BaudRate"              # SetBaudRate
+        TIME = "Time"                       # SetTime
+        Bool ENABLE_ALERTS = "EnableAlerts"      # SetEnableAlerts
+        Int UPLOAD_TYPE = "UploadType"          # SetUploadType
+        Int SAMPLE_PERIOD = "SamplePeriod"      # SetSamplePeriod
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+
+        # Int
+        ret = p._build_set_command("irrelevant", Parameter.BAUD_RATE, 3200)
+        self.assertEqual(ret, 'setBaudRate=3200\r\n')
+
+        # Float
+        # ret = p._build_set_command("irrelevant", Parameter.MIN_ALLOWABLE_ATTENUATION, 5.827424)
+        # self.assertEqual(ret, 'MIN_ALLOWABLE_ATTENUATION=5.827424\r\n')
+
+        # Boolean - 1/0
+        ret = p._build_set_command("irrelevant", Parameter.ENABLE_ALERTS, True)
+        self.assertEqual(ret, 'setEnableAlerts=1\r\n')
+
+        # String
+        # ret = p._build_set_command("irrelevant", Parameter.USER_INFO, 'ooi_test')
+        # self.assertEqual(ret, 'USERINFO=ooi_test\r\n')
+
+        # Not used now DC set power removed.
+        # Date (Tuple)
+        # ret = p._build_set_command("irrelevant", Parameter.TCALDATE, (30, 8, 2012))
+        # self.assertEqual(ret, 'TCALDATE=30-Aug-12\r\n')
+
+    @unittest.skip('Skip until _update_params working')
+    def test_handler_command_set(self):
+        """
+        Verify that we can set parameters
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+
+
+        attrs = {'return_value': '_do_cmd_resp was returned'}
+        _do_cmd_resp_mock = Mock(**attrs)
+        _update_params_mock = Mock()
+
+        p._do_cmd_resp = _do_cmd_resp_mock
+        p._update_params = _update_params_mock
+
+        params = {
+            Parameter.BAUD_RATE : 3200,
+            #DC#Parameter.PD1 : int(1),
+            #DC#Parameter.PD2 : True,
+        }
+        args = params
+        kwargs = {}
+
+        (next_state, result) = p._handler_command_set(args, **kwargs)
+        self.assertEqual(str(_do_cmd_resp_mock.mock_calls),"[call('set', 'BaudRate', 3200)]")
+        self.assertEqual(str(_update_params_mock.mock_calls), "[call()]")
+        self.assertEqual(next_state, None)
+        self.assertEqual(str(result), "_do_cmd_resp was returned")
+
+        ex_caught = False
+        try:
+            (next_state, result) = p._handler_command_set("WRONG", **kwargs)
+        except InstrumentParameterException:
+            ex_caught = True
+        self.assertTrue(ex_caught)
+
+        args = []
+        ex_caught = False
+        try:
+            (next_state, result) = p._handler_command_set(*args, **kwargs)
+        except InstrumentParameterException:
+            ex_caught = True
+        self.assertTrue(ex_caught)
+
+    @unittest.skip('Skip until _build_param_dict completed')
+    def test_handler_command_autosample_test_get(self):
+        """
+        Verify that we are able to get back a variable setting correctly
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+
+        # Fill the DC/DS response
+        #p._parse_dc_response(SAMPLE_DC, Prompt.COMMAND)
+        #p._parse_ds_response(SAMPLE_DS, Prompt.COMMAND)
+
+        kwargs = {}
+        p._handler_command_get(DriverParameter.ALL, **kwargs)
+
+        args = [Parameter.BAUD_RATE]
+        kwargs = {}
+        (next_state, result) = p._handler_command_get(args, **kwargs)
+        self.assertEqual(next_state, None)
+        self.assertEqual(result, {'TxTide': True})
+
+    def test_handler_command_start_autosample(self):
+        """
+        verify startautosample sends the start command to the instrument.
+        """
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+        _wakeup_mock = Mock(spec="wakeup_mock")
+        p._wakeup = _wakeup_mock
+
+        _connection_mock = Mock(spec="_connection")
+        _connection_send_mock = Mock(spec="_connection_send")
+        _do_cmd_resp_mock = Mock(spec="_do_cmd_resp")
+        p._connection = _connection_mock
+        p._connection.send = _connection_send_mock
+        p._do_cmd_resp = _do_cmd_resp_mock
+        args = []
+        kwargs = {}
+        (next_state, result) = p._handler_command_start_autosample(*args, **kwargs)
+        self.assertEqual(next_state,  ProtocolState.AUTOSAMPLE)
+        self.assertEqual(result, ('RESOURCE_AGENT_STATE_STREAMING', None))
+        self.assertEqual(str(_connection_send_mock.mock_calls), "[call('Start\\r\\n')]")
+
+    def test_get_resource_capabilities(self):
+        ID = InstrumentDriver(self.my_event_callback)
+        ID._build_protocol()
+        p = ID._protocol
+        args = []
+        kwargs = {}
+
+        # Force State UNKNOWN
+        ID._protocol._protocol_fsm.current_state = ProtocolState.UNKNOWN
+
+        ret = ID.get_resource_capabilities(*args, **kwargs)
+        self.assertEqual(ret[0], [])
+
+        # Force State COMMAND
+        ID._protocol._protocol_fsm.current_state = ProtocolState.COMMAND
+
+        ret = ID.get_resource_capabilities(*args, **kwargs)
+        for state in ['DRIVER_EVENT_ACQUIRE_STATUS', 'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                      'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
+
+            self.assertTrue(state in ret[0])
+        self.assertEqual(len(ret[0]), 4)
+
+
+
+
+        # Force State AUTOSAMPLE
+        ID._protocol._protocol_fsm.current_state = ProtocolState.AUTOSAMPLE
+
+        ret = ID.get_resource_capabilities(*args, **kwargs)
+        for state in ['DRIVER_EVENT_STOP_AUTOSAMPLE']:
+            self.assertTrue(state in ret[0])
+        self.assertEqual(len(ret[0]), 1)
+
+        # Force State DIRECT_ACCESS
+        ID._protocol._protocol_fsm.current_state = ProtocolState.DIRECT_ACCESS
+
+        ret = ID.get_resource_capabilities(*args, **kwargs)
+        self.assertEqual(ret[0], [])
+
+    def assert_chunker_line_by_line(self, sample):
+        """
+        @sample: a string containing a full record suitable for the chunker.
+        pass it into the chunker char by char and verify that it finds the particle once and only once
+        """
+
+        log.debug("SAMPLE = " + repr(sample))
+        self._chunker = StringChunker(Protocol.sieve_function)
+
+        hit_count = 0
+        for line in sample.split(NEWLINE):
+            self._chunker.add_chunk(line + NEWLINE)
+
+            result = self._chunker.get_next_data(clean=True)
+            if result != None:
+                log.debug("GOT A MATCH = " + repr(result))
+                hit_count = hit_count + 1
+
+        return hit_count == 1
+
+    def test_chunker_line_by_line(self):
+        """
+        Pass all 5 output samples to the chunker
+        """
+        log.debug("-------------------SAMPLE_SAMPLE------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(SAMPLE_SAMPLE))
+        log.debug("-------------------SAMPLE_GETHD------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(SAMPLE_GETHD))
+        log.debug("-------------------SAMPLE_GETEC------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(SAMPLE_GETEC))
+        log.debug("-------------------SAMPLE_GETCD------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(SAMPLE_GETCD))
+        log.debug("-------------------SAMPLE_GETSD------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(SAMPLE_GETSD))
+
+    def test_chunker_line_by_line_with_noise(self):
+        """
+        Pass all 5 output samples to the chunker, add in some noise
+        """
+        BEFORE_NOISE = "this is some before sample noise\r\nand some more\n\r"
+        AFTER_NOISE = "\rThe Quick Brown Fox blah blah\nKILLROY WAS HERE\r\n"
+        log.debug("-------------------SAMPLE_SAMPLE------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(BEFORE_NOISE + SAMPLE_SAMPLE + AFTER_NOISE))
+        log.debug("-------------------SAMPLE_GETHD------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(BEFORE_NOISE + SAMPLE_GETHD + AFTER_NOISE))
+        log.debug("-------------------SAMPLE_GETEC------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(BEFORE_NOISE + SAMPLE_GETEC + AFTER_NOISE))
+        log.debug("-------------------SAMPLE_GETCD------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(BEFORE_NOISE + SAMPLE_GETCD + AFTER_NOISE))
+        log.debug("-------------------SAMPLE_GETSD------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(BEFORE_NOISE + SAMPLE_GETSD + AFTER_NOISE))
+
+    def test_chunker_line_by_line_with_bad_data(self):
+        """
+        Pass all 5 output samples to the chunker, screw up the samples subtlly to make them not be recognized
+        """
+        log.debug("-------------------SAMPLE_SAMPLE------------------------")
+        self.assertFalse(self.assert_chunker_line_by_line(SAMPLE_SAMPLE.replace("<","[")))
+        log.debug("-------------------SAMPLE_GETHD------------------------")
+        self.assertFalse(self.assert_chunker_line_by_line(SAMPLE_GETHD.replace(">","}")))
+        log.debug("-------------------SAMPLE_GETEC------------------------")
+        self.assertFalse(self.assert_chunker_line_by_line(SAMPLE_GETEC.replace("<","(")))
+        log.debug("-------------------SAMPLE_GETCD------------------------")
+        self.assertFalse(self.assert_chunker_line_by_line(SAMPLE_GETCD.replace(">","<")))
+        log.debug("-------------------SAMPLE_GETSD------------------------")
+        self.assertFalse(self.assert_chunker_line_by_line(SAMPLE_GETSD.replace("=","^")))
+
+    def assert_chunker_chr_by_chr(self, sample):
+        """
+        @sample: a string containing a full record suitable for the chunker.
+        pass it into the chunker char by char and verify that it finds the particle once and only once
+        """
+
+        # This will want to be created in the driver eventually...
+        self._chunker = StringChunker(Protocol.sieve_function)
+
+        hit_count = 0
+        for character in sample:
+            self._chunker.add_chunk(character)
+
+            result = self._chunker.get_next_data(clean=True)
+            if result != None:
+                hit_count = hit_count + 1
+
+        return hit_count == 1
+
+    def test_chunker_chr_by_chr(self):
+        """
+        Pass all 5 output samples to the chunker
+        """
+        log.debug("-------------------SAMPLE_SAMPLE------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(SAMPLE_SAMPLE))
+        log.debug("-------------------SAMPLE_GETHD------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(SAMPLE_GETHD))
+        log.debug("-------------------SAMPLE_GETEC------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(SAMPLE_GETEC))
+        log.debug("-------------------SAMPLE_GETCD------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(SAMPLE_GETCD))
+        log.debug("-------------------SAMPLE_GETSD------------------------")
+        self.assertTrue(self.assert_chunker_line_by_line(SAMPLE_GETSD))
+
+    def test_chunker_chr_by_chr_with_noise(self):
+        """
+        Pass all 5 output samples to the chunker, add in some noise
+        """
+        BEFORE_NOISE = "this is some before sample noise\r\nand some more\n\r"
+        AFTER_NOISE = "\rThe Quick Brown Fox blah blah\nKILLROY WAS HERE\r\n"
+        log.debug("-------------------SAMPLE_SAMPLE------------------------")
+        self.assertTrue(self.assert_chunker_chr_by_chr(BEFORE_NOISE + SAMPLE_SAMPLE + AFTER_NOISE))
+        log.debug("-------------------SAMPLE_GETHD------------------------")
+        self.assertTrue(self.assert_chunker_chr_by_chr(BEFORE_NOISE + SAMPLE_GETHD + AFTER_NOISE))
+        log.debug("-------------------SAMPLE_GETEC------------------------")
+        self.assertTrue(self.assert_chunker_chr_by_chr(BEFORE_NOISE + SAMPLE_GETEC + AFTER_NOISE))
+        log.debug("-------------------SAMPLE_GETCD------------------------")
+        self.assertTrue(self.assert_chunker_chr_by_chr(BEFORE_NOISE + SAMPLE_GETCD + AFTER_NOISE))
+        log.debug("-------------------SAMPLE_GETSD------------------------")
+        self.assertTrue(self.assert_chunker_chr_by_chr(BEFORE_NOISE + SAMPLE_GETSD + AFTER_NOISE))
+
+    def test_chunker_chr_by_chr_with_bad_data(self):
+        """
+        Pass all 5 output samples to the chunker, screw up the samples subtlly to make them not be recognized
+        """
+        log.debug("-------------------SAMPLE_SAMPLE------------------------")
+        self.assertFalse(self.assert_chunker_chr_by_chr(SAMPLE_SAMPLE.replace("'","\"")))
+        log.debug("-------------------SAMPLE_GETHD------------------------")
+        self.assertFalse(self.assert_chunker_chr_by_chr(SAMPLE_GETHD.replace("/","!")))
+        log.debug("-------------------SAMPLE_GETEC------------------------")
+        self.assertFalse(self.assert_chunker_chr_by_chr(SAMPLE_GETEC.replace("/","\\")))
+        log.debug("-------------------SAMPLE_GETCD------------------------")
+        self.assertFalse(self.assert_chunker_chr_by_chr(SAMPLE_GETCD.replace(">","+")))
+        log.debug("-------------------SAMPLE_GETSD------------------------")
+        self.assertFalse(self.assert_chunker_chr_by_chr(SAMPLE_GETSD.replace("'","^")))
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -450,6 +1160,14 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         cmd = AgentCommand(command=agent_command)
         retval = self.instrument_agent_client.execute_agent(cmd)
         self.check_state(desired_state)
+
+
+
+    # the assert particles are all wrong.
+    # the object is more a struct than instance of a given particle.
+    # can only assert that it is a particle of given type by asserting it
+    # contains all field labels with values of propper type.
+
 
 
     def assert_SBE54tpsStatusDataParticle(self, prospective_particle):

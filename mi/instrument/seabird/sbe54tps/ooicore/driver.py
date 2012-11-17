@@ -17,6 +17,7 @@ import string
 import re
 import time
 import ntplib
+from mi.core.time import get_timestamp_delayed
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
@@ -118,8 +119,8 @@ class InstrumentCmds(BaseEnum):
     #### Sampling ####
     ##################
     INIT_LOGGING = "InitLogging"
-    START_SAMPLING = "Start"
-    STOP_SAMPLING = "Stop"
+    START_LOGGING = "Start"
+    STOP_LOGGING = "Stop"
     SAMPLE_REFERENCE_OSCILLATOR = "SampleRefOsc"
 
     ################################
@@ -1095,16 +1096,20 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._build_param_dict()
 
         # Add build handlers for device commands.
+        self._add_build_handler(InstrumentCmds.SET,                    self._build_set_command)
         self._add_build_handler(InstrumentCmds.GET_CONFIGURATION_DATA, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.GET_STATUS_DATA, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.GET_STATUS_DATA,        self._build_simple_command)
         self._add_build_handler(InstrumentCmds.GET_EVENT_COUNTER_DATA, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.GET_HARDWARE_DATA, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.GET_HARDWARE_DATA,      self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.START_LOGGING,          self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.STOP_LOGGING,           self._build_simple_command)
 
         # Add response handlers for device commands.
+        self._add_response_handler(InstrumentCmds.SET,                    self._parse_set_response)
         self._add_response_handler(InstrumentCmds.GET_CONFIGURATION_DATA, self._parse_gc_response)
-        self._add_response_handler(InstrumentCmds.GET_STATUS_DATA, self._parse_gs_response)
+        self._add_response_handler(InstrumentCmds.GET_STATUS_DATA,        self._parse_gs_response)
         self._add_response_handler(InstrumentCmds.GET_EVENT_COUNTER_DATA, self._parse_ec_response)
-        self._add_response_handler(InstrumentCmds.GET_HARDWARE_DATA, self._parse_hd_response)
+        self._add_response_handler(InstrumentCmds.GET_HARDWARE_DATA,      self._parse_hd_response)
 
         # Add sample handlers.
 
@@ -1162,6 +1167,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         return events_out
 
 
+    def _parse_set_response(self, response, prompt):
+        """
+        Parse handler for set command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if set command misunderstood.
+        """
+
+        if prompt != Prompt.COMMAND:
+            raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
 
     def _parse_gc_response(self, response, prompt):
         log.debug("IN _parse_gc_response RESPONSE = " + repr(response))
@@ -1413,7 +1428,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
-        result = self._do_cmd_resp(InstrumentCmds.START_SAMPLING, *args, **kwargs)
+        result = self._do_cmd_resp(InstrumentCmds.START_LOGGING, *args, **kwargs)
 
         return (next_state, (next_agent_state, result))
 
@@ -1490,6 +1505,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                 log.debug("KEY = " + str(key) + " VALUE = " + str(val))
                 result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
                 log.debug("**********************RESULT************* = " + str(result))
+
+        return (next_state, result)
 
     def _handler_command_clock_sync(self, *args, **kwargs):
         """
@@ -1571,7 +1588,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         kwargs['timeout'] = 30
         log.info("SYNCING TIME WITH SENSOR")
         #self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME, time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))), **kwargs)
-        self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME, get_timestamp_delayed("%d %b %Y %H:%M:%S"), **kwargs)
+        self._do_cmd_resp(InstrumentCmds.SET, Parameter.TIME, get_timestamp_delayed("%Y-%m-%dT%H:%M:%S"), **kwargs)
 
         next_state = None
         result = None
@@ -1834,9 +1851,32 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Question is where to snatch the particle?  perhaps in got chunk?
 
 
+        #
+        # SampleDataParticle
+        #
+
+        # int
 
 
-
+        self._param_dict.add(SBE54tpsSampleDataParticleKey.SAMPLE_NUMBER,
+            r'NEVER MATCH', True,
+            self._int_to_string)
+        # str
+        self._param_dict.add(SBE54tpsSampleDataParticleKey.SAMPLE_TYPE,
+            r'NEVER MATCH', True,
+            self._string_to_string)
+        # timestamp
+        self._param_dict.add(SBE54tpsSampleDataParticleKey.SAMPLE_TIMESTAMP,
+            r'NEVER MATCH', True,
+            self._time_to_string)
+        # float
+        self._param_dict.add(SBE54tpsSampleDataParticleKey.PRESSURE,
+            r'NEVER MATCH', True,
+            self._float_to_string)
+        # float
+        self._param_dict.add(SBE54tpsSampleDataParticleKey.PRESSURE_TEMP,
+            r'NEVER MATCH', True,
+            self._float_to_string)
 
 
 
@@ -1860,28 +1900,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("%%% IN _got_chunk result = " + repr(result))
         result = self._extract_sample(SBE54tpsHardwareDataParticle, HARDWARE_DATA_REGEX_MATCHER, chunk)
         log.debug("%%% IN _got_chunk result = " + repr(result))
+
         result = self._extract_sample(SBE54tpsSampleDataParticle, SAMPLE_DATA_REGEX_MATCHER, chunk)
-        log.debug("%%% IN _got_chunk result = " + repr(result))
+        if result:
+            for (d) in result['parsed']['values']:
+                #if SBE54tpsSampleDataParticleKey.SAMPLE_TYPE == d['value_id']:
+                #    self._param_dict.set(d['value_id'], d['value'])
+                log.debug("%%%%%% self._param_dict.set(" + repr(d['value_id']) + ", "  + repr(d['value']) + ") " )
 
-        unknown = result['parsed']
+        # apparently this is a waste of time dead end. param
 
-
-        log.debug("%%% pressure ?= " + repr(unknown))
-        values = unknown['values']
-        log.debug("%%% pressure ?= " + repr(values))
-        food = {}
-        for (d) in values:
-            food[d['value_id']] = d['value']
-            log.debug("%%% %%% food = " + repr(d['value_id']) + " = "  + repr(d['value']) + " is " + str(type(d['value'])) )
-
-
-        '''
-        self._param_dict.add(Parameter.QUARTZ_PRESSURE_SENSOR_RANGE,
-            ds_line_03,
-            lambda match : float(match.group(2)),
-            self._float_to_string,
-            multi_match=True)
-        '''
 
 
 
@@ -1953,3 +1981,46 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
         log.debug("_update_params 12")
+
+    #
+    # Many of these will want to rise up to base class if not there already
+    #
+    @staticmethod
+    def _int_to_string(v):
+        """
+        Write an int value to string formatted for sbe37 set operations.
+        @param v An int val.
+        @retval an int string formatted for sbe37 set operations.
+        @throws InstrumentParameterException if value not an int.
+        """
+
+        if not isinstance(v,int):
+            raise InstrumentParameterException('Value %s is not an int.' % str(v))
+        else:
+            return '%i' % v
+
+    @staticmethod
+    def _float_to_string(v):
+        """
+        Write a float value to string formatted for sbe37 set operations.
+        @param v A float val.
+        @retval a float string formatted for sbe37 set operations.
+        @throws InstrumentParameterException if value is not a float.
+        """
+
+
+        if not isinstance(v, float):
+            raise InstrumentParameterException('Value %s is not a float.' % v)
+        else:
+            #return '%e' % v #This returns a exponential formatted float
+            # every time. not what is needed
+            return str(v) #return a simple float
+
+    @staticmethod
+    def _string_to_string(v):
+        return v
+
+    @staticmethod
+    def _time_to_string(v):
+        # return the passed in float of seconds since epoch to a string formatted time
+        return time.strftime("%Y-%m-%dT%H:%M:%S", time.mktime(v))

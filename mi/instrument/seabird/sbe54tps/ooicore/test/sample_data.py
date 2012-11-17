@@ -14,9 +14,7 @@ SAMPLE_GETSD =  "S>getsd" + NEWLINE + \
                 "<Bytes>341504</Bytes>" + NEWLINE + \
                 "<BytesFree>133876224</BytesFree>" + NEWLINE + \
                 "</MemorySummary>" + NEWLINE + \
-                "</StatusData>" + NEWLINE + \
-                "<Executed/>" + NEWLINE + \
-                "S>"
+                "</StatusData>"
 
 SAMPLE_GETCD =  "S>getcd" + NEWLINE +\
                 "getcd" + NEWLINE +\
@@ -52,8 +50,7 @@ SAMPLE_GETCD =  "S>getcd" + NEWLINE +\
                 "uploadType='0'" + NEWLINE +\
                 "samplePeriod='15'" + NEWLINE +\
                 "/>" + NEWLINE +\
-                "</ConfigurationData>" + NEWLINE +\
-                "<Executed/>"
+                "</ConfigurationData>"
 
 SAMPLE_GETEC =  "S>getec" + NEWLINE +\
                 "getec" + NEWLINE +\
@@ -68,9 +65,7 @@ SAMPLE_GETEC =  "S>getec" + NEWLINE +\
                 "<Event type='SignalErr' count='1'/>" + NEWLINE +\
                 "<Event type='Error10' count='1'/>" + NEWLINE +\
                 "<Event type='Error12' count='1'/>" + NEWLINE +\
-                "</EventList>" + NEWLINE +\
-                "<Executed/>" + NEWLINE +\
-                "S>"
+                "</EventList>"
 
 SAMPLE_GETHD =  "S>gethd" + NEWLINE +\
                 "gethd" + NEWLINE +\
@@ -84,12 +79,11 @@ SAMPLE_GETHD =  "S>gethd" + NEWLINE +\
                 "<PCBSerialNum>NOT SET</PCBSerialNum>" + NEWLINE +\
                 "<PCBType>1</PCBType>" + NEWLINE +\
                 "<MfgDate>Jun 27 2007</MfgDate>" + NEWLINE +\
-                "</HardwareData>" + NEWLINE +\
-                "<Executed/>" + NEWLINE +\
-                "S>"
+                "</HardwareData>"
 
 SAMPLE_SAMPLE = "<Sample Num='5947' Type='Pressure'>" + NEWLINE +\
                 "<Time>2012-11-07T12:21:25</Time>" + NEWLINE +\
                 "<PressurePSI>13.9669</PressurePSI>" + NEWLINE +\
                 "<PTemp>18.9047</PTemp>" + NEWLINE +\
                 "</Sample>"
+
