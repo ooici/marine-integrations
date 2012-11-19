@@ -39,6 +39,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 
 from mi.core.exceptions import InstrumentParameterException
@@ -48,6 +49,12 @@ from mi.core.exceptions import InstrumentCommandException
 from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolState
 from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolEvent
 from mi.instrument.nortek.aquadopp.ooicore.driver import Parameter
+from mi.instrument.nortek.aquadopp.ooicore.driver import PACKET_CONFIG
+from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticle
+from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticleKey
+from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticle
+from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticleKey
+from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticDataParticle
 
 from interface.objects import AgentCommand
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
@@ -62,10 +69,13 @@ InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.nortek.aquadopp.ooicore.driver',
     driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = 'OQYBVZ',
-    instrument_agent_name = 'nortek_aquadopp_ooicore',
-    instrument_agent_packet_config = {},
-    instrument_agent_stream_definition = {}
+    instrument_agent_resource_id = 'nortek_aquadopp_dw_ooicore',
+    instrument_agent_name = 'nortek_aquadopp_dw_ooicore_agent',
+    instrument_agent_packet_config = PACKET_CONFIG,
+    #instrument_agent_stream_definition = {}
+    driver_startup_config = {
+        Parameter.AVG_INTERVAL : 61
+    }
 )
 
 params_dict = {
@@ -206,6 +216,26 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
             # Test that the driver protocol is in state command.
             self.check_state(ProtocolState.COMMAND)
 
+ 
+    def test_startup_configuration(self):
+        '''
+        Test that the startup configuration is applied correctly
+        '''
+        self.put_instrument_in_command_mode()
+
+        value_before = self.driver_client.cmd_dvr('get_resource', [Parameter.AVG_INTERVAL])
+    
+        result = self.driver_client.cmd_dvr('apply_startup_params')
+
+        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.AVG_INTERVAL])
+
+        self.assertEquals(reply, {Parameter.AVG_INTERVAL: 61})
+
+        reply = self.driver_client.cmd_dvr('set_resource', {Parameter.AVG_INTERVAL: value_before})
+
+        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.AVG_INTERVAL])
+
+        self.assertEquals(reply, {Parameter.AVG_INTERVAL: value_before})
 
 
     def test_instrument_wakeup(self):
@@ -660,14 +690,87 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 @attr('QUAL', group='mi')
 class QualFromIDK(InstrumentDriverQualificationTestCase):
     
-    def setUp(self):
-        InstrumentDriverQualificationTestCase.setUp(self)
+    def get_parameter(self, name):
+        '''
+        get parameter, assumes we are in command mode.
+        '''
+        getParams = [ name ]
 
-    ###
-    #    Add instrument specific qualification tests
-    ###
+        result = self.instrument_agent_client.get_resource(getParams)
 
-    #@unittest.skip("skip for automatic tests")
+        return result[name]
+
+    def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout = 10):
+        """
+        Test observatory polling function.
+
+        Verifies the acquire_status command.
+        """
+        # Set up all data subscriptions.  Stream names are defined
+        # in the driver PACKET_CONFIG dictionary
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        self.assert_enter_command_mode()
+
+        ###
+        # Poll for a sample
+        ###
+
+        # make sure there aren't any junk samples in the parsed
+        # data queue.
+        log.debug("Acquire Sample")
+        self.data_subscribers.clear_sample_queue(sampleQueue)
+
+        cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
+
+        # Watch the parsed data queue and return once a sample
+        # has been read or the default timeout has been reached.
+        samples = self.data_subscribers.get_samples(sampleQueue, 4, timeout = timeout)
+        self.assertGreaterEqual(len(samples), 4)
+        log.error("SAMPLE: %s" % samples)
+
+        # Verify
+        for sample in samples:
+            sampleDataAssert(sample)
+
+        self.assert_reset()
+        self.doCleanups()
+
+    def assertSampleDataParticle(self, sample):
+        log.debug('assertSampleDataParticle: sample=%s' %sample)
+        self.assertTrue(sample[DataParticleKey.STREAM_NAME],
+            DataParticleValue.PARSED)
+        self.assertTrue(sample[DataParticleKey.PKT_FORMAT_ID],
+            DataParticleValue.JSON_DATA)
+        self.assertTrue(sample[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(sample[DataParticleKey.VALUES],
+            list))
+        self.assertTrue(isinstance(sample.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+        self.assertTrue(sample.get(DataParticleKey.PREFERRED_TIMESTAMP))
+        
+        values = sample['values']
+        value_ids = []
+        for value in values:
+            value_ids.append(value['value_id'])
+        if AquadoppDwVelocityDataParticleKey.TIMESTAMP in value_ids:
+            log.debug('assertSampleDataParticle: AquadoppDwVelocityDataParticle/AquadoppDwDiagnosticDataParticle detected')
+            self.assertEqual(sorted(value_ids), sorted(AquadoppDwVelocityDataParticleKey.list()))
+            for value in values:
+                if value['value_id'] == AquadoppDwVelocityDataParticleKey.TIMESTAMP:
+                    self.assertTrue(isinstance(value['value'], str))
+                else:
+                    self.assertTrue(isinstance(value['value'], int))
+        elif AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS in value_ids:
+            log.debug('assertSampleDataParticle: AquadoppDwDiagnosticHeaderDataParticle detected')
+            self.assertEqual(sorted(value_ids), sorted(AquadoppDwDiagnosticHeaderDataParticleKey.list()))
+            for value in values:
+                self.assertTrue(isinstance(value['value'], int))
+        else:
+            self.fail('Unknown data particle')
+
+    @unittest.skip("skip for automatic tests")
     def test_direct_access_telnet_mode_manually(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -685,18 +788,47 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         
         gevent.sleep(600)  # wait for manual telnet session to be run
 
-    def test_aquire_sample(self):
-        self.data_subscribers.start_data_subscribers()
-        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+    def test_direct_access_telnet_mode(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
 
+        self.tcp_client.send_data("K1W%!Q")
+        self.tcp_client.expect("DW-AQUADOPP")
+
+        self.assert_direct_access_stop_telnet()
+
+    def test_poll(self):
+        '''
+        poll for a single sample
+        '''
+
+        self.assert_sample_polled(self.assertSampleDataParticle,
+                                  DataParticleValue.PARSED,
+                                  timeout = 100)
+
+    def test_autosample(self):
+        '''
+        start and stop autosample and verify data particle
+        '''
+        self.assert_sample_autosample(self.assertSampleDataParticle,
+                                  DataParticleValue.PARSED,
+                                  timeout = 100)
+
+    def test_get_set_parameters(self):
+        '''
+        verify that parameters can be get set properly
+        '''
         self.assert_enter_command_mode()
-
-        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
-
-        cmd = AgentCommand(command=Capability.START_MEASUREMENT_IMMEDIATE)
-        self.instrument_agent_client.execute_resource(cmd) 
         
-        sample = self.data_subscribers.get_samples('parsed', 1, timeout = 100) 
-        log.debug("test_aquire_sample: sample=%s", sample)
-        #self.assertSampleDataParticle(samples.pop())
+        value_before_set = self.get_parameter(Parameter.BLANKING_DISTANCE)
+        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, 40)
+        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, value_before_set)
 
+        value_before_set = self.get_parameter(Parameter.AVG_INTERVAL)
+        self.assert_set_parameter(Parameter.AVG_INTERVAL, 4)
+        self.assert_set_parameter(Parameter.AVG_INTERVAL, value_before_set)
+
+        self.assert_reset()

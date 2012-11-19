@@ -69,16 +69,20 @@ sample_structures = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
                      [DIAGNOSTIC_DATA_HEADER_SYNC_BYTES, DIAGNOSTIC_DATA_HEADER_LEN]]
 
 VELOCITY_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % VELOCITY_DATA_SYNC_BYTES
-VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN)
+VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN, re.DOTALL)
 DIAGNOSTIC_DATA_HEADER_PATTERN = r'^%s(.{2})(.{2})(.{1})(.{1})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{8})' % DIAGNOSTIC_DATA_HEADER_SYNC_BYTES
-DIAGNOSTIC_DATA_HEADER_REGEX = re.compile(DIAGNOSTIC_DATA_HEADER_PATTERN)
+DIAGNOSTIC_DATA_HEADER_REGEX = re.compile(DIAGNOSTIC_DATA_HEADER_PATTERN, re.DOTALL)
 DIAGNOSTIC_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % DIAGNOSTIC_DATA_SYNC_BYTES
-DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN)
+DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN, re.DOTALL)
+
+# Packet config for aquadopp dw data granules.
+STREAM_NAME_PARSED = DataParticleValue.PARSED
+STREAM_NAME_RAW = DataParticleValue.RAW
 
 # Packet config
 PACKET_CONFIG = {
-    'parsed' : None,
-    'raw' : None
+    STREAM_NAME_PARSED : 'parsed_param_dict',
+    STREAM_NAME_RAW : 'raw_param_dict'
 }
 
 # Device prompts.
@@ -218,10 +222,11 @@ class Parameter(DriverParameter):
     HEAD_SYSTEM = 'HeadSystemData'
     HEAD_SPARE = 'HeadSpare'
     HEAD_NUMBER_BEAMS = "HeadNumberOfBeams"
-    """
+
     REAL_TIME_CLOCK = "RealTimeClock"
     BATTERY_VOLTAGE = "BatteryVoltage"
     IDENTIFICATION_STRING = "IdentificationString"
+    """
     
     # user configuration
     TRANSMIT_PULSE_LENGTH = "TransmitPulseLength"                # T1
@@ -416,7 +421,11 @@ class BinaryProtocolParameterDict(ProtocolParameterDict):
         @raises KeyError if the name is invalid.
         """
         log.debug("BinaryProtocolParameterDict.set_from_value(): name=%s, value=%s" %(name, value))
-        if self.f_format == self._word_to_string:
+        
+        if not name in self._param_dict:
+            raise InstrumentParameterException('Unable to set parameter %s to %s: parameter %s not an dictionary' %(name, value, name))
+            
+        if self._param_dict[name].f_format == BinaryProtocolParameterDict.word_to_string:
             if not isinstance(value, int):
                 raise InstrumentParameterException('Unable to set parameter %s to %s: value not an integer' %(name, value))
         else:
@@ -446,6 +455,12 @@ class BinaryProtocolParameterDict(ProtocolParameterDict):
         log.debug('get_keys: list=%s' %list)
         return list
 
+    @staticmethod
+    def word_to_string(value):
+        low_byte = value & 0xff
+        high_byte = (value & 0xff00) >> 8
+        return chr(low_byte) + chr(high_byte)
+        
     @staticmethod
     def convert_word_to_int(word):
         low_byte = ord(word[0])
@@ -1086,13 +1101,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         # For each key, value in the params_to_set list set the value in parameters copy.
         try:
             for (name, value) in params_to_set.iteritems():
-                log.debug('setting %s to %s' %(name, value))
+                log.debug('_handler_command_set: setting %s to %s' %(name, value))
                 parameters.set_from_value(name, value)
         except Exception as ex:
             raise InstrumentParameterException('Unable to set parameter %s to %s: %s' %(name, value, ex))
-            
+        
         output = self._create_set_output(parameters)
         
+        log.debug('_handler_command_set: writing instrument configuration to instrument')
         self._connection.send(InstrumentCmds.CONFIGURE_INSTRUMENT)
         self._connection.send(output)
 
@@ -1393,11 +1409,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
     
-    def _word_to_string(self, value):
-        low_byte = value & 0xff
-        high_byte = (value & 0xff00) >> 8
-        return chr(low_byte) + chr(high_byte)
-        
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
@@ -1439,32 +1450,32 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.HW_CONFIG,
                              r'^.{18}(.{2}).*',
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HW_FREQUENCY,
                              r'^.{20}(.{2}).*',
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PIC_VERSION,
                              r'^.{22}(.{2}).*',
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HW_REVISION,
                              r'^.{24}(.{2}).*',
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.REC_SIZE,
                              r'^.{26}(.{2}).*',
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.STATUS,
                              r'^.{28}(.{2}).*',
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HW_SPARE,
                              r'^.{30}(.{12}).*',
@@ -1481,17 +1492,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.HEAD_CONFIG,
                              r'^.{%s}(.{2}).*' % str(self.HEAD_OFFSET+4),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HEAD_FREQUENCY,
                              r'^.{%s}(.{2}).*' % str(self.HEAD_OFFSET+6),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HEAD_TYPE,
                              r'^.{%s}(.{2}).*' % str(self.HEAD_OFFSET+8),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.HEAD_SERIAL_NUMBER,
                              r'^.{%s}(.{12}).*' % str(self.HEAD_OFFSET+10),
@@ -1511,7 +1522,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.HEAD_NUMBER_BEAMS,
                              r'^.{%s}(.{2}).*' % str(self.HEAD_OFFSET+220),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         """
         
@@ -1519,54 +1530,55 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH,
                              r'^.{%s}(.{2}).*' % str(4),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.BLANKING_DISTANCE,
                              r'^.{%s}(.{2}).*' % str(6),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              startup_param=True,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.RECEIVE_LENGTH,
                              r'^.{%s}(.{2}).*' % str(8),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TIME_BETWEEN_PINGS,
                              r'^.{%s}(.{2}).*' % str(10),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TIME_BETWEEN_BURST_SEQUENCES,
                              r'^.{%s}(.{2}).*' % str(12),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMBER_PINGS,
                              r'^.{%s}(.{2}).*' % str(14),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.AVG_INTERVAL,
                              r'^.{%s}(.{2}).*' % str(16),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              startup_param=True,
+                             init_value=60,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.USER_NUMBER_BEAMS,
                              r'^.{%s}(.{2}).*' % str(18),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.TIMING_CONTROL_REGISTER,
                              r'^.{%s}(.{2}).*' % str(20),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.POWER_CONTROL_REGISTER,
                              r'^.{%s}(.{2}).*' % str(22),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              startup_param=True,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.A1_1_SPARE,
@@ -1587,30 +1599,33 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.COMPASS_UPDATE_RATE,
                              r'^.{%s}(.{2}).*' % str(30),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              startup_param=True,
+                             init_value=2,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.COORDINATE_SYSTEM,
                              r'^.{%s}(.{2}).*' % str(32),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              startup_param=True,
+                             init_value=1,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.NUMBER_BINS,
                              r'^.{%s}(.{2}).*' % str(34),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.BIN_LENGTH,
                              r'^.{%s}(.{2}).*' % str(36),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.MEASUREMENT_INTERVAL,
                              r'^.{%s}(.{2}).*' % str(38),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              startup_param=True,
+                             init_value=3600,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.DEPLOYMENT_NAME,
                              r'^.{%s}(.{6}).*' % str(40),
@@ -1620,7 +1635,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.WRAP_MODE,
                              r'^.{%s}(.{2}).*' % str(46),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.CLOCK_DEPLOY,
                              r'^.{%s}(.{6}).*' % str(48),
@@ -1632,48 +1647,50 @@ class Protocol(CommandResponseInstrumentProtocol):
                              lambda match : match.group(1),
                              lambda string : string,
                              startup_param=True,
+                             init_value=720,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.MODE,
                              r'^.{%s}(.{2}).*' % str(58),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ADJUSTMENT_SOUND_SPEED,
                              r'^.{%s}(.{2}).*' % str(60),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              startup_param=True,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
                              r'^.{%s}(.{2}).*' % str(62),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              startup_param=True,
+                             init_value=20,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC,
                              r'^.{%s}(.{2}).*' % str(64),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMBER_PINGS_DIAGNOSTIC,
                              r'^.{%s}(.{2}).*' % str(66),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.MODE_TEST,
                              r'^.{%s}(.{2}).*' % str(68),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ANALOG_INPUT_ADDR,
                              r'^.{%s}(.{2}).*' % str(70),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.SW_VERSION,
                              r'^.{%s}(.{2}).*' % str(72),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.USER_1_SPARE,
                              r'^.{%s}(.{2}).*' % str(74),
@@ -1693,32 +1710,32 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.WAVE_MEASUREMENT_MODE,
                              r'^.{%s}(.{2}).*' % str(436),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.DYN_PERCENTAGE_POSITION,
                              r'^.{%s}(.{2}).*' % str(438),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_TRANSMIT_PULSE,
                              r'^.{%s}(.{2}).*' % str(440),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_BLANKING_DISTANCE,
                              r'^.{%s}(.{2}).*' % str(442),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.WAVE_CELL_SIZE,
                              r'^.{%s}(.{2}).*' % str(444),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.NUMBER_DIAG_SAMPLES,
                              r'^.{%s}(.{2}).*' % str(446),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.A1_2_SPARE,
                              r'^.{%s}(.{2}).*' % str(448),
@@ -1743,12 +1760,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.ANALOG_OUTPUT_SCALE,
                              r'^.{%s}(.{2}).*' % str(456),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.CORRELATION_THRESHOLD,
                              r'^.{%s}(.{2}).*' % str(458),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.USER_3_SPARE,
                              r'^.{%s}(.{2}).*' % str(460),
@@ -1758,7 +1775,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
                              r'^.{%s}(.{2}).*' % str(462),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             self._word_to_string,
+                             BinaryProtocolParameterDict.word_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.USER_4_SPARE,
                              r'^.{%s}(.{30}).*' % str(464),
@@ -1926,6 +1943,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # 'user' configuration is 512 bytes, 256 words long, so size is 0x100
         output = '\xa5\x00\x00\x01'
         for name in self.UserParameters:
+            log.debug('_create_set_output: adding %s to list' %name)
             output += parameters.format_parameter(name)
         
         checksum = CHECK_SUM_SEED
@@ -1935,7 +1953,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             #log.debug('w_i=%d, c_c=%d' %(word_index, calculated_checksum))
         log.debug('_create_set_output: user checksum = %s' % checksum)
 
-        output += self._word_to_string(checksum)
+        output += BinaryProtocolParameterDict.word_to_string(checksum)
         self._dump_config(output)                      
         
         return output
