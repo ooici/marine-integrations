@@ -993,8 +993,119 @@ class SBE54tpsSampleDataParticle(DataParticle):
 
         return result
 
+class SBE54tpsSampleRefOscDataParticleKey(BaseEnum):
+    SET_TIMEOUT = "SetTimeout"
+    SET_TIMEOUT_MAX = "SetTimeoutMax"
+    SET_TIMEOUT_ICD = "SetTimeoutICD"
+    SAMPLE_NUMBER = "sample_number"
+    SAMPLE_TYPE = "sample_type"
+    SAMPLE_TIMESTAMP = "sample_timestamp"
+    PRESSURE = "pressure" # psi
+    PRESSURE_TEMP = "pressure_temp"
+
+class SBE54tpsSampleRefOscDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    def _build_parsed_values(self):
+        """
+        Take something in the StatusData format and split it into
+        values with appropriate tags
+
+        @throws SampleException If there is a problem with sample creation
+        """
+
+        # Initialize
+        single_var_matches  = {
+            SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT: None,
+            SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_MAX: None,
+            SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_ICD: None,
+            SBE54tpsSampleRefOscDataParticleKey.SAMPLE_NUMBER: None,
+            SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TYPE: None,
+            SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TIMESTAMP: None,
+            SBE54tpsSampleRefOscDataParticleKey.PRESSURE: None,
+            SBE54tpsSampleRefOscDataParticleKey.PRESSURE_TEMP: None
+        }
+
+        multi_var_matchers  = {
+            re.compile(r"<SetTimeout>([^<]+)</SetTimeout>"): [
+                SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT
+            ],
+            re.compile(r"<SetTimeoutMax>([^<]+)</SetTimeoutMax>"): [
+                SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_MAX
+            ],
+            re.compile(r"<SetTimeoutICD>([^<]+)</SetTimeoutICD>"): [
+                SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_ICD
+            ],
+            re.compile(r"<Sample Num='([^']+)' Type='([^']+)'>"): [
+                SBE54tpsSampleRefOscDataParticleKey.SAMPLE_NUMBER,
+                SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TYPE
+            ],
+            re.compile(r"<Time>([^<]+)</Time>"): [
+                SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TIMESTAMP
+            ],
+            re.compile(r"<PressurePSI>([0-9.+-]+)</PressurePSI>"): [
+                SBE54tpsSampleRefOscDataParticleKey.PRESSURE
+            ],
+            re.compile(r"<PTemp>([0-9.+-]+)</PTemp>"): [
+                SBE54tpsSampleRefOscDataParticleKey.PRESSURE_TEMP
+            ]
+        }
+
+        for line in self.raw_data.split(NEWLINE):
+            for (matcher, keys) in multi_var_matchers.iteritems():
+                match = matcher.match(line)
+                if match:
+                    index = 0
+                    for key in keys:
+                        index = index + 1
+                        val = match.group(index)
+
+                        # str
+                        if key in [
+                            SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TYPE
+                        ]:
+                            log.debug("SAMPLE_TYPE = " + val)
+                            single_var_matches[key] = val
+
+                        # int
+                        elif key in [
+                            SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT,
+                            SBE54tpsSampleRefOscDataParticleKey.SAMPLE_NUMBER,
+                            SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_MAX,
+                            SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_ICD
+                        ]:
+                            single_var_matches[key] = int(val)
+
+                        # float
+                        elif key in [
+                            SBE54tpsSampleRefOscDataParticleKey.PRESSURE,
+                            SBE54tpsSampleRefOscDataParticleKey.PRESSURE_TEMP
+                        ]:
+                            single_var_matches[key] = float(val)
+
+                        # date_time
+                        elif key in [
+                            SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TIMESTAMP
+                        ]:
+                            # <Time>2012-11-07T12:21:25</Time>
+                            # yyyy-mm-ddThh:mm:ss
+                            text_timestamp = val
+                            py_timestamp = time.strptime(text_timestamp, "%Y-%m-%dT%H:%M:%S")
+                            timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
+                            single_var_matches[key] = timestamp
+
+                        else:
+                            raise SampleException("Unknown variable type in SBE54tpsConfigurationDataParticle._build_parsed_values")
 
 
+        result = []
+        for (key, value) in single_var_matches.iteritems():
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: value})
+
+        return result
 
 ######################################### /PARTICLES #############################
 
