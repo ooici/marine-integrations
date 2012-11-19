@@ -512,7 +512,8 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         
         command_capabilities = ['EXPORTED_INSTRUMENT_CMD_READ_ID', 
                                 'EXPORTED_INSTRUMENT_CMD_GET_HW_CONFIGURATION', 
-                                'DRIVER_EVENT_START_DIRECT', 
+                                'DRIVER_EVENT_SET', 
+                                'DRIVER_EVENT_GET', 
                                 'EXPORTED_INSTRUMENT_CMD_READ_CLOCK', 
                                 'EXPORTED_INSTRUMENT_CMD_GET_HEAD_CONFIGURATION', 
                                 'EXPORTED_INSTRUMENT_CMD_POWER_DOWN', 
@@ -571,9 +572,9 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # Get the capabilities of the driver.
         driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
-        self.assertTrue(command_capabilities == driver_capabilities[0])
-        log.debug('dc=%s' %sorted(driver_capabilities[1]))
-        log.debug('pl=%s' %sorted(params_list))
+        self.assertTrue(sorted(command_capabilities) == sorted(driver_capabilities[0]))
+        #log.debug('dc=%s' %sorted(driver_capabilities[1]))
+        #log.debug('pl=%s' %sorted(params_list))
         self.assertTrue(sorted(params_list) == sorted(driver_capabilities[1]))
 
         # Put the driver in autosample
