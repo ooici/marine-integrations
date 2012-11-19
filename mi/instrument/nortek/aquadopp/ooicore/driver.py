@@ -181,11 +181,11 @@ class Capability(BaseEnum):
     """
     Capabilities that are exposed to the user (subset of above)
     """
+    GET = ProtocolEvent.GET
+    SET = ProtocolEvent.SET
+    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    START_DIRECT = ProtocolEvent.START_DIRECT
-    STOP_DIRECT = ProtocolEvent.STOP_DIRECT
-    EXECUTE_DIRECT = ProtocolEvent.EXECUTE_DIRECT
     READ_CLOCK = ProtocolEvent.READ_CLOCK
     READ_MODE = ProtocolEvent.READ_MODE
     POWER_DOWN = ProtocolEvent.POWER_DOWN

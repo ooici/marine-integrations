@@ -36,6 +36,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import AgentCapabilityType
 
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -46,6 +47,7 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
+from mi.instrument.nortek.aquadopp.ooicore.driver import Capability
 from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolState
 from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolEvent
 from mi.instrument.nortek.aquadopp.ooicore.driver import Parameter
@@ -57,10 +59,12 @@ from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataP
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticDataParticle
 
 from interface.objects import AgentCommand
+from interface.objects import CapabilityType
+
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from mi.instrument.nortek.aquadopp.ooicore.driver import Capability
+from pyon.agent.agent import ResourceAgentEvent
 
 ###
 #   Driver parameters for the tests
@@ -516,7 +520,8 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
                                 'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME', 
                                 'EXPORTED_INSTRUMENT_CMD_READ_BATTERY_VOLTAGE', 
                                 'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE', 
-                                'DRIVER_EVENT_START_AUTOSAMPLE']
+                                'DRIVER_EVENT_START_AUTOSAMPLE',
+                                'DRIVER_EVENT_ACQUIRE_SAMPLE']
         
         autosample_capabilities = ['DRIVER_EVENT_STOP_AUTOSAMPLE']
         
@@ -690,6 +695,38 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 @attr('QUAL', group='mi')
 class QualFromIDK(InstrumentDriverQualificationTestCase):
     
+    def assert_resource_capabilities(self, capabilities):
+
+        def sort_capabilities(caps_list):
+            '''
+            sort a return value into capability buckets.
+            @return res_cmds, res_pars
+            '''
+            res_cmds = []
+            res_pars = []
+
+            if(not capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)):
+                capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+            if(not capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)):
+                capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+            res_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_CMD]
+            res_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_PAR]
+
+            return res_cmds, res_pars
+
+        retval = self.instrument_agent_client.get_capabilities()
+        res_cmds, res_pars = sort_capabilities(retval)
+
+        log.debug("Resource Commands: %s " % str(res_cmds))
+        log.debug("Resource Parameters: %s " % str(res_pars))
+        
+        log.debug("Expected Resource Commands: %s " % str(capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)))
+        log.debug("Expected Resource Parameters: %s " % str(capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)))
+
+        self.assertEqual(sorted(capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)), sorted(res_cmds))
+        self.assertEqual(sorted(capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)), sorted(res_pars))
+
     def get_parameter(self, name):
         '''
         get parameter, assumes we are in command mode.
@@ -832,3 +869,97 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         self.assert_set_parameter(Parameter.AVG_INTERVAL, value_before_set)
 
         self.assert_reset()
+        
+    def test_get_capabilities(self):
+        """
+        @brief Verify that the correct capabilities are returned from get_capabilities
+        at various driver/agent states.
+        """
+        self.assert_enter_command_mode()
+
+        ##################
+        #  Command Mode
+        ##################
+
+        capabilities = {
+            AgentCapabilityType.RESOURCE_COMMAND: [
+                DriverEvent.SET, 
+                DriverEvent.ACQUIRE_SAMPLE, 
+                DriverEvent.GET, 
+                DriverEvent.START_AUTOSAMPLE,
+                ProtocolEvent.GET_HEAD_CONFIGURATION,
+                ProtocolEvent.GET_HW_CONFIGURATION,
+                ProtocolEvent.POWER_DOWN,
+                ProtocolEvent.READ_BATTERY_VOLTAGE,
+                ProtocolEvent.READ_CLOCK, 
+                ProtocolEvent.READ_ID,
+                ProtocolEvent.READ_MODE,
+                ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME,
+                ProtocolEvent.START_MEASUREMENT_IMMEDIATE
+            ],
+            AgentCapabilityType.RESOURCE_PARAMETER: [
+                Parameter.TRANSMIT_PULSE_LENGTH,
+                Parameter.BLANKING_DISTANCE,
+                Parameter.RECEIVE_LENGTH,
+                Parameter.TIME_BETWEEN_PINGS,
+                Parameter.TIME_BETWEEN_BURST_SEQUENCES, 
+                Parameter.NUMBER_PINGS,
+                Parameter.AVG_INTERVAL,
+                Parameter.USER_NUMBER_BEAMS, 
+                Parameter.TIMING_CONTROL_REGISTER,
+                Parameter.POWER_CONTROL_REGISTER,
+                Parameter.COMPASS_UPDATE_RATE,  
+                Parameter.COORDINATE_SYSTEM,
+                Parameter.NUMBER_BINS,
+                Parameter.BIN_LENGTH,
+                Parameter.MEASUREMENT_INTERVAL,
+                Parameter.DEPLOYMENT_NAME,
+                Parameter.WRAP_MODE,
+                Parameter.CLOCK_DEPLOY,
+                Parameter.DIAGNOSTIC_INTERVAL,
+                Parameter.MODE,
+                Parameter.ADJUSTMENT_SOUND_SPEED,
+                Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
+                Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC,
+                Parameter.NUMBER_PINGS_DIAGNOSTIC,
+                Parameter.MODE_TEST,
+                Parameter.ANALOG_INPUT_ADDR,
+                Parameter.SW_VERSION,
+                Parameter.VELOCITY_ADJ_TABLE,
+                Parameter.COMMENTS,
+                Parameter.WAVE_MEASUREMENT_MODE,
+                Parameter.DYN_PERCENTAGE_POSITION,
+                Parameter.WAVE_TRANSMIT_PULSE,
+                Parameter.WAVE_BLANKING_DISTANCE,
+                Parameter.WAVE_CELL_SIZE,
+                Parameter.NUMBER_DIAG_SAMPLES,
+                Parameter.ANALOG_OUTPUT_SCALE,
+                Parameter.CORRELATION_THRESHOLD,
+                Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
+                Parameter.QUAL_CONSTANTS
+            ],
+        }
+
+        self.assert_resource_capabilities(capabilities)
+
+        ##################
+        #  Streaming Mode
+        ##################
+
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [DriverEvent.STOP_AUTOSAMPLE]
+
+        self.assert_start_autosample()
+        self.assert_resource_capabilities(capabilities)
+        self.assert_stop_autosample()
+
+        #######################
+        #  Uninitialized Mode
+        #######################
+
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
+        self.assert_resource_capabilities(capabilities)
+
+
