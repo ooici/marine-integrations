@@ -139,6 +139,7 @@ class ProtocolState(BaseEnum):
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
     
 class ExportedInstrumentCommand(BaseEnum):
+    SET_CONFIGURATION = "EXPORTED_INSTRUMENT_CMD_SET_CONFIGURATION"
     READ_CLOCK = "EXPORTED_INSTRUMENT_CMD_READ_CLOCK"
     READ_MODE = "EXPORTED_INSTRUMENT_CMD_READ_MODE"
     POWER_DOWN = "EXPORTED_INSTRUMENT_CMD_POWER_DOWN"
@@ -167,6 +168,7 @@ class ProtocolEvent(BaseEnum):
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     
     # instrument specific events
+    SET_CONFIGURATION = ExportedInstrumentCommand.SET_CONFIGURATION
     READ_CLOCK = ExportedInstrumentCommand.READ_CLOCK
     READ_MODE = ExportedInstrumentCommand.READ_MODE
     POWER_DOWN = ExportedInstrumentCommand.POWER_DOWN
@@ -186,6 +188,7 @@ class Capability(BaseEnum):
     ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
+    SET_CONFIGURATION = ProtocolEvent.SET_CONFIGURATION
     READ_CLOCK = ProtocolEvent.READ_CLOCK
     READ_MODE = ProtocolEvent.READ_MODE
     POWER_DOWN = ProtocolEvent.POWER_DOWN
@@ -886,6 +889,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET_CONFIGURATION, self._handler_command_set_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.READ_CLOCK, self._handler_command_read_clock)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.READ_MODE, self._handler_command_read_mode)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.POWER_DOWN, self._handler_command_power_down)
@@ -903,6 +907,9 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
+
+        # Add build handlers for device commands.
+        self._add_build_handler(InstrumentCmds.CONFIGURE_INSTRUMENT, self._build_set_configutation_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.READ_REAL_TIME_CLOCK, self._parse_read_clock_response)
@@ -1002,10 +1009,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._linebuf = ''
         self._promptbuf = ''
 
+        # Get the build handler.
+        build_handler = self._build_handlers.get(cmd, None)
+        if build_handler:
+            cmd_line = build_handler(cmd, *args, **kwargs)
+        else:
+            cmd_line = cmd
+
         # Send command.
         log.debug('_do_cmd_resp: %s, timeout=%s, expected_prompt=%s (%s),' 
-                  % (repr(cmd), timeout, expected_prompt, expected_prompt.encode("hex")))
-        self._connection.send(cmd)
+                  % (repr(cmd_line), timeout, expected_prompt, expected_prompt.encode("hex")))
+        self._connection.send(cmd_line)
 
         # Wait for the prompt, prepare result and return, timeout exception
         (prompt, result) = self._get_response(timeout,
@@ -1178,6 +1192,19 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         next_agent_state = ResourceAgentState.DIRECT_ACCESS
         next_state = ProtocolState.DIRECT_ACCESS
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_set_configuration(self, *args, **kwargs):
+        """
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        # Issue set user configuration command.
+        result = self._do_cmd_resp(InstrumentCmds.CONFIGURE_INSTRUMENT, 
+                                   expected_prompt = InstrumentPrompts.Z_ACK, *args, **kwargs)
 
         return (next_state, (next_agent_state, result))
 
@@ -1810,13 +1837,14 @@ class Protocol(CommandResponseInstrumentProtocol):
                 if byte_index != 0:
                     dump += '\n'   # no linefeed on first line
                 dump += '{:03x}  '.format(byte_index)
+            #dump += '0x{:02x}, '.format(ord(input[byte_index]))
             dump += '{:02x} '.format(ord(input[byte_index]))
         #log.debug("dump = %s", dump)
         return dump
     
     def _check_configuration(self, input, sync, length):        
         log.debug('_check_configuration: config=')
-        print self._dump_config(input[0:length-2])
+        print self._dump_config(input)
         if len(input) != length+2:
             log.debug('_check_configuration: wrong length, expected length %d != %d' %(length+2, len(input)))
             return False
@@ -1972,6 +2000,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         
         return output
     
+    def _build_set_configutation_command(self, cmd, *args, **kwargs):
+        user_configuration = kwargs.get('user_configuration', None)
+        if not user_configuration:
+            raise InstrumentParameterException('set_configuration command missing user_configuration parameter.')
+        if not isinstance(user_configuration, str):
+            raise InstrumentParameterException('set_configuration command requires a string user_configuration parameter.')
+        self._dump_config(user_configuration)        
+            
+        cmd_line = cmd + user_configuration
+        return cmd_line
+
+
     def _parse_read_clock_response(self, response, prompt):
         """ Parse the response from the instrument for a read clock command.
         
