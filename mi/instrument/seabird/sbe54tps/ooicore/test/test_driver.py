@@ -60,6 +60,8 @@ from mi.instrument.seabird.sbe54tps.ooicore.driver import InstrumentCmds
 from mi.instrument.seabird.sbe54tps.ooicore.driver import NEWLINE
 # SAMPLE DATA FOR TESTING
 from mi.instrument.seabird.sbe54tps.ooicore.test.sample_data import *
+from mi.instrument.seabird.sbe54tps.ooicore.test.params import PARAMS
+
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 
@@ -1120,9 +1122,285 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
+    def check_state(self, desired_state):
+        state = self.driver_client.cmd_dvr('get_resource_state')
+
+        # 'DRIVER_STATE_AUTOSAMPLE' != 'DRIVER_STATE_COMMAND'
+        if ProtocolState.AUTOSAMPLE == state:
+            # OH SNAP! WE'RE IN AUTOSAMPLE AGAIN!
+            # QUICK, FIX IT BEFORE ANYONE NOTICES!
+
+            reply = self.driver_client.cmd_dvr('execute_resource', Capability.STOP_AUTOSAMPLE)
+            # NOW RE_GRAB THE STATE...
+            state = self.driver_client.cmd_dvr('get_resource_state')
+            #  ...AND MAKE LIKE THIS NEVER HAPPENED!
+        self.assertEqual(state, desired_state)
+
+    def put_instrument_in_command_mode(self):
+        log.info("test_connect test started")
+
+        # Test the driver is in state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        self.check_state(ProtocolState.UNKNOWN)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('discover_state')
+
+        # Test the driver is in command mode.
+        self.check_state(ProtocolState.COMMAND)
+
+    def assert_param_dict(self, pd, all_params=False):
+        """
+        Verify all device parameters exist and are correct type.
+        """
+
+        # Make it loop through once to warn with debugging of issues, 2nd time can send the exception
+        # PARAMS is the master type list
+
+        if all_params:
+            log.debug("DICT 1 *********" + str(pd.keys()))
+            log.debug("DICT 2 *********" + str(PARAMS.keys()))
+            self.assertEqual(set(pd.keys()), set(PARAMS.keys()))
+
+            for (key, type_val) in PARAMS.iteritems():
+                self.assertTrue(isinstance(pd[key], type_val))
+        else:
+            for (key, val) in pd.iteritems():
+                self.assertTrue(PARAMS.has_key(key))
+
+                if val is not None: # If its not defined, lets just skip it, only catch wrong type assignments.
+                    log.debug("Asserting that " + key +  " is of type " + str(PARAMS[key]))
+                    self.assertTrue(isinstance(val, PARAMS[key]))
+                else:
+                    log.debug("*** Skipping " + repr(key) + " Because value is None ***")
+
     ###
     #    Add instrument specific integration tests
     ###
+
+    # WORKS
+    def test_init_logging(self):
+        """
+        @brief Test initialize logging command.
+        """
+        self.put_instrument_in_command_mode()
+
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.INIT_LOGGING)
+
+        self.assertTrue(reply)
+
+
+    def test_get_set(self):
+        """
+        Test device parameter access.
+        """
+
+        self.put_instrument_in_command_mode()
+
+        # Test 1 Conductivity = Y, small subset of possible parameters.
+
+        log.debug("get/set Test 1 - Conductivity = Y, small subset of possible parameters.")
+        log.debug("1%%%%%%%%%%%%%%%%%%%%%%")
+        params = {
+            Parameter.SAMPLE_PERIOD : 55,
+        }
+        log.debug("2%%%%%%%%%%%%%%%%%%%%%%")
+        reply = self.driver_client.cmd_dvr('set_resource', params)
+        log.debug("3%%%%%%%%%%%%%%%%%%%%%%")
+        self.assertEqual(reply, None)
+        log.debug("4%%%%%%%%%%%%%%%%%%%%%%")
+
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        log.debug("4%%%%%%%%%%%%%%%%%%%%%%")
+        self.assert_param_dict(reply)
+
+        return
+
+
+        log.debug("get/set Test 2 - get master set of possible parameters using array containing Parameter.ALL")
+
+        params3 = [
+            Parameter.ALL,
+        ]
+
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        self.assert_param_dict(reply)
+
+
+
+
+        return
+
+
+
+        log.debug("get/set Test 2 - Conductivity = N, small subset of possible parameters.")
+        params = {
+            Parameter.CONDUCTIVITY : False,
+            }
+        reply = self.driver_client.cmd_dvr('set_resource', params)
+        self.assertEqual(reply, None)
+
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        self.assert_param_dict(reply)
+
+
+        log.debug("get/set Test 3 - internal temperature sensor, small subset of possible parameters.")
+        params = {
+            Parameter.DS_DEVICE_DATE_TIME : time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))),
+            Parameter.EXTERNAL_TEMPERATURE_SENSOR : False,
+            }
+        reply = self.driver_client.cmd_dvr('set_resource', params)
+        self.assertEqual(reply, None)
+
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        self.assert_param_dict(reply)
+
+
+        log.debug("get/set Test 4 - external temperature sensor, small subset of possible parameters.")
+        params = {
+            Parameter.EXTERNAL_TEMPERATURE_SENSOR : True,
+            }
+        reply = self.driver_client.cmd_dvr('set_resource', params)
+        self.assertEqual(reply, None)
+
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        self.assert_param_dict(reply)
+
+        log.debug("get/set Test 5 - get master set of possible parameters.")
+        params = [
+            # DS
+            Parameter.DEVICE_VERSION,
+            Parameter.SERIAL_NUMBER,
+            Parameter.DS_DEVICE_DATE_TIME,
+            Parameter.USER_INFO,
+            Parameter.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER,
+            Parameter.QUARTZ_PRESSURE_SENSOR_RANGE,
+            Parameter.EXTERNAL_TEMPERATURE_SENSOR,
+            Parameter.CONDUCTIVITY,
+            Parameter.IOP_MA,
+            Parameter.VMAIN_V,
+            Parameter.VLITH_V,
+            Parameter.LAST_SAMPLE_P,
+            Parameter.LAST_SAMPLE_T,
+            Parameter.LAST_SAMPLE_S,
+
+            # DS/SETSAMPLING
+            Parameter.TIDE_INTERVAL,
+            Parameter.TIDE_MEASUREMENT_DURATION,
+            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS,
+            Parameter.WAVE_SAMPLES_PER_BURST,
+            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND,
+            Parameter.USE_START_TIME,
+            #Parameter.START_TIME,
+            Parameter.USE_STOP_TIME,
+            #Parameter.STOP_TIME,
+            Parameter.TXWAVESTATS,
+            Parameter.TIDE_SAMPLES_PER_DAY,
+            Parameter.WAVE_BURSTS_PER_DAY,
+            Parameter.MEMORY_ENDURANCE,
+            Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE,
+            Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS,
+            Parameter.TOTAL_RECORDED_WAVE_BURSTS,
+            Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START,
+            Parameter.WAVE_BURSTS_SINCE_LAST_START,
+            Parameter.TXREALTIME,
+            Parameter.TXWAVEBURST,
+            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS,
+            Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC,
+            Parameter.USE_MEASURED_TEMP_FOR_DENSITY_CALC,
+            Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR,
+            Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR,
+            Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM,
+            Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND,
+            Parameter.MIN_ALLOWABLE_ATTENUATION,
+            Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM,
+            Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM,
+            Parameter.HANNING_WINDOW_CUTOFF,
+            Parameter.SHOW_PROGRESS_MESSAGES,
+            Parameter.STATUS,
+            Parameter.LOGGING,
+            ]
+
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        self.assert_param_dict(reply)
+
+
+        log.debug("get/set Test 7 - Negative testing, broken values. Should get exception")
+        params = {
+            Parameter.EXTERNAL_TEMPERATURE_SENSOR : 5,
+
+            }
+        exception = False
+        try:
+            reply = self.driver_client.cmd_dvr('set_resource', params)
+        except InstrumentParameterException:
+            exception = True
+        self.assertTrue(exception)
+
+
+        log.debug("get/set Test 8 - Negative testing, broken labels. Should get exception")
+        params = {
+            "ROGER" : 5,
+            "PETER RABBIT" : True,
+            "WEB" : float(2.0),
+            }
+        exception = False
+        try:
+            reply = self.driver_client.cmd_dvr('set_resource', params)
+        except InstrumentParameterException:
+            exception = True
+        self.assertTrue(exception)
+
+
+        log.debug("get/set Test 9 - Negative testing, empty params dict")
+        params = {
+        }
+
+        reply = self.driver_client.cmd_dvr('set_resource', params)
+        self.assertEqual(reply, None)
+
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        self.assert_param_dict(reply)
+
+
+        log.debug("get/set Test 10 - Negative testing, None instead of dict")
+        exception = False
+        try:
+            reply = self.driver_client.cmd_dvr('set_resource', None)
+        except InstrumentParameterException:
+            exception = True
+        self.assertTrue(exception)
+
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        self.assert_param_dict(reply)
+
+
+
+        log.debug("get/set Test N - Conductivity = Y, full set of set variables to known sane values.")
+        params = {
+            Parameter.DS_DEVICE_DATE_TIME : time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))),
+            Parameter.USER_INFO : "whoi",
+            Parameter.TXREALTIME : True,
+            Parameter.TXWAVEBURST : True,
+            Parameter.CONDUCTIVITY : True,
+            Parameter.EXTERNAL_TEMPERATURE_SENSOR : True,
+            }
+        reply = self.driver_client.cmd_dvr('set_resource', params)
+        self.assertEqual(reply, None)
+
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        self.assert_param_dict(reply)
 
 
 ###############################################################################
@@ -1511,6 +1789,29 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 else:
                     # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
                     self.assertTrue(False)
+
+    def test_direct_access_telnet_mode_roger(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+        self.assert_enter_command_mode()
+        params = [Parameter.EXTERNAL_TEMPERATURE_SENSOR]
+        check_new_params = self.instrument_agent_client.get_resource(params)
+        self.assertTrue(check_new_params[Parameter.EXTERNAL_TEMPERATURE_SENSOR])
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.send_data(Parameter.EXTERNAL_TEMPERATURE_SENSOR + "=N\r\n")
+        self.tcp_client.expect("S>")
+
+        self.assert_direct_access_stop_telnet()
+
+        # verify the setting got restored.
+        self.assert_enter_command_mode()
+        params = [Parameter.EXTERNAL_TEMPERATURE_SENSOR]
+        check_new_params = self.instrument_agent_client.get_resource(params)
+        self.assertTrue(check_new_params[Parameter.EXTERNAL_TEMPERATURE_SENSOR])
 
     def test_direct_access_telnet_mode(self):
         """
