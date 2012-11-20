@@ -1018,7 +1018,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Send command.
         log.debug('_do_cmd_resp: %s, timeout=%s, expected_prompt=%s (%s),' 
-                  % (repr(cmd_line), timeout, expected_prompt, expected_prompt.encode("hex")))
+                  % (repr(cmd_line.encode("hex")), timeout, expected_prompt, expected_prompt.encode("hex")))
         self._connection.send(cmd_line)
 
         # Wait for the prompt, prepare result and return, timeout exception
