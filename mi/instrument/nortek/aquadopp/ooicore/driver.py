@@ -425,7 +425,8 @@ class BinaryProtocolParameterDict(ProtocolParameterDict):
         if not name in self._param_dict:
             raise InstrumentParameterException('Unable to set parameter %s to %s: parameter %s not an dictionary' %(name, value, name))
             
-        if self._param_dict[name].f_format == BinaryProtocolParameterDict.word_to_string:
+        if ((self._param_dict[name].f_format == BinaryProtocolParameterDict.word_to_string) or
+            (self._param_dict[name].f_format == BinaryProtocolParameterDict.double_word_to_string)):
             if not isinstance(value, int):
                 raise InstrumentParameterException('Unable to set parameter %s to %s: value not an integer' %(name, value))
         else:
@@ -467,6 +468,19 @@ class BinaryProtocolParameterDict(ProtocolParameterDict):
         high_byte = 0x100 * ord(word[1])
         #log.debug('w=%s, l=%d, h=%d, v=%d' %(word.encode('hex'), low_byte, high_byte, low_byte + high_byte))
         return low_byte + high_byte
+    
+    @staticmethod
+    def double_word_to_string(value):
+        result = BinaryProtocolParameterDict.word_to_string(value & 0xffff)
+        result += BinaryProtocolParameterDict.word_to_string((value & 0xffff0000) >> 16)
+        return result
+        
+    @staticmethod
+    def convert_double_word_to_int(dword):
+        low_word = BinaryProtocolParameterDict.convert_word_to_int(dword[0:2])
+        high_word = BinaryProtocolParameterDict.convert_word_to_int(dword[2:4])
+        #log.debug('dw=%s, lw=%d, hw=%d, v=%d' %(dword.encode('hex'), low_word, high_word, low_word + (0x10000 * high_word)))
+        return low_word + (0x10000 * high_word)
     
     @staticmethod
     def calculate_checksum(input, length):
@@ -1644,10 +1658,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.DIAGNOSTIC_INTERVAL,
                              r'^.{%s}(.{4}).*' % str(54),
-                             lambda match : match.group(1),
-                             lambda string : string,
+                             lambda match : BinaryProtocolParameterDict.convert_double_word_to_int(match.group(1)),
+                             BinaryProtocolParameterDict.double_word_to_string,
                              startup_param=True,
-                             init_value=720,
+                             init_value=43200,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.MODE,
                              r'^.{%s}(.{2}).*' % str(58),

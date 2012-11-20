@@ -101,7 +101,7 @@ params_dict = {
     Parameter.DEPLOYMENT_NAME : str,
     Parameter.WRAP_MODE : int,
     Parameter.CLOCK_DEPLOY : str,
-    Parameter.DIAGNOSTIC_INTERVAL : str,
+    Parameter.DIAGNOSTIC_INTERVAL : int,
     Parameter.MODE : int,
     Parameter.ADJUSTMENT_SOUND_SPEED : int,
     Parameter.NUMBER_SAMPLES_DIAGNOSTIC : int,
@@ -177,6 +177,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
             #print str(pd2)
             for (key, type_val) in pd2.iteritems():
                 #print key
+                #print type_val
                 self.assertTrue(isinstance(pd1[key], type_val))
         else:
             for (key, val) in pd1.iteritems():
@@ -225,21 +226,21 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         '''
         Test that the startup configuration is applied correctly
         '''
-        self.put_instrument_in_command_mode()
+        self.put_driver_in_command_mode()
 
         value_before = self.driver_client.cmd_dvr('get_resource', [Parameter.AVG_INTERVAL])
     
-        result = self.driver_client.cmd_dvr('apply_startup_params')
+        self.driver_client.cmd_dvr('apply_startup_params')
 
         reply = self.driver_client.cmd_dvr('get_resource', [Parameter.AVG_INTERVAL])
 
         self.assertEquals(reply, {Parameter.AVG_INTERVAL: 61})
 
-        reply = self.driver_client.cmd_dvr('set_resource', {Parameter.AVG_INTERVAL: value_before})
+        reply = self.driver_client.cmd_dvr('set_resource', value_before)
 
         reply = self.driver_client.cmd_dvr('get_resource', [Parameter.AVG_INTERVAL])
 
-        self.assertEquals(reply, {Parameter.AVG_INTERVAL: value_before})
+        self.assertEquals(reply, value_before)
 
 
     def test_instrument_wakeup(self):
@@ -421,14 +422,16 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # set wrap_mode to 1 to leave instrument with wrap mode enabled
         new_params = {
-            Parameter.WRAP_MODE : 1
+            Parameter.WRAP_MODE : 1,
+            Parameter.AVG_INTERVAL : 60,
+            Parameter.DIAGNOSTIC_INTERVAL : 43200
         }
         
         # Set parameter and verify.
         reply = self.driver_client.cmd_dvr('set_resource', new_params)
         
-        reply = self.driver_client.cmd_dvr('get_resource', params)
-        self.assertEqual(new_params[Parameter.WRAP_MODE], reply[Parameter.WRAP_MODE])
+        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.WRAP_MODE, Parameter.AVG_INTERVAL, Parameter.DIAGNOSTIC_INTERVAL])
+        self.assertEqual(new_params, reply)
         
     def test_instrument_poll(self):
         """
