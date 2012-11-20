@@ -17,18 +17,21 @@ class TcpClient():
     '''
     buf = ""
 
-    def __init__(self, host, port):
+    def __init__(self, host = None, port = None):
         '''
         Constructor - open/connect to the socket
         @param host: host address
         @param port: host port
         '''
         self.buf = ""
-        self.host = host
-        self.port = port
-        # log.debug("OPEN SOCKET HOST = " + str(host) + " PORT = " + str(port))
+
+        if(host and port):
+            self.connect(host, port)
+
+    def connect(self, host, port):
+        log.debug("OPEN SOCKET HOST = " + str(host) + " PORT = " + str(port))
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.connect((self.host, self.port))
+        self.s.connect((host, port))
         self.s.settimeout(0.0)
 
     def telnet_handshake(self):
@@ -61,9 +64,30 @@ class TcpClient():
         return self.buf
 
     def remove_from_buffer(self, remove):
-        log.debug("BUF WAS " + str(repr(self.buf)))
-        self.buf = self.buf.replace(remove, "")
-        log.debug("BUF IS '" + str(repr(self.buf)) + "'")
+        '''
+        Remove the first instance of the string specified in remove from the buffer.  Also removes all bytes before
+        the target.
+        @param remove: target string to remove from the buffer
+        @return true if target was found and removed.
+        '''
+        if(self.buf == None): return False
+
+        if(remove == None or len(remove) == 0):
+            log.warn("remove can not be empty.  ignored.")
+            return False
+
+        index = self.buf.find(remove)
+
+        # -1 means not found.
+        if(index < 0):
+            return False
+
+        # Remove all bytes to the left of the target (including the target)
+        log.debug("self.buf pre-replace: %s" % self.buf)
+        self.buf = self.buf[len(remove) + index:]
+        log.debug("self.buf post-replace: %s" % self.buf)
+
+        return True
 
     def expect(self, target, max_retries = 10, sleep_time = 1):
         '''

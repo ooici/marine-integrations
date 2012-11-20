@@ -13,7 +13,7 @@ __license__ = 'Apache 2.0'
 from mi.core.log import get_logger ; log = get_logger()
 
 import datetime
-import gevent
+import time
 
 def get_timestamp_delayed(format):
     '''
@@ -36,7 +36,7 @@ def get_timestamp_delayed(format):
 
     # If we are too close to a second transition then sleep for a bit.
     if(now.microsecond < 100000):
-        gevent.sleep(0.2)
+        time.sleep(0.2)
         now = datetime.datetime.utcnow()
 
     current = datetime.datetime.utcnow()

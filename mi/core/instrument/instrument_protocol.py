@@ -13,8 +13,7 @@ nitty-gritty interaction with individual instruments in the system.
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
-from gevent import monkey; monkey.patch_all()
-import gevent
+import time
 
 import logging
 import time
@@ -610,7 +609,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             # Send a line return and wait a sec.
             log.debug('Sending wakeup.')
             self._send_wakeup()
-            gevent.sleep(delay)
+            time.sleep(delay)
 
             for item in self._prompts.list():
                 #log.debug("GOT " + repr(self._promptbuf))
