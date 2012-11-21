@@ -18,6 +18,7 @@ import copy
 import base64
 
 from mi.core.common import BaseEnum
+from mi.core.time import get_timestamp_delayed
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -166,6 +167,7 @@ class ProtocolEvent(BaseEnum):
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     
     # instrument specific events
     SET_CONFIGURATION = ExportedInstrumentCommand.SET_CONFIGURATION
@@ -188,6 +190,7 @@ class Capability(BaseEnum):
     ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
+    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
     SET_CONFIGURATION = ProtocolEvent.SET_CONFIGURATION
     READ_CLOCK = ProtocolEvent.READ_CLOCK
     READ_MODE = ProtocolEvent.READ_MODE
@@ -899,6 +902,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_HEAD_CONFIGURATION, self._handler_command_get_head_config)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME, self._handler_command_start_measurement_specific_time)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_IMMEDIATE, self._handler_command_start_measurement_immediate)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
@@ -910,6 +914,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCmds.CONFIGURE_INSTRUMENT, self._build_set_configutation_command)
+        self._add_build_handler(InstrumentCmds.SET_REAL_TIME_CLOCK, self._build_set_real_time_clock_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.READ_REAL_TIME_CLOCK, self._parse_read_clock_response)
@@ -1326,6 +1331,29 @@ class Protocol(CommandResponseInstrumentProtocol):
         # TODO: what state should the driver/IA go to? Should this command even be exported?
 
         return (next_state, (next_agent_state, result))
+
+    def _handler_command_clock_sync(self, *args, **kwargs):
+        """
+        sync clock close to a second edge 
+        @retval (next_state, result) tuple, (None, None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        str_time = get_timestamp_delayed("%M %S %d %H %y %m")
+        byte_time = ''
+        for v in str_time.split():
+            byte_time += chr(int('0x'+v, base=16))
+        values = str_time.split()
+        log.info("_handler_command_clock_sync: time set to %s:m %s:s %s:d %s:h %s:y %s:M (%s)" %(values[0], values[1], values[2], values[3], values[4], values[5], byte_time.encode('hex'))) 
+        self._do_cmd_resp(InstrumentCmds.SET_REAL_TIME_CLOCK, byte_time, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
 
     ########################################################################
     # Autosample handlers.
@@ -2010,6 +2038,10 @@ class Protocol(CommandResponseInstrumentProtocol):
             
         cmd_line = cmd + user_configuration
         return cmd_line
+
+
+    def _build_set_real_time_clock_command(self, cmd, time, **kwargs):
+        return cmd + time
 
 
     def _parse_read_clock_response(self, response, prompt):

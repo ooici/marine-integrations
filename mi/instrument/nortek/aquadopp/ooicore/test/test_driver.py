@@ -26,6 +26,8 @@ from gevent import monkey; monkey.patch_all()
 import gevent
 import unittest
 import re
+import time
+import datetime
 
 from nose.plugins.attrib import attr
 
@@ -291,6 +293,42 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.put_driver_in_command_mode()
 
 
+    def test_instrument_clock_sync(self):
+        """
+        @brief Test for syncing clock
+        """
+        
+        self.put_driver_in_command_mode()
+        
+        # command the instrument to read the clock.
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
+        
+        log.debug("read clock returned: %s", response)
+        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
+
+        # command the instrument to sync the clck.
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
+
+        # command the instrument to read the clock.
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
+        
+        log.debug("read clock returned: %s", response)
+        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
+        
+        # verify that the dates match 
+        local_time = time.gmtime(time.mktime(time.localtime()))
+        local_time_str = time.strftime("%d/%m/%Y %H:%M:%S", local_time)
+        self.assertTrue(local_time_str[:12].upper() in response[1].upper())
+        
+        # verify that the times match closely
+        instrument_time = time.strptime(response[1], '%d/%m/%Y %H:%M:%S')
+        #log.debug("it=%s, lt=%s" %(instrument_time, local_time))
+        it = datetime.datetime(*instrument_time[:6])
+        lt = datetime.datetime(*local_time[:6])
+        #log.debug("it=%s, lt=%s, lt-it=%s" %(it, lt, lt-it))
+        if lt - it > datetime.timedelta(seconds = 5):
+            self.fail("time delta too large after clock sync")      
+
     def test_instrument_set_configuration(self):
         """
         @brief Test for setting instrument configuration
@@ -485,9 +523,9 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('get_resource', [Parameter.WRAP_MODE, Parameter.AVG_INTERVAL, Parameter.DIAGNOSTIC_INTERVAL])
         self.assertEqual(new_params, reply)
         
-    def test_instrument_poll(self):
+    def test_instrument_acquire_sample(self):
         """
-        Test sample polling commands and events.
+        Test acquire sample command and events.
         """
 
         self.put_driver_in_command_mode()
@@ -577,7 +615,8 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
                                 'EXPORTED_INSTRUMENT_CMD_READ_BATTERY_VOLTAGE', 
                                 'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE', 
                                 'DRIVER_EVENT_START_AUTOSAMPLE',
-                                'DRIVER_EVENT_ACQUIRE_SAMPLE']
+                                'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                'DRIVER_EVENT_CLOCK_SYNC']
         
         autosample_capabilities = ['DRIVER_EVENT_STOP_AUTOSAMPLE']
         
@@ -751,6 +790,19 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 @attr('QUAL', group='mi')
 class QualFromIDK(InstrumentDriverQualificationTestCase):
     
+    def assert_execute_resource(self, command):
+        """
+        @brief send an execute_resource command and ensure no exceptions are raised
+        """
+        
+        # send command to the instrument 
+        cmd = AgentCommand(command=ResourceAgentEvent.EXECUTE_RESOURCE,
+                           args=[command])
+        try:            
+            return self.instrument_agent_client.execute_agent(cmd)
+        except:
+            self.fail('assert_execute_resource: execute_resource command failed for %s' %command)
+
     def assert_resource_capabilities(self, capabilities):
 
         def sort_capabilities(caps_list):
@@ -939,10 +991,11 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         capabilities = {
             AgentCapabilityType.RESOURCE_COMMAND: [
-                DriverEvent.SET, 
-                DriverEvent.ACQUIRE_SAMPLE, 
-                DriverEvent.GET, 
-                DriverEvent.START_AUTOSAMPLE,
+                ProtocolEvent.SET, 
+                ProtocolEvent.ACQUIRE_SAMPLE, 
+                ProtocolEvent.GET, 
+                ProtocolEvent.START_AUTOSAMPLE,
+                ProtocolEvent.CLOCK_SYNC,
                 ProtocolEvent.GET_HEAD_CONFIGURATION,
                 ProtocolEvent.GET_HW_CONFIGURATION,
                 ProtocolEvent.POWER_DOWN,
@@ -1035,6 +1088,42 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         except:
             self.fail('test of set_configuration command failed')
         
-         
+    def test_instrument_clock_sync(self):
+        """
+        @brief Test for syncing clock
+        """
+        
+        self.assert_enter_command_mode()
+        
+        # command the instrument to read the clock.
+        response = self.assert_execute_resource(ProtocolEvent.READ_CLOCK)
+        
+        log.debug("read clock returned: %s", response)
+        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response.result))
+
+        # command the instrument to sync the clck.
+        self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
+
+        # command the instrument to read the clock.
+        response = self.assert_execute_resource(ProtocolEvent.READ_CLOCK)
+        
+        log.debug("read clock returned: %s", response)
+        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response.result))
+        
+        # verify that the dates match 
+        local_time = time.gmtime(time.mktime(time.localtime()))
+        local_time_str = time.strftime("%d/%m/%Y %H:%M:%S", local_time)
+        self.assertTrue(local_time_str[:12].upper() in response.result.upper())
+        
+        # verify that the times match closely
+        instrument_time = time.strptime(response.result, '%d/%m/%Y %H:%M:%S')
+        #log.debug("it=%s, lt=%s" %(instrument_time, local_time))
+        it = datetime.datetime(*instrument_time[:6])
+        lt = datetime.datetime(*local_time[:6])
+        #log.debug("it=%s, lt=%s, lt-it=%s" %(it, lt, lt-it))
+        if lt - it > datetime.timedelta(seconds = 5):
+            self.fail("time delta too large after clock sync")      
+
+       
 
 
