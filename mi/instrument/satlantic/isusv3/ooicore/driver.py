@@ -58,10 +58,36 @@ WRITE_DELAY = 0
 READ_DELAY = .25
 RESET_DELAY = 25
 EOLN = "\n"
+COMMAND_MODE = 'COMMAND'
+AUTOSAMPLE_MODE = 'AUTOSAMPLE'
 
 
 SAMPLE_PATTERN_ASCII = r'^SAT(.{3}).{4},(.{4,7}),(.{,9})'
-SAMPLE_PATTERN = r'SAT(.{3})(.{4})(.{4})(.{8})'
+#SAMPLE_PATTERN = r'SAT(.{3})(.{4})(.{4})(.{8})'
+SAMPLE_PATTERN = r'SAT'         #      Sentinal
+SAMPLE_PATTERN += r'(.{3})'     #   1: Frame Type
+SAMPLE_PATTERN += r'(.{4})'     #   2: Serial Number
+SAMPLE_PATTERN += r'(.{4})'     #   3: Date
+SAMPLE_PATTERN += r'(.{8})'     #   4: Time
+SAMPLE_PATTERN += r'(.{4})'     #   5: Nitrate Concentration
+SAMPLE_PATTERN += r'(.{4})'     #   6: AUX1
+SAMPLE_PATTERN += r'(.{4})'     #   7: AUX2
+SAMPLE_PATTERN += r'(.{4})'     #   8: AUX3
+SAMPLE_PATTERN += r'(.{4})'     #   9: RMS ERROR
+SAMPLE_PATTERN += r'(.{4})'     #  10: t_int Interior Temp
+SAMPLE_PATTERN += r'(.{4})'     #  11: t_spec Spectrometer Temp
+SAMPLE_PATTERN += r'(.{4})'     #  12: t_lamp Lamp Temp
+SAMPLE_PATTERN += r'(.{4})'     #  13: lamp_time Lamp Time
+SAMPLE_PATTERN += r'(.{4})'     #  14: humidity Interior Humidity
+SAMPLE_PATTERN += r'(.{4})'     #  15: volt_12 Lamp Power Supply Voltage
+SAMPLE_PATTERN += r'(.{4})'     #  16: volt_5 Internal Analog Power Supply Voltage
+SAMPLE_PATTERN += r'(.{4})'     #  17: volt_main Main Internal Power Supply Voltage
+SAMPLE_PATTERN += r'(.{4})'     #  18: ref_avg Reference Channle Average
+SAMPLE_PATTERN += r'(.{4})'     #  19: ref_std Reference Channle Variance
+SAMPLE_PATTERN += r'(.{4})'     #  20: sw_dark Sea-Water Dark
+SAMPLE_PATTERN += r'(.{4})'     #  21: spec_avg All Channels Average
+SAMPLE_PATTERN += r'(.{2})'     #  22: Channel 1
+SAMPLE_PATTERN += r'(.{2})'     #  23: Channel 2
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
 
 # Packet config for ISUSV3 data granules.
@@ -243,6 +269,7 @@ class Prompt(BaseEnum):
     ENTER_CHOICE = "Enter number to assign new value"
     ENTER_DEPLOYMENT_COUNTER = "Enter deployment counter. ?"
     WAITING_FOR_GO = "Waiting for 'g'"
+    AUTOSAMPLE_WILL_RESTART = "ISUS will start in"
 
 class Parameter(DriverParameter):
     """ The parameters that drive/control the operation and behavior of the device """
@@ -420,6 +447,26 @@ class ISUSDataParticle(DataParticle):
             serial_num = str(match.group(2))
             date = struct.unpack_from('>BB', match.group(3))
             time = struct.unpack_from('>BB', match.group(4))
+            ntr_conc = struct.unpack_from('>BB', match.group(5))
+            aux1 = struct.unpack_from('>BB', match.group(6))
+            aux2 = struct.unpack_from('>BB', match.group(7))
+            aux3 = struct.unpack_from('>BB', match.group(8))
+            rms_error = struct.unpack_from('>BB', match.group(9))
+
+            t_int = struct.unpack_from('>BB', match.group(10))
+            t_spec = struct.unpack_from('>BB', match.group(11))
+            t_lamp = struct.unpack_from('>BB', match.group(12))
+            lamp_time = struct.unpack_from('>BB', match.group(13))
+            humidity = struct.unpack_from('>BB', match.group(14))
+            volt_12 = struct.unpack_from('>BB', match.group(15))
+            volt_5 = struct.unpack_from('>BB', match.group(16))
+            volt_main = struct.unpack_from('>BB', match.group(17))
+            ref_avg = struct.unpack_from('>BB', match.group(18))
+            ref_std = struct.unpack_from('>BB', match.group(19))
+            sw_dark = struct.unpack_from('>BB', match.group(20))
+            spec_avg = struct.unpack_from('>BB', match.group(21))
+            ch001 = struct.unpack_from('>BB', match.group(22))
+            ch002 = struct.unpack_from('>BB', match.group(23))
         except ValueError:
             raise SampleException("ValueError while parsing data: [%s]" %
                                   self.raw_data)
@@ -431,7 +478,45 @@ class ISUSDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: ISUSDataParticleKey.DATE,
                     DataParticleKey.VALUE: date},
                   {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
-                    DataParticleKey.VALUE: time}]
+                    DataParticleKey.VALUE: time},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: ntr_conc},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: aux1},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: aux2},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: aux3},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: rms_error},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: t_int},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: t_spec},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: t_lamp},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: lamp_time},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: humidity},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: volt_12},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: volt_5},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: volt_main},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: ref_avg},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: ref_std},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: sw_dark},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: spec_avg},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: ch001},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: ch002}]
         
         return result
 
@@ -620,19 +705,30 @@ class Protocol(MenuInstrumentProtocol):
         
     def _handler_unknown_discover(self, *args, **kwargs):
         """
+        As of now, the IOS states that the ISUS should be in continuous mode.  That means that it
+        is probably autosampling upon entry to this handler.  However, it is possible that it has
+        been interrupted and is in the menu system.  
         """
         next_state = None
-        result = None
+        next_agent_state = None
 
         try:
-            self._go_to_root_menu()
+            logging_state = self._go_to_root_menu()
         except InstrumentTimeoutException:
             raise InstrumentStateException('Unknown state: Instrument timed out going to root menu.')
         else:
-            next_state = State.COMMAND
-            result = ResourceAgentState.IDLE
+            if logging_state == AUTOSAMPLE_MODE:
+                next_state = State.AUTOSAMPLE
+                next_agent_state = ResourceAgentState.STREAMING
+            elif logging_state == COMMAND_MODE:
+                next_state = State.COMMAND
+                next_agent_state = ResourceAgentState.IDLE
+            else:
+                errorString = 'Unknown state based go_to_root_menu() response: ' + str(logging_state)
+                log.error(errorString)
+                raise InstrumentStateException(errorString)
         
-        return (next_state, result)
+        return (next_state, next_agent_state)
 
     def _handler_continuous_menu(self, *args, **kwargs):
         """Handle a menu command event from continuous mode operations.
@@ -954,6 +1050,13 @@ class Protocol(MenuInstrumentProtocol):
             log.debug(debug_string)
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)            
 
+    """
+    DHE: might need a special wakeup for when instrument is autosamping?  Problem
+    is that when in autosample (continuous), the instrument is spewing...it doesn't
+    respond to the crlf that is used here; in autosample, it only responds to 's.'
+    Maybe what I'll do is before hammering with crlf, wait for enough time for a sample
+    to come in.  If I see a sample, I'll know it's in autosample mode.
+    """
     def  _wakeup(self, timeout, delay=1):
         """
         Clear buffers and send a wakeup command to the instrument
@@ -971,19 +1074,29 @@ class Protocol(MenuInstrumentProtocol):
         # Grab time for timeout.
         starttime = time.time()
 
-        while True:
-            # Send a line return and wait a sec.
-            log.debug('Sending wakeup.')
-            self._send_wakeup()
-            time.sleep(delay)
-
-            for item in self._prompts.list():
-                if item in self._promptbuf:
-                    log.debug('wakeup got prompt: %s' % repr(item))
-                    return item
-
-            if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException()
+        """
+        DHE: temporarily testing for instrument being in autosample
+        """
+        continuing = True
+        while continuing:
+            if 'SATNLB' in self._promptbuf or 'SATNDB' in self._promptbuf:
+                print "!!!!!!!!!!! in AUTOSAMPLE !!!!!!!!!!!!!"
+                continuing = False
+                return AUTOSAMPLE_MODE
+        else:
+            while True:
+                # Send a line return and wait a sec.
+                log.debug('Sending wakeup.')
+                self._send_wakeup()
+                time.sleep(delay)
+    
+                for item in self._prompts.list():
+                    if item in self._promptbuf:
+                        log.debug('wakeup got prompt: %s' % repr(item))
+                        return item
+    
+                if time.time() > starttime + timeout:
+                    raise InstrumentTimeoutException()
 
 
 
@@ -1011,6 +1124,8 @@ class Protocol(MenuInstrumentProtocol):
         timeout = 10
         delay = 1
         prompt = self._wakeup(timeout)
+        if prompt == AUTOSAMPLE_MODE:
+            return prompt
 
         # Grab time for timeout.
         starttime = time.time()
@@ -1036,6 +1151,8 @@ class Protocol(MenuInstrumentProtocol):
             if Prompt.REPLACE_SETTINGS in self._promptbuf:
                 self._connection.send(Event.YES + self.eoln)
                 time.sleep(delay)
+                
+        return COMMAND_MODE
 
     def _do_cmd_resp(self, cmd, **kwargs):
         """
