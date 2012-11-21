@@ -373,7 +373,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.put_driver_in_command_mode()
         
         # command the instrument to power down.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.POWER_DOWN)
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.POWER_DOWN)
         
 
     def test_instrument_read_battery_voltage(self):
@@ -454,7 +454,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.put_driver_in_command_mode()
         
         # command the instrument to start measurement immediate.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_MEASUREMENT_IMMEDIATE)
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_MEASUREMENT_IMMEDIATE)
         gevent.sleep(100)  # wait for measurement to complete               
 
 
@@ -466,7 +466,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.put_driver_in_command_mode()
         
         # command the instrument to start measurement immediate.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME)
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME)
         gevent.sleep(100)  # wait for measurement to complete               
 
 
@@ -613,7 +613,8 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
                                 'EXPORTED_INSTRUMENT_CMD_READ_MODE', 
                                 'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME', 
                                 'EXPORTED_INSTRUMENT_CMD_READ_BATTERY_VOLTAGE', 
-                                'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE', 
+                                'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE',
+                                'EXPORTED_INSTRUMENT_CMD_SET_CONFIGURATION', 
                                 'DRIVER_EVENT_START_AUTOSAMPLE',
                                 'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                 'DRIVER_EVENT_CLOCK_SYNC']
@@ -666,13 +667,14 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # Get the capabilities of the driver.
         driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
+        log.debug("\nec=%s\ndc=%s" %(sorted(command_capabilities), sorted(driver_capabilities[0])))
         self.assertTrue(sorted(command_capabilities) == sorted(driver_capabilities[0]))
         #log.debug('dc=%s' %sorted(driver_capabilities[1]))
         #log.debug('pl=%s' %sorted(params_list))
         self.assertTrue(sorted(params_list) == sorted(driver_capabilities[1]))
 
         # Put the driver in autosample
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
 
         self.check_state(ProtocolState.AUTOSAMPLE)
 
@@ -737,10 +739,17 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         with self.assertRaises(InstrumentStateException):
             self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
                 
-        reply = self.driver_client.cmd_dvr('discover_state')
+        self.driver_client.cmd_dvr('discover_state')
 
-        # Test the driver is in command mode.
-        self.check_state(ProtocolState.COMMAND)
+        try:
+            # Test that the driver protocol is in state command.
+            self.check_state(ProtocolState.COMMAND)
+        except:
+            self.assertEqual(self.protocol_state, ProtocolState.AUTOSAMPLE)
+            # Put the driver in command mode
+            self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+            # Test that the driver protocol is in state command.
+            self.check_state(ProtocolState.COMMAND)
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
@@ -868,7 +877,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         self.data_subscribers.clear_sample_queue(sampleQueue)
 
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        reply = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
+        self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
         # Watch the parsed data queue and return once a sample
         # has been read or the default timeout has been reached.
@@ -1123,7 +1132,3 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         #log.debug("it=%s, lt=%s, lt-it=%s" %(it, lt, lt-it))
         if lt - it > datetime.timedelta(seconds = 5):
             self.fail("time delta too large after clock sync")      
-
-       
-
-
