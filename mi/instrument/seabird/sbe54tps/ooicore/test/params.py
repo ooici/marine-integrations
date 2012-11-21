@@ -12,7 +12,7 @@ PARAMS = {
     # StatusData
     #
 
-    Parameter.TIME : float,
+    Parameter.TIME : str,
     Parameter.EVENT_COUNT : int,
     Parameter.MAIN_SUPPLY_VOLTAGE : float,
     Parameter.NUMBER_OF_SAMPLES : int,
@@ -47,7 +47,7 @@ PARAMS = {
     Parameter.PRESSURE_RANGE : float,
     Parameter.BATTERY_TYPE : int,
     Parameter.BAUD_RATE : int,
-    Parameter.ENABLE_ALERTS : int,
+    Parameter.ENABLE_ALERTS : bool,
     Parameter.UPLOAD_TYPE : int,
     Parameter.SAMPLE_PERIOD : int,
 
@@ -73,7 +73,7 @@ PARAMS = {
 
     Parameter.MANUFACTURER : str,
     Parameter.FIRMWARE_VERSION : str,
-    Parameter.FIRMWARE_DATE : str,
+    Parameter.FIRMWARE_DATE : float,
     Parameter.HARDWARE_VERSION : str,
     Parameter.PCB_SERIAL_NUMBER : str,
     Parameter.PCB_TYPE : str,

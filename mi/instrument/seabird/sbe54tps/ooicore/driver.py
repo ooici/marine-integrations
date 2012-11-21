@@ -113,7 +113,7 @@ class InstrumentCmds(BaseEnum):
     ###########################
     #### Setup Data Output ####
     ###########################
-    SET_ENABLE_ALERTS ="SetEnableAlerts"                   # VARIABLE
+    SET_ENABLE_ALERTS = "SetEnableAlerts"                   # VARIABLE
 
     ##################
     #### Sampling ####
@@ -271,79 +271,79 @@ class Parameter(DriverParameter):
     # Common fields in all commands
     #
 
-    DEVICE_TYPE = "device_type",  #str
-    SERIAL_NUMBER = "serial_number", #str (could be int...)
+    DEVICE_TYPE = "device_type"  #str
+    SERIAL_NUMBER = "serial_number" #str (could be int...)
 
     #
     # StatusData
     #
 
-    TIME = "time", # time
-    EVENT_COUNT = "event_count", #int
-    MAIN_SUPPLY_VOLTAGE = "main_supply_voltage", # float
-    NUMBER_OF_SAMPLES = "number_of_samples", # int
-    BYTES_USED = "bytes_used", # int
-    BYTES_FREE = "bytes_free", # int
+    TIME = "time" # str
+    EVENT_COUNT = "event_count" #int
+    MAIN_SUPPLY_VOLTAGE = "main_supply_voltage" # float
+    NUMBER_OF_SAMPLES = "number_of_samples" # int
+    BYTES_USED = "bytes_used" # int
+    BYTES_FREE = "bytes_free" # int
 
     #
     # ConfigurationData
     #
 
-    ACQ_OSC_CAL_DATE = "acq_osc_cal_date", # date
-    FRA0 = "acquisition_frequency_a0", # float
-    FRA1 = "acquisition_frequency_a1", # float
-    FRA2 = "acquisition_frequency_a2", # float
-    FRA3 = "acquisition_frequency_a3", # float
-    PRESSURE_SERIAL_NUM = "pressure_serial_num", # string
-    PRESSURE_CAL_DATE = "pressure_cal_date", # date
-    PU0 = "pressure_sensor_u0", # float
-    PY1 = "pressure_sensor_y1", # float
-    PY2 = "pressure_sensor_y2", # float
-    PY3 = "pressure_sensor_y3", # float
-    PC1 = "pressure_sensor_c1", # float
-    PC2 = "pressure_sensor_c2", # float
-    PC3 = "pressure_sensor_c3", # float
-    PD1 = "pressure_sensor_d1", # float
-    PD2 = "pressure_sensor_d2", # float
-    PT1 = "pressure_sensor_t1", # float
-    PT2 = "pressure_sensor_t2", # float
-    PT3 = "pressure_sensor_t3", # float
-    PT4 = "pressure_sensor_t4", # float
-    PRESSURE_OFFSET = "pressure_offset", # float (psia)
-    PRESSURE_RANGE = "pressure_range", # float (psia)
-    BATTERY_TYPE = "batterytype", # int
-    BAUD_RATE = "baudrate", # int
-    ENABLE_ALERTS = "enablealerts", # int
-    UPLOAD_TYPE = "uploadtype", # int
-    SAMPLE_PERIOD = "sampleperiod", # int
+    ACQ_OSC_CAL_DATE = "acq_osc_cal_date" # date
+    FRA0 = "acquisition_frequency_a0" # float
+    FRA1 = "acquisition_frequency_a1" # float
+    FRA2 = "acquisition_frequency_a2" # float
+    FRA3 = "acquisition_frequency_a3" # float
+    PRESSURE_SERIAL_NUM = "pressure_serial_num" # string
+    PRESSURE_CAL_DATE = "pressure_cal_date" # date
+    PU0 = "pressure_sensor_u0" # float
+    PY1 = "pressure_sensor_y1" # float
+    PY2 = "pressure_sensor_y2" # float
+    PY3 = "pressure_sensor_y3" # float
+    PC1 = "pressure_sensor_c1" # float
+    PC2 = "pressure_sensor_c2" # float
+    PC3 = "pressure_sensor_c3" # float
+    PD1 = "pressure_sensor_d1" # float
+    PD2 = "pressure_sensor_d2" # float
+    PT1 = "pressure_sensor_t1" # float
+    PT2 = "pressure_sensor_t2" # float
+    PT3 = "pressure_sensor_t3" # float
+    PT4 = "pressure_sensor_t4" # float
+    PRESSURE_OFFSET = "pressure_offset" # float (psia)
+    PRESSURE_RANGE = "pressure_range" # float (psia)
+    BATTERY_TYPE = "batterytype" # int
+    BAUD_RATE = "baudrate" # int
+    ENABLE_ALERTS = "enablealerts" # bool
+    UPLOAD_TYPE = "uploadtype" # int
+    SAMPLE_PERIOD = "sampleperiod" # int
 
     #
     # Event Counter
     #
 
-    NUMBER_EVENTS = "number_events", # int
-    MAX_STACK = "max_stack", # int
-    POWER_ON_RESET = "power_on_reset", # int
-    POWER_FAIL_RESET = "power_fail_reset", # int
-    SERIAL_BYTE_ERROR = "serial_byte_error", # int
-    COMMAND_BUFFER_OVERFLOW = "command_buffer_overflow", # int
-    SERIAL_RECEIVE_OVERFLOW = "serial_receive_overflow", # int
-    LOW_BATTERY = "low_battery", # int
-    SIGNAL_ERROR = "signal_error", # int
-    ERROR_10 = "error_10", # int
-    ERROR_12 = "error_12", # int
+    NUMBER_EVENTS = "number_events" # int
+    MAX_STACK = "max_stack" # int
+    POWER_ON_RESET = "power_on_reset" # int
+    POWER_FAIL_RESET = "power_fail_reset" # int
+    SERIAL_BYTE_ERROR = "serial_byte_error" # int
+    COMMAND_BUFFER_OVERFLOW = "command_buffer_overflow" # int
+    SERIAL_RECEIVE_OVERFLOW = "serial_receive_overflow" # int
+    LOW_BATTERY = "low_battery" # int
+    SIGNAL_ERROR = "signal_error" # int
+    ERROR_10 = "error_10" # int
+    ERROR_12 = "error_12" # int
 
     #
     # Hardware Data
     #
 
-    MANUFACTURER = "manufacturer", # string
-    FIRMWARE_VERSION = "firmware_version", # string
-    FIRMWARE_DATE = "firmware_date", # date
-    HARDWARE_VERSION = "hardware_version", # string
-    PCB_SERIAL_NUMBER = "pcb_serial_number", # string
-    PCB_TYPE = "pcb_type", # string
-    MANUFACTUR_DATE = "manufactur_date", # date
+    MANUFACTURER = "manufacturer" # string
+    FIRMWARE_VERSION = "firmware_version" # string
+    FIRMWARE_DATE = "firmware_date" # date
+    HARDWARE_VERSION = "hardware_version" # string
+    PCB_SERIAL_NUMBER = "pcb_serial_number" # string
+    PCB_TYPE = "pcb_type" # string
+    MANUFACTUR_DATE = "manufactur_date" # date
 
 # Device prompts.
 class Prompt(BaseEnum):
@@ -380,7 +380,7 @@ class SBE54tpsStatusDataParticle(DataParticle):
     LINE1 = r"<StatusData DeviceType='([^']+)' SerialNumber='(\d+)'>"
     LINE2 = r"<DateTime>([^<]+)</DateTime>"
     LINE3 = r"<EventSummary numEvents='(\d+)'/>"
-    LINE4 = r"<MainSupplyVoltage>(\d+)</MainSupplyVoltage>"
+    LINE4 = r"<MainSupplyVoltage>([.\d]+)</MainSupplyVoltage>"
     LINE5 = r"<Samples>(\d+)</Samples>"
     LINE6 = r"<Bytes>(\d+)</Bytes>"
     LINE7 = r"<BytesFree>(\d+)</BytesFree>"
@@ -440,7 +440,8 @@ class SBE54tpsStatusDataParticle(DataParticle):
 
                         # str
                         if key in [
-                            SBE54tpsStatusDataParticleKey.DEVICE_TYPE
+                            SBE54tpsStatusDataParticleKey.DEVICE_TYPE,
+                            SBE54tpsStatusDataParticleKey.TIME
                         ]:
                             single_var_matches[key] = val
 
@@ -462,14 +463,19 @@ class SBE54tpsStatusDataParticle(DataParticle):
 
                         # datetime
                         elif key in [
-                            SBE54tpsStatusDataParticleKey.TIME
+                            #SBE54tpsStatusDataParticleKey.TIME
                         ]:
                             # 2012-11-13T17:56:42
                             # yyyy-mm-ddThh:mm:ss
+
+                            '''
+                            log.debug("GOT TIME FROM INSTRUMENT = " + str(val))
                             text_timestamp = val
                             py_timestamp = time.strptime(text_timestamp, "%Y-%m-%dT%H:%M:%S")
                             timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
+                            log.debug("CONVERTED TIME FROM INSTRUMENT = " + str(timestamp))
                             single_var_matches[key] = timestamp
+                            '''
 
                         else:
                             raise SampleException("Unknown variable type in SBE54tpsStatusDataParticle._build_parsed_values")
@@ -695,12 +701,18 @@ class SBE54tpsConfigurationDataParticle(DataParticle):
                         elif key in [
                             SBE54tpsConfigurationDataParticleKey.SERIAL_NUMBER,
                             SBE54tpsConfigurationDataParticleKey.BATTERY_TYPE,
-                            SBE54tpsConfigurationDataParticleKey.ENABLE_ALERTS,
                             SBE54tpsConfigurationDataParticleKey.UPLOAD_TYPE,
                             SBE54tpsConfigurationDataParticleKey.SAMPLE_PERIOD,
                             SBE54tpsConfigurationDataParticleKey.BAUD_RATE
                         ]:
                             single_var_matches[key] = int(val)
+
+
+                        # int
+                        elif key in [
+                            SBE54tpsConfigurationDataParticleKey.ENABLE_ALERTS
+                        ]:
+                            single_var_matches[key] = bool(int(val))
 
                         #float
                         elif key in [
@@ -796,15 +808,15 @@ class SBE54tpsEventCounterDataParticle(DataParticle):
             SBE54tpsEventCounterDataParticleKey.MAX_STACK: None,
             SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE: None,
             SBE54tpsEventCounterDataParticleKey.SERIAL_NUMBER: None,
-            SBE54tpsEventCounterDataParticleKey.POWER_ON_RESET: None,
-            SBE54tpsEventCounterDataParticleKey.POWER_FAIL_RESET: None,
-            SBE54tpsEventCounterDataParticleKey.SERIAL_BYTE_ERROR: None,
-            SBE54tpsEventCounterDataParticleKey.COMMAND_BUFFER_OVERFLOW: None,
-            SBE54tpsEventCounterDataParticleKey.SERIAL_RECEIVE_OVERFLOW: None,
-            SBE54tpsEventCounterDataParticleKey.LOW_BATTERY: None,
-            SBE54tpsEventCounterDataParticleKey.SIGNAL_ERROR: None,
-            SBE54tpsEventCounterDataParticleKey.ERROR_10: None,
-            SBE54tpsEventCounterDataParticleKey.ERROR_12: None
+            SBE54tpsEventCounterDataParticleKey.POWER_ON_RESET: 0,
+            SBE54tpsEventCounterDataParticleKey.POWER_FAIL_RESET: 0,
+            SBE54tpsEventCounterDataParticleKey.SERIAL_BYTE_ERROR: 0,
+            SBE54tpsEventCounterDataParticleKey.COMMAND_BUFFER_OVERFLOW: 0,
+            SBE54tpsEventCounterDataParticleKey.SERIAL_RECEIVE_OVERFLOW: 0,
+            SBE54tpsEventCounterDataParticleKey.LOW_BATTERY: 0,
+            SBE54tpsEventCounterDataParticleKey.SIGNAL_ERROR: 0,
+            SBE54tpsEventCounterDataParticleKey.ERROR_10: 0,
+            SBE54tpsEventCounterDataParticleKey.ERROR_12: 0
         }
 
         multi_var_matchers  = {
@@ -853,12 +865,12 @@ class SBE54tpsEventCounterDataParticle(DataParticle):
                     for key in keys:
                         index = index + 1
                         val = match.group(index)
-
+                        log.debug("KEY [" + str(key) + "] = VAL [" + str(val) +"]")
                         # str
                         if key in [
-                            SBE54tpsConfigurationDataParticleKey.DEVICE_TYPE
+                            SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE
                             ]:
-                            single_var_matches[key] = val
+                            single_var_matches[key] = match.group(index)
 
                         # int
                         elif key in [
@@ -875,12 +887,13 @@ class SBE54tpsEventCounterDataParticle(DataParticle):
                             SBE54tpsEventCounterDataParticleKey.ERROR_10,
                             SBE54tpsEventCounterDataParticleKey.ERROR_12
                         ]:
-                            single_var_matches[key] = int(match.group(1))
+                            single_var_matches[key] = int(match.group(index))
                         else:
                             raise SampleException("Unknown variable type in SBE54tpsEventCounterDataParticle._build_parsed_values")
 
         result = []
         for (key, value) in single_var_matches.iteritems():
+            log.debug("SETTING " + str(key) + " = " + str(value))
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
 
@@ -1011,7 +1024,7 @@ class SBE54tpsHardwareDataParticle(DataParticle):
 class SBE54tpsSampleDataParticleKey(BaseEnum):
     SAMPLE_NUMBER = "sample_number"
     SAMPLE_TYPE = "sample_type"
-    SAMPLE_TIMESTAMP = "sample_timestamp"
+    INST_TIME = "InstTime" # FUTURE "inst_time"
     PRESSURE = "pressure" # psi
     PRESSURE_TEMP = "pressure_temp"
 
@@ -1033,7 +1046,7 @@ class SBE54tpsSampleDataParticle(DataParticle):
         single_var_matches  = {
             SBE54tpsSampleDataParticleKey.SAMPLE_NUMBER: None,
             SBE54tpsSampleDataParticleKey.SAMPLE_TYPE: None,
-            SBE54tpsSampleDataParticleKey.SAMPLE_TIMESTAMP: None,
+            SBE54tpsSampleDataParticleKey.INST_TIME: None,
             SBE54tpsSampleDataParticleKey.PRESSURE: None,
             SBE54tpsSampleDataParticleKey.PRESSURE_TEMP: None
         }
@@ -1044,7 +1057,7 @@ class SBE54tpsSampleDataParticle(DataParticle):
                 SBE54tpsSampleDataParticleKey.SAMPLE_TYPE
             ],
             re.compile(r"<Time>([^<]+)</Time>"): [
-                SBE54tpsSampleDataParticleKey.SAMPLE_TIMESTAMP
+                SBE54tpsSampleDataParticleKey.INST_TIME
             ],
             re.compile(r"<PressurePSI>([0-9.+-]+)</PressurePSI>"): [
                 SBE54tpsSampleDataParticleKey.PRESSURE
@@ -1065,7 +1078,8 @@ class SBE54tpsSampleDataParticle(DataParticle):
 
                         # str
                         if key in [
-                            SBE54tpsSampleDataParticleKey.SAMPLE_TYPE
+                            SBE54tpsSampleDataParticleKey.SAMPLE_TYPE,
+                            SBE54tpsSampleDataParticleKey.INST_TIME
                         ]:
                             log.debug("SAMPLE_TYPE = " + val)
                             single_var_matches[key] = val
@@ -1085,7 +1099,6 @@ class SBE54tpsSampleDataParticle(DataParticle):
 
                         # date_time
                         elif key in [
-                            SBE54tpsSampleDataParticleKey.SAMPLE_TIMESTAMP
                         ]:
                             # <Time>2012-11-07T12:21:25</Time>
                             # yyyy-mm-ddThh:mm:ss
@@ -1363,6 +1376,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         The method that splits samples
         """
 
+        return_list = []
 
         sieve_matchers = [STATUS_DATA_REGEX_MATCHER,
                           CONFIGURATION_DATA_REGEX_MATCHER,
@@ -1370,7 +1384,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                           HARDWARE_DATA_REGEX_MATCHER,
                           SAMPLE_DATA_REGEX_MATCHER]
 
-        return_list = []
+
 
         for matcher in sieve_matchers:
             for match in matcher.finditer(raw_data):
@@ -1401,7 +1415,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if set command misunderstood.
         """
 
-        if prompt != Prompt.COMMAND:
+        log.debug("_parse_set_response RESPONSE = " + str(response) + "/PROMPT = " + str(prompt))
+        if ((prompt != Prompt.COMMAND) or ('Error' in response)):
             raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
 
     def _parse_gc_response(self, response, prompt):
@@ -1529,7 +1544,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
         # Command device to update parameters and send a config change event.
-        #self._update_params()
+
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -1537,11 +1552,10 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         log.debug("%%% IN _handler_command_enter")
         self._restore_da_params()
-        log.debug("*** IN _handler_command_enter(), updating params")
         self._update_params()
-        log.debug("*** AFTER _update_params()")
+
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        log.debug("*** AFTER _driver_event()")
+
 
     def _handler_command_acquire_sample(self, *args, **kwargs):
         """
@@ -1706,6 +1720,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 log.debug("KEY = " + str(key) + " VALUE = " + str(val))
                 result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
                 log.debug("**********************RESULT************* = " + str(result))
+                self._update_params()
 
         return (next_state, result)
 
@@ -1741,7 +1756,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         ---
         """
 
-        timestamp = get_timestamp_delayed("%Y-%b-%dT%H:%M:%S")
+        timestamp = get_timestamp_delayed("%Y-%m-%dT%H:%M:%S")
         set_cmd = '%s=%s' % (InstrumentCmds.SET_TIME, timestamp) + NEWLINE
 
         self._do_cmd_direct(set_cmd)
@@ -2024,35 +2039,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         pass
 
 
-    '''
-
-    param_dict  =  [{ParamDict.KEY: key,
-     ParamDict.VALUE: value,
-     ParamDict.TYPE: type,
-     ParamDict.TO_STRING: to_string_lambda,
-     ParamDict.FROM_STRING: from_string_lambda},
-     {ParamDict.KEY: key,
-     ParamDict.VALUE: value,
-     ParamDict.TYPE: type,
-     ParamDict.TO_STRING: to_string_lambda,
-     ParamDict.FROM_STRING: from_string_lambda}]
-
-    The param_dict class would want the following members at minimum:
-     pd.define_var(var_name, var_type, to_string_lambda, from_string_lambda)
-     pd.set_var_string(var_name, var_value)
-     pd.set_var_native(var_name, var_value)
-     pd.get_var_string(var_name)
-     pd.get_var_native(var_name)
-
-    I suppose we could even extend this further with
-     pd.set_var_default_string(var_name, var_default_value)
-     pd.set_var_default_native(var_name, var_default_value)
-
-    Then we could set default values per device family in the driver, and perhaps over-ride with device instance vars
-     pd.set_var_instance_default_string(var_name, var_instance_default_value)
-     pd.set_var_instance_default_native(var_name, var_instance_default_value)
-    '''
-
 
 
 
@@ -2070,11 +2056,24 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         log.debug("%%% IN _build_set_command")
 
-        try:
-            str_val = self._param_dict.format(param, val)
-            set_cmd = 'SET%s=%s' % (param, str_val)
+        if param not in [
+            Parameter.TIME,
+            Parameter.UPLOAD_TYPE,
+            Parameter.ENABLE_ALERTS,
+            Parameter.SAMPLE_PERIOD,
+        ]:
+            raise InstrumentParameterException("Parameter " +str(param) + " is not allowed to be set")
 
+
+        try:
+            log.debug("PARAM = "+ repr(param))
+            log.debug("VAL = "+ repr(val))
+            str_val = self._param_dict.format(param, val)
+            if None == str_val:
+                raise InstrumentParameterException("Driver PARAM was None!!!!")
+            set_cmd = 'SET%s=%s' % (param, str_val)
             set_cmd = set_cmd + NEWLINE
+            log.debug("set_cmd = " + repr(set_cmd))
         except KeyError:
             raise InstrumentParameterException('Unknown driver parameter %s' % param)
 
@@ -2101,44 +2100,45 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.DEVICE_TYPE,
             SBE54tpsStatusDataParticle.LINE1,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string,
             multi_match=True)
 
         self._param_dict.add(Parameter.SERIAL_NUMBER,
             SBE54tpsStatusDataParticle.LINE1,
-            lambda match : string.upper(match.group(2)),
+            lambda match : int(match.group(2)),
             self._int_to_string,
             multi_match=True)
 
         self._param_dict.add(Parameter.TIME,
             SBE54tpsStatusDataParticle.LINE2,
-            lambda match : string.upper(match.group(1)),
-            self._time_to_string)
+            lambda match : match.group(1), # self._string_to_datetime(match.group(1)),
+            self._string_to_string)
+            #self._time_to_string)
 
         self._param_dict.add(Parameter.EVENT_COUNT,
             SBE54tpsStatusDataParticle.LINE3,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.MAIN_SUPPLY_VOLTAGE,
             SBE54tpsStatusDataParticle.LINE4,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.NUMBER_OF_SAMPLES,
             SBE54tpsStatusDataParticle.LINE5,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.BYTES_USED,
             SBE54tpsStatusDataParticle.LINE6,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.BYTES_FREE,
             SBE54tpsStatusDataParticle.LINE7,
-            lambda match : string.upper(match.group(1)),
+            lambda match :int(match.group(1)),
             self._int_to_string)
 
         #
@@ -2147,39 +2147,39 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.DEVICE_TYPE,
             SBE54tpsConfigurationDataParticle.LINE1,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string,
             multi_match=True)
 
         self._param_dict.add(Parameter.SERIAL_NUMBER,
             SBE54tpsConfigurationDataParticle.LINE1,
-            lambda match : string.upper(match.group(2)),
+            lambda match : int(match.group(2)),
             self._int_to_string,
             multi_match=True)
 
         self._param_dict.add(Parameter.ACQ_OSC_CAL_DATE,
             SBE54tpsConfigurationDataParticle.LINE2,
-            lambda match : string.upper(match.group(1)),
+            lambda match : self._string_month_number_to_date(match.group(1)),
             self._date_to_string)
 
         self._param_dict.add(Parameter.FRA0,
             SBE54tpsConfigurationDataParticle.LINE3,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.FRA1,
             SBE54tpsConfigurationDataParticle.LINE4,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.FRA2,
             SBE54tpsConfigurationDataParticle.LINE5,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.FRA3,
             SBE54tpsConfigurationDataParticle.LINE6,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PRESSURE_SERIAL_NUM,
@@ -2189,107 +2189,107 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.PRESSURE_CAL_DATE,
             SBE54tpsConfigurationDataParticle.LINE8,
-            lambda match : string.upper(match.group(1)),
+            lambda match : self._string_month_number_to_date(match.group(1)),
             self._date_to_string)
 
         self._param_dict.add(Parameter.PU0,
             SBE54tpsConfigurationDataParticle.LINE9,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PY1,
             SBE54tpsConfigurationDataParticle.LINE10,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PY2,
             SBE54tpsConfigurationDataParticle.LINE11,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PY3,
             SBE54tpsConfigurationDataParticle.LINE12,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PC1,
             SBE54tpsConfigurationDataParticle.LINE13,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PC2,
             SBE54tpsConfigurationDataParticle.LINE14,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PC3,
             SBE54tpsConfigurationDataParticle.LINE15,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PD1,
             SBE54tpsConfigurationDataParticle.LINE16,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PD2,
             SBE54tpsConfigurationDataParticle.LINE17,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PT1,
             SBE54tpsConfigurationDataParticle.LINE18,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PT2,
             SBE54tpsConfigurationDataParticle.LINE19,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PT3,
             SBE54tpsConfigurationDataParticle.LINE20,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PT4,
             SBE54tpsConfigurationDataParticle.LINE21,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PRESSURE_OFFSET,
             SBE54tpsConfigurationDataParticle.LINE22,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.PRESSURE_RANGE,
             SBE54tpsConfigurationDataParticle.LINE23,
-            lambda match : string.upper(match.group(1)),
+            lambda match : float(match.group(1)),
             self._float_to_string)
 
         self._param_dict.add(Parameter.BATTERY_TYPE,
             SBE54tpsConfigurationDataParticle.LINE24,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.BAUD_RATE,
             SBE54tpsConfigurationDataParticle.LINE25,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.ENABLE_ALERTS,
             SBE54tpsConfigurationDataParticle.LINE26,
-            lambda match : string.upper(match.group(1)),
-            self._int_to_string)
+            lambda match : bool(int(match.group(1))),
+            self._bool_to_int_string)
 
         self._param_dict.add(Parameter.UPLOAD_TYPE,
             SBE54tpsConfigurationDataParticle.LINE27,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.SAMPLE_PERIOD,
             SBE54tpsConfigurationDataParticle.LINE28,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         #
@@ -2298,13 +2298,13 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.NUMBER_EVENTS,
             SBE54tpsEventCounterDataParticle.LINE1,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string,
             multi_match=True)
 
         self._param_dict.add(Parameter.MAX_STACK,
             SBE54tpsEventCounterDataParticle.LINE1,
-            lambda match : string.upper(match.group(2)),
+            lambda match : int(match.group(2)),
             self._int_to_string,
             multi_match=True)
 
@@ -2316,53 +2316,53 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.SERIAL_NUMBER,
             SBE54tpsEventCounterDataParticle.LINE2,
-            lambda match : string.upper(match.group(2)),
+            lambda match : int(match.group(2)),
             self._int_to_string,
             multi_match=True)
 
         self._param_dict.add(Parameter.POWER_ON_RESET,
             SBE54tpsEventCounterDataParticle.LINE3,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.POWER_FAIL_RESET,
             SBE54tpsEventCounterDataParticle.LINE4,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.SERIAL_BYTE_ERROR,
             SBE54tpsEventCounterDataParticle.LINE5,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.COMMAND_BUFFER_OVERFLOW,
             SBE54tpsEventCounterDataParticle.LINE6,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.SERIAL_RECEIVE_OVERFLOW,
             SBE54tpsEventCounterDataParticle.LINE7,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.LOW_BATTERY,
             SBE54tpsEventCounterDataParticle.LINE8,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.SIGNAL_ERROR,
             SBE54tpsEventCounterDataParticle.LINE9,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.ERROR_10,
             SBE54tpsEventCounterDataParticle.LINE10,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.ERROR_12,
             SBE54tpsEventCounterDataParticle.LINE11,
-            lambda match : string.upper(match.group(1)),
+            lambda match : int(match.group(1)),
             self._int_to_string)
 
         #
@@ -2377,7 +2377,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.SERIAL_NUMBER,
             SBE54tpsHardwareDataParticle.LINE1,
-            lambda match : string.upper(match.group(2)),
+            lambda match : int(match.group(2)),
             self._int_to_string,
             multi_match=True)
 
@@ -2393,7 +2393,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.FIRMWARE_DATE,
             SBE54tpsHardwareDataParticle.LINE4,
-            lambda match : string.upper(match.group(1)),
+            lambda match : self._string_month_name_to_date(match.group(1)),
             self._date_to_string)
 
         self._param_dict.add(Parameter.HARDWARE_VERSION,
@@ -2413,7 +2413,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.MANUFACTUR_DATE,
             SBE54tpsHardwareDataParticle.LINE8,
-            lambda match : string.upper(match.group(1)),
+            lambda match : self._string_month_name_to_date(match.group(1)),
             self._date_to_string)
 
     def _got_chunk(self, chunk):
@@ -2468,39 +2468,47 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be timely woken.
         @throws InstrumentProtocolException if ds/dc misunderstood.
         """
-        log.debug("_update_params 1")
+
         # Get old param dict config.
         old_config = self._param_dict.get_config()
-        log.debug("_update_params 2")
+
         # Issue display commands and parse results.
         timeout = kwargs.get('timeout', TIMEOUT)
 
-        '''
-        log.debug("_update_params 3")
+
+
         response = self._do_cmd_resp(InstrumentCmds.GET_CONFIGURATION_DATA, timeout=timeout)
-        log.debug("_update_params 4")
+        for line in response.split(NEWLINE):
+            self._param_dict.update(line)
+
         log.debug("GET_CONFIGURATION_DATA response = " + repr(response))
-        log.debug("_update_params 5")
+
         response = self._do_cmd_resp(InstrumentCmds.GET_STATUS_DATA, timeout=timeout)
-        log.debug("_update_params 6")
+        for line in response.split(NEWLINE):
+            self._param_dict.update(line)
+
         log.debug("GET_STATUS_DATA response = " + repr(response))
-        log.debug("_update_params 7")
+
         response = self._do_cmd_resp(InstrumentCmds.GET_EVENT_COUNTER_DATA, timeout=timeout)
-        log.debug("_update_params 8")
+        for line in response.split(NEWLINE):
+            self._param_dict.update(line)
+
         log.debug("GET_EVENT_COUNTER_DATA response = " + repr(response))
-        log.debug("_update_params 9")
+
         response = self._do_cmd_resp(InstrumentCmds.GET_HARDWARE_DATA, timeout=timeout)
-        log.debug("_update_params 10")
+        for line in response.split(NEWLINE):
+            self._param_dict.update(line)
+
         log.debug("GET_HARDWARE_DATA response = " + repr(response))
-        log.debug("_update_params 11")
-        '''
+
+
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
-        log.debug("_update_params 12")
+
 
     #
     # Many of these will want to rise up to base class if not there already
@@ -2513,6 +2521,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval an int string formatted for sbe37 set operations.
         @throws InstrumentParameterException if value not an int.
         """
+        log.debug("IN _int_to_string")
 
         if not isinstance(v,int):
             raise InstrumentParameterException('Value %s is not an int.' % str(v))
@@ -2527,7 +2536,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval a float string formatted for sbe37 set operations.
         @throws InstrumentParameterException if value is not a float.
         """
-
+        log.debug("IN _float_to_string")
 
         if not isinstance(v, float):
             raise InstrumentParameterException('Value %s is not a float.' % v)
@@ -2538,15 +2547,55 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     @staticmethod
     def _string_to_string(v):
+        log.debug("IN _string_to_string")
         return v
 
     @staticmethod
     def _time_to_string(v):
+        log.debug("IN _time_to_string")
         # return the passed in float of seconds since epoch to a string formatted time
-        return time.strftime("%Y-%m-%dT%H:%M:%S", time.mktime(v))
+
+        return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(v))
 
     @staticmethod
     def _date_to_string(v):
+        log.debug("IN _date_to_string")
         # return the passed in float of seconds since epoch to a string formatted date
         # 2006-01-15
-        time.strftime("%Y-%m-%d", time.gmtime(v))
+        return time.strftime("%Y-%m-%d", time.gmtime(v))
+
+    @staticmethod
+    def _string_month_number_to_date(v):
+        log.debug("IN _string_to_date")
+        # return a float of seconds since epoch for the passed in string formatted date
+        # 2006-01-15
+        py_timestamp = time.strptime(v, "%Y-%m-%d")
+        return ntplib.system_to_ntp_time(time.mktime(py_timestamp))
+
+    @staticmethod
+    def _string_month_name_to_date(v):
+        log.debug("IN _string_to_date")
+        # return a float of seconds since epoch for the passed in string formatted date
+        # 2006-01-15
+        py_timestamp = time.strptime(v, "%b %d %Y")
+        return ntplib.system_to_ntp_time(time.mktime(py_timestamp))
+
+    @staticmethod
+    def _string_to_datetime(v):
+        # return a float of seconds since epoch for the passed in string formatted date_time
+        # 2012-01-16T15:21:11
+
+        py_timestamp = time.strptime(v, "%Y-%m-%dT%H:%M:%S")
+        return ntplib.system_to_ntp_time(time.mktime(py_timestamp))
+
+
+    @staticmethod
+    def _bool_to_int_string(v):
+        # return a string of an into of 1 or 0 to indicate true/false
+
+        if True == v:
+            return "1"
+        elif False == v:
+            return "0"
+        else:
+            return None

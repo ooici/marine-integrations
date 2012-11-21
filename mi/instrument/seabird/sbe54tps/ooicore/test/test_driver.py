@@ -27,6 +27,8 @@ import unittest
 from nose.plugins.attrib import attr
 from mock import Mock
 import re
+import time
+import ntplib
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -58,6 +60,7 @@ from mi.instrument.seabird.sbe54tps.ooicore.driver import Prompt
 from mi.instrument.seabird.sbe54tps.ooicore.driver import Protocol
 from mi.instrument.seabird.sbe54tps.ooicore.driver import InstrumentCmds
 from mi.instrument.seabird.sbe54tps.ooicore.driver import NEWLINE
+from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsEventCounterDataParticleKey
 # SAMPLE DATA FOR TESTING
 from mi.instrument.seabird.sbe54tps.ooicore.test.sample_data import *
 from mi.instrument.seabird.sbe54tps.ooicore.test.params import PARAMS
@@ -1122,6 +1125,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
+    # WORKS
     def check_state(self, desired_state):
         state = self.driver_client.cmd_dvr('get_resource_state')
 
@@ -1136,6 +1140,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
             #  ...AND MAKE LIKE THIS NEVER HAPPENED!
         self.assertEqual(state, desired_state)
 
+    # WORKS
     def put_instrument_in_command_mode(self):
         log.info("test_connect test started")
 
@@ -1160,6 +1165,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         # Test the driver is in command mode.
         self.check_state(ProtocolState.COMMAND)
 
+    # WORKS
     def assert_param_dict(self, pd, all_params=False):
         """
         Verify all device parameters exist and are correct type.
@@ -1169,18 +1175,38 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         # PARAMS is the master type list
 
         if all_params:
-            log.debug("DICT 1 *********" + str(pd.keys()))
-            log.debug("DICT 2 *********" + str(PARAMS.keys()))
-            self.assertEqual(set(pd.keys()), set(PARAMS.keys()))
+            #log.debug("DICT 1 *********" + str(pd.keys()))
+            #log.debug("DICT 2 *********" + str(PARAMS.keys()))
+            self.assertEqual(set(pd.keys()), set(PARAMS.keys())) # set() sorts...
 
             for (key, type_val) in PARAMS.iteritems():
-                self.assertTrue(isinstance(pd[key], type_val))
+                # EventCounter does not always populate in device output
+                if key not in [
+                    SBE54tpsEventCounterDataParticleKey.NUMBER_EVENTS,
+                    SBE54tpsEventCounterDataParticleKey.MAX_STACK,
+                    SBE54tpsEventCounterDataParticleKey.SERIAL_NUMBER,
+                    SBE54tpsEventCounterDataParticleKey.POWER_ON_RESET,
+                    SBE54tpsEventCounterDataParticleKey.POWER_FAIL_RESET,
+                    SBE54tpsEventCounterDataParticleKey.SERIAL_BYTE_ERROR,
+                    SBE54tpsEventCounterDataParticleKey.COMMAND_BUFFER_OVERFLOW,
+                    SBE54tpsEventCounterDataParticleKey.SERIAL_RECEIVE_OVERFLOW,
+                    SBE54tpsEventCounterDataParticleKey.LOW_BATTERY,
+                    SBE54tpsEventCounterDataParticleKey.SIGNAL_ERROR,
+                    SBE54tpsEventCounterDataParticleKey.ERROR_10,
+                    SBE54tpsEventCounterDataParticleKey.ERROR_12,
+                    SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE
+                ]:
+                    log.debug("pd[" + str(key) + "] is of type " + str(type_val) +  " ?= " + str(type(pd[key])))
+                    self.assertTrue(isinstance(pd[key], type_val))
+                else:
+                    log.debug("pd[" + str(key) + "] MAY be None due to the param_dict not having a default parser val = " + str(pd[key]))
         else:
             for (key, val) in pd.iteritems():
                 self.assertTrue(PARAMS.has_key(key))
 
                 if val is not None: # If its not defined, lets just skip it, only catch wrong type assignments.
-                    log.debug("Asserting that " + key +  " is of type " + str(PARAMS[key]))
+
+                    #log.debug("Asserting that " + key +  " is of type  " + str(type(val)) + " ?= " + str(PARAMS[key]))
                     self.assertTrue(isinstance(val, PARAMS[key]))
                 else:
                     log.debug("*** Skipping " + repr(key) + " Because value is None ***")
@@ -1200,7 +1226,17 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         self.assertTrue(reply)
 
+    # WORKS
+    def assert_set(self, settings_dict):
+        reply = self.driver_client.cmd_dvr('set_resource', settings_dict)
+        self.assertEqual(reply, None)
+        reply_dict = self.driver_client.cmd_dvr('get_resource', settings_dict.keys())
 
+        for (key, val) in settings_dict.iteritems():
+            log.debug("ASSERTING " + str(key) + " WAS SET TO " + str(val) + " ACTUAL VALUE " + str(reply_dict[key]))
+            self.assertEqual(reply_dict[key], settings_dict[key])
+
+    # WORKS
     def test_get_set(self):
         """
         Test device parameter access.
@@ -1208,24 +1244,11 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         self.put_instrument_in_command_mode()
 
-        # Test 1 Conductivity = Y, small subset of possible parameters.
-
-        log.debug("get/set Test 1 - Conductivity = Y, small subset of possible parameters.")
-        log.debug("1%%%%%%%%%%%%%%%%%%%%%%")
+        log.debug("get/set Test 1 - SAMPLE_PERIOD ")
         params = {
             Parameter.SAMPLE_PERIOD : 55,
         }
-        log.debug("2%%%%%%%%%%%%%%%%%%%%%%")
-        reply = self.driver_client.cmd_dvr('set_resource', params)
-        log.debug("3%%%%%%%%%%%%%%%%%%%%%%")
-        self.assertEqual(reply, None)
-        log.debug("4%%%%%%%%%%%%%%%%%%%%%%")
-
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        log.debug("4%%%%%%%%%%%%%%%%%%%%%%")
-        self.assert_param_dict(reply)
-
-        return
+        self.assert_set(params)
 
 
         log.debug("get/set Test 2 - get master set of possible parameters using array containing Parameter.ALL")
@@ -1233,121 +1256,51 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         params3 = [
             Parameter.ALL,
         ]
-
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_param_dict(reply)
+        self.assert_param_dict(reply, all_params=True )
 
+        log.debug("get/set Test 3 - set time.")
 
-
-
-        return
-
-
-
-        log.debug("get/set Test 2 - Conductivity = N, small subset of possible parameters.")
         params = {
-            Parameter.CONDUCTIVITY : False,
-            }
+            Parameter.TIME : "2010-10-10T10:10:10",
+        }
         reply = self.driver_client.cmd_dvr('set_resource', params)
         self.assertEqual(reply, None)
-
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+
+        set_time_to = time.mktime(time.strptime("2010-10-10T10:10:10", "%Y-%m-%dT%H:%M:%S"))
+        time_got_back = time.mktime(time.strptime(reply[Parameter.TIME], "%Y-%m-%dT%H:%M:%S"))
+        self.assertTrue((time_got_back - set_time_to) < 15)
         self.assert_param_dict(reply)
 
-
-        log.debug("get/set Test 3 - internal temperature sensor, small subset of possible parameters.")
+        log.debug("get/set Test 4 - alter upload_type, enable_alerts, sample_period")
         params = {
-            Parameter.DS_DEVICE_DATE_TIME : time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))),
-            Parameter.EXTERNAL_TEMPERATURE_SENSOR : False,
-            }
-        reply = self.driver_client.cmd_dvr('set_resource', params)
-        self.assertEqual(reply, None)
-
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_param_dict(reply)
-
-
-        log.debug("get/set Test 4 - external temperature sensor, small subset of possible parameters.")
-        params = {
-            Parameter.EXTERNAL_TEMPERATURE_SENSOR : True,
-            }
-        reply = self.driver_client.cmd_dvr('set_resource', params)
-        self.assertEqual(reply, None)
-
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_param_dict(reply)
+            Parameter.UPLOAD_TYPE: 1,
+            Parameter.ENABLE_ALERTS: True,
+            Parameter.SAMPLE_PERIOD: 199
+        }
+        self.assert_set(params)
 
         log.debug("get/set Test 5 - get master set of possible parameters.")
-        params = [
-            # DS
-            Parameter.DEVICE_VERSION,
-            Parameter.SERIAL_NUMBER,
-            Parameter.DS_DEVICE_DATE_TIME,
-            Parameter.USER_INFO,
-            Parameter.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER,
-            Parameter.QUARTZ_PRESSURE_SENSOR_RANGE,
-            Parameter.EXTERNAL_TEMPERATURE_SENSOR,
-            Parameter.CONDUCTIVITY,
-            Parameter.IOP_MA,
-            Parameter.VMAIN_V,
-            Parameter.VLITH_V,
-            Parameter.LAST_SAMPLE_P,
-            Parameter.LAST_SAMPLE_T,
-            Parameter.LAST_SAMPLE_S,
-
-            # DS/SETSAMPLING
-            Parameter.TIDE_INTERVAL,
-            Parameter.TIDE_MEASUREMENT_DURATION,
-            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS,
-            Parameter.WAVE_SAMPLES_PER_BURST,
-            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND,
-            Parameter.USE_START_TIME,
-            #Parameter.START_TIME,
-            Parameter.USE_STOP_TIME,
-            #Parameter.STOP_TIME,
-            Parameter.TXWAVESTATS,
-            Parameter.TIDE_SAMPLES_PER_DAY,
-            Parameter.WAVE_BURSTS_PER_DAY,
-            Parameter.MEMORY_ENDURANCE,
-            Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE,
-            Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS,
-            Parameter.TOTAL_RECORDED_WAVE_BURSTS,
-            Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START,
-            Parameter.WAVE_BURSTS_SINCE_LAST_START,
-            Parameter.TXREALTIME,
-            Parameter.TXWAVEBURST,
-            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS,
-            Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC,
-            Parameter.USE_MEASURED_TEMP_FOR_DENSITY_CALC,
-            Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR,
-            Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR,
-            Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM,
-            Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND,
-            Parameter.MIN_ALLOWABLE_ATTENUATION,
-            Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM,
-            Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM,
-            Parameter.HANNING_WINDOW_CUTOFF,
-            Parameter.SHOW_PROGRESS_MESSAGES,
-            Parameter.STATUS,
-            Parameter.LOGGING,
-            ]
+        params = Parameter
 
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_param_dict(reply)
+        self.assert_param_dict(reply, all_params=True )
 
 
-        log.debug("get/set Test 7 - Negative testing, broken values. Should get exception")
+        log.debug("get/set Test 6 - Negative testing, broken values. Should get exception")
         params = {
-            Parameter.EXTERNAL_TEMPERATURE_SENSOR : 5,
-
-            }
+            Parameter.ENABLE_ALERTS : 5.01,
+        }
         exception = False
         try:
+            log.debug("BEFORE SET_RESOURCE")
             reply = self.driver_client.cmd_dvr('set_resource', params)
+            log.debug("AFTER SET_RESOURCE REPLY =" + str(reply))
         except InstrumentParameterException:
             exception = True
+            log.debug("SCORE! I got an exception!")
         self.assertTrue(exception)
-
 
         log.debug("get/set Test 8 - Negative testing, broken labels. Should get exception")
         params = {
@@ -1360,8 +1313,8 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
             reply = self.driver_client.cmd_dvr('set_resource', params)
         except InstrumentParameterException:
             exception = True
+            log.debug("SCORE! I got an exception!")
         self.assertTrue(exception)
-
 
         log.debug("get/set Test 9 - Negative testing, empty params dict")
         params = {
@@ -1372,7 +1325,6 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         self.assert_param_dict(reply)
-
 
         log.debug("get/set Test 10 - Negative testing, None instead of dict")
         exception = False
@@ -1385,22 +1337,177 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         self.assert_param_dict(reply)
 
-
-
         log.debug("get/set Test N - Conductivity = Y, full set of set variables to known sane values.")
         params = {
-            Parameter.DS_DEVICE_DATE_TIME : time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))),
-            Parameter.USER_INFO : "whoi",
-            Parameter.TXREALTIME : True,
-            Parameter.TXWAVEBURST : True,
-            Parameter.CONDUCTIVITY : True,
-            Parameter.EXTERNAL_TEMPERATURE_SENSOR : True,
+            Parameter.TIME : time.strftime("%Y-%m-%dT%H:%M:%S"),
+            Parameter.UPLOAD_TYPE: 0,
+            Parameter.ENABLE_ALERTS: False,
+            Parameter.SAMPLE_PERIOD: 60
             }
         reply = self.driver_client.cmd_dvr('set_resource', params)
         self.assertEqual(reply, None)
 
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         self.assert_param_dict(reply)
+
+    # WORKS
+    def test_get_resource_capabilities(self):
+        """
+        Test get resource capabilities.
+        """
+        # Test the driver is in state unconfigured.
+        self.put_instrument_in_command_mode()
+
+        # COMMAND
+        (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
+        for state in ['DRIVER_EVENT_ACQUIRE_STATUS', 'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                      'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
+            self.assertTrue(state in res_cmds)
+        self.assertEqual(len(res_cmds), 4)
+
+        # Verify all paramaters are present in res_params
+
+        # DS
+        log.debug("RES_COMMANDS = " + repr(res_params))
+
+        for p in res_params:
+            log.debug("*** ASSERTING " + str(p) + " in PARAMS")
+            self.assertTrue(p in PARAMS.keys())
+
+
+        reply = self.driver_client.cmd_dvr('execute_resource', Capability.START_AUTOSAMPLE)
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolState.AUTOSAMPLE)
+
+
+        (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
+        for state in ['DRIVER_EVENT_STOP_AUTOSAMPLE']:
+            self.assertTrue(state in res_cmds)
+        self.assertEqual(len(res_cmds), 1)
+        reply = self.driver_client.cmd_dvr('execute_resource', Capability.STOP_AUTOSAMPLE)
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, ProtocolState.COMMAND)
+
+
+        (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
+        for state in ['DRIVER_EVENT_ACQUIRE_STATUS', 'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                      'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
+            self.assertTrue(state in res_cmds)
+        self.assertEqual(len(res_cmds), 4)
+
+    # WORKS
+    def test_connect_configure_disconnect(self):
+        """
+        @ BRIEF connect and then disconnect, verify state
+        """
+
+        self.put_instrument_in_command_mode()
+
+        reply = self.driver_client.cmd_dvr('disconnect')
+        self.assertEqual(reply, None)
+
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+    # WORKS
+    def test_bad_commands(self):
+        """
+        @brief test that bad commands are handled with grace and style.
+        """
+
+        # Test the driver is in state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
+
+        # Test bad commands in UNCONFIGURED state.
+
+        exception_happened = False
+        try:
+            state = self.driver_client.cmd_dvr('conquer_the_world')
+        except InstrumentCommandException as ex:
+            exception_happened = True
+            log.debug("1 - conquer_the_world - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+        # Test the driver is configured for comms.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Test bad commands in DISCONNECTED state.
+
+        exception_happened = False
+        try:
+            state = self.driver_client.cmd_dvr('test_the_waters')
+        except InstrumentCommandException as ex:
+            exception_happened = True
+            log.debug("2 - test_the_waters - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+
+        # Test the driver is in unknown state.
+        reply = self.driver_client.cmd_dvr('connect')
+        self.check_state(ProtocolState.UNKNOWN)
+
+        # Test bad commands in UNKNOWN state.
+
+        exception_happened = False
+        try:
+            state = self.driver_client.cmd_dvr("skip_to_the_loo")
+        except InstrumentCommandException as ex:
+            exception_happened = True
+            log.debug("3 - skip_to_the_loo - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+
+
+        # Test the driver is in command mode.
+        reply = self.driver_client.cmd_dvr('discover_state')
+
+        self.check_state(ProtocolState.COMMAND)
+
+
+        # Test bad commands in COMMAND state.
+
+        exception_happened = False
+        try:
+            state = self.driver_client.cmd_dvr("... --- ..., ... --- ...")
+        except InstrumentCommandException as ex:
+            exception_happened = True
+            log.debug("4 - ... --- ..., ... --- ... - Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+    # WORKS
+    def test_connect(self):
+        """
+        Test configuring and connecting to the device through the port
+        agent. Discover device state.
+        """
+        log.info("test_connect test started")
+        self.put_instrument_in_command_mode()
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('disconnect')
+
+        # Test the driver is configured for comms.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Initialize the driver and transition to unconfigured.
+        reply = self.driver_client.cmd_dvr('initialize')
+
+        # Test the driver is in state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
+
+    def test_clock_sync(self):
+        self.put_instrument_in_command_mode()
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
+        self.check_state(ProtocolState.COMMAND)
+
+
+
+
 
 
 ###############################################################################
@@ -1802,9 +1909,10 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet(timeout=600)
         self.assertTrue(self.tcp_client)
-        self.tcp_client.send_data(Parameter.EXTERNAL_TEMPERATURE_SENSOR + "=N\r\n")
-        self.tcp_client.expect("S>")
-
+        #self.tcp_client.send_data(Parameter.EXTERNAL_TEMPERATURE_SENSOR + "=N\r\n")
+        #self.tcp_client.expect("S>")
+        log.debug("***GOT HERE***")
+        time.sleep(200)
         self.assert_direct_access_stop_telnet()
 
         # verify the setting got restored.
