@@ -2431,7 +2431,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("%%% IN _got_chunk result = " + repr(result))
         result = self._extract_sample(SBE54tpsHardwareDataParticle, HARDWARE_DATA_REGEX_MATCHER, chunk)
         log.debug("%%% IN _got_chunk result = " + repr(result))
-
         result = self._extract_sample(SBE54tpsSampleDataParticle, SAMPLE_DATA_REGEX_MATCHER, chunk)
 
 

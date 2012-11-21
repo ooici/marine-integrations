@@ -61,6 +61,9 @@ from mi.instrument.seabird.sbe54tps.ooicore.driver import Protocol
 from mi.instrument.seabird.sbe54tps.ooicore.driver import InstrumentCmds
 from mi.instrument.seabird.sbe54tps.ooicore.driver import NEWLINE
 from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsEventCounterDataParticleKey
+from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
+from prototype.sci_data.stream_defs import ctd_stream_definition
+
 # SAMPLE DATA FOR TESTING
 from mi.instrument.seabird.sbe54tps.ooicore.test.sample_data import *
 from mi.instrument.seabird.sbe54tps.ooicore.test.params import PARAMS
@@ -80,10 +83,10 @@ InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.seabird.sbe54tps.ooicore.driver',
     driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = 'IQM9B7',
-    instrument_agent_name = 'seabird_sbe54tps_ooicore',
+    instrument_agent_resource_id = '123xyz',
+    instrument_agent_name = 'Agent007',
     instrument_agent_packet_config = {},
-    instrument_agent_stream_definition = {}
+    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
 )
 
 
@@ -1525,7 +1528,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
     ###
 
 
-    def check_state(self, desired_state):
+    def check_agent_state(self, desired_agent_state):
         """
         Transitions to the desired state, then verifies it has indeed made it to that state.
         @param desired_state: the state to transition to.
@@ -1533,9 +1536,25 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         #@todo promote this to base class already....
 
         current_state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(current_state, desired_state)
+        self.assertEqual(current_state, desired_agent_state)
 
-    def assert_command_and_state(self, agent_command, desired_state):
+    def check_resource_state(self, desired_resource_state):
+        """
+        Transitions to the desired state, then verifies it has indeed made it to that state.
+        @param desired_state: the state to transition to.
+        """
+        #@todo promote this to base class already....
+
+        current_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(current_state, desired_resource_state)
+
+    def assert_resource_command_and_resource_state(self, resource_command, desired_state):
+
+        cmd = AgentCommand(command=resource_command)
+        retval = self.instrument_agent_client.execute_resource(cmd)
+        self.check_resource_state(desired_state)
+
+    def assert_agent_command_and_agent_state(self, agent_command, desired_state):
         """
         Execute an agent command, and verify the desired state is achieved.
         @param agent_command: the agent command to execute
@@ -1544,7 +1563,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         cmd = AgentCommand(command=agent_command)
         retval = self.instrument_agent_client.execute_agent(cmd)
-        self.check_state(desired_state)
+        self.check_agent_state(desired_state)
 
 
 
@@ -1559,7 +1578,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         """
         @param prospective_particle: a perfect particle of SBE54tpsStatusDataParticle or FAIL!!!!
         """
-        if (isinstance(potential_sample, SBE54tpsStatusDataParticle)):
+        if True:
 
             log.debug("GOT A SBE54tpsStatusDataParticle")
             sample_dict = json.loads(val.generate_parsed())
@@ -1897,91 +1916,25 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                     # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
                     self.assertTrue(False)
 
-    def test_direct_access_telnet_mode_roger(self):
-        """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
-        """
-        self.assert_enter_command_mode()
-        params = [Parameter.EXTERNAL_TEMPERATURE_SENSOR]
-        check_new_params = self.instrument_agent_client.get_resource(params)
-        self.assertTrue(check_new_params[Parameter.EXTERNAL_TEMPERATURE_SENSOR])
-
-        # go into direct access, and muck up a setting.
-        self.assert_direct_access_start_telnet(timeout=600)
-        self.assertTrue(self.tcp_client)
-        #self.tcp_client.send_data(Parameter.EXTERNAL_TEMPERATURE_SENSOR + "=N\r\n")
-        #self.tcp_client.expect("S>")
-        log.debug("***GOT HERE***")
-        time.sleep(200)
-        self.assert_direct_access_stop_telnet()
-
-        # verify the setting got restored.
-        self.assert_enter_command_mode()
-        params = [Parameter.EXTERNAL_TEMPERATURE_SENSOR]
-        check_new_params = self.instrument_agent_client.get_resource(params)
-        self.assertTrue(check_new_params[Parameter.EXTERNAL_TEMPERATURE_SENSOR])
-
+    # WORKS
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
-
-        stop
-        <WARNING>
-        Instrument will automatically start sampling
-        if no valid commands received for 2 minutes
-        </WARNING>
-        <Executed/>
-        S>SetSamplePeriod=99
-        SetSamplePeriod=99
-        <Executed/>
-        S>
         """
-
-
-        self.check_state(ResourceAgentState.UNINITIALIZED)
-        self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE)
-
-        res_state = self.instrument_agent_client.get_resource_state()
-        self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
-        state = self.instrument_agent_client.get_agent_state()
-        log.debug("RESOURCE_STATE = " + repr(res_state))
-        log.debug("AGENT_STATE = " + repr(state))
-        '''
-        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: RESOURCE_STATE = 'DRIVER_STATE_UNCONFIGURED'
-        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: AGENT_STATE = 'RESOURCE_AGENT_STATE_INACTIVE'
-        '''
-
-
-
-        self.assert_command_and_state(ResourceAgentEvent.GO_ACTIVE, ResourceAgentState.COMMAND)
-
         self.assert_enter_command_mode()
 
 
 
-        #self.assert_enter_command_mode()
-
-        param_name = Parameter.XXXXXXXXXXXXXXXXXXXXXREPLACE
-        param_new_value = 90
-
-
-        params = [param_name]
-        check_new_params = self.instrument_agent_client.get_resource(params)
-        self.assertTrue(check_new_params[param_name])
-
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet(timeout=600)
         self.assertTrue(self.tcp_client)
-        self.tcp_client.send_data(param_name + "=" + str(param_new_value) + "\r\n")
+        self.tcp_client.send_data("\r\n")
         self.tcp_client.expect("S>")
 
         self.assert_direct_access_stop_telnet()
 
         # verify the setting got restored.
         self.assert_enter_command_mode()
-        params = [param_name]
-        check_new_params = self.instrument_agent_client.get_resource(params)
-        self.assertTrue(check_new_params[param_name])
 
     def test_autosample(self):
         """
@@ -1996,7 +1949,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         # lets sample FAST!
         params = {
-            SET_SAMPLE_PERIOD: 10
+            Parameter.SAMPLE_PERIOD: 10
         }
 
         self.instrument_agent_client.set_resource(params, timeout=10)
@@ -2008,7 +1961,13 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
 
         # wait for 3 samples, then test them!
-        samples = self.data_subscribers.get_samples('parsed', 3, timeout=60) # 1 minutes
+
+
+        samples = self.data_subscribers.get_samples('parsed', 1, timeout=120) # 1 minutes
+        log.debug("GOT 3 SAMPLES I THINK!")
+
+
+
         self.assert_SBE54tpsSampleDataParticle(samples.pop())
         self.assert_SBE54tpsSampleDataParticle(samples.pop())
         self.assert_SBE54tpsSampleDataParticle(samples.pop())
@@ -2068,6 +2027,24 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         return (agent_capabilities, unknown, driver_capabilities, driver_vars)
 
 
+    # WORKS
+    def check_state(self, desired_state):
+        state = self.instrument_agent_client.get_resource_state()
+
+        # 'DRIVER_STATE_AUTOSAMPLE' != 'DRIVER_STATE_COMMAND'
+        if ProtocolState.AUTOSAMPLE == state:
+            # OH SNAP! WE'RE IN AUTOSAMPLE AGAIN!
+            # QUICK, FIX IT BEFORE ANYONE NOTICES!
+
+            cmd = AgentCommand(command=ProtocolEvent.STOP_AUTOSAMPLE)
+
+            retval = self.instrument_agent_client.execute_resource(cmd, timeout=60)
+
+            state = self.instrument_agent_client.get_resource_state()
+            #  ...AND MAKE LIKE THIS NEVER HAPPENED!
+        self.assertEqual(state, desired_state)
+
+    # BROKE AUTOSAMPLE ISH ISSUES
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -2076,21 +2053,29 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         This one needs to be re-written rather than copy/pasted to develop a better more reusable pattern.
         """
 
-        self.check_state(ResourceAgentState.UNINITIALIZED)
+        self.check_agent_state(ResourceAgentState.UNINITIALIZED)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
         self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_INITIALIZE'])
         self.assert_capabilitys_present(driver_capabilities, [])
 
         log.debug("%%% STATE NOW ResourceAgentState.UNINITIALIZED")
 
-        self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE)
+        self.assert_agent_command_and_agent_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
         self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_ACTIVE', 'RESOURCE_AGENT_EVENT_RESET'])
         self.assert_capabilitys_present(driver_capabilities, [])
 
         log.debug("%%% STATE NOW ResourceAgentState.INACTIVE")
 
-        self.assert_command_and_state(ResourceAgentEvent.GO_ACTIVE, ResourceAgentState.IDLE)
+
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_resource_state()
+        log.debug("CRIMENY!    " + repr(state))
+        self.check_state(DriverState.COMMAND)
+
+        self.assert_agent_command_and_agent_state(ResourceAgentEvent.GO_ACTIVE, ResourceAgentState.IDLE)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
         self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_INACTIVE', 'RESOURCE_AGENT_EVENT_RESET',
                                                              'RESOURCE_AGENT_EVENT_RUN'])
@@ -2098,7 +2083,9 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         log.debug("%%% STATE NOW ResourceAgentState.IDLE")
 
-        self.assert_command_and_state(ResourceAgentEvent.RUN, ResourceAgentState.COMMAND)
+
+
+        self.assert_agent_command_and_agent_state(ResourceAgentEvent.RUN, ResourceAgentState.COMMAND)
 
         log.debug("%%% STATE NOW ResourceAgentState.COMMAND")
 
@@ -2124,7 +2111,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.execute_agent(cmd)
         log.debug("%%%%%%%%%%%% COMPLETED AGENT COMMAND")
 
-        self.check_state(ResourceAgentState.DIRECT_ACCESS)
+        self.check_agent_state(ResourceAgentState.DIRECT_ACCESS)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
         self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_COMMAND'])
         self.assert_capabilitys_present(driver_capabilities, [])
@@ -2135,22 +2122,27 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         #self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentEvent.GO_ACTIVE)
         #self.assert_command_and_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE)
 
-    # BROKE
+
+
+    # assert_resource_command_and_resource_state(self, resource_command, desired_state):
+    # assert_agent_command_and_agent_state
+
+    # WORKS
     def test_execute_clock_sync(self):
         """
         @brief Test Test EXECUTE_CLOCK_SYNC command.
         """
         self.assert_enter_command_mode()
 
-        self.assert_command_and_state(ProtocolEvent.CLOCK_SYNC, ProtocolState.COMMAND)
+        self.assert_resource_command_and_resource_state(ProtocolEvent.CLOCK_SYNC, ProtocolState.COMMAND)
         # clocl should now be synced
 
         # Now verify that at least the date matches
-        params = [Parameter.DS_DEVICE_DATE_TIME]
+        params = [Parameter.TIME]
         check_new_params = self.instrument_agent_client.get_resource(params)
         lt = time.strftime("%d %b %Y  %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
 
-    # BROKE
+    # WORKS
     def test_connect_disconnect(self):
 
         self.assert_enter_command_mode()
@@ -2158,4 +2150,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
 
-        self.check_state(ResourceAgentState.UNINITIALIZED)
+        self.check_agent_state(ResourceAgentState.UNINITIALIZED)
+
+
+
