@@ -2508,7 +2508,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("_parse_ts_response RETURNING RESULT=" + str(result))
         return result
 
-    def got_data(self, paPacket):
+    def now_in_instrument_protocol_got_data(self, paPacket):
         """
         Callback for receiving new data from the device.
         """
@@ -2603,6 +2603,17 @@ class Protocol(CommandResponseInstrumentProtocol):
                     # reload
                     chunk = self._chunker.get_next_data()
 
+
+    def _got_chunk(self, chunk):
+        """
+        The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
+        with the appropriate particle objects and REGEXes.
+        """
+        self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk)
+        self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk)
+        self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk)
+        self._extract_sample(SBE26plusDeviceCalibrationDataParticle, STATS_REGEX_MATCHER, chunk)
+        self._extract_sample(SBE26plusDeviceStatusDataParticle, STATS_REGEX_MATCHER, chunk)
 
     ########################################################################
     # Static helpers to format set commands.

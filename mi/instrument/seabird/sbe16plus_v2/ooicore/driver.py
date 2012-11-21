@@ -1142,6 +1142,48 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         
         return (success, response)        
                 
+    def got_data(self, paPacket):
+        """
+        Callback for receiving new data from the device.
+        """
+        length = paPacket.get_data_size()
+        data = paPacket.get_data()
+        tempLength = len(data)
+        
+        #print "--> DHE: got_data(): " + data
+
+        if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
+            # direct access mode
+            if length > 0:
+                #mi_logger.debug("SBE16Protocol._got_data(): <" + data + ">")
+                # check for echoed commands from instrument (TODO: this should only be done for telnet?)
+                if len(self._sent_cmds) > 0:
+                    # there are sent commands that need to have there echoes filtered out
+                    oldest_sent_cmd = self._sent_cmds[0]
+                    if string.count(data, oldest_sent_cmd) > 0:
+                        # found a command echo, so remove it from data and delete the command from list
+                        data = string.replace(data, oldest_sent_cmd, "", 1)
+                        self._sent_cmds.pop(0)
+                if len(data) > 0 and self._driver_event:
+                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
+                    # TODO: what about logging this as an event?
+            return
+
+        if length > 0:
+                
+            # Call the superclass to update line and prompt buffers.
+            self.add_to_buffer(data)
+
+            if self.get_current_state() == ProtocolState.AUTOSAMPLE:
+        
+                self._chunker.add_chunk(data)
+        
+                chunk = self._chunker.get_next_data()
+                while (chunk):
+                    self._extract_sample(SBE16DataParticle, SAMPLE_REGEX, chunk)
+                    self._extract_sample(SBE16StatusParticle, STATUS_REGEX, chunk)
+                    chunk = self._chunker.get_next_data()
+
     def _got_chunk(self, chunk):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
