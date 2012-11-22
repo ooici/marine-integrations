@@ -14,9 +14,7 @@ SAMPLE_GETSD =  "S>getsd" + NEWLINE + \
                 "<Bytes>341504</Bytes>" + NEWLINE + \
                 "<BytesFree>133876224</BytesFree>" + NEWLINE + \
                 "</MemorySummary>" + NEWLINE + \
-                "</StatusData>" + NEWLINE + \
-                "<Executed/>" + NEWLINE + \
-                "S>"
+                "</StatusData>"
 
 SAMPLE_GETCD =  "S>getcd" + NEWLINE +\
                 "getcd" + NEWLINE +\
@@ -52,8 +50,7 @@ SAMPLE_GETCD =  "S>getcd" + NEWLINE +\
                 "uploadType='0'" + NEWLINE +\
                 "samplePeriod='15'" + NEWLINE +\
                 "/>" + NEWLINE +\
-                "</ConfigurationData>" + NEWLINE +\
-                "<Executed/>"
+                "</ConfigurationData>"
 
 SAMPLE_GETEC =  "S>getec" + NEWLINE +\
                 "getec" + NEWLINE +\
@@ -68,9 +65,7 @@ SAMPLE_GETEC =  "S>getec" + NEWLINE +\
                 "<Event type='SignalErr' count='1'/>" + NEWLINE +\
                 "<Event type='Error10' count='1'/>" + NEWLINE +\
                 "<Event type='Error12' count='1'/>" + NEWLINE +\
-                "</EventList>" + NEWLINE +\
-                "<Executed/>" + NEWLINE +\
-                "S>"
+                "</EventList>"
 
 SAMPLE_GETHD =  "S>gethd" + NEWLINE +\
                 "gethd" + NEWLINE +\
@@ -84,12 +79,69 @@ SAMPLE_GETHD =  "S>gethd" + NEWLINE +\
                 "<PCBSerialNum>NOT SET</PCBSerialNum>" + NEWLINE +\
                 "<PCBType>1</PCBType>" + NEWLINE +\
                 "<MfgDate>Jun 27 2007</MfgDate>" + NEWLINE +\
-                "</HardwareData>" + NEWLINE +\
-                "<Executed/>" + NEWLINE +\
-                "S>"
+                "</HardwareData>"
 
 SAMPLE_SAMPLE = "<Sample Num='5947' Type='Pressure'>" + NEWLINE +\
                 "<Time>2012-11-07T12:21:25</Time>" + NEWLINE +\
                 "<PressurePSI>13.9669</PressurePSI>" + NEWLINE +\
                 "<PTemp>18.9047</PTemp>" + NEWLINE +\
                 "</Sample>"
+
+SAMPLE_TEST_REF_OSC = "S>TestRefOsc" + NEWLINE +\
+                      "TestRefOsc" + NEWLINE +\
+                      "<SetTimeout>120000</SetTimeout>" + NEWLINE +\
+                      "<SetTimeoutMax>OFF</SetTimeoutMax>" + NEWLINE +\
+                      "<SetTimeoutICD>120000</SetTimeoutICD>" + NEWLINE +\
+                      "<!--Ref osc warmup next 120 seconds-->" + NEWLINE +\
+                      "<!--Warmup complete, starting measurement at 0.1Hz-->" + NEWLINE +\
+                      "<SetTimeout>15000</SetTimeout>" + NEWLINE +\
+                      "<SetTimeoutICD>15000</SetTimeoutICD>" + NEWLINE +\
+                      "<ReferenceOscTest DeviceType='SBE54' SerialNumber='05400012'>" + NEWLINE +\
+                      "5999996.190 18486  0.076" + NEWLINE +\
+                      "5999996.040 18468  0.095" + NEWLINE +\
+                      "5999996.140 18450  0.072" + NEWLINE +\
+                      "5999996.040 18432  0.082" + NEWLINE +\
+                      "5999995.955 18414  0.090" + NEWLINE +\
+                      "5999995.940 18396  0.086" + NEWLINE +\
+                      "5999995.940 18378  0.080" + NEWLINE +\
+                      "5999995.940 18360  0.074" + NEWLINE +\
+                      "5999995.840 18343  0.084" + NEWLINE +\
+                      "5999995.740 18326  0.095" + NEWLINE +\
+                      "5999995.840 18309  0.072" + NEWLINE +\
+                      "5999995.640 18293  0.100" + NEWLINE +\
+                      "5999995.740 18277  0.078" + NEWLINE +\
+                      "5999995.640 18261  0.089" + NEWLINE +\
+                      "5999995.640 18245  0.083" + NEWLINE +\
+                      "5999995.640 18230  0.078" + NEWLINE +\
+                      "5999995.540 18215  0.089" + NEWLINE +\
+                      "5999995.540 18200  0.084" + NEWLINE +\
+                      "5999995.540 18185  0.078" + NEWLINE +\
+                      "5999995.440 18170  0.090" + NEWLINE +\
+                      "5999995.454 18156  0.082" + NEWLINE +\
+                      "5999995.340 18142  0.096" + NEWLINE +\
+                      "5999995.440 18128  0.075" + NEWLINE +\
+                      "5999995.340 18114  0.086" + NEWLINE +\
+                      "5999995.340 18101  0.082" + NEWLINE +\
+                      "5999995.240 18088  0.094" + NEWLINE +\
+                      "5999995.240 18075  0.089" + NEWLINE +\
+                      "5999995.240 18062  0.084" + NEWLINE +\
+                      "5999995.240 18049  0.080" + NEWLINE +\
+                      "5999995.140 18037  0.092" + NEWLINE +\
+                      "5999995.140 18025  0.088" + NEWLINE +\
+                      "5999995.140 18013  0.083" + NEWLINE +\
+                      "</ReferenceOscTest>" + NEWLINE
+
+
+
+SAMPLE_samplerefosc = "S>samplerefosc" + NEWLINE +\
+                      "samplerefosc" + NEWLINE +\
+                      "<SetTimeout>125000</SetTimeout>" + NEWLINE +\
+                      "<SetTimeoutMax>150000</SetTimeoutMax>" + NEWLINE +\
+                      "<SetTimeoutICD>125000</SetTimeoutICD>" + NEWLINE +\
+                      "<!--Ref osc warmup next 120 seconds-->" + NEWLINE +\
+                      "<!--Warmup complete, starting measurement at 0.1Hz-->" + NEWLINE +\
+                      "<Sample Num='336160' Type='Pressure'>" + NEWLINE +\
+                      "<Time>2012-11-19T10:21:22</Time>" + NEWLINE +\
+                      "<PressurePSI>13.6135</PressurePSI>" + NEWLINE +\
+                      "<PTemp>18.7733</PTemp>" + NEWLINE +\
+                      "</Sample>" + NEWLINE
