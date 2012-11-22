@@ -1308,7 +1308,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER,                  self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT,                   self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,         self._handler_command_acquire_sample)
+        # have NO TAKE SAMPLE COMMAND
+        #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,         self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,       self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,                    self._handler_command_get)  ### ??
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)  ### ??
@@ -1597,17 +1598,17 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         log.debug("%%% IN _handler_command_aquire_status")
 
+        timeout = kwargs.get('timeout', TIMEOUT)
+
         next_state = None
         next_agent_state = None
-        '''
-        GetCD Get and display configuration data.
-        GetSD Get and display status data.
-        GetEC Get and display event counter data.
-        GetHD Get and display hardware data.
-        '''
+        result1 = self._do_cmd_resp(InstrumentCmds.GET_CONFIGURATION_DATA, timeout=timeout)
+        result2 = self._do_cmd_resp(InstrumentCmds.GET_STATUS_DATA, timeout=timeout)
+        result3 = self._do_cmd_resp(InstrumentCmds.GET_EVENT_COUNTER_DATA, timeout=timeout)
+        result4 = self._do_cmd_resp(InstrumentCmds.GET_HARDWARE_DATA, timeout=timeout)
 
         #result = self._do_cmd_resp('ds', *args, **kwargs)
-        result = "NOT IMPLEMENTED"
+        result = result1 + result2 + result3 + result4
 
         return (next_state, (next_agent_state, result))
 
@@ -2422,17 +2423,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         with the appropriate particle objects and REGEXes.
         """
 
-        log.debug("%%% IN _got_chunk")
-        result = self._extract_sample(SBE54tpsStatusDataParticle, STATUS_DATA_REGEX_MATCHER, chunk)
-        log.debug("%%% IN _got_chunk result = " + repr(result))
-        result = self._extract_sample(SBE54tpsConfigurationDataParticle, CONFIGURATION_DATA_REGEX_MATCHER, chunk)
-        log.debug("%%% IN _got_chunk result = " + repr(result))
-        result = self._extract_sample(SBE54tpsEventCounterDataParticle, EVENT_COUNTER_DATA_REGEX_MATCHER, chunk)
-        log.debug("%%% IN _got_chunk result = " + repr(result))
-        result = self._extract_sample(SBE54tpsHardwareDataParticle, HARDWARE_DATA_REGEX_MATCHER, chunk)
-        log.debug("%%% IN _got_chunk result = " + repr(result))
-        result = self._extract_sample(SBE54tpsSampleDataParticle, SAMPLE_DATA_REGEX_MATCHER, chunk)
 
+        result = self._extract_sample(SBE54tpsStatusDataParticle, STATUS_DATA_REGEX_MATCHER, chunk)
+
+        result = self._extract_sample(SBE54tpsConfigurationDataParticle, CONFIGURATION_DATA_REGEX_MATCHER, chunk)
+
+        result = self._extract_sample(SBE54tpsEventCounterDataParticle, EVENT_COUNTER_DATA_REGEX_MATCHER, chunk)
+
+        result = self._extract_sample(SBE54tpsHardwareDataParticle, HARDWARE_DATA_REGEX_MATCHER, chunk)
+
+        result = self._extract_sample(SBE54tpsSampleDataParticle, SAMPLE_DATA_REGEX_MATCHER, chunk)
+        log.debug("%%% IN _got_chunk result = " + repr(result))
 
         """
         # @TODO need to enable this and wire the event, but not tonight.
