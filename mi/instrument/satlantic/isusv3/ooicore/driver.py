@@ -19,44 +19,76 @@ __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
 
-import logging
 import time
-import re
 import datetime
+import re
+import array
+import struct
 
 from mi.core.common import BaseEnum
 
 from mi.core.instrument.port_agent_client import PortAgentPacket
 
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
-#from mi.core.instrument.instrument_driver import InstrumentDriver
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.chunker import StringChunker
+
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentStateException
-#from mi.instrument_connection import SerialInstrumentConnection
-#from mi.instrument_driver import InstrumentDriver
-#from mi.instrument_driver import DriverChannel
-#from mi.exceptions import InstrumentConnectionException
+from mi.core.exceptions import SampleException
+
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 
 from mi.core.log import get_logger
 log = get_logger()
 
-###
-#   Module wide values
-###
+"""
+Module wide values
+"""
 INSTRUMENT_NEWLINE = '\r\n'
 WRITE_DELAY = 0
 READ_DELAY = .25
 RESET_DELAY = 25
 EOLN = "\n"
+COMMAND_MODE = 'COMMAND'
+AUTOSAMPLE_MODE = 'AUTOSAMPLE'
+
+
+SAMPLE_PATTERN_ASCII = r'^SAT(.{3}).{4},(.{4,7}),(.{,9})'
+#SAMPLE_PATTERN = r'SAT(.{3})(.{4})(.{4})(.{8})'
+SAMPLE_PATTERN = r'SAT'         #      Sentinal
+SAMPLE_PATTERN += r'(.{3})'     #   1: Frame Type
+SAMPLE_PATTERN += r'(.{4})'     #   2: Serial Number
+SAMPLE_PATTERN += r'(.{4})'     #   3: Date
+SAMPLE_PATTERN += r'(.{8})'     #   4: Time
+SAMPLE_PATTERN += r'(.{4})'     #   5: Nitrate Concentration
+SAMPLE_PATTERN += r'(.{4})'     #   6: AUX1
+SAMPLE_PATTERN += r'(.{4})'     #   7: AUX2
+SAMPLE_PATTERN += r'(.{4})'     #   8: AUX3
+SAMPLE_PATTERN += r'(.{4})'     #   9: RMS ERROR
+SAMPLE_PATTERN += r'(.{4})'     #  10: t_int Interior Temp
+SAMPLE_PATTERN += r'(.{4})'     #  11: t_spec Spectrometer Temp
+SAMPLE_PATTERN += r'(.{4})'     #  12: t_lamp Lamp Temp
+SAMPLE_PATTERN += r'(.{4})'     #  13: lamp_time Lamp Time
+SAMPLE_PATTERN += r'(.{4})'     #  14: humidity Interior Humidity
+SAMPLE_PATTERN += r'(.{4})'     #  15: volt_12 Lamp Power Supply Voltage
+SAMPLE_PATTERN += r'(.{4})'     #  16: volt_5 Internal Analog Power Supply Voltage
+SAMPLE_PATTERN += r'(.{4})'     #  17: volt_main Main Internal Power Supply Voltage
+SAMPLE_PATTERN += r'(.{4})'     #  18: ref_avg Reference Channel Average
+SAMPLE_PATTERN += r'(.{4})'     #  19: ref_std Reference Channel Variance
+SAMPLE_PATTERN += r'(.{4})'     #  20: sw_dark Sea-Water Dark
+SAMPLE_PATTERN += r'(.{4})'     #  21: spec_avg All Channels Average
+SAMPLE_PATTERN += r'(.{2})'     #  22: Channel 1
+SAMPLE_PATTERN += r'(.{2})'     #  23: Channel 2
+SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
 
 # Packet config for ISUSV3 data granules.
 STREAM_NAME_PARSED = 'parsed'
@@ -74,9 +106,9 @@ PACKET_CONFIG = {
 # @todo May need some regex(s) for data format returned...at least to confirm
 # that it is data.
 
-###
-#   Static Enumerations
-###
+"""
+Static Enumerations
+"""
 class State(BaseEnum):
     """
     Enumerated driver states.  Your driver will likly only support a subset of these.
@@ -114,33 +146,18 @@ class Event(BaseEnum):
     CONFIGURE = DriverEvent.CONFIGURE
     INITIALIZE = DriverEvent.INITIALIZE
     DISCOVER = DriverEvent.DISCOVER
-    #PROMPTED = DriverEvent.PROMPTED
-    #DATA_RECEIVED = DriverEvent.DATA_RECEIVED
-    #COMMAND_RECEIVED = DriverEvent.COMMAND_RECEIVED
-    #RESPONSE_TIMEOUT = DriverEvent.RESPONSE_TIMEOUT
     SET = DriverEvent.SET
     GET = DriverEvent.GET
     EXECUTE = DriverEvent.EXECUTE
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    FORCE_STATE = DriverEvent.FORCE_STATE
-    #TEST = DriverEvent.TEST
-    #STOP_TEST = DriverEvent.STOP_TEST
-    #CALIBRATE = DriverEvent.CALIBRATE
-    #RESET = DriverEvent.RESET
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
-    #UPDATE_PARAMS = DriverEvent.UPDATE_PARAMS
     
     """
-    QUESTION FOR STEVE: What are these events doing here?  How would such an event
-    get generated?  Should these be in class Event?
-    """
-    
-    """
-    DHE: this doesn't work; These commands collide (ex., several 'S' events/commands), and the 
-    response handler is set up to use just the value.  Need a better way, like use a dict with
+    DHE: The ISUS commands collide (ex., several 'S' events/commands), and the 
+    base class response handler is set up to use just the value.  Need a better way, like use a dict with
     a unique string as the key (for instance, "setup_menu_reponse", or "show_config_response" for
     two different keys for the that have the same command value.
     """
@@ -230,8 +247,6 @@ class Event(BaseEnum):
     
     REBOOT = "REBOOT"
 
-
-
 class Prompt(BaseEnum):
     ROOT_MENU = "ISUS> [H]"
     CONFIG_MENU_1 = "ISUS Configuration Menu (<H> for Help)"
@@ -253,6 +268,8 @@ class Prompt(BaseEnum):
     MODIFY = "Modify?  [N]" 
     ENTER_CHOICE = "Enter number to assign new value"
     ENTER_DEPLOYMENT_COUNTER = "Enter deployment counter. ?"
+    WAITING_FOR_GO = "Waiting for 'g'"
+    AUTOSAMPLE_WILL_RESTART = "ISUS will start in"
 
 class Parameter(DriverParameter):
     """ The parameters that drive/control the operation and behavior of the device """
@@ -368,8 +385,144 @@ class InstrumentPrompts(BaseEnum):
     MAIN_MENU = "ISUS> [H] ?"
 
 ###
-#   Protocol for ooicore
+#   Driver for ooicore
 ###
+#class ooicoreInstrumentDriver(InstrumentDriver):
+class InstrumentDriver(SingleConnectionInstrumentDriver):
+    """
+    """
+    def __init__(self, evt_callback):
+        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+
+
+    # DHE Added
+    ########################################################################
+    # Superclass overrides for resource query.
+    ########################################################################
+
+    def get_resource_params(self):
+        """
+        Return list of device parameters available.
+        """
+        return Parameter.list()
+
+
+    # DHE Added
+    ########################################################################
+    # Protocol builder.
+    ########################################################################
+
+    def _build_protocol(self):
+        """
+        Construct the driver protocol state machine.
+        """
+        self._protocol = Protocol(Prompt, INSTRUMENT_NEWLINE, self._driver_event) 
+
+class ISUSDataParticleKey(BaseEnum):
+    FRAME_TYPE = "frame_type"
+    SERIAL_NUM = "serial_num"
+    DATE = "date"
+    TIME = "time"
+
+class ISUSDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    def _build_parsed_values(self):
+        """
+        Take something in the autosample/TS format and split it into
+        C, T, and D values (with appropriate tags)
+        
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = SAMPLE_REGEX.match(self.raw_data)
+        
+        if not match:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.raw_data)
+            
+        try:
+            frame_type = str(match.group(1))
+            serial_num = str(match.group(2))
+            date = struct.unpack_from('>BB', match.group(3))
+            time = struct.unpack_from('>BB', match.group(4))
+            ntr_conc = struct.unpack_from('>BB', match.group(5))
+            aux1 = struct.unpack_from('>BB', match.group(6))
+            aux2 = struct.unpack_from('>BB', match.group(7))
+            aux3 = struct.unpack_from('>BB', match.group(8))
+            rms_error = struct.unpack_from('>BB', match.group(9))
+
+            t_int = struct.unpack_from('>BB', match.group(10))
+            t_spec = struct.unpack_from('>BB', match.group(11))
+            t_lamp = struct.unpack_from('>BB', match.group(12))
+            lamp_time = struct.unpack_from('>BB', match.group(13))
+            humidity = struct.unpack_from('>BB', match.group(14))
+            volt_12 = struct.unpack_from('>BB', match.group(15))
+            volt_5 = struct.unpack_from('>BB', match.group(16))
+            volt_main = struct.unpack_from('>BB', match.group(17))
+            ref_avg = struct.unpack_from('>BB', match.group(18))
+            ref_std = struct.unpack_from('>BB', match.group(19))
+            sw_dark = struct.unpack_from('>BB', match.group(20))
+            spec_avg = struct.unpack_from('>BB', match.group(21))
+            ch001 = struct.unpack_from('>BB', match.group(22))
+            ch002 = struct.unpack_from('>BB', match.group(23))
+        except ValueError:
+            raise SampleException("ValueError while parsing data: [%s]" %
+                                  self.raw_data)
+        
+        result = [{DataParticleKey.VALUE_ID: ISUSDataParticleKey.FRAME_TYPE,
+                   DataParticleKey.VALUE: frame_type},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.SERIAL_NUM,
+                   DataParticleKey.VALUE: serial_num},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.DATE,
+                    DataParticleKey.VALUE: date},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: time},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: ntr_conc},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: aux1},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: aux2},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: aux3},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: rms_error},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: t_int},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: t_spec},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: t_lamp},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: lamp_time},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: humidity},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: volt_12},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: volt_5},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: volt_main},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: ref_avg},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: ref_std},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: sw_dark},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: spec_avg},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: ch001},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                    DataParticleKey.VALUE: ch002}]
+        
+        return result
+
+"""
+Protocol for ooicore
+"""
 class Protocol(MenuInstrumentProtocol):
     """
     The protocol is a very simple command/response protocol with a few show
@@ -411,8 +564,6 @@ class Protocol(MenuInstrumentProtocol):
                               self._handler_initialize) 
         self._protocol_fsm.add_handler(State.UNKNOWN, Event.DISCOVER,
                               self._handler_unknown_discover) 
-        self._protocol_fsm.add_handler(State.UNKNOWN, Event.FORCE_STATE,
-                              self._handler_unknown_force_state) 
         self._protocol_fsm.add_handler(State.CONTINUOUS_MODE, Event.MENU_CMD,
                               self._handler_continuous_menu) 
         self._protocol_fsm.add_handler(State.CONTINUOUS_MODE, Event.GO_CMD,
@@ -444,20 +595,12 @@ class Protocol(MenuInstrumentProtocol):
         # in "command mode."  It could be simulated by going into triggered mode
         # and starting and stopping, but the state machine needs triggered mode
         # which it doesn't have right now.
-        #self._protocol_fsm.add_handler(State.COMMAND, Event.ACQUIRE_SAMPLE,
-        #                      self._handler_command_acquire_sample) 
+        self._protocol_fsm.add_handler(State.COMMAND, Event.ACQUIRE_SAMPLE,
+                              self._handler_command_acquire_sample) 
         
         self._protocol_fsm.add_handler(State.COMMAND, Event.START_AUTOSAMPLE,
                               self._handler_command_start_autosample) 
         
-        # @todo ... and so on with the menu handler listings...
-        # these build handlers will be called by the base class during the
-        # navigate_and_execute sequence.        
-        #self._add_build_handler(Event.CONFIG_MENU, self._build_simple_command)
-        #self._add_build_handler(Event.SHOW_CONFIG, self._build_simple_command)
-        #self._add_build_handler(Event.BAUD_RATE, self._build_simple_command)
-        #self._add_build_handler(Event.DEPLOYMENT_COUNTER, self._build_simple_command)
-
         self._add_build_handler(Command.CONFIG_MENU_CMD[0], self._build_simple_command)
         self._add_build_handler(Command.SHOW_CONFIG_CMD[0], self._build_simple_command)
         self._add_build_handler(Command.BAUD_RATE_CMD[0], self._build_simple_command)
@@ -475,19 +618,19 @@ class Protocol(MenuInstrumentProtocol):
         self._add_response_handler(Command.OPERATIONAL_MODE_CMD[0], self._parse_deployment_mode_response)
         
         # Add sample handlers.
-        self._sample_pattern = r'^SAT(.{3}).{4},(.{4,7}),(.{,9})'
+        #self._sample_pattern = r'^SAT(.{3}).{4},(.{4,7}),(.{,9})'
         #self._sample_pattern += r'(, *(-?\d+\.\d+))?(, *(-?\d+\.\d+))?'
         #self._sample_pattern += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'
         #self._sample_pattern += r'(, *(\d+)-(\d+)-(\d+), *(\d+):(\d+):(\d+))?'        
-        self._sample_regex = re.compile(self._sample_pattern)
+        #self._sample_regex = re.compile(self._sample_pattern)
 
 
         # Construct the parameter dictionary
         self._build_param_dict()
 
-        # State state machine in UNCONFIGURED state.
-        #self._protocol_fsm.start(State.UNCONFIGURED_MODE)
         self._protocol_fsm.start(State.UNKNOWN)
+
+        self._chunker = StringChunker(self.sieve_function)
 
         """
         @todo ... and so on, continuing with these additional parameters (and any that
@@ -513,6 +656,26 @@ class Protocol(MenuInstrumentProtocol):
         BASELINE_ORDER = "BASELINE_ORDER" # DA
         SEAWATER_DARK_SAMPLES = "SEAWATER_DARK_SAMPLES" # DA
         """
+
+    @staticmethod
+    def sieve_function(raw_data):
+        """ The method that splits samples
+        """
+        patterns = []
+        matchers = []
+        return_list = []
+
+        patterns.append((SAMPLE_PATTERN)) 
+
+        for pattern in patterns:
+            matchers.append(re.compile(pattern))
+
+        for matcher in matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
+
+        return return_list
+
         
     ##############################
     # execute_* interface routines
@@ -540,53 +703,32 @@ class Protocol(MenuInstrumentProtocol):
         
         return (next_state, result)
         
-    #
-    # DHE ADDED
-    #
     def _handler_unknown_discover(self, *args, **kwargs):
         """
+        As of now, the IOS states that the ISUS should be in continuous mode.  That means that it
+        is probably autosampling upon entry to this handler.  However, it is possible that it has
+        been interrupted and is in the menu system.  
         """
         next_state = None
-        result = None
+        next_agent_state = None
 
-        current_state = self._protocol_fsm.get_current_state()
-        
-        # Driver can only be started in streaming, command or unknown.
-        if current_state == State.AUTOSAMPLE:
-            result = ResourceAgentState.STREAMING
-        
-        elif current_state == State.COMMAND:
-            result = ResourceAgentState.IDLE
-        
-        elif current_state == State.UNKNOWN:
-            try:
-                self._go_to_root_menu()
-            except InstrumentTimeoutException:
-                raise InstrumentStateException('Unknown state: Instrument timed out going to root menu.')
-            else:
+        try:
+            logging_state = self._go_to_root_menu()
+        except InstrumentTimeoutException:
+            raise InstrumentStateException('Unknown state: Instrument timed out going to root menu.')
+        else:
+            if logging_state == AUTOSAMPLE_MODE:
+                next_state = State.AUTOSAMPLE
+                next_agent_state = ResourceAgentState.STREAMING
+            elif logging_state == COMMAND_MODE:
                 next_state = State.COMMAND
-                result = ResourceAgentState.IDLE
+                next_agent_state = ResourceAgentState.IDLE
+            else:
+                errorString = 'Unknown state based go_to_root_menu() response: ' + str(logging_state)
+                log.error(errorString)
+                raise InstrumentStateException(errorString)
         
-        return (next_state, result)
-
-    #
-    # DHE ADDED
-    #
-    def _handler_unknown_force_state(self, *args, **kwargs):
-        """
-        Force driver into a given state for the purposes of unit testing 
-        @param state=desired_state Required desired state to transition to.
-        @raises InstrumentParameterException if no state parameter.
-        """
-
-        state = kwargs.get('state', None)  # via kwargs
-        if state is None:
-            raise InstrumentParameterException('Missing state parameter.')
-
-        next_state = state
-        result = state
-        
-        return (next_state, result)
+        return (next_state, next_agent_state)
 
     def _handler_continuous_menu(self, *args, **kwargs):
         """Handle a menu command event from continuous mode operations.
@@ -620,14 +762,7 @@ class Protocol(MenuInstrumentProtocol):
         # handler logic goes here
         
         return (next_state, result)
-        
-        
-    # @todo ...carry on with the rest of the operation handlers and what they actually do...
-    # include handling of MODIFY prompts properly
-
-    #
-    # DHE Added
-    #
+                
     def _handler_command_get(self, *args, **kwargs):
         """Handle a config menu command event from root menu.
         
@@ -645,8 +780,8 @@ class Protocol(MenuInstrumentProtocol):
         # If all params requested, retrieve config.
         if params == DriverParameter.ALL:
             result = self._param_dict.get_config()
-            # DHE TEMPTEMP
-            print "-----> DHE: result for get DriverParameter.ALL is: " + str(result) 
+            debug_string =  "-----> DHE: result for get DriverParameter.ALL is: " + str(result)
+            log.debug(debug_string) 
         else:
             if not isinstance(params, (list, tuple)):
                 raise InstrumentParameterException('Get argument not a list or tuple.')
@@ -662,9 +797,6 @@ class Protocol(MenuInstrumentProtocol):
 
         return (next_state, result)
         
-    #
-    # DHE Added
-    #
     def _handler_command_set(self, *args, **kwargs):
         """
         Perform a set command.
@@ -675,9 +807,6 @@ class Protocol(MenuInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for set command.
         @throws InstrumentProtocolException if set command could not be built or misunderstood.
         """
-
-        # DHE TEMP
-        print '-----> DHE in _handler_command_set'
 
         next_state = None
         result = None
@@ -697,9 +826,6 @@ class Protocol(MenuInstrumentProtocol):
         # Raise if the command not understood.
         else:
 
-            # DHE TEMP
-            print '-----> DHE in _handler_command_set: params are: ' + str(params)
-
             #
             # There is a problem with the current build_handler scheme; it's keyed by
             # the command.  I need to pass the "final command" parameter as a value,
@@ -713,9 +839,27 @@ class Protocol(MenuInstrumentProtocol):
 
         return (next_state, result)
 
-    #
-    # DHE Added
-    #
+
+    def _handler_command_acquire_sample(self, *args, **kwargs):
+        """
+        Acquire sample from ISUSv3.
+        @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).        
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        @throws SampleException if a sample could not be extracted from result.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        """
+        Can't go to root menu here; the only way this handler will work is if the ISUS is deployed
+        in TRIGGERED mode.
+        """
+        result = self._do_cmd_resp(Command.TS, *args, **kwargs)
+        
+        return (next_state, (next_agent_state, result))
+
     def _handler_command_start_autosample(self, *args, **kwargs):
         """Handle a start autosample command event from root menu.
         
@@ -724,7 +868,7 @@ class Protocol(MenuInstrumentProtocol):
         #
         # DHE: We need to either put the instrument into continuous mode or triggered mode.  If
         # triggered mode, then we need our own scheduler to cause the periodic sampling that would
-        # be simulate autosample.
+        # simulate autosample.
         #
         #self._navigate_and_execute(Command.DEPLOYMENT_MODE_YES, dest_submenu=SubMenues.OPERATIONAL_MODE_MENU, 
         #    expected_prompt=Prompt.SETUP_DEPLOY_MENU, 
@@ -800,7 +944,6 @@ class Protocol(MenuInstrumentProtocol):
     # Add in some parsing routines to handle various types of output such as
     # parameter get, parameter set, exec, into and out of op modes, menu changes?
         
-    # DHE Added
     def _parse_show_config_menu_response(self, response, prompt):
         """
         Parse handler for config menu response.
@@ -809,17 +952,18 @@ class Protocol(MenuInstrumentProtocol):
         @throws InstrumentProtocolException if config_menu command misunderstood.
         """
 
-        print "------------> DHE: in _parse_show_config_menu_response: prompt is: " + \
+        debug_string = "------------> DHE: in _parse_show_config_menu_response: prompt is: " + \
             prompt + ". Response is: " + response
+        log.debug(debug_string)
 
         if prompt != Prompt.CONFIG_MENU:
             raise InstrumentProtocolException('_parse__config_menu: command not recognized: %s.' % response)
 
         for line in response.split(self.eoln):
-            print "------> DHE: passing line <" + line + "> to _param_dict.update()"
+            debug_string = "------> DHE: passing line <" + line + "> to _param_dict.update()"
+            log.debug(debug_string)
             self._param_dict.update(line)
 
-    # DHE Added
     def _parse_deployment_mode_response(self, response, prompt):
         """
         Parse handler for config menu response.
@@ -828,20 +972,19 @@ class Protocol(MenuInstrumentProtocol):
         @throws InstrumentProtocolException if config_menu command misunderstood.
         """
 
-        print "------------> DHE: in _parse_deployment_mode_response: prompt is: " + \
+        debug_string =  "------------> DHE: in _parse_deployment_mode_response: prompt is: " + \
             prompt + ". Response is: " + response
-
-        #if prompt != Prompt.DEPLOYMENT_MODE:
-        #    raise InstrumentProtocolException('_parse_deployment_mode_response: command not recognized: %s.' % response)
+        log.debug(debug_string)
 
         for line in response.split(self.eoln):
-            print "------> DHE: parse_deployment_mode passing line <" + line + "> to _param_dict.update()"
+            debug_string =  "------> DHE: parse_deployment_mode passing line <" + line + "> to _param_dict.update()"
+            log.debug(debug_string)
             self._param_dict.update(line)
 
 
-    ######################
-    # Translation routines
-    ######################
+    """
+    Translation routines
+    """
     def _enable_disable_to_bool(self):
         """ Translate ENABLE or DISABLE into a True/False for param dict
         ...or maybe a string is more appropriate?"""
@@ -866,12 +1009,10 @@ class Protocol(MenuInstrumentProtocol):
         (0-1 respectively)
         """
         pass
-    
-    # @todo ...carry on with the rest of the translation routines as needed
-    
-    #########
-    # Helpers
-    #########
+        
+    """
+    Helpers
+    """
     def _send_wakeup(self):
         """Send a wakeup to this instrument...one that wont hurt if it is awake
         already."""
@@ -890,19 +1031,14 @@ class Protocol(MenuInstrumentProtocol):
 
         old_config = self._param_dict.get_config()
 
-        # Not sure what this was for. 
-        #self.get_config()
-
         self._go_to_root_menu()
-        #self._navigate_and_execute(Event.SHOW_CONFIG, dest_submenu=SubMenues.SHOW_CONFIG_MENU, timeout=5)
         if len(Command.SHOW_CONFIG_CMD) > 2:
             expected_response = Command.SHOW_CONFIG_CMD[2]
         else:
             expected_response = None
         self._navigate_and_execute(Command.SHOW_CONFIG_CMD, expected_response = expected_response, 
                                    dest_submenu=SubMenues.SHOW_CONFIG_MENU, timeout=5)
-        # DHE Trying to get DEPLOYMENT_MODE
-        print "--->>> DHE Trying to get DEPLOYMENT_MODE"
+
         self._go_to_root_menu()
         self._navigate_and_execute(Command.DEPLOYMENT_MODE_NO, dest_submenu=SubMenues.OPERATIONAL_MODE_MENU, 
             expected_prompt=Prompt.SETUP_DEPLOY_MENU, timeout=5)
@@ -910,9 +1046,17 @@ class Protocol(MenuInstrumentProtocol):
 
         new_config = self._param_dict.get_config()            
         if (new_config != old_config) and (None not in old_config.values()):
-            print "--------> DHE: publishing CONFIG_CHANGE event"
+            debug_string =  "--------> DHE: publishing CONFIG_CHANGE event"
+            log.debug(debug_string)
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)            
 
+    """
+    DHE: might need a special wakeup for when instrument is autosamping?  Problem
+    is that when in autosample (continuous), the instrument is spewing...it doesn't
+    respond to the crlf that is used here; in autosample, it only responds to 's.'
+    Maybe what I'll do is before hammering with crlf, wait for enough time for a sample
+    to come in.  If I see a sample, I'll know it's in autosample mode.
+    """
     def  _wakeup(self, timeout, delay=1):
         """
         Clear buffers and send a wakeup command to the instrument
@@ -930,184 +1074,40 @@ class Protocol(MenuInstrumentProtocol):
         # Grab time for timeout.
         starttime = time.time()
 
-        while True:
-            # Send a line return and wait a sec.
-            log.debug('Sending wakeup.')
-            self._send_wakeup()
-            time.sleep(delay)
-
-            for item in self._prompts.list():
-                if item in self._promptbuf:
-                    log.debug('wakeup got prompt: %s' % repr(item))
-                    return item
-
-            if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException()
-
-
-            
-    #
-    # DHE ADDED 
-    #
-    def old_got_data(self, data):
         """
-        Callback for receiving new data from the device.
+        DHE: temporarily testing for instrument being in autosample
         """
-        #if self.get_current_state() == State.DIRECT_ACCESS:
-        #    # direct access mode
-        #    if len(data) > 0:
-        #        #mi_logger.debug("ooicoreInstrumentProtocol.got_data(): <" + data + ">")
-        #        # check for echoed commands from instrument (TODO: this should only be done for telnet?)
-        #        if len(self._sent_cmds) > 0:
-        #            # there are sent commands that need to have there echoes filtered out
-        #            oldest_sent_cmd = self._sent_cmds[0]
-        #            if string.count(data, oldest_sent_cmd) > 0:
-        #                # found a command echo, so remove it from data and delete the command form list
-        #                data = string.replace(data, oldest_sent_cmd, "", 1)
-        #                self._sent_cmds.pop(0)
-        #        if len(data) > 0 and self._driver_event:
-        #            self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
-        #            # TODO: what about logging this as an event?
-        #    return
-
-        if len(data) > 0:
-            # Call the superclass to update line and prompt buffers.
-            MenuInstrumentProtocol.got_data(self, data)
-
-            # If in streaming mode, process the buffer for samples to publish.
-            cur_state = self.get_current_state()
-            if cur_state == State.AUTOSAMPLE:
-                if INSTRUMENT_NEWLINE in self._linebuf:
-                    lines = self._linebuf.splitlines(1)
-                    """
-                    Make the _linebuf variable equal to the last item in the 
-                    list created by the above split.  It will either be a 
-                    null string or the beginning of a new fragment, which we
-                    want to save.
-                    """
-                    self._linebuf = lines[-1]
-                    for line in lines:
-                        """
-                        The above split can leave a zero-length line in list,
-                        so only call extract_sample if len greater than zero.
-                        Also, we could have the beginning fragment of a sample,
-                        which we don't want to parse yet, so only extract_sample
-                        if the line ends lith the instrument terminator.
-                        """
-                        if len(line) > 0 and line.endswith(INSTRUMENT_NEWLINE):
-                            self._extract_sample(line)
+        continuing = True
+        while continuing:
+            if 'SATNLB' in self._promptbuf or 'SATNDB' in self._promptbuf:
+                print "!!!!!!!!!!! in AUTOSAMPLE !!!!!!!!!!!!!"
+                continuing = False
+                return AUTOSAMPLE_MODE
+        else:
+            while True:
+                # Send a line return and wait a sec.
+                log.debug('Sending wakeup.')
+                self._send_wakeup()
+                time.sleep(delay)
+    
+                for item in self._prompts.list():
+                    if item in self._promptbuf:
+                        log.debug('wakeup got prompt: %s' % repr(item))
+                        return item
+    
+                if time.time() > starttime + timeout:
+                    raise InstrumentTimeoutException()
 
 
-    def got_data(self, paPacket):
+
+    def _got_chunk(self, chunk):
         """
-        Callback for receiving new data from the device.
+        The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
+        with the appropriate particle objects and REGEXes. 
         """
-        #if self.get_current_state() == State.DIRECT_ACCESS:
-        #    # direct access mode
-        #    if len(data) > 0:
-        #        #mi_logger.debug("ooicoreInstrumentProtocol.got_data(): <" + data + ">")
-        #        # check for echoed commands from instrument (TODO: this should only be done for telnet?)
-        #        if len(self._sent_cmds) > 0:
-        #            # there are sent commands that need to have there echoes filtered out
-        #            oldest_sent_cmd = self._sent_cmds[0]
-        #            if string.count(data, oldest_sent_cmd) > 0:
-        #                # found a command echo, so remove it from data and delete the command form list
-        #                data = string.replace(data, oldest_sent_cmd, "", 1)
-        #                self._sent_cmds.pop(0)
-        #        if len(data) > 0 and self._driver_event:
-        #            self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
-        #            # TODO: what about logging this as an event?
-        #    return
+        self._extract_sample(ISUSDataParticle, SAMPLE_REGEX, chunk)
+                    
 
-        paLength = paPacket.get_data_size()
-        paData = paPacket.get_data()
-        
-        if paLength > 0:
-            # Call the superclass to update line and prompt buffers.
-            MenuInstrumentProtocol.got_data(self, paData)
-
-            # If in streaming mode, process the buffer for samples to publish.
-            cur_state = self.get_current_state()
-            if cur_state == State.AUTOSAMPLE:
-                if INSTRUMENT_NEWLINE in self._linebuf:
-                    lines = self._linebuf.splitlines(1)
-                    """
-                    Make the _linebuf variable equal to the last item in the 
-                    list created by the above split.  It will either be a 
-                    null string or the beginning of a new fragment, which we
-                    want to save.
-                    """
-                    self._linebuf = lines[-1]
-                    for line in lines:
-                        """
-                        The above split can leave a zero-length line in list,
-                        so only call extract_sample if len greater than zero.
-                        Also, we could have the beginning fragment of a sample,
-                        which we don't want to parse yet, so only extract_sample
-                        if the line ends with the instrument terminator.
-                        """
-                        if len(line) > 0 and line.endswith(INSTRUMENT_NEWLINE):
-                            self._extract_sample(line)
-
-
-    def _extract_sample(self, line, publish=True):
-        """
-        Extract sample from a response line if present and publish "raw" and
-        "parsed" sample events to agent.
-
-        @param line string to match for sample.
-        @param publish boolean to publish samples (default True). If True,
-               two different events are published: one to notify raw data and
-               the other to notify parsed data.
-
-        @retval dict of dicts {'parsed': parsed_sample, 'raw': raw_sample} if
-                the line can be parsed for a sample. Otherwise, None.
-        """
-        sample = None
-        match = self._sample_regex.match(line)
-        """
-        DHE TEMPTEMPTEMP
-        """
-        if match:
-
-            # Driver timestamp.
-            ts = time.time()
-
-            # prepate "raw" sample dict
-            raw_sample = dict(
-                stream_name=STREAM_NAME_RAW,
-                time=[ts],
-                blob=[line]
-            )
-
-            if publish and self._driver_event:
-                self._driver_event(DriverAsyncEvent.SAMPLE, raw_sample)
-
-            """
-            DHE: Need to know what the parsed will look like.  So for now, 
-            the following are commented out.
-            """
-            
-            # prepare "parsed" sample dict
-            parsed_sample = dict(
-                stream_name=STREAM_NAME_PARSED,
-                time=[ts],
-                inst_frame_type=(match.group(1)),
-                inst_samp_date=(match.group(2)),
-                inst_samp_time=(match.group(3)),
-            )
-
-            if publish and self._driver_event:
-                self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
-
-            sample = dict(parsed=parsed_sample, raw=raw_sample)
-
-        return sample
-
-
-    #
-    # DHE ADDED
-    #
     def _go_to_root_menu(self):
         """
         Determine if we're at home (root-menu); if not, iterate sending 'Q' (quit) until we get there.
@@ -1124,6 +1124,8 @@ class Protocol(MenuInstrumentProtocol):
         timeout = 10
         delay = 1
         prompt = self._wakeup(timeout)
+        if prompt == AUTOSAMPLE_MODE:
+            return prompt
 
         # Grab time for timeout.
         starttime = time.time()
@@ -1136,27 +1138,127 @@ class Protocol(MenuInstrumentProtocol):
             # Clear the prompt buffer.
             self._promptbuf = ''
 
-            # Send a quit  
-            print '====== DHE: Sending quit.'
-
             self._connection.send(Event.QUIT_CMD + self.eoln)
             time.sleep(delay)
 
             if time.time() > starttime + timeout:
-                print '====== DHE: Dude we timed out.'
                 raise InstrumentTimeoutException()
 
             if Prompt.SAVE_SETTINGS in self._promptbuf:
-                print '====== DHE: Save settings yes.'
                 self._connection.send(Event.YES + self.eoln)
                 time.sleep(delay)
 
             if Prompt.REPLACE_SETTINGS in self._promptbuf:
-                print '====== DHE: Replace settings yes.'
                 self._connection.send(Event.YES + self.eoln)
                 time.sleep(delay)
+                
+        return COMMAND_MODE
 
+    def _do_cmd_resp(self, cmd, **kwargs):
+        """
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param expected_prompt optional kwarg passed through to _get_response.
+        @param timeout=timeout optional wakeup and command timeout.
+        @param write_delay optional kwarg for inter-character transmit delay.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
 
+        # Get timeout and initialize response.
+        timeout = kwargs.get('timeout', 10)
+        expected_prompt = kwargs.get('expected_prompt', None)
+        
+        # Pop off the write_delay; it doesn't get passed on in **kwargs
+        write_delay = kwargs.pop('write_delay', 0)
+
+        # Get the value
+        value = kwargs.get('value', None)
+
+        # Get the build handler.
+        build_handler = self._build_handlers.get(cmd[0], None)
+        if not build_handler:
+            raise InstrumentProtocolException('Cannot build command: %s' % cmd[0])
+
+        """
+        DHE: The cmd for menu-driven instruments needs to be an object.  Need to refactor
+        """
+        cmd_line = build_handler(cmd[1])
+
+        # Clear line and prompt buffers for result.
+        self._linebuf = ''
+        self._promptbuf = ''
+
+        log.debug('_do_cmd_resp: cmd=%s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
+                        (repr(cmd_line), timeout, write_delay, expected_prompt))
+        if (write_delay == 0):
+            self._connection.send(cmd_line)
+        else:
+            debug_string = "---> DHE: do_cmd_resp() sending cmd_line: " + cmd_line
+            log.debug(debug_string)
+            for char in cmd_line:
+                self._connection.send(char)
+                time.sleep(write_delay)
+
+        # Wait for the prompt, prepare result and return, timeout exception
+        (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
+
+        log.debug('_do_cmd_resp: looking for response handler for: %s"' %(cmd[0]))
+        resp_handler = self._response_handlers.get((self.get_current_state(), cmd[0]), None) or \
+            self._response_handlers.get(cmd[0], None)
+        resp_result = None
+        if resp_handler:
+            log.debug('_do_cmd_resp: calling response handler: %s' %(resp_handler))
+            resp_result = resp_handler(result, prompt)
+        else:
+            log.debug('_do_cmd_resp: no response handler for cmd: %s' %(cmd[0]))
+
+        return resp_result
+
+    def _navigate_and_execute(self, cmd, **kwargs):
+        """
+        Navigate to a sub-menu and execute a command.  
+        @param cmd The command to execute.
+        @param expected_prompt optional kwarg passed through to do_cmd_resp.
+        @param timeout=timeout optional wakeup and command timeout.
+        @param write_delay optional kwarg passed through to do_cmd_resp.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
+
+        resp_result = None
+
+        # Get dest_submenu arg
+        dest_submenu = kwargs.pop('dest_submenu', None)
+        if dest_submenu == None:
+            raise InstrumentProtocolException('_navigate_and_execute(): dest_submenu parameter missing')
+
+        # iterate through the directions 
+        directions_list = self._menu.get_directions(dest_submenu)
+        for directions in directions_list:
+            log.debug('_navigate_and_execute: directions: %s' %(directions))
+            command = directions.get_command()
+            response = directions.get_response()
+            timeout = directions.get_timeout()
+            self._do_cmd_resp(command, expected_prompt = response, timeout = timeout)
+
+        """
+        DHE: this is a kludge; need a way to send a parameter as a "command."  We can't expect to look
+        up all possible values in the build_handlers
+        """
+        value = kwargs.pop('value', None)
+        if cmd is None:
+            cmd_line = self._build_simple_command(value) 
+            log.debug('_navigate_and_execute: sending value: %s to connection.send.' %(cmd_line))
+            self._connection.send(cmd_line)
+        else:
+            log.debug('_navigate_and_execute: sending cmd: %s with kwargs: %s to _do_cmd_resp.' %(cmd, kwargs))
+            resp_result = self._do_cmd_resp(cmd, **kwargs)
+ 
+        return resp_result
+    
     def _build_param_dict(self):
         """
         Populate the paramenter dictionary with the ISUS parameters.
@@ -1354,45 +1456,5 @@ class Protocol(MenuInstrumentProtocol):
         """
 
 
-
-    # @todo Add necessary helper routines as needed.
-    # Maybe a stop/break/reset for leaving operating modes?
-    #
-    # Maybe some for confirming what state the instrument is in?
     
     
-###
-#   Driver for ooicore
-###
-#class ooicoreInstrumentDriver(InstrumentDriver):
-class InstrumentDriver(SingleConnectionInstrumentDriver):
-    """
-    """
-    def __init__(self, evt_callback):
-        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-
-
-    # DHE Added
-    ########################################################################
-    # Superclass overrides for resource query.
-    ########################################################################
-
-    def get_resource_params(self):
-        """
-        Return list of device parameters available.
-        """
-        return Parameter.list()
-
-
-    # DHE Added
-    ########################################################################
-    # Protocol builder.
-    ########################################################################
-
-    def _build_protocol(self):
-        """
-        Construct the driver protocol state machine.
-        """
-        self._protocol = Protocol(Prompt, INSTRUMENT_NEWLINE, self._driver_event) 
-
-

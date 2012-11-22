@@ -870,7 +870,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         return (success, response)
 
-    def got_data(self, paPacket):
+    def now_in_instrument_protocol_got_data(self, paPacket):
         """
         Callback for receiving new data from the device.
         """
