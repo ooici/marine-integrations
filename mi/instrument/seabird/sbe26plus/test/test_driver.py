@@ -1912,7 +1912,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         data = ""
         paPacket = PortAgentPacket()
         paPacket.attach_data(data)
-        paPacket.pack_header(1)
+        paPacket.pack_header()
 
 
         # mock out _driver_event as we are only looking at got_data
@@ -1943,11 +1943,11 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
                Prompt.COMMAND
         paPacket = PortAgentPacket()
         paPacket.attach_data(data)
-        paPacket.pack_header(1)
+        paPacket.pack_header()
 
         ret = p.got_data(paPacket)
         self.assertEqual(ret, None)
-        self.assertEqual(str(_driver_event_mock.mock_calls), "[call('DRIVER_ASYNC_EVENT_DIRECT_ACCESS', '\\r\\n 14.5128 24.34 23.9912 111111\\r\\nS>')]")
+        self.assertEqual(str(_driver_event_mock.mock_calls), "[call('DRIVER_ASYNC_EVENT_DIRECT_ACCESS', 'ts\\r\\n 14.5128 24.34 23.9912 111111\\r\\nS>')]")
 
         #
         # AUTOSAMPLE mode, valid data
@@ -1964,7 +1964,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
         paPacket = PortAgentPacket()
         paPacket.attach_data(data)
-        paPacket.pack_header(1)
+        paPacket.pack_header()
         self.assertTrue(len(data) > 0)
         self.assertTrue(paPacket.get_data_size() > 0)
         self.assertTrue(len(paPacket.get_data()) > 0)
@@ -1985,7 +1985,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         data = ""
         paPacket = PortAgentPacket()
         paPacket.attach_data(data)
-        paPacket.pack_header(1)
+        paPacket.pack_header()
         self.assertTrue(len(data) == 0)
         self.assertTrue(paPacket.get_data_size() == 0)
         self.assertTrue(len(paPacket.get_data()) == 0)
@@ -2009,7 +2009,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
         paPacket = PortAgentPacket()
         paPacket.attach_data(data)
-        paPacket.pack_header(1)
+        paPacket.pack_header()
         self.assertTrue(len(data) > 0)
         self.assertTrue(paPacket.get_data_size() > 0)
         self.assertTrue(len(paPacket.get_data()) > 0)

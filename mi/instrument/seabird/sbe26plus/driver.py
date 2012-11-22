@@ -391,7 +391,6 @@ class SBE26plusTideSampleDataParticle(DataParticle):
             These are optional. Quietly ignore if they dont occur.
             """
 
-
         result = [{DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: timestamp},
                   {DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.PRESSURE,
@@ -1148,7 +1147,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build sbe26plus protocol state machine.
-        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent, ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
+            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER,                  self._handler_unknown_enter)
@@ -1853,8 +1853,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-
-        log.debug
         # Retrieve the required parameter, raise if not present.
         try:
             params = args[0]
@@ -2516,50 +2514,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # bring data in.
         paLength = paPacket.get_data_size()
         paData = paPacket.get_data()
-
-        # Short circuit out if we dont have any data.
-
-        # Work on new way of doing it, test once can reach WOODSHOLE.
-        '''
-        if paLength > 0:
-            current_state = self.get_current_state()
-            log.debug("in got_data() CURRENT_STATE = " + str(current_state))
-
-            if ProtocolState.DIRECT_ACCESS == current_state:
-                if self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
-                    # TODO: what about logging this as an event?
-
-                log.debug("returning out of DIRECT_ACCESS")
-                return
-
-            # Call the superclass to update line and prompt buffers.
-            CommandResponseInstrumentProtocol.got_data(self, paData)
-
-            # hand data to chunker by default
-            self._chunker.add_chunk(paData)
-
-            chunk = self._chunker.get_next_data()
-            while chunk != None:
-                # Determine what particle type it is and push accordingly
-
-                self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk)
-                self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk)
-                self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk)
-
-                # Not sure if these will ever be present in autosample, or if it will result in double
-                # packet sending.
-                # theoretically possible
-                self._extract_sample(SBE26plusDeviceCalibrationDataParticle, STATS_REGEX_MATCHER, chunk)
-                self._extract_sample(SBE26plusDeviceStatusDataParticle, STATS_REGEX_MATCHER, chunk)
-
-
-                # reload
-                chunk = self._chunker.get_next_data()
-        '''
-
-
-
 
         if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
             # direct access mode
