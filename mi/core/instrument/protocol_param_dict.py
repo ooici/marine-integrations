@@ -16,8 +16,6 @@ from mi.core.common import BaseEnum
 
 from mi.core.log import get_logger ; log = get_logger()
 
-mi_logger = logging.getLogger('mi_logger')
-
 class ParameterDictVisibility(BaseEnum):
     READ_ONLY = "READ_ONLY"
     READ_WRITE = "READ_WRITE"
@@ -26,12 +24,6 @@ class ParameterDictVisibility(BaseEnum):
 class ParameterDictVal(object):
     """
     A parameter dictionary value.
-    """
-    """
-    def __init__(self, name, pattern, f_getval, f_format, value=None,
-                 visibility=ParameterDictVisibility.READ_WRITE,
-                 menu_path_read=None,
-                 menu_path_write=None):
     """
     def __init__(self, name, pattern, f_getval, f_format, value=None,
                  visibility=ParameterDictVisibility.READ_WRITE,
@@ -80,13 +72,11 @@ class ParameterDictVal(object):
         @param input A string possibly containing the parameter value.
         @retval True if an update was successful, False otherwise.
         """
-
-        match = self.regex.match(input)
+        match = self.regex.search(input)
         if match:
             self.value = self.f_getval(match)
-            mi_logger.debug('self.value = ' + str(self.value))
-
-            mi_logger.debug('Updated parameter %s=%s', self.name, str(self.value))
+            log.debug('self.value = ' + str(self.value))
+            log.debug('Updated parameter %s=%s', self.name, str(self.value))
 
             return True
         else:
@@ -260,14 +250,27 @@ class ProtocolParameterDict(object):
             log.debug("protocol_param_dict.py UNMATCHCHED ***************************** " + input)
         return hit_count
 
+    def update_many(self, input):
+        """
+        Take in multiple inputs and update many parameters at once.
+        """
+        result = {}
+        for (name, val) in self._param_dict.iteritems():
+            update_result = val.update(input)
+            if update_result:
+                result[name] = update_result 
+        return result
+
     def update(self, input):
         """
         Update the dictionaray with a line input. Iterate through all objects
-        and attempt to match and update a parameter.
+        and attempt to match and update a parameter. Only updates the first
+        match encountered.
         @param input A string to match to a dictionary object.
         @retval The name that was successfully updated, None if not updated
         """
         for (name, val) in self._param_dict.iteritems():
+            log.trace("Updating param dict name: %s, value: %s", name, val)
             if val.update(input):
                 return name
         return False

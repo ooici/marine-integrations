@@ -25,29 +25,29 @@ class TestUnitProtocolParameterDict(IonUnitTestCase):
     def setUp(self):
         self.param_dict = ProtocolParameterDict()
                 
-        self.param_dict.add("foo", r'foo=(.*)',
+        self.param_dict.add("foo", r'.*foo=(\d*).*',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
                              direct_access=True,
                              startup_param=True,
                              default_value=10)
-        self.param_dict.add("bar", r'bar=(.*)',
+        self.param_dict.add("bar", r'.*bar=(\d*).*',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
                              direct_access=False,
                              startup_param=True,
                              default_value=15)
-        self.param_dict.add("baz", r'baz=(.*)',
+        self.param_dict.add("baz", r'.*baz=(\d*).*',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
                              direct_access=True,
                              default_value=20)
-        self.param_dict.add("bat", r'bat=(.*)',
+        self.param_dict.add("bat", r'.*bat=(\d*).*',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
                              startup_param=False,
                              default_value=20)
-        self.param_dict.add("qux", r'qux=(.*)',
+        self.param_dict.add("qux", r'.*qux=(\d*).*',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
                              startup_param=False)
@@ -86,3 +86,23 @@ class TestUnitProtocolParameterDict(IonUnitTestCase):
         self.assertEquals(self.param_dict.get("foo"), 10)
         
         self.assertRaises(ValueError, self.param_dict.set_default, "qux")
+        
+    def test_update_many(self):
+        """
+        Test updating of multiple variables from the same input
+        """
+        sample_input = """
+foo=100
+bar=200, baz=300
+"""
+        self.assertNotEqual(self.param_dict.get("foo"), 100)
+        self.assertNotEqual(self.param_dict.get("bar"), 200)
+        self.assertNotEqual(self.param_dict.get("baz"), 300)
+        result = self.param_dict.update_many(sample_input)
+        log.debug("result: %s", result)
+        self.assertEqual(result["foo"], True)
+        self.assertEqual(result["bar"], True)
+        self.assertEqual(result["baz"], True)
+        self.assertEqual(self.param_dict.get("foo"), 100)
+        self.assertEqual(self.param_dict.get("bar"), 200)
+        self.assertEqual(self.param_dict.get("baz"), 300)

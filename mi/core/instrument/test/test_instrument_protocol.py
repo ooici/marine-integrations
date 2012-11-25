@@ -163,5 +163,48 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
         self.assertEquals(result["foo"], 1111) # init param
         self.assertEquals(result["bar"], 15)   # default param
         self.assertEquals(result["qux"], 6666) # set param
+
+
+@attr('UNIT', group='mi')
+class TestUnitMenuInstrumentProtocol(IonUnitTestCase):
+    """
+    Test cases for instrument protocol class. Functions in this class provide
+    instrument protocol unit tests and provide a tutorial on use of
+    the protocol interface.
+    """
+    class SubMenu(BaseEnum):
+        MAIN = "SUBMENU_MAIN"
+        ONE = "SUBMENU_ONE"
+        TWO = "SUBMENU_TWO"
+
+    class Prompt(BaseEnum):
+        CMD_PROMPT = "-->"
+        CONTINUE_PROMPT = "Press ENTER to continue."
+        MAIN_MENU = "MAIN -->"
+        ONE_MENU = "MENU 1 -->"
+        TWO_MENU = "MENU 2 -->"
+    
+    MENU = MenuInstrumentProtocol.MenuTree({
+        SubMenu.MAIN:[],
+        SubMenu.ONE:[Directions(command="1", response=Prompt.ONE_MENU)],
+        SubMenu.TWO:[Directions(SubMenu.ONE),
+                            Directions(command="2", response=Prompt.CONTINUE_PROMPT)]
+    })
+
+    def setUp(self):
+        """
+        """
+        self.callback_result = None
         
+        def protocol_callback(self, arg):
+            callback_result = arg
+            
+        self.protocol = MenuInstrumentProtocol(protocol_callback)
+
+    
+    def test_navigation(self):
+        """
+        Test the navigate method to get between menus
+        """
+        pass
         

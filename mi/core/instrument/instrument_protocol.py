@@ -41,9 +41,6 @@ class InterfaceType(BaseEnum):
     ETHERNET = 'ethernet'
     SERIAL = 'serial'
 
-
-
-
 class InstrumentProtocol(object):
     """
         
@@ -248,7 +245,7 @@ class InstrumentProtocol(object):
         @retval Returns string ready for sending to instrument        
         """
 
-        return "%s%s" % (cmd, self.eoln)
+        return "%s%s" % (cmd, self._newline)
     
     def _build_keypress_command(self, cmd, *args):
         """
@@ -388,24 +385,17 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             else:
                 prompt_list = expected_prompt
 
-
         while True:
             for item in prompt_list:
-                if self._promptbuf.endswith(item):
-
+                if self._promptbuf.rstrip().endswith(item.rstrip()):
                     return (item, self._linebuf)
                 else:
                     time.sleep(.1)
 
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException("in _get_response()")
-
-
-
+    """
     def _get_line_of_response(self, timeout=10, line_delimiter='\r\n', expected_prompt=None):
-
-
-
         starttime = time.time()
         while True:
             if line_delimiter in self._linebuf:
@@ -422,7 +412,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
 
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException("in _get_line_of_response()")
-
+    """
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
         Perform a command-response on the device.
@@ -470,10 +460,10 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                 time.sleep(write_delay)
 
         # Wait for the prompt, prepare result and return, timeout exception
-
+        log.debug("*** getting response...")
         (prompt, result) = self._get_response(timeout,
                                               expected_prompt=expected_prompt)
-
+        log.debug("*** got response...")
 
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
             self._response_handlers.get(cmd, None)
@@ -497,7 +487,6 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
 
         timeout = kwargs.get('timeout', 10)
         write_delay = kwargs.get('write_delay', 0)
-
         
         build_handler = self._build_handlers.get(cmd, None)
         if not build_handler:
@@ -530,7 +519,6 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @param cmd The high level command to issue
         """
 
-
         # Send command.
         log.debug('_do_cmd_direct: <%s>' % cmd)
         self._connection.send(cmd)
@@ -550,7 +538,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         data_length = port_agent_packet.get_data_size()
         data = port_agent_packet.get_data()
 
-        log.info("Got Data: %s" % data)
+        log.trace("Got Data: %s" % data)
 
         if data_length > 0:
             if self.get_current_state() == DriverProtocolState.DIRECT_ACCESS:
@@ -565,8 +553,6 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                 self._got_chunk(chunk)
                 chunk = self._chunker.get_next_data()
 
-
-
     def add_to_buffer(self, data):
         '''
         Add a chunk of data to the internal data buffers
@@ -577,7 +563,6 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         self._promptbuf += data
         self._last_data_timestamp = time.time()
 
-
     ########################################################################
     # Wakeup helpers.
     ########################################################################            
@@ -587,7 +572,6 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         Send a wakeup to the device. Overridden by device specific
         subclasses.
         """
-
         pass
         
     def  _wakeup(self, timeout, delay=1):
@@ -598,8 +582,6 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @throw InstrumentTimeoutException if the device could not be woken.
         """
         # Clear the prompt buffer.
-
-
         self._promptbuf = ''
         
         # Grab time for timeout.
@@ -644,7 +626,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                 if count >= no_tries:
                     raise InstrumentProtocolException('Incorrect prompt.')
                     
-                    
+                
 class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
     """
     Base class for menu-based instrument interfaces that can use a cmd/response approach to
@@ -702,7 +684,6 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         #     timeout = directions.get_timeout()
         #     do_cmd_reponse(command, expected_prompt = response, timeout = timeout)
         
-
         class Directions(object):
             def __init__(self, command = None, response = None, timeout = 10):
                 if command == None:
@@ -815,70 +796,47 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         if self._read_delay is not None:
             time.sleep(self._read_delay)
-            
-        # Grab time for timeout and wait for prompt.
-        starttime = time.time()
         
+        return CommandResponseInstrumentProtocol._get_response(self,
+                    timeout=timeout,
+                    expected_prompt=expected_prompt)
+                 
+    def _navigate(self, menu, **kwargs):
         """
-        DHE: It doesn't seem right to go through the list of prompts
-        because one wasn't given.  Seems like if you have an expected 
-        response, provide it.  The could be a large list of responses
-        to go through on the chance that you might accidentally find
-        it?  This seems like a candidate for a required parameter; if
-        it's a don't care, then that should be explicitly stated.
-        Maybe some instrument behavior requires this?
-        """        
-        if expected_prompt == None:
-            prompt_list = self._prompts.list()
-        else:
-            log.debug('MenuInstrumentProtocol._get_response: timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,' 
-                  %(timeout, expected_prompt, expected_prompt.encode("hex")))
-            assert isinstance(expected_prompt, str)
-            prompt_list = [expected_prompt]            
-        while True:
-            for item in prompt_list:
-                # DHE: this doesn't work well; changing for now.
-                #if self._promptbuf.endswith(item):
-                log.debug('MenuInstrumentProtocol._get_response: looking for item: %s in promptbuf: %s' 
-                          %(item, self._promptbuf))
-                if item in self._promptbuf:
-                    log.debug('MenuInstrumentProtocol._get_response: FOUND IT!') 
-                    return (item, self._linebuf)
-                else:
-                    time.sleep(.1)
-            if time.time() > starttime + timeout:
-                log.error('MenuInstrumentProtocol._get_response TIMEOUT waiting for item: %s in promptbuf!' 
-                          %(item))
-                raise InstrumentTimeoutException("in _get_response()")
-               
-    def _navigate_and_execute(self, cmd, **kwargs):
+        Navigate to the given sub menu and then do nothing
+        @param menu The enum for the menu to navigate to.
+        @retval A tuple of result and parameter of the last menu encountered
+        @throw InstrumentProtocolException When the destination cannot be reached.
+        """
+        # Get dest_submenu arg
+        if menu == None:
+            raise InstrumentProtocolException('Menu parameter missing')
+
+        # iterate through the directions 
+        directions_list = self._menu.get_directions(menu)
+        for directions in directions_list:
+            log.debug('_navigate: directions: %s' %(directions))
+            command = directions.get_command()
+            response = directions.get_response()
+            timeout = directions.get_timeout()
+            result = self._do_cmd_resp(command, expected_prompt=response,
+                                       timeout=timeout, **kwargs)
+        return result
+
+    def _navigate_and_execute(self, cmd, expected_prompt=None, **kwargs):
         """
         Navigate to a sub-menu and execute a command.  
         @param cmd The command to execute.
         @param expected_prompt optional kwarg passed through to do_cmd_resp.
         @param timeout=timeout optional wakeup and command timeout.
         @param write_delay optional kwarg passed through to do_cmd_resp.
-        @raises InstrumentTimeoutException if the response did not occur in time.
-        @raises InstrumentProtocolException if command could not be built or if response
+        @throws InstrumentTimeoutException if the response did not occur in time.
+        @throws InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
-
-        resp_result = None
-
-        # Get dest_submenu arg
-        dest_submenu = kwargs.pop('dest_submenu', None)
-        if dest_submenu == None:
-            raise InstrumentProtocolException('_navigate_and_execute(): dest_submenu parameter missing')
-
-        # iterate through the directions 
-        directions_list = self._menu.get_directions(dest_submenu)
-        for directions in directions_list:
-            log.debug('_navigate_and_execute: directions: %s' %(directions))
-            command = directions.get_command()
-            response = directions.get_response()
-            timeout = directions.get_timeout()
-            self._do_cmd_resp(command, expected_prompt = response, timeout = timeout)
-
+        
+        self._navigate(kwargs['dest_submenu'], expected_prompt, **kwargs)
+        self._do_cmd_resp(cmd, expected_prompt=expected_prompt, **kwargs)
         """
         DHE: this is a kludge; need a way to send a parameter as a "command."  We can't expect to look
         up all possible values in the build_handlers
@@ -894,66 +852,6 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
  
         return resp_result
 
-    def _do_cmd_resp(self, cmd, **kwargs):
-        """
-        Perform a command-response on the device.
-        @param cmd The command to execute.
-        @param expected_prompt optional kwarg passed through to _get_response.
-        @param timeout=timeout optional wakeup and command timeout.
-        @param write_delay optional kwarg for inter-character transmit delay.
-        @raises InstrumentTimeoutException if the response did not occur in time.
-        @raises InstrumentProtocolException if command could not be built or if response
-        was not recognized.
-        """
-
-        # Get timeout and initialize response.
-        timeout = kwargs.get('timeout', 10)
-        expected_prompt = kwargs.get('expected_prompt', None)
-        
-        # Pop off the write_delay; it doesn't get passed on in **kwargs
-        write_delay = kwargs.pop('write_delay', 0)
-
-        # Get the value
-        value = kwargs.get('value', None)
-
-        # Get the build handler.
-        build_handler = self._build_handlers.get(cmd[0], None)
-        if not build_handler:
-            raise InstrumentProtocolException('Cannot build command: %s' % cmd[0])
-
-        """
-        DHE: The cmd for menu-driven instruments needs to be an object.  Need to refactor
-        """
-        cmd_line = build_handler(cmd[1])
-
-        # Clear line and prompt buffers for result.
-        self._linebuf = ''
-        self._promptbuf = ''
-
-        log.debug('_do_cmd_resp: cmd=%s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
-                        (repr(cmd_line), timeout, write_delay, expected_prompt))
-        if (write_delay == 0):
-            self._connection.send(cmd_line)
-        else:
-            #print "---> DHE: do_cmd_resp() sending cmd_line: " + cmd_line
-            for char in cmd_line:
-                self._connection.send(char)
-                time.sleep(write_delay)
-
-        # Wait for the prompt, prepare result and return, timeout exception
-        (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
-
-        log.debug('_do_cmd_resp: looking for response handler for: %s"' %(cmd[0]))
-        resp_handler = self._response_handlers.get((self.get_current_state(), cmd[0]), None) or \
-            self._response_handlers.get(cmd[0], None)
-        resp_result = None
-        if resp_handler:
-            log.debug('_do_cmd_resp: calling response handler: %s' %(resp_handler))
-            resp_result = resp_handler(result, prompt)
-        else:
-            log.debug('_do_cmd_resp: no response handler for cmd: %s' %(cmd[0]))
-
-        return resp_result
     
     def _go_to_root_menu(self):
         """
