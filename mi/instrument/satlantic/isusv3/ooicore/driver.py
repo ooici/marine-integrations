@@ -269,7 +269,9 @@ class Prompt(BaseEnum):
     ENTER_CHOICE = "Enter number to assign new value"
     ENTER_DEPLOYMENT_COUNTER = "Enter deployment counter. ?"
     WAITING_FOR_GO = "Waiting for 'g'"
-    AUTOSAMPLE_WILL_RESTART = "ISUS will start in"
+    AUTO_START_RESTARTING = "ISUS will start in 0 seconds"
+    AUTOSAMPLE_STOP_RESTARTING = "ISUS will start in"  # Used to top autosample
+    STOP_SAMPLING = "Stop command received, exiting"
 
 class Parameter(DriverParameter):
     """ The parameters that drive/control the operation and behavior of the device """
@@ -601,6 +603,9 @@ class Protocol(MenuInstrumentProtocol):
         self._protocol_fsm.add_handler(State.COMMAND, Event.START_AUTOSAMPLE,
                               self._handler_command_start_autosample) 
         
+        self._protocol_fsm.add_handler(State.AUTOSAMPLE, Event.STOP_AUTOSAMPLE,
+                              self._handler_autosample_stop_autosample) 
+        
         self._add_build_handler(Command.CONFIG_MENU_CMD[0], self._build_simple_command)
         self._add_build_handler(Command.SHOW_CONFIG_CMD[0], self._build_simple_command)
         self._add_build_handler(Command.BAUD_RATE_CMD[0], self._build_simple_command)
@@ -711,6 +716,8 @@ class Protocol(MenuInstrumentProtocol):
         """
         next_state = None
         next_agent_state = None
+
+        log.debug("_handler_unknown_discover")
 
         try:
             logging_state = self._go_to_root_menu()
@@ -864,7 +871,12 @@ class Protocol(MenuInstrumentProtocol):
         """Handle a start autosample command event from root menu.
         
         """
-
+        delay = 1
+        timeout = 10
+        next_state = None
+        next_agent_state = None
+        result = None
+        
         #
         # DHE: We need to either put the instrument into continuous mode or triggered mode.  If
         # triggered mode, then we need our own scheduler to cause the periodic sampling that would
@@ -874,17 +886,94 @@ class Protocol(MenuInstrumentProtocol):
         #    expected_prompt=Prompt.SETUP_DEPLOY_MENU, 
         #    timeout=5)
         self._go_to_root_menu()
-        self._navigate_and_execute(None, value = '0', dest_submenu=SubMenues.OPERATIONAL_MODE_SET, 
-            expected_prompt=Prompt.SETUP_DEPLOY_MENU, timeout=5)
-        self._go_to_root_menu()
-        #
-        # DHE: NEED TO REBOOT HERE IN ORDER FOR THE CHANGE TO TAKE EFFECT!!!!
-
-        next_state = State.AUTOSAMPLE 
-        result = State.AUTOSAMPLE 
-
-        return (next_state, result)
         
+        
+        starttime = time.time()
+        # Clear the prompt buffer.
+        self._promptbuf = ''
+        """
+        We are keeping the instrument in continuous mode; to start autosample, we enter
+        a quit command and look for the 'starting in ...' response
+        """
+        while Prompt.AUTO_START_RESTARTING not in self._promptbuf:
+
+            self._connection.send(Event.QUIT_CMD + self.eoln)
+            time.sleep(delay)
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException()
+
+        log.debug("ISUS now in autosample")
+
+        next_state = State.AUTOSAMPLE        
+        next_agent_state = ResourceAgentState.STREAMING
+        
+        return (next_state, (next_agent_state, result))
+
+    def _handler_autosample_stop_autosample(self, *args, **kwargs):
+        """
+        Stop autosample and switch back to command mode.
+        @retval (next_state, result) tuple, (ProtocolState.COMMAND,
+        (next_agent_state, None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command misunderstood or
+        incorrect prompt received.
+        """
+        delay = 1
+        timeout = 10
+        next_state = None
+        next_agent_state = None
+        result = None
+        
+        starttime = time.time()
+
+        # Clear the prompt buffer.
+        self._promptbuf = ''
+
+        """
+        Instrument is autosampling; to stop it enter 's' command, then 'm'
+        """
+        while Prompt.STOP_SAMPLING not in self._promptbuf:
+
+            self._connection.send(Event.STOP_CMD)
+            time.sleep(delay)
+
+            if time.time() > starttime + timeout:
+                log.error("ISUS timed out awaiting STOP_SAMPLING prompt stop_autosample")
+                raise InstrumentTimeoutException()
+
+        starttime = time.time()
+
+        """
+        Don't need to clear the prompt buff here; the prompt we're looking for
+        will show up as a result of last command
+        """
+        while Prompt.AUTOSAMPLE_STOP_RESTARTING not in self._promptbuf:
+
+            time.sleep(delay)
+
+            if time.time() > starttime + timeout:
+                log.error("ISUS timed out awaiting AUTOSAMPLE_STOP_RESTARTING prompt in stop_autosample")
+                raise InstrumentTimeoutException()
+
+        starttime = time.time()
+
+        while Prompt.ROOT_MENU not in self._promptbuf:
+            self._connection.send(Event.MENU_CMD + self.eoln)
+            time.sleep(delay)
+
+            if time.time() > starttime + timeout:
+                log.error("ISUS timed out awaiting ROOT_MENU prompt stop_autosample")
+                raise InstrumentTimeoutException()
+
+        log.info("ISUS autosample stopped")
+
+        next_state = State.COMMAND        
+        next_agent_state = ResourceAgentState.COMMAND
+        
+        return (next_state, (next_agent_state, result))
+
+                
     def _handler_root_menu_enter(self, *args, **kwargs):
         """Entry event for the command state
         """
@@ -1050,13 +1139,6 @@ class Protocol(MenuInstrumentProtocol):
             log.debug(debug_string)
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)            
 
-    """
-    DHE: might need a special wakeup for when instrument is autosamping?  Problem
-    is that when in autosample (continuous), the instrument is spewing...it doesn't
-    respond to the crlf that is used here; in autosample, it only responds to 's.'
-    Maybe what I'll do is before hammering with crlf, wait for enough time for a sample
-    to come in.  If I see a sample, I'll know it's in autosample mode.
-    """
     def  _wakeup(self, timeout, delay=1):
         """
         Clear buffers and send a wakeup command to the instrument
@@ -1064,39 +1146,23 @@ class Protocol(MenuInstrumentProtocol):
         @param delay The time to wait between consecutive wakeups.
         @throw InstrumentTimeoutException if the device could not be woken.
         """
-        #
-        # DHE: This doesn't seem very efficient...seems like there should be an expected response optional
-        # kwarg so that we don't have to iterate through all the prompts in self._prompts
-        #
-        # Clear the prompt buffer.
         self._promptbuf = ''
 
-        # Grab time for timeout.
+        # get new time for timeout.
         starttime = time.time()
+        while True:
+            # Send a line return and wait a sec.
+            log.debug('Sending wakeup.')
+            self._send_wakeup()
+            time.sleep(delay)
 
-        """
-        DHE: temporarily testing for instrument being in autosample
-        """
-        continuing = True
-        while continuing:
-            if 'SATNLB' in self._promptbuf or 'SATNDB' in self._promptbuf:
-                print "!!!!!!!!!!! in AUTOSAMPLE !!!!!!!!!!!!!"
-                continuing = False
-                return AUTOSAMPLE_MODE
-        else:
-            while True:
-                # Send a line return and wait a sec.
-                log.debug('Sending wakeup.')
-                self._send_wakeup()
-                time.sleep(delay)
-    
-                for item in self._prompts.list():
-                    if item in self._promptbuf:
-                        log.debug('wakeup got prompt: %s' % repr(item))
-                        return item
-    
-                if time.time() > starttime + timeout:
-                    raise InstrumentTimeoutException()
+            for item in self._prompts.list():
+                if item in self._promptbuf:
+                    log.debug('wakeup got prompt: %s' % repr(item))
+                    return item
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException()
 
 
 
@@ -1130,6 +1196,7 @@ class Protocol(MenuInstrumentProtocol):
         # Grab time for timeout.
         starttime = time.time()
 
+        log.debug("_go_to_root_menu")
         """
         Sleep for a bit to let the instrument complete the prompt.
         """

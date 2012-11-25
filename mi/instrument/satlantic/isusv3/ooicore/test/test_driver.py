@@ -73,6 +73,7 @@ from mi.instrument.satlantic.isusv3.ooicore.driver import InstrumentDriver
 from mi.instrument.satlantic.isusv3.ooicore.driver import State
 from mi.instrument.satlantic.isusv3.ooicore.driver import Event
 from mi.instrument.satlantic.isusv3.ooicore.driver import Parameter
+from mi.instrument.satlantic.isusv3.ooicore.driver import ISUSDataParticle
 
 from ion.agents.port.logger_process import EthernetDeviceLogger
 
@@ -1049,7 +1050,7 @@ class Testooicore_HW(InstrumentDriverTestCase):
 ###############################################################################
 
 @attr('QUAL', group='mi')
-class ISUS3QualificationTestCase(InstrumentDriverQualificationTestCase):
+class ISUS3QualTestCase(InstrumentDriverQualificationTestCase):
     """Qualification Test Container"""
     
     # Qualification tests live in the base class.  This class is extended
@@ -1057,3 +1058,88 @@ class ISUS3QualificationTestCase(InstrumentDriverQualificationTestCase):
     # (UNIT, INT, and QUAL) are run.  
     pass
 
+
+    def assertSampleDataParticle(self, val):
+        """
+        Verify the value for ISUSv3 sample data particle
+    
+        {
+          'quality_flag': 'ok',
+          'preferred_timestamp': 'driver_timestamp',
+          'stream_name': 'parsed',
+          'pkt_format_id': 'JSON_Data',
+          'pkt_version': 1,
+          'driver_timestamp': 3559843883.8029947,
+          'values': [
+            {
+              'value_id': 'frame_type',
+              'value': 67.4448
+            },
+            {
+              'value_id': 'serial_num',
+              'value': 44.69101
+            },
+            {
+              'value_id': 'date',
+              'value': 865.096
+            }
+            {
+              'value_id': 'time',
+              'value': 0.0114
+            }
+          ],
+        }
+        """
+    
+        if (isinstance(val, ISUSDataParticle)):
+            sample_dict = json.loads(val.generate_parsed())
+        else:
+            sample_dict = val
+    
+        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
+            DataParticleValue.PARSED)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
+            DataParticleValue.JSON_DATA)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
+            list))
+        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+    
+        for x in sample_dict['values']:
+            self.assertTrue(x['value_id'] in ['frame_type', 'serial_num', 'date', 'time'])
+            self.assertTrue(isinstance(x['value'], float))
+    
+
+    def test_sample_autosample(self):
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        self.assert_start_autosample()
+
+        """
+        TEMPTEMP; sleep for now to give autosample time
+        """
+        log.debug("sleeping to allow autosample events")
+        gevent.sleep(10)
+        log.debug("done sleeping")
+
+        self.assert_stop_autosample()
