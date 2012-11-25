@@ -18,6 +18,7 @@ import time
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentTimeoutException
 
 
@@ -55,6 +56,7 @@ PACKET_CONFIG = {
 }
 
 class Command(BaseEnum):
+    DIRECT_SET = "SET"
     BACK_MENU = "BACK_MENU"
     BLANK = "BLANK"
     BREAK = "BREAK"
@@ -62,6 +64,15 @@ class Command(BaseEnum):
     CHANGE_PARAM = "CHANGE_PARAM"
     SHOW_PARAM = "SHOW_PARAM"
     SENSOR_POWER = "SENSOR_POWER"
+    CHANGE_CYCLE_TIME = "CHANGE_CYCLE_TIME"
+    CHANGE_VERBOSE = "CHANGE_VERBOSE"
+    CHANGE_METADATA_POWERUP = "CHANGE_METADATA_POWERUP"
+    CHANGE_METADATA_RESTART = "CHANGE_METADATA_RESTART"
+    CHANGE_RES_SENSOR_POWER = "CHANGE_RES_SENSOR_POWER"
+    CHANGE_INST_AMP_POWER = "CHANGE_INST_AMP_POWER"
+    CHANGE_EH_ISOLATION_AMP_POWER = "CHANGE_EH_ISOLATION_AMP_POWER"
+    CHANGE_HYDROGEN_POWER = "CHANGE_HYDROGEN_POWER"
+    CHANGE_REFERENCE_TEMP_POWER = "CHANGE_REFERENCE_TEMP_POWER"
 
 # Strings should line up with Command class
 COMMAND_CHAR = {
@@ -72,6 +83,15 @@ COMMAND_CHAR = {
     'CHANGE_PARAM' : '2',
     'SHOW_PARAM' : '6',
     'SENSOR_POWER' : '4',
+    'CHANGE_CYCLE_TIME': '1',
+    'CHANGE_VERBOSE' : '2',
+    'CHANGE_METADATA_POWERUP' : '3',
+    'CHANGE_METADATA_RESTART' : '4',
+    'CHANGE_RES_SENSOR_POWER' : '1',
+    'CHANGE_INST_AMP_POWER' : '2',
+    'CHANGE_EH_ISOLATION_AMP_POWER' : '3',
+    'CHANGE_HYDROGEN_POWER' : '4',
+    'CHANGE_REFERENCE_TEMP_POWER' : '5',
 }
     
 class SubMenu(BaseEnum):
@@ -79,6 +99,15 @@ class SubMenu(BaseEnum):
     CHANGE_PARAM = "SUBMENU_CHANGE_PARAM"
     SHOW_PARAM = "SUBMENU_SHOW_PARAM"
     SENSOR_POWER = "SUBMENU_SENSOR_POWER"
+    CYCLE_TIME = "SUBMENU_CYCLE_TIME"
+    VERBOSE = "SUBMENU_VERBOSE"
+    METADATA_POWERUP = "SUBMENU_METADATA_POWERUP"
+    METADATA_RESTART = "SUBMENU_METADATA_RESTART"
+    RES_SENSOR_POWER = "SUBMENU_RES_SENSOR_POWER"
+    INST_AMP_POWER = "SUBMENU_INST_AMP_POWER"
+    EH_ISOLATION_AMP_POWER = "SUBMENU_EH_ISOLATION_AMP_POWER"
+    HYDROGEN_POWER = "SUBMENU_HYDROGEN_POWER"
+    REFERENCE_TEMP_POWER = "SUBMENU_REFERENCE_TEMP_POWER"
         
 class ProtocolState(BaseEnum):
     """
@@ -151,6 +180,7 @@ class Prompt(BaseEnum):
     SENSOR_POWER_MENU = "Enter 0 through 9 here  -->"
 
     CYCLE_TIME_PROMPT = "Enter 1 for Seconds, 2 for Minutes -->"
+    CYCLE_TIME_VALUE_PROMPT = "Enter a new value between 15 and 59 here -->"
     VERBOSE_PROMPT = "Enter 2 for Verbose, 1 for just Data. -->"
     METADATA_PROMPT = "Enter 2 for Yes, 1 for No. -->"
     
@@ -167,7 +197,36 @@ MENU = MenuInstrumentProtocol.MenuTree({
                                    response=Prompt.CONTINUE_PROMPT)],
     SubMenu.SENSOR_POWER:[Directions(command=Command.SENSOR_POWER,
                                      response=Prompt.SENSOR_POWER_MENU)],
+    SubMenu.CYCLE_TIME:[Directions(SubMenu.CHANGE_PARAM),
+                        Directions(command=Command.CHANGE_CYCLE_TIME,
+                                     response=Prompt.CYCLE_TIME_PROMPT)],
+    SubMenu.VERBOSE:[Directions(SubMenu.CHANGE_PARAM),
+                        Directions(command=Command.CHANGE_VERBOSE,
+                                     response=Prompt.VERBOSE_PROMPT)],
+    SubMenu.METADATA_POWERUP:[Directions(SubMenu.CHANGE_PARAM),
+                        Directions(command=Command.CHANGE_METADATA_POWERUP,
+                                     response=Prompt.METADATA_PROMPT)],
+    SubMenu.METADATA_RESTART:[Directions(SubMenu.CHANGE_PARAM),
+                        Directions(command=Command.CHANGE_METADATA_RESTART,
+                                     response=Prompt.METADATA_PROMPT)],
+    SubMenu.RES_SENSOR_POWER:[Directions(SubMenu.SENSOR_POWER),
+                        Directions(command=Command.CHANGE_RES_SENSOR_POWER,
+                                     response=Prompt.SENSOR_POWER_MENU)],
+    SubMenu.INST_AMP_POWER:[Directions(SubMenu.SENSOR_POWER),
+                        Directions(command=Command.CHANGE_INST_AMP_POWER,
+                                     response=Prompt.SENSOR_POWER_MENU)],
+    SubMenu.EH_ISOLATION_AMP_POWER:[Directions(SubMenu.SENSOR_POWER),
+                        Directions(command=Command.CHANGE_EH_ISOLATION_AMP_POWER,
+                                     response=Prompt.SENSOR_POWER_MENU)],
+    SubMenu.HYDROGEN_POWER:[Directions(SubMenu.SENSOR_POWER),
+                        Directions(command=Command.CHANGE_HYDROGEN_POWER,
+                                     response=Prompt.SENSOR_POWER_MENU)],
+    SubMenu.REFERENCE_TEMP_POWER:[Directions(SubMenu.SENSOR_POWER),
+                        Directions(command=Command.CHANGE_REFERENCE_TEMP_POWER,
+                                     response=Prompt.SENSOR_POWER_MENU)],
 })
+
+
 
 class BarsDataParticleKey(BaseEnum):
     RESISTIVITY_5 = "Resistivity5"
@@ -286,6 +345,27 @@ class ooicoreInstrumentDriver(SingleConnectionInstrumentDriver):
         """
         self._protocol = Protocol(MENU, Prompt, NEWLINE, self._driver_event)
 
+    def apply_startup_params(self):
+        """
+        Apply the startup values previously stored in the protocol to
+        the running config of the live instrument. The startup values are the
+        values that are (1) marked as startup parameters and are (2) the "best"
+        value to use at startup. Preference is given to the previously-set init
+        value, then the default value, then the currently used value.
+        
+        This default method assumes a dict of parameter name and value for
+        the configuration.
+        @raise InstrumentParameterException If the config cannot be applied
+        """
+        config = self._protocol.get_startup_config()
+        
+        if not isinstance(config, dict):
+            raise InstrumentParameterException("Incompatible initialization parameters")
+        
+        log.debug("*** configuring with values: %s", config)
+        self._protocol.set_readonly_values()
+        self.set_resource(config)
+        
 ###############################################################################
 # Protocol
 ################################################################################
@@ -338,6 +418,16 @@ class Protocol(MenuInstrumentProtocol):
         self._add_build_handler(Command.CHANGE_PARAM, self._build_menu_command)
         self._add_build_handler(Command.SHOW_PARAM, self._build_menu_command)
         self._add_build_handler(Command.SENSOR_POWER, self._build_menu_command)
+        self._add_build_handler(Command.DIRECT_SET, self._build_direct_command)
+        self._add_build_handler(Command.CHANGE_CYCLE_TIME, self._build_menu_command)
+        self._add_build_handler(Command.CHANGE_VERBOSE, self._build_menu_command)
+        self._add_build_handler(Command.CHANGE_METADATA_RESTART, self._build_menu_command)
+        self._add_build_handler(Command.CHANGE_METADATA_POWERUP, self._build_menu_command)
+        self._add_build_handler(Command.CHANGE_RES_SENSOR_POWER, self._build_menu_command)
+        self._add_build_handler(Command.CHANGE_INST_AMP_POWER, self._build_menu_command)
+        self._add_build_handler(Command.CHANGE_EH_ISOLATION_AMP_POWER, self._build_menu_command)
+        self._add_build_handler(Command.CHANGE_HYDROGEN_POWER, self._build_menu_command)
+        self._add_build_handler(Command.CHANGE_REFERENCE_TEMP_POWER, self._build_menu_command)
 
         # Add response handlers for device commands.
         #self._add_response_handler(Command.GET, self._parse_get_response)
@@ -345,8 +435,17 @@ class Protocol(MenuInstrumentProtocol):
         self._add_response_handler(Command.BACK_MENU, self._parse_menu_change_response)
         self._add_response_handler(Command.BLANK, self._parse_menu_change_response)
         self._add_response_handler(Command.SHOW_PARAM, self._parse_show_param_response)
+        self._add_response_handler(Command.CHANGE_CYCLE_TIME, self._parse_menu_change_response)
+        self._add_response_handler(Command.CHANGE_VERBOSE, self._parse_menu_change_response)
+        self._add_response_handler(Command.CHANGE_METADATA_RESTART, self._parse_menu_change_response)
+        self._add_response_handler(Command.CHANGE_METADATA_POWERUP, self._parse_menu_change_response)
+        self._add_response_handler(Command.CHANGE_RES_SENSOR_POWER, self._parse_menu_change_response)
+        self._add_response_handler(Command.CHANGE_INST_AMP_POWER, self._parse_menu_change_response)
+        self._add_response_handler(Command.CHANGE_EH_ISOLATION_AMP_POWER, self._parse_menu_change_response)
+        self._add_response_handler(Command.CHANGE_HYDROGEN_POWER, self._parse_menu_change_response)
+        self._add_response_handler(Command.CHANGE_REFERENCE_TEMP_POWER, self._parse_menu_change_response)
         
-       # Add sample handlers.
+        # Add sample handlers.
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -486,11 +585,53 @@ class Protocol(MenuInstrumentProtocol):
         log.debug("Get finished, next: %s, result: %s", next_state, result) 
         return (next_state, result)
 
-    def _handler_command_set(self, *args, **kwargs):
+    def _handler_command_set(self, params, *args, **kwargs):
+        """Handle setting data from command mode
+         
+        @param params Dict of the parameters and values to pass to the state
+        @retval return (next state, result)
+        @throw InstrumentProtocolException For invalid parameter
         """
-        Get parameters while in the command state.
-        """
-        pass
+        next_state = None
+        result = None
+        result_vals = {}    
+
+        if ((params == None) or (not isinstance(params, dict))):
+            raise InstrumentParameterException()
+        name_values = params
+        for key in name_values.keys():
+            if not Parameter.has(key):
+                raise InstrumentParameterException()
+            try:
+                str_val = self._param_dict.format(key, name_values[key])
+            except KeyError:
+                raise InstrumentParameterException()
+            
+            # restrict operations to just the read/write parameters
+            if (key == Parameter.CYCLE_TIME):
+                self._navigate(SubMenu.CYCLE_TIME)
+                (unit, value) = self._from_seconds(name_values[key])
+                
+                try:                
+                    self._do_cmd_resp(Command.DIRECT_SET, unit,
+                                      expected_prompt=Prompt.CYCLE_TIME_VALUE_PROMPT)
+                    self._do_cmd_resp(Command.DIRECT_SET, value,
+                                      expected_prompt=Prompt.CHANGE_PARAM_MENU)
+                except InstrumentProtocolException:
+                    self._go_to_root_menu()
+                    raise InstrumentProtocolException("Could not set cycle time")
+                
+                # Populate with actual value set
+                result_vals[key] = name_values[key]
+                
+        # re-sync with param dict?
+        self._go_to_root_menu()
+        self._update_params()
+        
+        result = result_vals
+            
+        log.debug("next: %s, result: %s", next_state, result) 
+        return (next_state, result)
 
     def _handler_command_autosample(self, *args, **kwargs):
         """ Start autosample mode """
@@ -599,6 +740,13 @@ class Protocol(MenuInstrumentProtocol):
         else:
             raise InstrumentProtocolException("Unknown command character for %s" % cmd)
             
+    def _build_direct_command(self, cmd, arg):
+        """ Build a command where we just send the argument to the instrument.
+        Ignore the command part, we dont need it here as we are already in
+        a submenu.
+        """
+        return "%s%s" % (arg, self._newline)
+    
     ########################################################################
     # Command parsers
     ########################################################################
@@ -686,7 +834,90 @@ class Protocol(MenuInstrumentProtocol):
             
         except InstrumentTimeoutException:
             return False
+
+    def set_readonly_values(self, *args, **kwargs):
+        """Set read-only values to the instrument. This is usually (only?)
+        done at initialization.
+        
+        @throw InstrumentProtocolException When in the wrong state or something
+        really bad prevents the setting of all values.
+        """
+        if (self.get_current_state() != ProtocolState.COMMAND):
+            raise InstrumentProtocolException("Not in command state!")
+
+        self._go_to_root_menu()                                        
+        self._update_params()
+
+        for param in self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY):
+            if not Parameter.has(param):
+                raise InstrumentParameterException()
+
+            self._go_to_root_menu()
+            # Only try to change them if they arent set right as it is
+            if (self._param_dict.get(param) != self._param_dict.get_default_value(param)):
+                if (param == Parameter.METADATA_POWERUP):
+                    self._navigate(SubMenu.METADATA_POWERUP)
+                    result = self._do_cmd_resp(Command.DIRECT_SET, self._param_dict.get_default_value(param),
+                                               expected_prompt=Prompt.METADATA_PROMPT)
+                    if not result:
+                        raise InstrumentParameterException("Could not set param %s" % param)
+                    
+                    self._go_to_root_menu()                
                 
+                elif (param == Parameter.METADATA_RESTART):
+                    self._navigate(SubMenu.METADATA_RESTART)
+                    result = self._do_cmd_resp(Command.DIRECT_SET, self._param_dict.get_default_value(param),
+                                               expected_prompt=Prompt.METADATA_PROMPT)
+                    if not result:
+                        raise InstrumentParameterException("Could not set param %s" % param)
+                    
+                    self._go_to_root_menu()
+                    
+                elif (param == Parameter.VERBOSE):
+                    self._navigate(SubMenu.METADATA_RESTART)
+                    result = self._do_cmd_resp(Command.DIRECT_SET, self._param_dict.get_default_value(param),
+                                               expected_prompt=Prompt.METADATA_PROMPT)
+                    if not result:
+                        raise InstrumentParameterException("Could not set param %s" % param)
+                    
+                    self._go_to_root_menu()    
+                    
+                elif (param == Parameter.EH_ISOLATION_AMP_POWER):
+                    result = self._navigate(Parameter.EH_ISOLATION_AMP_POWER)
+                    while not result:
+                        result = self._navigate(Parameter.EH_ISOLATION_AMP_POWER)
+                        
+                elif (param == Parameter.HYDROGEN_POWER):
+                    result = self._navigate(SubMenu.HYDROGEN_POWER)
+                    log.debug("*** Hydrogen result: %s", result)
+                    while not result:
+                        result = self._navigate(SubMenu.HYDROGEN_POWER)
+        
+                elif (param == Parameter.INST_AMP_POWER):
+                    result = self._navigate(SubMenu.INST_AMP_POWER)
+                    while not result:
+                        result = self._navigate(SubMenu.INST_AMP_POWER)
+                    
+                elif (param == Parameter.REFERENCE_TEMP_POWER):
+                    result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
+                    while not result:
+                        result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
+                    
+                elif (param == Parameter.RES_SENSOR_POWER):
+                    result = self._navigate(SubMenu.RES_SENSOR_POWER)
+                    while not result:
+                        result = self._navigate(SubMenu.RES_SENSOR_POWER)
+                
+        # re-sync with param dict?
+        self._go_to_root_menu()
+        self._update_params()
+        
+        # Should be good by now, but let's double check just to be safe
+        for param in self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY):
+            if (self._param_dict.get(param) != self._param_dict.get_default_value()):
+                raise InstrumentProtocolException("Could not set default values!")
+                
+        
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
@@ -817,7 +1048,6 @@ class Protocol(MenuInstrumentProtocol):
         @param unit int of 0 or 1 where 0 is seconds, 1 is minutes
         @return Number of seconds.
         """
-        log.debug("*** Translating to seconds: value: %s, unit: %s", value, unit)
         if (not isinstance(value, int)) or (not isinstance(unit, int)):
             raise InstrumentProtocolException("Invalid second arguments!")
         
@@ -827,3 +1057,24 @@ class Protocol(MenuInstrumentProtocol):
             return value
         else:
             raise InstrumentProtocolException("Invalid Units!")
+            
+    @staticmethod
+    def _from_seconds(value):
+        """
+        Converts a number of seconds into a (unit, value) tuple.
+        
+        @param value The number of seconds to convert
+        @retval A tuple of unit and value where the unit is 1 for seconds and 2
+            for minutes. If the value is 15-59, units should be returned in
+            seconds. If the value is over 59, the units will be returned in
+            a number of minutes where the seconds are rounded down to the
+            nearest minute.
+        """
+        if (value < 15) or (value > 3600):
+            raise InstrumentParameterException("Invalid seconds value: %s" % value)
+        
+        if (value < 60):
+            return (1, value)
+        else:
+            return (2, value // 60)
+        

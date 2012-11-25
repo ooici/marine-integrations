@@ -46,6 +46,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentParameterException
 
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
@@ -435,7 +436,16 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
 	self.assertRaises(InstrumentProtocolException,
 			  Protocol._to_seconds, 1, "foo")
 
-			  
+    def test_from_seconds(self):
+	self.assertEquals((1, 23), Protocol._from_seconds(23))
+	self.assertEquals((1, 59), Protocol._from_seconds(59))
+	self.assertEquals((2, 1), Protocol._from_seconds(60))
+	self.assertEquals((2, 2), Protocol._from_seconds(120))
+	self.assertEquals((2, 1), Protocol._from_seconds(119))
+	self.assertRaises(InstrumentParameterException,
+			  Protocol._from_seconds, 3601)
+	self.assertRaises(InstrumentParameterException,
+			  Protocol._from_seconds, 14)	
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -593,17 +603,57 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
                 ]
             self.driver_client.cmd_dvr('get_resource', bogus_params)        
         
+    def test_readonly_set(self):
+	""" Tests the results of trying to set some read-only values """
+        config_key = Parameter.CYCLE_TIME
+	value_C = 16
+        config_C = {config_key:value_C}
+	ro_params = {
+		   Parameter.CYCLE_TIME: value_C,
+                   Parameter.VERBOSE: 1,
+                   Parameter.METADATA_POWERUP: 1,
+                   Parameter.METADATA_RESTART: 1,
+                   Parameter.RES_SENSOR_POWER: 0,
+                   Parameter.INST_AMP_POWER: 0,
+                   Parameter.EH_ISOLATION_AMP_POWER: 0,
+                   Parameter.HYDROGEN_POWER: 0,
+		   Parameter.REFERENCE_TEMP_POWER: 0
+		   }
+        
+        self._get_to_cmd_mode()
 
-    def test_set(self):
-	# *** CAREFUL OF READ_ONLY VISIBILITY!
-	
+	# test read-only params do not get set
+        reply = self.driver_client.cmd_dvr('set_resource', ro_params, timeout=20)
+        self.assertEquals(reply[config_key], value_C)
+         
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL, timeout=20)
+        self.assertEquals(reply, config_C)
+
+    def test_bogus_set(self):
+        """ Assert we cannot set a bogus parameter. """
+        self._get_to_cmd_mode()
+
+        with self.assertRaises(InstrumentParameterException):
+            bogus_params = {
+                'a bogus parameter name' : 'bogus value'
+            }
+            self.driver_client.cmd_dvr('set_resource', bogus_params)
+            
+        # Assert we cannot set a real parameter to a bogus value.
+        with self.assertRaises(InstrumentParameterException):
+            bogus_params = {
+                Parameter.CYCLE_TIME : 'bogus value'
+            }
+            self.driver_client.cmd_dvr('set_resource', bogus_params)	
+    
+    def test_simple_set(self):	
         config_key = Parameter.CYCLE_TIME
         value_A = 17
         value_B = 15
         config_A = {config_key:value_A}
         config_B = {config_key:value_B}
-        
-        self.go_to_cmd_mode()
+	
+        self._get_to_cmd_mode()
         
         reply = self.driver_client.cmd_dvr('set_resource', config_A, timeout=20)
         self.assertEquals(reply[config_key], value_A)
@@ -616,25 +666,12 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
          
         reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=20)
         self.assertEquals(reply, config_B)
+	
+    def test_read_only_values(self):
+        self._get_to_cmd_mode()
 
-        # Assert we cannot set a bogus parameter.
-        with self.assertRaises(InstrumentParameterException):
-            bogus_params = {
-                'a bogus parameter name' : 'bogus value'
-            }
-            self.driver_client.cmd_dvr('set_resource', bogus_params)
-            
-        # Assert we cannot set a real parameter to a bogus value.
-        with self.assertRaises(InstrumentParameterException):
-            bogus_params = {
-                Parameter.CYCLE_TIME : 'bogus value'
-            }
-            self.driver_client.cmd_dvr('set_resource', bogus_params)
-        
-        # Assert we cannot set read-only values
-        with self.assertRaises(InstrumentParameterException):
-            ro_params = {
-		   Parameter.CYCLE_TIME: 16,
+	config_A = {
+		   Parameter.CYCLE_TIME: 30,
                    Parameter.VERBOSE: 1,
                    Parameter.METADATA_POWERUP: 1,
                    Parameter.METADATA_RESTART: 1,
@@ -643,11 +680,35 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
                    Parameter.EH_ISOLATION_AMP_POWER: 0,
                    Parameter.HYDROGEN_POWER: 0,
 		   Parameter.REFERENCE_TEMP_POWER: 0
-		   }
-	    
-            self.driver_client.cmd_dvr('set_resource', bogus_params)
+	}
 	
+	config_B = {
+		   Parameter.CYCLE_TIME: 20,
+                   Parameter.VERBOSE: 0,
+                   Parameter.METADATA_POWERUP: 0,
+                   Parameter.METADATA_RESTART: 0,
+                   Parameter.RES_SENSOR_POWER: 1,
+                   Parameter.INST_AMP_POWER: 1,
+                   Parameter.EH_ISOLATION_AMP_POWER: 1,
+                   Parameter.HYDROGEN_POWER: 1,
+		   Parameter.REFERENCE_TEMP_POWER: 1
+	}
+		
+	# Set the values to something totally strange via init value?
+	self.driver_client.cmd_dvr('set_init_params', config_A)
+	self.driver_client.cmd_dvr('apply_startup_params')
 	
+	# verify they made it to the kooky values
+	reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL, timeout=20)
+        self.assertEqual(reply, config_A)
+	
+	# set them back
+	self.driver_client.cmd_dvr('set_init_params', config_B)
+	self.driver_client.cmd_dvr('apply_startup_params')
+	
+	# confirm that they made it back to where they should be
+	reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=20)
+        self.assertEqual(reply, config_A)        
     
     def test_autosample(self):
         """

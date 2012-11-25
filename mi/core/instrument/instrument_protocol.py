@@ -169,17 +169,21 @@ class InstrumentProtocol(object):
         """
         return_dict = {}
         start_list = self._param_dict.get_startup_list()
+        log.trace("Startup list: %s", start_list)
         assert isinstance(start_list, list)
         
         for param in start_list:
             result = self._param_dict.get_init_value(param)
-            if result:
+            if result != None:
+                log.trace("Got init value for %s: %s", param, result)
                 return_dict[param] = result
             else:
                 result = self._param_dict.get_default_value(param)
-                if result:
+                if result != None:
+                    log.trace("Got default value for %s: %s", param, result)
                     return_dict[param] = result
                 else:
+                    log.trace("Got current value for %s: %s", param, result)
                     return_dict[param] = self._param_dict.get(param)
         
         return return_dict
@@ -460,10 +464,8 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                 time.sleep(write_delay)
 
         # Wait for the prompt, prepare result and return, timeout exception
-        log.debug("*** getting response...")
         (prompt, result) = self._get_response(timeout,
                                               expected_prompt=expected_prompt)
-        log.debug("*** got response...")
 
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
             self._response_handlers.get(cmd, None)
@@ -719,7 +721,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             except:
                 raise InstrumentProtocolException('MenuTree.get_directions(): node %s not in _node_directions dictionary'
                                                   %str(node))                
-            log.debug("MenuTree.get_directions(): _node_directions = %s, node = %s, d_list = %s" 
+            log.trace("MenuTree.get_directions(): _node_directions = %s, node = %s, d_list = %s" 
                       %(str(self._node_directions), str(node), str(directions_list)))
             directions = []
             for item in directions_list:
@@ -851,7 +853,6 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
             resp_result = self._do_cmd_resp(cmd, **kwargs)
  
         return resp_result
-
     
     def _go_to_root_menu(self):
         """

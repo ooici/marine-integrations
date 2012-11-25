@@ -14,6 +14,7 @@ from ooi.logging import log
 from nose.plugins.attrib import attr
 from pyon.util.unit_test import IonUnitTestCase
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 
 @attr('UNIT', group='mi')
 class TestUnitProtocolParameterDict(IonUnitTestCase):
@@ -30,27 +31,32 @@ class TestUnitProtocolParameterDict(IonUnitTestCase):
                              lambda x : str(x),
                              direct_access=True,
                              startup_param=True,
-                             default_value=10)
+                             default_value=10,
+                             visibility=ParameterDictVisibility.READ_WRITE)
         self.param_dict.add("bar", r'.*bar=(\d*).*',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
                              direct_access=False,
                              startup_param=True,
-                             default_value=15)
+                             default_value=15,
+                             visibility=ParameterDictVisibility.READ_WRITE)
         self.param_dict.add("baz", r'.*baz=(\d*).*',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
                              direct_access=True,
-                             default_value=20)
+                             default_value=20,
+                             visibility=ParameterDictVisibility.DIRECT_ACCESS)
         self.param_dict.add("bat", r'.*bat=(\d*).*',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
                              startup_param=False,
-                             default_value=20)
+                             default_value=20,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self.param_dict.add("qux", r'.*qux=(\d*).*',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
-                             startup_param=False)
+                             startup_param=False,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         
     def test_get_direct_access_list(self):
         """
@@ -95,14 +101,22 @@ class TestUnitProtocolParameterDict(IonUnitTestCase):
 foo=100
 bar=200, baz=300
 """
-        self.assertNotEqual(self.param_dict.get("foo"), 100)
-        self.assertNotEqual(self.param_dict.get("bar"), 200)
-        self.assertNotEqual(self.param_dict.get("baz"), 300)
+        self.assertNotEquals(self.param_dict.get("foo"), 100)
+        self.assertNotEquals(self.param_dict.get("bar"), 200)
+        self.assertNotEquals(self.param_dict.get("baz"), 300)
         result = self.param_dict.update_many(sample_input)
         log.debug("result: %s", result)
-        self.assertEqual(result["foo"], True)
-        self.assertEqual(result["bar"], True)
-        self.assertEqual(result["baz"], True)
-        self.assertEqual(self.param_dict.get("foo"), 100)
-        self.assertEqual(self.param_dict.get("bar"), 200)
-        self.assertEqual(self.param_dict.get("baz"), 300)
+        self.assertEquals(result["foo"], True)
+        self.assertEquals(result["bar"], True)
+        self.assertEquals(result["baz"], True)
+        self.assertEquals(self.param_dict.get("foo"), 100)
+        self.assertEquals(self.param_dict.get("bar"), 200)
+        self.assertEquals(self.param_dict.get("baz"), 300)
+        
+    def test_visibility_list(self):
+        lst = self.param_dict.get_visibility_list(ParameterDictVisibility.READ_WRITE)
+        self.assertEquals(lst, ["foo", "bar"])
+        lst = self.param_dict.get_visibility_list(ParameterDictVisibility.DIRECT_ACCESS)
+        self.assertEquals(lst, ["baz"])
+        lst = self.param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
+        self.assertEquals(lst, ["bat", "qux"])

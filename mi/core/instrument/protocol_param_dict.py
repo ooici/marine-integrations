@@ -253,6 +253,8 @@ class ProtocolParameterDict(object):
     def update_many(self, input):
         """
         Take in multiple inputs and update many parameters at once.
+        @param input a line or lines of input to parse
+        @retval A dict with the names and values that were updated
         """
         result = {}
         for (name, val) in self._param_dict.iteritems():
@@ -325,6 +327,22 @@ class ProtocolParameterDict(object):
         return_val = []
         for key in self._param_dict.keys():
             if self._param_dict[key].startup_param == True:
+                return_val.append(key)
+        
+        return return_val
+    
+    def get_visibility_list(self, visibility):
+        """
+        Return a list of parameter names that are tagged with the given
+        visibility
+        
+        @param visability A value from the ParameterDictVisibility enum
+        @retval A list of parameter names, possibly empty
+        """
+        return_val = []
+        
+        for key in self._param_dict.keys():
+            if self._param_dict[key].visibility == visibility:
                 return_val.append(key)
         
         return return_val

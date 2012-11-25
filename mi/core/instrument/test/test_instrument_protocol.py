@@ -14,11 +14,16 @@ import logging
 from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
+from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
 #from mi.core.instrument.data_particle import DataParticle
 from mi.instrument.satlantic.par_ser_600m.driver import SAMPLE_REGEX
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticle
 from pyon.util.unit_test import IonUnitTestCase
 from mi.core.exceptions import InstrumentParameterException
+from mi.core.common import BaseEnum
+
+Directions = MenuInstrumentProtocol.MenuTree.Directions
+
 
 @attr('UNIT', group='mi')
 class TestUnitInstrumentProtocol(IonUnitTestCase):
@@ -134,7 +139,7 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
                              lambda x : str(x),
                              direct_access=False,
                              startup_param=True,
-                             default_value=15)
+                             default_value=0)
         self.protocol._param_dict.add("baz", r'baz=(.*)',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
@@ -161,7 +166,7 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
         
         self.assertEquals(len(result), 3)
         self.assertEquals(result["foo"], 1111) # init param
-        self.assertEquals(result["bar"], 15)   # default param
+        self.assertEquals(result["bar"], 0)   # default param
         self.assertEquals(result["qux"], 6666) # set param
 
 
