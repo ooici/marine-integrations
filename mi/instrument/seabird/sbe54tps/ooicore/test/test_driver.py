@@ -60,8 +60,12 @@ from mi.instrument.seabird.sbe54tps.ooicore.driver import Prompt
 from mi.instrument.seabird.sbe54tps.ooicore.driver import Protocol
 from mi.instrument.seabird.sbe54tps.ooicore.driver import InstrumentCmds
 from mi.instrument.seabird.sbe54tps.ooicore.driver import NEWLINE
-from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsEventCounterDataParticleKey
+from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsStatusDataParticle, SBE54tpsStatusDataParticleKey
+from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsEventCounterDataParticle, SBE54tpsEventCounterDataParticleKey
 from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsSampleDataParticle, SBE54tpsSampleDataParticleKey
+from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsHardwareDataParticle, SBE54tpsHardwareDataParticleKey
+from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsConfigurationDataParticle, SBE54tpsConfigurationDataParticleKey
+
 
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from prototype.sci_data.stream_defs import ctd_stream_definition
@@ -88,7 +92,15 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'Agent007',
     instrument_agent_packet_config = PACKET_CONFIG,
-    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
+    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None),
+
+    driver_startup_config = {
+        Parameter.SAMPLE_PERIOD: 15,
+        Parameter.BATTERY_TYPE: 1,
+        Parameter.UPLOAD_TYPE: 1,
+        Parameter.ENABLE_ALERTS: 1,
+        #Parameter.TIME: current time.... not sure how.
+    }
 )
 
 
@@ -703,7 +715,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
 
         # Int
         ret = p._build_set_command("irrelevant", Parameter.SAMPLE_PERIOD, 200)
-        self.assertEqual(ret, 'SETsampleperiod=200\r\n')
+        self.assertEqual(ret, 'setsampleperiod=200\r\n')
 
         # Float
         # ret = p._build_set_command("irrelevant", Parameter.MIN_ALLOWABLE_ATTENUATION, 5.827424)
@@ -711,7 +723,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
 
         # Boolean - 1/0
         ret = p._build_set_command("irrelevant", Parameter.ENABLE_ALERTS, True)
-        self.assertEqual(ret, 'SETenablealerts=1\r\n')
+        self.assertEqual(ret, 'setenablealerts=1\r\n')
 
         # String
         # ret = p._build_set_command("irrelevant", Parameter.USER_INFO, 'ooi_test')
@@ -1016,6 +1028,25 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertEqual(state, desired_state)
 
     # WORKS
+    def test_startup_configuration(self):
+        '''
+        Test that the startup configuration is applied correctly
+        '''
+        self.put_instrument_in_command_mode()
+
+        result = self.driver_client.cmd_dvr('apply_startup_params')
+
+        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.ALL])
+
+
+        self.assertEqual(reply[Parameter.SAMPLE_PERIOD], 15)
+        self.assertEqual(reply[Parameter.BATTERY_TYPE], 1)
+        self.assertEqual(reply[Parameter.UPLOAD_TYPE], 1)
+        self.assertEqual(reply[Parameter.ENABLE_ALERTS], 1)
+
+
+
+    # WORKS
     def put_instrument_in_command_mode(self):
         log.info("test_connect test started")
 
@@ -1029,7 +1060,8 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.check_state(DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('connect')
+        log.debug("DRIVER_STARTUP_CONFIG = " + repr(self.test_config.driver_startup_config))
+        reply = self.driver_client.cmd_dvr('connect', self.test_config.driver_startup_config )
 
         # Test the driver is in unknown state.
         self.check_state(ProtocolState.UNKNOWN)
@@ -1235,10 +1267,10 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # COMMAND
         (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
-        for state in ['DRIVER_EVENT_ACQUIRE_STATUS', 'DRIVER_EVENT_ACQUIRE_SAMPLE',
+        for state in ['DRIVER_EVENT_ACQUIRE_STATUS',
                       'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
             self.assertTrue(state in res_cmds)
-        self.assertEqual(len(res_cmds), 4)
+        self.assertEqual(len(res_cmds), 3)
 
         # Verify all paramaters are present in res_params
 
@@ -1269,10 +1301,10 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
 
         (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
-        for state in ['DRIVER_EVENT_ACQUIRE_STATUS', 'DRIVER_EVENT_ACQUIRE_SAMPLE',
+        for state in ['DRIVER_EVENT_ACQUIRE_STATUS',
                       'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
             self.assertTrue(state in res_cmds)
-        self.assertEqual(len(res_cmds), 4)
+        self.assertEqual(len(res_cmds), 3)
 
     # WORKS
     def test_connect_configure_disconnect(self):
@@ -1341,6 +1373,8 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         # Test the driver is in command mode.
         reply = self.driver_client.cmd_dvr('discover_state')
 
+
+        # probably snuck back into autosample
         self.check_state(ProtocolState.COMMAND)
 
 
@@ -1425,6 +1459,14 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         cmd = AgentCommand(command=resource_command)
         retval = self.instrument_agent_client.execute_resource(cmd)
         self.check_resource_state(desired_state)
+        return retval
+
+    def assert_agent_command_and_resource_state(self, resource_command, desired_state):
+
+        cmd = AgentCommand(command=resource_command)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=60)
+        self.check_resource_state(desired_state)
+        return retval
 
     def assert_agent_command_and_agent_state(self, agent_command, desired_state):
         """
@@ -1436,13 +1478,14 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         cmd = AgentCommand(command=agent_command)
         retval = self.instrument_agent_client.execute_agent(cmd)
         self.check_agent_state(desired_state)
+        return retval
 
-        def assert_capabilitys_present(self, agent_capabilities, required_capabilities):
-            """
-            Verify that both lists are the same, order independent.
-            @param agent_capabilities
-            @param required_capabilities
-            """
+    def assert_capabilitys_present(self, agent_capabilities, required_capabilities):
+        """
+        Verify that both lists are the same, order independent.
+        @param agent_capabilities
+        @param required_capabilities
+        """
 
         for agent_capability in agent_capabilities:
             self.assertTrue(agent_capability in required_capabilities)
@@ -1493,14 +1536,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
             #  ...AND MAKE LIKE THIS NEVER HAPPENED!
         self.assertEqual(state, desired_state)
 
-
-    # the assert particles are all wrong.
-    # the object is more a struct than instance of a given particle.
-    # can only assert that it is a particle of given type by asserting it
-    # contains all field labels with values of propper type.
-
-
-    # PATCHED, UNTESTED
+    # WORKS
     def assert_SBE54tpsStatusDataParticle(self, prospective_particle):
         """
         @param prospective_particle: a perfect particle of SBE54tpsStatusDataParticle or FAIL!!!!
@@ -1521,20 +1557,21 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
             key = x['value_id']
             value = x['value']
             self.assertTrue(key in [
-                SBE54tpsStatusDataParticle.DEVICE_TYPE,
-                SBE54tpsStatusDataParticle.SERIAL_NUMBER,
-                SBE54tpsStatusDataParticle.DATE_TIME,
-                SBE54tpsStatusDataParticle.EVENT_COUNT,
-                SBE54tpsStatusDataParticle.MAIN_SUPPLY_VOLTAGE,
-                SBE54tpsStatusDataParticle.NUMBER_OF_SAMPLES,
-                SBE54tpsStatusDataParticle.BYTES_USED,
-                SBE54tpsStatusDataParticle.BYTES_FREE
+                SBE54tpsStatusDataParticleKey.DEVICE_TYPE,
+                SBE54tpsStatusDataParticleKey.SERIAL_NUMBER,
+                SBE54tpsStatusDataParticleKey.TIME,
+                SBE54tpsStatusDataParticleKey.EVENT_COUNT,
+                SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE,
+                SBE54tpsStatusDataParticleKey.NUMBER_OF_SAMPLES,
+                SBE54tpsStatusDataParticleKey.BYTES_USED,
+                SBE54tpsStatusDataParticleKey.BYTES_FREE
             ])
 
             # CHECK THAT THE TYPES ARE CORRECT IN THE DICT.
             # str
             if key in [
-                SBE54tpsStatusDataParticleKey.DEVICE_TYPE
+                SBE54tpsStatusDataParticleKey.DEVICE_TYPE,
+                SBE54tpsStatusDataParticleKey.TIME
             ]:
                 self.assertTrue(isinstance(value, str))
             # int
@@ -1551,17 +1588,11 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE
             ]:
                 self.assertTrue(isinstance(value, float))
-            # datetime
-            elif key in [
-                SBE54tpsStatusDataParticleKey.DATE_TIME
-            ]:
-                # @TODO add a date_time parser here
-                self.assertTrue(isinstance(value, time.struct_time))
             else:
                 # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
                 self.assertTrue(False)
 
-    # PATCHED, UNTESTED
+    # WORKS
     def assert_SBE54tpsConfigurationDataParticle(self, prospective_particle):
         """
         @param prospective_particle: a perfect particle of SBE54tpsStatusDataParticle or FAIL!!!!
@@ -1609,14 +1640,15 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 SBE54tpsConfigurationDataParticleKey.PRESSURE_OFFSET,
                 SBE54tpsConfigurationDataParticleKey.PRESSURE_RANGE,
                 SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE,
-                SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE
+                SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE,
+                SBE54tpsConfigurationDataParticleKey.BAUD_RATE
             ])
 
             # CHECK THAT THE TYPES ARE CORRECT IN THE DICT.
             # str
             if key in [
                 SBE54tpsConfigurationDataParticleKey.DEVICE_TYPE,
-                SBE54tpsConfigurationDataParticleKey.PRESSURE_SERIAL_NUM,
+                SBE54tpsConfigurationDataParticleKey.PRESSURE_SERIAL_NUM
                 ]:
                 self.assertTrue(isinstance(value, str))
 
@@ -1627,6 +1659,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 SBE54tpsConfigurationDataParticleKey.ENABLE_ALERTS,
                 SBE54tpsConfigurationDataParticleKey.UPLOAD_TYPE,
                 SBE54tpsConfigurationDataParticleKey.SAMPLE_PERIOD,
+                SBE54tpsConfigurationDataParticleKey.BAUD_RATE
             ]:
                 self.assertTrue(isinstance(value, int))
 
@@ -1651,21 +1684,24 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 SBE54tpsConfigurationDataParticleKey.PT4,
                 SBE54tpsConfigurationDataParticleKey.PRESSURE_OFFSET,
                 SBE54tpsConfigurationDataParticleKey.PRESSURE_RANGE,
+                # FLOAT DATE's
+                SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE,
+                SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE
             ]:
                 self.assertTrue(isinstance(value, float))
 
             # date
-            elif key in [
-                SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE,
-                SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE
-            ]:
-                # @TODO add a date parser here
-                self.assertTrue(isinstance(value, time.struct_time))
+            #elif key in [
+            #    SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE,
+            #    SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE
+            #]:
+            #    # @TODO add a date parser here
+            #    self.assertTrue(isinstance(value, time.struct_time))
             else:
                 # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
                 self.assertTrue(False)
 
-    # PATCHED, UNTESTED
+    # WORKS
     def assert_SBE54tpsEventCounterDataParticle(self, prospective_particle):
         """
         @param prospective_particle: a perfect particle of SBE54tpsEventCounterDataParticle or FAIL!!!!
@@ -1687,6 +1723,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         for x in sample_dict['values']:
             key = x['value_id']
             value = x['value']
+
             self.assertTrue(key in [
                 SBE54tpsEventCounterDataParticleKey.NUMBER_EVENTS,
                 SBE54tpsEventCounterDataParticleKey.MAX_STACK,
@@ -1708,7 +1745,6 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
             if key in [
                 SBE54tpsEventCounterDataParticleKey.NUMBER_EVENTS,
                 SBE54tpsEventCounterDataParticleKey.MAX_STACK,
-                SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE,
                 SBE54tpsEventCounterDataParticleKey.SERIAL_NUMBER,
                 SBE54tpsEventCounterDataParticleKey.POWER_ON_RESET,
                 SBE54tpsEventCounterDataParticleKey.POWER_FAIL_RESET,
@@ -1720,12 +1756,20 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 SBE54tpsEventCounterDataParticleKey.ERROR_10,
                 SBE54tpsEventCounterDataParticleKey.ERROR_12
             ]:
+                log.debug("BAD ONE IS " + key)
                 self.assertTrue(isinstance(value, int))
+
+            # str
+            elif key in [
+                SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE,
+            ]:
+                self.assertTrue(isinstance(value, str))
+
             else:
                 # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
                 self.assertTrue(False)
 
-    # PATCHED, UNTESTED
+    # WORKS
     def assert_SBE54tpsHardwareDataParticle(self, prospective_particle):
         """
         @param prospective_particle: a perfect particle of SBE54tpsHardwareDataParticle or FAIL!!!!
@@ -1745,6 +1789,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         for x in sample_dict['values']:
             key = x['value_id']
             value = x['value']
+
             self.assertTrue(key in [
                 SBE54tpsHardwareDataParticleKey.DEVICE_TYPE,
                 SBE54tpsHardwareDataParticleKey.MANUFACTURER,
@@ -1775,13 +1820,13 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 ]:
                 self.assertTrue(isinstance(value, int))
 
-            # date
+            # float
             elif key in [
                 SBE54tpsHardwareDataParticleKey.FIRMWARE_DATE,
                 SBE54tpsHardwareDataParticleKey.MANUFACTUR_DATE
             ]:
                 # @TODO add a date parser here
-                self.assertTrue(isinstance(value, time.struct_time))
+                self.assertTrue(isinstance(value, float))
             else:
                 # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
                 self.assertTrue(False)
@@ -1858,13 +1903,22 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet(timeout=600)
         self.assertTrue(self.tcp_client)
-        self.tcp_client.send_data("\r\n")
+        self.tcp_client.send_data("\r\nsetSetSamplePeriod=97\r\n")
         self.tcp_client.expect("S>")
 
         self.assert_direct_access_stop_telnet()
 
         # verify the setting got restored.
         self.assert_enter_command_mode()
+
+        params = [
+            Parameter.SAMPLE_PERIOD,
+            ]
+        new_params = self.instrument_agent_client.get_resource(params)
+        log.debug("TESTING SAMPLE_PERIOD = " + repr(new_params))
+
+        # assert that we altered the time.
+        self.assertTrue(new_params[Parameter.SAMPLE_PERIOD] == 15)
 
     # WORKS
     def test_autosample(self):
@@ -1917,7 +1971,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-    # BROKE AUTOSAMPLE ISH ISSUES
+    # WORKS
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -1925,6 +1979,12 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         This one needs to be re-written rather than copy/pasted to develop a better more reusable pattern.
         """
+
+        # force it to command state before test so auto sample doesnt bork it up.
+        self.assert_enter_command_mode()
+        self.assert_reset()
+
+
 
         self.check_agent_state(ResourceAgentState.UNINITIALIZED)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
@@ -1935,54 +1995,42 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         self.assert_agent_command_and_agent_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
-        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_ACTIVE', 'RESOURCE_AGENT_EVENT_RESET'])
+        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_ACTIVE',
+                                                             'RESOURCE_AGENT_EVENT_RESET'])
         self.assert_capabilitys_present(driver_capabilities, [])
 
         log.debug("%%% STATE NOW ResourceAgentState.INACTIVE")
 
-
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_resource_state()
-        log.debug("CRIMENY!    " + repr(state))
-        self.check_state(DriverState.COMMAND)
-
-        self.assert_agent_command_and_agent_state(ResourceAgentEvent.GO_ACTIVE, ResourceAgentState.IDLE)
+        self.assert_agent_command_and_resource_state(ResourceAgentEvent.GO_ACTIVE, ProtocolState.COMMAND)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
-        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_INACTIVE', 'RESOURCE_AGENT_EVENT_RESET',
+        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_INACTIVE',
+                                                             'RESOURCE_AGENT_EVENT_RESET',
                                                              'RESOURCE_AGENT_EVENT_RUN'])
         self.assert_capabilitys_present(driver_capabilities, [])
 
         log.debug("%%% STATE NOW ResourceAgentState.IDLE")
-
-
 
         self.assert_agent_command_and_agent_state(ResourceAgentEvent.RUN, ResourceAgentState.COMMAND)
 
         log.debug("%%% STATE NOW ResourceAgentState.COMMAND")
 
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
-        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_CLEAR', 'RESOURCE_AGENT_EVENT_RESET',
+        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_CLEAR',
+                                                             'RESOURCE_AGENT_EVENT_RESET',
                                                              'RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS',
                                                              'RESOURCE_AGENT_EVENT_GO_INACTIVE',
                                                              'RESOURCE_AGENT_EVENT_PAUSE'])
-        log.debug("DRIVER_CAPABILITIES = " + repr(driver_capabilities))
         self.assert_capabilitys_present(driver_capabilities, ['DRIVER_EVENT_ACQUIRE_STATUS',
-                                                              'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                                               'DRIVER_EVENT_START_AUTOSAMPLE',
                                                               'DRIVER_EVENT_CLOCK_SYNC'])
 
 
-        log.debug("%%%%%%%%%%%% CREATING AGENT COMMAND")
         cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-            kwargs={'session_type': DirectAccessTypes.telnet,
-                    #kwargs={'session_type':DirectAccessTypes.vsp,
-                    'session_timeout':600,
-                    'inactivity_timeout':600})
-        log.debug("%%%%%%%%%%%% RUNNING AGENT COMMAND")
+                            kwargs={'session_type': DirectAccessTypes.telnet,
+                                    #kwargs={'session_type':DirectAccessTypes.vsp,
+                                    'session_timeout':600,
+                                    'inactivity_timeout':600})
         retval = self.instrument_agent_client.execute_agent(cmd)
-        log.debug("%%%%%%%%%%%% COMPLETED AGENT COMMAND")
 
         self.check_agent_state(ResourceAgentState.DIRECT_ACCESS)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
@@ -2071,3 +2119,68 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         self.check_agent_state(ResourceAgentState.UNINITIALIZED)
 
         self.assert_enter_command_mode()
+
+    # WORKS
+    def test_execute_acquire_status(self):
+        """
+        @brief Test Test EXECUTE_CLOCK_SYNC command.
+        """
+        self.assert_enter_command_mode()
+
+        result = self.assert_resource_command_and_resource_state(ProtocolEvent.ACQUIRE_STATUS, ProtocolState.COMMAND)
+
+        log.debug("RESULT = " + result.result)
+        # Lets assert some bits are present.
+        # getcd
+        self.assertTrue("<ConfigurationData DeviceType='SBE54'" in result.result)
+        self.assertTrue("<CalibrationCoefficients>" in result.result)
+        self.assertTrue("</CalibrationCoefficients>" in result.result)
+        self.assertTrue("</ConfigurationData>" in result.result)
+
+
+        # getsd
+        self.assertTrue("<StatusData DeviceType='SBE54'" in result.result)
+        self.assertTrue("MainSupplyVoltage" in result.result)
+
+        #getec
+        self.assertTrue("<EventList DeviceType='SBE54'" in result.result)
+        # this one can be truncated, dont assert it too much
+
+
+        # gethd
+        self.assertTrue("<HardwareData DeviceType='SBE54'" in result.result)
+        self.assertTrue("<Manufacturer>Sea-Bird Electronics, Inc</Manufacturer>" in result.result)
+        self.assertTrue("</HardwareData>" in result.result)
+
+    # WORKS
+    def test_four_non_sample_particles(self):
+        """
+        @brief Test instrument driver execute interface to start and stop streaming
+        mode.
+        """
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        self.assert_enter_command_mode()
+
+
+        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
+
+        # AQUIRE STATUS. Should produce 4 particles.
+        result = self.assert_resource_command_and_resource_state(ProtocolEvent.ACQUIRE_STATUS, ProtocolState.COMMAND)
+
+
+        samples = self.data_subscribers.get_samples('parsed', 4, timeout=30)
+        log.debug("GOT 4 SAMPLES I THINK!")
+
+        sample = samples.pop()
+        self.assert_SBE54tpsConfigurationDataParticle(sample)
+
+        sample = samples.pop()
+        self.assert_SBE54tpsStatusDataParticle(sample)
+
+        sample = samples.pop()
+        self.assert_SBE54tpsEventCounterDataParticle(sample)
+
+        sample = samples.pop()
+        self.assert_SBE54tpsHardwareDataParticle(sample)
