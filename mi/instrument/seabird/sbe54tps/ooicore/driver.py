@@ -1421,18 +1421,39 @@ class Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
 
     def _parse_gc_response(self, response, prompt):
+
+        response = response.replace("S>" + NEWLINE, "")
+        response = response.replace("<Executed/>" + NEWLINE, "")
+        response = response.replace(InstrumentCmds.GET_CONFIGURATION_DATA + NEWLINE, "")
+        response = response.replace("S>", "")
+
         log.debug("IN _parse_gc_response RESPONSE = " + repr(response))
         return response
 
     def _parse_gs_response(self, response, prompt):
+        response = response.replace("S>" + NEWLINE, "")
+        response = response.replace("<Executed/>" + NEWLINE, "")
+        response = response.replace(InstrumentCmds.GET_STATUS_DATA + NEWLINE, "")
+        response = response.replace("S>", "")
+
         log.debug("IN _parse_gs_response RESPONSE = " + repr(response))
         return response
 
     def _parse_ec_response(self, response, prompt):
+        response = response.replace("S>" + NEWLINE, "")
+        response = response.replace("<Executed/>" + NEWLINE, "")
+        response = response.replace(InstrumentCmds.GET_EVENT_COUNTER_DATA + NEWLINE, "")
+        response = response.replace("S>", "")
+
         log.debug("IN _parse_ec_response RESPONSE = " + repr(response))
         return response
 
     def _parse_hd_response(self, response, prompt):
+        response = response.replace("S>" + NEWLINE, "")
+        response = response.replace("<Executed/>" + NEWLINE, "")
+        response = response.replace(InstrumentCmds.GET_HARDWARE_DATA + NEWLINE, "")
+        response = response.replace("S>", "")
+
         log.debug("IN _parse_hd_response RESPONSE = " + repr(response))
         return response
 
@@ -1607,9 +1628,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         result3 = self._do_cmd_resp(InstrumentCmds.GET_EVENT_COUNTER_DATA, timeout=timeout)
         result4 = self._do_cmd_resp(InstrumentCmds.GET_HARDWARE_DATA, timeout=timeout)
 
-        #result = self._do_cmd_resp('ds', *args, **kwargs)
         result = result1 + result2 + result3 + result4
 
+
+        log.debug("RESULT(RETURNED) = " + str(result))
+        #return (next_state, result)
         return (next_state, (next_agent_state, result))
 
     def _handler_command_start_direct(self, *args, **kwargs):
@@ -1667,8 +1690,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         except IndexError:
             raise InstrumentParameterException('Get command requires a parameter list or tuple.')
 
+
+        log.debug("params = " + repr(params))
+
+
         # If all params requested, retrieve config.
         if params == DriverParameter.ALL:
+            result = self._param_dict.get_config()
+            # If all params requested, retrieve config.
+        elif params == [DriverParameter.ALL]:
             result = self._param_dict.get_config()
 
         # If not all params, confirm a list or tuple of params to retrieve.

@@ -88,7 +88,15 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'Agent007',
     instrument_agent_packet_config = PACKET_CONFIG,
-    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
+    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None),
+
+    driver_startup_config = {
+        Parameter.SAMPLE_PERIOD: 15,
+        #Parameter.TIME: current time.... not sure how.
+        Parameter.BATTERY_TYPE: 1,
+        Parameter.UPLOAD_TYPE: 1,
+        Parameter.ENABLE_ALERTS: 1
+    }
 )
 
 
@@ -1015,6 +1023,27 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
             #  ...AND MAKE LIKE THIS NEVER HAPPENED!
         self.assertEqual(state, desired_state)
 
+
+    def test_startup_configuration(self):
+        '''
+        Test that the startup configuration is applied correctly
+        '''
+        self.put_instrument_in_command_mode()
+
+        result = self.driver_client.cmd_dvr('apply_startup_params')
+        log.debug("RESULT = " + str(result))
+        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.ALL])
+
+        log.debug("REPLY = " + repr(reply))
+
+        self.assertEqual(reply[Parameter.SAMPLE_PERIOD], 15)
+        #self.assertEquals(reply, {Parameter.SAMPLE_PERIOD: 15,
+        #Parameter.BATTERY_TYPE: 1,
+        #Parameter.UPLOAD_TYPE: 1,
+        #Parameter.ENABLE_ALERTS: 1})
+        #reply = self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE: 1})
+
+
     # WORKS
     def put_instrument_in_command_mode(self):
         log.info("test_connect test started")
@@ -1235,10 +1264,10 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # COMMAND
         (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
-        for state in ['DRIVER_EVENT_ACQUIRE_STATUS', 'DRIVER_EVENT_ACQUIRE_SAMPLE',
+        for state in ['DRIVER_EVENT_ACQUIRE_STATUS',
                       'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
             self.assertTrue(state in res_cmds)
-        self.assertEqual(len(res_cmds), 4)
+        self.assertEqual(len(res_cmds), 3)
 
         # Verify all paramaters are present in res_params
 
@@ -1269,10 +1298,10 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
 
         (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
-        for state in ['DRIVER_EVENT_ACQUIRE_STATUS', 'DRIVER_EVENT_ACQUIRE_SAMPLE',
+        for state in ['DRIVER_EVENT_ACQUIRE_STATUS',
                       'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
             self.assertTrue(state in res_cmds)
-        self.assertEqual(len(res_cmds), 4)
+        self.assertEqual(len(res_cmds), 3)
 
     # WORKS
     def test_connect_configure_disconnect(self):
@@ -1341,6 +1370,8 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         # Test the driver is in command mode.
         reply = self.driver_client.cmd_dvr('discover_state')
 
+
+        # probably snuck back into autosample
         self.check_state(ProtocolState.COMMAND)
 
 
@@ -1425,6 +1456,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         cmd = AgentCommand(command=resource_command)
         retval = self.instrument_agent_client.execute_resource(cmd)
         self.check_resource_state(desired_state)
+        return retval
 
     def assert_agent_command_and_agent_state(self, agent_command, desired_state):
         """
@@ -1436,6 +1468,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         cmd = AgentCommand(command=agent_command)
         retval = self.instrument_agent_client.execute_agent(cmd)
         self.check_agent_state(desired_state)
+        return retval
 
         def assert_capabilitys_present(self, agent_capabilities, required_capabilities):
             """
@@ -2071,3 +2104,36 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         self.check_agent_state(ResourceAgentState.UNINITIALIZED)
 
         self.assert_enter_command_mode()
+
+    # WORKS
+    def test_execute_acquire_status(self):
+        """
+        @brief Test Test EXECUTE_CLOCK_SYNC command.
+        """
+        self.assert_enter_command_mode()
+
+        result = self.assert_resource_command_and_resource_state(ProtocolEvent.ACQUIRE_STATUS, ProtocolState.COMMAND)
+
+        log.debug("RESULT = " + result.result)
+        # Lets assert some bits are present.
+        # getcd
+        self.assertTrue("<ConfigurationData DeviceType='SBE54'" in result.result)
+        self.assertTrue("<CalibrationCoefficients>" in result.result)
+        self.assertTrue("</CalibrationCoefficients>" in result.result)
+        self.assertTrue("</ConfigurationData>" in result.result)
+
+
+        # getsd
+        self.assertTrue("<StatusData DeviceType='SBE54'" in result.result)
+        self.assertTrue("MainSupplyVoltage" in result.result)
+
+        #getec
+        self.assertTrue("<EventList DeviceType='SBE54'" in result.result)
+        # this one can be truncated, dont assert it too much
+
+
+        # gethd
+        self.assertTrue("<HardwareData DeviceType='SBE54'" in result.result)
+        self.assertTrue("<Manufacturer>Sea-Bird Electronics, Inc</Manufacturer>" in result.result)
+        self.assertTrue("</HardwareData>" in result.result)
+
