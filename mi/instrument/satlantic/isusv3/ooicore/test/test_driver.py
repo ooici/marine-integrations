@@ -213,7 +213,14 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         test_sample += "NDF"  # Frame Type
         test_sample += "0196" # Serial Number
         test_sample += "\x01\x02\x03\x04" # Date
-        test_sample += "\x01\x02\x03\x04\x05\x06\x07\x08\r\n" #Time
+        test_sample += "\x01\x02\x03\x04\x05\x06\x07\x08" # Time
+        test_sample += "\x00\x01\x02\x03" # ntr_con
+        test_sample += "\x00\x00\x00\x00" # aux1
+        test_sample += "\x00\x00\x00\x00" # aux2
+        test_sample += "\x00\x00\x00\x00" # aux3
+        test_sample += "\x03\x04\x01\x02" # rms_error
+        test_sample += "\x00\x00\x00\x00" # r_int
+        
         
         """
         ASCII SAMPLE: IOS SAYS USE BINARY

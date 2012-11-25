@@ -75,6 +75,7 @@ SAMPLE_PATTERN += r'(.{4})'     #   7: AUX2
 SAMPLE_PATTERN += r'(.{4})'     #   8: AUX3
 SAMPLE_PATTERN += r'(.{4})'     #   9: RMS ERROR
 SAMPLE_PATTERN += r'(.{4})'     #  10: t_int Interior Temp
+"""
 SAMPLE_PATTERN += r'(.{4})'     #  11: t_spec Spectrometer Temp
 SAMPLE_PATTERN += r'(.{4})'     #  12: t_lamp Lamp Temp
 SAMPLE_PATTERN += r'(.{4})'     #  13: lamp_time Lamp Time
@@ -88,6 +89,7 @@ SAMPLE_PATTERN += r'(.{4})'     #  20: sw_dark Sea-Water Dark
 SAMPLE_PATTERN += r'(.{4})'     #  21: spec_avg All Channels Average
 SAMPLE_PATTERN += r'(.{2})'     #  22: Channel 1
 SAMPLE_PATTERN += r'(.{2})'     #  23: Channel 2
+"""
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
 
 # Packet config for ISUSV3 data granules.
@@ -447,28 +449,30 @@ class ISUSDataParticle(DataParticle):
         try:
             frame_type = str(match.group(1))
             serial_num = str(match.group(2))
-            date = struct.unpack_from('>BB', match.group(3))
-            time = struct.unpack_from('>BB', match.group(4))
-            ntr_conc = struct.unpack_from('>BB', match.group(5))
-            aux1 = struct.unpack_from('>BB', match.group(6))
-            aux2 = struct.unpack_from('>BB', match.group(7))
-            aux3 = struct.unpack_from('>BB', match.group(8))
-            rms_error = struct.unpack_from('>BB', match.group(9))
+            date = struct.unpack_from('>BBBB', match.group(3))
+            time = struct.unpack_from('>BBBBBBBB', match.group(4))
+            ntr_conc = struct.unpack_from('>BBBB', match.group(5))
+            aux1 = struct.unpack_from('>BBBB', match.group(6))
+            aux2 = struct.unpack_from('>BBBB', match.group(7))
+            aux3 = struct.unpack_from('>BBBB', match.group(8))
+            rms_error = struct.unpack_from('>BBBB', match.group(9))
 
-            t_int = struct.unpack_from('>BB', match.group(10))
-            t_spec = struct.unpack_from('>BB', match.group(11))
-            t_lamp = struct.unpack_from('>BB', match.group(12))
-            lamp_time = struct.unpack_from('>BB', match.group(13))
-            humidity = struct.unpack_from('>BB', match.group(14))
-            volt_12 = struct.unpack_from('>BB', match.group(15))
-            volt_5 = struct.unpack_from('>BB', match.group(16))
-            volt_main = struct.unpack_from('>BB', match.group(17))
-            ref_avg = struct.unpack_from('>BB', match.group(18))
-            ref_std = struct.unpack_from('>BB', match.group(19))
-            sw_dark = struct.unpack_from('>BB', match.group(20))
-            spec_avg = struct.unpack_from('>BB', match.group(21))
+            t_int = struct.unpack_from('>BBBB', match.group(10))
+            """
+            t_spec = struct.unpack_from('>BBBB', match.group(11))
+            t_lamp = struct.unpack_from('>BBBB', match.group(12))
+            lamp_time = struct.unpack_from('>BBBB', match.group(13))
+            humidity = struct.unpack_from('>BBBB', match.group(14))
+            volt_12 = struct.unpack_from('>BBBB', match.group(15))
+            volt_5 = struct.unpack_from('>BBBB', match.group(16))
+            volt_main = struct.unpack_from('>BBBB', match.group(17))
+            ref_avg = struct.unpack_from('>BBBB', match.group(18))
+            ref_std = struct.unpack_from('>BBBB', match.group(19))
+            sw_dark = struct.unpack_from('>BBBB', match.group(20))
+            spec_avg = struct.unpack_from('>BBBB', match.group(21))
             ch001 = struct.unpack_from('>BB', match.group(22))
             ch002 = struct.unpack_from('>BB', match.group(23))
+            """
         except ValueError:
             raise SampleException("ValueError while parsing data: [%s]" %
                                   self.raw_data)
@@ -492,7 +496,8 @@ class ISUSDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
                     DataParticleKey.VALUE: rms_error},
                   {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
-                    DataParticleKey.VALUE: t_int},
+                    DataParticleKey.VALUE: t_int}]
+        """
                   {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
                     DataParticleKey.VALUE: t_spec},
                   {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
@@ -519,7 +524,7 @@ class ISUSDataParticle(DataParticle):
                     DataParticleKey.VALUE: ch001},
                   {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
                     DataParticleKey.VALUE: ch002}]
-        
+        """
         return result
 
 """
