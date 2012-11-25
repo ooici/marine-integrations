@@ -715,7 +715,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
 
         # Int
         ret = p._build_set_command("irrelevant", Parameter.SAMPLE_PERIOD, 200)
-        self.assertEqual(ret, 'SETsampleperiod=200\r\n')
+        self.assertEqual(ret, 'setsampleperiod=200\r\n')
 
         # Float
         # ret = p._build_set_command("irrelevant", Parameter.MIN_ALLOWABLE_ATTENUATION, 5.827424)
@@ -723,7 +723,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
 
         # Boolean - 1/0
         ret = p._build_set_command("irrelevant", Parameter.ENABLE_ALERTS, True)
-        self.assertEqual(ret, 'SETenablealerts=1\r\n')
+        self.assertEqual(ret, 'setenablealerts=1\r\n')
 
         # String
         # ret = p._build_set_command("irrelevant", Parameter.USER_INFO, 'ooi_test')
