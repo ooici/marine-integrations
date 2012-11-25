@@ -803,8 +803,8 @@ class SBE54tpsEventCounterDataParticle(DataParticle):
 
         # Initialize
         single_var_matches  = {
-            SBE54tpsEventCounterDataParticleKey.NUMBER_EVENTS: None,
-            SBE54tpsEventCounterDataParticleKey.MAX_STACK: None,
+            SBE54tpsEventCounterDataParticleKey.NUMBER_EVENTS: 0,
+            SBE54tpsEventCounterDataParticleKey.MAX_STACK: 0,
             SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE: None,
             SBE54tpsEventCounterDataParticleKey.SERIAL_NUMBER: None,
             SBE54tpsEventCounterDataParticleKey.POWER_ON_RESET: 0,

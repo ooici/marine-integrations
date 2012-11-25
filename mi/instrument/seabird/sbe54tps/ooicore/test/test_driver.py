@@ -60,8 +60,12 @@ from mi.instrument.seabird.sbe54tps.ooicore.driver import Prompt
 from mi.instrument.seabird.sbe54tps.ooicore.driver import Protocol
 from mi.instrument.seabird.sbe54tps.ooicore.driver import InstrumentCmds
 from mi.instrument.seabird.sbe54tps.ooicore.driver import NEWLINE
-from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsEventCounterDataParticleKey
+from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsStatusDataParticle, SBE54tpsStatusDataParticleKey
+from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsEventCounterDataParticle, SBE54tpsEventCounterDataParticleKey
 from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsSampleDataParticle, SBE54tpsSampleDataParticleKey
+from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsHardwareDataParticle, SBE54tpsHardwareDataParticleKey
+from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsConfigurationDataParticle, SBE54tpsConfigurationDataParticleKey
+
 
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from prototype.sci_data.stream_defs import ctd_stream_definition
@@ -1532,14 +1536,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
             #  ...AND MAKE LIKE THIS NEVER HAPPENED!
         self.assertEqual(state, desired_state)
 
-
-    # the assert particles are all wrong.
-    # the object is more a struct than instance of a given particle.
-    # can only assert that it is a particle of given type by asserting it
-    # contains all field labels with values of propper type.
-
-
-    # PATCHED, UNTESTED
+    # WORKS
     def assert_SBE54tpsStatusDataParticle(self, prospective_particle):
         """
         @param prospective_particle: a perfect particle of SBE54tpsStatusDataParticle or FAIL!!!!
@@ -1560,20 +1557,21 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
             key = x['value_id']
             value = x['value']
             self.assertTrue(key in [
-                SBE54tpsStatusDataParticle.DEVICE_TYPE,
-                SBE54tpsStatusDataParticle.SERIAL_NUMBER,
-                SBE54tpsStatusDataParticle.DATE_TIME,
-                SBE54tpsStatusDataParticle.EVENT_COUNT,
-                SBE54tpsStatusDataParticle.MAIN_SUPPLY_VOLTAGE,
-                SBE54tpsStatusDataParticle.NUMBER_OF_SAMPLES,
-                SBE54tpsStatusDataParticle.BYTES_USED,
-                SBE54tpsStatusDataParticle.BYTES_FREE
+                SBE54tpsStatusDataParticleKey.DEVICE_TYPE,
+                SBE54tpsStatusDataParticleKey.SERIAL_NUMBER,
+                SBE54tpsStatusDataParticleKey.TIME,
+                SBE54tpsStatusDataParticleKey.EVENT_COUNT,
+                SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE,
+                SBE54tpsStatusDataParticleKey.NUMBER_OF_SAMPLES,
+                SBE54tpsStatusDataParticleKey.BYTES_USED,
+                SBE54tpsStatusDataParticleKey.BYTES_FREE
             ])
 
             # CHECK THAT THE TYPES ARE CORRECT IN THE DICT.
             # str
             if key in [
-                SBE54tpsStatusDataParticleKey.DEVICE_TYPE
+                SBE54tpsStatusDataParticleKey.DEVICE_TYPE,
+                SBE54tpsStatusDataParticleKey.TIME
             ]:
                 self.assertTrue(isinstance(value, str))
             # int
@@ -1590,17 +1588,11 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE
             ]:
                 self.assertTrue(isinstance(value, float))
-            # datetime
-            elif key in [
-                SBE54tpsStatusDataParticleKey.DATE_TIME
-            ]:
-                # @TODO add a date_time parser here
-                self.assertTrue(isinstance(value, time.struct_time))
             else:
                 # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
                 self.assertTrue(False)
 
-    # PATCHED, UNTESTED
+    # WORKS
     def assert_SBE54tpsConfigurationDataParticle(self, prospective_particle):
         """
         @param prospective_particle: a perfect particle of SBE54tpsStatusDataParticle or FAIL!!!!
@@ -1648,14 +1640,15 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 SBE54tpsConfigurationDataParticleKey.PRESSURE_OFFSET,
                 SBE54tpsConfigurationDataParticleKey.PRESSURE_RANGE,
                 SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE,
-                SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE
+                SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE,
+                SBE54tpsConfigurationDataParticleKey.BAUD_RATE
             ])
 
             # CHECK THAT THE TYPES ARE CORRECT IN THE DICT.
             # str
             if key in [
                 SBE54tpsConfigurationDataParticleKey.DEVICE_TYPE,
-                SBE54tpsConfigurationDataParticleKey.PRESSURE_SERIAL_NUM,
+                SBE54tpsConfigurationDataParticleKey.PRESSURE_SERIAL_NUM
                 ]:
                 self.assertTrue(isinstance(value, str))
 
@@ -1666,6 +1659,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 SBE54tpsConfigurationDataParticleKey.ENABLE_ALERTS,
                 SBE54tpsConfigurationDataParticleKey.UPLOAD_TYPE,
                 SBE54tpsConfigurationDataParticleKey.SAMPLE_PERIOD,
+                SBE54tpsConfigurationDataParticleKey.BAUD_RATE
             ]:
                 self.assertTrue(isinstance(value, int))
 
@@ -1690,21 +1684,24 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 SBE54tpsConfigurationDataParticleKey.PT4,
                 SBE54tpsConfigurationDataParticleKey.PRESSURE_OFFSET,
                 SBE54tpsConfigurationDataParticleKey.PRESSURE_RANGE,
+                # FLOAT DATE's
+                SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE,
+                SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE
             ]:
                 self.assertTrue(isinstance(value, float))
 
             # date
-            elif key in [
-                SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE,
-                SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE
-            ]:
-                # @TODO add a date parser here
-                self.assertTrue(isinstance(value, time.struct_time))
+            #elif key in [
+            #    SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE,
+            #    SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE
+            #]:
+            #    # @TODO add a date parser here
+            #    self.assertTrue(isinstance(value, time.struct_time))
             else:
                 # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
                 self.assertTrue(False)
 
-    # PATCHED, UNTESTED
+    # WORKS
     def assert_SBE54tpsEventCounterDataParticle(self, prospective_particle):
         """
         @param prospective_particle: a perfect particle of SBE54tpsEventCounterDataParticle or FAIL!!!!
@@ -1726,6 +1723,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         for x in sample_dict['values']:
             key = x['value_id']
             value = x['value']
+
             self.assertTrue(key in [
                 SBE54tpsEventCounterDataParticleKey.NUMBER_EVENTS,
                 SBE54tpsEventCounterDataParticleKey.MAX_STACK,
@@ -1747,7 +1745,6 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
             if key in [
                 SBE54tpsEventCounterDataParticleKey.NUMBER_EVENTS,
                 SBE54tpsEventCounterDataParticleKey.MAX_STACK,
-                SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE,
                 SBE54tpsEventCounterDataParticleKey.SERIAL_NUMBER,
                 SBE54tpsEventCounterDataParticleKey.POWER_ON_RESET,
                 SBE54tpsEventCounterDataParticleKey.POWER_FAIL_RESET,
@@ -1759,12 +1756,20 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 SBE54tpsEventCounterDataParticleKey.ERROR_10,
                 SBE54tpsEventCounterDataParticleKey.ERROR_12
             ]:
+                log.debug("BAD ONE IS " + key)
                 self.assertTrue(isinstance(value, int))
+
+            # str
+            elif key in [
+                SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE,
+            ]:
+                self.assertTrue(isinstance(value, str))
+
             else:
                 # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
                 self.assertTrue(False)
 
-    # PATCHED, UNTESTED
+    # WORKS
     def assert_SBE54tpsHardwareDataParticle(self, prospective_particle):
         """
         @param prospective_particle: a perfect particle of SBE54tpsHardwareDataParticle or FAIL!!!!
@@ -1784,6 +1789,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         for x in sample_dict['values']:
             key = x['value_id']
             value = x['value']
+
             self.assertTrue(key in [
                 SBE54tpsHardwareDataParticleKey.DEVICE_TYPE,
                 SBE54tpsHardwareDataParticleKey.MANUFACTURER,
@@ -1814,13 +1820,13 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 ]:
                 self.assertTrue(isinstance(value, int))
 
-            # date
+            # float
             elif key in [
                 SBE54tpsHardwareDataParticleKey.FIRMWARE_DATE,
                 SBE54tpsHardwareDataParticleKey.MANUFACTUR_DATE
             ]:
                 # @TODO add a date parser here
-                self.assertTrue(isinstance(value, time.struct_time))
+                self.assertTrue(isinstance(value, float))
             else:
                 # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
                 self.assertTrue(False)
@@ -1913,7 +1919,6 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         # assert that we altered the time.
         self.assertTrue(new_params[Parameter.SAMPLE_PERIOD] == 15)
-
 
     # WORKS
     def test_autosample(self):
@@ -2147,3 +2152,35 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         self.assertTrue("<Manufacturer>Sea-Bird Electronics, Inc</Manufacturer>" in result.result)
         self.assertTrue("</HardwareData>" in result.result)
 
+    # WORKS
+    def test_four_non_sample_particles(self):
+        """
+        @brief Test instrument driver execute interface to start and stop streaming
+        mode.
+        """
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        self.assert_enter_command_mode()
+
+
+        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
+
+        # AQUIRE STATUS. Should produce 4 particles.
+        result = self.assert_resource_command_and_resource_state(ProtocolEvent.ACQUIRE_STATUS, ProtocolState.COMMAND)
+
+
+        samples = self.data_subscribers.get_samples('parsed', 4, timeout=30)
+        log.debug("GOT 4 SAMPLES I THINK!")
+
+        sample = samples.pop()
+        self.assert_SBE54tpsConfigurationDataParticle(sample)
+
+        sample = samples.pop()
+        self.assert_SBE54tpsStatusDataParticle(sample)
+
+        sample = samples.pop()
+        self.assert_SBE54tpsEventCounterDataParticle(sample)
+
+        sample = samples.pop()
+        self.assert_SBE54tpsHardwareDataParticle(sample)
