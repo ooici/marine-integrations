@@ -92,10 +92,10 @@ InstrumentDriverTestCase.initialize(
 
     driver_startup_config = {
         Parameter.SAMPLE_PERIOD: 15,
-        #Parameter.TIME: current time.... not sure how.
         Parameter.BATTERY_TYPE: 1,
         Parameter.UPLOAD_TYPE: 1,
-        Parameter.ENABLE_ALERTS: 1
+        Parameter.ENABLE_ALERTS: 1,
+        #Parameter.TIME: current time.... not sure how.
     }
 )
 
@@ -1023,7 +1023,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
             #  ...AND MAKE LIKE THIS NEVER HAPPENED!
         self.assertEqual(state, desired_state)
 
-
+    # WORKS
     def test_startup_configuration(self):
         '''
         Test that the startup configuration is applied correctly
@@ -1031,17 +1031,15 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.put_instrument_in_command_mode()
 
         result = self.driver_client.cmd_dvr('apply_startup_params')
-        log.debug("RESULT = " + str(result))
+
         reply = self.driver_client.cmd_dvr('get_resource', [Parameter.ALL])
 
-        log.debug("REPLY = " + repr(reply))
 
         self.assertEqual(reply[Parameter.SAMPLE_PERIOD], 15)
-        #self.assertEquals(reply, {Parameter.SAMPLE_PERIOD: 15,
-        #Parameter.BATTERY_TYPE: 1,
-        #Parameter.UPLOAD_TYPE: 1,
-        #Parameter.ENABLE_ALERTS: 1})
-        #reply = self.driver_client.cmd_dvr('set_resource', {Parameter.MAXRATE: 1})
+        self.assertEqual(reply[Parameter.BATTERY_TYPE], 1)
+        self.assertEqual(reply[Parameter.UPLOAD_TYPE], 1)
+        self.assertEqual(reply[Parameter.ENABLE_ALERTS], 1)
+
 
 
     # WORKS
@@ -1058,7 +1056,8 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.check_state(DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('connect')
+        log.debug("DRIVER_STARTUP_CONFIG = " + repr(self.test_config.driver_startup_config))
+        reply = self.driver_client.cmd_dvr('connect', self.test_config.driver_startup_config )
 
         # Test the driver is in unknown state.
         self.check_state(ProtocolState.UNKNOWN)
@@ -1458,6 +1457,13 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         self.check_resource_state(desired_state)
         return retval
 
+    def assert_agent_command_and_resource_state(self, resource_command, desired_state):
+
+        cmd = AgentCommand(command=resource_command)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=60)
+        self.check_resource_state(desired_state)
+        return retval
+
     def assert_agent_command_and_agent_state(self, agent_command, desired_state):
         """
         Execute an agent command, and verify the desired state is achieved.
@@ -1470,12 +1476,12 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         self.check_agent_state(desired_state)
         return retval
 
-        def assert_capabilitys_present(self, agent_capabilities, required_capabilities):
-            """
-            Verify that both lists are the same, order independent.
-            @param agent_capabilities
-            @param required_capabilities
-            """
+    def assert_capabilitys_present(self, agent_capabilities, required_capabilities):
+        """
+        Verify that both lists are the same, order independent.
+        @param agent_capabilities
+        @param required_capabilities
+        """
 
         for agent_capability in agent_capabilities:
             self.assertTrue(agent_capability in required_capabilities)
@@ -1891,13 +1897,23 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet(timeout=600)
         self.assertTrue(self.tcp_client)
-        self.tcp_client.send_data("\r\n")
+        self.tcp_client.send_data("\r\nsetSetSamplePeriod=97\r\n")
         self.tcp_client.expect("S>")
 
         self.assert_direct_access_stop_telnet()
 
         # verify the setting got restored.
         self.assert_enter_command_mode()
+
+        params = [
+            Parameter.SAMPLE_PERIOD,
+            ]
+        new_params = self.instrument_agent_client.get_resource(params)
+        log.debug("TESTING SAMPLE_PERIOD = " + repr(new_params))
+
+        # assert that we altered the time.
+        self.assertTrue(new_params[Parameter.SAMPLE_PERIOD] == 15)
+
 
     # WORKS
     def test_autosample(self):
@@ -1950,7 +1966,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-    # BROKE AUTOSAMPLE ISH ISSUES
+    # WORKS
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -1958,6 +1974,12 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         This one needs to be re-written rather than copy/pasted to develop a better more reusable pattern.
         """
+
+        # force it to command state before test so auto sample doesnt bork it up.
+        self.assert_enter_command_mode()
+        self.assert_reset()
+
+
 
         self.check_agent_state(ResourceAgentState.UNINITIALIZED)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
@@ -1968,54 +1990,42 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         self.assert_agent_command_and_agent_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
-        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_ACTIVE', 'RESOURCE_AGENT_EVENT_RESET'])
+        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_ACTIVE',
+                                                             'RESOURCE_AGENT_EVENT_RESET'])
         self.assert_capabilitys_present(driver_capabilities, [])
 
         log.debug("%%% STATE NOW ResourceAgentState.INACTIVE")
 
-
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_resource_state()
-        log.debug("CRIMENY!    " + repr(state))
-        self.check_state(DriverState.COMMAND)
-
-        self.assert_agent_command_and_agent_state(ResourceAgentEvent.GO_ACTIVE, ResourceAgentState.IDLE)
+        self.assert_agent_command_and_resource_state(ResourceAgentEvent.GO_ACTIVE, ProtocolState.COMMAND)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
-        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_INACTIVE', 'RESOURCE_AGENT_EVENT_RESET',
+        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_INACTIVE',
+                                                             'RESOURCE_AGENT_EVENT_RESET',
                                                              'RESOURCE_AGENT_EVENT_RUN'])
         self.assert_capabilitys_present(driver_capabilities, [])
 
         log.debug("%%% STATE NOW ResourceAgentState.IDLE")
-
-
 
         self.assert_agent_command_and_agent_state(ResourceAgentEvent.RUN, ResourceAgentState.COMMAND)
 
         log.debug("%%% STATE NOW ResourceAgentState.COMMAND")
 
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
-        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_CLEAR', 'RESOURCE_AGENT_EVENT_RESET',
+        self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_CLEAR',
+                                                             'RESOURCE_AGENT_EVENT_RESET',
                                                              'RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS',
                                                              'RESOURCE_AGENT_EVENT_GO_INACTIVE',
                                                              'RESOURCE_AGENT_EVENT_PAUSE'])
-        log.debug("DRIVER_CAPABILITIES = " + repr(driver_capabilities))
         self.assert_capabilitys_present(driver_capabilities, ['DRIVER_EVENT_ACQUIRE_STATUS',
-                                                              'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                                               'DRIVER_EVENT_START_AUTOSAMPLE',
                                                               'DRIVER_EVENT_CLOCK_SYNC'])
 
 
-        log.debug("%%%%%%%%%%%% CREATING AGENT COMMAND")
         cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-            kwargs={'session_type': DirectAccessTypes.telnet,
-                    #kwargs={'session_type':DirectAccessTypes.vsp,
-                    'session_timeout':600,
-                    'inactivity_timeout':600})
-        log.debug("%%%%%%%%%%%% RUNNING AGENT COMMAND")
+                            kwargs={'session_type': DirectAccessTypes.telnet,
+                                    #kwargs={'session_type':DirectAccessTypes.vsp,
+                                    'session_timeout':600,
+                                    'inactivity_timeout':600})
         retval = self.instrument_agent_client.execute_agent(cmd)
-        log.debug("%%%%%%%%%%%% COMPLETED AGENT COMMAND")
 
         self.check_agent_state(ResourceAgentState.DIRECT_ACCESS)
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()

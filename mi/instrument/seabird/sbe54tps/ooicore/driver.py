@@ -87,7 +87,6 @@ class InstrumentCmds(BaseEnum):
 
     #### Artificial Constructed Commands for Driver ####
     SET = "set"  # need to bring over _build_set_command/_parse_set_response
-    #GET = "get"
 
     ################
     #### Status ####
@@ -1573,7 +1572,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
 
         log.debug("%%% IN _handler_command_enter")
-        self._restore_da_params()
+        #self._restore_da_params()
         self._update_params()
 
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -1945,97 +1944,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter direct access state.
         """
+        log.debug("IN _handler_direct_access_enter")
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
 
-
-        #self._save_da_params()
-        log.debug("%%%%%%%%%%%%%%%%%%%%%%%% IN _handler_direct_access_enter")
-
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._sent_cmds = []
-        log.debug("%%%%%%%%%%%%%%%%%%%%%%%% LEAVING _handler_direct_access_enter")
-
-
-    def _save_da_params(self):
-        # Doing the ds command here causes issues.  I think we have to trust the last value that we
-        # fetched from a ds/dc
-
-        log.debug("%%% IN _save_da_params")
-
-        pd = self._param_dict.get_config()
-
-        self._da_save_dict = {}
-
-        for p in [
-            Parameter.SAMPLE_PERIOD,
-            Parameter.BATTERY_TYPE,
-            Parameter.ENABLE_ALERTS
-        ]:
-            self._da_save_dict[p] = pd[p]
-            log.debug("DIRECT ACCESS PARAM SAVE " + str(p) + " = " + str(self._da_save_dict[p]))
-
-        self._da_save_dict[Parameter.UPLOAD_TYPE] = 0 # Always FORCE to 0 on return from DA
-        log.debug("DIRECT ACCESS PARAM SAVE [FORCING] " + str(Parameter.UPLOAD_TYPE) + " = 0")
-
-    def _restore_da_params(self):
-        """
-
-        NEEDS TO BE FINISHED
-
-        called from _handler_command_enter, as it behaves poorly
-        if caled from _handler_direct_access_exit
-        @return:
-        """
-
-        log.debug("%%% IN _restore_da_params")
-
-        run = True
-        try:
-            if self._da_save_dict == None:
-                run = False
-        except:
-            run = False
-
-
-        log.debug("RUN = " + str(run))
-        if run == True:
-            # clear out the last command.
-            self._promptbuf = ''
-            self._linebuf = ''
-
-            for k in self._da_save_dict.keys():
-                v = self._da_save_dict[k]
-
-                try:
-                    str_val = self._param_dict.format(k, v)
-                    set_cmd = 'set%s=%s' % (k, str_val) + NEWLINE
-                    log.debug("DIRECT ACCESS PARAM RESTORE " + str(k) + "=" + str_val)
-                except KeyError:
-                    raise InstrumentParameterException('Unknown driver parameter %s' % param)
-
-                # clear out the last command.
-                self._promptbuf = ''
-                self._linebuf = ''
-                self._do_cmd_direct(set_cmd)
-
-                (prompt, response) = self._get_response(timeout=30)
-                if prompt != Prompt.COMMAND:
-                    raise InstrumentParameterException('_restore_da_params - COMMAND prompt not received' )
-
-
-            self._da_save_dict = None
-            # clear out the last command.
-            self._promptbuf = ''
-            self._linebuf = ''
-
-
 
 
     def _handler_direct_access_execute_direct(self, data):
         """
         """
-        log.debug("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% IN _handler_direct_access_execute_direct")
+        log.debug("IN _handler_direct_access_execute_direct")
         next_state = None
         result = None
         next_agent_state = None
@@ -2052,7 +1972,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throw InstrumentProtocolException on invalid command
         """
 
-        log.debug("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% IN _handler_direct_access_stop_direct")
+        log.debug("IN _handler_direct_access_stop_direct")
 
         next_state = None
         result = None
@@ -2087,6 +2007,9 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         log.debug("%%% IN _build_set_command")
 
+        """
+        This breaks startup params
+
         if param not in [
             Parameter.TIME,
             Parameter.UPLOAD_TYPE,
@@ -2094,7 +2017,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             Parameter.SAMPLE_PERIOD,
         ]:
             raise InstrumentParameterException("Parameter " +str(param) + " is not allowed to be set")
-
+        """
 
         try:
             log.debug("PARAM = "+ repr(param))
@@ -2102,7 +2025,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             str_val = self._param_dict.format(param, val)
             if None == str_val:
                 raise InstrumentParameterException("Driver PARAM was None!!!!")
-            set_cmd = 'SET%s=%s' % (param, str_val)
+            set_cmd = 'set%s=%s' % (param, str_val)
             set_cmd = set_cmd + NEWLINE
             log.debug("set_cmd = " + repr(set_cmd))
         except KeyError:
@@ -2116,11 +2039,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
         """
-        # Add parameter handlers to parameter dict.
-
         log.debug("%%% IN _build_param_dict")
-
-
         # THIS wants to take advantage of the particle code,
         # as the particles handle parsing the fields out
         # no sense doing it again here
@@ -2301,7 +2220,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.BATTERY_TYPE,
             SBE54tpsConfigurationDataParticle.LINE24,
             lambda match : int(match.group(1)),
-            self._int_to_string)
+            self._int_to_string,
+            startup_param=True,
+            direct_access=True)
 
         self._param_dict.add(Parameter.BAUD_RATE,
             SBE54tpsConfigurationDataParticle.LINE25,
@@ -2311,17 +2232,23 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.ENABLE_ALERTS,
             SBE54tpsConfigurationDataParticle.LINE26,
             lambda match : bool(int(match.group(1))),
-            self._bool_to_int_string)
+            self._bool_to_int_string,
+            startup_param=True,
+            direct_access=True)
 
         self._param_dict.add(Parameter.UPLOAD_TYPE,
             SBE54tpsConfigurationDataParticle.LINE27,
             lambda match : int(match.group(1)),
-            self._int_to_string)
+            self._int_to_string,
+            startup_param=True,
+            direct_access=True)
 
         self._param_dict.add(Parameter.SAMPLE_PERIOD,
             SBE54tpsConfigurationDataParticle.LINE28,
             lambda match : int(match.group(1)),
-            self._int_to_string)
+            self._int_to_string,
+            startup_param=True,
+            direct_access=True)
 
         #
         # Event Counter
