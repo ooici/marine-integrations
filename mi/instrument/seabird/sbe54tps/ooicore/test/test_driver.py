@@ -65,7 +65,7 @@ from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsEventCounterDa
 from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsSampleDataParticle, SBE54tpsSampleDataParticleKey
 from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsHardwareDataParticle, SBE54tpsHardwareDataParticleKey
 from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsConfigurationDataParticle, SBE54tpsConfigurationDataParticleKey
-
+from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsSampleRefOscDataParticle, SBE54tpsSampleRefOscDataParticleKey
 
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from prototype.sci_data.stream_defs import ctd_stream_definition
@@ -329,6 +329,9 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
             (ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC): '_handler_command_clock_sync',
             (ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS): '_handler_command_aquire_status',
             (ProtocolState.COMMAND, ProtocolEvent.START_DIRECT): '_handler_command_start_direct',
+            (ProtocolState.COMMAND, ProtocolEvent.SAMPLE_REFERENCE_OSCILLATOR): '_handler_sample_ref_osc',
+            (ProtocolState.COMMAND, ProtocolEvent.TEST_EEPROM): '_handler_command_test_eeprom',
+            (ProtocolState.COMMAND, ProtocolEvent.RESET_EC): '_handler_command_reset_ec',
             (ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER): '_handler_autosample_enter',
             (ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT): '_handler_autosample_exit',
             (ProtocolState.AUTOSAMPLE, ProtocolEvent.GET): '_handler_command_get',
@@ -383,6 +386,9 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
             (ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC): '_handler_command_clock_sync',
             (ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS): '_handler_command_aquire_status',
             (ProtocolState.COMMAND, ProtocolEvent.START_DIRECT): '_handler_command_start_direct',
+            (ProtocolState.COMMAND, ProtocolEvent.SAMPLE_REFERENCE_OSCILLATOR): '_handler_sample_ref_osc',
+            (ProtocolState.COMMAND, ProtocolEvent.TEST_EEPROM): '_handler_command_test_eeprom',
+            (ProtocolState.COMMAND, ProtocolEvent.RESET_EC): '_handler_command_reset_ec',
             (ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER): '_handler_autosample_enter',
             (ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT): '_handler_autosample_exit',
             (ProtocolState.AUTOSAMPLE, ProtocolEvent.GET): '_handler_command_get',
@@ -392,12 +398,6 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
             (ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT): '_handler_direct_access_execute_direct',
             (ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT): '_handler_direct_access_stop_direct'
         }
-
-
-
-
-
-
 
         log.debug(str(state_handlers[(ProtocolState.UNKNOWN, ProtocolEvent.EXIT)]))
         for key in p._protocol_fsm.state_handlers.keys():
@@ -1036,7 +1036,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         result = self.driver_client.cmd_dvr('apply_startup_params')
 
-        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.ALL])
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
 
 
         self.assertEqual(reply[Parameter.SAMPLE_PERIOD], 15)
@@ -1132,6 +1132,42 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.INIT_LOGGING)
 
         self.assertTrue(reply)
+
+    # WORKS
+    def test_reset_ec(self):
+        """
+        @brief Test initialize logging command.
+        """
+
+        self.put_instrument_in_command_mode()
+
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.RESET_EC)
+
+        self.assertTrue(reply)
+
+
+
+    # WORKS
+    def test_sample_ref_osc(self):
+        """
+        @brief Test initialize logging command.
+        """
+        self.put_instrument_in_command_mode()
+
+        # command takes 2+ minutes to warm up osc and take sample.
+        # <!--Ref osc warmup next 120 seconds-->
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SAMPLE_REFERENCE_OSCILLATOR, timeout=200)
+
+        (ignore, result) = reply
+        self.assertTrue("<SetTimeout>" in result)
+        self.assertTrue("<SetTimeoutMax>" in result)
+        self.assertTrue("<SetTimeoutICD>" in result)
+        self.assertTrue("<Sample Num='" in result)
+        self.assertTrue("<Time>" in result)
+        self.assertTrue("<RefOscFreq>" in result)
+        self.assertTrue("<PCBTempRaw>" in result)
+        self.assertTrue("<RefErrorPPM>" in result)
+
 
     # WORKS
     def assert_set(self, settings_dict):
@@ -1409,6 +1445,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         # Test the driver is in state unconfigured.
         self.check_state(DriverConnectionState.UNCONFIGURED)
 
+    # WORKS
     def test_clock_sync(self):
         self.put_instrument_in_command_mode()
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
@@ -1517,7 +1554,6 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 log.debug("*UNKNOWN* " + str(repr(x)))
 
         return (agent_capabilities, unknown, driver_capabilities, driver_vars)
-
 
     # WORKS
     def check_state(self, desired_state):
@@ -1892,6 +1928,78 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 self.assertTrue(False)
 
     # WORKS
+    def assert_SBE54tpsSampleRefOscDataParticle(self, prospective_particle):
+        """
+        @param prospective_particle: a perfect particle of SBE54tpsSampleRefOscDataParticle or FAIL!!!!
+        """
+
+        sample_dict = prospective_particle
+
+        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
+            DataParticleValue.PARSED)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
+            DataParticleValue.JSON_DATA)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
+            list))
+        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+        log.debug("SAMPLE_DICT[VALUES] = " + str(sample_dict['values']))
+
+        for x in sample_dict['values']:
+            key = x['value_id']
+            value = x['value']
+            log.debug("1KEY = " + key)
+            log.debug("1VALUE = " + str(value))
+
+            self.assertTrue(key in [
+                SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT,
+                SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_MAX,
+                SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_ICD,
+                SBE54tpsSampleRefOscDataParticleKey.SAMPLE_NUMBER,
+                SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TYPE,
+                SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TIMESTAMP,
+                SBE54tpsSampleRefOscDataParticleKey.REF_OSC_FREQ,
+                SBE54tpsSampleRefOscDataParticleKey.PCB_TEMP_RAW,
+                SBE54tpsSampleRefOscDataParticleKey.REF_ERROR_PPM
+            ])
+
+            # CHECK THAT THE TYPES ARE CORRECT IN THE DICT.
+            # str
+            if key in [
+                SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TYPE
+            ]:
+                self.assertTrue(isinstance(value, str))
+
+            # int
+            elif key in [
+                SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT,
+                SBE54tpsSampleRefOscDataParticleKey.SAMPLE_NUMBER,
+                SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_MAX,
+                SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_ICD,
+                SBE54tpsSampleRefOscDataParticleKey.PCB_TEMP_RAW,
+            ]:
+                self.assertTrue(isinstance(value, int))
+
+            #float
+            elif key in [
+                SBE54tpsSampleRefOscDataParticleKey.REF_OSC_FREQ,
+                SBE54tpsSampleRefOscDataParticleKey.REF_ERROR_PPM,
+
+                # timestamp
+                SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TIMESTAMP
+            ]:
+                log.debug("2KEY = " + key)
+                log.debug("2VALUE = " + str(value))
+                self.assertTrue(isinstance(value, float))
+
+            else:
+                # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
+                self.assertTrue(False)
+
+
+    # WORKS
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -2184,3 +2292,87 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         sample = samples.pop()
         self.assert_SBE54tpsHardwareDataParticle(sample)
+
+    def test_sample_ref_osc(self):
+        """
+        @brief Test initialize logging command.
+        """
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        self.assert_enter_command_mode()
+
+        # lets sample SLOW!
+        params = {
+            Parameter.SAMPLE_PERIOD: 120
+        }
+
+        self.instrument_agent_client.set_resource(params, timeout=10)
+
+        # command takes 2+ minutes to warm up osc and take sample.
+        # <!--Ref osc warmup next 120 seconds-->
+        cmd = AgentCommand(command=ProtocolEvent.SAMPLE_REFERENCE_OSCILLATOR)
+
+        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
+
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=300)
+
+        self.assertTrue("<SetTimeout>" in reply.result)
+        self.assertTrue("<SetTimeoutMax>" in reply.result)
+        self.assertTrue("<SetTimeoutICD>" in reply.result)
+        self.assertTrue("<Sample Num='" in reply.result)
+        self.assertTrue("<Time>" in reply.result)
+        self.assertTrue("<RefOscFreq>" in reply.result)
+        self.assertTrue("<PCBTempRaw>" in reply.result)
+        self.assertTrue("<RefErrorPPM>" in reply.result)
+
+        samples = self.data_subscribers.get_samples('parsed', 1, timeout=1)
+        sample = samples.pop()
+        self.assert_SBE54tpsSampleRefOscDataParticle(sample)
+
+    def test_test_eeprom(self):
+        """
+        @brief Test initialize logging command.
+        """
+
+        self.assert_enter_command_mode()
+
+        # lets sample SLOW!
+        params = {
+            Parameter.SAMPLE_PERIOD: 120
+        }
+
+        self.instrument_agent_client.set_resource(params, timeout=10)
+
+        cmd = AgentCommand(command=ProtocolEvent.TEST_EEPROM)
+
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=300)
+
+        self.assertTrue(reply.result)
+
+    # WORKS
+    def test_init_logging(self):
+        """
+        @brief Test initialize logging command.
+        """
+
+        self.assert_enter_command_mode()
+
+        cmd = AgentCommand(command=ProtocolEvent.INIT_LOGGING)
+
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=60)
+
+        self.assertTrue(reply.result)
+
+    def test_reset_ec(self):
+        """
+        @brief Test initialize logging command.
+        """
+
+        self.assert_enter_command_mode()
+
+        cmd = AgentCommand(command=ProtocolEvent.RESET_EC)
+
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=30)
+
+        self.assertTrue(reply.result)
