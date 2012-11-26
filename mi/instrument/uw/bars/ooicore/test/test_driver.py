@@ -416,11 +416,11 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         """
         self.reset_test_vars()
 	packet = PortAgentPacket() 
-        header = "\xa3\x9d\x7a\x02\x00\x1c\x0b\x2e\x00\x00\x00\x01\x80\x00\x00\x00" 
+	header = "\xa3\x9d\x7a\x02\x00\x1c\x0b\x2e\x00\x00\x00\x01\x80\x00\x00\x00" 
         packet.unpack_header(header) 
         packet.attach_data(SAMPLE_FRAGMENT_2) 
 	test_driver._protocol.got_data(packet)                
-        
+
         self.assertTrue(self.raw_stream_received)
         self.assertTrue(self.parsed_stream_received)
 
@@ -458,7 +458,6 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
 class IntFromIDK(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
-	
 
     ###
     #    Add instrument specific integration tests
@@ -535,30 +534,26 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
     def test_discover_state(self):
 	""" Tests to see if we can discover the state of the instrument"""
 	# put yourself in a known state for now
-        self._get_to_cmd_mode()
+	self._get_to_cmd_mode()
 
 	# run the discover transition to get back to command
-        reply = self.driver_client.cmd_dvr('discover_state')
+	reply = self.driver_client.cmd_dvr('discover_state')
 
 	# see if you figured it out okay
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
+	state = self.driver_client.cmd_dvr('get_resource_state')
+	self.assertEqual(state, ProtocolState.COMMAND)
 
 	# try a different state...like auto sample
 	self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
 	state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.AUTO_SAMPLE)
+	self.assertEqual(state, ProtocolState.AUTO_SAMPLE)
 
 	# run the discover transition to get back to command
-        reply = self.driver_client.cmd_dvr('discover_state')
-	
+	reply = self.driver_client.cmd_dvr('discover_state')
+
 	# see if you figured it out okay
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-	
-
-
-
+	state = self.driver_client.cmd_dvr('get_resource_state')
+	self.assertEqual(state, ProtocolState.COMMAND)
 
     def test_get(self):
         self._get_to_cmd_mode()
@@ -714,7 +709,6 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         """
         Test autosample mode.
         """
-        
         self._get_to_cmd_mode()
         
 	# Make sure the device parameters are set to sample frequently and

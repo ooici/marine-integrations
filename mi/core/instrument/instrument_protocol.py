@@ -813,6 +813,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Get dest_submenu arg
         if menu == None:
             raise InstrumentProtocolException('Menu parameter missing')
+        result = (None, None) # base case in case of empty directions list
 
         # iterate through the directions 
         directions_list = self._menu.get_directions(menu)
