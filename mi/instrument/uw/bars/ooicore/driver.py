@@ -827,7 +827,7 @@ class Protocol(MenuInstrumentProtocol):
             self._promptbuf = ""
             self._connection.send("%c" % COMMAND_CHAR[Command.BREAK])
             
-            (prompt, result) = self._get_response(2, expected_prompt=Prompt.BREAK_ACK)
+            (prompt, result) = self._get_response(3, expected_prompt=Prompt.BREAK_ACK)
             # we got our prompt, so shoot another one out quickly.
             self._connection.send("%c" % COMMAND_CHAR[Command.BREAK])
             return True

@@ -723,7 +723,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolState.AUTOSAMPLE)
         
-        gevent.sleep(40)
+        time.sleep(40)
         
         # Return to command mode. Catch timeouts and retry if necessary.
         count = 0
