@@ -57,12 +57,11 @@ EVENT_COUNTER_DATA_REGEX_MATCHER = re.compile(EVENT_COUNTER_DATA_REGEX, re.DOTAL
 HARDWARE_DATA_REGEX = r"(<HardwareData DeviceType='.*?</HardwareData>)"
 HARDWARE_DATA_REGEX_MATCHER = re.compile(HARDWARE_DATA_REGEX, re.DOTALL)
 
-SAMPLE_DATA_REGEX = r"<Sample Num='.*?</Sample>"
+SAMPLE_DATA_REGEX = r"<Sample Num='[0-9]+' Type='Pressure'>.*?</Sample>"
 SAMPLE_DATA_REGEX_MATCHER = re.compile(SAMPLE_DATA_REGEX, re.DOTALL)
 
-
-
-
+SAMPLE_REF_OSC_REGEX = r"<SetTimeout>.*?</Sample>"
+SAMPLE_REF_OSC_MATCHER = re.compile(SAMPLE_REF_OSC_REGEX, re.DOTALL)
 
 
 # Packet config
@@ -136,7 +135,7 @@ class InstrumentCmds(BaseEnum):
     #### Diagnostic ####
     ####################
     RESET_EC = "ResetEC"
-    TEST_EPROM = "TestEeprom"
+    TEST_EEPROM = "TestEeprom"
     # TEST_REFERENCE_OSCILLATOR = "TestRefOsc"                              # DO NOT IMPLEMENT
 
     ##################################
@@ -242,6 +241,9 @@ class ProtocolEvent(BaseEnum):
     FORCE_STATE = DriverEvent.FORCE_STATE
 
     INIT_LOGGING = 'PROTOCOL_EVENT_INIT_LOGGING'
+    SAMPLE_REFERENCE_OSCILLATOR = 'PROTOCOL_EVENT_SAMPLE_REFERENCE_OSCILLATOR'
+    TEST_EEPROM = 'PROTOCOL_EVENT_TEST_EEPROM'
+    RESET_EC = 'PROTOCOL_EVENT_RESET_EC'
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     PING_DRIVER = DriverEvent.PING_DRIVER
@@ -1124,8 +1126,9 @@ class SBE54tpsSampleRefOscDataParticleKey(BaseEnum):
     SAMPLE_NUMBER = "sample_number"
     SAMPLE_TYPE = "sample_type"
     SAMPLE_TIMESTAMP = "sample_timestamp"
-    PRESSURE = "pressure" # psi
-    PRESSURE_TEMP = "pressure_temp"
+    REF_OSC_FREQ = "ref_osc_freq"
+    PCB_TEMP_RAW = "pcb_temp_raw"
+    REF_ERROR_PPM = "ref_error_ppm"
 
 class SBE54tpsSampleRefOscDataParticle(DataParticle):
     """
@@ -1148,8 +1151,9 @@ class SBE54tpsSampleRefOscDataParticle(DataParticle):
             SBE54tpsSampleRefOscDataParticleKey.SAMPLE_NUMBER: None,
             SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TYPE: None,
             SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TIMESTAMP: None,
-            SBE54tpsSampleRefOscDataParticleKey.PRESSURE: None,
-            SBE54tpsSampleRefOscDataParticleKey.PRESSURE_TEMP: None
+            SBE54tpsSampleRefOscDataParticleKey.REF_OSC_FREQ: None,
+            SBE54tpsSampleRefOscDataParticleKey.PCB_TEMP_RAW: None,
+            SBE54tpsSampleRefOscDataParticleKey.REF_ERROR_PPM: None
         }
 
         multi_var_matchers  = {
@@ -1169,11 +1173,14 @@ class SBE54tpsSampleRefOscDataParticle(DataParticle):
             re.compile(r"<Time>([^<]+)</Time>"): [
                 SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TIMESTAMP
             ],
-            re.compile(r"<PressurePSI>([0-9.+-]+)</PressurePSI>"): [
-                SBE54tpsSampleRefOscDataParticleKey.PRESSURE
+            re.compile(r"<RefOscFreq>([0-9.+-]+)</RefOscFreq>"): [
+                SBE54tpsSampleRefOscDataParticleKey.REF_OSC_FREQ
             ],
-            re.compile(r"<PTemp>([0-9.+-]+)</PTemp>"): [
-                SBE54tpsSampleRefOscDataParticleKey.PRESSURE_TEMP
+            re.compile(r"<PCBTempRaw>([0-9.+-]+)</PCBTempRaw>"): [
+                SBE54tpsSampleRefOscDataParticleKey.PCB_TEMP_RAW
+            ],
+            re.compile(r"<RefErrorPPM>([0-9.+-]+)</RefErrorPPM>"): [
+                SBE54tpsSampleRefOscDataParticleKey.REF_ERROR_PPM
             ]
         }
 
@@ -1198,14 +1205,15 @@ class SBE54tpsSampleRefOscDataParticle(DataParticle):
                             SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT,
                             SBE54tpsSampleRefOscDataParticleKey.SAMPLE_NUMBER,
                             SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_MAX,
-                            SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_ICD
+                            SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_ICD,
+                            SBE54tpsSampleRefOscDataParticleKey.PCB_TEMP_RAW,
                         ]:
                             single_var_matches[key] = int(val)
 
                         # float
                         elif key in [
-                            SBE54tpsSampleRefOscDataParticleKey.PRESSURE,
-                            SBE54tpsSampleRefOscDataParticleKey.PRESSURE_TEMP
+                            SBE54tpsSampleRefOscDataParticleKey.REF_OSC_FREQ,
+                            SBE54tpsSampleRefOscDataParticleKey.REF_ERROR_PPM
                         ]:
                             single_var_matches[key] = float(val)
 
@@ -1317,7 +1325,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC,             self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_aquire_status)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
-
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SAMPLE_REFERENCE_OSCILLATOR, self._handler_sample_ref_osc)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST_EEPROM,            self._handler_command_test_eeprom)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.RESET_EC,               self._handler_command_reset_ec)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_get)
@@ -1341,6 +1351,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.START_LOGGING,          self._build_simple_command)
         self._add_build_handler(InstrumentCmds.STOP_LOGGING,           self._build_simple_command)
         self._add_build_handler(InstrumentCmds.INIT_LOGGING,           self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SAMPLE_REFERENCE_OSCILLATOR,  self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.TEST_EEPROM,            self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.RESET_EC,               self._build_simple_command)
+
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.SET,                    self._parse_set_response)
@@ -1349,7 +1363,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.GET_EVENT_COUNTER_DATA, self._parse_ec_response)
         self._add_response_handler(InstrumentCmds.GET_HARDWARE_DATA,      self._parse_hd_response)
         self._add_response_handler(InstrumentCmds.INIT_LOGGING,           self._parse_init_logging_response)
-
+        self._add_response_handler(InstrumentCmds.SAMPLE_REFERENCE_OSCILLATOR,  self._parse_sample_ref_osc)
+        self._add_response_handler(InstrumentCmds.TEST_EEPROM,            self._parse_test_eeprom)
+        self._add_response_handler(InstrumentCmds.RESET_EC,               self._parse_reset_ec)
         # Add sample handlers.
 
 
@@ -1382,7 +1398,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                           CONFIGURATION_DATA_REGEX_MATCHER,
                           EVENT_COUNTER_DATA_REGEX_MATCHER,
                           HARDWARE_DATA_REGEX_MATCHER,
-                          SAMPLE_DATA_REGEX_MATCHER]
+                          SAMPLE_DATA_REGEX_MATCHER,
+                          SAMPLE_REF_OSC_MATCHER]
 
 
 
@@ -1809,18 +1826,104 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         pass
 
+
+    def _handler_command_test_eeprom(self, *args, **kwargs):
+
+        log.debug("%%% in _handler_command_test_eeprom")
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        kwargs['expected_prompt'] = "S>"
+        kwargs['timeout'] = 200
+        result = self._do_cmd_resp(InstrumentCmds.TEST_EEPROM, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
+
+
+    def _parse_test_eeprom(self, response, prompt):
+        """
+        @return: True or False
+        """
+
+        if prompt != 'S>':
+            raise InstrumentProtocolException('TEST_EEPROM command not recognized: %s' % response)
+
+        if "PASSED" in response:
+            return True
+        else:
+            return False
+
+    def _parse_reset_ec(self, response, prompt):
+        """
+        @return: True or False
+        """
+
+        if prompt != 'S>':
+            raise InstrumentProtocolException('RESET_EC command not recognized: %s' % response)
+
+        if "<Executed/>" in response:
+            return True
+        else:
+            return False
+
+    def _handler_command_reset_ec(self, *args, **kwargs):
+
+        log.debug("%%% in _handler_sample_ref_osc")
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        kwargs['expected_prompt'] = "S>"
+        kwargs['timeout'] = 10
+        result = self._do_cmd_resp(InstrumentCmds.RESET_EC, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_sample_ref_osc(self, *args, **kwargs):
+
+        log.debug("%%% in _handler_sample_ref_osc")
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        kwargs['expected_prompt'] = "S>"
+        kwargs['timeout'] = 200
+        result = self._do_cmd_resp(InstrumentCmds.SAMPLE_REFERENCE_OSCILLATOR, *args, **kwargs)
+
+
+        return (next_state, (next_agent_state, result))
+
+    def _parse_sample_ref_osc(self, response, prompt):
+
+        if prompt != 'S>':
+            raise InstrumentProtocolException('SAMPLE_REFERENCE_OSCILLATOR command not recognized: %s' % response)
+
+        response = response.replace("S>" + NEWLINE, "")
+        response = response.replace("<Executed/>" + NEWLINE, "")
+        response = response.replace(InstrumentCmds.SAMPLE_REFERENCE_OSCILLATOR + NEWLINE, "")
+        response = response.replace("S>", "")
+
+        return response
+
     def _handler_command_init_logging(self, *args, **kwargs):
 
         log.debug("%%% in _handler_command_init_logging")
 
         next_state = None
+        next_agent_state = None
         result = None
 
         kwargs['expected_prompt'] = "S>"
         log.debug("WANT " + repr(kwargs['expected_prompt']))
         result = self._do_cmd_resp(InstrumentCmds.INIT_LOGGING, *args, **kwargs)
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
+        #return (next_state, result)
 
     def _parse_init_logging_response(self, response, prompt):
         """
@@ -2388,6 +2491,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = self._extract_sample(SBE54tpsEventCounterDataParticle, EVENT_COUNTER_DATA_REGEX_MATCHER, chunk)
 
         result = self._extract_sample(SBE54tpsHardwareDataParticle, HARDWARE_DATA_REGEX_MATCHER, chunk)
+
+        result = self._extract_sample(SBE54tpsSampleRefOscDataParticle, SAMPLE_REF_OSC_MATCHER, chunk)
 
         result = self._extract_sample(SBE54tpsSampleDataParticle, SAMPLE_DATA_REGEX_MATCHER, chunk)
         log.debug("%%% IN _got_chunk result = " + repr(result))
