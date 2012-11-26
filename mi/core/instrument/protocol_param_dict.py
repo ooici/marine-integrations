@@ -75,8 +75,8 @@ class ParameterDictVal(object):
         match = self.regex.search(input)
         if match:
             self.value = self.f_getval(match)
-            log.debug('self.value = ' + str(self.value))
-            log.debug('Updated parameter %s=%s', self.name, str(self.value))
+            log.trace('self.value = ' + str(self.value))
+            log.trace('Updated parameter %s=%s', self.name, str(self.value))
 
             return True
         else:

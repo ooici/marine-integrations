@@ -591,14 +591,14 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         
         while True:
             # Send a line return and wait a sec.
-            log.debug('Sending wakeup.')
+            log.trace('Sending wakeup.')
             self._send_wakeup()
             time.sleep(delay)
 
             for item in self._prompts.list():
                 #log.debug("GOT " + repr(self._promptbuf))
                 if self._promptbuf.endswith(item):
-                    log.debug('wakeup got prompt: %s' % repr(item))
+                    log.trace('wakeup got prompt: %s' % repr(item))
                     return item
 
             if time.time() > starttime + timeout:
