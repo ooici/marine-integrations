@@ -14,11 +14,16 @@ import logging
 from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
+from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
 #from mi.core.instrument.data_particle import DataParticle
 from mi.instrument.satlantic.par_ser_600m.driver import SAMPLE_REGEX
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticle
 from pyon.util.unit_test import IonUnitTestCase
 from mi.core.exceptions import InstrumentParameterException
+from mi.core.common import BaseEnum
+
+Directions = MenuInstrumentProtocol.MenuTree.Directions
+
 
 @attr('UNIT', group='mi')
 class TestUnitInstrumentProtocol(IonUnitTestCase):
@@ -134,7 +139,7 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
                              lambda x : str(x),
                              direct_access=False,
                              startup_param=True,
-                             default_value=15)
+                             default_value=0)
         self.protocol._param_dict.add("baz", r'baz=(.*)',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
@@ -161,7 +166,50 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
         
         self.assertEquals(len(result), 3)
         self.assertEquals(result["foo"], 1111) # init param
-        self.assertEquals(result["bar"], 15)   # default param
+        self.assertEquals(result["bar"], 0)   # default param
         self.assertEquals(result["qux"], 6666) # set param
+
+
+@attr('UNIT', group='mi')
+class TestUnitMenuInstrumentProtocol(IonUnitTestCase):
+    """
+    Test cases for instrument protocol class. Functions in this class provide
+    instrument protocol unit tests and provide a tutorial on use of
+    the protocol interface.
+    """
+    class SubMenu(BaseEnum):
+        MAIN = "SUBMENU_MAIN"
+        ONE = "SUBMENU_ONE"
+        TWO = "SUBMENU_TWO"
+
+    class Prompt(BaseEnum):
+        CMD_PROMPT = "-->"
+        CONTINUE_PROMPT = "Press ENTER to continue."
+        MAIN_MENU = "MAIN -->"
+        ONE_MENU = "MENU 1 -->"
+        TWO_MENU = "MENU 2 -->"
+    
+    MENU = MenuInstrumentProtocol.MenuTree({
+        SubMenu.MAIN:[],
+        SubMenu.ONE:[Directions(command="1", response=Prompt.ONE_MENU)],
+        SubMenu.TWO:[Directions(SubMenu.ONE),
+                            Directions(command="2", response=Prompt.CONTINUE_PROMPT)]
+    })
+
+    def setUp(self):
+        """
+        """
+        self.callback_result = None
         
+        def protocol_callback(self, arg):
+            callback_result = arg
+            
+        self.protocol = MenuInstrumentProtocol(protocol_callback)
+
+    
+    def test_navigation(self):
+        """
+        Test the navigate method to get between menus
+        """
+        pass
         
