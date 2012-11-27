@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Steve Foley
+  driver_make: uw
+  driver_model: bars
+  driver_name: ooicore
+  email: sfoley@ucsd.edu
+  release_notes: This supports the UW BARS instrument from the Marv Tilley lab
+  version: 0.0.1
