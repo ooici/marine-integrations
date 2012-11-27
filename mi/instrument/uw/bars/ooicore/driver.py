@@ -11,7 +11,6 @@ This supports the UW BARS instrument from the Marv Tilley lab
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
-import string
 import re
 import time
 
@@ -21,13 +20,13 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentTimeoutException
 
-
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict, ParameterDictVisibility
 
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
+from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -169,7 +168,7 @@ class Prompt(BaseEnum):
     io prompts.
     """
     CMD_PROMPT = "-->"
-    BREAK_ACK = NEWLINE
+    BREAK_ACK = "\r\n"
     NONE = ""
     
     DEAD_END_PROMPT = "Press Enter to return to the Main Menu. -->"
@@ -261,7 +260,7 @@ class BarsDataParticle(DataParticle):
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.decoded_raw)
             
-        log.debug("*** [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s]",
+        log.trace("Matching sample [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s]",
                   match.group(1),match.group(2),match.group(3),match.group(4),match.group(5),
                   match.group(6),match.group(7),match.group(8),match.group(9),match.group(10),
                   match.group(11),match.group(12))
@@ -324,7 +323,18 @@ class ooicoreInstrumentDriver(SingleConnectionInstrumentDriver):
         """
         #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+        
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,
+                                         DriverEvent.DISCOVER,
+                                         self._handler_connected_discover)
 
+    def _handler_connected_discover(self, event, *args, **kwargs):
+        # Redefine discover handler so that we can apply startup params
+        # when we discover. Gotta get into command mode first though.
+        result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
+        self.apply_startup_params()
+        return result
+    
     ########################################################################
     # Superclass overrides for resource query.
     ########################################################################
@@ -362,10 +372,9 @@ class ooicoreInstrumentDriver(SingleConnectionInstrumentDriver):
         if not isinstance(config, dict):
             raise InstrumentParameterException("Incompatible initialization parameters")
         
-        log.debug("*** configuring with values: %s", config)
         self._protocol.set_readonly_values()
         self.set_resource(config)
-        
+
 ###############################################################################
 # Protocol
 ################################################################################
@@ -444,6 +453,7 @@ class Protocol(MenuInstrumentProtocol):
         self._add_response_handler(Command.CHANGE_EH_ISOLATION_AMP_POWER, self._parse_menu_change_response)
         self._add_response_handler(Command.CHANGE_HYDROGEN_POWER, self._parse_menu_change_response)
         self._add_response_handler(Command.CHANGE_REFERENCE_TEMP_POWER, self._parse_menu_change_response)
+        self._add_response_handler(Command.DIRECT_SET, self._parse_menu_change_response)
         
         # Add sample handlers.
 
@@ -523,10 +533,12 @@ class Protocol(MenuInstrumentProtocol):
         
         # Try to break in case we are in auto sample
         self._send_break() 
-        self._go_to_root_menu()
+
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
-        
+
+        self._go_to_root_menu()
+      
         return (next_state, (next_agent_state, result))
                 
     ########################################################################
@@ -540,9 +552,6 @@ class Protocol(MenuInstrumentProtocol):
         @throw InstrumentProtocolException if the update commands and not recognized.
         """
         # Command device to update parameters and send a config change event.
-        # *** FIXME *** enable when get is working 
-        #self._update_params()
-
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -602,10 +611,11 @@ class Protocol(MenuInstrumentProtocol):
         for key in name_values.keys():
             if not Parameter.has(key):
                 raise InstrumentParameterException()
-            try:
-                str_val = self._param_dict.format(key, name_values[key])
-            except KeyError:
-                raise InstrumentParameterException()
+            # ***SAF
+            #try:
+            #    str_val = self._param_dict.format(key, name_values[key])
+            #except KeyError:
+            #    raise InstrumentParameterException()
             
             # restrict operations to just the read/write parameters
             if (key == Parameter.CYCLE_TIME):
@@ -708,6 +718,12 @@ class Protocol(MenuInstrumentProtocol):
     ########################################################################
     # Autosample handlers
     ########################################################################
+    def _handler_autosample_enter(self, *args, **kwargs):
+        """
+        Enter autosample mode
+        """
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
     def _handler_autosample_stop(self):
         """
         Stop autosample mode
@@ -716,14 +732,11 @@ class Protocol(MenuInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        self._send_break()
+        if (self._send_break()):        
+            next_state = ProtocolState.COMMAND
+            next_agent_state = ResourceAgentState.COMMAND
         
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-        
-        self._go_to_root_menu()
-        
-        return (ProtocolState.COMMAND, (next_agent_state, result))
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Command builders
@@ -763,7 +776,6 @@ class Protocol(MenuInstrumentProtocol):
     def _parse_show_param_response(self, response, prompt):
         """ Parse the show parameter response screen """
         log.trace("Parsing show parameter screen")
-        log.debug("*** Updating with input: %s", response)
         self._param_dict.update_many(response)
         
     ########################################################################
@@ -809,9 +821,9 @@ class Protocol(MenuInstrumentProtocol):
         self._navigate(SubMenu.SHOW_PARAM)
         self._go_to_root_menu()
             
-    def _send_break(self, timeout=10):
+    def _send_break(self, timeout=4):
         """
-        Execute one attempt to break out of auto sample
+        Execute an attempts to break out of auto sample (a few if things get garbled).
         For this instrument, it is done with a ^S, a wait for a \r\n, then
         another ^S within 1/2 a second
         @param timeout
@@ -823,18 +835,26 @@ class Protocol(MenuInstrumentProtocol):
         # couple chars instead of command/respose. Could be done that way
         # though. Just more steps, logic, and delay for such a simple
         # exchange
-        try:
+        
+        for count in range(0, 3):
             self._promptbuf = ""
-            self._connection.send("%c" % COMMAND_CHAR[Command.BREAK])
-            
-            (prompt, result) = self._get_response(3, expected_prompt=Prompt.BREAK_ACK)
-            # we got our prompt, so shoot another one out quickly.
-            self._connection.send("%c" % COMMAND_CHAR[Command.BREAK])
-            return True
-            
-        except InstrumentTimeoutException:
-            return False
+            try:
+                self._connection.send("%c" % COMMAND_CHAR[Command.BREAK])
+                (prompt, result) = self._get_raw_response(timeout, expected_prompt=[Prompt.BREAK_ACK,
+                                                                              Prompt.CMD_PROMPT])
+                if (prompt == Prompt.BREAK_ACK):
+                    self._connection.send("%c" % COMMAND_CHAR[Command.BREAK])
+                    (prompt, result) = self._get_response(timeout, expected_prompt=Prompt.CMD_PROMPT)
+                    return True
+                elif(prompt == Prompt.CMD_PROMPT):
+                    return True
+                
+            except InstrumentTimeoutException:
+                continue
 
+        log.trace("_send_break failing after several attempts")
+        return False   
+ 
     def set_readonly_values(self, *args, **kwargs):
         """Set read-only values to the instrument. This is usually (only?)
         done at initialization.
@@ -842,10 +862,11 @@ class Protocol(MenuInstrumentProtocol):
         @throw InstrumentProtocolException When in the wrong state or something
         really bad prevents the setting of all values.
         """
+        # Let's give it a try in unknown state
         if (self.get_current_state() != ProtocolState.COMMAND):
-            raise InstrumentProtocolException("Not in command state!")
+            raise InstrumentProtocolException("Not in command state. Unable to set read-only params")
 
-        self._go_to_root_menu()                                        
+        self._go_to_root_menu()
         self._update_params()
 
         for param in self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY):
@@ -854,11 +875,14 @@ class Protocol(MenuInstrumentProtocol):
 
             self._go_to_root_menu()
             # Only try to change them if they arent set right as it is
-            if (self._param_dict.get(param) != self._param_dict.get_default_value(param)):
+            log.trace("Setting read-only parameter: %s, current paramdict value: %s, init val: %s",
+                      param, self._param_dict.get(param),
+                      self._param_dict.get_init_value(param))
+            if (self._param_dict.get(param) != self._param_dict.get_init_value(param)):
                 if (param == Parameter.METADATA_POWERUP):
                     self._navigate(SubMenu.METADATA_POWERUP)
-                    result = self._do_cmd_resp(Command.DIRECT_SET, self._param_dict.get_default_value(param),
-                                               expected_prompt=Prompt.METADATA_PROMPT)
+                    result = self._do_cmd_resp(Command.DIRECT_SET, (1+ int(self._param_dict.get_init_value(param))),
+                                               expected_prompt=Prompt.CHANGE_PARAM_MENU)
                     if not result:
                         raise InstrumentParameterException("Could not set param %s" % param)
                     
@@ -866,30 +890,29 @@ class Protocol(MenuInstrumentProtocol):
                 
                 elif (param == Parameter.METADATA_RESTART):
                     self._navigate(SubMenu.METADATA_RESTART)
-                    result = self._do_cmd_resp(Command.DIRECT_SET, self._param_dict.get_default_value(param),
-                                               expected_prompt=Prompt.METADATA_PROMPT)
+                    result = self._do_cmd_resp(Command.DIRECT_SET, (1 + int(self._param_dict.get_init_value(param))),
+                                               expected_prompt=Prompt.CHANGE_PARAM_MENU)
                     if not result:
                         raise InstrumentParameterException("Could not set param %s" % param)
                     
                     self._go_to_root_menu()
                     
                 elif (param == Parameter.VERBOSE):
-                    self._navigate(SubMenu.METADATA_RESTART)
-                    result = self._do_cmd_resp(Command.DIRECT_SET, self._param_dict.get_default_value(param),
-                                               expected_prompt=Prompt.METADATA_PROMPT)
+                    self._navigate(SubMenu.VERBOSE)
+                    result = self._do_cmd_resp(Command.DIRECT_SET, self._param_dict.get_init_value(param),
+                                               expected_prompt=Prompt.CHANGE_PARAM_MENU)
                     if not result:
                         raise InstrumentParameterException("Could not set param %s" % param)
                     
                     self._go_to_root_menu()    
                     
                 elif (param == Parameter.EH_ISOLATION_AMP_POWER):
-                    result = self._navigate(Parameter.EH_ISOLATION_AMP_POWER)
+                    result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
                     while not result:
-                        result = self._navigate(Parameter.EH_ISOLATION_AMP_POWER)
+                        result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
                         
                 elif (param == Parameter.HYDROGEN_POWER):
                     result = self._navigate(SubMenu.HYDROGEN_POWER)
-                    log.debug("*** Hydrogen result: %s", result)
                     while not result:
                         result = self._navigate(SubMenu.HYDROGEN_POWER)
         
@@ -914,7 +937,9 @@ class Protocol(MenuInstrumentProtocol):
         
         # Should be good by now, but let's double check just to be safe
         for param in self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY):
-            if (self._param_dict.get(param) != self._param_dict.get_default_value()):
+            if (param == Parameter.VERBOSE):
+                continue
+            if (self._param_dict.get(param) != self._param_dict.get_init_value(param)):
                 raise InstrumentProtocolException("Could not set default values!")
                 
         
@@ -948,7 +973,7 @@ class Protocol(MenuInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=True,
                              direct_access=True,
-                             init_value=0,
+                             init_value=1,
                              menu_path_write=SubMenu.CHANGE_PARAM,
                              submenu_write=[["2", Prompt.VERBOSE_PROMPT]])
  

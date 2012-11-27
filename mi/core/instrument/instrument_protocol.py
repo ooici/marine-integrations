@@ -14,12 +14,6 @@ __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
 import time
-
-import logging
-import time
-import os
-import signal
-import re
 import json
 
 from mi.core.log import get_logger ; log = get_logger()
@@ -371,7 +365,11 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         
     def _get_response(self, timeout=10, expected_prompt=None):
         """
-        Get a response from the instrument
+        Get a response from the instrument, but be a bit loose with what we
+        find. Leave some room for white space around prompts and not try to
+        match that just in case we are off by a little whitespace or not quite
+        at the end of a line.
+        
         @todo Consider cases with no prompt
         @param timeout The timeout in seconds
         @param expected_prompt Only consider the specific expected prompt as
@@ -397,26 +395,40 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                     time.sleep(.1)
 
             if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException("in _get_response()")
-    """
-    def _get_line_of_response(self, timeout=10, line_delimiter='\r\n', expected_prompt=None):
+                raise InstrumentTimeoutException("in InstrumentProtocol._get_response()")
+
+    def _get_raw_response(self, timeout=10, expected_prompt=None):
+        """
+        Get a response from the instrument, but dont trim whitespace. Used in
+        times when the whitespace is what we are looking for.
+        
+        @param timeout The timeout in seconds
+        @param expected_prompt Only consider the specific expected prompt as
+        presented by this string
+        @throw InstrumentProtocolExecption on timeout
+        """
+        # Grab time for timeout and wait for prompt.
+        strip_chars = "\t "
+
         starttime = time.time()
-        while True:
-            if line_delimiter in self._linebuf:
-                (chunk, pat, remainder) = self._linebuf.partition(line_delimiter)
-                self._linebuf = remainder
-                return(None, chunk + pat)
-
-            elif self._promptbuf.endswith(expected_prompt):
-                (chunk, pat, remainder) = self._linebuf.partition(expected_prompt)
-                return(pat, None)
-
+        if expected_prompt == None:
+            prompt_list = self._prompts.list()
+        else:
+            if isinstance(expected_prompt, str):
+                prompt_list = [expected_prompt]
             else:
-                time.sleep(.1)
+                prompt_list = expected_prompt
+
+        while True:
+            for item in prompt_list:
+                if self._promptbuf.rstrip(strip_chars).endswith(item.rstrip(strip_chars)):
+                    return (item, self._linebuf)
+                else:
+                    time.sleep(.1)
 
             if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException("in _get_line_of_response()")
-    """
+                raise InstrumentTimeoutException("in InstrumentProtocol._get_raw_response()")
+
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
         Perform a command-response on the device.
