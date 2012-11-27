@@ -212,16 +212,94 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         test_sample = "SAT"   # Frame Sync
         test_sample += "NDF"  # Frame Type
         test_sample += "0196" # Serial Number
-        test_sample += "\x01\x02\x03\x04" # Date
-        test_sample += "\x01\x02\x03\x04\x05\x06\x07\x08" # Time
+        test_sample += "\x00\x1e\xb4\xa6" # Date 00 1E B4 A6
+        test_sample += "\x40\x34\x85\x83\x98\xe9\x70\x71" # Time 40 34 85 B3 98 E9 70 71
         test_sample += "\x00\x01\x02\x03" # ntr_con
         test_sample += "\x00\x00\x00\x00" # aux1
         test_sample += "\x00\x00\x00\x00" # aux2
         test_sample += "\x00\x00\x00\x00" # aux3
         test_sample += "\x03\x04\x01\x02" # rms_error
         test_sample += "\x00\x00\x00\x00" # r_int
+        test_sample += "\x03\x8B"       # channel 1
+        test_sample += "\x03\x89"       # channel 2
+        test_sample += "\x03\x83"       # channel 3
+        test_sample += "\x03\x89"       # channel 4
+        test_sample += "\x03\x83"       # channel 5
+        test_sample += "\x03\x8D"       # channel 6
+        test_sample += "\x03\x93"       # channel 7
+        test_sample += "\x03\x9B"       # channel 8
+        test_sample += "\x03\x91"       # channel 9
+        test_sample += "\x03\x8E"       # channel 10
+        test_sample += "\x03\xA0"       # channel 11
+        test_sample += "\x03\x96"       # channel 12
+        test_sample += "\x03\x97"       # channel 13
+        test_sample += "\x03\x95"       # channel 14
+        test_sample += "\x03\xAB"       # channel 15
+        test_sample += "\x03\xC3"       # channel 16
+        test_sample += "\x03\xD9"       # channel 17
+        test_sample += "\x03\x14"       # channel 18
+        test_sample += "\x03\x3E"       # channel 19
+        test_sample += "\x03\x75"       # channel 20
+        test_sample += "\x03\x89"       # channel 21
+        test_sample += "\x03\xA9"       # channel 22
+        test_sample += "\x03\xBE"       # channel 23
+        test_sample += "\x03\xEB"       # channel 24
+        test_sample += "\x03\x11"       # channel 25
+        test_sample += "\x03\x3A"       # channel 26
+        test_sample += "\x03\x7B"       # channel 27
+        test_sample += "\x03\xC6"       # channel 28
+        test_sample += "\x03\x0D"       # channel 29
         
-        
+
+        """
+        HEX SAMPLE:
+        42 ED 9A 37 // Nitrate Concentration
+        42 9A 7B 81 // Aux1
+        C4 DB 12 C8 // Aux2
+        40 6C 88 34 // Aux3
+        38 4F 6D 7B // rms_error
+        41 BA 00 00 // t_int
+        41 B2 80 00 // t_spec
+        41 A0 5C A1 // t_lamp
+        00 05 34 42 // lamp_time
+        41 96 60 45 // humidity
+        41 40 22 80 // volt_12
+        40 9F 47 A0 // volt_5
+        41 39 45 40 // volt_main
+        46 2D 18 EC // ref_avg
+        43 6D AE 2D // ref_std
+        44 61 C0 00 // sw_dark
+        44 62 03 43 // spec_avg
+        03 8B       // channel 1
+        03 89       // channel 2
+        03 83       // channel 3
+        03 89       // channel 4
+        03 83       // channel 5
+        03 8D       // channel 6
+        03 93       // channel 7
+        03 9B       // channel 8
+        03 91       // channel 9
+        03 8E       // channel 10
+        03 A0       // channel 11
+        03 96       // channel 12
+        03 97       // channel 13
+        03 95       // channel 14
+        03 AB       // channel 15
+        03 C3       // channel 16
+        03 D9       // channel 17
+        04 14       // channel 18
+        04 3E       // channel 19
+        04 75       // channel 20
+        04 89       // channel 21
+        04 A9       // channel 22
+        04 BE       // channel 23
+        04 EB       // channel 24
+        05 11       // channel 25
+        05 3A       // channel 26
+        05 7B       // channel 27
+        05 C6       // channel 28
+        06 0D       // channel 29
+        """        
         """
         ASCII SAMPLE: IOS SAYS USE BINARY
         test_sample = "SATNDF0196,2012219,18.770632,0.00,0.00,0.00,0.00,0.000000,24.38,23.31,18.53,255095,19.41,12.04," + \
@@ -1114,11 +1192,58 @@ class ISUS3QualTestCase(InstrumentDriverQualificationTestCase):
         self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
     
         for x in sample_dict['values']:
-            self.assertTrue(x['value_id'] in ['frame_type', 'serial_num', 'date', 'time'])
-            self.assertTrue(isinstance(x['value'], float))
-    
+            #print "--->> DHE: " + x['value_id'] + " value: " + str(x['value'])
+            if x['value_id'] in ['frame_type', 'serial_num']:
+                #print "--->> DHE: " + x['value_id'] + " is of type: " + str((x['value']).__class__.__name__)
+                self.assertTrue(isinstance(x['value'], str))
+            elif x['value_id'] in [
+                    'date', 
+                    'ch001', 
+                    'ch002', 
+                    'ch003', 
+                    'ch004', 
+                    'ch005', 
+                    'ch006', 
+                    'ch007', 
+                    'ch008', 
+                    'ch009', 
+                    'ch010', 
+                    'ch011', 
+                    'ch012', 
+                    'ch013', 
+                    'ch014', 
+                    'ch015', 
+                    'ch016', 
+                    'ch017', 
+                    'ch018', 
+                    'ch019'
+                    'ch020']:
+                #print "--->> DHE: " + x['value_id'] + " is of type: " + str((x['value'][0]).__class__.__name__)
+                self.assertTrue(isinstance(x['value'][0], int))
+            elif x['value_id'] in [
+                    'time',
+                    'ntr_conc',
+                    'aux1',
+                    'aux2',
+                    'aux3',
+                    'rms_error',
+                    't_int',
+                    't_spec',
+                    't_lamp',
+                    'lamp_time',
+                    'humidity',
+                    'volt_12',
+                    'volt_5',
+                    'volt_main',
+                    'ref_avg',
+                    'ref_std',
+                    'sw_dark',
+                    'spec_avg'
+                    ]:
+                #print "--->> DHE: " + x['value_id'] + " is of type: " + str((x['value'][0]).__class__.__name__)
+                self.assertTrue(isinstance(x['value'][0], float))
 
-    def test_sample_autosample(self):
+    def my_test_sample_autosample(self):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
@@ -1150,3 +1275,10 @@ class ISUS3QualTestCase(InstrumentDriverQualificationTestCase):
         log.debug("done sleeping")
 
         self.assert_stop_autosample()
+        
+    def test_sample_autosample(self):
+        self.assert_sample_autosample(self.assertSampleDataParticle,
+                                  DataParticleValue.PARSED, timeout = 60*5)
+        pass
+
+        

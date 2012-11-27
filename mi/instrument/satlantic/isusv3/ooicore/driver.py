@@ -75,7 +75,6 @@ SAMPLE_PATTERN += r'(.{4})'     #   7: AUX2
 SAMPLE_PATTERN += r'(.{4})'     #   8: AUX3
 SAMPLE_PATTERN += r'(.{4})'     #   9: RMS ERROR
 SAMPLE_PATTERN += r'(.{4})'     #  10: t_int Interior Temp
-"""
 SAMPLE_PATTERN += r'(.{4})'     #  11: t_spec Spectrometer Temp
 SAMPLE_PATTERN += r'(.{4})'     #  12: t_lamp Lamp Temp
 SAMPLE_PATTERN += r'(.{4})'     #  13: lamp_time Lamp Time
@@ -89,7 +88,24 @@ SAMPLE_PATTERN += r'(.{4})'     #  20: sw_dark Sea-Water Dark
 SAMPLE_PATTERN += r'(.{4})'     #  21: spec_avg All Channels Average
 SAMPLE_PATTERN += r'(.{2})'     #  22: Channel 1
 SAMPLE_PATTERN += r'(.{2})'     #  23: Channel 2
-"""
+SAMPLE_PATTERN += r'(.{2})'     #  24: Channel 3
+SAMPLE_PATTERN += r'(.{2})'     #  25: Channel 4
+SAMPLE_PATTERN += r'(.{2})'     #  26: Channel 5
+SAMPLE_PATTERN += r'(.{2})'     #  27: Channel 6
+SAMPLE_PATTERN += r'(.{2})'     #  28: Channel 7
+SAMPLE_PATTERN += r'(.{2})'     #  29: Channel 8
+SAMPLE_PATTERN += r'(.{2})'     #  30: Channel 9
+SAMPLE_PATTERN += r'(.{2})'     #  31: Channel 10
+SAMPLE_PATTERN += r'(.{2})'     #  32: Channel 11
+SAMPLE_PATTERN += r'(.{2})'     #  33: Channel 12
+SAMPLE_PATTERN += r'(.{2})'     #  34: Channel 13
+SAMPLE_PATTERN += r'(.{2})'     #  35: Channel 14
+SAMPLE_PATTERN += r'(.{2})'     #  36: Channel 15
+SAMPLE_PATTERN += r'(.{2})'     #  37: Channel 16
+SAMPLE_PATTERN += r'(.{2})'     #  38: Channel 17
+SAMPLE_PATTERN += r'(.{2})'     #  39: Channel 18
+SAMPLE_PATTERN += r'(.{2})'     #  40: Channel 19
+SAMPLE_PATTERN += r'(.{2})'     #  41: Channel 20
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
 
 # Packet config for ISUSV3 data granules.
@@ -427,6 +443,43 @@ class ISUSDataParticleKey(BaseEnum):
     SERIAL_NUM = "serial_num"
     DATE = "date"
     TIME = "time"
+    NTR_CONC = "ntr_conc"
+    AUX1 = "aux1"
+    AUX2 = "aux2"
+    AUX3 = "aux3"
+    RMS_ERROR = "rms_error"
+    T_INT = "t_int"
+    T_SPEC = "t_spec"
+    T_LAMP = "t_lamp"
+    LAMP_TIME = "lamp_time"
+    HUMIDITY = "humidity"
+    VOLT_12 = "volt_12"
+    VOLT_5 = "volt_5"
+    VOLT_MAIN = "volt_main"
+    REF_AVG = "ref_avg"
+    REF_STD = "ref_std"
+    SW_DARK = "sw_dark"
+    SPEC_AVG = "spec_avg"
+    CH001 = "ch001"
+    CH002 = "ch002"
+    CH003 = "ch003"
+    CH004 = "ch004"
+    CH005 = "ch005"
+    CH006 = "ch006"
+    CH007 = "ch007"
+    CH008 = "ch008"
+    CH009 = "ch009"
+    CH010 = "ch010"
+    CH011 = "ch011"
+    CH012 = "ch012"
+    CH013 = "ch013"
+    CH014 = "ch014"
+    CH015 = "ch015"
+    CH016 = "ch016"
+    CH017 = "ch017"
+    CH018 = "ch018"
+    CH019 = "ch019"
+    CH020 = "ch020"
 
 class ISUSDataParticle(DataParticle):
     """
@@ -449,30 +502,45 @@ class ISUSDataParticle(DataParticle):
         try:
             frame_type = str(match.group(1))
             serial_num = str(match.group(2))
-            date = struct.unpack_from('>BBBB', match.group(3))
-            time = struct.unpack_from('>BBBBBBBB', match.group(4))
-            ntr_conc = struct.unpack_from('>BBBB', match.group(5))
-            aux1 = struct.unpack_from('>BBBB', match.group(6))
-            aux2 = struct.unpack_from('>BBBB', match.group(7))
-            aux3 = struct.unpack_from('>BBBB', match.group(8))
-            rms_error = struct.unpack_from('>BBBB', match.group(9))
-
-            t_int = struct.unpack_from('>BBBB', match.group(10))
-            """
-            t_spec = struct.unpack_from('>BBBB', match.group(11))
-            t_lamp = struct.unpack_from('>BBBB', match.group(12))
-            lamp_time = struct.unpack_from('>BBBB', match.group(13))
-            humidity = struct.unpack_from('>BBBB', match.group(14))
-            volt_12 = struct.unpack_from('>BBBB', match.group(15))
-            volt_5 = struct.unpack_from('>BBBB', match.group(16))
-            volt_main = struct.unpack_from('>BBBB', match.group(17))
-            ref_avg = struct.unpack_from('>BBBB', match.group(18))
-            ref_std = struct.unpack_from('>BBBB', match.group(19))
-            sw_dark = struct.unpack_from('>BBBB', match.group(20))
-            spec_avg = struct.unpack_from('>BBBB', match.group(21))
-            ch001 = struct.unpack_from('>BB', match.group(22))
-            ch002 = struct.unpack_from('>BB', match.group(23))
-            """
+            date = struct.unpack_from('>i', match.group(3))
+            time = struct.unpack_from('>d', match.group(4))
+            ntr_conc = struct.unpack_from('>f', match.group(5))
+            aux1 = struct.unpack_from('>f', match.group(6))
+            aux2 = struct.unpack_from('>f', match.group(7))
+            aux3 = struct.unpack_from('>f', match.group(8))
+            rms_error = struct.unpack_from('>f', match.group(9))
+            t_int = struct.unpack_from('>f', match.group(10))
+            t_spec = struct.unpack_from('>f', match.group(11))
+            t_lamp = struct.unpack_from('>f', match.group(12))
+            lamp_time = struct.unpack_from('>f', match.group(13))
+            humidity = struct.unpack_from('>f', match.group(14))
+            volt_12 = struct.unpack_from('>f', match.group(15))
+            volt_5 = struct.unpack_from('>f', match.group(16))
+            volt_main = struct.unpack_from('>f', match.group(17))
+            ref_avg = struct.unpack_from('>f', match.group(18))
+            ref_std = struct.unpack_from('>f', match.group(19))
+            sw_dark = struct.unpack_from('>f', match.group(20))
+            spec_avg = struct.unpack_from('>f', match.group(21))
+            ch001 = struct.unpack_from('>H', match.group(22))
+            ch002 = struct.unpack_from('>H', match.group(23))
+            ch003 = struct.unpack_from('>H', match.group(24))
+            ch004 = struct.unpack_from('>H', match.group(25))
+            ch005 = struct.unpack_from('>H', match.group(26))
+            ch006 = struct.unpack_from('>H', match.group(27))
+            ch007 = struct.unpack_from('>H', match.group(28))
+            ch008 = struct.unpack_from('>H', match.group(29))
+            ch009 = struct.unpack_from('>H', match.group(30))
+            ch010 = struct.unpack_from('>H', match.group(31))
+            ch011 = struct.unpack_from('>H', match.group(32))
+            ch012 = struct.unpack_from('>H', match.group(33))
+            ch013 = struct.unpack_from('>H', match.group(34))
+            ch014 = struct.unpack_from('>H', match.group(35))
+            ch015 = struct.unpack_from('>H', match.group(36))
+            ch016 = struct.unpack_from('>H', match.group(37))
+            ch017 = struct.unpack_from('>H', match.group(38))
+            ch018 = struct.unpack_from('>H', match.group(39))
+            ch019 = struct.unpack_from('>H', match.group(40))
+            ch020 = struct.unpack_from('>H', match.group(41))
         except ValueError:
             raise SampleException("ValueError while parsing data: [%s]" %
                                   self.raw_data)
@@ -485,46 +553,80 @@ class ISUSDataParticle(DataParticle):
                     DataParticleKey.VALUE: date},
                   {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
                     DataParticleKey.VALUE: time},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.NTR_CONC,
                     DataParticleKey.VALUE: ntr_conc},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.AUX1,
                     DataParticleKey.VALUE: aux1},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.AUX2,
                     DataParticleKey.VALUE: aux2},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.AUX3,
                     DataParticleKey.VALUE: aux3},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.RMS_ERROR,
                     DataParticleKey.VALUE: rms_error},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
-                    DataParticleKey.VALUE: t_int}]
-        """
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.T_INT,
+                    DataParticleKey.VALUE: t_int},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.T_SPEC,
                     DataParticleKey.VALUE: t_spec},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.T_LAMP,
                     DataParticleKey.VALUE: t_lamp},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.LAMP_TIME,
                     DataParticleKey.VALUE: lamp_time},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.HUMIDITY,
                     DataParticleKey.VALUE: humidity},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.VOLT_12,
                     DataParticleKey.VALUE: volt_12},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.VOLT_5,
                     DataParticleKey.VALUE: volt_5},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.VOLT_MAIN,
                     DataParticleKey.VALUE: volt_main},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.REF_AVG,
                     DataParticleKey.VALUE: ref_avg},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.REF_STD,
                     DataParticleKey.VALUE: ref_std},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.SW_DARK,
                     DataParticleKey.VALUE: sw_dark},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.SPEC_AVG,
                     DataParticleKey.VALUE: spec_avg},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH001,
                     DataParticleKey.VALUE: ch001},
-                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.TIME,
-                    DataParticleKey.VALUE: ch002}]
-        """
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH002,
+                    DataParticleKey.VALUE: ch002},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH003,
+                    DataParticleKey.VALUE: ch003},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH004,
+                    DataParticleKey.VALUE: ch004},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH005,
+                    DataParticleKey.VALUE: ch005},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH006,
+                    DataParticleKey.VALUE: ch006},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH007,
+                    DataParticleKey.VALUE: ch007},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH008,
+                    DataParticleKey.VALUE: ch008},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH009,
+                    DataParticleKey.VALUE: ch009},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH010,
+                    DataParticleKey.VALUE: ch010},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH011,
+                    DataParticleKey.VALUE: ch011},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH012,
+                    DataParticleKey.VALUE: ch012},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH013,
+                    DataParticleKey.VALUE: ch013},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH014,
+                    DataParticleKey.VALUE: ch014},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH015,
+                    DataParticleKey.VALUE: ch015},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH016,
+                    DataParticleKey.VALUE: ch016},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH017,
+                    DataParticleKey.VALUE: ch017},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH018,
+                    DataParticleKey.VALUE: ch018},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH019,
+                    DataParticleKey.VALUE: ch019},
+                  {DataParticleKey.VALUE_ID: ISUSDataParticleKey.CH020,
+                    DataParticleKey.VALUE: ch020}]
         return result
 
 """
@@ -727,6 +829,7 @@ class Protocol(MenuInstrumentProtocol):
         try:
             logging_state = self._go_to_root_menu()
         except InstrumentTimeoutException:
+            log.error("ISUS driver timed out in _go_to_root_menu()")
             raise InstrumentStateException('Unknown state: Instrument timed out going to root menu.')
         else:
             if logging_state == AUTOSAMPLE_MODE:
@@ -877,7 +980,7 @@ class Protocol(MenuInstrumentProtocol):
         
         """
         delay = 1
-        timeout = 10
+        timeout = 25
         next_state = None
         next_agent_state = None
         result = None
@@ -892,20 +995,21 @@ class Protocol(MenuInstrumentProtocol):
         #    timeout=5)
         self._go_to_root_menu()
         
-        
-        starttime = time.time()
+
         # Clear the prompt buffer.
         self._promptbuf = ''
         """
         We are keeping the instrument in continuous mode; to start autosample, we enter
         a quit command and look for the 'starting in ...' response
         """
+        starttime = time.time()
         while Prompt.AUTO_START_RESTARTING not in self._promptbuf:
 
             self._connection.send(Event.QUIT_CMD + self.eoln)
             time.sleep(delay)
 
             if time.time() > starttime + timeout:
+                log.error("ISUS driver timed out starting autosample: promptbuf is %s" % self._promptbuf) 
                 raise InstrumentTimeoutException()
 
         log.debug("ISUS now in autosample")
@@ -944,7 +1048,7 @@ class Protocol(MenuInstrumentProtocol):
             time.sleep(delay)
 
             if time.time() > starttime + timeout:
-                log.error("ISUS timed out awaiting STOP_SAMPLING prompt stop_autosample")
+                log.error("ISUS driver timed outawaiting STOP_SAMPLING prompt stop_autosample")
                 raise InstrumentTimeoutException()
 
         starttime = time.time()
@@ -958,7 +1062,7 @@ class Protocol(MenuInstrumentProtocol):
             time.sleep(delay)
 
             if time.time() > starttime + timeout:
-                log.error("ISUS timed out awaiting AUTOSAMPLE_STOP_RESTARTING prompt in stop_autosample")
+                log.error("ISUS driver timed outawaiting AUTOSAMPLE_STOP_RESTARTING prompt in stop_autosample")
                 raise InstrumentTimeoutException()
 
         starttime = time.time()
@@ -968,7 +1072,7 @@ class Protocol(MenuInstrumentProtocol):
             time.sleep(delay)
 
             if time.time() > starttime + timeout:
-                log.error("ISUS timed out awaiting ROOT_MENU prompt stop_autosample")
+                log.error("ISUS driver timed outawaiting ROOT_MENU prompt stop_autosample")
                 raise InstrumentTimeoutException()
 
         log.info("ISUS autosample stopped")
@@ -1167,6 +1271,7 @@ class Protocol(MenuInstrumentProtocol):
                     return item
 
             if time.time() > starttime + timeout:
+                log.error("ISUS driver timed out awaking instrument")
                 raise InstrumentTimeoutException()
 
 
@@ -1214,6 +1319,7 @@ class Protocol(MenuInstrumentProtocol):
             time.sleep(delay)
 
             if time.time() > starttime + timeout:
+                log.error("ISUS driver timed out returning to root menu")
                 raise InstrumentTimeoutException()
 
             if Prompt.SAVE_SETTINGS in self._promptbuf:
