@@ -44,6 +44,7 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.util import convert_enum_to_dict 
 
+from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -54,6 +55,7 @@ from mi.core.exceptions import InstrumentParameterException
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
+from mi.instrument.uw.bars.ooicore.driver import Protocol
 from mi.instrument.uw.bars.ooicore.driver import ooicoreInstrumentDriver
 from mi.instrument.uw.bars.ooicore.driver import Protocol
 from mi.instrument.uw.bars.ooicore.driver import ProtocolState
@@ -98,6 +100,7 @@ FULL_SAMPLE = "1.448  4.095  4.095  0.004  0.014  0.048  1.995  1.041  24.74  0.
 SAMPLE_FRAGMENT_1 = "1.448  4.095  4.095  0.004  0.014  0.0" 
 SAMPLE_FRAGMENT_2 = "48  1.995  1.041  24.74  0.000   24.7   9.2\r\n"
 
+STARTUP_TIMEOUT = 120
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -519,6 +522,18 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertTrue(self.raw_stream_received)
         self.assertTrue(self.parsed_stream_received)
 
+    def test_chunker(self):
+        """
+        Tests the chunker
+        """
+        # This will want to be created in the driver eventually...
+        chunker = StringChunker(Protocol.sieve_function)
+
+        self.assert_chunker_sample(chunker, FULL_SAMPLE)
+        self.assert_chunker_fragmented_sample(chunker, FULL_SAMPLE)
+        self.assert_chunker_combined_sample(chunker, FULL_SAMPLE)
+        self.assert_chunker_sample_with_noise(chunker, FULL_SAMPLE)
+	
     def test_to_seconds(self):
 	""" Test to second conversion. """
 	self.assertEquals(240, Protocol._to_seconds(4, 1))
@@ -892,5 +907,15 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
     ###
     #    Add instrument specific qualification tests
     ###
+    def test_direct_access_telnet_mode(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+        self.assert_direct_access_start_telnet(timeout=STARTUP_TIMEOUT)
+        self.assertTrue(self.tcp_client)
 
+        self.tcp_client.send_data("\r\n")
+        self.tcp_client.expect(Prompt.COMMAND)
+
+        self.assert_direct_access_stop_telnet()
 

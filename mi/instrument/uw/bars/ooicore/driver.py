@@ -626,11 +626,6 @@ class Protocol(MenuInstrumentProtocol):
         for key in name_values.keys():
             if not Parameter.has(key):
                 raise InstrumentParameterException()
-            # ***SAF
-            #try:
-            #    str_val = self._param_dict.format(key, name_values[key])
-            #except KeyError:
-            #    raise InstrumentParameterException()
             
             # restrict operations to just the read/write parameters
             if (key == Parameter.CYCLE_TIME):
