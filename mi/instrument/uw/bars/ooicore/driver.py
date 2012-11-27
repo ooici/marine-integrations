@@ -143,7 +143,6 @@ class Capability(BaseEnum):
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     EXECUTE_DIRECT = ProtocolEvent.EXECUTE_DIRECT
-    EXECUTE_ACQUIRE_STATUS = ProtocolEvent.EXECUTE_ACQUIRE_STATUS
     START_DIRECT = ProtocolEvent.START_DIRECT
     STOP_DIRECT = ProtocolEvent.STOP_DIRECT
     
@@ -161,6 +160,12 @@ class Parameter(DriverParameter):
     EH_ISOLATION_AMP_POWER = "EH_ISOLATION_AMP_POWER"
     HYDROGEN_POWER = "HYDROGEN_POWER"
     REFERENCE_TEMP_POWER = "REFERENCE_TEMP_POWER"
+
+class VisibleParameters(DriverParameter):
+    """
+    Just the parameters that can be edited by the user
+    """
+    CYCLE_TIME = "CYCLE_TIME"
 
 # Device prompts.
 class Prompt(BaseEnum):
@@ -510,6 +515,16 @@ class Protocol(MenuInstrumentProtocol):
         events_out = [x for x in events if Capability.has(x)]
         return events_out
 
+    def get_resource_capabilities(self, current_state=True):
+        """
+        """
+
+        res_cmds = self._protocol_fsm.get_events(current_state)
+        res_cmds = self._filter_capabilities(res_cmds)        
+        res_params = VisibleParameters.list()
+        
+        return [res_cmds, res_params]
+        
     ########################################################################
     # Unknown handlers.
     ########################################################################

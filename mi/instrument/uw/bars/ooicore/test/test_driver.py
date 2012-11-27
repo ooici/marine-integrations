@@ -42,10 +42,12 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.util import convert_enum_to_dict 
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
+
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 
@@ -56,7 +58,12 @@ from mi.instrument.uw.bars.ooicore.driver import ooicoreInstrumentDriver
 from mi.instrument.uw.bars.ooicore.driver import Protocol
 from mi.instrument.uw.bars.ooicore.driver import ProtocolState
 from mi.instrument.uw.bars.ooicore.driver import ProtocolEvent
-from mi.instrument.uw.bars.ooicore.driver import Parameter
+from mi.instrument.uw.bars.ooicore.driver import Parameter, VisibleParameters
+from mi.instrument.uw.bars.ooicore.driver import Command
+from mi.instrument.uw.bars.ooicore.driver import Capability
+from mi.instrument.uw.bars.ooicore.driver import SubMenu
+from mi.instrument.uw.bars.ooicore.driver import BarsDataParticleKey
+from mi.instrument.uw.bars.ooicore.driver import COMMAND_CHAR
 from mi.instrument.uw.bars.ooicore.driver import PACKET_CONFIG
 
 
@@ -128,6 +135,93 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
                 self.raw_stream_received = True
             elif stream_type == 'parsed':
                 self.parsed_stream_received = True
+
+    def test_get_current_capabilities(self):
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=LoggerClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """       
+        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to the DISCONNECTED state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        test_driver.configure(config = config)
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        
+        """
+        Invoke the connect method of the driver: should connect to mock
+        port agent.  Verify that the connection FSM transitions to CONNECTED,
+        (which means that the FSM should now be reporting the ProtocolState).
+        """
+        test_driver.connect()
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+	result = test_driver._protocol.get_resource_capabilities()
+	self.assertEqual(result[0], [])
+	self.assertEqual(result[1], [Parameter.ALL, Parameter.CYCLE_TIME])
+
+        """
+        Force the driver into AUTOSAMPLE state so that it will parse and 
+        publish samples
+        """        
+        test_driver.set_test_mode(True)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+	result = test_driver._protocol.get_resource_capabilities()
+	self.assertEqual(result[0], [Capability.STOP_AUTOSAMPLE])
+	self.assertEqual(result[1], [Parameter.ALL, Parameter.CYCLE_TIME])
+	
+	test_driver.test_force_state(state = DriverProtocolState.COMMAND)
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.COMMAND)
+	result = test_driver._protocol.get_resource_capabilities()
+	self.assert_(Capability.START_AUTOSAMPLE in result[0])
+	self.assert_(Capability.GET in result[0])
+	self.assert_(Capability.SET in result[0])
+	self.assert_(Capability.START_DIRECT in result[0])
+	self.assertEqual(result[1], [Parameter.ALL, Parameter.CYCLE_TIME])
+
+	test_driver.test_force_state(state = DriverProtocolState.DIRECT_ACCESS)
+        current_state = test_driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.DIRECT_ACCESS)
+	result = test_driver._protocol.get_resource_capabilities()
+	self.assert_(Capability.STOP_DIRECT in result[0])
+	self.assert_(Capability.EXECUTE_DIRECT in result[0])
+	self.assertEqual(result[1], [Parameter.ALL, Parameter.CYCLE_TIME])
+
+    def test_enum_dups(self):
+	self.assert_enum_has_no_duplicates(Command)
+	self.assert_enum_has_no_duplicates(SubMenu)
+	self.assert_enum_has_no_duplicates(ProtocolState)
+	self.assert_enum_has_no_duplicates(ProtocolEvent)
+	self.assert_enum_has_no_duplicates(Capability)
+	self.assert_enum_has_no_duplicates(Parameter)
+	self.assert_enum_has_no_duplicates(VisibleParameters)
+	self.assert_enum_has_no_duplicates(BarsDataParticleKey)
+
+	capability = convert_enum_to_dict(Capability)
+	event = convert_enum_to_dict(ProtocolEvent)
+	cmd = convert_enum_to_dict(Command)
+	cmd_char = COMMAND_CHAR
+	param = convert_enum_to_dict(Parameter)
+	viz = convert_enum_to_dict(VisibleParameters)
+	
+	self.assert_set_complete(capability, event)
+	self.assert_set_complete(cmd_char, cmd)
+	self.assert_set_complete(viz, param)
 
     def test_valid_complete_sample(self):
         """
