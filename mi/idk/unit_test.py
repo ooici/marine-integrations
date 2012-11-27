@@ -73,7 +73,7 @@ from pyon.agent.agent import ResourceAgentEvent
 # Do not remove this import.  It is for package building.
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
-GO_ACTIVE_TIMEOUT=60
+GO_ACTIVE_TIMEOUT=90
 
 class AgentCapabilityType(BaseEnum):
     AGENT_COMMAND = 'agent_command'
