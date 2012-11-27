@@ -39,8 +39,8 @@ from mi.idk.exceptions import NoConfigFileSpecified
 from mi.idk.exceptions import CommConfigReadFail
 from mi.idk.exceptions import InvalidCommType
 
-DEFAULT_DATA_PORT = 5000
-DEFAULT_CMD_PORT = 5001
+DEFAULT_DATA_PORT = 6001
+DEFAULT_CMD_PORT = 6002
 
 class CommConfig(object):
     """
