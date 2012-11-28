@@ -43,13 +43,20 @@ from mi.idk.unit_test import AgentCapabilityType
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.instrument.instrument_driver import DriverParameter
+
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
+from mi.core.instrument.chunker import StringChunker
 
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
+from mi.core.exceptions import SampleException
 
+from mi.instrument.nortek.aquadopp.ooicore.driver import InstrumentPrompts
+from mi.instrument.nortek.aquadopp.ooicore.driver import InstrumentCmds
 from mi.instrument.nortek.aquadopp.ooicore.driver import Capability
+from mi.instrument.nortek.aquadopp.ooicore.driver import Protocol
 from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolState
 from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolEvent
 from mi.instrument.nortek.aquadopp.ooicore.driver import Parameter
@@ -79,9 +86,6 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name = 'nortek_aquadopp_dw_ooicore_agent',
     instrument_agent_packet_config = PACKET_CONFIG,
     #instrument_agent_stream_definition = {}
-    driver_startup_config = {
-        Parameter.AVG_INTERVAL : 61
-    }
 )
 
 params_dict = {
@@ -165,6 +169,71 @@ def user_config():
         user_config += chr(value)
     return user_config
         
+# velocity data particle & sample 
+def velocity_sample():
+    sample_as_hex = "a5011500101926221211000000009300f83b810628017f01002d0000e3094c0122ff9afe1e1416006093"
+    return sample_as_hex.decode('hex')
+
+velocity_particle = [{'value_id': 'timestamp', 'value': '26/11/2012 22:10:19'}, 
+                     {'value_id': 'error', 'value': 0}, 
+                     {'value_id': 'analog1', 'value': 0}, 
+                     {'value_id': 'battery_voltage', 'value': 147}, 
+                     {'value_id': 'sound_speed_analog2', 'value': 15352}, 
+                     {'value_id': 'heading', 'value': 1665}, 
+                     {'value_id': 'pitch', 'value': 296}, 
+                     {'value_id': 'roll', 'value': 383}, 
+                     {'value_id': 'status', 'value': 45}, 
+                     {'value_id': 'pressure', 'value': 0}, 
+                     {'value_id': 'temperature', 'value': 2531}, 
+                     {'value_id': 'velocity_beam1', 'value': 332}, 
+                     {'value_id': 'velocity_beam2', 'value': 65314}, 
+                     {'value_id': 'velocity_beam3', 'value': 65178}, 
+                     {'value_id': 'amplitude_beam1', 'value': 30}, 
+                     {'value_id': 'amplitude_beam2', 'value': 20}, 
+                     {'value_id': 'amplitude_beam3', 'value': 22}]
+
+# diagnostic header data particle & sample 
+def diagnostic_header_sample():
+    sample_as_hex = "a5061200140001000000000011192622121100000000000000000000000000000000a108"
+    return sample_as_hex.decode('hex')
+
+diagnostic_header_particle = [{'value_id': 'records', 'value': 20}, 
+                              {'value_id': 'cell', 'value': 1}, 
+                              {'value_id': 'noise1', 'value': 0}, 
+                              {'value_id': 'noise2', 'value': 0}, 
+                              {'value_id': 'noise3', 'value': 0}, 
+                              {'value_id': 'noise4', 'value': 0}, 
+                              {'value_id': 'processing_magnitude_beam1', 'value': 6417}, 
+                              {'value_id': 'processing_magnitude_beam2', 'value': 8742}, 
+                              {'value_id': 'processing_magnitude_beam3', 'value': 4370}, 
+                              {'value_id': 'processing_magnitude_beam4', 'value': 0}, 
+                              {'value_id': 'distance1', 'value': 0}, 
+                              {'value_id': 'distance2', 'value': 0}, 
+                              {'value_id': 'distance3', 'value': 0}, 
+                              {'value_id': 'distance4', 'value': 0}]
+
+# diagnostic data particle & sample 
+def diagnostic_sample():
+    sample_as_hex = "a5801500112026221211000000009300f83ba0065c0189fe002c0000e40904ffd8ffbdfa18131500490f"
+    return sample_as_hex.decode('hex')
+
+diagnostic_particle = [{'value_id': 'timestamp', 'value': '26/11/2012 22:11:20'}, 
+                       {'value_id': 'error', 'value': 0}, 
+                       {'value_id': 'analog1', 'value': 0}, 
+                       {'value_id': 'battery_voltage', 'value': 147}, 
+                       {'value_id': 'sound_speed_analog2', 'value': 15352}, 
+                       {'value_id': 'heading', 'value': 1696}, 
+                       {'value_id': 'pitch', 'value': 348}, 
+                       {'value_id': 'roll', 'value': 65161}, 
+                       {'value_id': 'status', 'value': 44}, 
+                       {'value_id': 'pressure', 'value': 0}, 
+                       {'value_id': 'temperature', 'value': 2532}, 
+                       {'value_id': 'velocity_beam1', 'value': 65284}, 
+                       {'value_id': 'velocity_beam2', 'value': 65496}, 
+                       {'value_id': 'velocity_beam3', 'value': 64189}, 
+                       {'value_id': 'amplitude_beam1', 'value': 24},                        
+                       {'value_id': 'amplitude_beam2', 'value': 19}, 
+                       {'value_id': 'amplitude_beam3', 'value': 21}]
 
 
 #################################### RULES ####################################
@@ -190,11 +259,205 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
-    ###
-    #    Add instrument specific unit tests
-    ###
+    def assert_chunker_fragmented_sample(self, chunker, fragments, sample):
+        '''
+        Verify the chunker can parse a sample that comes in fragmented
+        @param chunker: Chunker to use to do the parsing
+        @param sample: raw sample
+        '''
+        for f in fragments:
+            chunker.add_chunk(f)
+            result = chunker.get_next_data()
+            if (result): break
+
+        self.assertEqual(result, sample)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, None)
+
+    def assert_chunker_combined_sample(self, chunker, sample1, sample2, sample3):
+        '''
+        Verify the chunker can parse samples that comes in combined
+        @param chunker: Chunker to use to do the parsing
+        @param sample: raw sample
+        '''
+        chunker.add_chunk(sample1 + sample2 + sample3)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, sample1)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, sample2)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, sample3)
+
+        result = chunker.get_next_data()
+        self.assertEqual(result, None)
+        
+    def test_instrumment_prompts_for_duplicates(self):
+        """
+        Verify that the InstrumentPrompts enumeration has no duplicate values that might cause confusion
+        """
+        self.assert_enum_has_no_duplicates(InstrumentPrompts())
 
 
+    def test_instrument_commands_for_duplicates(self):
+        """
+        Verify that the InstrumentCmds enumeration has no duplicate values that might cause confusion
+        """
+        self.assert_enum_has_no_duplicates(InstrumentCmds())
+
+    def test_protocol_state_for_duplicates(self):
+        """
+        Verify that the ProtocolState enumeration has no duplicate values that might cause confusion
+        """
+        self.assert_enum_has_no_duplicates(ProtocolState())
+
+    def test_protocol_event_for_duplicates(self):
+        """
+        Verify that the ProtocolEvent enumeration has no duplicate values that might cause confusion
+        """
+        self.assert_enum_has_no_duplicates(ProtocolEvent())
+
+    def test_capability_for_duplicates(self):
+        """
+        Verify that the Capability enumeration has no duplicate values that might cause confusion
+        """
+        self.assert_enum_has_no_duplicates(Capability())
+
+    def test_parameter_for_duplicates(self):
+        """
+        Verify that the Parameter enumeration has no duplicate values that might cause confusion
+        """
+        self.assert_enum_has_no_duplicates(Parameter())
+
+    def test_diagnostic_header_sample_format(self):
+        """
+        Test to make sure we can get diagnostic_header sample data out in a reasonable format.
+        Parsed is all we care about...raw is tested in the base DataParticle tests
+        """
+        
+        port_timestamp = 3555423720.711772
+        driver_timestamp = 3555423722.711772
+
+        # construct the expected particle
+        expected_particle = {
+            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
+            DataParticleKey.PKT_VERSION: 1,
+            DataParticleKey.STREAM_NAME: DataParticleValue.PARSED,
+            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
+            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
+            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
+            DataParticleKey.VALUES: diagnostic_header_particle
+            }
+        
+        self.compare_parsed_data_particle(AquadoppDwDiagnosticHeaderDataParticle,
+                                          diagnostic_header_sample(),
+                                          expected_particle)
+
+    def test_diagnostic_sample_format(self):
+        """
+        Test to make sure we can get diagnostic sample data out in a reasonable format.
+        Parsed is all we care about...raw is tested in the base DataParticle tests
+        """
+        
+        port_timestamp = 3555423720.711772
+        driver_timestamp = 3555423722.711772
+
+        # construct the expected particle
+        expected_particle = {
+            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
+            DataParticleKey.PKT_VERSION: 1,
+            DataParticleKey.STREAM_NAME: DataParticleValue.PARSED,
+            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
+            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
+            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
+            DataParticleKey.VALUES: diagnostic_particle
+            }
+        
+        self.compare_parsed_data_particle(AquadoppDwDiagnosticDataParticle,
+                                          diagnostic_sample(),
+                                          expected_particle)
+
+    def test_velocity_sample_format(self):
+        """
+        Test to make sure we can get velocity sample data out in a reasonable format.
+        Parsed is all we care about...raw is tested in the base DataParticle tests
+        """
+        
+        port_timestamp = 3555423720.711772
+        driver_timestamp = 3555423722.711772
+
+        # construct the expected particle
+        expected_particle = {
+            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
+            DataParticleKey.PKT_VERSION: 1,
+            DataParticleKey.STREAM_NAME: DataParticleValue.PARSED,
+            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
+            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
+            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
+            DataParticleKey.VALUES: velocity_particle
+            }
+        
+        self.compare_parsed_data_particle(AquadoppDwVelocityDataParticle,
+                                          velocity_sample(),
+                                          expected_particle)
+
+    def test_chunker(self):
+        """
+        Tests the chunker
+        """
+        chunker = StringChunker(Protocol.chunker_sieve_function)
+
+        # test complete data structures
+        self.assert_chunker_sample(chunker, velocity_sample())
+        self.assert_chunker_sample(chunker, diagnostic_sample())
+        self.assert_chunker_sample(chunker, diagnostic_header_sample())
+
+        # test fragmented data structures
+        sample = velocity_sample()
+        fragments = [sample[0:4], sample[4:10], sample[10:14], sample[14:]]
+        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
+
+        sample = diagnostic_sample()
+        fragments = [sample[0:5], sample[5:11], sample[11:15], sample[15:]]
+        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
+
+        sample = diagnostic_header_sample()
+        fragments = [sample[0:3], sample[3:11], sample[11:12], sample[12:]]
+        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
+
+        # test combined data structures
+        self.assert_chunker_combined_sample(chunker, velocity_sample(), diagnostic_sample(), diagnostic_header_sample())
+        self.assert_chunker_combined_sample(chunker, diagnostic_header_sample(), velocity_sample(), diagnostic_sample())
+
+        # test data structures with noise
+        self.assert_chunker_sample_with_noise(chunker, velocity_sample())
+        self.assert_chunker_sample_with_noise(chunker, diagnostic_sample())
+        self.assert_chunker_sample_with_noise(chunker, diagnostic_header_sample())
+
+    def test_corrupt_data_structures(self):
+        # garbage is not okay
+        particle = AquadoppDwDiagnosticHeaderDataParticle(diagnostic_header_sample().replace(chr(0), chr(1), 1),
+                                                          port_timestamp = 3558720820.531179)
+        with self.assertRaises(SampleException):
+            particle.generate_parsed()
+         
+        particle = AquadoppDwDiagnosticDataParticle(diagnostic_sample().replace(chr(0), chr(1), 1),
+                                                          port_timestamp = 3558720820.531179)
+        with self.assertRaises(SampleException):
+            particle.generate_parsed()
+         
+        particle = AquadoppDwVelocityDataParticle(velocity_sample().replace(chr(0), chr(1), 1),
+                                                          port_timestamp = 3558720820.531179)
+        with self.assertRaises(SampleException):
+            particle.generate_parsed()
+         
+ 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 #     Integration test test the direct driver / instrument interaction        #
@@ -265,6 +528,28 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
             self.check_state(ProtocolState.COMMAND)
 
  
+    def test_set_init_params(self):
+        """
+        @brief Test for set_init_params()
+        """
+        # Test that the driver is in state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver and transition to disconnected.
+        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test that the driver is in state disconnected.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+        
+        # Setup the protocol state machine and the connection to port agent.
+        self.driver_client.cmd_dvr('connect')
+
+        # Test that the driver protocol is in state unknown.
+        self.check_state(ProtocolState.UNKNOWN)
+
+        self.driver_client.cmd_dvr('set_init_params', {DriverParameter.ALL: user_config()})
+        
+
     def test_startup_configuration(self):
         '''
         Test that the startup configuration is applied correctly
