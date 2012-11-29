@@ -86,6 +86,9 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name = 'nortek_aquadopp_dw_ooicore_agent',
     instrument_agent_packet_config = PACKET_CONFIG,
     #instrument_agent_stream_definition = {}
+    driver_startup_config = {
+        Parameter.TRANSMIT_PULSE_LENGTH: 0x7d
+        }
 )
 
 params_dict = {
@@ -129,8 +132,45 @@ params_dict = {
     Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG : int,
     Parameter.QUAL_CONSTANTS : str}
 
+def user_config1():
+    user_config_values = "A5 00 00 01 7D 00 37 00 20 00 B5 01 00 02 01 00 \
+                          01 00 03 00 02 00 00 00 00 00 00 00 00 00 01 00 \
+                          00 00 01 00 20 00 01 00 00 00 00 00 00 00 00 00 \
+                          59 12 03 14 12 08 C0 A8 00 00 20 00 11 41 14 00 \
+                          01 00 14 00 04 00 00 00 00 00 5E 01 02 3D 1E 3D \
+                          39 3D 53 3D 6E 3D 88 3D A2 3D BB 3D D4 3D ED 3D \
+                          06 3E 1E 3E 36 3E 4E 3E 65 3E 7D 3E 93 3E AA 3E \
+                          C0 3E D6 3E EC 3E 02 3F 17 3F 2C 3F 41 3F 55 3F \
+                          69 3F 7D 3F 91 3F A4 3F B8 3F CA 3F DD 3F F0 3F \
+                          02 40 14 40 26 40 37 40 49 40 5A 40 6B 40 7C 40 \
+                          8C 40 9C 40 AC 40 BC 40 CC 40 DB 40 EA 40 F9 40 \
+                          08 41 17 41 25 41 33 41 42 41 4F 41 5D 41 6A 41 \
+                          78 41 85 41 92 41 9E 41 AB 41 B7 41 C3 41 CF 41 \
+                          DB 41 E7 41 F2 41 FD 41 08 42 13 42 1E 42 28 42 \
+                          33 42 3D 42 47 42 51 42 5B 42 64 42 6E 42 77 42 \
+                          80 42 89 42 91 42 9A 42 A2 42 AA 42 B2 42 BA 42 \
+                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+                          00 00 00 00 00 00 00 00 1E 00 5A 00 5A 00 BC 02 \
+                          32 00 00 00 00 00 00 00 07 00 00 00 00 00 00 00 \
+                          00 00 00 00 00 00 1E 00 00 00 00 00 2A 00 00 00 \
+                          02 00 14 00 EA 01 14 00 EA 01 0A 00 05 00 00 00 \
+                          40 00 40 00 02 00 0F 00 5A 00 00 00 01 00 C8 00 \
+                          00 00 00 00 0F 00 EA 01 EA 01 00 00 00 00 00 00 \
+                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 06 00 \
+                          14 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 0A FF \
+                          CD FF 8B 00 E5 00 EE 00 0B 00 84 FF 3D FF 9B 89"
+    
+    user_config = ''
+    for value in user_config_values.split():
+        user_config += chr(int(value, 16))
 
-def user_config():
+def user_config2():
     user_config_values = [0xa5, 0x00, 0x00, 0x01, 0x7d, 0x00, 0x37, 0x00, 0x20, 0x00, 0xb5, 0x01, 0x00, 0x02, 0x01, 0x00, 
                           0x3c, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 
                           0x01, 0x00, 0x01, 0x00, 0x20, 0x00, 0x10, 0x0e, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x01, 0x00, 
@@ -532,22 +572,20 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         """
         @brief Test for set_init_params()
         """
-        # Test that the driver is in state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
+        self.put_driver_in_command_mode()
 
-        # Configure driver and transition to disconnected.
-        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
+        values_before = self.driver_client.cmd_dvr('get_resource', [Parameter.ALL])
         
-        # Setup the protocol state machine and the connection to port agent.
-        self.driver_client.cmd_dvr('connect')
+        self.driver_client.cmd_dvr('set_init_params', {DriverParameter.ALL: user_config1()})
+        self.driver_client.cmd_dvr("apply_startup_params") 
 
-        # Test that the driver protocol is in state unknown.
-        self.check_state(ProtocolState.UNKNOWN)
+        result = self.driver_client.cmd_dvr("get_resource",[Parameter.ALL])
+        # TODO How to check to see if config got set in instrument
 
-        self.driver_client.cmd_dvr('set_init_params', {DriverParameter.ALL: user_config()})
+        self.driver_client.cmd_dvr('set_resource', values_before)
+        values_after = self.driver_client.cmd_dvr('get_resource', [Parameter.ALL])
+        self.assertEquals(values_after, values_before)
+        
         
 
     def test_startup_configuration(self):
@@ -622,7 +660,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.put_driver_in_command_mode()
         
         # command the instrument to set the user configuration.
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SET_CONFIGURATION, user_configuration=user_config())
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SET_CONFIGURATION, user_configuration=user_config2())
          
 
     def test_instrument_read_clock(self):
@@ -1375,7 +1413,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         # command the instrument to set the user configuration.
         cmd = AgentCommand(command=ResourceAgentEvent.EXECUTE_RESOURCE,
                            args=[ProtocolEvent.SET_CONFIGURATION],
-                           kwargs={'user_configuration':user_config()})
+                           kwargs={'user_configuration':user_config2()})
         try:
             self.instrument_agent_client.execute_agent(cmd)
             pass
