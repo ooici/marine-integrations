@@ -10,6 +10,7 @@ import socket
 WILL_ECHO_CMD = '\xff\xfd\x03\xff\xfb\x03\xff\xfb\x01'
 # 'do echo' command sequence to be sent back from telnet client
 DO_ECHO_CMD   = '\xff\xfb\x03\xff\xfd\x03\xff\xfd\x01'
+BUFFER_SIZE = 4096
 
 class TcpClient():
     '''
@@ -41,7 +42,7 @@ class TcpClient():
         return False
 
     def read_a_char(self):
-        temp = self.s.recv(1024)
+        temp = self.s.recv(BUFFER_SIZE)
         if len(temp) > 0:
             log.debug("read_a_char got '" + str(repr(temp)) + "'")
             self.buf += temp
@@ -55,7 +56,7 @@ class TcpClient():
     def peek_at_buffer(self):
         if len(self.buf) == 0:
             try:
-                self.buf = self.s.recv(1024)
+                self.buf = self.s.recv(BUFFER_SIZE)
                 log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
             except:
                 """

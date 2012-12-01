@@ -20,7 +20,7 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentTimeoutException
 
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict, ParameterDictVisibility
 
@@ -49,9 +49,8 @@ TIMEOUT = 10
 
 # Packet config
 PACKET_CONFIG = {
-    'parsed' : None,
-    'raw' : None,
-    'eng' : None
+    DataParticleValue.PARSED:'trhph_parsed',
+    DataParticleValue.RAW:'raw'
 }
 
 class Command(BaseEnum):
@@ -184,7 +183,8 @@ class Prompt(BaseEnum):
     SENSOR_POWER_MENU = "Enter 0 through 9 here  -->"
 
     CYCLE_TIME_PROMPT = "Enter 1 for Seconds, 2 for Minutes -->"
-    CYCLE_TIME_VALUE_PROMPT = "Enter a new value between 15 and 59 here -->"
+    CYCLE_TIME_SEC_VALUE_PROMPT = "Enter a new value between 15 and 59 here -->"
+    CYCLE_TIME_MIN_VALUE_PROMPT = "Enter a new value between 1 and 60 here -->"
     VERBOSE_PROMPT = "Enter 2 for Verbose, 1 for just Data. -->"
     METADATA_PROMPT = "Enter 2 for Yes, 1 for No. -->"
     
@@ -412,8 +412,8 @@ class Protocol(MenuInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_autosample)
-
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.DISCOVER, self._handler_discover)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
@@ -544,17 +544,16 @@ class Protocol(MenuInstrumentProtocol):
         """
         next_state = None
         next_agent_state = None
-        result = None
         
         # Try to break in case we are in auto sample
         self._send_break() 
 
         next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+        next_agent_state = ResourceAgentState.IDLE
 
         self._go_to_root_menu()
       
-        return (next_state, (next_agent_state, result))
+        return (next_state, next_agent_state)
                 
     ########################################################################
     # Command handlers.
@@ -634,7 +633,8 @@ class Protocol(MenuInstrumentProtocol):
                 
                 try:                
                     self._do_cmd_resp(Command.DIRECT_SET, unit,
-                                      expected_prompt=Prompt.CYCLE_TIME_VALUE_PROMPT)
+                                      expected_prompt=[Prompt.CYCLE_TIME_SEC_VALUE_PROMPT,
+                                                      Prompt.CYCLE_TIME_MIN_VALUE_PROMPT])
                     self._do_cmd_resp(Command.DIRECT_SET, value,
                                       expected_prompt=Prompt.CHANGE_PARAM_MENU)
                 except InstrumentProtocolException:
