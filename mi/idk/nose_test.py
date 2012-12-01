@@ -10,6 +10,11 @@ __license__ = 'Apache 2.0'
 import os
 import sys
 import nose
+import pyclbr
+import inspect
+
+from mi.core.log import get_logger ; log = get_logger()
+from mi.core.common import BaseEnum
 
 from mi.idk.metadata import Metadata
 from mi.idk.config import Config
@@ -19,6 +24,19 @@ from mi.idk.driver_generator import DriverGenerator
 from mi.idk.exceptions import IDKConfigMissing
 from mi.idk.exceptions import DriverNotStarted
 from mi.idk.exceptions import CommConfigReadFail
+from mi.idk.exceptions import IDKException
+
+from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
+from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import InstrumentDriverUnitTestCase
+
+class IDKTestClasses(BaseEnum):
+    """
+    Define base classes for unit tests
+    """
+    UNIT = InstrumentDriverUnitTestCase
+    INT  = InstrumentDriverIntegrationTestCase
+    QUAL = InstrumentDriverQualificationTestCase
 
 class NoseTest(object):
     """
@@ -28,12 +46,14 @@ class NoseTest(object):
     ###
     #   Private Methods
     ###
-    def __init__(self, metadata, log_file = None, launch_data_moniotor = False):
+    def __init__(self, metadata, testname = None, log_file = None, launch_data_moniotor = False):
         """
         @brief Constructor
         @param metadata IDK Metadata object
         @param log_file File to store test results.  If none specified log to STDOUT
         """
+        self._testname = testname
+
         repo_dir = Config().get("working_repo")
         if(not repo_dir):
             raise IDKConfigMissing()
@@ -57,6 +77,8 @@ class NoseTest(object):
             raise CommConfigReadFail(msg=config_path)
 
         self.test_runner = nose.core.TextTestRunner(stream=self.log_fh)
+
+        self._inspect_driver_module(self._driver_test_module())
 
     def __del__(self):
         """
@@ -82,6 +104,10 @@ class NoseTest(object):
         generator = DriverGenerator(self.metadata)
         return generator.test_modulename()
 
+    def _driver_test_filename(self):
+        generator = DriverGenerator(self.metadata)
+        return generator.driver_test_path()
+
     def _qualification_test_module(self):
         return self._driver_test_module()
 
@@ -93,6 +119,70 @@ class NoseTest(object):
 
     def _qual_test_class(self):
         return 'QualFromIDK'
+
+    def _unit_test_module_param(self):
+        '''
+        Module name and test to run
+        @return: module name and optional test as string
+        '''
+        result = "%s:%s" % (self._driver_test_filename(), self._unit_test_class)
+        if(self._testname): result = "%s.%s" % (result, self._testname)
+        return result
+
+    def _int_test_module_param(self):
+        '''
+        Module name and test to run
+        @return: module name and optional test as string
+        '''
+        result = "%s:%s" % (self._driver_test_filename(), self._int_test_class)
+        if(self._testname): result = "%s.%s" % (result, self._testname)
+        return result
+
+    def _qual_test_module_param(self):
+        '''
+        Module name and test to run
+        @return: module name and optional test as string
+        '''
+        result = "%s:%s" % (self._driver_test_filename(), self._qual_test_class)
+        if(self._testname): result = "%s.%s" % (result, self._testname)
+        return result
+
+    def _inspect_driver_module(self, test_module):
+        '''
+        Search the driver module for class definitions which are UNIT, INT, and QUAL tests.  We will import the module
+        do a little introspection and set member variables for the three test types.
+        @raises: ImportError - we can't load the test module
+        @raises: IDKException - if all three test types aren't found
+        '''
+        self._unit_test_class = None
+        self._int_test_class = None
+        self._qual_test_class = None
+
+        __import__(test_module)
+        module = sys.modules.get(test_module)
+        classes = inspect.getmembers(module, inspect.isclass)
+
+        for name,clsobj in classes:
+            clsstr = "<class '%s.%s'>" % (test_module, name)
+
+            # We only want to inspect classes defined in the test module explicitly.  Ignore imported classes
+            if(clsstr == str(clsobj)):
+                if(issubclass(clsobj, IDKTestClasses.UNIT)):
+                    self._unit_test_class = name
+                if(issubclass(clsobj, IDKTestClasses.INT)):
+                    self._int_test_class = name
+                if(issubclass(clsobj, IDKTestClasses.QUAL)):
+                    self._qual_test_class = name
+
+        if(not self._unit_test_class):
+            raise IDKException("unit test class not found")
+
+        if(not self._qual_test_class):
+            raise IDKException("qual test class not found")
+
+        if(not self._int_test_class):
+            raise IDKException("int test class not found")
+
 
     ###
     #   Public Methods
@@ -134,7 +224,7 @@ class NoseTest(object):
         """
         self._log("*** Starting Unit Tests ***")
         self._log(" ==> module: " + self._driver_test_module())
-        args=[ sys.argv[0], '-s', '-v', '-a', 'UNIT']
+        args=[ sys.argv[0], '-s', '-v', '-a', 'UNIT', self._unit_test_module_param()]
         module = "%s" % (self._driver_test_module())
 
         return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
@@ -145,7 +235,7 @@ class NoseTest(object):
         """
         self._log("*** Starting Integration Tests ***")
         self._log(" ==> module: " + self._driver_test_module())
-        args=[ sys.argv[0], '-s', '-v', '-a', 'INT']
+        args=[ sys.argv[0], '-s', '-v', '-a', 'INT', self._int_test_module_param()]
         module = "%s" % (self._driver_test_module())
 
         return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
@@ -156,7 +246,7 @@ class NoseTest(object):
         """
         self._log("*** Starting Qualification Tests ***")
         self._log(" ==> module: " + self._qualification_test_module())
-        args=[ sys.argv[0], '-s', '-v', '-a', 'QUAL', '-v' ]
+        args=[ sys.argv[0], '-s', '-v', '-a', 'QUAL', '-v', self._qual_test_module_param() ]
         module = "%s" % (self._qualification_test_module())
 
         return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
