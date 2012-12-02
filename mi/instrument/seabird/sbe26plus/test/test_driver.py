@@ -24,11 +24,6 @@ USAGE:
 
 """
 
-
-
-
-
-
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
@@ -36,19 +31,19 @@ from gevent import monkey; monkey.patch_all()
 import gevent
 import time
 import re
-import unittest
+import json
 from mock import Mock
-from pyon.core.bootstrap import CFG
-from nose.plugins.attrib import attr
+
+from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
-from mi.idk.unit_test import InstrumentDriverTestCase
+from nose.plugins.attrib import attr
+from mi.idk.unit_test import InstrumentDriverDataParticleMixin
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.util import convert_enum_to_dict
 from interface.objects import AgentCommand
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-from mi.instrument.seabird.sbe26plus.driver import PACKET_CONFIG
 from mi.instrument.seabird.sbe26plus.driver import InstrumentDriver
 from mi.instrument.seabird.sbe26plus.driver import ProtocolState
 from mi.instrument.seabird.sbe26plus.driver import Parameter
@@ -64,25 +59,27 @@ from mi.instrument.seabird.sbe26plus.driver import SBE26plusStatisticsDataPartic
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusTakeSampleDataParticle
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceCalibrationDataParticle
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceStatusDataParticle
+from mi.instrument.seabird.sbe26plus.driver import SBE26plusTideSampleDataParticleKey
+from mi.instrument.seabird.sbe26plus.driver import SBE26plusWaveBurstDataParticleKey
+from mi.instrument.seabird.sbe26plus.driver import SBE26plusStatisticsDataParticleKey
+from mi.instrument.seabird.sbe26plus.driver import SBE26plusTakeSampleDataParticleKey
+from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceCalibrationDataParticleKey
+from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceStatusDataParticleKey
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from mi.core.instrument.port_agent_client import  PortAgentPacket
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverParameter, DriverConnectionState, DriverAsyncEvent
-from mi.core.tcp_client import TcpClient
+from mi.core.instrument.instrument_protocol import DriverProtocolState
 from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException
 from pyon.core.exception import Conflict
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
-from prototype.sci_data.stream_defs import ctd_stream_definition
-
 
 # Globals
 raw_stream_received = False
 parsed_stream_received = False
-
-
 
 ###
 #   Driver parameters for the tests
@@ -137,24 +134,8 @@ PARAMS = {
     Parameter.STATUS : str,
     Parameter.LOGGING : bool,
 }
-#################################### RULES ####################################
-#                                                                             #
-# Common capabilities in the base class                                       #
-#                                                                             #
-# Instrument specific stuff in the derived class                              #
-#                                                                             #
-# Generator spits out either stubs or comments describing test this here,     #
-# test that there.                                                            #
-#                                                                             #
-# Qualification tests are driven through the instrument_agent                 #
-#                                                                             #
-###############################################################################
 
-SAMPLE_DS = \
-        "SBE 26plus" + NEWLINE +\
-        "S>ds" + NEWLINE +\
-        "ds" + NEWLINE +\
-        "SBE 26plus V 6.1e  SN 1329    05 Oct 2012  17:19:27" + NEWLINE +\
+RAW_DS = "SBE 26plus V 6.1e  SN 1329    05 Oct 2012  17:19:27" + NEWLINE +\
         "user info=ooi" + NEWLINE +\
         "quartz pressure sensor: serial number = 122094, range = 300 psia" + NEWLINE +\
         "internal temperature sensor" + NEWLINE +\
@@ -192,45 +173,53 @@ SAMPLE_DS = \
         "  show progress messages" + NEWLINE +\
         "" + NEWLINE +\
         "status = stopped by user" + NEWLINE +\
-        "logging = NO, send start command to begin logging" + NEWLINE +\
+        "logging = NO, send start command to begin logging" + NEWLINE
+
+
+SAMPLE_DS =\
+        "SBE 26plus" + NEWLINE +\
+        "S>ds" + NEWLINE +\
+        "ds" + NEWLINE + RAW_DS +\
         "S>" + NEWLINE
 
-SAMPLE_DC = \
+RAW_DC =\
+    "Pressure coefficients:  02-apr-13" + NEWLINE +\
+    "    U0 = 5.100000e+00" + NEWLINE +\
+    "    Y1 = -3.910859e+03" + NEWLINE +\
+    "    Y2 = -1.070825e+04" + NEWLINE +\
+    "    Y3 = 0.000000e+00" + NEWLINE +\
+    "    C1 = 6.072786e+02" + NEWLINE +\
+    "    C2 = 1.000000e+00" + NEWLINE +\
+    "    C3 = -1.024374e+03" + NEWLINE +\
+    "    D1 = 2.928000e-02" + NEWLINE +\
+    "    D2 = 0.000000e+00" + NEWLINE +\
+    "    T1 = 2.783369e+01" + NEWLINE +\
+    "    T2 = 6.072020e-01" + NEWLINE +\
+    "    T3 = 1.821885e+01" + NEWLINE +\
+    "    T4 = 2.790597e+01" + NEWLINE +\
+    "    M = 41943.0" + NEWLINE +\
+    "    B = 2796.2" + NEWLINE +\
+    "    OFFSET = -1.374000e-01" + NEWLINE +\
+    "Temperature coefficients:  02-apr-13" + NEWLINE +\
+    "    TA0 = 1.200000e-04" + NEWLINE +\
+    "    TA1 = 2.558000e-04" + NEWLINE +\
+    "    TA2 = -2.073449e-06" + NEWLINE +\
+    "    TA3 = 1.640089e-07" + NEWLINE +\
+    "Conductivity coefficients:  28-mar-12" + NEWLINE +\
+    "    CG = -1.025348e+01" + NEWLINE +\
+    "    CH = 1.557569e+00" + NEWLINE +\
+    "    CI = -1.737200e-03" + NEWLINE +\
+    "    CJ = 2.268000e-04" + NEWLINE +\
+    "    CTCOR = 3.250000e-06" + NEWLINE +\
+    "    CPCOR = -9.570000e-08" + NEWLINE +\
+    "    CSLOPE = 1.000000e+00" + NEWLINE
+
+SAMPLE_DC =\
         "S>dc" + NEWLINE +\
-        "dc" + NEWLINE +\
-        "Pressure coefficients:  02-apr-12" + NEWLINE +\
-        "    U0 = 5.827424e+00" + NEWLINE +\
-        "    Y1 = -3.845795e+03" + NEWLINE +\
-        "    Y2 = -1.082941e+04" + NEWLINE +\
-        "    Y3 = 0.000000e+00" + NEWLINE +\
-        "    C1 = 2.123771e+03" + NEWLINE +\
-        "    C2 = 3.741653e+01" + NEWLINE +\
-        "    C3 = -4.014654e+03" + NEWLINE +\
-        "    D1 = 2.529400e-02" + NEWLINE +\
-        "    D2 = 0.000000e+00" + NEWLINE +\
-        "    T1 = 2.777282e+01" + NEWLINE +\
-        "    T2 = 3.911380e-01" + NEWLINE +\
-        "    T3 = 1.752851e+01" + NEWLINE +\
-        "    T4 = 3.109619e+01" + NEWLINE +\
-        "    M = 41943.0" + NEWLINE +\
-        "    B = 2796.2" + NEWLINE +\
-        "    OFFSET = -1.877000e-01" + NEWLINE +\
-        "Temperature coefficients:  30-mar-12" + NEWLINE +\
-        "    TA0 = 2.557341e-04" + NEWLINE +\
-        "    TA1 = 2.493547e-04" + NEWLINE +\
-        "    TA2 = -1.567218e-06" + NEWLINE +\
-        "    TA3 = 1.508124e-07" + NEWLINE +\
+        "dc" + NEWLINE + RAW_DC +\
         "S>"
 
-SAMPLE_DATA =\
-        "S>start" + NEWLINE +\
-        "start" + NEWLINE +\
-        "logging will start in 10 seconds" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 00:55:54, p = 14.5348, pt = 24.250, t = 23.9046" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 00:58:54, p = 14.5367, pt = 24.242, t = 23.8904" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 01:01:54, p = 14.5387, pt = 24.250, t = 23.8778" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 01:04:54, p = 14.5346, pt = 24.228, t = 23.8664" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 01:07:54, p = 14.5364, pt = 24.205, t = 23.8575" + NEWLINE +\
+WAVE_DATA =\
         "wave: start time = 05 Oct 2012 01:10:54" + NEWLINE +\
         "wave: ptfreq = 171791.359" + NEWLINE +\
         "  14.5102" + NEWLINE +\
@@ -745,45 +734,57 @@ SAMPLE_DATA =\
         "  14.5165" + NEWLINE +\
         "  14.5064" + NEWLINE +\
         "  14.5165" + NEWLINE +\
-        "wave: end burst" + NEWLINE +\
+        "wave: end burst" + NEWLINE
+
+RAW_STATISTIC = \
+    "depth =    0.000, temperature = 23.840, salinity = 35.000, density = 1023.690" + NEWLINE +\
+    "" + NEWLINE +\
+    "fill array..." + NEWLINE +\
+    "find minIndex." + NEWLINE +\
+    "hanning...................." + NEWLINE +\
+    "FFT................................................................................................" + NEWLINE +\
+    "normalize....." + NEWLINE +\
+    "band average......................................................." + NEWLINE +\
+    "Auto-Spectrum Statistics:" + NEWLINE +\
+    "   nAvgBand = 5" + NEWLINE +\
+    "   total variance = 1.0896e-05" + NEWLINE +\
+    "   total energy = 1.0939e-01" + NEWLINE +\
+    "   significant period = 5.3782e-01" + NEWLINE +\
+    "   significant wave height = 1.3204e-02" + NEWLINE +\
+    "" + NEWLINE +\
+    "calculate dispersion.................................................................................................................................................................................................................................................................................." + NEWLINE +\
+    "IFFT................................................................................................" + NEWLINE +\
+    "deHanning...................." + NEWLINE +\
+    "move data.." + NEWLINE +\
+    "zero crossing analysis............." + NEWLINE +\
+    "Time Series Statistics:" + NEWLINE +\
+    "   wave integration time = 128" + NEWLINE +\
+    "   number of waves = 0" + NEWLINE +\
+    "   total variance = 1.1595e-05" + NEWLINE +\
+    "   total energy = 1.1640e-01" + NEWLINE +\
+    "   average wave height = 0.0000e+00" + NEWLINE +\
+    "   average wave period = 0.0000e+00" + NEWLINE +\
+    "   maximum wave height = 1.0893e-02" + NEWLINE +\
+    "   significant wave height = 0.0000e+00" + NEWLINE +\
+    "   significant wave period = 0.0000e+00" + NEWLINE +\
+    "   H1/10 = 0.0000e+00" + NEWLINE +\
+    "   H1/100 = 0.0000e+00" + NEWLINE
+
+SAMPLE_DATA =\
+        "S>start" + NEWLINE +\
+        "start" + NEWLINE +\
+        "logging will start in 10 seconds" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 00:55:54, p = 14.5348, pt = 24.250, t = 23.9046" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 00:58:54, p = 14.5367, pt = 24.242, t = 23.8904" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 01:01:54, p = 14.5387, pt = 24.250, t = 23.8778" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 01:04:54, p = 14.5346, pt = 24.228, t = 23.8664" + NEWLINE +\
+        "tide: start time = 05 Oct 2012 01:07:54, p = 14.5364, pt = 24.205, t = 23.8575" + NEWLINE +\
+        WAVE_DATA +\
         "tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404" + NEWLINE +\
         "" + NEWLINE +\
         "deMeanTrend................" + NEWLINE +\
-        "depth =    0.000, temperature = 23.840, salinity = 35.000, density = 1023.690" + NEWLINE +\
-        "" + NEWLINE +\
-        "fill array..." + NEWLINE +\
-        "find minIndex." + NEWLINE +\
-        "hanning...................." + NEWLINE +\
-        "FFT................................................................................................" + NEWLINE +\
-        "normalize....." + NEWLINE +\
-        "band average......................................................." + NEWLINE +\
-        "Auto-Spectrum Statistics:" + NEWLINE +\
-        "   nAvgBand = 5" + NEWLINE +\
-        "   total variance = 1.0896e-05" + NEWLINE +\
-        "   total energy = 1.0939e-01" + NEWLINE +\
-        "   significant period = 5.3782e-01" + NEWLINE +\
-        "   significant wave height = 1.3204e-02" + NEWLINE +\
-        "" + NEWLINE +\
-        "calculate dispersion.................................................................................................................................................................................................................................................................................." + NEWLINE +\
-        "IFFT................................................................................................" + NEWLINE +\
-        "deHanning...................." + NEWLINE +\
-        "move data.." + NEWLINE +\
-        "zero crossing analysis............." + NEWLINE +\
-        "Time Series Statistics:" + NEWLINE +\
-        "   wave integration time = 128" + NEWLINE +\
-        "   number of waves = 0" + NEWLINE +\
-        "   total variance = 1.1595e-05" + NEWLINE +\
-        "   total energy = 1.1640e-01" + NEWLINE +\
-        "   average wave height = 0.0000e+00" + NEWLINE +\
-        "   average wave period = 0.0000e+00" + NEWLINE +\
-        "   maximum wave height = 1.0893e-02" + NEWLINE +\
-        "   significant wave height = 0.0000e+00" + NEWLINE +\
-        "   significant wave period = 0.0000e+00" + NEWLINE +\
-        "   H1/10 = 0.0000e+00" + NEWLINE +\
-        "   H1/100 = 0.0000e+00" + NEWLINE +\
+        RAW_STATISTIC +\
         "tide: start time = 05 Oct 2012 01:13:54, p = 14.5384, pt = 24.205, t = 23.8363" + NEWLINE
-
-
 
 BAD_SAMPLE_DATA =\
         "S>start" + NEWLINE +\
@@ -1346,64 +1347,352 @@ BAD_SAMPLE_DATA =\
         "   H1/100 = 0.0000e+00" + NEWLINE +\
         "tide: start time = 05 Oct 2012 01:13:54, p = 14.5384, pt = 24.205, t = 23.8363" + NEWLINE
 
+
+class DataParticleMixin(InstrumentDriverDataParticleMixin):
+    '''
+    Mixin class used for storing data particle constance and common data assertion methods.
+    '''
+    DATA_PARTICLE_SAMPLE_TS = " -158.9284 -8388.96  -3.2164" + NEWLINE
+    DATA_PARTICLE_TIDE_SAMPLE = "tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404" + NEWLINE
+    DATA_PARTICLE_WAVE_SAMPLE = WAVE_DATA
+    DATA_PARTICLE_STATISTICS = RAW_STATISTIC
+    DATA_PARTICLE_DEVICE_CALIBRATION = RAW_DC
+    DATA_PARTICLE_DEVICE_STATUS = RAW_DS
+
+    ###
+    #   Particle Parameter and Type Definitions
+    ###
+    class SBE26plusTakeSampleDataParticleParameters(BaseEnum):
+        SBE26plusTakeSampleDataParticleKey.PRESSURE = float
+        SBE26plusTakeSampleDataParticleKey.PRESSURE_TEMP = float
+        SBE26plusTakeSampleDataParticleKey.TEMPERATURE = float
+        SBE26plusTakeSampleDataParticleKey.CONDUCTIVITY = float
+        SBE26plusTakeSampleDataParticleKey.SALINITY =  float
+
+    class SBE26plusTideSampleDataParticleParameters(BaseEnum):
+        SBE26plusTakeSampleDataParticleKey.TIMESTAMP = float
+        SBE26plusTakeSampleDataParticleKey.PRESSURE = float
+        SBE26plusTakeSampleDataParticleKey.PRESSURE_TEMP = float
+        SBE26plusTakeSampleDataParticleKey.TEMPERATURE = float
+        SBE26plusTakeSampleDataParticleKey.CONDUCTIVITY = float
+        SBE26plusTakeSampleDataParticleKey.SALINITY = float
+
+    class SBE26plusWaveBurstDataParticleParameters(BaseEnum):
+        SBE26plusWaveBurstDataParticleKey.TIMESTAMP = float
+        SBE26plusWaveBurstDataParticleKey.PTFREQ = float
+        SBE26plusWaveBurstDataParticleKey.PTRAW = float
+
+    class SBE26plusStatisticsDataParticleParameters(BaseEnum):
+        SBE26plusStatisticsDataParticleKey.DEPTH = float
+        SBE26plusStatisticsDataParticleKey.TEMPERATURE = float
+        SBE26plusStatisticsDataParticleKey.SALINITY = float
+        SBE26plusStatisticsDataParticleKey.DENSITY = float
+        SBE26plusStatisticsDataParticleKey.N_AGV_BAND = float
+        SBE26plusStatisticsDataParticleKey.TOTAL_VARIANCE = float
+        SBE26plusStatisticsDataParticleKey.TOTAL_ENERGY = float
+        SBE26plusStatisticsDataParticleKey.SIGNIFICANT_PERIOD = float
+        SBE26plusStatisticsDataParticleKey.SIGNIFICANT_WAVE_HEIGHT = float
+        SBE26plusStatisticsDataParticleKey.TSS_WAVE_INTEGRATION_TIME = float
+        SBE26plusStatisticsDataParticleKey.TSS_NUMBER_OF_WAVES = float
+        SBE26plusStatisticsDataParticleKey.TSS_TOTAL_VARIANCE = float
+        SBE26plusStatisticsDataParticleKey.TSS_TOTAL_ENERGY = float
+        SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_HEIGHT = float
+        SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_PERIOD = float
+        SBE26plusStatisticsDataParticleKey.TSS_MAXIMUM_WAVE_HEIGHT = float
+        SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_HEIGHT = float
+        SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_PERIOD = float
+        SBE26plusStatisticsDataParticleKey.TSS_H1_10 = float
+        SBE26plusStatisticsDataParticleKey.TSS_H1_100 = float
+
+    class SBE26plusDeviceCalibrationDataParticleParameters(BaseEnum):
+        SBE26plusDeviceCalibrationDataParticleKey.PCALDATE = tuple
+        SBE26plusDeviceCalibrationDataParticleKey.PU0 = float
+        SBE26plusDeviceCalibrationDataParticleKey.PY1 = float
+        SBE26plusDeviceCalibrationDataParticleKey.PY2 = float
+        SBE26plusDeviceCalibrationDataParticleKey.PY3 = float
+        SBE26plusDeviceCalibrationDataParticleKey.PC1 = float
+        SBE26plusDeviceCalibrationDataParticleKey.PC2 = float
+        SBE26plusDeviceCalibrationDataParticleKey.PC3 = float
+        SBE26plusDeviceCalibrationDataParticleKey.PD1 = float
+        SBE26plusDeviceCalibrationDataParticleKey.PD2 = float
+        SBE26plusDeviceCalibrationDataParticleKey.PT1 = float
+        SBE26plusDeviceCalibrationDataParticleKey.PT2 = float
+        SBE26plusDeviceCalibrationDataParticleKey.PT3 = float
+        SBE26plusDeviceCalibrationDataParticleKey.PT4 = float
+        SBE26plusDeviceCalibrationDataParticleKey.FACTORY_M = float
+        SBE26plusDeviceCalibrationDataParticleKey.FACTORY_B = float
+        SBE26plusDeviceCalibrationDataParticleKey.POFFSET = float
+        SBE26plusDeviceCalibrationDataParticleKey.TCALDATE = tuple
+        SBE26plusDeviceCalibrationDataParticleKey.TA0 = float
+        SBE26plusDeviceCalibrationDataParticleKey.TA1 = float
+        SBE26plusDeviceCalibrationDataParticleKey.TA2 = float
+        SBE26plusDeviceCalibrationDataParticleKey.TA3 = float
+        SBE26plusDeviceCalibrationDataParticleKey.CCALDATE = tuple
+        SBE26plusDeviceCalibrationDataParticleKey.CG = float
+        SBE26plusDeviceCalibrationDataParticleKey.CH = float
+        SBE26plusDeviceCalibrationDataParticleKey.CI = float
+        SBE26plusDeviceCalibrationDataParticleKey.CJ = float
+        SBE26plusDeviceCalibrationDataParticleKey.CTCOR = float
+        SBE26plusDeviceCalibrationDataParticleKey.CPCOR = float
+        SBE26plusDeviceCalibrationDataParticleKey.CSLOPE = float
+
+    class SBE26plusDeviceStatusDataParticleKey(BaseEnum):
+        SBE26plusDeviceStatusDataParticleKey.DEVICE_VERSION = str
+        SBE26plusDeviceStatusDataParticleKey.SERIAL_NUMBER = str
+        SBE26plusDeviceStatusDataParticleKey.DS_DEVICE_DATE_TIME = str
+        SBE26plusDeviceStatusDataParticleKey.USER_INFO = str
+        SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER = float
+        SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_RANGE = float
+        SBE26plusDeviceStatusDataParticleKey.EXTERNAL_TEMPERATURE_SENSOR = bool
+        SBE26plusDeviceStatusDataParticleKey.CONDUCTIVITY = bool
+        SBE26plusDeviceStatusDataParticleKey.IOP_MA = float
+        SBE26plusDeviceStatusDataParticleKey.VMAIN_V = float
+        SBE26plusDeviceStatusDataParticleKey.VLITH_V = float
+        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_P = float
+        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_T = float
+        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_S = float
+        SBE26plusDeviceStatusDataParticleKey.TIDE_INTERVAL = int
+        SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENT_DURATION = int
+        SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS = int
+        SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_PER_BURST = float
+        SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_SCANS_PER_SECOND = float
+        SBE26plusDeviceStatusDataParticleKey.USE_START_TIME = bool
+        SBE26plusDeviceStatusDataParticleKey.USE_STOP_TIME = bool
+        SBE26plusDeviceStatusDataParticleKey.TXWAVESTATS = bool
+        SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_PER_DAY = float
+        SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_PER_DAY = float
+        SBE26plusDeviceStatusDataParticleKey.MEMORY_ENDURANCE = float
+        SBE26plusDeviceStatusDataParticleKey.NOMINAL_ALKALINE_BATTERY_ENDURANCE = float
+        SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_TIDE_MEASUREMENTS = float
+        SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_WAVE_BURSTS = float
+        SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENTS_SINCE_LAST_START = float
+        SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_SINCE_LAST_START = float
+        SBE26plusDeviceStatusDataParticleKey.TXREALTIME = bool
+        SBE26plusDeviceStatusDataParticleKey.TXWAVEBURST = bool
+        SBE26plusDeviceStatusDataParticleKey.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = int
+        SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = bool
+        SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_FOR_DENSITY_CALC = float
+        SBE26plusDeviceStatusDataParticleKey.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = float
+        SBE26plusDeviceStatusDataParticleKey.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = float
+        SBE26plusDeviceStatusDataParticleKey.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM = float
+        SBE26plusDeviceStatusDataParticleKey.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND = int
+        SBE26plusDeviceStatusDataParticleKey.MIN_ALLOWABLE_ATTENUATION = float
+        SBE26plusDeviceStatusDataParticleKey.MIN_PERIOD_IN_AUTO_SPECTRUM = float
+        SBE26plusDeviceStatusDataParticleKey.MAX_PERIOD_IN_AUTO_SPECTRUM = float
+        SBE26plusDeviceStatusDataParticleKey.HANNING_WINDOW_CUTOFF = float
+        SBE26plusDeviceStatusDataParticleKey.SHOW_PROGRESS_MESSAGES = bool
+        SBE26plusDeviceStatusDataParticleKey.STATUS = str
+        SBE26plusDeviceStatusDataParticleKey.LOGGING = bool
+
+    def assertSampleDataParticle(self, data_particle):
+        '''
+        Verify a particle is a know particle to this driver and verify the particle is
+        correct
+        @param data_particle: Data particle of unkown type produced by the driver
+        '''
+        if (isinstance(data_particle, SBE26plusTakeSampleDataParticle)):
+            self.assert_particle_take_sample(data_particle)
+        elif (isinstance(data_particle, SBE26plusTideSampleDataParticle)):
+            self.assert_particle_take_sample(data_particle)
+        elif (isinstance(data_particle, SBE26plusWaveBurstDataParticle)):
+            self.assert_particle_take_sample(data_particle)
+        elif (isinstance(data_particle, SBE26plusStatisticsDataParticle)):
+            self.assert_particle_take_sample(data_particle)
+        elif (isinstance(data_particle, SBE26plusDeviceCalibrationDataParticle)):
+            self.assert_particle_take_sample(data_particle)
+        elif (isinstance(data_particle, SBE26plusDeviceStatusDataParticle)):
+            self.assert_particle_take_sample(data_particle)
+        else:
+            log.error("Unknown Particle Detected: %s" % data_particle)
+            self.assertFalse(True)
+
+    def assert_particle_take_sample(self, data_particle):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusTakeSampleDataParticle data particle
+        '''
+        self.assertIsInstance(data_particle, SBE26plusTakeSampleDataParticle)
+        self.assert_data_particle_header(data_particle, DataParticleValue.PARSED)
+        self.assert_data_particle_parameters(data_particle,
+                                             SBE26plusTakeSampleDataParticleParameters())
+
+    def assert_particle_tide_sample(self, data_particle):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusTideSampleDataParticle data particle
+        '''
+        self.assertIsInstance(data_particle, SBE26plusTideSampleDataParticle)
+        self.assert_data_particle_header(data_particle, DataParticleValue.PARSED)
+
+        sample_dict = json.loads(data_particle.generate_parsed())
+
+        for x in sample_dict['values']:
+            self.assertTrue(x['value_id'] in ['timestamp', 'preasure', 'preasure_temp', 'temperature', 'conductivity', 'salinity'])
+            self.assertIsInstance(x['value'], float)
+
+    def assert_particle_wave_burst(self, data_particle):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusWaveBurstDataParticle data particle
+        '''
+        self.assertIsInstance(data_particle, SBE26plusWaveBurstDataParticle)
+        self.assert_data_particle_header(data_particle, DataParticleValue.PARSED)
+
+        sample_dict = json.loads(data_particle.generate_parsed())
+
+        for x in sample_dict['values']:
+            self.assertTrue(x['value_id'] in ['timestamp', 'ptfreq', 'ptraw'])
+            if x['value_id'] != 'ptraw':
+                self.assertIsInstance(x['value'], float)
+            else:
+                self.assertIsInstance(x['value'], list)
+
+    def assert_particle_statistics(self, data_particle):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusStatisticsDataParticle data particle
+        '''
+        self.assertIsInstance(data_particle, SBE26plusStatisticsDataParticle)
+        self.assert_data_particle_header(data_particle, DataParticleValue.PARSED)
+
+        sample_dict = json.loads(data_particle.generate_parsed())
+
+        for x in sample_dict['values']:
+            self.assertTrue(x['value_id'] in ["depth", "temperature", "salinity","density", "nAvgBand",
+                                              "total_variance", "total_energy", "significant_period",
+                                              "significant_wave_height", "tss_wave_integration_time",
+                                              "tss_number_of_waves", "tss_total_variance", "tss_total_energy",
+                                              "tss_average_wave_height", "tss_average_wave_period",
+                                              "tss_maximum_wave_height", "tss_significant_wave_height",
+                                              "tss_significant_wave_period", "tss_height_highest_10_percent_waves",
+                                              "tss_height_highest_1_percent_waves"])
+            self.assertIsInstance(x['value'], float)
+
+    def assert_particle_device_calibration(self, data_particle):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusDeviceCalibrationDataParticle data particle
+        '''
+        self.assertIsInstance(data_particle, SBE26plusDeviceCalibrationDataParticle)
+        self.assert_data_particle_header(data_particle, DataParticleValue.PARSED)
+
+        sample_dict = json.loads(data_particle.generate_parsed())
+
+        for x in sample_dict['values']:
+            self.assertTrue(x['value_id'] in ['PCALDATE', 'PU0', 'PY1', 'PY2', 'PY3', 'PC1'
+                                                                                      'PC2', 'PC3', 'PD1', 'PD2', 'PT1', 'PT2', 'PT3',
+                                              'PT4', 'FACTORY_M', 'FACTORY_B', 'POFFSET',
+                                              'TCALDATE', 'TA0', 'TA1', 'TA2', 'TA3',
+                                              'CCALDATE', 'CG', 'CH', 'CI', 'CJ', 'CTCOR',
+                                              'CPCOR', 'CSLOPE'])
+            if x['value_id'] in ['PCALDATE', 'TCALDATE', 'CCALDATE']:
+                self.assertIsInstance(x['value'], touple)
+            else:
+                self.assertIsInstance(x['value'], float)
+
+    def assert_particle_device_status(self, data_particle):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusDeviceStatusDataParticle data particle
+        '''
+        self.assertIsInstance(data_particle, SBE26plusDeviceStatusDataParticle)
+        self.assert_data_particle_header(data_particle, DataParticleValue.PARSED)
+
+        sample_dict = json.loads(data_particle.generate_parsed())
+
+        for x in sample_dict['values']:
+            self.assertTrue(x['value_id'] in [
+                'QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER', 'QUARTZ_PRESSURE_SENSOR_RANGE', 'IOP_MA',
+                'VMAIN_V', 'VLITH_V', 'LAST_SAMPLE_P', 'LAST_SAMPLE_T', 'LAST_SAMPLE_S',
+                'WAVE_SAMPLES_PER_BURST', 'WAVE_SAMPLES_SCANS_PER_SECOND', 'TIDE_SAMPLES_PER_DAY',
+                'WAVE_BURSTS_PER_DAY', 'MEMORY_ENDURANCE', 'NOMINAL_ALKALINE_BATTERY_ENDURANCE',
+                'TOTAL_RECORDED_TIDE_MEASUREMENTS', 'TOTAL_RECORDED_WAVE_BURSTS',
+                'TIDE_MEASUREMENTS_SINCE_LAST_START', 'WAVE_BURSTS_SINCE_LAST_START',
+                'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM', 'MIN_ALLOWABLE_ATTENUATION',
+                'MIN_PERIOD_IN_AUTO_SPECTRUM', 'MAX_PERIOD_IN_AUTO_SPECTRUM',
+                'HANNING_WINDOW_CUTOFF',
+                'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR',
+                'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR',
+                'DEVICE_VERSION', 'SERIAL_NUMBER', 'DateTime',
+                'USERINFO', 'STATUS',
+                'ExternalTemperature', 'CONDUCTIVITY', 'USE_START_TIME',
+                'USE_STOP_TIME', 'TXWAVESTATS', 'TxTide', 'TxWave',
+                'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC',
+                'SHOW_PROGRESS_MESSAGES', 'LOGGING',
+                'USE_MEASURED_TEMP_FOR_DENSITY_CALC',
+                'TIDE_INTERVAL', 'TIDE_MEASUREMENT_DURATION',
+                'TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS',
+                'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS',
+                'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND'
+            ])
+            if x['value_id'] in [
+                'DEVICE_VERSION', 'SERIAL_NUMBER', 'DateTime',
+                'USERINFO', 'STATUS'
+            ]:
+                self.assertIsInstance(x['value'], str)
+            elif x['value_id'] in [
+                'ExternalTemperature', 'CONDUCTIVITY', 'USE_START_TIME',
+                'USE_STOP_TIME', 'TXWAVESTATS', 'TxTide', 'TxWave',
+                'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC',
+                'SHOW_PROGRESS_MESSAGES', 'LOGGING',
+                'USE_MEASURED_TEMP_FOR_DENSITY_CALC'
+            ]:
+                self.assertIsInstance(x['value'], bool)
+            elif x['value_id'] in [
+                'TIDE_INTERVAL', 'TIDE_MEASUREMENT_DURATION',
+                'TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS',
+                'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS',
+                'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND'
+            ]:
+                self.assertIsInstance(x['value'], int)
+            else:
+                self.assertIsInstance(x['value'], float)
+
+
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
+# 1. Pick a single method within the class.                                   #
+# 2. Create an instance of the class                                          #
+# 3. If the method to be tested tries to call out, over-ride the offending    #
+#    method with a mock                                                       #
+# 4. Using above, try to cover all paths through the functions                #
+# 5. Negative testing if at all possible.                                     #
 ###############################################################################
 @attr('UNIT', group='mi')
-class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
+class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
-    ###############################################################################
-    #                                UNIT TESTS                                   #
-    #         Unit tests test the method calls and parameters using Mock.         #
-    # 1. Pick a single method within the class.                                   #
-    # 2. Create an instance of the class                                          #
-    # 3. If the method to be tested tries to call out, over-ride the offending    #
-    #    method with a mock                                                       #
-    # 4. Using above, try to cover all paths through the functions                #
-    # 5. Negative testing if at all possible.                                     #
-    ###############################################################################
-
-    @unittest.skip('Need to figure out how this one works.')
-    def test_prompts(self):
-        """
-        Verify that the prompts enumeration has no duplicate values that might cause confusion
-        """
-        prompts = Prompt()
-        self.assert_enum_has_no_duplicates(prompts)
-
-
-    def test_instrument_commands_for_duplicates(self):
+    def test_instrument_commands_enum(self):
         """
         Verify that the InstrumentCmds enumeration has no duplicate values that might cause confusion
         """
         cmds = InstrumentCmds()
         self.assert_enum_has_no_duplicates(cmds)
 
-    def test_protocol_state_for_duplicates(self):
+    def test_protocol_state_enum(self):
         """
         Verify that the ProtocolState enumeration has no duplicate values that might cause confusion
         """
         ps = ProtocolState()
         self.assert_enum_has_no_duplicates(ps)
 
-    def test_protocol_event_for_duplicates(self):
+    def test_protocol_event_enum(self):
         """
         Verify that the ProtocolEvent enumeration has no duplicate values that might cause confusion
         """
         pe = ProtocolEvent()
         self.assert_enum_has_no_duplicates(pe)
 
-    def test_capability_for_duplicates(self):
+    def test_capability_enum(self):
         """
         Verify that the Capability enumeration has no duplicate values that might cause confusion
         """
-        c = Capability()
-        self.assert_enum_has_no_duplicates(c)
+        self.assert_enum_has_no_duplicates(Capability())
+        self.assert_enum_complete(Capability(), ProtocolEvent())
 
-    def test_parameter_for_duplicates(self):
+    def test_parameter_enum(self):
         # Test ProtocolState.  Verify no Duplications.
         p = Parameter()
         self.assert_enum_has_no_duplicates(p)
@@ -1426,6 +1715,36 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
                 global parsed_stream_received
                 parsed_stream_received = True
                 log.debug("GOT A PARSED")
+
+    def test_data_chunker(self):
+        """
+        Test the chunker and verify the particles created.
+        """
+        chunker = StringChunker(Protocol.sieve_function)
+
+        self.assert_chunker_sample(chunker, self.DATA_PARTICLE_TIDE_SAMPLE)
+        self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_TIDE_SAMPLE)
+        self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_TIDE_SAMPLE)
+
+        self.assert_chunker_sample(chunker, self.DATA_PARTICLE_WAVE_SAMPLE)
+        self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_WAVE_SAMPLE)
+        # This test is a little slow because the samples are a little large
+        #self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_WAVE_SAMPLE)
+
+        # This chunker doesn't work.
+        #self.assert_chunker_sample(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION)
+        #self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION)
+        #self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION)
+
+        # This chunker doesn't work.
+        #self.assert_chunker_sample(chunker, self.DATA_PARTICLE_DEVICE_STATUS)
+        #self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_DEVICE_STATUS)
+        #self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_DEVICE_STATUS)
+
+        # This chunker doesn't work.
+        #self.assert_chunker_sample(chunker, self.DATA_PARTICLE_STATISTICS)
+        #self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_STATISTICS)
+        #self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_STATISTICS)
 
     def test_instrument_driver_init_(self):
         """
@@ -1515,28 +1834,13 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
             self.assertEqual(ID._protocol._protocol_fsm.state_handlers[key].__func__.func_name,  state_handlers[key])
             self.assertTrue(key in ID._protocol._protocol_fsm.state_handlers)
 
-    @unittest.skip('Need to figure out how this one works.')
-    def test_data_particle(self):
-        """
-        """
-        #@TODO need to see what a working data particle should do.
-
-    @unittest.skip('Need to figure out how this one works.')
-    def test_data_particle_build_parsed_values(self):
-        """
-        """
-        #@TODO need to see what a working data particle should do.
-
     def test_protocol(self):
         """
         Create a mock instance of Protocol.  Assert that state handlers in the FSM and handlers are created correctly.
         """
-
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         p = Protocol(Prompt, NEWLINE, my_event_callback)
         self.assertEqual(str(my_event_callback.mock_calls), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
-
-        p._protocol_fsm
 
         self.assertEqual(p._protocol_fsm.enter_event, 'DRIVER_EVENT_ENTER')
         self.assertEqual(p._protocol_fsm.exit_event, 'DRIVER_EVENT_EXIT')
@@ -1544,7 +1848,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(p._protocol_fsm.current_state, 'DRIVER_STATE_UNKNOWN')
         self.assertEqual(repr(p._protocol_fsm.states), repr(ProtocolState))
         self.assertEqual(repr(p._protocol_fsm.events), repr(ProtocolEvent))
-
 
         state_handlers = {('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_STOP_AUTOSAMPLE'): '_handler_autosample_stop_autosample',
                           ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_CLOCK_SYNC'): '_handler_command_clock_sync',
@@ -1582,14 +1885,12 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
             self.assertEqual(p._protocol_fsm.state_handlers[key].__func__.func_name,  state_handlers[key])
             self.assertTrue(key in p._protocol_fsm.state_handlers)
 
-
     def test_protocol_filter_capabilities(self):
         """
         This tests driver filter_capabilities.
         Iterate through available capabilities, and verify that they can pass successfully through the filter.
         Test silly made up capabilities to verify they are blocked by filter.
         """
-
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         p = Protocol(Prompt, NEWLINE, my_event_callback)
         c = Capability()
@@ -1640,8 +1941,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         Test 3 paths through the func ( ProtocolState.UNKNOWN, ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE)
             For each test 3 paths of Parameter.LOGGING = ( True, False, Other )
         """
-
-
         ID = InstrumentDriver(self.my_event_callback)
         ID._build_protocol()
         p = ID._protocol
@@ -1880,7 +2179,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertTrue(parsed_stream_received)
         parsed_stream_received = False         # RESET
 
-
         # test with slightly invalid data. should still work
         response = "ts" + NEWLINE +\
                    " -158.5166 -8392.30  -3.2164 -1.02535   0.0000" + NEWLINE +\
@@ -2017,28 +2315,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(ret, None)
 
         self.assertEqual(len(_extract_sample_mock.mock_calls), 35)
-
-    @unittest.skip('re-enable once DataParticle is working.')
-    def test_extract_sample(self):
-        """
-        Test that the _extract_sample method can parse data
-        """
-
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-
-        _driver_event_mock = Mock(spec="driver_event")
-        p._driver_event = _driver_event_mock
-
-        data = SAMPLE_DATA
-
-        for line in data.split(NEWLINE):
-            ret = p._extract_sample(SBE26plusDataParticle, line)
-
-        # Verify it published 2 packets
-        self.assertEqual(len(_driver_event_mock.mock_calls), 2)
-
 
     def test_parse_ds_response(self):
         """
@@ -2430,43 +2706,41 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertEqual(str(_connection_send_mock.mock_calls), "[call('qs\\r\\n')]")
 
     def test_get_resource_capabilities(self):
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
+        driver = InstrumentDriver(self.my_event_callback)
+        driver._build_protocol()
+        p = driver._protocol
         args = []
         kwargs = {}
 
         # Force State UNKNOWN
-        ID._protocol._protocol_fsm.current_state = ProtocolState.UNKNOWN
+        driver.set_test_mode(True)
+        driver.test_force_state(state = DriverProtocolState.UNKNOWN)
 
-        ret = ID.get_resource_capabilities(*args, **kwargs)
+        ret = driver.get_resource_capabilities(*args, **kwargs)
         self.assertEqual(ret[0], [])
 
         # Force State COMMAND
-        ID._protocol._protocol_fsm.current_state = ProtocolState.COMMAND
+        driver.test_force_state(state = DriverProtocolState.COMMAND)
 
-        ret = ID.get_resource_capabilities(*args, **kwargs)
+        ret = driver.get_resource_capabilities(*args, **kwargs)
         for state in ['DRIVER_EVENT_ACQUIRE_STATUS', 'DRIVER_EVENT_ACQUIRE_SAMPLE',
                       'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
 
             self.assertTrue(state in ret[0])
         self.assertEqual(len(ret[0]), 4)
 
-
-
-
         # Force State AUTOSAMPLE
-        ID._protocol._protocol_fsm.current_state = ProtocolState.AUTOSAMPLE
+        driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
 
-        ret = ID.get_resource_capabilities(*args, **kwargs)
+        ret = driver.get_resource_capabilities(*args, **kwargs)
         for state in ['DRIVER_EVENT_STOP_AUTOSAMPLE']:
             self.assertTrue(state in ret[0])
         self.assertEqual(len(ret[0]), 1)
 
         # Force State DIRECT_ACCESS
-        ID._protocol._protocol_fsm.current_state = ProtocolState.DIRECT_ACCESS
+        driver.test_force_state(state = DriverProtocolState.DIRECT_ACCESS)
 
-        ret = ID.get_resource_capabilities(*args, **kwargs)
+        ret = driver.get_resource_capabilities(*args, **kwargs)
         self.assertEqual(ret[0], [])
 
     def test_chunker(self):
@@ -2520,49 +2794,13 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         result = self._chunker.get_next_data()
         self.assertEquals(result, None)
 
-        #self.assertTrue(False) # to enable debug output
-
-    @unittest.skip("Think there might be a better way to run this tests")
-    def test_chunker_line_by_line(self):
-        # This will want to be created in the driver eventually...
-        self._chunker = StringChunker(Protocol.sieve_function)
-
-        for line in SAMPLE_DATA.split(NEWLINE):
-
-            self._chunker.add_chunk(line + NEWLINE)
-
-            result = self._chunker.get_next_data(clean=True)
-
-            result = self._chunker.get_next_data(clean=True)
-
-
-
     def test_short_chunker_feed(self):
         # This will want to be created in the driver eventually...
         self._chunker = StringChunker(Protocol.sieve_function)
 
         result = self._chunker.get_next_data()
         self.assertEquals(result, None)
-        '''
-        SL/SLO removed.
-        self._chunker.add_chunk("p = 429337.7")
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, None)
-
-        self._chunker.add_chunk("812, t = -3.21")
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, None)
-
-        self._chunker.add_chunk("64" + NEWLINE)
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, 'p = 429337.7812, t = -3.2164\r\n')
-
-        '''
         self._chunker.add_chunk("tide: start time = 23 Oct 2012 01:08:08, p = 429")
-
 
         result = self._chunker.get_next_data()
         self.assertEquals(result, None)
@@ -2574,7 +2812,6 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
         result = self._chunker.get_next_data()
         self.assertEquals(result, 'tide: start time = 23 Oct 2012 01:08:08, p = 429337.8750, pt = 421107.187, t = -3.2164\r\n')
 
-
         # empty add
         self._chunker.add_chunk("")
 
@@ -2583,11 +2820,8 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 
         self._chunker.add_chunk("337.9687, pt = 421106.562, t = -3.2164, c = -1.05525, s = 0.000" + NEWLINE)
 
-
         result = self._chunker.get_next_data()
         self.assertEquals(result, 'tide: start time = 22 Oct 2012 23:47:18, p = 429337.9687, pt = 421106.562, t = -3.2164, c = -1.05525, s = 0.000\r\n')
-
-
 
 
 ###############################################################################
@@ -2598,7 +2832,7 @@ class SBE26PlusUnitFromIDK(InstrumentDriverUnitTestCase):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
+class SBE26PlusIntegrationTest(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
@@ -2895,9 +3129,6 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertEqual(reply, None)
 
         reply = self.driver_client.cmd_dvr('get_resource', parameter_all)
-
-
-
 
         """
         Test 1: TXWAVESTATS = N
@@ -3472,7 +3703,7 @@ class SBE26PlusIntFromIDK(InstrumentDriverIntegrationTestCase):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('QUAL', group='mi')
-class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
+class SBE26PlusQualificationTest(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
@@ -3480,211 +3711,7 @@ class SBE26PlusQualFromIDK(InstrumentDriverQualificationTestCase):
         current_state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(current_state, desired_state)
 
-    def assertSampleDataParticle(self, potential_sample):
-        """
-        SBE26plusTakeSampleDataParticle
 
-        SBE26plusTideSampleDataParticle
-
-        SBE26plusWaveBurstDataParticle
-
-        SBE26plusStatisticsDataParticle
-
-        SBE26plusDeviceCalibrationDataParticle
-
-        SBE26plusDeviceStatusDataParticle
-        """
-
-
-
-        if (isinstance(potential_sample, SBE26plusTakeSampleDataParticle)):
-            particle_instance = True
-            log.debug("GOT A SBE26plusTakeSampleDataParticle")
-            sample_dict = json.loads(val.generate_parsed())
-
-            self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
-                DataParticleValue.PARSED)
-            self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
-                DataParticleValue.JSON_DATA)
-            self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
-            self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
-                list))
-            self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
-            self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
-
-            for x in sample_dict['values']:
-                self.assertTrue(x['value_id'] in ['preasure', 'preasure_temp', 'temperature', 'conductivity', 'salinity'])
-                self.assertTrue(isinstance(x['value'], float))
-
-
-        elif (isinstance(potential_sample, SBE26plusTideSampleDataParticle)):
-            particle_instance = True
-            log.debug("GOT A SBE26plusTideSampleDataParticle")
-            sample_dict = json.loads(val.generate_parsed())
-
-            self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
-                DataParticleValue.PARSED)
-            self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
-                DataParticleValue.JSON_DATA)
-            self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
-            self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
-                list))
-            self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
-            self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
-
-            for x in sample_dict['values']:
-                self.assertTrue(x['value_id'] in ['timestamp', 'preasure', 'preasure_temp', 'temperature', 'conductivity', 'salinity'])
-                self.assertTrue(isinstance(x['value'], float))
-
-
-        elif (isinstance(potential_sample, SBE26plusWaveBurstDataParticle)):
-            particle_instance = True
-            log.debug("GOT A SBE26plusWaveBurstDataParticle")
-            sample_dict = json.loads(val.generate_parsed())
-
-            self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
-                DataParticleValue.PARSED)
-            self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
-                DataParticleValue.JSON_DATA)
-            self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
-            self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
-                list))
-            self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
-            self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
-
-            for x in sample_dict['values']:
-                self.assertTrue(x['value_id'] in ['timestamp', 'ptfreq', 'ptraw'])
-                if x['value_id'] != 'ptraw':
-                    self.assertTrue(isinstance(x['value'], float))
-                else:
-                    self.assertTrue(isinstance(x['value'], list))
-
-
-        elif (isinstance(potential_sample, SBE26plusStatisticsDataParticle)):
-            particle_instance = True
-            log.debug("GOT A SBE26plusStatisticsDataParticle")
-            sample_dict = json.loads(val.generate_parsed())
-
-            self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
-                DataParticleValue.PARSED)
-            self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
-                DataParticleValue.JSON_DATA)
-            self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
-            self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
-                list))
-            self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
-            self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
-
-            for x in sample_dict['values']:
-                self.assertTrue(x['value_id'] in ["depth", "temperature", "salinity","density", "nAvgBand",
-                                                  "total_variance", "total_energy", "significant_period",
-                                                  "significant_wave_height", "tss_wave_integration_time",
-                                                  "tss_number_of_waves", "tss_total_variance", "tss_total_energy",
-                                                  "tss_average_wave_height", "tss_average_wave_period",
-                                                  "tss_maximum_wave_height", "tss_significant_wave_height",
-                                                  "tss_significant_wave_period", "tss_height_highest_10_percent_waves",
-                                                  "tss_height_highest_1_percent_waves"])
-                self.assertTrue(isinstance(x['value'], float))
-
-
-
-
-        elif (isinstance(potential_sample, SBE26plusDeviceCalibrationDataParticle)):
-            particle_instance = True
-            log.debug("GOT A SBE26plusDeviceCalibrationDataParticle")
-            sample_dict = json.loads(val.generate_parsed())
-
-            self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
-                DataParticleValue.PARSED)
-            self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
-                DataParticleValue.JSON_DATA)
-            self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
-            self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
-                list))
-            self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
-            self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
-
-            for x in sample_dict['values']:
-                self.assertTrue(x['value_id'] in ['PCALDATE', 'PU0', 'PY1', 'PY2', 'PY3', 'PC1'
-                                                  'PC2', 'PC3', 'PD1', 'PD2', 'PT1', 'PT2', 'PT3',
-                                                  'PT4', 'FACTORY_M', 'FACTORY_B', 'POFFSET',
-                                                  'TCALDATE', 'TA0', 'TA1', 'TA2', 'TA3',
-                                                  'CCALDATE', 'CG', 'CH', 'CI', 'CJ', 'CTCOR',
-                                                  'CPCOR', 'CSLOPE'])
-                if x['value_id'] in ['PCALDATE', 'TCALDATE', 'CCALDATE']:
-                    self.assertTrue(isinstance(x['value'], tuple))
-                else:
-                    self.assertTrue(isinstance(x['value'], float))
-
-
-        elif (isinstance(potential_sample, SBE26plusDeviceStatusDataParticle)):
-            particle_instance = True
-            log.debug("GOT A SBE26plusDeviceStatusDataParticle")
-            sample_dict = json.loads(val.generate_parsed())
-
-            self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
-                DataParticleValue.PARSED)
-            self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
-                DataParticleValue.JSON_DATA)
-            self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
-            self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
-                list))
-            self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
-            self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
-
-            for x in sample_dict['values']:
-                self.assertTrue(x['value_id'] in [
-                    'QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER', 'QUARTZ_PRESSURE_SENSOR_RANGE', 'IOP_MA',
-                    'VMAIN_V', 'VLITH_V', 'LAST_SAMPLE_P', 'LAST_SAMPLE_T', 'LAST_SAMPLE_S',
-                    'WAVE_SAMPLES_PER_BURST', 'WAVE_SAMPLES_SCANS_PER_SECOND', 'TIDE_SAMPLES_PER_DAY',
-                    'WAVE_BURSTS_PER_DAY', 'MEMORY_ENDURANCE', 'NOMINAL_ALKALINE_BATTERY_ENDURANCE',
-                    'TOTAL_RECORDED_TIDE_MEASUREMENTS', 'TOTAL_RECORDED_WAVE_BURSTS',
-                    'TIDE_MEASUREMENTS_SINCE_LAST_START', 'WAVE_BURSTS_SINCE_LAST_START',
-                    'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM', 'MIN_ALLOWABLE_ATTENUATION',
-                    'MIN_PERIOD_IN_AUTO_SPECTRUM', 'MAX_PERIOD_IN_AUTO_SPECTRUM',
-                    'HANNING_WINDOW_CUTOFF',
-                    'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR',
-                    'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR',
-                    'DEVICE_VERSION', 'SERIAL_NUMBER', 'DateTime',
-                    'USERINFO', 'STATUS',
-                    'ExternalTemperature', 'CONDUCTIVITY', 'USE_START_TIME',
-                    'USE_STOP_TIME', 'TXWAVESTATS', 'TxTide', 'TxWave',
-                    'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC',
-                    'SHOW_PROGRESS_MESSAGES', 'LOGGING',
-                    'USE_MEASURED_TEMP_FOR_DENSITY_CALC',
-                    'TIDE_INTERVAL', 'TIDE_MEASUREMENT_DURATION',
-                    'TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS',
-                    'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS',
-                    'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND'
-                ])
-                if x['value_id'] in [
-                    'DEVICE_VERSION', 'SERIAL_NUMBER', 'DateTime',
-                    'USERINFO', 'STATUS'
-                ]:
-                    self.assertTrue(isinstance(x['value'], str))
-                elif x['value_id'] in [
-                    'ExternalTemperature', 'CONDUCTIVITY', 'USE_START_TIME',
-                    'USE_STOP_TIME', 'TXWAVESTATS', 'TxTide', 'TxWave',
-                    'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC',
-                    'SHOW_PROGRESS_MESSAGES', 'LOGGING',
-                    'USE_MEASURED_TEMP_FOR_DENSITY_CALC'
-                ]:
-                    self.assertTrue(isinstance(x['value'], bool))
-                elif x['value_id'] in [
-                    'TIDE_INTERVAL', 'TIDE_MEASUREMENT_DURATION',
-                    'TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS',
-                    'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS',
-                    'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND'
-                ]:
-                    self.assertTrue(isinstance(x['value'], int))
-                else:
-                    self.assertTrue(isinstance(x['value'], float))
-
-
-        else:
-            particle_instance = False
-            log.debug("Was not a known particle instance!")
-            log.debug("POTENTIAL_SAMPLE_PARTICLE = " + str(potential_sample))
 
     ###
     #    Add instrument specific qualification tests

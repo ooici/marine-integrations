@@ -50,6 +50,8 @@ from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
 from pyon.core.exception import Conflict
 
+from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
+from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.tcp_client import TcpClient
@@ -141,6 +143,47 @@ class InstrumentDriverTestConfig(Singleton):
             self.driver_startup_config = kwargs.get('driver_startup_config')
 
         self.initialized = True
+
+
+class InstrumentDriverDataParticleMixin(unittest.TestCase):
+    """
+    Base class for data particle mixin.  Used for data particle validation.
+    """
+    def assert_data_particle_header(self, data_particle, stream_name):
+        """
+        Verify a data particle header is formatted properly
+        @param data_particle: version 1 data particle
+        """
+        sample_dict = json.loads(data_particle.generate_parsed())
+
+        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME], stream_name)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID], DataParticleValue.JSON_DATA)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES], list))
+        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+    def assert_data_particle_parameters(self, data_particle, parameter_enum):
+        """
+        Verify the data particles contain all parameters in the parameter enum and verify the
+        types match those defined in the enum.
+        @param data_particle: the data particle to examine
+        @param parameter_enum: enum class with parameter names and types
+        """
+
+        sample_dict = json.loads(data_particle.generate_parsed())
+        param_dict = convert_enum_to_dict(parameter_enum)
+
+        self.assertEqual(len(sample_dict), len(param_dict))
+
+        for sample_param in sample_dict['values']:
+            param_name = sample_param.get(['value'])
+            self.assertIsNotNone(param_name)
+            param_type = param_dict.get(param_name)
+            self.assertIsNotNone(param_type)
+
+            self.assertIsInstance(sample_param['value'], param_type)
+
 
 class InstrumentDriverTestCase(IonIntegrationTestCase):
     """
@@ -330,6 +373,13 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
     # Custom assert methods
     #####
 
+    def assert_enum_complete(self, subset, superset):
+        """
+        Assert that every item in an enum is in superset
+        """
+        self.assert_set_complete(convert_enum_to_dict(subset),
+                                 convert_enum_to_dict(superset))
+
     def assert_set_complete(self, subset, superset):
         """
         Assert that every item in subset is in superset
@@ -442,6 +492,11 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
 
         result = chunker.get_next_data()
         self.assertEqual(result, None)
+
+    ###
+    #   Common Unit Tests
+    ###
+
 
 class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     """

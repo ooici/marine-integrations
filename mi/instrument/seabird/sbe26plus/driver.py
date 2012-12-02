@@ -15,9 +15,11 @@ import re
 import time
 import string
 import ntplib
-from mi.core.time import get_timestamp_delayed
+
 from mi.core.log import get_logger ; log = get_logger()
+
 from mi.core.common import BaseEnum
+from mi.core.time import get_timestamp_delayed
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -25,21 +27,18 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
-from mi.core.instrument.chunker import StringChunker
 from pyon.agent.agent import ResourceAgentState
-
 
 NEWLINE = '\r\n'
 
 # default timeout.
 TIMEOUT = 10
-
-
 
 TIDE_REGEX = r'(tide: start time = +\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+, p = +[\-\d.]+, pt = +[\-\d.]+, t = +[\-\d.]+.*?\r\n)'
 TIDE_REGEX_MATCHER = re.compile(TIDE_REGEX)
@@ -70,17 +69,15 @@ PACKET_CONFIG = {
 }
 
 
+###
+#    Driver Constant Definitions
+###
 
-
-
-
-
-
-# Device specific parameters.
 class InstrumentCmds(BaseEnum):
     """
-    Instrument Commands
-    These are the commands that according to the science profile must be supported.
+    Device specific commands
+    Represents the commands the driver implements and the string that must be sent to the instrument to
+    execute the command.
     """
     SETSAMPLING = 'setsampling'
     DISPLAY_STATUS = 'ds'
@@ -93,11 +90,9 @@ class InstrumentCmds(BaseEnum):
     TAKE_SAMPLE = 'ts'
     INIT_LOGGING = 'initlogging'
 
-
 class ProtocolState(BaseEnum):
     """
     Protocol states
-    enum.
     """
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
@@ -107,31 +102,30 @@ class ProtocolState(BaseEnum):
 class ProtocolEvent(BaseEnum):
     """
     Protocol events
-    Should only have to define ones to ADD to the base class.  cannot remove from base class gracefully...
+    Extends protocol events to the set defined in the base class.
     """
-
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
     GET = DriverEvent.GET
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
 
+    ### Common driver commands, should these be promoted?  What if the command isn't supported?
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    SETSAMPLING = 'PROTOCOL_EVENT_SETSAMPLING'
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     FORCE_STATE = DriverEvent.FORCE_STATE
-    QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
-    INIT_LOGGING = 'PROTOCOL_EVENT_INIT_LOGGING'
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     PING_DRIVER = DriverEvent.PING_DRIVER
 
+    SETSAMPLING = 'PROTOCOL_EVENT_SETSAMPLING'
+    QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
+    INIT_LOGGING = 'PROTOCOL_EVENT_INIT_LOGGING'
 
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
-    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-
 
 class Capability(BaseEnum):
     """
@@ -143,12 +137,10 @@ class Capability(BaseEnum):
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
     ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
 
-# Device specific parameters.
 class Parameter(DriverParameter):
     """
     Device parameters
     """
-
     # DS
     DEVICE_VERSION = 'DEVICE_VERSION' # str,
     SERIAL_NUMBER = 'SERIAL_NUMBER' # str,
@@ -199,10 +191,6 @@ class Parameter(DriverParameter):
     STATUS = 'STATUS' # str,
     LOGGING = 'LOGGING' # bool,
 
-
-    # *** Fields with *** Should be converted to use:
-    #     ntp 4 64 bit timestamp http://stackoverflow.com/questions/8244204/ntp-timestamps-in-python
-
 # Device prompts.
 class Prompt(BaseEnum):
     """
@@ -214,46 +202,9 @@ class Prompt(BaseEnum):
     CONFIRMATION_PROMPT = 'proceed Y/N ?'
 
 
-
 ###############################################################################
-# Driver
-###############################################################################
-
-class InstrumentDriver(SingleConnectionInstrumentDriver):
-    """
-    InstrumentDriver subclass
-    Subclasses SingleConnectionInstrumentDriver with connection state
-    machine.
-    """
-    def __init__(self, evt_callback):
-        """
-        Driver constructor.
-        @param evt_callback Driver process event callback.
-        """
-        #Construct superclass.
-        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-
-    ########################################################################
-    # Superclass overrides for resource query.
-    ########################################################################
-
-
-    ########################################################################
-    # Protocol builder.
-    ########################################################################
-
-    def _build_protocol(self):
-        """
-        Construct the driver protocol state machine.
-        """
-        self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
-
-###############################################################################
-# Protocol
+# Data Particles
 ################################################################################
-
-
-#remove TS stream,
 
 class SBE26plusTakeSampleDataParticleKey(BaseEnum):
     PRESSURE = "pressure"           # p = calculated and stored pressure (psia).
@@ -1130,6 +1081,44 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
 
         return result
 
+
+###############################################################################
+# Driver
+###############################################################################
+
+class InstrumentDriver(SingleConnectionInstrumentDriver):
+    """
+    InstrumentDriver subclass
+    Subclasses SingleConnectionInstrumentDriver with connection state
+    machine.
+    """
+    def __init__(self, evt_callback):
+        """
+        Driver constructor.
+        @param evt_callback Driver process event callback.
+        """
+        #Construct superclass.
+        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+
+    ########################################################################
+    # Superclass overrides for resource query.
+    ########################################################################
+
+    ########################################################################
+    # Protocol builder.
+    ########################################################################
+
+    def _build_protocol(self):
+        """
+        Construct the driver protocol state machine.
+        """
+        self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
+
+
+###############################################################################
+# Protocol
+###############################################################################
+
 class Protocol(CommandResponseInstrumentProtocol):
     """
     Instrument protocol class for sbe26plus driver.
@@ -1184,8 +1173,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # current parameter values, and set formatting functions.
         self._build_param_dict()
 
-
-
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCmds.SETSAMPLING,                 self._build_setsampling_command)
         self._add_build_handler(InstrumentCmds.DISPLAY_STATUS,              self._build_simple_command)
@@ -1193,13 +1180,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.DISPLAY_CALIBRATION,         self._build_simple_command)
         self._add_build_handler(InstrumentCmds.START_LOGGING,               self._build_simple_command)
         self._add_build_handler(InstrumentCmds.STOP_LOGGING,                self._build_simple_command)
-
-
-
         self._add_build_handler(InstrumentCmds.SET,                         self._build_set_command)
         self._add_build_handler(InstrumentCmds.TAKE_SAMPLE,                 self._build_simple_command)
         self._add_build_handler(InstrumentCmds.INIT_LOGGING,                self._build_simple_command)
-
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.SETSAMPLING,              self._parse_setsampling_response)
@@ -1220,7 +1203,8 @@ class Protocol(CommandResponseInstrumentProtocol):
     @staticmethod
     def sieve_function(raw_data):
         """
-        The method that splits samples
+        Chunker sieve method to help the chunker identify chunks.
+        @returns a list of chunks identified, if any.  The chunks are all the same type.
         """
         sieve_matchers = [TIDE_REGEX_MATCHER,
                           WAVE_REGEX_MATCHER,
@@ -1250,10 +1234,9 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_unknown_enter(self, *args, **kwargs):
         """
         Enter unknown state.
+        Tell driver superclass to send a state change event.
+        Superclass will query the state.
         """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_unknown_discover(self, *args, **kwargs):
@@ -2486,7 +2469,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if ts command misunderstood.
         @throws InstrumentSampleException if response did not contain a sample
         """
-
 
         if prompt != Prompt.COMMAND:
             raise InstrumentProtocolException('ts command not recognized: %s', response)
