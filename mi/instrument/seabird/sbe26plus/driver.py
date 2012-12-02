@@ -49,13 +49,13 @@ WAVE_REGEX_MATCHER = re.compile(WAVE_REGEX, re.DOTALL)
 STATS_REGEX = r'(deMeanTrend.*?H1/100 = [\d.e+]+\r\n)'
 STATS_REGEX_MATCHER = re.compile(STATS_REGEX, re.DOTALL)
 
-TS_REGEX = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)' # .*?\r\n
+TS_REGEX = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)'
 TS_REGEX_MATCHER = re.compile(TS_REGEX)
 
-DC_REGEX = r'.*(Pressure coefficients.+?)\r\nS>' # dont need leading .* if .match() is changed to .search()
+DC_REGEX = r'(Pressure coefficients.+?)CSLOPE = [\d+e\.].+?\r\n'
 DC_REGEX_MATCHER = re.compile(DC_REGEX, re.DOTALL)
 
-DS_REGEX = r'.*(SBE 26plus V.+?)\r\nS>'  # dont need leading .* if .match() is changed to .search()
+DS_REGEX = r'(SBE 26plus V.+?)logging = [\w, ].+?\r\n'
 DS_REGEX_MATCHER = re.compile(DS_REGEX, re.DOTALL)
 
 # Packet config

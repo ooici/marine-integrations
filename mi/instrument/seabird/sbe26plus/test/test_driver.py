@@ -736,7 +736,8 @@ WAVE_DATA =\
         "  14.5165" + NEWLINE +\
         "wave: end burst" + NEWLINE
 
-RAW_STATISTIC = \
+RAW_STATISTIC =\
+    "deMeanTrend................" + NEWLINE +\
     "depth =    0.000, temperature = 23.840, salinity = 35.000, density = 1023.690" + NEWLINE +\
     "" + NEWLINE +\
     "fill array..." + NEWLINE +\
@@ -782,7 +783,6 @@ SAMPLE_DATA =\
         WAVE_DATA +\
         "tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404" + NEWLINE +\
         "" + NEWLINE +\
-        "deMeanTrend................" + NEWLINE +\
         RAW_STATISTIC +\
         "tide: start time = 05 Oct 2012 01:13:54, p = 14.5384, pt = 24.205, t = 23.8363" + NEWLINE
 
@@ -1725,25 +1725,27 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
         self.assert_chunker_sample(chunker, self.DATA_PARTICLE_TIDE_SAMPLE)
         self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_TIDE_SAMPLE)
         self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_TIDE_SAMPLE)
+        self.assert_chunker_combined_sample(chunker, self.DATA_PARTICLE_TIDE_SAMPLE)
 
         self.assert_chunker_sample(chunker, self.DATA_PARTICLE_WAVE_SAMPLE)
         self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_WAVE_SAMPLE)
         self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_WAVE_SAMPLE, 1024)
+        self.assert_chunker_combined_sample(chunker, self.DATA_PARTICLE_WAVE_SAMPLE)
 
-        # This chunker doesn't work.
-        #self.assert_chunker_sample(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION)
-        #self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION)
-        #self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION)
+        self.assert_chunker_sample(chunker, self.DATA_PARTICLE_STATISTICS)
+        self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_STATISTICS)
+        self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_STATISTICS, 512)
+        self.assert_chunker_combined_sample(chunker, self.DATA_PARTICLE_STATISTICS)
 
-        # This chunker doesn't work.
-        #self.assert_chunker_sample(chunker, self.DATA_PARTICLE_DEVICE_STATUS)
-        #self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_DEVICE_STATUS)
-        #self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_DEVICE_STATUS)
+        self.assert_chunker_sample(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION)
+        self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION)
+        self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION, 512)
+        self.assert_chunker_combined_sample(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION)
 
-        # This chunker doesn't work.
-        #self.assert_chunker_sample(chunker, self.DATA_PARTICLE_STATISTICS)
-        #self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_STATISTICS)
-        #self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_STATISTICS)
+        self.assert_chunker_sample(chunker, self.DATA_PARTICLE_DEVICE_STATUS)
+        self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_DEVICE_STATUS)
+        self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_DEVICE_STATUS, 512)
+        self.assert_chunker_combined_sample(chunker, self.DATA_PARTICLE_DEVICE_STATUS)
 
     def test_instrument_driver_init_(self):
         """
