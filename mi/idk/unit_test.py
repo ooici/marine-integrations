@@ -423,16 +423,24 @@ class InstrumentDriverTestCase(IonIntegrationTestCase):
         self.assertEqual(result, None)
 
 
-    def assert_chunker_fragmented_sample(self, chunker, sample):
+    def assert_chunker_fragmented_sample(self, chunker, sample, fragment_size = 1):
         '''
-        Verify the chunker can parse a sample that comes in fragmented
+        Verify the chunker can parse a sample that comes in fragmented.  It sends bytes to the chunker
+        one at a time.  This very slow for large chunks (>4k) so we don't want to increase the sample
+        part size
         @param chunker: Chunker to use to do the parsing
         @param sample: raw sample
         '''
-        for c in sample:
-            chunker.add_chunk(c)
+        sample_length = len(sample)
+        self.assertGreater(fragment_size, 0)
+
+        i = 0
+        while(i < sample_length):
+            end = i + fragment_size
+            chunker.add_chunk(sample[i:end])
             result = chunker.get_next_data()
             if(result): break
+            i += fragment_size
 
         self.assertEqual(result, sample)
 

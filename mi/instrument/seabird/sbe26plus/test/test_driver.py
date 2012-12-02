@@ -1716,7 +1716,7 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
                 parsed_stream_received = True
                 log.debug("GOT A PARSED")
 
-    def test_data_chunker(self):
+    def test_chunker(self):
         """
         Test the chunker and verify the particles created.
         """
@@ -1728,8 +1728,7 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
 
         self.assert_chunker_sample(chunker, self.DATA_PARTICLE_WAVE_SAMPLE)
         self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_WAVE_SAMPLE)
-        # This test is a little slow because the samples are a little large
-        #self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_WAVE_SAMPLE)
+        self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_WAVE_SAMPLE, 1024)
 
         # This chunker doesn't work.
         #self.assert_chunker_sample(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION)
@@ -2743,85 +2742,6 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
         ret = driver.get_resource_capabilities(*args, **kwargs)
         self.assertEqual(ret[0], [])
 
-    def test_chunker(self):
-        """
-        Tests the chunker
-        """
-        # This will want to be created in the driver eventually...
-        self._chunker = StringChunker(Protocol.sieve_function)
-
-        self._chunker.add_chunk("p = 429337.7812, t = -3.2164" + NEWLINE +
-                                "tide: start time = 23 Oct 2012 01:08:08, p = 429337.8750, pt = 421107.187, t = -3.2164" + NEWLINE +
-                                "tide: start time = 22 Oct 2012 23:47:18, p = 429337.9687, pt = 421106.562, t = -3.2164, c = -1.05525, s = 0.000" + NEWLINE +
-                                SAMPLE_DATA)
-
-        #result = self._chunker.get_next_data()
-        #self.assertEquals(result, 'p = 429337.7812, t = -3.2164\r\n')
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, 'tide: start time = 23 Oct 2012 01:08:08, p = 429337.8750, pt = 421107.187, t = -3.2164\r\n')
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, 'tide: start time = 22 Oct 2012 23:47:18, p = 429337.9687, pt = 421106.562, t = -3.2164, c = -1.05525, s = 0.000\r\n')
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, 'tide: start time = 05 Oct 2012 00:55:54, p = 14.5348, pt = 24.250, t = 23.9046\r\n')
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, 'tide: start time = 05 Oct 2012 00:58:54, p = 14.5367, pt = 24.242, t = 23.8904\r\n')
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, 'tide: start time = 05 Oct 2012 01:01:54, p = 14.5387, pt = 24.250, t = 23.8778\r\n')
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, 'tide: start time = 05 Oct 2012 01:04:54, p = 14.5346, pt = 24.228, t = 23.8664\r\n')
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, 'tide: start time = 05 Oct 2012 01:07:54, p = 14.5364, pt = 24.205, t = 23.8575\r\n')
-
-        # long record
-        result = self._chunker.get_next_data()
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result,  'tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404\r\n')
-
-        # stat record
-        result = self._chunker.get_next_data()
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, 'tide: start time = 05 Oct 2012 01:13:54, p = 14.5384, pt = 24.205, t = 23.8363\r\n')
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, None)
-
-    def test_short_chunker_feed(self):
-        # This will want to be created in the driver eventually...
-        self._chunker = StringChunker(Protocol.sieve_function)
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, None)
-        self._chunker.add_chunk("tide: start time = 23 Oct 2012 01:08:08, p = 429")
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, None)
-
-        # add the tail of one + the head of another
-        self._chunker.add_chunk("337.8750, pt = 421107.187, t = -3.2164" + NEWLINE +
-                                "tide: start time = 22 Oct 2012 23:47:18, p = 429")
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, 'tide: start time = 23 Oct 2012 01:08:08, p = 429337.8750, pt = 421107.187, t = -3.2164\r\n')
-
-        # empty add
-        self._chunker.add_chunk("")
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, None)
-
-        self._chunker.add_chunk("337.9687, pt = 421106.562, t = -3.2164, c = -1.05525, s = 0.000" + NEWLINE)
-
-        result = self._chunker.get_next_data()
-        self.assertEquals(result, 'tide: start time = 22 Oct 2012 23:47:18, p = 429337.9687, pt = 421106.562, t = -3.2164, c = -1.05525, s = 0.000\r\n')
 
 
 ###############################################################################
