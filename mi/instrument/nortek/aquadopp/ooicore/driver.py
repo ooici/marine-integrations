@@ -1103,8 +1103,8 @@ class Protocol(CommandResponseInstrumentProtocol):
             cmd_line = cmd
 
         # Send command.
-        log.debug('_do_cmd_resp: %s, timeout=%s, expected_prompt=%s (%s),' 
-                  % (repr(cmd_line.encode("hex")), timeout, expected_prompt, expected_prompt.encode("hex")))
+        log.debug('_do_cmd_resp: %s(%s), timeout=%s, expected_prompt=%s (%s),' 
+                  % (repr(cmd_line), repr(cmd_line.encode("hex")), timeout, expected_prompt, expected_prompt.encode("hex")))
         self._connection.send(cmd_line)
 
         # Wait for the prompt, prepare result and return, timeout exception
@@ -1269,7 +1269,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         # Issue start command and switch to autosample if successful.
-        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, 
+        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_AT_SPECIFIC_TIME, 
                                    expected_prompt = InstrumentPrompts.Z_ACK, *args, **kwargs)
                 
         next_state = ProtocolState.AUTOSAMPLE        
@@ -1537,7 +1537,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Retrieve the required parameter, raise if not present.
         try:
             params = args[0]
-
         except IndexError:
             raise InstrumentParameterException('Get command requires a parameter list or tuple.')
 
