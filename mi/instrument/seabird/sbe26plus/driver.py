@@ -311,8 +311,7 @@ class SBE26plusTideSampleDataParticle(DataParticle):
         if not match:
             match = regex2.match(self.raw_data)
             if not match:
-                raise SampleException("No regex match of parsed sample data: [%s]" %
-                                     self.raw_data)
+                raise SampleException("No regex match of parsed sample data: [%s]" % self.raw_data)
 
         # initialize
         timestamp = None
@@ -337,7 +336,7 @@ class SBE26plusTideSampleDataParticle(DataParticle):
         try:
             conductivity = float(match.group(5))
             salinity = float(match.group(6))
-        except ValueError:
+        except IndexError:
             """
             These are optional. Quietly ignore if they dont occur.
             """
@@ -393,6 +392,10 @@ class SBE26plusWaveBurstDataParticle(DataParticle):
             log.debug("SBE26plusWaveBurstDataParticle._build_parsed_values LINE = " + repr(line))
             matched = False
 
+            # skip blank lines
+            if len(line) == 0:
+                matched = True
+
             match = start_time_matcher.match(line)
             if match:
                 matched = True
@@ -422,9 +425,12 @@ class SBE26plusWaveBurstDataParticle(DataParticle):
                     raise SampleException("ValueError while decoding floats in data: [%s]" %
                                           self.raw_data)
 
+            if 'wave: end burst' in line:
+                matched = True
+                log.debug("End of record detected")
+
             if False == matched:
-                raise SampleException("No regex match of parsed sample data: [%s]" %
-                                      self.raw_data)
+                raise SampleException("No regex match of parsed sample data: ROW: [%s]" % line)
 
         result = [{DataParticleKey.VALUE_ID: SBE26plusWaveBurstDataParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: timestamp},

@@ -1359,130 +1359,137 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
     DATA_PARTICLE_DEVICE_CALIBRATION = RAW_DC
     DATA_PARTICLE_DEVICE_STATUS = RAW_DS
 
+    # List of all data particle types
+    class DataParticleTypes(BaseEnum):
+        TakeSample = DataParticleValue.PARSED
+        TideSample = DataParticleValue.PARSED
+        WaveSample = DataParticleValue.PARSED
+        StatisticSample = DataParticleValue.PARSED
+        DeviceCalibration = DataParticleValue.PARSED
+        DeviceStatus = DataParticleValue.PARSED
+
     ###
     #   Particle Parameter and Type Definitions
     ###
-    class SBE26plusTakeSampleDataParticleParameters(BaseEnum):
-        SBE26plusTakeSampleDataParticleKey.PRESSURE = float
-        SBE26plusTakeSampleDataParticleKey.PRESSURE_TEMP = float
-        SBE26plusTakeSampleDataParticleKey.TEMPERATURE = float
-        SBE26plusTakeSampleDataParticleKey.CONDUCTIVITY = float
-        SBE26plusTakeSampleDataParticleKey.SALINITY =  float
+    _tide_sample_parameters = {
+        SBE26plusTideSampleDataParticleKey.TIMESTAMP: float,
+        SBE26plusTideSampleDataParticleKey.PRESSURE: float,
+        SBE26plusTideSampleDataParticleKey.PRESSURE_TEMP: float,
+        SBE26plusTideSampleDataParticleKey.TEMPERATURE: float,
+        SBE26plusTideSampleDataParticleKey.CONDUCTIVITY: { 'type': float, 'required': False },
+        SBE26plusTideSampleDataParticleKey.SALINITY: { 'type': float, 'required': False }
+    }
 
-    class SBE26plusTideSampleDataParticleParameters(BaseEnum):
-        SBE26plusTakeSampleDataParticleKey.TIMESTAMP = float
-        SBE26plusTakeSampleDataParticleKey.PRESSURE = float
-        SBE26plusTakeSampleDataParticleKey.PRESSURE_TEMP = float
-        SBE26plusTakeSampleDataParticleKey.TEMPERATURE = float
-        SBE26plusTakeSampleDataParticleKey.CONDUCTIVITY = float
-        SBE26plusTakeSampleDataParticleKey.SALINITY = float
+    _wave_sample_parameters = {
+        SBE26plusWaveBurstDataParticleKey.TIMESTAMP: float,
+        SBE26plusWaveBurstDataParticleKey.PTFREQ: float,
+        SBE26plusWaveBurstDataParticleKey.PTRAW: list
+    }
 
-    class SBE26plusWaveBurstDataParticleParameters(BaseEnum):
-        SBE26plusWaveBurstDataParticleKey.TIMESTAMP = float
-        SBE26plusWaveBurstDataParticleKey.PTFREQ = float
-        SBE26plusWaveBurstDataParticleKey.PTRAW = float
+    _statistics_sample_parameters = {
+        SBE26plusStatisticsDataParticleKey.DEPTH: float,
+        SBE26plusStatisticsDataParticleKey.TEMPERATURE: float,
+        SBE26plusStatisticsDataParticleKey.SALINITY: float,
+        SBE26plusStatisticsDataParticleKey.DENSITY: float,
+        SBE26plusStatisticsDataParticleKey.N_AGV_BAND: float,
+        SBE26plusStatisticsDataParticleKey.TOTAL_VARIANCE: float,
+        SBE26plusStatisticsDataParticleKey.TOTAL_ENERGY: float,
+        SBE26plusStatisticsDataParticleKey.SIGNIFICANT_PERIOD: float,
+        SBE26plusStatisticsDataParticleKey.SIGNIFICANT_WAVE_HEIGHT: float,
+        SBE26plusStatisticsDataParticleKey.TSS_WAVE_INTEGRATION_TIME: float,
+        SBE26plusStatisticsDataParticleKey.TSS_NUMBER_OF_WAVES: float,
+        SBE26plusStatisticsDataParticleKey.TSS_TOTAL_VARIANCE: float,
+        SBE26plusStatisticsDataParticleKey.TSS_TOTAL_ENERGY: float,
+        SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_HEIGHT: float,
+        SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_PERIOD: float,
+        SBE26plusStatisticsDataParticleKey.TSS_MAXIMUM_WAVE_HEIGHT: float,
+        SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_HEIGHT: float,
+        SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_PERIOD: float,
+        SBE26plusStatisticsDataParticleKey.TSS_H1_10: float,
+        SBE26plusStatisticsDataParticleKey.TSS_H1_100: float
+    }
 
-    class SBE26plusStatisticsDataParticleParameters(BaseEnum):
-        SBE26plusStatisticsDataParticleKey.DEPTH = float
-        SBE26plusStatisticsDataParticleKey.TEMPERATURE = float
-        SBE26plusStatisticsDataParticleKey.SALINITY = float
-        SBE26plusStatisticsDataParticleKey.DENSITY = float
-        SBE26plusStatisticsDataParticleKey.N_AGV_BAND = float
-        SBE26plusStatisticsDataParticleKey.TOTAL_VARIANCE = float
-        SBE26plusStatisticsDataParticleKey.TOTAL_ENERGY = float
-        SBE26plusStatisticsDataParticleKey.SIGNIFICANT_PERIOD = float
-        SBE26plusStatisticsDataParticleKey.SIGNIFICANT_WAVE_HEIGHT = float
-        SBE26plusStatisticsDataParticleKey.TSS_WAVE_INTEGRATION_TIME = float
-        SBE26plusStatisticsDataParticleKey.TSS_NUMBER_OF_WAVES = float
-        SBE26plusStatisticsDataParticleKey.TSS_TOTAL_VARIANCE = float
-        SBE26plusStatisticsDataParticleKey.TSS_TOTAL_ENERGY = float
-        SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_HEIGHT = float
-        SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_PERIOD = float
-        SBE26plusStatisticsDataParticleKey.TSS_MAXIMUM_WAVE_HEIGHT = float
-        SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_HEIGHT = float
-        SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_PERIOD = float
-        SBE26plusStatisticsDataParticleKey.TSS_H1_10 = float
-        SBE26plusStatisticsDataParticleKey.TSS_H1_100 = float
+    _calibration_sample_parameters = {
+        SBE26plusDeviceCalibrationDataParticleKey.PCALDATE: tuple,
+        SBE26plusDeviceCalibrationDataParticleKey.PU0: float,
+        SBE26plusDeviceCalibrationDataParticleKey.PY1: float,
+        SBE26plusDeviceCalibrationDataParticleKey.PY2: float,
+        SBE26plusDeviceCalibrationDataParticleKey.PY3: float,
+        SBE26plusDeviceCalibrationDataParticleKey.PC1: float,
+        SBE26plusDeviceCalibrationDataParticleKey.PC2: float,
+        SBE26plusDeviceCalibrationDataParticleKey.PC3: float,
+        SBE26plusDeviceCalibrationDataParticleKey.PD1: float,
+        SBE26plusDeviceCalibrationDataParticleKey.PD2: float,
+        SBE26plusDeviceCalibrationDataParticleKey.PT1: float,
+        SBE26plusDeviceCalibrationDataParticleKey.PT2: float,
+        SBE26plusDeviceCalibrationDataParticleKey.PT3: float,
+        SBE26plusDeviceCalibrationDataParticleKey.PT4: float,
+        SBE26plusDeviceCalibrationDataParticleKey.FACTORY_M: float,
+        SBE26plusDeviceCalibrationDataParticleKey.FACTORY_B: float,
+        SBE26plusDeviceCalibrationDataParticleKey.POFFSET: float,
+        SBE26plusDeviceCalibrationDataParticleKey.TCALDATE: tuple,
+        SBE26plusDeviceCalibrationDataParticleKey.TA0: float,
+        SBE26plusDeviceCalibrationDataParticleKey.TA1: float,
+        SBE26plusDeviceCalibrationDataParticleKey.TA2: float,
+        SBE26plusDeviceCalibrationDataParticleKey.TA3: float,
+        SBE26plusDeviceCalibrationDataParticleKey.CCALDATE: tuple,
+        SBE26plusDeviceCalibrationDataParticleKey.CG: float,
+        SBE26plusDeviceCalibrationDataParticleKey.CH: float,
+        SBE26plusDeviceCalibrationDataParticleKey.CI: float,
+        SBE26plusDeviceCalibrationDataParticleKey.CJ: float,
+        SBE26plusDeviceCalibrationDataParticleKey.CTCOR: float,
+        SBE26plusDeviceCalibrationDataParticleKey.CPCOR: float,
+        SBE26plusDeviceCalibrationDataParticleKey.CSLOPE: float
+    }
 
-    class SBE26plusDeviceCalibrationDataParticleParameters(BaseEnum):
-        SBE26plusDeviceCalibrationDataParticleKey.PCALDATE = tuple
-        SBE26plusDeviceCalibrationDataParticleKey.PU0 = float
-        SBE26plusDeviceCalibrationDataParticleKey.PY1 = float
-        SBE26plusDeviceCalibrationDataParticleKey.PY2 = float
-        SBE26plusDeviceCalibrationDataParticleKey.PY3 = float
-        SBE26plusDeviceCalibrationDataParticleKey.PC1 = float
-        SBE26plusDeviceCalibrationDataParticleKey.PC2 = float
-        SBE26plusDeviceCalibrationDataParticleKey.PC3 = float
-        SBE26plusDeviceCalibrationDataParticleKey.PD1 = float
-        SBE26plusDeviceCalibrationDataParticleKey.PD2 = float
-        SBE26plusDeviceCalibrationDataParticleKey.PT1 = float
-        SBE26plusDeviceCalibrationDataParticleKey.PT2 = float
-        SBE26plusDeviceCalibrationDataParticleKey.PT3 = float
-        SBE26plusDeviceCalibrationDataParticleKey.PT4 = float
-        SBE26plusDeviceCalibrationDataParticleKey.FACTORY_M = float
-        SBE26plusDeviceCalibrationDataParticleKey.FACTORY_B = float
-        SBE26plusDeviceCalibrationDataParticleKey.POFFSET = float
-        SBE26plusDeviceCalibrationDataParticleKey.TCALDATE = tuple
-        SBE26plusDeviceCalibrationDataParticleKey.TA0 = float
-        SBE26plusDeviceCalibrationDataParticleKey.TA1 = float
-        SBE26plusDeviceCalibrationDataParticleKey.TA2 = float
-        SBE26plusDeviceCalibrationDataParticleKey.TA3 = float
-        SBE26plusDeviceCalibrationDataParticleKey.CCALDATE = tuple
-        SBE26plusDeviceCalibrationDataParticleKey.CG = float
-        SBE26plusDeviceCalibrationDataParticleKey.CH = float
-        SBE26plusDeviceCalibrationDataParticleKey.CI = float
-        SBE26plusDeviceCalibrationDataParticleKey.CJ = float
-        SBE26plusDeviceCalibrationDataParticleKey.CTCOR = float
-        SBE26plusDeviceCalibrationDataParticleKey.CPCOR = float
-        SBE26plusDeviceCalibrationDataParticleKey.CSLOPE = float
-
-    class SBE26plusDeviceStatusDataParticleKey(BaseEnum):
-        SBE26plusDeviceStatusDataParticleKey.DEVICE_VERSION = str
-        SBE26plusDeviceStatusDataParticleKey.SERIAL_NUMBER = str
-        SBE26plusDeviceStatusDataParticleKey.DS_DEVICE_DATE_TIME = str
-        SBE26plusDeviceStatusDataParticleKey.USER_INFO = str
-        SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER = float
-        SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_RANGE = float
-        SBE26plusDeviceStatusDataParticleKey.EXTERNAL_TEMPERATURE_SENSOR = bool
-        SBE26plusDeviceStatusDataParticleKey.CONDUCTIVITY = bool
-        SBE26plusDeviceStatusDataParticleKey.IOP_MA = float
-        SBE26plusDeviceStatusDataParticleKey.VMAIN_V = float
-        SBE26plusDeviceStatusDataParticleKey.VLITH_V = float
-        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_P = float
-        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_T = float
-        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_S = float
-        SBE26plusDeviceStatusDataParticleKey.TIDE_INTERVAL = int
-        SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENT_DURATION = int
-        SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS = int
-        SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_PER_BURST = float
-        SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_SCANS_PER_SECOND = float
-        SBE26plusDeviceStatusDataParticleKey.USE_START_TIME = bool
-        SBE26plusDeviceStatusDataParticleKey.USE_STOP_TIME = bool
-        SBE26plusDeviceStatusDataParticleKey.TXWAVESTATS = bool
-        SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_PER_DAY = float
-        SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_PER_DAY = float
-        SBE26plusDeviceStatusDataParticleKey.MEMORY_ENDURANCE = float
-        SBE26plusDeviceStatusDataParticleKey.NOMINAL_ALKALINE_BATTERY_ENDURANCE = float
-        SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_TIDE_MEASUREMENTS = float
-        SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_WAVE_BURSTS = float
-        SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENTS_SINCE_LAST_START = float
-        SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_SINCE_LAST_START = float
-        SBE26plusDeviceStatusDataParticleKey.TXREALTIME = bool
-        SBE26plusDeviceStatusDataParticleKey.TXWAVEBURST = bool
-        SBE26plusDeviceStatusDataParticleKey.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = int
-        SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = bool
-        SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_FOR_DENSITY_CALC = float
-        SBE26plusDeviceStatusDataParticleKey.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = float
-        SBE26plusDeviceStatusDataParticleKey.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = float
-        SBE26plusDeviceStatusDataParticleKey.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM = float
-        SBE26plusDeviceStatusDataParticleKey.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND = int
-        SBE26plusDeviceStatusDataParticleKey.MIN_ALLOWABLE_ATTENUATION = float
-        SBE26plusDeviceStatusDataParticleKey.MIN_PERIOD_IN_AUTO_SPECTRUM = float
-        SBE26plusDeviceStatusDataParticleKey.MAX_PERIOD_IN_AUTO_SPECTRUM = float
-        SBE26plusDeviceStatusDataParticleKey.HANNING_WINDOW_CUTOFF = float
-        SBE26plusDeviceStatusDataParticleKey.SHOW_PROGRESS_MESSAGES = bool
-        SBE26plusDeviceStatusDataParticleKey.STATUS = str
-        SBE26plusDeviceStatusDataParticleKey.LOGGING = bool
+    _status_sample_parameters = {
+        SBE26plusDeviceStatusDataParticleKey.DEVICE_VERSION: str,
+        SBE26plusDeviceStatusDataParticleKey.SERIAL_NUMBER: str,
+        SBE26plusDeviceStatusDataParticleKey.DS_DEVICE_DATE_TIME: str,
+        SBE26plusDeviceStatusDataParticleKey.USER_INFO: str,
+        SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER: float,
+        SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_RANGE: float,
+        SBE26plusDeviceStatusDataParticleKey.EXTERNAL_TEMPERATURE_SENSOR: bool,
+        SBE26plusDeviceStatusDataParticleKey.CONDUCTIVITY: bool,
+        SBE26plusDeviceStatusDataParticleKey.IOP_MA: float,
+        SBE26plusDeviceStatusDataParticleKey.VMAIN_V: float,
+        SBE26plusDeviceStatusDataParticleKey.VLITH_V: float,
+        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_P: float,
+        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_T: float,
+        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_S: float,
+        SBE26plusDeviceStatusDataParticleKey.TIDE_INTERVAL: int,
+        SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENT_DURATION: int,
+        SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: int,
+        SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_PER_BURST: float,
+        SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_SCANS_PER_SECOND: float,
+        SBE26plusDeviceStatusDataParticleKey.USE_START_TIME: bool,
+        SBE26plusDeviceStatusDataParticleKey.USE_STOP_TIME: bool,
+        SBE26plusDeviceStatusDataParticleKey.TXWAVESTATS: bool,
+        SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_PER_DAY: float,
+        SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_PER_DAY: float,
+        SBE26plusDeviceStatusDataParticleKey.MEMORY_ENDURANCE: float,
+        SBE26plusDeviceStatusDataParticleKey.NOMINAL_ALKALINE_BATTERY_ENDURANCE: float,
+        SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_TIDE_MEASUREMENTS: float,
+        SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_WAVE_BURSTS: float,
+        SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENTS_SINCE_LAST_START: float,
+        SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_SINCE_LAST_START: float,
+        SBE26plusDeviceStatusDataParticleKey.TXREALTIME: bool,
+        SBE26plusDeviceStatusDataParticleKey.TXWAVEBURST: bool,
+        SBE26plusDeviceStatusDataParticleKey.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS: int,
+        SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC: bool,
+        SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_FOR_DENSITY_CALC: float,
+        SBE26plusDeviceStatusDataParticleKey.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR: float,
+        SBE26plusDeviceStatusDataParticleKey.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR: float,
+        SBE26plusDeviceStatusDataParticleKey.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: float,
+        SBE26plusDeviceStatusDataParticleKey.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND: int,
+        SBE26plusDeviceStatusDataParticleKey.MIN_ALLOWABLE_ATTENUATION: float,
+        SBE26plusDeviceStatusDataParticleKey.MIN_PERIOD_IN_AUTO_SPECTRUM: float,
+        SBE26plusDeviceStatusDataParticleKey.MAX_PERIOD_IN_AUTO_SPECTRUM: float,
+        SBE26plusDeviceStatusDataParticleKey.HANNING_WINDOW_CUTOFF: float,
+        SBE26plusDeviceStatusDataParticleKey.SHOW_PROGRESS_MESSAGES: bool,
+        SBE26plusDeviceStatusDataParticleKey.STATUS: str,
+        SBE26plusDeviceStatusDataParticleKey.LOGGING: bool
+    }
 
     def assertSampleDataParticle(self, data_particle):
         '''
@@ -1490,163 +1497,60 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
         correct
         @param data_particle: Data particle of unkown type produced by the driver
         '''
-        if (isinstance(data_particle, SBE26plusTakeSampleDataParticle)):
-            self.assert_particle_take_sample(data_particle)
-        elif (isinstance(data_particle, SBE26plusTideSampleDataParticle)):
-            self.assert_particle_take_sample(data_particle)
+        if (isinstance(data_particle, SBE26plusTideSampleDataParticle)):
+            self.assert_particle_tide_sample(data_particle)
         elif (isinstance(data_particle, SBE26plusWaveBurstDataParticle)):
-            self.assert_particle_take_sample(data_particle)
+            self.assert_particle_wave_burst(data_particle)
         elif (isinstance(data_particle, SBE26plusStatisticsDataParticle)):
-            self.assert_particle_take_sample(data_particle)
+            self.assert_particle_statistics(data_particle)
         elif (isinstance(data_particle, SBE26plusDeviceCalibrationDataParticle)):
-            self.assert_particle_take_sample(data_particle)
+            self.assert_particle_device_calibration(data_particle)
         elif (isinstance(data_particle, SBE26plusDeviceStatusDataParticle)):
-            self.assert_particle_take_sample(data_particle)
+            self.assert_particle_device_status(data_particle)
         else:
             log.error("Unknown Particle Detected: %s" % data_particle)
             self.assertFalse(True)
-
-    def assert_particle_take_sample(self, data_particle):
-        '''
-        Verify a take sample data particle
-        @param data_particle:  SBE26plusTakeSampleDataParticle data particle
-        '''
-        self.assertIsInstance(data_particle, SBE26plusTakeSampleDataParticle)
-        self.assert_data_particle_header(data_particle, DataParticleValue.PARSED)
-        self.assert_data_particle_parameters(data_particle,
-                                             SBE26plusTakeSampleDataParticleParameters())
 
     def assert_particle_tide_sample(self, data_particle):
         '''
         Verify a take sample data particle
         @param data_particle:  SBE26plusTideSampleDataParticle data particle
         '''
-        self.assertIsInstance(data_particle, SBE26plusTideSampleDataParticle)
-        self.assert_data_particle_header(data_particle, DataParticleValue.PARSED)
+        self.assert_data_particle_header(data_particle, self.DataParticleTypes.TideSample)
+        self.assert_data_particle_parameters(data_particle, self._tide_sample_parameters)
 
-        sample_dict = json.loads(data_particle.generate_parsed())
-
-        for x in sample_dict['values']:
-            self.assertTrue(x['value_id'] in ['timestamp', 'preasure', 'preasure_temp', 'temperature', 'conductivity', 'salinity'])
-            self.assertIsInstance(x['value'], float)
 
     def assert_particle_wave_burst(self, data_particle):
         '''
         Verify a take sample data particle
         @param data_particle:  SBE26plusWaveBurstDataParticle data particle
         '''
-        self.assertIsInstance(data_particle, SBE26plusWaveBurstDataParticle)
-        self.assert_data_particle_header(data_particle, DataParticleValue.PARSED)
-
-        sample_dict = json.loads(data_particle.generate_parsed())
-
-        for x in sample_dict['values']:
-            self.assertTrue(x['value_id'] in ['timestamp', 'ptfreq', 'ptraw'])
-            if x['value_id'] != 'ptraw':
-                self.assertIsInstance(x['value'], float)
-            else:
-                self.assertIsInstance(x['value'], list)
+        self.assert_data_particle_header(data_particle, self.DataParticleTypes.WaveSample)
+        self.assert_data_particle_parameters(data_particle, self._wave_sample_parameters)
 
     def assert_particle_statistics(self, data_particle):
         '''
         Verify a take sample data particle
         @param data_particle:  SBE26plusStatisticsDataParticle data particle
         '''
-        self.assertIsInstance(data_particle, SBE26plusStatisticsDataParticle)
-        self.assert_data_particle_header(data_particle, DataParticleValue.PARSED)
-
-        sample_dict = json.loads(data_particle.generate_parsed())
-
-        for x in sample_dict['values']:
-            self.assertTrue(x['value_id'] in ["depth", "temperature", "salinity","density", "nAvgBand",
-                                              "total_variance", "total_energy", "significant_period",
-                                              "significant_wave_height", "tss_wave_integration_time",
-                                              "tss_number_of_waves", "tss_total_variance", "tss_total_energy",
-                                              "tss_average_wave_height", "tss_average_wave_period",
-                                              "tss_maximum_wave_height", "tss_significant_wave_height",
-                                              "tss_significant_wave_period", "tss_height_highest_10_percent_waves",
-                                              "tss_height_highest_1_percent_waves"])
-            self.assertIsInstance(x['value'], float)
+        self.assert_data_particle_header(data_particle, self.DataParticleTypes.StatisticSample)
+        self.assert_data_particle_parameters(data_particle, self._statistics_sample_parameters)
 
     def assert_particle_device_calibration(self, data_particle):
         '''
         Verify a take sample data particle
         @param data_particle:  SBE26plusDeviceCalibrationDataParticle data particle
         '''
-        self.assertIsInstance(data_particle, SBE26plusDeviceCalibrationDataParticle)
-        self.assert_data_particle_header(data_particle, DataParticleValue.PARSED)
-
-        sample_dict = json.loads(data_particle.generate_parsed())
-
-        for x in sample_dict['values']:
-            self.assertTrue(x['value_id'] in ['PCALDATE', 'PU0', 'PY1', 'PY2', 'PY3', 'PC1'
-                                                                                      'PC2', 'PC3', 'PD1', 'PD2', 'PT1', 'PT2', 'PT3',
-                                              'PT4', 'FACTORY_M', 'FACTORY_B', 'POFFSET',
-                                              'TCALDATE', 'TA0', 'TA1', 'TA2', 'TA3',
-                                              'CCALDATE', 'CG', 'CH', 'CI', 'CJ', 'CTCOR',
-                                              'CPCOR', 'CSLOPE'])
-            if x['value_id'] in ['PCALDATE', 'TCALDATE', 'CCALDATE']:
-                self.assertIsInstance(x['value'], touple)
-            else:
-                self.assertIsInstance(x['value'], float)
+        self.assert_data_particle_header(data_particle, self.DataParticleTypes.DeviceCalibration)
+        self.assert_data_particle_parameters(data_particle, self._calibration_sample_parameters)
 
     def assert_particle_device_status(self, data_particle):
         '''
         Verify a take sample data particle
         @param data_particle:  SBE26plusDeviceStatusDataParticle data particle
         '''
-        self.assertIsInstance(data_particle, SBE26plusDeviceStatusDataParticle)
-        self.assert_data_particle_header(data_particle, DataParticleValue.PARSED)
-
-        sample_dict = json.loads(data_particle.generate_parsed())
-
-        for x in sample_dict['values']:
-            self.assertTrue(x['value_id'] in [
-                'QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER', 'QUARTZ_PRESSURE_SENSOR_RANGE', 'IOP_MA',
-                'VMAIN_V', 'VLITH_V', 'LAST_SAMPLE_P', 'LAST_SAMPLE_T', 'LAST_SAMPLE_S',
-                'WAVE_SAMPLES_PER_BURST', 'WAVE_SAMPLES_SCANS_PER_SECOND', 'TIDE_SAMPLES_PER_DAY',
-                'WAVE_BURSTS_PER_DAY', 'MEMORY_ENDURANCE', 'NOMINAL_ALKALINE_BATTERY_ENDURANCE',
-                'TOTAL_RECORDED_TIDE_MEASUREMENTS', 'TOTAL_RECORDED_WAVE_BURSTS',
-                'TIDE_MEASUREMENTS_SINCE_LAST_START', 'WAVE_BURSTS_SINCE_LAST_START',
-                'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM', 'MIN_ALLOWABLE_ATTENUATION',
-                'MIN_PERIOD_IN_AUTO_SPECTRUM', 'MAX_PERIOD_IN_AUTO_SPECTRUM',
-                'HANNING_WINDOW_CUTOFF',
-                'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR',
-                'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR',
-                'DEVICE_VERSION', 'SERIAL_NUMBER', 'DateTime',
-                'USERINFO', 'STATUS',
-                'ExternalTemperature', 'CONDUCTIVITY', 'USE_START_TIME',
-                'USE_STOP_TIME', 'TXWAVESTATS', 'TxTide', 'TxWave',
-                'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC',
-                'SHOW_PROGRESS_MESSAGES', 'LOGGING',
-                'USE_MEASURED_TEMP_FOR_DENSITY_CALC',
-                'TIDE_INTERVAL', 'TIDE_MEASUREMENT_DURATION',
-                'TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS',
-                'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS',
-                'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND'
-            ])
-            if x['value_id'] in [
-                'DEVICE_VERSION', 'SERIAL_NUMBER', 'DateTime',
-                'USERINFO', 'STATUS'
-            ]:
-                self.assertIsInstance(x['value'], str)
-            elif x['value_id'] in [
-                'ExternalTemperature', 'CONDUCTIVITY', 'USE_START_TIME',
-                'USE_STOP_TIME', 'TXWAVESTATS', 'TxTide', 'TxWave',
-                'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC',
-                'SHOW_PROGRESS_MESSAGES', 'LOGGING',
-                'USE_MEASURED_TEMP_FOR_DENSITY_CALC'
-            ]:
-                self.assertIsInstance(x['value'], bool)
-            elif x['value_id'] in [
-                'TIDE_INTERVAL', 'TIDE_MEASUREMENT_DURATION',
-                'TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS',
-                'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS',
-                'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND'
-            ]:
-                self.assertIsInstance(x['value'], int)
-            else:
-                self.assertIsInstance(x['value'], float)
+        self.assert_data_particle_header(data_particle, self.DataParticleTypes.DeviceStatus)
+        self.assert_data_particle_parameters(data_particle, self._status_sample_parameters)
 
 
 ###############################################################################
@@ -1697,25 +1601,6 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
         p = Parameter()
         self.assert_enum_has_no_duplicates(p)
 
-    def my_event_callback(self, event):
-        log.debug("event = " + repr(event))
-        event_type = event['type']
-
-        if event_type == DriverAsyncEvent.SAMPLE:
-            sample_value = event['value']
-            # the event is coming back as a string
-
-
-            if 'raw' in sample_value:
-                # I hate using a global, but this self is not a shared self with the test
-                global raw_stream_received
-                raw_stream_received = True
-                log.debug("GOT A RAW")
-            elif 'parsed' in sample_value:
-                global parsed_stream_received
-                parsed_stream_received = True
-                log.debug("GOT A PARSED")
-
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
@@ -1746,6 +1631,37 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
         self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_DEVICE_STATUS)
         self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_DEVICE_STATUS, 512)
         self.assert_chunker_combined_sample(chunker, self.DATA_PARTICLE_DEVICE_STATUS)
+
+    def test_got_data(self):
+        """
+        Verify sample data passed through the got data method produces the correct data particles
+        """
+        # Create and initialize the instrument driver with a mock port agent
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        # Start validating data particles
+        #self.assert_particle_published(driver, self.DATA_PARTICLE_TIDE_SAMPLE,
+        #                                       self.DataParticleTypes.TideSample,
+        #                                       self.assert_particle_tide_sample)
+
+        #self.assert_particle_published(driver, self.DATA_PARTICLE_WAVE_SAMPLE,
+        #                                       self.DataParticleTypes.WaveSample,
+        #                                       self.assert_particle_wave_burst)
+
+        # Two above are working.  Uncomment when remaining three work
+
+        self.assert_particle_published(driver, self.DATA_PARTICLE_STATISTICS,
+                                               self.DataParticleTypes.StatisticSample,
+                                               self.assert_particle_statistics)
+
+        self.assert_particle_published(driver, self.DATA_PARTICLE_DEVICE_CALIBRATION,
+                                               self.DataParticleTypes.DeviceCalibration,
+                                               self.assert_particle_device_calibration)
+
+        self.assert_particle_published(driver, self.DATA_PARTICLE_DEVICE_STATUS,
+                                               self.DataParticleTypes.DeviceStatus,
+                                               self.assert_particle_device_status)
 
     def test_instrument_driver_init_(self):
         """
@@ -2743,6 +2659,7 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
 
         ret = driver.get_resource_capabilities(*args, **kwargs)
         self.assertEqual(ret[0], [])
+
 
 
 
