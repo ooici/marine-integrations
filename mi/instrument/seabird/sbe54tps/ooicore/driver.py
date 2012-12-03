@@ -233,7 +233,7 @@ class ProtocolEvent(BaseEnum):
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
 
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
+    #ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
 
@@ -1531,12 +1531,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
 
         timeout = kwargs.get('timeout', TIMEOUT)
-        log.debug("%%% IN _handler_unknown_discover NEED TO WRITE THIS METHOD.....")
 
         next_state = None
         next_agent_state = None
 
         current_state = self._protocol_fsm.get_current_state()
+        log.debug("%%% IN _handler_unknown_discover current_state = " + str(current_state))
 
         if current_state == ProtocolState.AUTOSAMPLE:
             next_agent_state = ResourceAgentState.STREAMING
@@ -1549,9 +1549,14 @@ class Protocol(CommandResponseInstrumentProtocol):
             if  Prompt.AUTOSAMPLE  == prompt:
                 next_state = ProtocolState.AUTOSAMPLE
                 next_agent_state = ResourceAgentState.STREAMING
+                log.debug("_handler_unknown_discover - I am in STATE = " + str(next_state))
             elif Prompt.COMMAND  == prompt:
                 next_state = ProtocolState.COMMAND
                 next_agent_state = ResourceAgentState.IDLE
+                log.debug("_handler_unknown_discover - I am in STATE = " + str(next_state))
+            else:
+                log.debug("_handler_unknown_discover - HOW DID THIS HAPPEN??? ")
+                raise InstrumentProtocolException('_handler_unknown_discover - should never reach this line! What did you do!!!!')
 
             self._do_cmd_resp(InstrumentCmds.GET_CONFIGURATION_DATA, timeout=timeout)
             self._do_cmd_resp(InstrumentCmds.GET_STATUS_DATA, timeout=timeout)
@@ -1649,7 +1654,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
 
         log.debug("RESULT(RETURNED) = " + str(result))
-        #return (next_state, result)
         return (next_state, (next_agent_state, result))
 
     def _handler_command_start_direct(self, *args, **kwargs):
