@@ -222,518 +222,134 @@ SAMPLE_DC =\
 WAVE_DATA =\
         "wave: start time = 05 Oct 2012 01:10:54" + NEWLINE +\
         "wave: ptfreq = 171791.359" + NEWLINE +\
-        "  14.5102" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5078" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5078" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5188" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5097" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
+        "  14.5102" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5078" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE + "  14.5078" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5188" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE + "  14.5097" + NEWLINE + "  14.5134" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
         "wave: end burst" + NEWLINE
 
 RAW_STATISTIC =\
@@ -771,581 +387,6 @@ RAW_STATISTIC =\
     "   H1/10 = 0.0000e+00" + NEWLINE +\
     "   H1/100 = 0.0000e+00" + NEWLINE
 
-SAMPLE_DATA =\
-        "S>start" + NEWLINE +\
-        "start" + NEWLINE +\
-        "logging will start in 10 seconds" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 00:55:54, p = 14.5348, pt = 24.250, t = 23.9046" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 00:58:54, p = 14.5367, pt = 24.242, t = 23.8904" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 01:01:54, p = 14.5387, pt = 24.250, t = 23.8778" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 01:04:54, p = 14.5346, pt = 24.228, t = 23.8664" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 01:07:54, p = 14.5364, pt = 24.205, t = 23.8575" + NEWLINE +\
-        WAVE_DATA +\
-        "tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404" + NEWLINE +\
-        "" + NEWLINE +\
-        RAW_STATISTIC +\
-        "tide: start time = 05 Oct 2012 01:13:54, p = 14.5384, pt = 24.205, t = 23.8363" + NEWLINE
-
-BAD_SAMPLE_DATA =\
-        "S>start" + NEWLINE +\
-        "start" + NEWLINE +\
-        "logging will start in 10 seconds" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 00:55:54, p = 14.5348, pt = 24.250, t = 23.9046" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 00:58:54, p = 14.5367,NERD HERDER  pt = 24.242, t = 23.8904" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 01:01:54, p = 14.5387, pt = 24.250, t = 23.8778" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 01:04:54, p = 14.5346, pt = 24.228, t = 23.8664" + NEWLINE +\
-        "tide: start time = NERD HERDER05 Oct 2012 01:07:54, p = 14.5364, pt = 24.205, t = 23.8575" + NEWLINE +\
-        "wave: start time = 05 Oct 2012 01:10:54" + NEWLINE +\
-        "wave: ptfNERD HERDERreq = 171791.359" + NEWLINE +\
-        "  14.5FR2" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5078" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5078" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5188" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5097" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE +\
-        "wave: end burst" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404" + NEWLINE +\
-        "" + NEWLINE +\
-        "deMeanTrend................" + NEWLINE +\
-        "depth =    0.000, temperature = 23.840, salinity = 35.000, density = 1023.690" + NEWLINE +\
-        "" + NEWLINE +\
-        "fill array..." + NEWLINE +\
-        "find minIndex." + NEWLINE +\
-        "hanning...................." + NEWLINE +\
-        "FFT................................................................................................" + NEWLINE +\
-        "normalize....." + NEWLINE +\
-        "band average......................................................." + NEWLINE +\
-        "Auto-Spectrum Statistics:" + NEWLINE +\
-        "   nAvgBand = 5" + NEWLINE +\
-        "   total variance = 1.0896e-05" + NEWLINE +\
-        "   total energy = 1.0939e-01" + NEWLINE +\
-        "   significant period = 5.3782e-01" + NEWLINE +\
-        "   significant wave height = 1.3204e-02" + NEWLINE +\
-        "" + NEWLINE +\
-        "calculate dispersion.....................NERD HERDER............................................................................................................................................................................................................................................................." + NEWLINE +\
-        "IFFT.......................................................NERD HERDER........................................." + NEWLINE +\
-        "deHanning...................." + NEWLINE +\
-        "move data.." + NEWLINE +\
-        "zero crossing analysis....NERD HERDER........." + NEWLINE +\
-        "Time Series Statistics:" + NEWLINE +\
-        "   wave integration time = 128" + NEWLINE +\
-        "   number of waves = 0" + NEWLINE +\
-        "   total NERD HERDERvariance = 1.1595e-05" + NEWLINE +\
-        "   total energy = 1.1640e-01" + NEWLINE +\
-        "   average wave height = 0.0000e+00" + NEWLINE +\
-        "   average wave period = 0.0000e+00" + NEWLINE +\
-        "   maximum NERD HERDERwave height = 1.0893e-02" + NEWLINE +\
-        "   significant wave height = 0.0000e+00" + NEWLINE +\
-        "   significant NERD HERDERwave period = 0.0000e+00" + NEWLINE +\
-        "   H1/10 = 0.0000e+00" + NEWLINE +\
-        "   H1/100 = 0.0000e+00" + NEWLINE +\
-        "tide: start time = 05 Oct 2012 01:13:54, p = 14.5384, pt = 24.205, t = 23.8363" + NEWLINE
 
 
 class DataParticleMixin(InstrumentDriverDataParticleMixin):

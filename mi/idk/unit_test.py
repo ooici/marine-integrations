@@ -1736,7 +1736,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # go with state instead i guess...
         #
 
-        log.debug("ROGERROGER got to the end!")
         raw_events = []
         for x in self.event_subscribers.events_received:
             if str(type(x)) == "<class 'interface.objects.ResourceAgentCommandEvent'>":
@@ -1802,11 +1801,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         Test agent initialize command. This causes creation of
         driver process and transition to inactive.
         """
-
-
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
-
 
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.instrument_agent_client.execute_agent(cmd)

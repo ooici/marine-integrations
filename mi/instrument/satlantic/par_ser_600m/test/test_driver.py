@@ -831,8 +831,7 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         '''
         start and stop autosample and verify data particle
         '''
-        self.assert_sample_autosample(self.assertSampleDataParticle,
-                                      DataParticleValue.PARSED)
+        self.assert_sample_autosample(self.assertSampleDataParticle, DataParticleValue.PARSED)
 
 
     def test_get_set_parameters(self):
