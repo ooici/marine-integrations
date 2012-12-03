@@ -64,11 +64,11 @@ class LoggerManager(Singleton):
         if os.path.isfile(LOGGING_MI_OVERRIDE):
             config.add_configuration(LOGGING_MI_OVERRIDE)
             if debug:
-                print >> sys.stderr, str(os.getpid()) + ' supplemented logging from ' + path
+                print >> sys.stderr, str(os.getpid()) + ' supplemented logging from ' + LOGGING_MI_OVERRIDE
         elif os.path.isfile(LOGGING_CONTAINER_OVERRIDE):
             config.add_configuration(LOGGING_CONTAINER_OVERRIDE)
             if debug:
-                print >> sys.stderr, str(os.getpid()) + ' supplemented logging from ' + path
+                print >> sys.stderr, str(os.getpid()) + ' supplemented logging from ' + LOGGING_CONTAINER_OVERRIDE
 
 def get_logger():
     return log
