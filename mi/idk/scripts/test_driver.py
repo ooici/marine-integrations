@@ -7,7 +7,7 @@ from mi.idk.metadata import Metadata
 
 def run():
     opts = parseArgs()
-    app = NoseTest(Metadata())
+    app = NoseTest(Metadata(), testname=opts.testname)
 
     if( opts.unit ):
         app.report_header()
@@ -28,7 +28,9 @@ def parseArgs():
     parser.add_argument("-i", dest='integration', action="store_true",
                         help="only run integration tests" )
     parser.add_argument("-q", dest='qualification', action="store_true",
-                        help="only run qualification tests" )
+        help="only run qualification tests" )
+    parser.add_argument("-t", dest='testname',
+                        help="test function name to run (all if not set)" )
     #parser.add_argument("-m", dest='launch_monitor', action="store_true",
     #                    help="Launch data file monitor" )
     return parser.parse_args()

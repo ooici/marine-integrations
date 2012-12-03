@@ -24,24 +24,43 @@ USAGE:
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
-#from mock import Mock, call, DEFAULT
+# Ensure the test class is monkey patched for gevent
+from gevent import monkey; monkey.patch_all()
+import gevent
 
-#from nose.plugins.attrib import attr
 
 # Standard imports.
 import time
+import json
+import unittest
 
 # 3rd party imports.
 from nose.plugins.attrib import attr
 from mock import Mock
+from mock import patch
+from pyon.core.bootstrap import CFG
 
-from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacket
+from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import InstrumentDriverUnitTestCase
+from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
+from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
-from mi.core.instrument.logger_client import LoggerClient
+from interface.objects import AgentCommand
+
+from prototype.sci_data.stream_defs import ctd_stream_definition
+
+from mi.core.common import BaseEnum
+
+from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
+
+from mi.core.instrument.port_agent_client import PortAgentClient
+from mi.core.instrument.port_agent_client import PortAgentPacket
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
@@ -49,60 +68,32 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
-from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-
-
-# MI logger
-from mi.core.log import get_logger ; log = get_logger()
-
+from mi.instrument.satlantic.isusv3.ooicore.driver import PACKET_CONFIG
 from mi.instrument.satlantic.isusv3.ooicore.driver import InstrumentDriver
 from mi.instrument.satlantic.isusv3.ooicore.driver import State
 from mi.instrument.satlantic.isusv3.ooicore.driver import Event
 from mi.instrument.satlantic.isusv3.ooicore.driver import Parameter
-from mi.instrument.satlantic.isusv3.ooicore.driver import PACKET_CONFIG
-#from mi.instrument.satlantic.isusv3.ooicore.driver import Event
-#from mi.instrument.satlantic.isusv3.ooicore.driver import Error
-#from mi.instrument.satlantic.isusv3.ooicore.driver import Status
-#from mi.instrument.satlantic.isusv3.ooicore.driver import Prompt
-#from mi.instrument.satlantic.isusv3.ooicore.driver import Channel
-#from mi.instrument.satlantic.isusv3.ooicore.driver import Command
-#from mi.instrument.satlantic.isusv3.ooicore.driver import Capability
-#from mi.instrument.satlantic.isusv3.ooicore.driver import MetadataParameter
-#from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreInstrumentProtocol
-#from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreInstrumentDriver
+from mi.instrument.satlantic.isusv3.ooicore.driver import ISUSDataParticle
 
-# ION imports.
-from interface.objects import StreamQuery
-from interface.services.dm.itransform_management_service import TransformManagementServiceClient
-from interface.services.cei.iprocess_dispatcher_service import ProcessDispatcherServiceClient
-from interface.services.icontainer_agent import ContainerAgentClient
-from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
-from pyon.public import StreamSubscriberRegistrar
-from prototype.sci_data.stream_defs import ctd_stream_definition
-from pyon.agent.agent import ResourceAgentClient
-from interface.objects import AgentCommand
-from pyon.util.int_test import IonIntegrationTestCase
-from pyon.util.context import LocalContextMixin
-from pyon.public import CFG
-from pyon.event.event import EventSubscriber, EventPublisher
-
-from pyon.core.exception import InstParameterError
-
-
-# MI imports.
 from ion.agents.port.logger_process import EthernetDeviceLogger
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-# next line should match the above line mostly
-from mi.instrument.satlantic.isusv3.ooicore.driver import ooicoreParameter
+
+from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+
+from pyon.agent.agent import ResourceAgentState
+from pyon.agent.agent import ResourceAgentEvent
+from pyon.core.exception import Conflict
+
+# MI logger
+from mi.core.log import get_logger ; log = get_logger()
+
+# Driver module and class.
+DVR_MOD = 'mi.instrument.satlantic.isusv3.ooicore.driver'
+DVR_CLS = 'InstrumentDriver'
 
 ## Initialize the test parameters
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.satlantic.isusv3.ooicore.driver',
-    driver_class="InstrumentDriver",
-
+    driver_module=DVR_MOD,
+    driver_class=DVR_CLS,
     instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'Agent007',
     instrument_agent_packet_config = PACKET_CONFIG,
@@ -142,33 +133,42 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         
     def my_event_callback(self, event):
         event_type = event['type']
-        print str(event)
+        print "my_event_callback received: " + str(event)
         if event_type == DriverAsyncEvent.SAMPLE:
             sample_value = event['value']
-            stream_type = sample_value['stream_name']
+            """
+            DHE: Need to pull the list out of here.  It's coming out as a
+            string like it is.
+            """
+            particle_dict = json.loads(sample_value)
+            stream_type = particle_dict['stream_name']
             if stream_type == 'raw':
-                self.raw_stream_received = True
+                self.raw_stream_received += 1
             elif stream_type == 'parsed':
-                self.parsed_stream_received = True
-
+                self.parsed_stream_received += 1
 
     """
     This version of the test creates a PortAgentPacket object and passes it to
     the driver's got_data() method (NOTE: it actually invokes a special got_data
     method that is aware of the PortAgentPacket).
     """
-    def test_pa_packet_valid_sample(self):
+    def test_packet_valid_sample(self):
         """
         Create a mock port agent
         """
-        mock_port_agent = Mock(spec=LoggerClient)
+        mock_port_agent = Mock(spec=PortAgentClient)
 
         """
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        test_driver = InstrumentDriver(self.my_event_callback)
         
+        """
+        Put the driver into test mode
+        """
+        test_driver.set_test_mode(True)
+
         current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
@@ -197,7 +197,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Force the driver into AUTOSAMPLE state so that it will parse and 
         publish samples
         """        
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
@@ -209,6 +209,99 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         - Verify that raw and parsed streams have been received
         """
         self.reset_test_vars()
+        test_sample = "SAT"   # Frame Sync
+        test_sample += "NDF"  # Frame Type
+        test_sample += "0196" # Serial Number
+        test_sample += "\x00\x1e\xb4\xa6" # Date 00 1E B4 A6
+        test_sample += "\x40\x34\x85\x83\x98\xe9\x70\x71" # Time 40 34 85 B3 98 E9 70 71
+        test_sample += "\x00\x01\x02\x03" # ntr_con
+        test_sample += "\x00\x00\x00\x00" # aux1
+        test_sample += "\x00\x00\x00\x00" # aux2
+        test_sample += "\x00\x00\x00\x00" # aux3
+        test_sample += "\x03\x04\x01\x02" # rms_error
+        test_sample += "\x00\x00\x00\x00" # r_int
+        test_sample += "\x03\x8B"       # channel 1
+        test_sample += "\x03\x89"       # channel 2
+        test_sample += "\x03\x83"       # channel 3
+        test_sample += "\x03\x89"       # channel 4
+        test_sample += "\x03\x83"       # channel 5
+        test_sample += "\x03\x8D"       # channel 6
+        test_sample += "\x03\x93"       # channel 7
+        test_sample += "\x03\x9B"       # channel 8
+        test_sample += "\x03\x91"       # channel 9
+        test_sample += "\x03\x8E"       # channel 10
+        test_sample += "\x03\xA0"       # channel 11
+        test_sample += "\x03\x96"       # channel 12
+        test_sample += "\x03\x97"       # channel 13
+        test_sample += "\x03\x95"       # channel 14
+        test_sample += "\x03\xAB"       # channel 15
+        test_sample += "\x03\xC3"       # channel 16
+        test_sample += "\x03\xD9"       # channel 17
+        test_sample += "\x03\x14"       # channel 18
+        test_sample += "\x03\x3E"       # channel 19
+        test_sample += "\x03\x75"       # channel 20
+        test_sample += "\x03\x89"       # channel 21
+        test_sample += "\x03\xA9"       # channel 22
+        test_sample += "\x03\xBE"       # channel 23
+        test_sample += "\x03\xEB"       # channel 24
+        test_sample += "\x03\x11"       # channel 25
+        test_sample += "\x03\x3A"       # channel 26
+        test_sample += "\x03\x7B"       # channel 27
+        test_sample += "\x03\xC6"       # channel 28
+        test_sample += "\x03\x0D"       # channel 29
+        
+
+        """
+        HEX SAMPLE:
+        42 ED 9A 37 // Nitrate Concentration
+        42 9A 7B 81 // Aux1
+        C4 DB 12 C8 // Aux2
+        40 6C 88 34 // Aux3
+        38 4F 6D 7B // rms_error
+        41 BA 00 00 // t_int
+        41 B2 80 00 // t_spec
+        41 A0 5C A1 // t_lamp
+        00 05 34 42 // lamp_time
+        41 96 60 45 // humidity
+        41 40 22 80 // volt_12
+        40 9F 47 A0 // volt_5
+        41 39 45 40 // volt_main
+        46 2D 18 EC // ref_avg
+        43 6D AE 2D // ref_std
+        44 61 C0 00 // sw_dark
+        44 62 03 43 // spec_avg
+        03 8B       // channel 1
+        03 89       // channel 2
+        03 83       // channel 3
+        03 89       // channel 4
+        03 83       // channel 5
+        03 8D       // channel 6
+        03 93       // channel 7
+        03 9B       // channel 8
+        03 91       // channel 9
+        03 8E       // channel 10
+        03 A0       // channel 11
+        03 96       // channel 12
+        03 97       // channel 13
+        03 95       // channel 14
+        03 AB       // channel 15
+        03 C3       // channel 16
+        03 D9       // channel 17
+        04 14       // channel 18
+        04 3E       // channel 19
+        04 75       // channel 20
+        04 89       // channel 21
+        04 A9       // channel 22
+        04 BE       // channel 23
+        04 EB       // channel 24
+        05 11       // channel 25
+        05 3A       // channel 26
+        05 7B       // channel 27
+        05 C6       // channel 28
+        06 0D       // channel 29
+        """        
+        """
+        ASCII SAMPLE: IOS SAYS USE BINARY
         test_sample = "SATNDF0196,2012219,18.770632,0.00,0.00,0.00,0.00,0.000000,24.38,23.31,18.53,255095,19.41,12.04," + \
             "4.95,11.57,1087.36,217.87,929.20,951.43,933,939,929,921,924,926,919,933,934,923,925,913,910,933,922,930," + \
             "914,918,919,925,930,919,929,926,927,921,949,922,932,924,929,931,929,943,921,938,921,914,933,913,920,929," + \
@@ -221,24 +314,23 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
             "963,961,969,963,988,979,989,991,977,982,977,969,965,971,961,978,972,984,977,971,979,987,965,964,970,973," + \
             "949,938,945,953,959,951,957,976,952,953,953,949,949,951,945,961,945,953,949,956,970,974,973,957,948,954," + \
             "956,957,946,948,946,946,247\r\n"
+        """
 
         """
         Create a PortAgentPacket object and pass the header in.  (This is usually the job of the PortAgentClient, but
         we need to pass a PortAgentPacket object to the got_data method.)
         """
         paPacket = PortAgentPacket()         
-        paHeader = "\xa3\x9d\x7a\x02\x00\x29\x0b\x2e\x00\x00\x00\x01\x80\x00\x00\x00"
-        paPacket.unpack_header(paHeader)
-        
         paPacket.attach_data(test_sample)
+        paPacket.pack_header()
 
-        test_driver._protocol.got_pa_packet(paPacket)
+        test_driver._protocol.got_data(paPacket)
         
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
+        #self.assertTrue(self.raw_stream_received)
+        #self.assertTrue(self.parsed_stream_received)
 
         
-    def test_pa_packet_invalid_sample(self):
+    def test_packet_invalid_sample(self):
         # instantiate a mock object for port agent client
         # not sure doing that here is that helpful...
 
@@ -255,8 +347,13 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        test_driver = InstrumentDriver(self.my_event_callback)
         
+        """
+        Put the driver into test mode
+        """
+        test_driver.set_test_mode(True)
+
         current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
@@ -281,7 +378,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
         
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
@@ -305,13 +402,13 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         
         paPacket.attach_data(test_sample)
 
-        test_driver._protocol.got_pa_packet(paPacket)
+        test_driver._protocol.got_data(paPacket)
         
         self.assertFalse(self.raw_stream_received)
         self.assertFalse(self.parsed_stream_received)
 
         
-    def test_pa_packet_fragmented_sample(self):
+    def test_packet_fragmented_sample(self):
         """
         Simulate a complete sample that arrives in separate invocations of got_data();
         result should be a complete sample published 
@@ -326,8 +423,13 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        test_driver = InstrumentDriver(self.my_event_callback)
         
+        """
+        Put the driver into test mode
+        """
+        test_driver.set_test_mode(True)
+
         current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
@@ -356,7 +458,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Force the driver into AUTOSAMPLE state so that it will parse and 
         publish samples
         """        
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
@@ -386,7 +488,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         
         paPacket.attach_data(test_sample)
 
-        test_driver._protocol.got_pa_packet(paPacket)
+        test_driver._protocol.got_data(paPacket)
         
         self.assertFalse(self.raw_stream_received)
         self.assertFalse(self.parsed_stream_received)
@@ -410,13 +512,13 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         
         paPacket.attach_data(test_sample)
 
-        test_driver._protocol.got_pa_packet(paPacket)
+        test_driver._protocol.got_data(paPacket)
         
         self.assertTrue(self.raw_stream_received)
         self.assertTrue(self.parsed_stream_received)
 
         
-    def test_pa_packet_concatenated_fragmented_sample(self):
+    def test_packet_concatenated_fragmented_sample(self):
         """
         Simulate a complete sample that arrives in with a fragment concatenated.  The concatenated fragment
         should have have a terminator.  A separate invocations of got_data() will have the remainder;
@@ -432,8 +534,13 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        test_driver = InstrumentDriver(self.my_event_callback)
         
+        """
+        Put the driver into test mode
+        """
+        test_driver.set_test_mode(True)
+
         current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
@@ -462,7 +569,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         Force the driver into AUTOSAMPLE state so that it will parse and 
         publish samples
         """        
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
+        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
         current_state = test_driver.get_resource_state()
         print "DHE: DriverConnectionState: " + str(current_state)
         self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
@@ -508,7 +615,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         
         paPacket.attach_data(test_sample)
 
-        test_driver._protocol.got_pa_packet(paPacket)
+        test_driver._protocol.got_data(paPacket)
         
         self.assertTrue(self.raw_stream_received)
         self.assertTrue(self.parsed_stream_received)
@@ -536,420 +643,12 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         
         paPacket.attach_data(test_sample)
 
-        test_driver._protocol.got_pa_packet(paPacket)
+        test_driver._protocol.got_data(paPacket)
         
         self.assertTrue(self.raw_stream_received)
         self.assertTrue(self.parsed_stream_received)
 
     
-    def test_valid_complete_dark_sample(self):
-        """
-        Create a mock port agent
-        """
-        mock_port_agent = Mock(spec=LoggerClient)
-
-        """
-        Instantiate the driver class directly (no driver client, no driver
-        client, no zmq driver process, no driver process; just own the driver)
-        """                  
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
-        
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-        
-        """
-        Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to that state
-        """
-        config = {'mock_port_agent' : mock_port_agent}
-        test_driver.configure(config = config)
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-        
-        """
-        Invoke the connect method of the driver: should connect to mock
-        port agent.  Verify that the connection FSM transitions to CONNECTED,
-        (which means that the FSM should now be reporting the ProtocolState).
-        """
-        test_driver.connect()
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        """
-        Force the driver into AUTOSAMPLE state so that it will parse and 
-        publish samples
-        """        
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
-
-        """
-        - Reset test verification variables.
-        - Construct a sample dark full frame stream
-        - Pass to got_data()
-        - Verify that raw and parsed streams have been received
-        """
-        self.reset_test_vars()
-        test_sample = "SATNDF0196,2012219,18.770632,0.00,0.00,0.00,0.00,0.000000,24.38,23.31,18.53,255095,19.41,12.04," + \
-            "4.95,11.57,1087.36,217.87,929.20,951.43,933,939,929,921,924,926,919,933,934,923,925,913,910,933,922,930," + \
-            "914,918,919,925,930,919,929,926,927,921,949,922,932,924,929,931,929,943,921,938,921,914,933,913,920,929," + \
-            "931,922,929,927,926,934,923,945,938,941,929,933,920,926,919,931,935,953,939,936,953,947,956,942,941,931," + \
-            "935,938,951,943,921,936,934,949,933,933,938,953,949,939,942,944,951,929,935,935,945,949,938,937,948,952," + \
-            "945,950,952,961,946,954,945,954,957,941,948,939,948,938,937,939,933,945,926,940,953,949,933,948,923,925," + \
-            "941,954,947,955,965,951,965,937,949,939,929,955,958,954,970,967,973,976,979,985,993,970,966,973,988,966," + \
-            "964,978,970,991,981,983,994,990,980,985,981,978,971,974,974,987,985,982,977,980,953,953,964,964,959,954," + \
-            "947,966,950,963,961,967,964,977,973,974,979,977,984,966,960,957,948,970,968,980,967,979,984,970,967,979," + \
-            "963,961,969,963,988,979,989,991,977,982,977,969,965,971,961,978,972,984,977,971,979,987,965,964,970,973," + \
-            "949,938,945,953,959,951,957,976,952,953,953,949,949,951,945,961,945,953,949,956,970,974,973,957,948,954," + \
-            "956,957,946,948,946,946,247\r\n"
-
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
-        
-    def test_valid_complete_light_sample(self):
-        """
-        Create a mock port agent
-        """
-        mock_port_agent = Mock(spec=LoggerClient)
-
-        """
-        Instantiate the driver class directly (no driver client, no driver
-        client, no zmq driver process, no driver process; just own the driver)
-        """                  
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
-        
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-        
-        """
-        Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to the DISCONNECTED state
-        """
-        config = {'mock_port_agent' : mock_port_agent}
-        test_driver.configure(config = config)
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-        
-        """
-        Invoke the connect method of the driver: should connect to mock
-        port agent.  Verify that the connection FSM transitions to CONNECTED,
-        (which means that the FSM should now be reporting the ProtocolState).
-        """
-        test_driver.connect()
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        """
-        Force the driver into AUTOSAMPLE state so that it will parse and 
-        publish samples
-        """        
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
-
-        """
-        - Reset test verification variables.
-        - Construct a sample light full frame stream
-        - Pass to got_data()
-        - Verify that raw and parsed streams have been received
-        """
-        self.reset_test_vars()
-        test_sample = "SATNLF0196,2012219,18.770960,82.83,52.29,-1201.21,2.99,0.000026,23.62,23.31,18.51,255096,19.43," + \
-            "12.04,5.01,11.57,10434.65,248.53,940.20,951.43,933,937,951,939,941,939,933,947,938,931,931,926,937,958," + \
-            "979,1070,1162,1321,1438,1543,1628,1716,1791,1879,1965,2086,2215,2382,2602,2827,3081,3369,3686,4032,4363," + \
-            "4705,4994,5262,5473,5655,5786,5924,6024,6147,6301,6503,6748,7049,7415,7871,8389,9002,9721,10522,11440," + \
-            "12425,13479,14601,15706,16805,17858,18786,19545,20131,20478,20574,20449,20146,19638,19031,18349,17653," + \
-            "16981,16342,15767,15278,14862,14542,14279,14124,13996,13969,13985,14095,14245,14461,14742,15091,15464," + \
-            "15903,16377,16869,17390,17861,18322,18762,19109,19370,19451,19449,19351,19083,18692,18225,17681,17097," + \
-            "16509,15941,15362,14866,14421,14024,13707,13450,13227,13094,13019,12994,13019,13097,13223,13443,13662," + \
-            "13991,14377,14809,15301,15861,16477,17141,17839,18549,19323,20085,20867,21642,22429,23163,23770,24420," + \
-            "24959,25409,25784,26054,26208,26225,26190,26050,25792,25458,25041,24602,24096,23560,23040,22475,21925," + \
-            "21401,20862,20404,19922,19509,19125,18769,18431,18135,17873,17621,17391,17142,16929,16709,16514,16324," + \
-            "16167,16044,15923,15842,15737,15741,15725,15747,15789,15847,15897,15959,16037,16108,16178,16211,16246," + \
-            "16289,16293,16383,16402,16437,16425,16428,16408,16387,16366,16315,16253,16154,16065,15943,15811,15638," + \
-            "15444,15238,14999,14728,14439,14172,13849,13549,13239,12946,12631,12355,12069,11746,11398,11086,10761," + \
-            "10486,10255,10023,9832,9661,9511,9356,9247,9171,9119,8986,8809,8656,8520,8411,8293,8196,8107,8026,8020," + \
-            "7991,7960,7866,7829,7872,7882,7750,7361,6756,6098,6098,170\r\n"
-
-        test_driver._protocol.got_data(test_sample)
-
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
-        
-
-    def test_invalid_sample(self):
-        # instantiate a mock object for port agent client
-        # not sure doing that here is that helpful...
-
-        """
-        Currently passing mocked port agent client.  To test fragmentation,
-        I should be able to call the got_data method directly.
-        """
-        """
-        Create a mock port agent
-        """
-        mock_port_agent = Mock(spec=LoggerClient)
-
-        """
-        Instantiate the driver class directly (no driver client, no driver
-        client, no zmq driver process, no driver process; just own the driver)
-        """                  
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
-        
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-        
-        """
-        Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to that state
-        """
-        config = {'mock_port_agent' : mock_port_agent}
-        test_driver.configure(config = config)
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-        
-        """
-        Invoke the connect method of the driver: should connect to mock
-        port agent.  Verify that the connection FSM transitions to CONNECTED,
-        (which means that the FSM should now be reporting the ProtocolState).
-        """
-        test_driver.connect()
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-        
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
-
-        """
-        - Reset test verification variables.
-        - Construct a bogus stream
-        - Pass to got_data()
-        - Verify that raw and parsed streams have NOT been received
-        """
-        self.reset_test_vars()
-        test_sample = "this is a bogus test\r\n"
-        
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertFalse(self.raw_stream_received)
-        self.assertFalse(self.parsed_stream_received)
-        
-    def test_fragmented_complete_sample(self):
-        """
-        Simulate a complete sample that arrives in separate invocations of got_data();
-        result should be a complete sample published 
-        """
-        
-        """
-        Create a mock port agent
-        """
-        mock_port_agent = Mock(spec=LoggerClient)
-
-        """
-        Instantiate the driver class directly (no driver client, no driver
-        client, no zmq driver process, no driver process; just own the driver)
-        """                  
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
-        
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-        
-        """
-        Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to that state
-        """
-        config = {'mock_port_agent' : mock_port_agent}
-        test_driver.configure(config = config)
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-        
-        """
-        Invoke the connect method of the driver: should connect to mock
-        port agent.  Verify that the connection FSM transitions to CONNECTED,
-        (which means that the FSM should now be reporting the ProtocolState).
-        """
-        test_driver.connect()
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        """
-        Force the driver into AUTOSAMPLE state so that it will parse and 
-        publish samples
-        """        
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
-
-        """
-        - Reset test verification variables.
-        - Construct a fragment of a sample dark full frame stream
-        - Pass to got_data()
-        - Verify that raw and parsed streams have NOT been received
-        """
-        self.reset_test_vars()
-        test_sample = "SATNDF0196,2012219,18.770632,0.00,0.00,0.00,0.00,0.000000,24.38,23.31,18.53,255095,19.41,12.04," + \
-            "4.95,11.57,1087.36,217.87,929.20,951.43,933,939,929,921,924,926,919,933,934,923,925,913,910,933,922,930," + \
-            "914,918,919,925,930,919,929,926,927,921,949,922,932,924,929,931,929,943,921,938,921,914,933,913,920,929," + \
-            "931,922,929,927,926,934,923,945,938,941,929,933,920,926,919,931,935,953,939,936,953,947,956,942,941,931," + \
-            "935,938,951,943,921,936,934,949,933,933,938,953,949,939,942,944,951,929,935,935,945,949,938,937,948,952," + \
-            "945,950,952,961,946,954,945,954,957,941,948,939,948,938,937,939,933,945,926,940,953,949,933,948,923,925,"
-
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertFalse(self.raw_stream_received)
-        self.assertFalse(self.parsed_stream_received)
-
-        """
-        - Construct the remaining fragment of the sample dark full frame stream
-        - Pass to got_data()
-        - Verify that raw and parsed streams have been received
-        """
-        test_sample = \
-            "941,954,947,955,965,951,965,937,949,939,929,955,958,954,970,967,973,976,979,985,993,970,966,973,988,966," + \
-            "964,978,970,991,981,983,994,990,980,985,981,978,971,974,974,987,985,982,977,980,953,953,964,964,959,954," + \
-            "947,966,950,963,961,967,964,977,973,974,979,977,984,966,960,957,948,970,968,980,967,979,984,970,967,979," + \
-            "963,961,969,963,988,979,989,991,977,982,977,969,965,971,961,978,972,984,977,971,979,987,965,964,970,973," + \
-            "949,938,945,953,959,951,957,976,952,953,953,949,949,951,945,961,945,953,949,956,970,974,973,957,948,954," + \
-            "956,957,946,948,946,946,247\r\n"
-
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
-        
-    def test_concatenated_fragmented_sample(self):
-        """
-        Simulate a complete sample that arrives in with a fragment concatenated.  The concatenated fragment
-        should have have a terminator.  A separate invocations of got_data() will have the remainder;
-        result should be a complete sample published 
-        """
-        
-        """
-        Create a mock port agent
-        """
-        mock_port_agent = Mock(spec=LoggerClient)
-
-        """
-        Instantiate the driver class directly (no driver client, no driver
-        client, no zmq driver process, no driver process; just own the driver)
-        """                  
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
-        
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-        
-        """
-        Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to that state
-        """
-        config = {'mock_port_agent' : mock_port_agent}
-        test_driver.configure(config = config)
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-        
-        """
-        Invoke the connect method of the driver: should connect to mock
-        port agent.  Verify that the connection FSM transitions to CONNECTED,
-        (which means that the FSM should now be reporting the ProtocolState).
-        """
-        test_driver.connect()
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        """
-        Force the driver into AUTOSAMPLE state so that it will parse and 
-        publish samples
-        """        
-        test_driver.execute_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_resource_state()
-        print "DHE: DriverConnectionState: " + str(current_state)
-        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
-
-        """
-        - Reset test verification variables.
-        - Construct a sample dark full frame stream with a concatenated fragment
-        - Pass to got_data()
-        - Verify that raw and parsed streams have been received
-        - Later, when the final fragment has been send, verify that raw and
-          parsed streams have been received.
-        """
-        self.reset_test_vars()
-        test_sample = "SATNDF0196,2012219,18.770632,0.00,0.00,0.00,0.00,0.000000,24.38,23.31,18.53,255095,19.41,12.04," + \
-            "4.95,11.57,1087.36,217.87,929.20,951.43,933,939,929,921,924,926,919,933,934,923,925,913,910,933,922,930," + \
-            "914,918,919,925,930,919,929,926,927,921,949,922,932,924,929,931,929,943,921,938,921,914,933,913,920,929," + \
-            "931,922,929,927,926,934,923,945,938,941,929,933,920,926,919,931,935,953,939,936,953,947,956,942,941,931," + \
-            "935,938,951,943,921,936,934,949,933,933,938,953,949,939,942,944,951,929,935,935,945,949,938,937,948,952," + \
-            "945,950,952,961,946,954,945,954,957,941,948,939,948,938,937,939,933,945,926,940,953,949,933,948,923,925," + \
-            "941,954,947,955,965,951,965,937,949,939,929,955,958,954,970,967,973,976,979,985,993,970,966,973,988,966," + \
-            "964,978,970,991,981,983,994,990,980,985,981,978,971,974,974,987,985,982,977,980,953,953,964,964,959,954," + \
-            "947,966,950,963,961,967,964,977,973,974,979,977,984,966,960,957,948,970,968,980,967,979,984,970,967,979," + \
-            "963,961,969,963,988,979,989,991,977,982,977,969,965,971,961,978,972,984,977,971,979,987,965,964,970,973," + \
-            "949,938,945,953,959,951,957,976,952,953,953,949,949,951,945,961,945,953,949,956,970,974,973,957,948,954," + \
-            "956,957,946,948,946,946,247\r\n"
-
-        """
-        - Construct the beginning of a fragment of a sample light full frame stream
-        - Pass to got_data()
-        """
-        test_sample += "SATNLF0196,2012219,18.770960,82.83,52.29,-1201.21,2.99,0.000026,23.62,23.31,18.51,255096,19.43," + \
-            "12.04,5.01,11.57,10434.65,248.53,940.20,951.43,933,937,951,939,941,939,933,947,938,931,931,926,937,958," + \
-            "979,1070,1162,1321,1438,1543,1628,1716,1791,1879,1965,2086,2215,2382,2602,2827,3081,3369,3686,4032,4363," + \
-            "4705,4994,5262,5473,5655,5786,5924,6024,6147,6301,6503,6748,7049,7415,7871,8389,9002,9721,10522,11440," + \
-            "12425,13479,14601,15706,16805,17858,18786,19545,20131,20478,20574,20449,20146,19638,19031,18349,17653," + \
-            "16981,16342,15767,15278,14862,14542,14279,14124,13996,13969,13985,14095,14245,14461,14742,15091,15464," + \
-            "15903,16377,16869,17390,17861,18322,18762,19109,19370,19451,19449,19351,19083,18692,18225,17681,17097," + \
-            "16509,15941,15362,14866,14421,14024,13707,13450,13227,13094,13019,12994,13019,13097,13223,13443,13662,"
-
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
-
-        """
-        - Reset teset verification variables
-        - Construct the final fragment of a sample light full frame stream
-        - Pass to got_data()
-        - Verify that raw and parsed streams have been received
-        """
-        self.reset_test_vars()
-        test_sample = \
-            "13991,14377,14809,15301,15861,16477,17141,17839,18549,19323,20085,20867,21642,22429,23163,23770,24420," + \
-            "24959,25409,25784,26054,26208,26225,26190,26050,25792,25458,25041,24602,24096,23560,23040,22475,21925," + \
-            "21401,20862,20404,19922,19509,19125,18769,18431,18135,17873,17621,17391,17142,16929,16709,16514,16324," + \
-            "16167,16044,15923,15842,15737,15741,15725,15747,15789,15847,15897,15959,16037,16108,16178,16211,16246," + \
-            "16289,16293,16383,16402,16437,16425,16428,16408,16387,16366,16315,16253,16154,16065,15943,15811,15638," + \
-            "15444,15238,14999,14728,14439,14172,13849,13549,13239,12946,12631,12355,12069,11746,11398,11086,10761," + \
-            "10486,10255,10023,9832,9661,9511,9356,9247,9171,9119,8986,8809,8656,8520,8411,8293,8196,8107,8026,8020," + \
-            "7991,7960,7866,7829,7872,7882,7750,7361,6756,6098,6098,170\r\n"
-
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
-
-
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -1436,7 +1135,7 @@ class Testooicore_HW(InstrumentDriverTestCase):
 ###############################################################################
 
 @attr('QUAL', group='mi')
-class ISUS3QualificationTestCase(InstrumentDriverQualificationTestCase):
+class ISUS3QualTestCase(InstrumentDriverQualificationTestCase):
     """Qualification Test Container"""
     
     # Qualification tests live in the base class.  This class is extended
@@ -1444,3 +1143,142 @@ class ISUS3QualificationTestCase(InstrumentDriverQualificationTestCase):
     # (UNIT, INT, and QUAL) are run.  
     pass
 
+
+    def assertSampleDataParticle(self, val):
+        """
+        Verify the value for ISUSv3 sample data particle
+    
+        {
+          'quality_flag': 'ok',
+          'preferred_timestamp': 'driver_timestamp',
+          'stream_name': 'parsed',
+          'pkt_format_id': 'JSON_Data',
+          'pkt_version': 1,
+          'driver_timestamp': 3559843883.8029947,
+          'values': [
+            {
+              'value_id': 'frame_type',
+              'value': 67.4448
+            },
+            {
+              'value_id': 'serial_num',
+              'value': 44.69101
+            },
+            {
+              'value_id': 'date',
+              'value': 865.096
+            }
+            {
+              'value_id': 'time',
+              'value': 0.0114
+            }
+          ],
+        }
+        """
+    
+        if (isinstance(val, ISUSDataParticle)):
+            sample_dict = json.loads(val.generate_parsed())
+        else:
+            sample_dict = val
+    
+        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
+            DataParticleValue.PARSED)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
+            DataParticleValue.JSON_DATA)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
+            list))
+        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+    
+        for x in sample_dict['values']:
+            #print "--->> DHE: " + x['value_id'] + " value: " + str(x['value'])
+            if x['value_id'] in ['frame_type', 'serial_num']:
+                #print "--->> DHE: " + x['value_id'] + " is of type: " + str((x['value']).__class__.__name__)
+                self.assertTrue(isinstance(x['value'], str))
+            elif x['value_id'] in [
+                    'date', 
+                    'ch001', 
+                    'ch002', 
+                    'ch003', 
+                    'ch004', 
+                    'ch005', 
+                    'ch006', 
+                    'ch007', 
+                    'ch008', 
+                    'ch009', 
+                    'ch010', 
+                    'ch011', 
+                    'ch012', 
+                    'ch013', 
+                    'ch014', 
+                    'ch015', 
+                    'ch016', 
+                    'ch017', 
+                    'ch018', 
+                    'ch019'
+                    'ch020']:
+                #print "--->> DHE: " + x['value_id'] + " is of type: " + str((x['value'][0]).__class__.__name__)
+                self.assertTrue(isinstance(x['value'][0], int))
+            elif x['value_id'] in [
+                    'time',
+                    'ntr_conc',
+                    'aux1',
+                    'aux2',
+                    'aux3',
+                    'rms_error',
+                    't_int',
+                    't_spec',
+                    't_lamp',
+                    'lamp_time',
+                    'humidity',
+                    'volt_12',
+                    'volt_5',
+                    'volt_main',
+                    'ref_avg',
+                    'ref_std',
+                    'sw_dark',
+                    'spec_avg'
+                    ]:
+                #print "--->> DHE: " + x['value_id'] + " is of type: " + str((x['value'][0]).__class__.__name__)
+                self.assertTrue(isinstance(x['value'][0], float))
+
+    def my_test_sample_autosample(self):
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.IDLE)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+        retval = self.instrument_agent_client.execute_agent(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+        self.assert_start_autosample()
+
+        """
+        TEMPTEMP; sleep for now to give autosample time
+        """
+        log.debug("sleeping to allow autosample events")
+        gevent.sleep(10)
+        log.debug("done sleeping")
+
+        self.assert_stop_autosample()
+        
+    def test_sample_autosample(self):
+        self.assert_sample_autosample(self.assertSampleDataParticle,
+                                  DataParticleValue.PARSED, timeout = 60*5)
+        pass
+
+        

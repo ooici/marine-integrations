@@ -5,6 +5,20 @@
 @file ion/services/mi/drivers/sbe16_plus_v2/test_sbe16_driver.py
 @author David Everett 
 @brief Test cases for InstrumentDriver
+
+USAGE:
+ Make tests verbose and provide stdout
+   * From the IDK
+       $ bin/test_driver
+       $ bin/test_driver -u
+       $ bin/test_driver -i
+       $ bin/test_driver -q
+
+   * From pyon
+       $ bin/nosetests -s -v .../mi/instrument/seabird/sbe16plus_v2/ooicore
+       $ bin/nosetests -s -v .../mi/instrument/seabird/sbe16plus_v2/ooicore -a UNIT
+       $ bin/nosetests -s -v .../mi/instrument/seabird/sbe16plus_v2/ooicore -a INT
+       $ bin/nosetests -s -v .../mi/instrument/seabird/sbe16plus_v2/ooicore -a QUAL
 """
 
 __author__ = 'David Everett'
@@ -37,6 +51,8 @@ from prototype.sci_data.stream_defs import ctd_stream_definition
 
 from mi.core.common import BaseEnum
 
+from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
+
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
 
@@ -62,11 +78,9 @@ from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import ProtocolEvent
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import Capability
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import Parameter
 from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import Prompt
-from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
+
 from ion.agents.port.logger_process import EthernetDeviceLogger
 
-#from mi.idk.unit_test import RequiredCapabilities
-#from mi.idk.unit_test import RequiredAutoSampleCapabilities
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 from pyon.agent.agent import ResourceAgentState
@@ -75,18 +89,6 @@ from pyon.core.exception import Conflict
 
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
-
-# Make tests verbose and provide stdout
-# Note: currently the inheritance chain is backwards, so we're doing this:
-# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_process
-# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_config
-# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_connect
-# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_get_set
-# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_poll
-# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_autosample
-# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_test
-# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_errors
-# bin/nosetests -s -v mi/instrument/seabird/sbe16plus_v2/ooicore/test/test_driver.py:IntFromIDK.test_discover_autosample
 
 # Driver module and class.
 DVR_MOD = 'mi.instrument.seabird.sbe16plus_v2.ooicore.driver'
