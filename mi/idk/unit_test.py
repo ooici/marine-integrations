@@ -95,6 +95,7 @@ class DataParticleParameterConfigKey(BaseEnum):
     TYPE = 'type'
     REQUIRED = 'required'
     NAME = 'name'
+    VALUE = 'value'
 
 class InstrumentDriverTestConfig(Singleton):
     """
@@ -193,7 +194,7 @@ class InstrumentDriverDataParticleMixin(unittest.TestCase):
         self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
         self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
 
-    def assert_data_particle_parameters(self, data_particle, param_dict):
+    def assert_data_particle_parameters(self, data_particle, param_dict, verify_values = False):
         """
         Verify the data particles contain all parameters in the parameter enum and verify the
         types match those defined in the enum.
@@ -205,12 +206,15 @@ class InstrumentDriverDataParticleMixin(unittest.TestCase):
          type: the data type of the parameter.  REQUIRED
          required: is the parameter required, False == not required
          name: Name of the parameter, used for validation if we use constants when defining keys
+         value: value of the parameter being validated.  This is useful for unit tests where
+                parameters are known.
 
          {
              'some_key': {
                  type: float,
                  required: False,
-                 name: 'some_key'
+                 name: 'some_key',
+                 value: 1.1
              }
          }
 
@@ -226,6 +230,7 @@ class InstrumentDriverDataParticleMixin(unittest.TestCase):
 
         @param data_particle: the data particle to examine
         @param parameter_dict: dict with parameter names and types
+        @param verify_values: bool should ve verify parameter values
         """
         sample_dict = self.convert_data_particle_to_dict(data_particle)
         self.assertIsInstance(param_dict, dict)
@@ -238,6 +243,10 @@ class InstrumentDriverDataParticleMixin(unittest.TestCase):
         self.assert_data_particle_parameter_names(param_dict)
         self.assert_data_particle_parameter_set(values, param_dict)
         self.assert_data_particle_parameter_types(values, param_dict)
+
+        if(verify_values):
+            self.assert_data_particle_parameter_value(values, param_dict)
+
 
     def assert_data_particle_parameter_names(self, param_dict):
         """
@@ -307,8 +316,43 @@ class InstrumentDriverDataParticleMixin(unittest.TestCase):
         for optional in optional_keys:
             sample_keys.remove(optional)
 
+        log.info("Unknown Keys: %s" % sample_keys)
+
         # If there is anything left in the sample keys then it's a problem
         self.assertEqual(len(sample_keys), 0)
+
+
+    def assert_data_particle_parameter_value(self, sample_values, param_dict):
+        """
+        Verify the value in the data particle parameter with the value in the param dict.  This test
+        is useful in unit testing when the values are known.
+        @param sample_dict: parsed data particle to inspect
+        @param param_dict: dictionary containing parameter validation information
+        """
+        for sample in sample_values:
+            # get the parameter name
+            param_name = sample.get('value_id')
+            self.assertIsNotNone(param_name)
+
+            # get the parameter value
+            param_value = sample['value']
+            log.debug("Data Particle Parameter (%s): %s" % (sample, type(param_value)))
+
+            # get the parameter type
+            param_def = param_dict.get(param_name)
+            self.assertIsNotNone(param_def)
+            if(isinstance(param_def, dict)):
+                param_type = param_def.get(DataParticleParameterConfigKey.TYPE)
+                self.assertIsNotNone(type)
+            else:
+                param_type = param_def
+
+            try:
+                required_value = param_def[DataParticleParameterConfigKey.VALUE]
+                self.assertEqual(param_value, required_value)
+            except KeyError:
+                # Ignore key errors
+                pass
 
 
     def assert_data_particle_parameter_types(self, sample_values, param_dict):
@@ -317,15 +361,15 @@ class InstrumentDriverDataParticleMixin(unittest.TestCase):
         @param sample_dict: parsed data particle to inspect
         @param param_dict: dictionary containing parameter validation information
         """
-
         for sample in sample_values:
-            log.debug("Data Particle Parameter: %s" % sample)
             # get the parameter name
             param_name = sample.get('value_id')
             self.assertIsNotNone(param_name)
 
             # get the parameter value
             param_value = sample['value']
+
+            log.debug("Data Particle Parameter (%s): %s" % (sample, type(param_value)))
 
             # get the parameter type
             param_def = param_dict.get(param_name)
@@ -760,7 +804,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, initial_protocol_state)
 
-    def assert_particle_published(self, driver, sample_data, particle_type, particle_assert_method):
+    def assert_particle_published(self, driver, sample_data, particle_assert_method, verify_values = False):
         """
         Verify that we can send data through the port agent and the the correct particles
         are generated.
@@ -770,6 +814,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         @param driver: instrument driver with mock port agent client
         @param sample_data: the byte string we want to send to the driver
         @param particle_assert_method: assert method to validate the data particle.
+        @param verify_values: Should we validate values?
         """
 
         log.debug("Sample to publish: %s" % sample_data)
@@ -783,19 +828,21 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         # Push the data into the driver
         driver._protocol.got_data(port_agent_packet)
 
-        # Find all particles of the correct data particle types
+        # Find all particles of the correct data particle types (not raw)
         particles = []
         for p in self._data_particle_received:
             particle_dict = json.loads(p)
             stream_type = particle_dict.get('stream_name')
             self.assertIsNotNone(stream_type)
-            if(stream_type == particle_type):
+            if(stream_type != DataParticleValue.RAW):
                 particles.append(p)
 
+        log.debug("Non raw particles: %s " % particles)
         self.assertEqual(len(particles), 1)
 
         # Verify the data particle
-        particle_assert_method(particles.pop())
+        particle_assert_method(particles.pop(), verify_values)
+
 
 class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must inherit from here to get _start_container
     def setUp(self):

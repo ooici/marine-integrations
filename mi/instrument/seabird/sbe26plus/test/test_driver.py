@@ -1,6 +1,6 @@
 """
 @package mi.instrument.seabird.sbe26plus.test.test_driver
-@file /Users/unwin/OOI/Workspace/code/marine-integrations/mi/instrument/seabird/sbe26plus/driver.py
+@file marine-integrations/mi/instrument/seabird/sbe26plus/driver.py
 @author Roger Unwin
 @brief Test cases for ooicore driver
 
@@ -11,17 +11,6 @@ USAGE:
        $ bin/test_driver -u
        $ bin/test_driver -i
        $ bin/test_driver -q
-
-   * From pyon
-       $ bin/nosetests -s -v /Users/unwin/OOI/Workspace/code/marine-integrations/mi/instrument/seabird/sbe26plus/ooicore
-       $ bin/nosetests -s -v /Users/unwin/OOI/Workspace/code/marine-integrations/mi/instrument/seabird/sbe26plus/ooicore -a UNIT
-       $ bin/nosetests -s -v /Users/unwin/OOI/Workspace/code/marine-integrations/mi/instrument/seabird/sbe26plus/ooicore -a INT
-       $ bin/nosetests -s -v /Users/unwin/OOI/Workspace/code/marine-integrations/mi/instrument/seabird/sbe26plus/ooicore -a QUAL
-
-
-    @TODO negative testing with bogus values to detect failures.
-    @TODO would be nice to modify driver to test paramater allowable range and throw exception on out of range.
-
 """
 
 __author__ = 'Roger Unwin'
@@ -31,7 +20,6 @@ from gevent import monkey; monkey.patch_all()
 import gevent
 import time
 import re
-import json
 from mock import Mock
 
 from mi.core.common import BaseEnum
@@ -56,13 +44,11 @@ from mi.instrument.seabird.sbe26plus.driver import NEWLINE
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusTideSampleDataParticle
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusWaveBurstDataParticle
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusStatisticsDataParticle
-from mi.instrument.seabird.sbe26plus.driver import SBE26plusTakeSampleDataParticle
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceCalibrationDataParticle
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceStatusDataParticle
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusTideSampleDataParticleKey
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusWaveBurstDataParticleKey
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusStatisticsDataParticleKey
-from mi.instrument.seabird.sbe26plus.driver import SBE26plusTakeSampleDataParticleKey
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceCalibrationDataParticleKey
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceStatusDataParticleKey
 from mi.core.instrument.chunker import StringChunker
@@ -76,6 +62,12 @@ from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandExc
 from pyon.core.exception import Conflict
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
+
+from mi.instrument.seabird.sbe26plus.test.sample_data import SAMPLE_DEVICE_CALIBRATION
+from mi.instrument.seabird.sbe26plus.test.sample_data import SAMPLE_DEVICE_STATUS
+from mi.instrument.seabird.sbe26plus.test.sample_data import SAMPLE_STATISTICS
+from mi.instrument.seabird.sbe26plus.test.sample_data import SAMPLE_TIDE_DATA
+from mi.instrument.seabird.sbe26plus.test.sample_data import SAMPLE_WAVE_BURST
 
 # Globals
 raw_stream_received = False
@@ -135,270 +127,24 @@ PARAMS = {
     Parameter.LOGGING : bool,
 }
 
-RAW_DS = "SBE 26plus V 6.1e  SN 1329    05 Oct 2012  17:19:27" + NEWLINE +\
-        "user info=ooi" + NEWLINE +\
-        "quartz pressure sensor: serial number = 122094, range = 300 psia" + NEWLINE +\
-        "internal temperature sensor" + NEWLINE +\
-        "conductivity = NO" + NEWLINE +\
-        "iop =  7.4 ma  vmain = 16.2 V  vlith =  9.0 V" + NEWLINE +\
-        "last sample: p = 14.5361, t = 23.8155" + NEWLINE +\
-        "" + NEWLINE +\
-        "tide measurement: interval = 3.000 minutes, duration = 60 seconds" + NEWLINE +\
-        "measure waves every 6 tide samples" + NEWLINE +\
-        "512 wave samples/burst at 4.00 scans/sec, duration = 128 seconds" + NEWLINE +\
-        "logging start time = do not use start time" + NEWLINE +\
-        "logging stop time = do not use stop time" + NEWLINE +\
-        "" + NEWLINE +\
-        "tide samples/day = 480.000" + NEWLINE +\
-        "wave bursts/day = 80.000" + NEWLINE +\
-        "memory endurance = 258.0 days" + NEWLINE +\
-        "nominal alkaline battery endurance = 272.8 days" + NEWLINE +\
-        "total recorded tide measurements = 5982" + NEWLINE +\
-        "total recorded wave bursts = 4525" + NEWLINE +\
-        "tide measurements since last start = 11" + NEWLINE +\
-        "wave bursts since last start = 1" + NEWLINE +\
-        "" + NEWLINE +\
-        "transmit real-time tide data = YES" + NEWLINE +\
-        "transmit real-time wave burst data = YES" + NEWLINE +\
-        "transmit real-time wave statistics = YES" + NEWLINE +\
-        "real-time wave statistics settings:" + NEWLINE +\
-        "  number of wave samples per burst to use for wave statistics = 512" + NEWLINE +\
-        "  use measured temperature for density calculation" + NEWLINE +\
-        "  height of pressure sensor from bottom (meters) = 10.0" + NEWLINE +\
-        "  number of spectral estimates for each frequency band = 5" + NEWLINE +\
-        "  minimum allowable attenuation = 0.0025" + NEWLINE +\
-        "  minimum period (seconds) to use in auto-spectrum = 0.0e+00" + NEWLINE +\
-        "  maximum period (seconds) to use in auto-spectrum = 1.0e+06" + NEWLINE +\
-        "  hanning window cutoff = 0.10" + NEWLINE +\
-        "  show progress messages" + NEWLINE +\
-        "" + NEWLINE +\
-        "status = stopped by user" + NEWLINE +\
-        "logging = NO, send start command to begin logging" + NEWLINE
-
-
 SAMPLE_DS =\
         "SBE 26plus" + NEWLINE +\
         "S>ds" + NEWLINE +\
-        "ds" + NEWLINE + RAW_DS +\
+        "ds" + NEWLINE + SAMPLE_DEVICE_STATUS +\
         "S>" + NEWLINE
-
-RAW_DC =\
-    "Pressure coefficients:  02-apr-13" + NEWLINE +\
-    "    U0 = 5.100000e+00" + NEWLINE +\
-    "    Y1 = -3.910859e+03" + NEWLINE +\
-    "    Y2 = -1.070825e+04" + NEWLINE +\
-    "    Y3 = 0.000000e+00" + NEWLINE +\
-    "    C1 = 6.072786e+02" + NEWLINE +\
-    "    C2 = 1.000000e+00" + NEWLINE +\
-    "    C3 = -1.024374e+03" + NEWLINE +\
-    "    D1 = 2.928000e-02" + NEWLINE +\
-    "    D2 = 0.000000e+00" + NEWLINE +\
-    "    T1 = 2.783369e+01" + NEWLINE +\
-    "    T2 = 6.072020e-01" + NEWLINE +\
-    "    T3 = 1.821885e+01" + NEWLINE +\
-    "    T4 = 2.790597e+01" + NEWLINE +\
-    "    M = 41943.0" + NEWLINE +\
-    "    B = 2796.2" + NEWLINE +\
-    "    OFFSET = -1.374000e-01" + NEWLINE +\
-    "Temperature coefficients:  02-apr-13" + NEWLINE +\
-    "    TA0 = 1.200000e-04" + NEWLINE +\
-    "    TA1 = 2.558000e-04" + NEWLINE +\
-    "    TA2 = -2.073449e-06" + NEWLINE +\
-    "    TA3 = 1.640089e-07" + NEWLINE +\
-    "Conductivity coefficients:  28-mar-12" + NEWLINE +\
-    "    CG = -1.025348e+01" + NEWLINE +\
-    "    CH = 1.557569e+00" + NEWLINE +\
-    "    CI = -1.737200e-03" + NEWLINE +\
-    "    CJ = 2.268000e-04" + NEWLINE +\
-    "    CTCOR = 3.250000e-06" + NEWLINE +\
-    "    CPCOR = -9.570000e-08" + NEWLINE +\
-    "    CSLOPE = 1.000000e+00" + NEWLINE
 
 SAMPLE_DC =\
         "S>dc" + NEWLINE +\
-        "dc" + NEWLINE + RAW_DC +\
+        "dc" + NEWLINE + SAMPLE_DEVICE_CALIBRATION +\
         "S>"
-
-WAVE_DATA =\
-        "wave: start time = 05 Oct 2012 01:10:54" + NEWLINE +\
-        "wave: ptfreq = 171791.359" + NEWLINE +\
-        "  14.5102" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5078" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE + "  14.5078" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5188" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE + "  14.5097" + NEWLINE + "  14.5134" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
-        "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
-        "wave: end burst" + NEWLINE
-
-RAW_STATISTIC =\
-    "deMeanTrend................" + NEWLINE +\
-    "depth =    0.000, temperature = 23.840, salinity = 35.000, density = 1023.690" + NEWLINE +\
-    "" + NEWLINE +\
-    "fill array..." + NEWLINE +\
-    "find minIndex." + NEWLINE +\
-    "hanning...................." + NEWLINE +\
-    "FFT................................................................................................" + NEWLINE +\
-    "normalize....." + NEWLINE +\
-    "band average......................................................." + NEWLINE +\
-    "Auto-Spectrum Statistics:" + NEWLINE +\
-    "   nAvgBand = 5" + NEWLINE +\
-    "   total variance = 1.0896e-05" + NEWLINE +\
-    "   total energy = 1.0939e-01" + NEWLINE +\
-    "   significant period = 5.3782e-01" + NEWLINE +\
-    "   significant wave height = 1.3204e-02" + NEWLINE +\
-    "" + NEWLINE +\
-    "calculate dispersion.................................................................................................................................................................................................................................................................................." + NEWLINE +\
-    "IFFT................................................................................................" + NEWLINE +\
-    "deHanning...................." + NEWLINE +\
-    "move data.." + NEWLINE +\
-    "zero crossing analysis............." + NEWLINE +\
-    "Time Series Statistics:" + NEWLINE +\
-    "   wave integration time = 128" + NEWLINE +\
-    "   number of waves = 0" + NEWLINE +\
-    "   total variance = 1.1595e-05" + NEWLINE +\
-    "   total energy = 1.1640e-01" + NEWLINE +\
-    "   average wave height = 0.0000e+00" + NEWLINE +\
-    "   average wave period = 0.0000e+00" + NEWLINE +\
-    "   maximum wave height = 1.0893e-02" + NEWLINE +\
-    "   significant wave height = 0.0000e+00" + NEWLINE +\
-    "   significant wave period = 0.0000e+00" + NEWLINE +\
-    "   H1/10 = 0.0000e+00" + NEWLINE +\
-    "   H1/100 = 0.0000e+00" + NEWLINE
-
-
 
 class DataParticleMixin(InstrumentDriverDataParticleMixin):
     '''
     Mixin class used for storing data particle constance and common data assertion methods.
     '''
-    DATA_PARTICLE_SAMPLE_TS = " -158.9284 -8388.96  -3.2164" + NEWLINE
-    DATA_PARTICLE_TIDE_SAMPLE = "tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404" + NEWLINE
-    DATA_PARTICLE_WAVE_SAMPLE = WAVE_DATA
-    DATA_PARTICLE_STATISTICS = RAW_STATISTIC
-    DATA_PARTICLE_DEVICE_CALIBRATION = RAW_DC
-    DATA_PARTICLE_DEVICE_STATUS = RAW_DS
+    ###
+    #   Particle Parameter and Type Definitions
+    ###
 
     # List of all data particle types
     class DataParticleTypes(BaseEnum):
@@ -409,127 +155,121 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
         DeviceCalibration = DataParticleValue.PARSED
         DeviceStatus = DataParticleValue.PARSED
 
-    ###
-    #   Particle Parameter and Type Definitions
-    ###
     _tide_sample_parameters = {
-        SBE26plusTideSampleDataParticleKey.TIMESTAMP: float,
-        SBE26plusTideSampleDataParticleKey.PRESSURE: float,
-        SBE26plusTideSampleDataParticleKey.PRESSURE_TEMP: float,
-        SBE26plusTideSampleDataParticleKey.TEMPERATURE: float,
+        SBE26plusTideSampleDataParticleKey.TIMESTAMP: { 'type': float, 'value': 3558413454.0 },
+        SBE26plusTideSampleDataParticleKey.PRESSURE: { 'type': float, 'value': 14.5385 },
+        SBE26plusTideSampleDataParticleKey.PRESSURE_TEMP: { 'type': float, 'value': 24.228 },
+        SBE26plusTideSampleDataParticleKey.TEMPERATURE: { 'type': float, 'value': 23.8404 },
         SBE26plusTideSampleDataParticleKey.CONDUCTIVITY: { 'type': float, 'required': False },
         SBE26plusTideSampleDataParticleKey.SALINITY: { 'type': float, 'required': False }
     }
 
     _wave_sample_parameters = {
-        SBE26plusWaveBurstDataParticleKey.TIMESTAMP: float,
-        SBE26plusWaveBurstDataParticleKey.PTFREQ: float,
-        SBE26plusWaveBurstDataParticleKey.PTRAW: list
+        SBE26plusWaveBurstDataParticleKey.TIMESTAMP: { 'type': float, 'value': 3558413454.0 },
+        SBE26plusWaveBurstDataParticleKey.PTFREQ: { 'type': float, 'value': 171791.359 },
+        SBE26plusWaveBurstDataParticleKey.PTRAW: { 'type': list }
     }
 
     _statistics_sample_parameters = {
-        SBE26plusStatisticsDataParticleKey.DEPTH: float,
-        SBE26plusStatisticsDataParticleKey.TEMPERATURE: float,
-        SBE26plusStatisticsDataParticleKey.SALINITY: float,
-        SBE26plusStatisticsDataParticleKey.DENSITY: float,
-        SBE26plusStatisticsDataParticleKey.N_AGV_BAND: float,
-        SBE26plusStatisticsDataParticleKey.TOTAL_VARIANCE: float,
-        SBE26plusStatisticsDataParticleKey.TOTAL_ENERGY: float,
-        SBE26plusStatisticsDataParticleKey.SIGNIFICANT_PERIOD: float,
-        SBE26plusStatisticsDataParticleKey.SIGNIFICANT_WAVE_HEIGHT: float,
-        SBE26plusStatisticsDataParticleKey.TSS_WAVE_INTEGRATION_TIME: float,
-        SBE26plusStatisticsDataParticleKey.TSS_NUMBER_OF_WAVES: float,
-        SBE26plusStatisticsDataParticleKey.TSS_TOTAL_VARIANCE: float,
-        SBE26plusStatisticsDataParticleKey.TSS_TOTAL_ENERGY: float,
-        SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_HEIGHT: float,
-        SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_PERIOD: float,
-        SBE26plusStatisticsDataParticleKey.TSS_MAXIMUM_WAVE_HEIGHT: float,
-        SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_HEIGHT: float,
-        SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_PERIOD: float,
-        SBE26plusStatisticsDataParticleKey.TSS_H1_10: float,
-        SBE26plusStatisticsDataParticleKey.TSS_H1_100: float
+        SBE26plusStatisticsDataParticleKey.DEPTH: { 'type': float, 'value': 0.0 },
+        SBE26plusStatisticsDataParticleKey.TEMPERATURE: { 'type': float, 'value': 23.840 },
+        SBE26plusStatisticsDataParticleKey.SALINITY: { 'type': float, 'value': 35.000 },
+        SBE26plusStatisticsDataParticleKey.DENSITY: { 'type': float, 'value': 1023.690 },
+        SBE26plusStatisticsDataParticleKey.N_AGV_BAND: { 'type': int, 'value': 5 },
+        SBE26plusStatisticsDataParticleKey.TOTAL_VARIANCE: { 'type': float, 'value': 1.0896e-05 },
+        SBE26plusStatisticsDataParticleKey.TOTAL_ENERGY: { 'type': float, 'value': 1.0939e-01 },
+        SBE26plusStatisticsDataParticleKey.SIGNIFICANT_PERIOD: { 'type': float, 'value': 5.3782e-01 },
+        SBE26plusStatisticsDataParticleKey.SIGNIFICANT_WAVE_HEIGHT: { 'type': float, 'value': 1.3204e-02 },
+        SBE26plusStatisticsDataParticleKey.TSS_WAVE_INTEGRATION_TIME: { 'type': int, 'value': 128 },
+        SBE26plusStatisticsDataParticleKey.TSS_NUMBER_OF_WAVES: { 'type': float, 'value': 0 },
+        SBE26plusStatisticsDataParticleKey.TSS_TOTAL_VARIANCE: { 'type': float, 'value': 1.1595e-05 },
+        SBE26plusStatisticsDataParticleKey.TSS_TOTAL_ENERGY: { 'type': float, 'value': 1.1640e-01 },
+        SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_HEIGHT: { 'type': float, 'value': 0.0000e+00 },
+        SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_PERIOD: { 'type': float, 'value': 0.0000e+00 },
+        SBE26plusStatisticsDataParticleKey.TSS_MAXIMUM_WAVE_HEIGHT: { 'type': float, 'value': 1.0893e-02 },
+        SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_HEIGHT: { 'type': float, 'value': 0.0000e+00 },
+        SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_PERIOD: { 'type': float, 'value': 0.0000e+00 },
+        SBE26plusStatisticsDataParticleKey.TSS_H1_10: { 'type': float, 'value': 0.0000e+00 },
+        SBE26plusStatisticsDataParticleKey.TSS_H1_100: { 'type': float, 'value': 0.0000e+00 }
     }
 
     _calibration_sample_parameters = {
-        SBE26plusDeviceCalibrationDataParticleKey.PCALDATE: tuple,
-        SBE26plusDeviceCalibrationDataParticleKey.PU0: float,
-        SBE26plusDeviceCalibrationDataParticleKey.PY1: float,
-        SBE26plusDeviceCalibrationDataParticleKey.PY2: float,
-        SBE26plusDeviceCalibrationDataParticleKey.PY3: float,
-        SBE26plusDeviceCalibrationDataParticleKey.PC1: float,
-        SBE26plusDeviceCalibrationDataParticleKey.PC2: float,
-        SBE26plusDeviceCalibrationDataParticleKey.PC3: float,
-        SBE26plusDeviceCalibrationDataParticleKey.PD1: float,
-        SBE26plusDeviceCalibrationDataParticleKey.PD2: float,
-        SBE26plusDeviceCalibrationDataParticleKey.PT1: float,
-        SBE26plusDeviceCalibrationDataParticleKey.PT2: float,
-        SBE26plusDeviceCalibrationDataParticleKey.PT3: float,
-        SBE26plusDeviceCalibrationDataParticleKey.PT4: float,
-        SBE26plusDeviceCalibrationDataParticleKey.FACTORY_M: float,
-        SBE26plusDeviceCalibrationDataParticleKey.FACTORY_B: float,
-        SBE26plusDeviceCalibrationDataParticleKey.POFFSET: float,
-        SBE26plusDeviceCalibrationDataParticleKey.TCALDATE: tuple,
-        SBE26plusDeviceCalibrationDataParticleKey.TA0: float,
-        SBE26plusDeviceCalibrationDataParticleKey.TA1: float,
-        SBE26plusDeviceCalibrationDataParticleKey.TA2: float,
-        SBE26plusDeviceCalibrationDataParticleKey.TA3: float,
-        SBE26plusDeviceCalibrationDataParticleKey.CCALDATE: tuple,
-        SBE26plusDeviceCalibrationDataParticleKey.CG: float,
-        SBE26plusDeviceCalibrationDataParticleKey.CH: float,
-        SBE26plusDeviceCalibrationDataParticleKey.CI: float,
-        SBE26plusDeviceCalibrationDataParticleKey.CJ: float,
-        SBE26plusDeviceCalibrationDataParticleKey.CTCOR: float,
-        SBE26plusDeviceCalibrationDataParticleKey.CPCOR: float,
-        SBE26plusDeviceCalibrationDataParticleKey.CSLOPE: float
+        SBE26plusDeviceCalibrationDataParticleKey.PCALDATE: { 'type': list, 'value': [2, 4, 2013] },
+        SBE26plusDeviceCalibrationDataParticleKey.PU0: { 'type': float, 'value': 5.100000e+00 },
+        SBE26plusDeviceCalibrationDataParticleKey.PY1: { 'type': float, 'value': -3.910859e+03 },
+        SBE26plusDeviceCalibrationDataParticleKey.PY2: { 'type': float, 'value': -1.070825e+04 },
+        SBE26plusDeviceCalibrationDataParticleKey.PY3: { 'type': float, 'value':  0.000000e+00  },
+        SBE26plusDeviceCalibrationDataParticleKey.PC1: { 'type': float, 'value': 6.072786e+02 },
+        SBE26plusDeviceCalibrationDataParticleKey.PC2: { 'type': float, 'value': 1.000000e+00 },
+        SBE26plusDeviceCalibrationDataParticleKey.PC3: { 'type': float, 'value': -1.024374e+03 },
+        SBE26plusDeviceCalibrationDataParticleKey.PD1: { 'type': float, 'value':  2.928000e-02 },
+        SBE26plusDeviceCalibrationDataParticleKey.PD2: { 'type': float, 'value': 0.000000e+00 },
+        SBE26plusDeviceCalibrationDataParticleKey.PT1: { 'type': float, 'value': 2.783369e+01 },
+        SBE26plusDeviceCalibrationDataParticleKey.PT2: { 'type': float, 'value': 6.072020e-01 },
+        SBE26plusDeviceCalibrationDataParticleKey.PT3: { 'type': float, 'value': 1.821885e+01 },
+        SBE26plusDeviceCalibrationDataParticleKey.PT4: { 'type': float, 'value': 2.790597e+01 },
+        SBE26plusDeviceCalibrationDataParticleKey.FACTORY_M: { 'type': float, 'value': 41943.0 },
+        SBE26plusDeviceCalibrationDataParticleKey.FACTORY_B: { 'type': float, 'value': 2796.2 },
+        SBE26plusDeviceCalibrationDataParticleKey.POFFSET: { 'type': float, 'value': -1.374000e-01 },
+        SBE26plusDeviceCalibrationDataParticleKey.TCALDATE: { 'type': list, 'value': [2, 4, 2013] },
+        SBE26plusDeviceCalibrationDataParticleKey.TA0: { 'type': float, 'value': 1.200000e-04 },
+        SBE26plusDeviceCalibrationDataParticleKey.TA1: { 'type': float, 'value': 2.558000e-04 },
+        SBE26plusDeviceCalibrationDataParticleKey.TA2: { 'type': float, 'value': -2.073449e-06 },
+        SBE26plusDeviceCalibrationDataParticleKey.TA3: { 'type': float, 'value': 1.640089e-07 },
+        SBE26plusDeviceCalibrationDataParticleKey.CCALDATE: { 'type': list, 'value': [28, 3, 2012] },
+        SBE26plusDeviceCalibrationDataParticleKey.CG: { 'type': float, 'value': -1.025348e+01 },
+        SBE26plusDeviceCalibrationDataParticleKey.CH: { 'type': float, 'value': 1.557569e+00 },
+        SBE26plusDeviceCalibrationDataParticleKey.CI: { 'type': float, 'value': -1.737200e-03 },
+        SBE26plusDeviceCalibrationDataParticleKey.CJ: { 'type': float, 'value': 2.268000e-04 },
+        SBE26plusDeviceCalibrationDataParticleKey.CTCOR: { 'type': float, 'value': 3.250000e-06 },
+        SBE26plusDeviceCalibrationDataParticleKey.CPCOR: { 'type': float, 'value': -9.570000e-08 },
+        SBE26plusDeviceCalibrationDataParticleKey.CSLOPE: { 'type': float, 'value': 1.000000e+00 }
     }
 
     _status_sample_parameters = {
-        SBE26plusDeviceStatusDataParticleKey.DEVICE_VERSION: str,
-        SBE26plusDeviceStatusDataParticleKey.SERIAL_NUMBER: str,
-        SBE26plusDeviceStatusDataParticleKey.DS_DEVICE_DATE_TIME: str,
-        SBE26plusDeviceStatusDataParticleKey.USER_INFO: str,
-        SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER: float,
-        SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_RANGE: float,
-        SBE26plusDeviceStatusDataParticleKey.EXTERNAL_TEMPERATURE_SENSOR: bool,
-        SBE26plusDeviceStatusDataParticleKey.CONDUCTIVITY: bool,
-        SBE26plusDeviceStatusDataParticleKey.IOP_MA: float,
-        SBE26plusDeviceStatusDataParticleKey.VMAIN_V: float,
-        SBE26plusDeviceStatusDataParticleKey.VLITH_V: float,
-        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_P: float,
-        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_T: float,
-        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_S: float,
-        SBE26plusDeviceStatusDataParticleKey.TIDE_INTERVAL: int,
-        SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENT_DURATION: int,
-        SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: int,
-        SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_PER_BURST: float,
-        SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_SCANS_PER_SECOND: float,
-        SBE26plusDeviceStatusDataParticleKey.USE_START_TIME: bool,
-        SBE26plusDeviceStatusDataParticleKey.USE_STOP_TIME: bool,
-        SBE26plusDeviceStatusDataParticleKey.TXWAVESTATS: bool,
-        SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_PER_DAY: float,
-        SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_PER_DAY: float,
-        SBE26plusDeviceStatusDataParticleKey.MEMORY_ENDURANCE: float,
-        SBE26plusDeviceStatusDataParticleKey.NOMINAL_ALKALINE_BATTERY_ENDURANCE: float,
-        SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_TIDE_MEASUREMENTS: float,
-        SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_WAVE_BURSTS: float,
-        SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENTS_SINCE_LAST_START: float,
-        SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_SINCE_LAST_START: float,
-        SBE26plusDeviceStatusDataParticleKey.TXREALTIME: bool,
-        SBE26plusDeviceStatusDataParticleKey.TXWAVEBURST: bool,
-        SBE26plusDeviceStatusDataParticleKey.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS: int,
-        SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC: bool,
-        SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_FOR_DENSITY_CALC: float,
-        SBE26plusDeviceStatusDataParticleKey.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR: float,
-        SBE26plusDeviceStatusDataParticleKey.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR: float,
-        SBE26plusDeviceStatusDataParticleKey.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: float,
-        SBE26plusDeviceStatusDataParticleKey.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND: int,
-        SBE26plusDeviceStatusDataParticleKey.MIN_ALLOWABLE_ATTENUATION: float,
-        SBE26plusDeviceStatusDataParticleKey.MIN_PERIOD_IN_AUTO_SPECTRUM: float,
-        SBE26plusDeviceStatusDataParticleKey.MAX_PERIOD_IN_AUTO_SPECTRUM: float,
-        SBE26plusDeviceStatusDataParticleKey.HANNING_WINDOW_CUTOFF: float,
-        SBE26plusDeviceStatusDataParticleKey.SHOW_PROGRESS_MESSAGES: bool,
-        SBE26plusDeviceStatusDataParticleKey.STATUS: str,
-        SBE26plusDeviceStatusDataParticleKey.LOGGING: bool
+        SBE26plusDeviceStatusDataParticleKey.DEVICE_VERSION: { 'type': unicode, 'value': u'6.1e' },
+        SBE26plusDeviceStatusDataParticleKey.SERIAL_NUMBER: { 'type': unicode, 'value': u'1329' },
+        SBE26plusDeviceStatusDataParticleKey.DS_DEVICE_DATE_TIME: { 'type': unicode, 'value': u'05 Oct 2012  17:19:27' },
+        SBE26plusDeviceStatusDataParticleKey.USER_INFO: { 'type': unicode, 'value': u'ooi' },
+        SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER: { 'type': float, 'value': 122094 },
+        SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_RANGE: { 'type': float, 'value': 300 },
+        SBE26plusDeviceStatusDataParticleKey.EXTERNAL_TEMPERATURE_SENSOR: { 'type': bool, 'value': False },
+        SBE26plusDeviceStatusDataParticleKey.CONDUCTIVITY: { 'type': bool, 'value': False },
+        SBE26plusDeviceStatusDataParticleKey.IOP_MA: { 'type': float, 'value': 7.4 },
+        SBE26plusDeviceStatusDataParticleKey.VMAIN_V: { 'type': float, 'value': 16.2 },
+        SBE26plusDeviceStatusDataParticleKey.VLITH_V: { 'type': float, 'value': 9.0 },
+        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_P: { 'type': float, 'value': 14.5361 },
+        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_T: { 'type': float, 'value': 23.8155 },
+        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_S: { 'type': float, 'value': 0.0 },
+        SBE26plusDeviceStatusDataParticleKey.TIDE_INTERVAL: { 'type': int, 'value': 3.0 },
+        SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENT_DURATION: { 'type': int, 'value': 60 },
+        SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: { 'type': int, 'value': 6 },
+        SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_PER_BURST: { 'type': int, 'value': 512 },
+        SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_SCANS_PER_SECOND: { 'type': float, 'value': 4.0 },
+        SBE26plusDeviceStatusDataParticleKey.USE_START_TIME: { 'type': bool, 'value': False },
+        SBE26plusDeviceStatusDataParticleKey.USE_STOP_TIME: { 'type': bool, 'value': False },
+        SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_PER_DAY: { 'type': float, 'value': 480.0 },
+        SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_PER_DAY: { 'type': float, 'value': 80.0 },
+        SBE26plusDeviceStatusDataParticleKey.MEMORY_ENDURANCE: { 'type': float, 'value': 258.0 },
+        SBE26plusDeviceStatusDataParticleKey.NOMINAL_ALKALINE_BATTERY_ENDURANCE: { 'type': float, 'value': 272.8 },
+        SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_TIDE_MEASUREMENTS: { 'type': float, 'value': 5982 },
+        SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_WAVE_BURSTS: { 'type': float, 'value': 4525 },
+        SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENTS_SINCE_LAST_START: { 'type': float, 'value': 11 },
+        SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_SINCE_LAST_START: { 'type': float, 'value': 1 },
+        SBE26plusDeviceStatusDataParticleKey.TXREALTIME: { 'type': bool, 'value': True },
+        SBE26plusDeviceStatusDataParticleKey.TXWAVEBURST: { 'type': bool, 'value': True },
+        SBE26plusDeviceStatusDataParticleKey.TXWAVESTATS: { 'type': bool, 'value': True },
+        SBE26plusDeviceStatusDataParticleKey.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS: { 'type': int, 'value': 512 },
+        SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_FOR_DENSITY_CALC: { 'type': bool, 'value': False  },
+        SBE26plusDeviceStatusDataParticleKey.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: { 'type': float, 'value': 10.0 },
+        SBE26plusDeviceStatusDataParticleKey.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND: { 'type': int, 'value': 5 },
+        SBE26plusDeviceStatusDataParticleKey.MIN_ALLOWABLE_ATTENUATION: { 'type': float, 'value': 0.0025 },
+        SBE26plusDeviceStatusDataParticleKey.MIN_PERIOD_IN_AUTO_SPECTRUM: { 'type': float, 'value': 0.0e+00 },
+        SBE26plusDeviceStatusDataParticleKey.MAX_PERIOD_IN_AUTO_SPECTRUM: { 'type': float, 'value': 1.0e+06 },
+        SBE26plusDeviceStatusDataParticleKey.HANNING_WINDOW_CUTOFF: { 'type': float, 'value': 0.10 },
+        SBE26plusDeviceStatusDataParticleKey.SHOW_PROGRESS_MESSAGES: { 'type': bool, 'value': True },
+        SBE26plusDeviceStatusDataParticleKey.STATUS: { 'type': unicode, 'value': u'stopped by user' },
+        SBE26plusDeviceStatusDataParticleKey.LOGGING: { 'type': bool, 'value': False },
     }
 
     def assertSampleDataParticle(self, data_particle):
@@ -552,46 +292,51 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
             log.error("Unknown Particle Detected: %s" % data_particle)
             self.assertFalse(True)
 
-    def assert_particle_tide_sample(self, data_particle):
+    def assert_particle_tide_sample(self, data_particle, verify_values = False):
         '''
         Verify a take sample data particle
         @param data_particle:  SBE26plusTideSampleDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
         '''
         self.assert_data_particle_header(data_particle, self.DataParticleTypes.TideSample)
-        self.assert_data_particle_parameters(data_particle, self._tide_sample_parameters)
+        self.assert_data_particle_parameters(data_particle, self._tide_sample_parameters, verify_values)
 
 
-    def assert_particle_wave_burst(self, data_particle):
+    def assert_particle_wave_burst(self, data_particle, verify_values = False):
         '''
         Verify a take sample data particle
         @param data_particle:  SBE26plusWaveBurstDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
         '''
         self.assert_data_particle_header(data_particle, self.DataParticleTypes.WaveSample)
-        self.assert_data_particle_parameters(data_particle, self._wave_sample_parameters)
+        self.assert_data_particle_parameters(data_particle, self._wave_sample_parameters, verify_values)
 
-    def assert_particle_statistics(self, data_particle):
+    def assert_particle_statistics(self, data_particle, verify_values = False):
         '''
         Verify a take sample data particle
         @param data_particle:  SBE26plusStatisticsDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
         '''
         self.assert_data_particle_header(data_particle, self.DataParticleTypes.StatisticSample)
-        self.assert_data_particle_parameters(data_particle, self._statistics_sample_parameters)
+        self.assert_data_particle_parameters(data_particle, self._statistics_sample_parameters, verify_values)
 
-    def assert_particle_device_calibration(self, data_particle):
+    def assert_particle_device_calibration(self, data_particle, verify_values = False):
         '''
         Verify a take sample data particle
         @param data_particle:  SBE26plusDeviceCalibrationDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
         '''
         self.assert_data_particle_header(data_particle, self.DataParticleTypes.DeviceCalibration)
-        self.assert_data_particle_parameters(data_particle, self._calibration_sample_parameters)
+        self.assert_data_particle_parameters(data_particle, self._calibration_sample_parameters, verify_values)
 
-    def assert_particle_device_status(self, data_particle):
+    def assert_particle_device_status(self, data_particle, verify_values = False):
         '''
         Verify a take sample data particle
         @param data_particle:  SBE26plusDeviceStatusDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
         '''
         self.assert_data_particle_header(data_particle, self.DataParticleTypes.DeviceStatus)
-        self.assert_data_particle_parameters(data_particle, self._status_sample_parameters)
+        self.assert_data_particle_parameters(data_particle, self._status_sample_parameters, verify_values)
 
 
 ###############################################################################
@@ -648,30 +393,30 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
         """
         chunker = StringChunker(Protocol.sieve_function)
 
-        self.assert_chunker_sample(chunker, self.DATA_PARTICLE_TIDE_SAMPLE)
-        self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_TIDE_SAMPLE)
-        self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_TIDE_SAMPLE)
-        self.assert_chunker_combined_sample(chunker, self.DATA_PARTICLE_TIDE_SAMPLE)
+        self.assert_chunker_sample(chunker, SAMPLE_TIDE_DATA)
+        self.assert_chunker_sample_with_noise(chunker, SAMPLE_TIDE_DATA)
+        self.assert_chunker_fragmented_sample(chunker, SAMPLE_TIDE_DATA)
+        self.assert_chunker_combined_sample(chunker, SAMPLE_TIDE_DATA)
 
-        self.assert_chunker_sample(chunker, self.DATA_PARTICLE_WAVE_SAMPLE)
-        self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_WAVE_SAMPLE)
-        self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_WAVE_SAMPLE, 1024)
-        self.assert_chunker_combined_sample(chunker, self.DATA_PARTICLE_WAVE_SAMPLE)
+        self.assert_chunker_sample(chunker, SAMPLE_WAVE_BURST)
+        self.assert_chunker_sample_with_noise(chunker, SAMPLE_WAVE_BURST)
+        self.assert_chunker_fragmented_sample(chunker, SAMPLE_WAVE_BURST, 1024)
+        self.assert_chunker_combined_sample(chunker, SAMPLE_WAVE_BURST)
 
-        self.assert_chunker_sample(chunker, self.DATA_PARTICLE_STATISTICS)
-        self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_STATISTICS)
-        self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_STATISTICS, 512)
-        self.assert_chunker_combined_sample(chunker, self.DATA_PARTICLE_STATISTICS)
+        self.assert_chunker_sample(chunker, SAMPLE_STATISTICS)
+        self.assert_chunker_sample_with_noise(chunker, SAMPLE_STATISTICS)
+        self.assert_chunker_fragmented_sample(chunker, SAMPLE_STATISTICS, 512)
+        self.assert_chunker_combined_sample(chunker, SAMPLE_STATISTICS)
 
-        self.assert_chunker_sample(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION)
-        self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION)
-        self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION, 512)
-        self.assert_chunker_combined_sample(chunker, self.DATA_PARTICLE_DEVICE_CALIBRATION)
+        self.assert_chunker_sample(chunker, SAMPLE_DEVICE_CALIBRATION)
+        self.assert_chunker_sample_with_noise(chunker, SAMPLE_DEVICE_CALIBRATION)
+        self.assert_chunker_fragmented_sample(chunker, SAMPLE_DEVICE_CALIBRATION, 512)
+        self.assert_chunker_combined_sample(chunker, SAMPLE_DEVICE_CALIBRATION)
 
-        self.assert_chunker_sample(chunker, self.DATA_PARTICLE_DEVICE_STATUS)
-        self.assert_chunker_sample_with_noise(chunker, self.DATA_PARTICLE_DEVICE_STATUS)
-        self.assert_chunker_fragmented_sample(chunker, self.DATA_PARTICLE_DEVICE_STATUS, 512)
-        self.assert_chunker_combined_sample(chunker, self.DATA_PARTICLE_DEVICE_STATUS)
+        self.assert_chunker_sample(chunker, SAMPLE_DEVICE_STATUS)
+        self.assert_chunker_sample_with_noise(chunker, SAMPLE_DEVICE_STATUS)
+        self.assert_chunker_fragmented_sample(chunker, SAMPLE_DEVICE_STATUS, 512)
+        self.assert_chunker_combined_sample(chunker, SAMPLE_DEVICE_STATUS)
 
     def test_got_data(self):
         """
@@ -682,166 +427,12 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
         self.assert_initialize_driver(driver)
 
         # Start validating data particles
-        #self.assert_particle_published(driver, self.DATA_PARTICLE_TIDE_SAMPLE,
-        #                                       self.DataParticleTypes.TideSample,
-        #                                       self.assert_particle_tide_sample)
+        self.assert_particle_published(driver, SAMPLE_TIDE_DATA, self.assert_particle_tide_sample, True)
+        self.assert_particle_published(driver, SAMPLE_WAVE_BURST, self.assert_particle_wave_burst, True)
+        self.assert_particle_published(driver, SAMPLE_STATISTICS, self.assert_particle_statistics, True)
+        self.assert_particle_published(driver, SAMPLE_DEVICE_CALIBRATION, self.assert_particle_device_calibration, True)
+        self.assert_particle_published(driver, SAMPLE_DEVICE_STATUS, self.assert_particle_device_status, True)
 
-        #self.assert_particle_published(driver, self.DATA_PARTICLE_WAVE_SAMPLE,
-        #                                       self.DataParticleTypes.WaveSample,
-        #                                       self.assert_particle_wave_burst)
-
-        # Two above are working.  Uncomment when remaining three work
-
-        self.assert_particle_published(driver, self.DATA_PARTICLE_STATISTICS,
-                                               self.DataParticleTypes.StatisticSample,
-                                               self.assert_particle_statistics)
-
-        self.assert_particle_published(driver, self.DATA_PARTICLE_DEVICE_CALIBRATION,
-                                               self.DataParticleTypes.DeviceCalibration,
-                                               self.assert_particle_device_calibration)
-
-        self.assert_particle_published(driver, self.DATA_PARTICLE_DEVICE_STATUS,
-                                               self.DataParticleTypes.DeviceStatus,
-                                               self.assert_particle_device_status)
-
-    def test_instrument_driver_init_(self):
-        """
-        @brief Test that the InstrumentDriver constructors correctly build a Driver instance.
-        # should call instrument/instrument_driver SingleConnectionInstrumentDriver.__init__
-        # which will call InstrumentDriver.__init__, then create a _connection_fsm and start it.
-        """
-
-        ID = InstrumentDriver(self.my_event_callback)
-        self.assertEqual(ID._connection, None)
-        self.assertEqual(ID._protocol, None)
-        self.assertTrue(isinstance(ID._connection_fsm, InstrumentFSM))
-        self.assertEqual(ID._connection_fsm.current_state, DriverConnectionState.UNCONFIGURED)
-
-    def test_instrument_driver_build_protocol(self):
-        """
-        mock create an instance instrument driver protocol object. Verify that it supports available commands.
-        verify the handlers are present and correctly associated.
-        """
-
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-
-        self.assertEqual(ID._protocol._newline, NEWLINE)
-        self.assertEqual(ID._protocol._prompts, Prompt)
-        self.assertEqual(ID._protocol._driver_event, ID._driver_event)
-        self.assertEqual(ID._protocol._linebuf, '')
-        self.assertEqual(ID._protocol._promptbuf, '')
-        self.assertEqual(ID._protocol._datalines, [])
-
-        for key in ['qs', 'set', 'stop', 'dc', 'ts', 'start', 'initlogging', 'ds']:
-            self.assertTrue(key in ID._protocol._build_handlers.keys())
-
-        for key in ['set', 'dc', 'ts','initlogging', 'ds']:
-            self.assertTrue(key in ID._protocol._response_handlers.keys())
-
-        self.assertEqual(ID._protocol._last_data_receive_timestamp, None)
-        self.assertEqual(ID._protocol._connection, None)
-
-        p = Parameter()
-        for labels_value in ID._protocol._param_dict._param_dict.keys():
-            log.debug("Verifying " + labels_value + " is present")
-            match = False
-            for i in [v for v in dir(p) if not callable(getattr(p,v))]:
-                key = getattr(p, i)
-                if key == labels_value:
-                    match = True
-            self.assertTrue(match)
-
-        self.assertEqual(ID._protocol._protocol_fsm.enter_event, 'DRIVER_EVENT_ENTER')
-        self.assertEqual(ID._protocol._protocol_fsm.exit_event, 'DRIVER_EVENT_EXIT')
-        self.assertEqual(ID._protocol._protocol_fsm.previous_state, None)
-        self.assertEqual(ID._protocol._protocol_fsm.current_state, 'DRIVER_STATE_UNKNOWN')
-        self.assertEqual(repr(ID._protocol._protocol_fsm.states), repr(ProtocolState))
-        self.assertEqual(repr(ID._protocol._protocol_fsm.events), repr(ProtocolEvent))
-
-        state_handlers = {('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_STOP_AUTOSAMPLE'): '_handler_autosample_stop_autosample',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_CLOCK_SYNC'): '_handler_command_clock_sync',
-                          ('DRIVER_STATE_DIRECT_ACCESS', 'DRIVER_EVENT_ENTER'): '_handler_direct_access_enter',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_ENTER'): '_handler_command_enter',
-                          ('DRIVER_STATE_UNKNOWN', 'DRIVER_EVENT_EXIT'): '_handler_unknown_exit',
-                          ('DRIVER_STATE_COMMAND', 'PROTOCOL_EVENT_INIT_LOGGING'): '_handler_command_init_logging',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_ACQUIRE_SAMPLE'): '_handler_command_acquire_sample',
-                          ('DRIVER_STATE_DIRECT_ACCESS', 'EXECUTE_DIRECT'): '_handler_direct_access_execute_direct',
-                          ('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_EXIT'): '_handler_autosample_exit',
-                          ('DRIVER_STATE_COMMAND', 'PROTOCOL_EVENT_QUIT_SESSION'): '_handler_command_quit_session',
-                          ('DRIVER_STATE_DIRECT_ACCESS', 'DRIVER_EVENT_STOP_DIRECT'): '_handler_direct_access_stop_direct',
-                          ('DRIVER_STATE_DIRECT_ACCESS', 'DRIVER_EVENT_EXIT'): '_handler_direct_access_exit',
-                          ('DRIVER_STATE_UNKNOWN', 'DRIVER_FORCE_STATE'): '_handler_unknown_force_state',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_SET'): '_handler_command_set',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_START_DIRECT'): '_handler_command_start_direct',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_GET'): '_handler_command_autosample_test_get',
-                          ('DRIVER_STATE_COMMAND', 'PROTOCOL_EVENT_SETSAMPLING'): '_handler_command_setsampling',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_START_AUTOSAMPLE'): '_handler_command_start_autosample',
-                          ('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_GET'): '_handler_command_autosample_test_get',
-                          ('DRIVER_STATE_UNKNOWN', 'DRIVER_EVENT_DISCOVER'): '_handler_unknown_discover',
-                          ('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_ENTER'): '_handler_autosample_enter',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_EXIT'): '_handler_command_exit',
-                          ('DRIVER_STATE_UNKNOWN', 'DRIVER_EVENT_ENTER'): '_handler_unknown_enter',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_ACQUIRE_STATUS'): '_handler_command_aquire_status'}
-
-        for key in ID._protocol._protocol_fsm.state_handlers.keys():
-            self.assertEqual(ID._protocol._protocol_fsm.state_handlers[key].__func__.func_name,  state_handlers[key])
-            self.assertTrue(key in state_handlers)
-
-        for key in state_handlers.keys():
-            self.assertEqual(ID._protocol._protocol_fsm.state_handlers[key].__func__.func_name,  state_handlers[key])
-            self.assertTrue(key in ID._protocol._protocol_fsm.state_handlers)
-
-    def test_protocol(self):
-        """
-        Create a mock instance of Protocol.  Assert that state handlers in the FSM and handlers are created correctly.
-        """
-        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
-        p = Protocol(Prompt, NEWLINE, my_event_callback)
-        self.assertEqual(str(my_event_callback.mock_calls), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
-
-        self.assertEqual(p._protocol_fsm.enter_event, 'DRIVER_EVENT_ENTER')
-        self.assertEqual(p._protocol_fsm.exit_event, 'DRIVER_EVENT_EXIT')
-        self.assertEqual(p._protocol_fsm.previous_state, None)
-        self.assertEqual(p._protocol_fsm.current_state, 'DRIVER_STATE_UNKNOWN')
-        self.assertEqual(repr(p._protocol_fsm.states), repr(ProtocolState))
-        self.assertEqual(repr(p._protocol_fsm.events), repr(ProtocolEvent))
-
-        state_handlers = {('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_STOP_AUTOSAMPLE'): '_handler_autosample_stop_autosample',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_CLOCK_SYNC'): '_handler_command_clock_sync',
-                          ('DRIVER_STATE_DIRECT_ACCESS', 'DRIVER_EVENT_ENTER'): '_handler_direct_access_enter',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_ENTER'): '_handler_command_enter',
-                          ('DRIVER_STATE_UNKNOWN', 'DRIVER_EVENT_EXIT'): '_handler_unknown_exit',
-                          ('DRIVER_STATE_COMMAND', 'PROTOCOL_EVENT_INIT_LOGGING'): '_handler_command_init_logging',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_ACQUIRE_SAMPLE'): '_handler_command_acquire_sample',
-                          ('DRIVER_STATE_DIRECT_ACCESS', 'EXECUTE_DIRECT'): '_handler_direct_access_execute_direct',
-                          ('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_EXIT'): '_handler_autosample_exit',
-                          ('DRIVER_STATE_COMMAND', 'PROTOCOL_EVENT_QUIT_SESSION'): '_handler_command_quit_session',
-                          ('DRIVER_STATE_DIRECT_ACCESS', 'DRIVER_EVENT_STOP_DIRECT'): '_handler_direct_access_stop_direct',
-                          ('DRIVER_STATE_DIRECT_ACCESS', 'DRIVER_EVENT_EXIT'): '_handler_direct_access_exit',
-                          ('DRIVER_STATE_UNKNOWN', 'DRIVER_FORCE_STATE'): '_handler_unknown_force_state',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_SET'): '_handler_command_set',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_START_DIRECT'): '_handler_command_start_direct',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_GET'): '_handler_command_autosample_test_get',
-                          ('DRIVER_STATE_COMMAND', 'PROTOCOL_EVENT_SETSAMPLING'): '_handler_command_setsampling',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_START_AUTOSAMPLE'): '_handler_command_start_autosample',
-                          ('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_GET'): '_handler_command_autosample_test_get',
-                          ('DRIVER_STATE_UNKNOWN', 'DRIVER_EVENT_DISCOVER'): '_handler_unknown_discover',
-                          ('DRIVER_STATE_AUTOSAMPLE', 'DRIVER_EVENT_ENTER'): '_handler_autosample_enter',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_EXIT'): '_handler_command_exit',
-                          ('DRIVER_STATE_UNKNOWN', 'DRIVER_EVENT_ENTER'): '_handler_unknown_enter',
-                          ('DRIVER_STATE_COMMAND', 'DRIVER_EVENT_ACQUIRE_STATUS'): '_handler_command_aquire_status'}
-
-        for key in p._protocol_fsm.state_handlers.keys():
-            log.debug("W*****>>> " + str(key))
-            log.debug("X*****>>> " + str(p._protocol_fsm.state_handlers[key].__func__.func_name))
-            log.debug("Y*****>>> " + str(state_handlers[key]))
-            self.assertEqual(p._protocol_fsm.state_handlers[key].__func__.func_name,  state_handlers[key])
-            self.assertTrue(key in state_handlers)
-
-        for key in state_handlers.keys():
-            self.assertEqual(p._protocol_fsm.state_handlers[key].__func__.func_name,  state_handlers[key])
-            self.assertTrue(key in p._protocol_fsm.state_handlers)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -850,821 +441,19 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
         Test silly made up capabilities to verify they are blocked by filter.
         """
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
-        p = Protocol(Prompt, NEWLINE, my_event_callback)
-        c = Capability()
+        protocol = Protocol(Prompt, NEWLINE, my_event_callback)
+        driver_capabilities = Capability().list()
+        test_capabilities = Capability().list()
 
-        master_list = []
-        for k in convert_enum_to_dict(c):
-            ret = p._filter_capabilities([getattr(c, k)])
-            log.debug(str(ret))
-            master_list.append(getattr(c, k))
-            self.assertEqual(len(ret), 1)
-        self.assertEqual(len(p._filter_capabilities(master_list)), 5)
+        # Add a bogus capability that will be filtered out.
+        test_capabilities.append("BOGUS_CAPABILITY")
 
-        # Negative Testing
-        self.assertEqual(len(p._filter_capabilities(['BIRD', 'ABOVE', 'WATER'])), 0)
-        try:
-            self.assertEqual(len(p._filter_capabilities(None)), 0)
-        except TypeError:
-            pass
+        # Verify "BOGUS_CAPABILITY was filtered out
+        self.assertEquals(driver_capabilities, protocol._filter_capabilities(test_capabilities))
 
-        self.assertEqual(str(my_event_callback.mock_calls), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
-
-    def test_protocol_handler_unknown_enter(self):
-        """
-        mock call _handler_unknown_enter and verify that it performs teh correct sub-calls
-        """
-        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
-        p = Protocol(Prompt, NEWLINE, my_event_callback)
-
-        args = []
-        kwargs =  {}
-        p._handler_unknown_enter(*args, **kwargs)
-        self.assertEqual(str(my_event_callback.call_args_list), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE'),\n call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
-
-    def test_protocol_handler_unknown_exit(self):
-        """
-        mock call _handler_unknown_exit and verify that it performs teh correct sub-calls
-        """
-        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
-        p = Protocol(Prompt, NEWLINE, my_event_callback)
-
-        args = []
-        kwargs =  {}
-        p._handler_unknown_exit(*args, **kwargs)
-        self.assertEqual(str(my_event_callback.call_args_list), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
-
-    def test_protocol_handler_unknown_discover(self):
-        """
-        Test 3 paths through the func ( ProtocolState.UNKNOWN, ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE)
-            For each test 3 paths of Parameter.LOGGING = ( True, False, Other )
-        """
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-        #
-        # current_state = ProtocolState.UNKNOWN
-        #
-
-        ID._protocol._protocol_fsm.current_state = ProtocolState.UNKNOWN
-
-        args = []
-        kwargs = ({'timeout': 30,})
-
-        do_cmd_resp_mock = Mock(spec="do_cmd_resp_mock")
-        p._do_cmd_resp = do_cmd_resp_mock
-        _wakeup_mock = Mock(spec="wakeup_mock")
-        p._wakeup = _wakeup_mock
-
-        v = Mock(spec="val")
-        v.value = None
-        p._param_dict.set(Parameter.LOGGING, v)
-        ex_caught = False
-        try:
-            (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
-        except InstrumentStateException:
-            ex_caught = True
-        self.assertTrue(ex_caught)
-        self.assertEqual(str(_wakeup_mock.mock_calls), '[call(delay=0.5, timeout=30), call(30)]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
-        _wakeup_mock.reset_mock()
-        do_cmd_resp_mock.reset_mock()
-
-        v.value = True
-        p._param_dict.set(Parameter.LOGGING, v)
-        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
-        self.assertEqual(next_state, 'DRIVER_STATE_AUTOSAMPLE')
-        self.assertEqual(result, 'RESOURCE_AGENT_STATE_STREAMING')
-        self.assertEqual(str(_wakeup_mock.mock_calls), '[call(delay=0.5, timeout=30), call(30)]')
-
-        self.assertEqual("[call('ds', timeout=30), call('dc', timeout=30)]", str(do_cmd_resp_mock.mock_calls))
-
-        _wakeup_mock.reset_mock()
-        do_cmd_resp_mock.reset_mock()
-
-        v.value = False
-        p._param_dict.set(Parameter.LOGGING, v)
-        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
-        self.assertEqual(next_state, 'DRIVER_STATE_COMMAND')
-        self.assertEqual(result, 'RESOURCE_AGENT_STATE_IDLE')
-        self.assertEqual(str(_wakeup_mock.mock_calls), '[call(delay=0.5, timeout=30), call(30)]')
-        self.assertTrue("[call('ds', timeout=30), call('dc', timeout=30)]" in str(do_cmd_resp_mock.mock_calls))
-
-        #
-        # current_state = ProtocolState.COMMAND
-        #
-
-        _wakeup_mock.reset_mock()
-        do_cmd_resp_mock.reset_mock()
-
-        p._protocol_fsm.current_state = ProtocolState.COMMAND
-
-        args = []
-        kwargs =  dict({'timeout': 30,})
-
-        do_cmd_resp_mock = Mock(spec="do_cmd_resp_mock")
-        p._do_cmd_resp = do_cmd_resp_mock
-        _wakeup_mock = Mock(spec="wakeup_mock")
-        p._wakeup = _wakeup_mock
-
-        v = Mock(spec="val")
-        v.value = None
-        p._param_dict.set(Parameter.LOGGING, v)
-        ex_caught = False
-        try:
-            (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
-        except InstrumentStateException:
-            ex_caught = True
-        self.assertTrue(ex_caught)
-        self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
-        _wakeup_mock.reset_mock()
-        do_cmd_resp_mock.reset_mock()
-
-        v = Mock(spec="val")
-
-        v.value = True
-        p._param_dict.set(Parameter.LOGGING, v)
-        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
-        self.assertEqual(next_state, 'DRIVER_STATE_AUTOSAMPLE')
-        self.assertEqual(result, 'RESOURCE_AGENT_STATE_STREAMING')
-        self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
-
-        _wakeup_mock.reset_mock()
-        do_cmd_resp_mock.reset_mock()
-
-        v.value = False
-        p._param_dict.set(Parameter.LOGGING, v)
-        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
-        self.assertEqual(next_state, 'DRIVER_STATE_COMMAND')
-        self.assertEqual(result, 'RESOURCE_AGENT_STATE_IDLE')
-        self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
-
-        #
-        # current_state = ProtocolState.AUTOSAMPLE
-        #
-
-        _wakeup_mock.reset_mock()
-        do_cmd_resp_mock.reset_mock()
-
-        p._protocol_fsm.current_state = ProtocolState.COMMAND
-
-        args = []
-        kwargs =  dict({'timeout': 30,})
-
-        do_cmd_resp_mock = Mock(spec="do_cmd_resp_mock")
-        p._do_cmd_resp = do_cmd_resp_mock
-        _wakeup_mock = Mock(spec="wakeup_mock")
-        p._wakeup = _wakeup_mock
-
-        v = Mock(spec="val")
-        v.value = None
-        p._param_dict.set(Parameter.LOGGING, v)
-        ex_caught = False
-        try:
-            (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
-        except InstrumentStateException:
-            ex_caught = True
-        self.assertTrue(ex_caught)
-        self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
-        _wakeup_mock.reset_mock()
-        do_cmd_resp_mock.reset_mock()
-
-        v = Mock(spec="val")
-
-        v.value = True
-        p._param_dict.set(Parameter.LOGGING, v)
-        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
-        self.assertEqual(next_state, 'DRIVER_STATE_AUTOSAMPLE')
-        self.assertEqual(result, 'RESOURCE_AGENT_STATE_STREAMING')
-        self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
-
-        _wakeup_mock.reset_mock()
-        do_cmd_resp_mock.reset_mock()
-
-        v.value = False
-        p._param_dict.set(Parameter.LOGGING, v)
-        (next_state, result) = p._handler_unknown_discover(*args, **kwargs)
-        self.assertEqual(next_state, 'DRIVER_STATE_COMMAND')
-        self.assertEqual(result, 'RESOURCE_AGENT_STATE_IDLE')
-        self.assertEqual(str(_wakeup_mock.mock_calls), '[]')
-        self.assertEqual(str(do_cmd_resp_mock.mock_calls), "[call('ds', timeout=30), call('dc', timeout=30)]")
-
-    def test_protocol_unknown_force_state(self):
-        """
-        """
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-
-        args = []
-        kwargs =  dict({'timeout': 30,})
-        ex_caught = False
-        try:
-            (next_state, result) = p._handler_unknown_force_state(*args, **kwargs)
-        except InstrumentParameterException:
-            ex_caught = True
-        self.assertTrue(ex_caught)
-
-        kwargs = dict({'timeout': 30,
-                        'state': 'ARDVARK'})
-
-        (next_state, result) = p._handler_unknown_force_state(*args, **kwargs)
-        self.assertEqual(next_state, 'ARDVARK')
-        self.assertEqual(result, 'ARDVARK')
-
-    def test_protocol_handler_command_enter(self):
-        """
-        mock call _handler_command_enter and verify that it performs teh correct sub-calls
-        """
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-        _update_params_mock = Mock(spec="update_params")
-        p._update_params = _update_params_mock
-
-        _update_driver_event = Mock(spec="driver_event")
-        p._driver_event = _update_driver_event
-        args = []
-        kwargs =  dict({'timeout': 30,})
-
-        ret = p._handler_command_enter(*args, **kwargs)
-        self.assertEqual(ret, None)
-        self.assertEqual(str(_update_params_mock.mock_calls), "[call()]")
-        self.assertEqual(str(_update_driver_event.mock_calls), "[call('DRIVER_ASYNC_EVENT_STATE_CHANGE')]")
-
-    def test_protocol_parse_ts_response(self):
-        """
-        Exercise the various paths through _parse_ts_response verifying that a sample is correctly parsed
-        """
-        global raw_stream_received
-        global parsed_stream_received
-
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-
-        # verify that it throws an exception if the wrong prompt is encountered
-
-        response = 'silly irrelevent response'
-        for prompt in (Prompt.BAD_COMMAND, Prompt.CONFIRMATION_PROMPT):
-            ex_caught = False
-            try:
-                ret = p._parse_ts_response(response, prompt)
-            except InstrumentProtocolException:
-                ex_caught = True
-            self.assertTrue(ex_caught)
-
-        # verify we get a SampleException if the sample data is incorrect
-        try:
-            ret = p._parse_ts_response(response, Prompt.COMMAND)
-        except SampleException:
-            ex_caught = True
-        self.assertTrue(ex_caught)
-
-        # test with valid data
-        response = "ts" + NEWLINE + \
-                   " -158.9284 -8388.96  -3.2164" + NEWLINE +\
-                   Prompt.COMMAND
-
-        ret = p._parse_ts_response(response, Prompt.COMMAND)
-        self.assertTrue(raw_stream_received)
-        raw_stream_received = False            # RESET
-        self.assertTrue(parsed_stream_received)
-        parsed_stream_received = False         # RESET
-
-        # test with slightly invalid data. should still work
-        response = "ts" + NEWLINE +\
-                   " -158.5166 -8392.30  -3.2164 -1.02535   0.0000" + NEWLINE +\
-                   Prompt.COMMAND
-
-        ret = p._parse_ts_response(response, Prompt.COMMAND)
-        self.assertTrue(raw_stream_received)
-        raw_stream_received = False            # RESET
-        self.assertTrue(parsed_stream_received)
-        parsed_stream_received = False         # RESET
-
-
-    def test_protocol_got_data(self):
-        """
-        verify the got_data method handles valid data, invalid data, no data in various FSM modes.
-        """
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-        paPacket = PortAgentPacket()
-
-        #
-        # DIRECT_ACCESS mode, zero length data
-        #
-
-        p._protocol_fsm.current_state = ProtocolState.DIRECT_ACCESS
-        self.assertEqual(p.get_current_state(), ProtocolState.DIRECT_ACCESS)
-
-        data = ""
-        paPacket = PortAgentPacket()
-        paPacket.attach_data(data)
-        paPacket.pack_header()
-
-
-        # mock out _driver_event as we are only looking at got_data
-        _driver_event_mock = Mock(spec="driver_event")
-        p._driver_event = _driver_event_mock
-
-
-        ret = p.got_data(paPacket)
-        self.assertEqual(ret, None)
-        self.assertEqual(str(_driver_event_mock.mock_calls), "[]")
-
-        #
-        # DIRECT_ACCESS mode, valid data
-        #
-
-        # mock out _driver_event as we are only looking at got_data
-        _driver_event_mock = Mock(spec="driver_event")
-        p._driver_event = _driver_event_mock
-
-        p._sent_cmds = []
-        p._sent_cmds.append('ts')
-        self.assertTrue(len(p._sent_cmds) > 0)
-        p._protocol_fsm.current_state = ProtocolState.DIRECT_ACCESS
-        self.assertEqual(p.get_current_state(), ProtocolState.DIRECT_ACCESS)
-
-        data = "ts" + NEWLINE +\
-               " 14.5128 24.34 23.9912 111111" + NEWLINE +\
-               Prompt.COMMAND
-        paPacket = PortAgentPacket()
-        paPacket.attach_data(data)
-        paPacket.pack_header()
-
-        ret = p.got_data(paPacket)
-        self.assertEqual(ret, None)
-        self.assertEqual(str(_driver_event_mock.mock_calls), "[call('DRIVER_ASYNC_EVENT_DIRECT_ACCESS', 'ts\\r\\n 14.5128 24.34 23.9912 111111\\r\\nS>')]")
-
-        #
-        # AUTOSAMPLE mode, valid data
-        #
-
-        p._protocol_fsm.current_state = ProtocolState.AUTOSAMPLE
-        self.assertEqual(p.get_current_state(), ProtocolState.AUTOSAMPLE)
-
-        # mock out _extract_sample as we are only looking at got_data
-        _extract_sample_mock = Mock(spec="extract_sample")
-        p._extract_sample = _extract_sample_mock
-
-        data = SAMPLE_DATA
-
-        paPacket = PortAgentPacket()
-        paPacket.attach_data(data)
-        paPacket.pack_header()
-        self.assertTrue(len(data) > 0)
-        self.assertTrue(paPacket.get_data_size() > 0)
-        self.assertTrue(len(paPacket.get_data()) > 0)
-        ret = p.got_data(paPacket)
-        self.assertEqual(ret, None)
-
-        #
-        # AUTOSAMPLE mode, no data
-        #
-
-        p._protocol_fsm.current_state = ProtocolState.AUTOSAMPLE
-        self.assertEqual(p.get_current_state(), ProtocolState.AUTOSAMPLE)
-
-        # mock out _extract_sample as we are only looking at got_data
-        _extract_sample_mock = Mock(spec="extract_sample")
-        p._extract_sample = _extract_sample_mock
-
-        data = ""
-        paPacket = PortAgentPacket()
-        paPacket.attach_data(data)
-        paPacket.pack_header()
-        self.assertTrue(len(data) == 0)
-        self.assertTrue(paPacket.get_data_size() == 0)
-        self.assertTrue(len(paPacket.get_data()) == 0)
-
-        ret = p.got_data(paPacket)
-        self.assertEqual(ret, None)
-        self.assertEqual(str(_extract_sample_mock.mock_calls), "[]")
-
-        #
-        # AUTOSAMPLE mode, corrupted data
-        #
-
-        p._protocol_fsm.current_state = ProtocolState.AUTOSAMPLE
-        self.assertEqual(p.get_current_state(), ProtocolState.AUTOSAMPLE)
-
-        # mock out _extract_sample as we are only looking at got_data
-        _extract_sample_mock = Mock(spec="extract_sample")
-        p._extract_sample = _extract_sample_mock
-
-        data = BAD_SAMPLE_DATA
-
-        paPacket = PortAgentPacket()
-        paPacket.attach_data(data)
-        paPacket.pack_header()
-        self.assertTrue(len(data) > 0)
-        self.assertTrue(paPacket.get_data_size() > 0)
-        self.assertTrue(len(paPacket.get_data()) > 0)
-        ret = p.got_data(paPacket)
-        self.assertEqual(ret, None)
-
-        self.assertEqual(len(_extract_sample_mock.mock_calls), 35)
-
-    def test_parse_ds_response(self):
-        """
-        Verify that the driver can parse output from DS command.
-        """
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-
-        ret = p._parse_ds_response(SAMPLE_DS, Prompt.COMMAND)
-
-        # assert that we know of 46 params
-        self.assertEqual(len(p._param_dict.get_keys()), 46)
-
-        dic = convert_enum_to_dict(Parameter)
-
-        self.assertEqual(str(p._param_dict.get('HANNING_WINDOW_CUTOFF')),'0.1')
-        self.assertEqual(str(p._param_dict.get('TIDE_MEASUREMENTS_SINCE_LAST_START')),'11.0')
-        self.assertEqual(str(p._param_dict.get('TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS')),'6.0')
-        self.assertEqual(str(p._param_dict.get('USE_STOP_TIME')),'False')
-        self.assertEqual(str(p._param_dict.get('DateTime')),'05 OCT 2012  17:19:27')
-        self.assertEqual(str(p._param_dict.get('NOMINAL_ALKALINE_BATTERY_ENDURANCE')),'272.8')
-        self.assertEqual(str(p._param_dict.get('TIDE_INTERVAL')),'3')
-        self.assertEqual(str(p._param_dict.get('USE_START_TIME')),'False')
-        self.assertEqual(str(p._param_dict.get('IOP_MA')),'7.4')
-        self.assertEqual(str(p._param_dict.get('QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER')),'122094.0')
-        self.assertEqual(str(p._param_dict.get('CONDUCTIVITY')),'False')
-        self.assertEqual(str(p._param_dict.get('MEMORY_ENDURANCE')),'258.0')
-        self.assertEqual(str(p._param_dict.get('WAVE_BURSTS_PER_DAY')),'80.0')
-        self.assertEqual(str(p._param_dict.get('DEVICE_VERSION')),'6.1E')
-        self.assertEqual(str(p._param_dict.get('WAVE_SAMPLES_PER_BURST')),'512')
-        self.assertEqual(str(p._param_dict.get('PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM')),'10.0')
-        self.assertEqual(str(p._param_dict.get('LAST_SAMPLE_T')),'23.8155')
-        self.assertEqual(str(p._param_dict.get('NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS')),'512')
-        self.assertEqual(str(p._param_dict.get('LAST_SAMPLE_P')),'14.5361')
-        self.assertEqual(p._param_dict.get('LAST_SAMPLE_S'), None)
-        self.assertEqual(str(p._param_dict.get('TIDE_SAMPLES_PER_DAY')),'480.0')
-        self.assertEqual(str(p._param_dict.get('STATUS')),'STOPPED')
-        self.assertEqual(p._param_dict.get('AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR'), None)
-        self.assertEqual(str(p._param_dict.get('LOGGING')),'False')
-        self.assertEqual(str(p._param_dict.get('TxTide')),'True')
-        self.assertEqual(str(p._param_dict.get('TIDE_MEASUREMENT_DURATION')),'60')
-        self.assertEqual(str(p._param_dict.get('ExternalTemperature')),'False')
-        self.assertEqual(str(p._param_dict.get('MIN_PERIOD_IN_AUTO_SPECTRUM')),'0.0')
-        self.assertEqual(str(p._param_dict.get('SHOW_PROGRESS_MESSAGES')),'True')
-        self.assertEqual(str(p._param_dict.get('TxWave')),'True')
-        self.assertEqual(str(p._param_dict.get('WAVE_BURSTS_SINCE_LAST_START')),'1.0')
-        self.assertEqual(str(p._param_dict.get('MIN_ALLOWABLE_ATTENUATION')),'0.0025')
-        self.assertEqual(str(p._param_dict.get('TXWAVESTATS')),'True')
-        self.assertEqual(str(p._param_dict.get('USE_MEASURED_TEMP_FOR_DENSITY_CALC')),'False')
-        self.assertEqual(str(p._param_dict.get('SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND')),'5')
-        self.assertEqual(str(p._param_dict.get('QUARTZ_PRESSURE_SENSOR_RANGE')),'300.0')
-        self.assertEqual(str(p._param_dict.get('TOTAL_RECORDED_TIDE_MEASUREMENTS')),'5982.0')
-        self.assertEqual(str(p._param_dict.get('TOTAL_RECORDED_WAVE_BURSTS')),'4525.0')
-        self.assertEqual(str(p._param_dict.get('WAVE_SAMPLES_SCANS_PER_SECOND')),'4.0')
-        self.assertEqual(str(p._param_dict.get('MAX_PERIOD_IN_AUTO_SPECTRUM')),'1000000.0')
-        self.assertEqual(str(p._param_dict.get('USERINFO')),'OOI')
-        self.assertEqual(str(p._param_dict.get('VLITH_V')),'9.0')
-        self.assertEqual(str(p._param_dict.get('SERIAL_NUMBER')),'1329')
-        self.assertEqual(str(p._param_dict.get('VMAIN_V')),'16.2')
-        self.assertEqual(p._param_dict.get('AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR'), None)
-
-
-        attrs = {'update.return_value': 'FAKE IGNORED RETURN'}
-        _param_dict_mock = Mock(**attrs)
-
-        p._param_dict = _param_dict_mock
-
-        ret = p._parse_ds_response(SAMPLE_DS, Prompt.COMMAND)
-        #self.assertEqual(ret, None)
-        self.assertEqual(ret, 'SBE 26plus V 6.1e  SN 1329    05 Oct 2012  17:19:27\r\nuser info=ooi\r\nquartz pressure sensor: serial number = 122094, range = 300 psia\r\ninternal temperature sensor\r\nconductivity = NO\r\niop =  7.4 ma  vmain = 16.2 V  vlith =  9.0 V\r\nlast sample: p = 14.5361, t = 23.8155\r\n\r\ntide measurement: interval = 3.000 minutes, duration = 60 seconds\r\nmeasure waves every 6 tide samples\r\n512 wave samples/burst at 4.00 scans/sec, duration = 128 seconds\r\nlogging start time = do not use start time\r\nlogging stop time = do not use stop time\r\n\r\ntide samples/day = 480.000\r\nwave bursts/day = 80.000\r\nmemory endurance = 258.0 days\r\nnominal alkaline battery endurance = 272.8 days\r\ntotal recorded tide measurements = 5982\r\ntotal recorded wave bursts = 4525\r\ntide measurements since last start = 11\r\nwave bursts since last start = 1\r\n\r\ntransmit real-time tide data = YES\r\ntransmit real-time wave burst data = YES\r\ntransmit real-time wave statistics = YES\r\nreal-time wave statistics settings:\r\n  number of wave samples per burst to use for wave statistics = 512\r\n  use measured temperature for density calculation\r\n  height of pressure sensor from bottom (meters) = 10.0\r\n  number of spectral estimates for each frequency band = 5\r\n  minimum allowable attenuation = 0.0025\r\n  minimum period (seconds) to use in auto-spectrum = 0.0e+00\r\n  maximum period (seconds) to use in auto-spectrum = 1.0e+06\r\n  hanning window cutoff = 0.10\r\n  show progress messages\r\n\r\nstatus = stopped by user\r\nlogging = NO, send start command to begin logging')
-
-        # verify it passed all 44 lines to the update func
-        self.assertEqual(len(_param_dict_mock.mock_calls), 44)
-
-    def test_parse_dc_response(self):
-        """
-        Verify that the driver can parse output from DC command.
-        """
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-
-        ret = p._parse_dc_response(SAMPLE_DC, Prompt.COMMAND)
-        log.debug("RET = " + str(ret))
-        # assert that we know of 76 params
-        self.assertEqual(len(p._param_dict.get_keys()), 46) #76
-
-        # get
-        #
-        dic = convert_enum_to_dict(Parameter)
-
-        self.assertEqual(p._param_dict.get('HANNING_WINDOW_CUTOFF'), None)
-        self.assertEqual(p._param_dict.get('TIDE_MEASUREMENTS_SINCE_LAST_START'), None)
-        self.assertEqual(p._param_dict.get('TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS'), None)
-        self.assertEqual(p._param_dict.get('USE_STOP_TIME'), None)
-        self.assertEqual(p._param_dict.get('DateTime'), None)
-        self.assertEqual(p._param_dict.get('NOMINAL_ALKALINE_BATTERY_ENDURANCE'), None)
-        self.assertEqual(p._param_dict.get('TIDE_INTERVAL'), None)
-        self.assertEqual(p._param_dict.get('USE_START_TIME'), None)
-        self.assertEqual(p._param_dict.get('IOP_MA'), None)
-        self.assertEqual(p._param_dict.get('QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER'), None)
-        self.assertEqual(p._param_dict.get('CONDUCTIVITY'), None)
-        self.assertEqual(p._param_dict.get('MEMORY_ENDURANCE'), None)
-        self.assertEqual(p._param_dict.get('WAVE_BURSTS_PER_DAY'), None)
-        self.assertEqual(p._param_dict.get('DEVICE_VERSION'), None)
-        self.assertEqual(p._param_dict.get('WAVE_SAMPLES_PER_BURST'), None)
-        self.assertEqual(p._param_dict.get('PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM'), None)
-        self.assertEqual(p._param_dict.get('LAST_SAMPLE_T'), None)
-        self.assertEqual(p._param_dict.get('NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS'), None)
-        self.assertEqual(p._param_dict.get('LAST_SAMPLE_P'), None)
-        self.assertEqual(p._param_dict.get('LAST_SAMPLE_S'), None)
-        self.assertEqual(p._param_dict.get('TIDE_SAMPLES_PER_DAY'), None)
-        self.assertEqual(p._param_dict.get('STATUS'), None)
-        self.assertEqual(p._param_dict.get('AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR'), None)
-        self.assertEqual(p._param_dict.get('LOGGING'), None)
-        self.assertEqual(p._param_dict.get('TxTide'), None)
-        self.assertEqual(p._param_dict.get('TIDE_MEASUREMENT_DURATION'), None)
-        self.assertEqual(p._param_dict.get('ExternalTemperature'), None)
-        self.assertEqual(p._param_dict.get('MIN_PERIOD_IN_AUTO_SPECTRUM'), None)
-        self.assertEqual(p._param_dict.get('SHOW_PROGRESS_MESSAGES'), None)
-        self.assertEqual(p._param_dict.get('TxWave'), None)
-        self.assertEqual(p._param_dict.get('WAVE_BURSTS_SINCE_LAST_START'), None)
-        self.assertEqual(p._param_dict.get('MIN_ALLOWABLE_ATTENUATION'), None)
-        self.assertEqual(p._param_dict.get('TXWAVESTATS'), None)
-        self.assertEqual(p._param_dict.get('USE_MEASURED_TEMP_FOR_DENSITY_CALC'), None)
-        self.assertEqual(p._param_dict.get('SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND'), None)
-        self.assertEqual(p._param_dict.get('QUARTZ_PRESSURE_SENSOR_RANGE'), None)
-        self.assertEqual(p._param_dict.get('TOTAL_RECORDED_TIDE_MEASUREMENTS'), None)
-        self.assertEqual(p._param_dict.get('TOTAL_RECORDED_WAVE_BURSTS'), None)
-        self.assertEqual(p._param_dict.get('USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC'), None)
-        self.assertEqual(p._param_dict.get('WAVE_SAMPLES_SCANS_PER_SECOND'), None)
-        self.assertEqual(p._param_dict.get('MAX_PERIOD_IN_AUTO_SPECTRUM'), None)
-        self.assertEqual(p._param_dict.get('USERINFO'), None)
-        self.assertEqual(p._param_dict.get('VLITH_V'), None)
-        self.assertEqual(p._param_dict.get('SERIAL_NUMBER'), None)
-        self.assertEqual(p._param_dict.get('VMAIN_V'), None)
-        self.assertEqual(p._param_dict.get('AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR'), None)
-
-        attrs = {'update.return_value': 'FAKE IGNORED RETURN'}
-        _param_dict_mock = Mock(**attrs)
-
-        p._param_dict = _param_dict_mock
-
-        ret = p._parse_dc_response(SAMPLE_DS, Prompt.COMMAND)
-        self.assertEqual(ret, None)
-        # verify it passed all 44 lines to the update func
-        self.assertEqual(len(_param_dict_mock.mock_calls), 0)
-
-    def test_build_set_command(self):
-        """
-        verify the build set command performs correctly
-        should return var=value\r\n
-        test for float, string, date, Boolean
-        PU0 FLOAT 5.827424
-        SHOW_PROGRESS_MESSAGES True Boolean
-        self.assertEqual(str(p._param_dict.get('TCALDATE')),'(30, 3, 2012)')
-        USER_INFO OOI str,
-        TIDE_INTERVAL
-        """
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-
-        # Float
-        ret = p._build_set_command("irrelevant", Parameter.MIN_ALLOWABLE_ATTENUATION, 5.827424)
-        self.assertEqual(ret, 'MIN_ALLOWABLE_ATTENUATION=5.827424\r\n')
-
-        # Boolean - Yes/No
-        ret = p._build_set_command("irrelevant", Parameter.SHOW_PROGRESS_MESSAGES, True)
-        self.assertEqual(ret, 'SHOW_PROGRESS_MESSAGES=y\r\n')
-
-        # String
-        ret = p._build_set_command("irrelevant", Parameter.USER_INFO, 'ooi_test')
-        self.assertEqual(ret, 'USERINFO=ooi_test\r\n')
-
-        # Not used now DC set power removed.
-        # Date (Tuple)
-        # ret = p._build_set_command("irrelevant", Parameter.TCALDATE, (30, 8, 2012))
-        # self.assertEqual(ret, 'TCALDATE=30-Aug-12\r\n')
-
-    def test_handler_command_set(self):
-        """
-        Verify that we can set parameters
-        """
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-
-
-        attrs = {'return_value': '_do_cmd_resp was returned'}
-        _do_cmd_resp_mock = Mock(**attrs)
-        _update_params_mock = Mock()
-
-        p._do_cmd_resp = _do_cmd_resp_mock
-        p._update_params = _update_params_mock
-
-        params = {
-            Parameter.EXTERNAL_TEMPERATURE_SENSOR : 5,
-            #DC#Parameter.PD1 : int(1),
-            #DC#Parameter.PD2 : True,
-            }
-        args = params
-        kwargs = {}
-
-        (next_state, result) = p._handler_command_set(args, **kwargs)
-        self.assertEqual(str(_do_cmd_resp_mock.mock_calls),"[call('set', 'ExternalTemperature', 5)]")
-        self.assertEqual(str(_update_params_mock.mock_calls), "[call()]")
-        self.assertEqual(next_state, None)
-        self.assertEqual(str(result), "_do_cmd_resp was returned")
-
-        ex_caught = False
-        try:
-            (next_state, result) = p._handler_command_set("WRONG", **kwargs)
-        except InstrumentParameterException:
-            ex_caught = True
-        self.assertTrue(ex_caught)
-
-        args = []
-        ex_caught = False
-        try:
-            (next_state, result) = p._handler_command_set(*args, **kwargs)
-        except InstrumentParameterException:
-            ex_caught = True
-        self.assertTrue(ex_caught)
-
-    def test_parse_setsampling_response(self):
-        """
-        verify setsampling works properly
-        """
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-
-        # Fill the DC/DS response
-        p._parse_dc_response(SAMPLE_DC, Prompt.COMMAND)
-        p._parse_ds_response(SAMPLE_DS, Prompt.COMMAND)
-
-        p.fake_responses = [(", new value = ", "tide interval (integer minutes) = 3, new value ="),
-                            (", new value = ", "tide measurement duration (seconds) = 60, new value ="),
-                            (", new value = ", "measure wave burst after every N tide samples: N = 6, new value ="),
-                            (", new value = ", "number of wave samples per burst (multiple of 4) = 512, new value ="),
-                            (", new value = ", "wave Sample duration (0.25, 0.50, 0.75, 1.0) seconds = 0.25, new value ="),
-                            (", new value = ", "use start time (y/n) = n, new value ="),
-                            (", new value = ", "use stop time (y/n) = n, new value ="),
-                            (", new value = ", "TXWAVESTATS (real-time wave statistics) (y/n) = y, new value ="),
-                            #(", new value = ", "the remaining prompts apply to real-time wave statistics"),
-                            (", new value = ", "show progress messages (y/n) = y, new value ="),
-                            (", new value = ", "number of wave samples per burst to use for wave statistics = 512, new value ="),
-                            (", new value = ", "use measured temperature for density calculation (y/n) = y, new value ="),
-                            (", new value = ", "height of pressure sensor from bottom (meters) = 10.0, new value ="),
-                            (", new value = ", "number of spectral estimates for each frequency band = 5, new value ="),
-                            (", new value = ", "minimum allowable attenuation = 0.0025, new value ="),
-                            (", new value = ", "minimum period (seconds) to use in auto-spectrum = 0.0e+00, new value ="),
-                            (", new value = ", "maximum period (seconds) to use in auto-spectrum = 1.0e+06, new value ="),
-                            (", new value = ", "hanning window cutoff = 0.10, new value ="),
-                            (Prompt.COMMAND, "")]
-
-        # First time is with no values to send (accept defaults)
-        p._sampling_args = {}
-
-        def _get_response_mock(expected_prompt):
-            try:
-                resp = p.fake_responses.pop(0)
-            except:
-                resp = (Prompt.COMMAND, "out of data")
-            return resp
-        p._get_response = _get_response_mock
-        _update_params_mock = Mock()
-        p._update_params = _update_params_mock
-        _connection_mock = Mock()
-        p._connection = _connection_mock
-        p._parse_setsampling_response("IGNORED", "IGNORED")
-
-        self.assertEqual(len(_connection_mock.mock_calls),17)
-        self.assertEqual(len(_update_params_mock.mock_calls),1)
-
-        # Now with values to update
-        p._sampling_args = {
-            Parameter.TIDE_INTERVAL : 3, #1,
-            Parameter.TIDE_MEASUREMENT_DURATION : 60,
-            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : 6,
-            Parameter.WAVE_SAMPLES_PER_BURST : 512,
-            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND : float(4.0),
-            Parameter.USE_START_TIME : False,
-            Parameter.USE_STOP_TIME : False,
-            Parameter.TXWAVESTATS : True,
-            Parameter.SHOW_PROGRESS_MESSAGES : True,
-            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS : 512,
-            Parameter.USE_MEASURED_TEMP_FOR_DENSITY_CALC : False,
-            Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: 10.0,
-            Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND : 5,
-            Parameter.MIN_ALLOWABLE_ATTENUATION : 0.0025,
-            Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : 0.0,
-            Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM : 1000000.0,
-            Parameter.HANNING_WINDOW_CUTOFF : 0.1
-        }
-        p.fake_responses = [(", new value = ", "tide interval (integer minutes) = 3, new value ="),
-                            (", new value = ", "tide measurement duration (seconds) = 60, new value ="),
-                            (", new value = ", "measure wave burst after every N tide samples: N = 6, new value ="),
-                            (", new value = ", "number of wave samples per burst (multiple of 4) = 512, new value ="),
-                            (", new value = ", "wave Sample duration (0.25, 0.50, 0.75, 1.0) seconds = 0.25, new value ="),
-                            (", new value = ", "use start time (y/n) = n, new value ="),
-                            (", new value = ", "use stop time (y/n) = n, new value ="),
-                            (", new value = ", "TXWAVESTATS (real-time wave statistics) (y/n) = y, new value ="),
-                            (", new value = ", "the remaining prompts apply to real-time wave statistics\r\nshow progress messages (y/n) = y, new value ="),
-                            (", new value = ", "number of wave samples per burst to use for wave statistics = 512, new value ="),
-                            (", new value = ", "use measured temperature for density calculation (y/n) = y, new value ="),
-                            (", new value = ", "height of pressure sensor from bottom (meters) = 10.0, new value ="),
-                            (", new value = ", "number of spectral estimates for each frequency band = 5, new value ="),
-                            (", new value = ", "minimum allowable attenuation = 0.0025, new value ="),
-                            (", new value = ", "minimum period (seconds) to use in auto-spectrum = 0.0e+00, new value ="),
-                            (", new value = ", "maximum period (seconds) to use in auto-spectrum = 1.0e+06, new value ="),
-                            (", new value = ", "hanning window cutoff = 0.10, new value ="),
-                            (Prompt.COMMAND, "")]
-        p._get_response = _get_response_mock
-        _update_params_mock = Mock()
-        p._update_params = _update_params_mock
-        _connection_mock = Mock()
-        p._connection = _connection_mock
-        p._parse_setsampling_response("IGNORED", "IGNORED")
-
-        self.assertEqual(len(_connection_mock.mock_calls),17)
-        self.assertEqual(len(_update_params_mock.mock_calls),1)
-
-    def test_handler_command_autosample_test_get(self):
-        """
-        Verify that we are able to get back a variable setting correctly
-        """
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-
-        # Fill the DC/DS response
-        p._parse_dc_response(SAMPLE_DC, Prompt.COMMAND)
-        p._parse_ds_response(SAMPLE_DS, Prompt.COMMAND)
-
-        kwargs = {}
-        p._handler_command_autosample_test_get(DriverParameter.ALL, **kwargs)
-
-        args = [Parameter.TXREALTIME]
-        kwargs = {}
-        (next_state, result) = p._handler_command_autosample_test_get(args, **kwargs)
-        self.assertEqual(next_state, None)
-        self.assertEqual(result, {'TxTide': True})
-
-    def test_handler_command_start_autosample(self):
-        """
-        verify startautosample sends the start command to the instrument.
-        """
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-        _wakeup_mock = Mock(spec="wakeup_mock")
-        p._wakeup = _wakeup_mock
-
-        _connection_mock = Mock(spec="_connection")
-        _connection_send_mock = Mock(spec="_connection_send")
-        _do_cmd_resp_mock = Mock(spec="_do_cmd_resp")
-        p._connection = _connection_mock
-        p._connection.send = _connection_send_mock
-        p._do_cmd_resp = _do_cmd_resp_mock
-        args = []
-        kwargs = {}
-        (next_state, result) = p._handler_command_start_autosample(*args, **kwargs)
-        self.assertEqual(next_state,  ProtocolState.AUTOSAMPLE)
-        self.assertEqual(result, ('RESOURCE_AGENT_STATE_STREAMING', None))
-        self.assertEqual(str(_connection_send_mock.mock_calls), "[call('start\\r\\n')]")
-
-    def test_handler_command_quit_session(self):
-        """
-        verify quit session sends the qs command to the instrument.
-        """
-        ID = InstrumentDriver(self.my_event_callback)
-        ID._build_protocol()
-        p = ID._protocol
-        _wakeup_mock = Mock(spec="wakeup_mock")
-        p._wakeup = _wakeup_mock
-
-        _connection_mock = Mock(spec="_connection")
-        _connection_send_mock = Mock(spec="_connection")
-        p._connection = _connection_mock
-        p._connection.send = _connection_send_mock
-        args = []
-        kwargs = {}
-        (next_state, result) = p._handler_command_quit_session(*args, **kwargs)
-        self.assertEqual(next_state,  None)
-        self.assertEqual(result, None)
-        self.assertEqual(str(_connection_send_mock.mock_calls), "[call('qs\\r\\n')]")
 
     def test_get_resource_capabilities(self):
-        driver = InstrumentDriver(self.my_event_callback)
+        driver = InstrumentDriver(self._got_data_event_callback)
         driver._build_protocol()
         p = driver._protocol
         args = []

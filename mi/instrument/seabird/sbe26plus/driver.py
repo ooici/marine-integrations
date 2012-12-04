@@ -474,6 +474,11 @@ class SBE26plusStatisticsDataParticle(DataParticle):
     the building of values, and the rest should come along for free.
     """
 
+    class StatisticType(BaseEnum):
+        NONE = 0
+        AUTO = 1
+        TSS = 2
+
     def _build_parsed_values(self):
         """
         Take something in the autosample format and split it into
@@ -514,7 +519,7 @@ class SBE26plusStatisticsDataParticle(DataParticle):
             "total variance":           None,
             "total energy":             None,
             "significant period":       None,
-            "a significant wave height":None,
+            "significant wave height":  None,
             "wave integration time":    None,
             "number of waves":          None,
             "total variance":           None,
@@ -522,37 +527,40 @@ class SBE26plusStatisticsDataParticle(DataParticle):
             "average wave height":      None,
             "average wave period":      None,
             "maximum wave height":      None,
-            "significant wave height":  None,
+            "t significant wave height":None,
             "t significant wave period":None,
+            "t total variance":         None,
+            "t total energy":           None,
             "H1/10":                    None,
             "H1/100":                   None
         }
 
-        flip_key = None
+
+        stat_type = self.StatisticType.NONE
+
         for line in self.raw_data.split(NEWLINE):
             if 'Auto-Spectrum Statistics:' in line:
-                flip_key = 'a significant wave height'
+                stat_type = self.StatisticType.AUTO
             elif 'Time Series Statistics:' in line:
-                flip_key = 't significant wave period'
+                stat_type = self.StatisticType.TSS
 
 
             match = dtsd_matcher.match(line)
             if match:
-                depth = float(match(1))
-                temperature = float(match(2))
-                salinity = float(match(3))
-                density = float(match(4))
+                depth = float(match.group(1))
+                temperature = float(match.group(2))
+                salinity = float(match.group(3))
+                density = float(match.group(4))
 
-            for (key, matcher) in single_var_matchers:
+            for (key, matcher) in single_var_matchers.items():
                 match = single_var_matchers[key].match(line)
                 if match:
                     if key in ["nAvgBand", "wave integration time", "number of waves"]:
-                        single_var_matches[key] = int(match(1))
+                        single_var_matches[key] = int(match.group(1))
+                    elif key in ["significant wave height", "significant wave period", "total variance", "total energy"] and  stat_type == self.StatisticType.TSS:
+                        single_var_matches["t " + key] = float(match.group(1))
                     else:
-                        if "significant wave height" in line:
-                            single_var_matches[flip_key] = float(match(1))
-                        else:
-                            single_var_matches[key] = float(match(1))
+                        single_var_matches[key] = float(match.group(1))
 
 
         result = [{DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.DEPTH,
@@ -573,16 +581,16 @@ class SBE26plusStatisticsDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.SIGNIFICANT_PERIOD,
                    DataParticleKey.VALUE: single_var_matches["significant period"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.SIGNIFICANT_WAVE_HEIGHT,
-                   DataParticleKey.VALUE: single_var_matches["a significant wave height"]},
+                   DataParticleKey.VALUE: single_var_matches["significant wave height"]},
 
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_WAVE_INTEGRATION_TIME,
                    DataParticleKey.VALUE: single_var_matches["wave integration time"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_NUMBER_OF_WAVES,
                    DataParticleKey.VALUE: single_var_matches["number of waves"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_TOTAL_VARIANCE,
-                   DataParticleKey.VALUE: single_var_matches["total variance"]},
+                   DataParticleKey.VALUE: single_var_matches["t total variance"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_TOTAL_ENERGY,
-                   DataParticleKey.VALUE: single_var_matches["total energy"]},
+                   DataParticleKey.VALUE: single_var_matches["t total energy"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_HEIGHT,
                    DataParticleKey.VALUE: single_var_matches["average wave height"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_PERIOD,
@@ -590,7 +598,7 @@ class SBE26plusStatisticsDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_MAXIMUM_WAVE_HEIGHT,
                    DataParticleKey.VALUE: single_var_matches["maximum wave height"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_HEIGHT,
-                   DataParticleKey.VALUE: single_var_matches["significant wave height"]},
+                   DataParticleKey.VALUE: single_var_matches["t significant wave height"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_PERIOD,
                    DataParticleKey.VALUE: single_var_matches["t significant wave period"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_H1_10,
@@ -665,7 +673,6 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-
         log.debug("in SBE26plusDeviceCalibrationDataParticle._build_parsed_values")
         single_var_matchers  = {
             SBE26plusDeviceCalibrationDataParticleKey.PCALDATE:  (
@@ -847,10 +854,10 @@ class SBE26plusDeviceStatusDataParticleKey(BaseEnum):
     TXREALTIME = 'TxTide' # bool,
     TXWAVEBURST = 'TxWave' # bool,
     NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' # int,
-    USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' # bool,
+    #USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' # bool,
     USE_MEASURED_TEMP_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_FOR_DENSITY_CALC'
-    AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR'
-    AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = 'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR'
+    #AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR'
+    #AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = 'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR'
     PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM = 'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM' # float,
     SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND = 'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND' # int,
     MIN_ALLOWABLE_ATTENUATION = 'MIN_ALLOWABLE_ATTENUATION' # float,
@@ -879,19 +886,19 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
         single_var_matchers  = {
             SBE26plusDeviceStatusDataParticleKey.DEVICE_VERSION:  (
                 re.compile(r'SBE 26plus V ([\w.]+) +SN (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)'),
-                lambda match : string.upper(match.group(1))
+                lambda match : match.group(1)
             ),
             SBE26plusDeviceStatusDataParticleKey.SERIAL_NUMBER:  (
                 re.compile(r'SBE 26plus V ([\w.]+) +SN (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)'),
-                lambda match : string.upper(match.group(2))
+                lambda match : match.group(2)
             ),
             SBE26plusDeviceStatusDataParticleKey.DS_DEVICE_DATE_TIME:  (
                 re.compile(r'SBE 26plus V ([\w.]+) +SN (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)'),
-                lambda match : string.upper(match.group(3))
+                lambda match : match.group(3)
             ),
             SBE26plusDeviceStatusDataParticleKey.USER_INFO:  (
                 re.compile(r'user info=(.*)$'),
-                lambda match : string.upper(match.group(1))
+                lambda match : match.group(1)
             ),
             SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER:  (
                 re.compile(r'quartz pressure sensor: serial number = ([\d.\-]+), range = ([\d.\-]+) psia'),
@@ -944,8 +951,8 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 lambda match : int(match.group(2))
             ),
             SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS:  (
-                re.compile(r'measure waves every ([\d.\-]+) tide samples'),
-                lambda match : float(match.group(1))
+                re.compile(r'measure waves every ([\d]+) tide samples'),
+                lambda match : int(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_PER_BURST:  (
                 re.compile(r'([\d.\-]+) wave samples/burst at ([\d.\-]+) scans/sec, duration = ([\d.\-]+) seconds'),
@@ -1015,22 +1022,22 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 re.compile(r' +number of wave samples per burst to use for wave statistics = (\d+)'),
                 lambda match : int(match.group(1))
             ),
-            SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC:  (
-                re.compile(r' +(do not|) use measured temperature and conductivity for density calculation'),
-                lambda match : False if (match.group(1)=='do not') else True
-            ),
+            #SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC:  (
+            #    re.compile(r' +(do not|) use measured temperature and conductivity for density calculation'),
+            #    lambda match : False if (match.group(1)=='do not') else True
+            #),
             SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_FOR_DENSITY_CALC:  (
                 re.compile(r' +(do not|) use measured temperature for density calculation'),
                 lambda match : True if (match.group(1)=='do not') else False
             ),
-            SBE26plusDeviceStatusDataParticleKey.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR:  (
-                re.compile(r' +average water temperature above the pressure sensor \(deg C\) = ([\d.]+)'),
-                lambda match : float(match.group(1))
-            ),
-            SBE26plusDeviceStatusDataParticleKey.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR:  (
-                re.compile(r' +average salinity above the pressure sensor \(PSU\) = ([\d.]+)'),
-                lambda match : float(match.group(1))
-            ),
+            #SBE26plusDeviceStatusDataParticleKey.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR:  (
+            #    re.compile(r' +average water temperature above the pressure sensor \(deg C\) = ([\d.]+)'),
+            #    lambda match : float(match.group(1))
+            #),
+            #SBE26plusDeviceStatusDataParticleKey.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR:  (
+            #    re.compile(r' +average salinity above the pressure sensor \(PSU\) = ([\d.]+)'),
+            #    lambda match : float(match.group(1))
+            #),
             SBE26plusDeviceStatusDataParticleKey.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: (
                 re.compile(r' +height of pressure sensor from bottom \(meters\) = ([\d.]+)'),
                 lambda match : float(match.group(1))
@@ -1060,8 +1067,8 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 lambda match : True if (match.group(1)=='show') else False
             ),
             SBE26plusDeviceStatusDataParticleKey.STATUS: (
-                re.compile(r'status = (logging|waiting|stopped)'),
-                lambda match : string.upper(match.group(1))
+                re.compile(r'status = ([\w ]+)'),
+                lambda match : match.group(1)
             ),
             SBE26plusDeviceStatusDataParticleKey.LOGGING: (
                 re.compile(r'logging = (YES|NO)'),
@@ -2494,58 +2501,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("_parse_ts_response RETURNING RESULT=" + str(result))
         return result
 
-    def now_in_instrument_protocol_got_data(self, paPacket):
-        """
-        Callback for receiving new data from the device.
-        """
-
-        # bring data in.
-        paLength = paPacket.get_data_size()
-        paData = paPacket.get_data()
-
-        if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
-            # direct access mode
-            if paLength > 0:
-                if len(self._sent_cmds) > 0:
-                    # there are sent commands that need to have there echoes filtered out
-                    oldest_sent_cmd = self._sent_cmds[0]
-                    if string.count(paData, oldest_sent_cmd) > 0:
-                        # found a command echo, so remove it from data and delete the command form list
-                        paData = string.replace(paData, oldest_sent_cmd, "", 1)
-                        self._sent_cmds.pop(0)
-                if self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
-
-            return
-
-        if paLength > 0:
-            # Call the superclass to update line and prompt buffers.
-            #CommandResponseInstrumentProtocol.got_data(self, paData)
-            self.add_to_buffer(paData)
-
-            # If in streaming mode, process the buffer for samples to publish.
-            cur_state = self.get_current_state()
-            if cur_state == ProtocolState.AUTOSAMPLE:
-                # if in autosample mode, hand data to chunker by default, unless... a SL SLO is detected...
-
-                self._chunker.add_chunk(paData)
-                chunk = self._chunker.get_next_data()
-                while chunk != None:
-                    # Determine what particle type it is and push accordingly
-
-                    self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk)
-                    self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk)
-                    self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk)
-
-                    # Not sure if these will ever be present in autosample.
-                    # theoretically possible
-                    self._extract_sample(SBE26plusDeviceCalibrationDataParticle, STATS_REGEX_MATCHER, chunk)
-                    self._extract_sample(SBE26plusDeviceStatusDataParticle, STATS_REGEX_MATCHER, chunk)
-
-                    # reload
-                    chunk = self._chunker.get_next_data()
-
-
     def _got_chunk(self, chunk):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
@@ -2554,8 +2509,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk)
         self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk)
         self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk)
-        self._extract_sample(SBE26plusDeviceCalibrationDataParticle, STATS_REGEX_MATCHER, chunk)
-        self._extract_sample(SBE26plusDeviceStatusDataParticle, STATS_REGEX_MATCHER, chunk)
+        self._extract_sample(SBE26plusDeviceCalibrationDataParticle, DC_REGEX_MATCHER, chunk)
+        self._extract_sample(SBE26plusDeviceStatusDataParticle, DS_REGEX_MATCHER, chunk)
 
     ########################################################################
     # Static helpers to format set commands.
