@@ -53,13 +53,9 @@ from mi.idk.exceptions import TestNoCommConfig
 from mi.core.exceptions import InstrumentException
 from pyon.core.exception import Conflict
 
-<<<<<<< HEAD
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
-=======
-from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
->>>>>>> upstream/master
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.tcp_client import TcpClient
 from mi.core.common import BaseEnum
