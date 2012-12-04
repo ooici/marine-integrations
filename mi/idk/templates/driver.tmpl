@@ -13,6 +13,8 @@ __license__ = 'Apache 2.0'
 
 import string
 
+from mi.core.log import get_logger ; log = get_logger()
+
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
@@ -21,8 +23,8 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
-
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.chunker import StringChunker
 
 
 # newline.
@@ -55,6 +57,9 @@ class ProtocolEvent(BaseEnum):
     """
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
+    GET = DriverEvent.GET
+    SET = DriverEvent.SET
+    DISCOVER = DriverEvent.DISCOVER
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
@@ -84,122 +89,10 @@ class Prompt(BaseEnum):
     Device i/o prompts..
     """
 
-class InstrumentCmds(BaseEnum):
-    """
-    Instrument Commands
-    These are the commands that according to the science profile
-    that must be supported.
-    """
-
 
 ###############################################################################
 # Data Particles
 ###############################################################################
-
-
-'''
-# Example Data Particle
-
-class ExampleSampleDataParticleKey(BaseEnum):
-    SAMPLE_NUMBER = "sample_number"
-    SAMPLE_TYPE = "sample_type"
-    INST_TIME = "InstTime" # FUTURE "inst_time"
-    PRESSURE = "pressure" # psi
-    PRESSURE_TEMP = "pressure_temp"
-
-class ExampleSampleDataParticle(DataParticle):
-    """
-    Routines for parsing raw data into a data particle structure. Override
-    the building of values, and the rest should come along for free.
-    """
-    LINE1 = r"<Sample Num='(\d+)' Type='([^']+)'>"
-    LINE2 = r"<Time>([^<]+)</Time>"
-    LINE3 = r"<PressurePSI>([0-9.+-]+)</PressurePSI>"
-    LINE4 = r"<PTemp>([0-9.+-]+)</PTemp>"
-
-    def _build_parsed_values(self):
-        """
-        Take something in the StatusData format and split it into
-        values with appropriate tags
-
-        @throws SampleException If there is a problem with sample creation
-        """
-
-        # Initialize
-        single_var_matches  = {
-            ExampleSampleDataParticleKey.SAMPLE_NUMBER: None,
-            ExampleSampleDataParticleKey.SAMPLE_TYPE: None,
-            ExampleSampleDataParticleKey.INST_TIME: None,
-            ExampleSampleDataParticleKey.PRESSURE: None,
-            ExampleSampleDataParticleKey.PRESSURE_TEMP: None
-        }
-
-        multi_var_matchers  = {
-            re.compile(self.LINE1): [
-                ExampleSampleDataParticleKey.SAMPLE_NUMBER,
-                ExampleSampleDataParticleKey.SAMPLE_TYPE
-            ],
-            re.compile(self.LINE2): [
-                ExampleSampleDataParticleKey.INST_TIME
-            ],
-            re.compile(self.LINE3): [
-                ExampleSampleDataParticleKey.PRESSURE
-            ],
-            re.compile(self.LINE4): [
-                ExampleSampleDataParticleKey.PRESSURE_TEMP
-            ]
-        }
-
-        for line in self.raw_data.split(NEWLINE):
-            for (matcher, keys) in multi_var_matchers.iteritems():
-                match = matcher.match(line)
-                if match:
-                    index = 0
-                    for key in keys:
-                        index = index + 1
-                        val = match.group(index)
-
-                        # str
-                        if key in [
-                            ExampleSampleDataParticleKey.SAMPLE_TYPE,
-                            ExampleSampleDataParticleKey.INST_TIME
-                        ]:
-                            log.debug("SAMPLE_TYPE = " + val)
-                            single_var_matches[key] = val
-
-                        # int
-                        elif key in [
-                            ExampleSampleDataParticleKey.SAMPLE_NUMBER
-                        ]:
-                            single_var_matches[key] = int(val)
-
-                        # float
-                        elif key in [
-                            ExampleSampleDataParticleKey.PRESSURE,
-                            ExampleSampleDataParticleKey.PRESSURE_TEMP
-                        ]:
-                            single_var_matches[key] = float(val)
-
-                        # date_time
-                        elif key in [
-                        ]:
-                            text_timestamp = val
-                            py_timestamp = time.strptime(text_timestamp, "%Y-%m-%dT%H:%M:%S")
-                            timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
-                            single_var_matches[key] = timestamp
-
-                        else:
-                            raise SampleException("Unknown variable type in SBE54tpsConfigurationDataParticle._build_parsed_values")
-
-
-        result = []
-        for (key, value) in single_var_matches.iteritems():
-            result.append({DataParticleKey.VALUE_ID: key,
-                           DataParticleKey.VALUE: value})
-
-        return result
-
-'''
 
 
 ###############################################################################
@@ -242,19 +135,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 
 
 ###########################################################################
-# Particle MATCHERS
-###########################################################################
-"""
-Defines the regex to detect a particle block
-usually some_from_start.*?some_from_end
-"""
-
-'''
-EXAMPLE_SAMPLE_DATA_REGEX = r"<Sample Num='[0-9]+' Type='Pressure'>.*?</Sample>"
-EXAMPLE_SAMPLE_DATA_REGEX_MATCHER = re.compile(EXAMPLE_SAMPLE_DATA_REGEX, re.DOTALL)
-'''
-
-###########################################################################
 # Protocol
 ###########################################################################
 
@@ -280,10 +160,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Add event handlers for protocol state machine.
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
@@ -317,16 +202,21 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return_list = []
 
-        # one or more matchers for particles.
-        sieve_matchers = [EXAMPLE_SAMPLE_DATA_REGEX_MATCHER]
-
-        for matcher in sieve_matchers:
-            for match in matcher.finditer(raw_data):
-                return_list.append((match.start(), match.end()))
-
         return return_list
 
+    def _build_param_dict(self):
+        """
+        Populate the parameter dictionary with parameters.
+        For each parameter key, add match stirng, match lambda function,
+        and value formatting function for set commands.
+        """
+        # Add parameter handlers to parameter dict.
 
+    def _got_chunk(self, chunk):
+        """
+        The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
+        with the appropriate particle objects and REGEXes.
+        """
 
     ########################################################################
     # Unknown handlers.
@@ -351,7 +241,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Discover current state
         @retval (next_state, result)
         """
-        (ProtocolState.COMMAND, None)
+        return (ProtocolState.COMMAND, ResourceAgentState.IDLE)
 
     ########################################################################
     # Command handlers.
@@ -370,6 +260,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
+    def _handler_command_get(self, *args, **kwargs):
+        """
+        Get parameter
+        """
+        pass
+
+    def _handler_command_set(self, *args, **kwargs):
+        """
+        Set parameter
+        """
+        pass
+
     def _handler_command_exit(self, *args, **kwargs):
         """
         Exit command state.
@@ -378,15 +280,12 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_start_direct(self):
         """
+        Start direct access
         """
-        next_state = None
-        result = None
-
-
         next_state = ProtocolState.DIRECT_ACCESS
         next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        log.debug("_handler_command_start_direct: entering DA mode")
-        return (next_state, (next_agent_state, result))
+
+        return (next_state, next_agent_state)
 
     ########################################################################
     # Direct access handlers.
@@ -433,37 +332,3 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = ResourceAgentState.COMMAND
 
         return (next_state, (next_agent_state, result))
-
-    def _build_param_dict(self):
-        """
-        Populate the parameter dictionary with parameters.
-        For each parameter key, add match stirng, match lambda function,
-        and value formatting function for set commands.
-        """
-        # Add parameter handlers to parameter dict.
-
-
-        '''
-        #EXAMPLE
-
-        self._param_dict.add(Parameter.INTERVAL,
-                             r'sample interval = (\d+) seconds',
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_WRITE,
-                             default_value=1,
-                             init_value=None,
-                             startup_param=True,
-                             direct_access=True)
-        '''
-
-
-    def _got_chunk(self, chunk):
-        """
-        The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
-        with the appropriate particle objects and REGEXes.
-        """
-
-        '''
-        result = self._extract_sample(ExampleSampleDataParticle, EXAMPLE_SAMPLE_DATA_REGEX_MATCHER, chunk)
-        '''
