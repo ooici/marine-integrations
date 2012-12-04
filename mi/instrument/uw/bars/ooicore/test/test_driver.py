@@ -32,6 +32,7 @@ from mock import Mock
 from mi.core.log import get_logger ; log = get_logger()
 
 from interface.objects import AgentCommand
+from pyon.agent.agent import ResourceAgentEvent
 
 from mi.core.instrument.logger_client import LoggerClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
@@ -42,11 +43,15 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import AgentCapabilityType
 from mi.idk.util import convert_enum_to_dict 
 
+from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.data_particle import DataParticleValue
 
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
@@ -54,15 +59,16 @@ from mi.core.exceptions import InstrumentParameterException
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from mi.instrument.uw.bars.ooicore.driver import ooicoreInstrumentDriver
 from mi.instrument.uw.bars.ooicore.driver import Protocol
+from mi.instrument.uw.bars.ooicore.driver import ooicoreInstrumentDriver
 from mi.instrument.uw.bars.ooicore.driver import ProtocolState
 from mi.instrument.uw.bars.ooicore.driver import ProtocolEvent
 from mi.instrument.uw.bars.ooicore.driver import Parameter, VisibleParameters
 from mi.instrument.uw.bars.ooicore.driver import Command
 from mi.instrument.uw.bars.ooicore.driver import Capability
 from mi.instrument.uw.bars.ooicore.driver import SubMenu
-from mi.instrument.uw.bars.ooicore.driver import BarsDataParticleKey
+from mi.instrument.uw.bars.ooicore.driver import Prompt
+from mi.instrument.uw.bars.ooicore.driver import BarsDataParticle, BarsDataParticleKey
 from mi.instrument.uw.bars.ooicore.driver import COMMAND_CHAR
 from mi.instrument.uw.bars.ooicore.driver import PACKET_CONFIG
 
@@ -76,8 +82,7 @@ InstrumentDriverTestCase.initialize(
 
     instrument_agent_resource_id = 'QN341A',
     instrument_agent_name = 'uw_bars_ooicore',
-    instrument_agent_packet_config = {},
-    instrument_agent_stream_definition = {}
+    instrument_agent_packet_config = PACKET_CONFIG,
 )
 
 #################################### RULES ####################################
@@ -98,6 +103,8 @@ FULL_SAMPLE = "1.448  4.095  4.095  0.004  0.014  0.048  1.995  1.041  24.74  0.
 SAMPLE_FRAGMENT_1 = "1.448  4.095  4.095  0.004  0.014  0.0" 
 SAMPLE_FRAGMENT_2 = "48  1.995  1.041  24.74  0.000   24.7   9.2\r\n"
 
+STARTUP_TIMEOUT = 120
+EXECUTE_TIMEOUT = 60
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -519,6 +526,18 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         self.assertTrue(self.raw_stream_received)
         self.assertTrue(self.parsed_stream_received)
 
+    def test_chunker(self):
+        """
+        Tests the chunker
+        """
+        # This will want to be created in the driver eventually...
+        chunker = StringChunker(Protocol.sieve_function)
+
+        self.assert_chunker_sample(chunker, FULL_SAMPLE)
+        self.assert_chunker_fragmented_sample(chunker, FULL_SAMPLE)
+        self.assert_chunker_combined_sample(chunker, FULL_SAMPLE)
+        self.assert_chunker_sample_with_noise(chunker, FULL_SAMPLE)
+	
     def test_to_seconds(self):
 	""" Test to second conversion. """
 	self.assertEquals(240, Protocol._to_seconds(4, 1))
@@ -739,7 +758,8 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
     def test_simple_set(self):	
         config_key = Parameter.CYCLE_TIME
         value_A = 17
-        value_B = 15
+        value_B = 244
+	value_B_rounded = (value_B // 60) * 60
         config_A = {config_key:value_A}
         config_B = {config_key:value_B}
 	
@@ -755,7 +775,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertEquals(reply[config_key], value_B)
          
         reply = self.driver_client.cmd_dvr('get_resource', [config_key], timeout=20)
-        self.assertEquals(reply, config_B)
+        self.assertEquals(reply, {config_key:value_B_rounded})
 	
     def test_read_only_values(self):
         self._get_to_cmd_mode()
@@ -889,8 +909,126 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
+    def assert_sample_data_particle(self, particle):
+	"""
+	Assert that a parsed structure is valid
+	@param particle A dict representation of a data particle structure or a
+	JSON string that can be turned into one.
+	"""
+	if (isinstance(particle, BarsDataParticle)):
+            sample_dict = json.loads(particle.generate_parsed())
+        else:
+            sample_dict = particle
+	
+	self.assert_v1_particle_headers(sample_dict)
+        
+	# now for the individual values
+	for x in sample_dict['values']:
+            self.assertTrue(x['value_id'] in convert_enum_to_dict(BarsDataParticleKey).values())
+            log.debug("ID: %s value: %s type: %s" % (x['value_id'], x['value'], type(x['value'])))
+            self.assertTrue(isinstance(x['value'], float))
+	
     ###
     #    Add instrument specific qualification tests
     ###
+    def test_direct_access_telnet_mode(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+        self.assert_direct_access_start_telnet(timeout=STARTUP_TIMEOUT)
+        self.assertTrue(self.tcp_client)
+	log.info("Successfully entered DA start telnet")
 
+        self.tcp_client.send_data("\r\n")
+        result = self.tcp_client.expect(Prompt.CMD_PROMPT, sleep_time=8)
+	self.assertTrue(result)
 
+	log.info("Successfully sent DA command and got prompt")
+        self.assert_direct_access_stop_telnet()
+	log.info("Successfully left direct access")
+
+    def test_get_set_parameters(self):
+        '''
+        verify that all parameters can be get and set properly
+        '''
+        self.assert_enter_command_mode()
+
+	self.assert_get_parameter(Parameter.CYCLE_TIME, 20) #initial config
+	
+        self.assert_set_parameter(Parameter.CYCLE_TIME, 24)
+        self.assert_get_parameter(Parameter.CYCLE_TIME, 24)
+	
+        self.assert_set_parameter(Parameter.CYCLE_TIME, 240)
+        self.assert_get_parameter(Parameter.CYCLE_TIME, 240)
+
+        self.assert_get_parameter(Parameter.VERBOSE, None)
+        self.assert_get_parameter(Parameter.METADATA_POWERUP, 0)
+        self.assert_get_parameter(Parameter.METADATA_RESTART, 0)
+        self.assert_get_parameter(Parameter.RES_SENSOR_POWER, 1)
+        self.assert_get_parameter(Parameter.INST_AMP_POWER, 1)
+        self.assert_get_parameter(Parameter.EH_ISOLATION_AMP_POWER, 1)
+        self.assert_get_parameter(Parameter.HYDROGEN_POWER, 1)
+        self.assert_get_parameter(Parameter.REFERENCE_TEMP_POWER, 1)
+
+        self.assert_reset()
+
+    def test_autosample(self):
+        '''
+        Start and stop autosample and verify data particle
+        '''
+        self.assert_sample_autosample(self.assert_sample_data_particle,
+                                      DataParticleValue.PARSED)
+
+    def test_get_capabilities(self):
+        """
+        @brief Verify that the correct capabilities are returned from get_capabilities
+        at various driver/agent states.
+        """
+        self.assert_enter_command_mode()
+
+        #  Command Mode
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: [
+                ResourceAgentEvent.CLEAR,
+                ResourceAgentEvent.RESET,
+                ResourceAgentEvent.GO_DIRECT_ACCESS,
+                ResourceAgentEvent.GO_INACTIVE,
+                ResourceAgentEvent.PAUSE,
+            ],
+            AgentCapabilityType.AGENT_PARAMETER: ['example'],
+            AgentCapabilityType.RESOURCE_COMMAND: [
+                DriverEvent.SET, DriverEvent.GET,
+                DriverEvent.START_AUTOSAMPLE,
+		DriverEvent.START_DIRECT
+            ],
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: [
+                Parameter.CYCLE_TIME,
+		Parameter.ALL,
+            ],
+        }
+
+        self.assert_capabilities(capabilities)
+
+        #  Streaming Mode
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = [
+	    ResourceAgentEvent.RESET,
+	    ResourceAgentEvent.GO_INACTIVE
+	    ]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+            DriverEvent.STOP_AUTOSAMPLE
+        ]
+
+        self.assert_start_autosample()
+        self.assert_capabilities(capabilities)
+        self.assert_stop_autosample()
+
+        #  Uninitialized Mode
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = [
+	    ResourceAgentEvent.INITIALIZE]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
+        self.assert_capabilities(capabilities)

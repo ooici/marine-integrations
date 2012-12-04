@@ -94,6 +94,12 @@ class DriverGenerator:
         """
         return os.path.join(self.driver_dir(), self.driver_filename())
 
+    def driver_relative_path(self):
+        """
+        @brief relative path and filename to the driver code
+        @retval driver path
+        """
+        return re.sub('.*?marine-integrations', 'marine-integrations', self.driver_path())
 
     def driver_test_filename(self):
         """
@@ -198,7 +204,7 @@ class DriverGenerator:
         """
         return {
             'driver_module': self.driver_modulename(),
-            'file': self.driver_path(),
+            'file': self.driver_relative_path(),
             'author': self.metadata.author,
             'driver_make': self.metadata.driver_make,
             'driver_model': self.metadata.driver_model,
@@ -225,7 +231,7 @@ class DriverGenerator:
             'driver_class': 'InstrumentDriver',
             'driver_dir': self.driver_dir(),
             'driver_path': self.driver_dir(),
-            'file': self.driver_path(),
+            'file': self.driver_relative_path(),
             'author': self.metadata.author,
             'driver_make': self.metadata.driver_make,
             'driver_model': self.metadata.driver_model,
