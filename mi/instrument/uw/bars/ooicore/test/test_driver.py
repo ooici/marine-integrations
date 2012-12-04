@@ -104,6 +104,7 @@ SAMPLE_FRAGMENT_1 = "1.448  4.095  4.095  0.004  0.014  0.0"
 SAMPLE_FRAGMENT_2 = "48  1.995  1.041  24.74  0.000   24.7   9.2\r\n"
 
 STARTUP_TIMEOUT = 120
+EXECUTE_TIMEOUT = 60
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -952,6 +953,8 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         '''
         self.assert_enter_command_mode()
 
+	self.assert_get_parameter(Parameter.CYCLE_TIME, 20) #initial config
+	
         self.assert_set_parameter(Parameter.CYCLE_TIME, 24)
         self.assert_get_parameter(Parameter.CYCLE_TIME, 24)
 	
