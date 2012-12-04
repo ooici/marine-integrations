@@ -642,7 +642,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                a submodule update and some of the submodules are in release
                states.  So for now, no resource interfaces
 
-        @param: dictionary of all the different capability types. i.e.
+        @param: dictionary of all the different capability types that are
+        supposed to be there. i.e.
         {
           agent_command = ['DO_MY_COMMAND'],
           agent_parameter = ['foo'],
@@ -654,24 +655,13 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         def sort_capabilities(caps_list):
             '''
             sort a return value into capability buckets.
-            @retur agt_cmds, agt_pars, res_cmds, res_iface, res_pars
+            @retval agt_cmds, agt_pars, res_cmds, res_iface, res_pars
             '''
             agt_cmds = []
             agt_pars = []
             res_cmds = []
             res_iface = []
             res_pars = []
-
-            if(not capabilities.get(AgentCapabilityType.AGENT_COMMAND)):
-                capabilities[AgentCapabilityType.AGENT_COMMAND] = []
-            if(not capabilities.get(AgentCapabilityType.AGENT_PARAMETER)):
-                capabilities[AgentCapabilityType.AGENT_PARAMETER] = []
-            if(not capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)):
-                capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
-            if(not capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE)):
-                capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
-            if(not capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)):
-                capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
 
             if len(caps_list)>0 and isinstance(caps_list[0], AgentCapability):
                 agt_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_CMD]
@@ -687,22 +677,58 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                 #res_iface = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_IFACE]
                 res_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_PAR]
 
+            agt_cmds.sort()
+            agt_pars.sort()
+            res_cmds.sort()
+            res_iface.sort()
+            res_pars.sort()
+            
             return agt_cmds, agt_pars, res_cmds, res_iface, res_pars
 
+        if(not capabilities.get(AgentCapabilityType.AGENT_COMMAND)):
+            capabilities[AgentCapabilityType.AGENT_COMMAND] = []
+        if(not capabilities.get(AgentCapabilityType.AGENT_PARAMETER)):
+            capabilities[AgentCapabilityType.AGENT_PARAMETER] = []
+        if(not capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)):
+            capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        if(not capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE)):
+            capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        if(not capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)):
+            capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+        
+        
+        expected_agent_cmd = capabilities.get(AgentCapabilityType.AGENT_COMMAND)
+        expected_agent_cmd.sort()
+        expected_agent_param = capabilities.get(AgentCapabilityType.AGENT_PARAMETER)
+        expected_agent_param.sort()
+        expected_res_cmd = capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)
+        expected_res_cmd.sort()
+        expected_res_param = capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)
+        expected_res_param.sort()
+        expected_res_int = capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE)
+        expected_res_int.sort()
+        
+        # go get the active capabilities
         retval = self.instrument_agent_client.get_capabilities()
         agt_cmds, agt_pars, res_cmds, res_iface, res_pars = sort_capabilities(retval)
 
         log.debug("Agent Commands: %s " % str(agt_cmds))
+        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.AGENT_COMMAND))
         log.debug("Agent Parameters: %s " % str(agt_pars))
+        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.AGENT_PARAMETER))
         log.debug("Resource Commands: %s " % str(res_cmds))
+        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.RESOURCE_COMMAND))
         log.debug("Resource Interface: %s " % str(res_iface))
+        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE))
         log.debug("Resource Parameter: %s " % str(res_pars))
-
-        self.assertEqual(capabilities.get(AgentCapabilityType.AGENT_COMMAND), agt_cmds)
-        self.assertEqual(capabilities.get(AgentCapabilityType.AGENT_PARAMETER), agt_pars)
-        self.assertEqual(capabilities.get(AgentCapabilityType.RESOURCE_COMMAND), res_cmds)
-        self.assertEqual(capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE), res_iface)
-        self.assertEqual(capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER), res_pars)
+        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER))
+        
+        # Compare to what we are supposed to have
+        self.assertEqual(expected_agent_cmd, agt_cmds)
+        self.assertEqual(expected_agent_param, agt_pars)
+        self.assertEqual(expected_res_cmd, res_cmds)
+        self.assertEqual(expected_res_int, res_iface)
+        self.assertEqual(expected_res_param, res_pars)
 
     def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout = 10):
         """
@@ -966,7 +992,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         Exit out of direct access mode.  We do this by simply changing
         state to command mode.
         @return:
-        '''
+        '''       
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
 

@@ -33,7 +33,7 @@ class TcpClient():
         log.debug("OPEN SOCKET HOST = " + str(host) + " PORT = " + str(port))
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.connect((host, port))
-        self.s.settimeout(0.0)
+        self.s.settimeout(0.0) 
 
     def telnet_handshake(self):
         if(self.expect(WILL_ECHO_CMD)):

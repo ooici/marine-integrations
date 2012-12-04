@@ -986,6 +986,8 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         #  Command Mode
         capabilities = {
             AgentCapabilityType.AGENT_COMMAND: [
+                ResourceAgentEvent.CLEAR,
+                ResourceAgentEvent.RESET,
                 ResourceAgentEvent.GO_DIRECT_ACCESS,
                 ResourceAgentEvent.GO_INACTIVE,
                 ResourceAgentEvent.PAUSE,
@@ -993,19 +995,13 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
             AgentCapabilityType.AGENT_PARAMETER: ['example'],
             AgentCapabilityType.RESOURCE_COMMAND: [
                 DriverEvent.SET, DriverEvent.GET,
-                DriverEvent.START_AUTOSAMPLE
+                DriverEvent.START_AUTOSAMPLE,
+		DriverEvent.START_DIRECT
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: [
                 Parameter.CYCLE_TIME,
-		Parameter.VERBOSE,
-		Parameter.METADATA_POWERUP,
-		Parameter.METADATA_RESTART,
-		Parameter.RES_SENSOR_POWER,
-		Parameter.INST_AMP_POWER,
-		Parameter.EH_ISOLATION_AMP_POWER,
-		Parameter.HYDROGEN_POWER,
-		Parameter.REFERENCE_TEMP_POWER
+		Parameter.ALL,
             ],
         }
 
