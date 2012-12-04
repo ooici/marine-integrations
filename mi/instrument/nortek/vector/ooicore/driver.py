@@ -1,11 +1,11 @@
 """
-@package mi.instrument.nortek.aquadopp.ooicore.driver
-@file /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/aquadopp/ooicore/driver.py
+@package mi.instrument.nortek.vector.ooicore.driver
+@file /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore/driver.py
 @author Bill Bollenbacher
 @brief Driver for the ooicore
 Release notes:
 
-Driver for Aquadopp DW
+Driver for vector
 """
 
 __author__ = 'Bill Bollenbacher'
@@ -77,7 +77,7 @@ DIAGNOSTIC_DATA_HEADER_REGEX = re.compile(DIAGNOSTIC_DATA_HEADER_PATTERN, re.DOT
 DIAGNOSTIC_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % DIAGNOSTIC_DATA_SYNC_BYTES
 DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN, re.DOTALL)
 
-# Packet config for aquadopp dw data granules.
+# Packet config for vector data granules.
 STREAM_NAME_PARSED = DataParticleValue.PARSED
 STREAM_NAME_RAW = DataParticleValue.RAW
 
@@ -90,7 +90,7 @@ PACKET_CONFIG = {
 # Device prompts.
 class InstrumentPrompts(BaseEnum):
     """
-    aquadopp prompts.
+    vector prompts.
     """
     COMMAND_MODE  = 'Command mode'
     CONFIRMATION  = 'Confirm:'
@@ -1103,8 +1103,8 @@ class Protocol(CommandResponseInstrumentProtocol):
             cmd_line = cmd
 
         # Send command.
-        log.debug('_do_cmd_resp: %s(%s), timeout=%s, expected_prompt=%s (%s),' 
-                  % (repr(cmd_line), repr(cmd_line.encode("hex")), timeout, expected_prompt, expected_prompt.encode("hex")))
+        log.debug('_do_cmd_resp: %s, timeout=%s, expected_prompt=%s (%s),' 
+                  % (repr(cmd_line.encode("hex")), timeout, expected_prompt, expected_prompt.encode("hex")))
         self._connection.send(cmd_line)
 
         # Wait for the prompt, prepare result and return, timeout exception
@@ -1243,7 +1243,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_acquire_sample(self, *args, **kwargs):
         """
-        Acquire sample from aquadopp.
+        Acquire sample from vector.
         @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).        
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
@@ -1269,7 +1269,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         # Issue start command and switch to autosample if successful.
-        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_AT_SPECIFIC_TIME, 
+        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, 
                                    expected_prompt = InstrumentPrompts.Z_ACK, *args, **kwargs)
                 
         next_state = ProtocolState.AUTOSAMPLE        
@@ -1537,6 +1537,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Retrieve the required parameter, raise if not present.
         try:
             params = args[0]
+
         except IndexError:
             raise InstrumentParameterException('Get command requires a parameter list or tuple.')
 
