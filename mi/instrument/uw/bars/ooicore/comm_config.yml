@@ -1,6 +1,6 @@
 comm:
-  command_port: 5001
-  data_port: 5000
-  device_addr: 10.180.80.172
+  command_port: 6001
+  data_port: 6000
+  device_addr: 10.180.80.176
   device_port: 2101
   method: ethernet

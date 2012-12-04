@@ -47,10 +47,9 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import TestNoCommConfig
 from mi.core.exceptions import InstrumentException
-from mi.core.exceptions import InstrumentTimeoutException
 from pyon.core.exception import Conflict
 
-from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.tcp_client import TcpClient
 from mi.core.common import BaseEnum
@@ -73,7 +72,10 @@ from pyon.agent.agent import ResourceAgentEvent
 # Do not remove this import.  It is for package building.
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
-GO_ACTIVE_TIMEOUT=90
+GO_ACTIVE_TIMEOUT=180
+GET_TIMEOUT=30
+SET_TIMEOUT=90
+EXECUTE_TIMEOUT=30
 
 class AgentCapabilityType(BaseEnum):
     AGENT_COMMAND = 'agent_command'
@@ -614,6 +616,22 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
 
+    def assert_v1_particle_headers(self, sample_dict):
+        """
+        Assert that a particle's header fields are valid and sufficiently
+        complete for a basic particle.
+        @param sample_dict The python dictionary form of a particle
+        """
+        self.assertTrue(isinstance(sample_dict, dict)) 
+        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
+            DataParticleValue.PARSED)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
+            DataParticleValue.JSON_DATA)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES],
+            list))
+        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
 
 
     def assert_capabilities(self, capabilities):
@@ -624,7 +642,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                a submodule update and some of the submodules are in release
                states.  So for now, no resource interfaces
 
-        @param: dictionary of all the different capability types. i.e.
+        @param: dictionary of all the different capability types that are
+        supposed to be there. i.e.
         {
           agent_command = ['DO_MY_COMMAND'],
           agent_parameter = ['foo'],
@@ -636,24 +655,13 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         def sort_capabilities(caps_list):
             '''
             sort a return value into capability buckets.
-            @retur agt_cmds, agt_pars, res_cmds, res_iface, res_pars
+            @retval agt_cmds, agt_pars, res_cmds, res_iface, res_pars
             '''
             agt_cmds = []
             agt_pars = []
             res_cmds = []
             res_iface = []
             res_pars = []
-
-            if(not capabilities.get(AgentCapabilityType.AGENT_COMMAND)):
-                capabilities[AgentCapabilityType.AGENT_COMMAND] = []
-            if(not capabilities.get(AgentCapabilityType.AGENT_PARAMETER)):
-                capabilities[AgentCapabilityType.AGENT_PARAMETER] = []
-            if(not capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)):
-                capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
-            if(not capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE)):
-                capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
-            if(not capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)):
-                capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
 
             if len(caps_list)>0 and isinstance(caps_list[0], AgentCapability):
                 agt_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_CMD]
@@ -669,22 +677,58 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                 #res_iface = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_IFACE]
                 res_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_PAR]
 
+            agt_cmds.sort()
+            agt_pars.sort()
+            res_cmds.sort()
+            res_iface.sort()
+            res_pars.sort()
+            
             return agt_cmds, agt_pars, res_cmds, res_iface, res_pars
 
+        if(not capabilities.get(AgentCapabilityType.AGENT_COMMAND)):
+            capabilities[AgentCapabilityType.AGENT_COMMAND] = []
+        if(not capabilities.get(AgentCapabilityType.AGENT_PARAMETER)):
+            capabilities[AgentCapabilityType.AGENT_PARAMETER] = []
+        if(not capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)):
+            capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        if(not capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE)):
+            capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        if(not capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)):
+            capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+        
+        
+        expected_agent_cmd = capabilities.get(AgentCapabilityType.AGENT_COMMAND)
+        expected_agent_cmd.sort()
+        expected_agent_param = capabilities.get(AgentCapabilityType.AGENT_PARAMETER)
+        expected_agent_param.sort()
+        expected_res_cmd = capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)
+        expected_res_cmd.sort()
+        expected_res_param = capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)
+        expected_res_param.sort()
+        expected_res_int = capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE)
+        expected_res_int.sort()
+        
+        # go get the active capabilities
         retval = self.instrument_agent_client.get_capabilities()
         agt_cmds, agt_pars, res_cmds, res_iface, res_pars = sort_capabilities(retval)
 
         log.debug("Agent Commands: %s " % str(agt_cmds))
+        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.AGENT_COMMAND))
         log.debug("Agent Parameters: %s " % str(agt_pars))
+        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.AGENT_PARAMETER))
         log.debug("Resource Commands: %s " % str(res_cmds))
+        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.RESOURCE_COMMAND))
         log.debug("Resource Interface: %s " % str(res_iface))
+        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE))
         log.debug("Resource Parameter: %s " % str(res_pars))
-
-        self.assertEqual(capabilities.get(AgentCapabilityType.AGENT_COMMAND), agt_cmds)
-        self.assertEqual(capabilities.get(AgentCapabilityType.AGENT_PARAMETER), agt_pars)
-        self.assertEqual(capabilities.get(AgentCapabilityType.RESOURCE_COMMAND), res_cmds)
-        self.assertEqual(capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE), res_iface)
-        self.assertEqual(capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER), res_pars)
+        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER))
+        
+        # Compare to what we are supposed to have
+        self.assertEqual(expected_agent_cmd, agt_cmds)
+        self.assertEqual(expected_agent_param, agt_pars)
+        self.assertEqual(expected_res_cmd, res_cmds)
+        self.assertEqual(expected_res_int, res_iface)
+        self.assertEqual(expected_res_param, res_pars)
 
     def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout = 10):
         """
@@ -734,7 +778,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.doCleanups()
 
-    def assert_sample_autosample(self, sampleDataAssert, sampleQueue, timeout = 10):
+    def assert_sample_autosample(self, sampleDataAssert, sampleQueue,
+                                 timeout=GO_ACTIVE_TIMEOUT):
         """
         Test instrument driver execute interface to start and stop streaming
         mode.
@@ -782,7 +827,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         Exist active state
         '''
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
@@ -793,7 +839,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         '''
         getParams = [ name ]
 
-        result = self.instrument_agent_client.get_resource(getParams)
+        result = self.instrument_agent_client.get_resource(getParams,
+                                                           timeout=GET_TIMEOUT)
 
         self.assertEqual(result[name], value)
 
@@ -804,8 +851,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         setParams = { name : value }
         getParams = [ name ]
 
-        self.instrument_agent_client.set_resource(setParams)
-        result = self.instrument_agent_client.get_resource(getParams)
+        self.instrument_agent_client.set_resource(setParams,
+                                                  timeout=SET_TIMEOUT)
+        result = self.instrument_agent_client.get_resource(getParams,
+                                                           timeout=GET_TIMEOUT)
 
         self.assertEqual(result[name], value)
 
@@ -855,7 +904,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.STREAMING)
 
 
-    def assert_enter_command_mode(self):
+    def assert_enter_command_mode(self, timeout=GO_ACTIVE_TIMEOUT):
         '''
         Walk through IA states to get to command mode from uninitialized
         '''
@@ -866,18 +915,18 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                 res_state = self.instrument_agent_client.get_resource_state()
     
             cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-            retval = self.instrument_agent_client.execute_agent(cmd)
+            retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
             state = self.instrument_agent_client.get_agent_state()
-            print("sent initialize; IA state = %s" %str(state))
             self.assertEqual(state, ResourceAgentState.INACTIVE)
+            log.info("Sent INITIALIZE; IA state = %s", state)
     
             res_state = self.instrument_agent_client.get_resource_state()
             self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
     
             cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-            retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT)
+            retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
             state = self.instrument_agent_client.get_agent_state()
-            print("sent go_active; IA state = %s" %str(state))
+            log.info("Sent GO_ACTIVE; IA state = %s", state)
             
             if state == ResourceAgentState.STREAMING:
                 """ 
@@ -902,7 +951,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             #print("sent run; IA state = %s" %str(state))
 
         state = self.instrument_agent_client.get_agent_state()
-        print("sent run; IA state = %s" %str(state))
+        log.info("Sent RUN; IA state = %s", state)
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         res_state = self.instrument_agent_client.get_resource_state()
@@ -919,7 +968,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             kwargs={'session_type': DirectAccessTypes.telnet,
                     'session_timeout':timeout,
                     'inactivity_timeout':timeout})
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
         log.warn("go_direct_access retval=" + str(retval.result))
 
         state = self.instrument_agent_client.get_agent_state()
@@ -938,17 +987,17 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.assertTrue(self.tcp_client.expect("connected\r\n"))
         
-    def assert_direct_access_stop_telnet(self):
+    def assert_direct_access_stop_telnet(self, timeout=GO_ACTIVE_TIMEOUT):
         '''
         Exit out of direct access mode.  We do this by simply changing
         state to command mode.
         @return:
-        '''
+        '''       
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT) # ~9s to run
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout) # ~9s to run
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
@@ -966,10 +1015,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, result_state)
 
-
-
-    @unittest.skip("testing")
-    def test_instrument_agent_common_state_model_lifecycle(self):
+    def test_instrument_agent_common_state_model_lifecycle(self,  timeout=GO_ACTIVE_TIMEOUT):
         """
         @brief Test agent state transitions.
                This test verifies that the instrument agent can
@@ -1014,24 +1060,26 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
 
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_INACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
@@ -1044,54 +1092,63 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.ping_agent()
 
         cmd = AgentCommand(command=ResourceAgentEvent.PING_RESOURCE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         self.assertTrue("ping from resource ppid" in retval.result)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command=ResourceAgentEvent.PAUSE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.STOPPED)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESUME)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command=ResourceAgentEvent.CLEAR)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
@@ -1100,7 +1157,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             kwargs={'session_type':DirectAccessTypes.vsp,
                     'session_timeout':600,
                     'inactivity_timeout':600})
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         # assert it is as long as expected 4149CB23-AF1D-43DF-8688-DDCD2B8E435E
         self.assertTrue(36 == len(retval.result['token']))
 
@@ -1108,19 +1166,19 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-
-    @unittest.skip("testing")
-    def test_instrument_agent_to_instrument_driver_connectivity(self):
+    def test_instrument_agent_to_instrument_driver_connectivity(self, timeout=GO_ACTIVE_TIMEOUT):
         """
         @brief This test verifies that the instrument agent can
                talk to the instrument driver.
@@ -1128,18 +1186,17 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                The intent of this is to be a ping to the driver
                layer.
         """
-
-
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
@@ -1157,7 +1214,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_INACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
@@ -1251,8 +1309,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         unique_set = Set(item for item in list_in)
         return [(item) for item in unique_set]
 
-    @unittest.skip("testing")
-    def test_driver_notification_messages(self):
+    def test_driver_notification_messages(self, timeout=GO_ACTIVE_TIMEOUT):
         """
         @brief This tests event messages from the driver.  The following
                test moves the IA through all its states.  As it does this,
@@ -1318,7 +1375,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
@@ -1328,7 +1386,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.IDLE)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
@@ -1337,7 +1396,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.ping_agent()
 
         cmd = AgentCommand(command=ResourceAgentEvent.PING_RESOURCE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         self.assertTrue("ping from resource ppid" in retval.result)
 
 
@@ -1352,12 +1412,14 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         #self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
@@ -1367,27 +1429,32 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.IDLE)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command=ResourceAgentEvent.PAUSE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.STOPPED)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESUME)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command=ResourceAgentEvent.CLEAR)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
@@ -1396,7 +1463,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             kwargs={'session_type':DirectAccessTypes.vsp,
                     'session_timeout':600,
                     'inactivity_timeout':600})
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         # assert it is as long as expected 4149CB23-AF1D-43DF-8688-DDCD2B8E435E
         self.assertTrue(36 == len(retval.result['token']))
 
@@ -1404,12 +1472,14 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        retval = self.instrument_agent_client.execute_agent(cmd,
+                                                            timeout=EXECUTE_TIMEOUT)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
@@ -1454,7 +1524,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         pass
 
     @unittest.skip("redundant test")
-    def test_instrument_driver_to_physical_instrument_interoperability(self):
+    def test_instrument_driver_to_physical_instrument_interoperability(self, timeout=GO_ACTIVE_TIMEOUT):
         """
         @Brief this test is the integreation test test_connect
                but run through the agent.
@@ -1467,7 +1537,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=GO_ACTIVE_TIMEOUT)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
