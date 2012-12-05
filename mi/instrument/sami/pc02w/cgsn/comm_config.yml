@@ -1,0 +1,6 @@
+comm:
+  command_port: 6002
+  data_port: 6001
+  device_addr: ciports5-8.whoi.edu
+  device_port: 2005
+  method: ethernet
