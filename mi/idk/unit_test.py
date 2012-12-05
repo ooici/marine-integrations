@@ -1518,8 +1518,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-            #kwargs={'session_type': DirectAccessTypes.telnet,
-            kwargs={'session_type':DirectAccessTypes.vsp,
+            kwargs={'session_type': DirectAccessTypes.telnet,
+            #kwargs={'session_type':DirectAccessTypes.vsp,
                     'session_timeout':600,
                     'inactivity_timeout':600})
         retval = self.instrument_agent_client.execute_agent(cmd,
@@ -1693,7 +1693,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'ResourceState=DRIVER_STATE_DISCONNECTED',
             'ResourceState=DRIVER_STATE_DISCONNECTED',
             'ResourceState=DRIVER_STATE_UNKNOWN',
-            'ResourceConfig',
+            #'ResourceConfig',
             'ResourceState=DRIVER_STATE_COMMAND',
             'AgentState=RESOURCE_AGENT_STATE_IDLE',
             'AgentCommand=RESOURCE_AGENT_EVENT_GO_ACTIVE',
@@ -1709,7 +1709,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'ResourceState=DRIVER_STATE_DISCONNECTED',
             'ResourceState=DRIVER_STATE_DISCONNECTED',
             'ResourceState=DRIVER_STATE_UNKNOWN',
-            'ResourceConfig',
+            #'ResourceConfig',
             'ResourceState=DRIVER_STATE_COMMAND',
             'AgentState=RESOURCE_AGENT_STATE_IDLE',
             'AgentCommand=RESOURCE_AGENT_EVENT_GO_ACTIVE',
