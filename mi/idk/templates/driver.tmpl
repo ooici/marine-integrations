@@ -264,13 +264,20 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Get parameter
         """
-        pass
+        next_state = None
+        result = None
+
+
+        return (next_state, result)
 
     def _handler_command_set(self, *args, **kwargs):
         """
         Set parameter
         """
-        pass
+        next_state = None
+        result = None
+
+        return (next_state, result)
 
     def _handler_command_exit(self, *args, **kwargs):
         """
@@ -284,8 +291,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         next_state = ProtocolState.DIRECT_ACCESS
         next_agent_state = ResourceAgentState.DIRECT_ACCESS
-
-        return (next_state, next_agent_state)
+        result = None
+        log.debug("_handler_command_start_direct: entering DA mode")
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Direct access handlers.
