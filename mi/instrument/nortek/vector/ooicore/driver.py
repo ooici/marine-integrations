@@ -1891,6 +1891,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Grab time for timeout.
         starttime = time.time()
         
+        log.debug("_get_mode: timeout = %d" %timeout)
+        
         while True:
             log.debug('Sending what_mode command to get a response from the instrument.')
             # Send what_mode command to attempt to get a response.

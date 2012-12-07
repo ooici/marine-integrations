@@ -1254,8 +1254,9 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         """
         self.assert_enter_command_mode()
 
+        log.debug("test_direct_access_telnet_mode_manually: starting DA mode")
         # go direct access
-        cmd = AgentCommand(command='go_direct_access',
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
                            kwargs={#'session_type': DirectAccessTypes.telnet,
                                    'session_type':DirectAccessTypes.vsp,
                                    'session_timeout':600,
@@ -1273,7 +1274,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         self.assertTrue(self.tcp_client)
 
         self.tcp_client.send_data("K1W%!Q")
-        self.tcp_client.expect("DW-AQUADOPP")
+        self.tcp_client.expect("VECTOR")
 
         self.assert_direct_access_stop_telnet()
 
