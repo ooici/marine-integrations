@@ -48,8 +48,9 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
                                                SAMPLE_REGEX,
                                                sample_line,
                                                publish=False)
-    
-        self.assertTrue(result['parsed'])
+
+        log.debug("R: %s" % result)
+        self.assertEqual(result['stream_name'], SatlanticPARDataParticle.)
         self.assertTrue(result['raw'])
 
         # Test the format of the result in the individual driver tests. Here,

@@ -20,6 +20,7 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.common import BaseEnum, InstErrorCode
 from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import RawDataParticle
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -74,8 +75,8 @@ class InstrumentProtocol(object):
 
     def _extract_sample(self, particle_class, regex, line, publish=True):
         """
-        Extract sample from a response line if present and publish "raw" and
-        "parsed" sample events to agent. 
+        Extract sample from a response line if present and publish
+        parsed particle
 
         @param particle_class The class to instantiate for this specific
             data particle. Parameterizing this allows for simple, standard
@@ -97,16 +98,13 @@ class InstrumentProtocol(object):
         
             particle = particle_class(line,
                 preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
-            
-            raw_sample = particle.generate_raw()
-            parsed_sample = particle.generate_parsed()
-            if publish and self._driver_event:
-                self._driver_event(DriverAsyncEvent.SAMPLE, raw_sample)
-    
+
+            parsed_sample = particle.generate()
+
             if publish and self._driver_event:
                 self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
     
-            sample = dict(parsed=json.loads(parsed_sample), raw=json.loads(raw_sample))
+            sample = json.loads(parsed_sample)
             return sample
         return sample
 
@@ -566,6 +564,19 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             while(chunk):
                 self._got_chunk(chunk)
                 chunk = self._chunker.get_next_data()
+
+            self.publish_raw(port_agent_packet)
+
+    def publish_raw(self, port_agent_packet):
+        """
+        Publish raw data
+        @param: port_agent_packet port agent packet containing raw
+        """
+        particle = RawDataParticle(port_agent_packet.get_as_dict(),
+                       preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
+
+        if self._driver_event:
+            self._driver_event(DriverAsyncEvent.SAMPLE, particle)
 
     def add_to_buffer(self, data):
         '''

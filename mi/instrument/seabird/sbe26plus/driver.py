@@ -27,7 +27,7 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, DataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
@@ -58,20 +58,17 @@ DC_REGEX_MATCHER = re.compile(DC_REGEX, re.DOTALL)
 DS_REGEX = r'(SBE 26plus V.+?)logging = [\w, ].+?\r\n'
 DS_REGEX_MATCHER = re.compile(DS_REGEX, re.DOTALL)
 
-# Packet config
-STREAM_NAME_PARSED = DataParticleValue.PARSED
-STREAM_NAME_RAW = DataParticleValue.RAW
-PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
-
-PACKET_CONFIG = {
-    STREAM_NAME_PARSED : 'ctd_parsed_param_dict',
-    STREAM_NAME_RAW : 'ctd_raw_param_dict'
-}
-
-
 ###
 #    Driver Constant Definitions
 ###
+
+class PublishedTypes(BaseEnum):
+    RAW = DataParticleType.RAW,
+    TIDE_PARSED = 'tide_parsed',
+    WAVE_BURST = 'wave_burst_parsed',
+    DEVICE_STATUS = 'device_status_parsed',
+    DEVICE_CALIBRATION = 'device_calibration_parsed',
+    STATISTICS = 'statistics_parsed'
 
 class InstrumentCmds(BaseEnum):
     """

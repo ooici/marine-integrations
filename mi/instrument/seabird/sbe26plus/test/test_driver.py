@@ -29,9 +29,9 @@ from mi.idk.unit_test import InstrumentDriverDataParticleMixin
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from mi.idk.util import convert_enum_to_dict
 from interface.objects import AgentCommand
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+from mi.instrument.seabird.sbe26plus.driver import PublishedTypes
 from mi.instrument.seabird.sbe26plus.driver import InstrumentDriver
 from mi.instrument.seabird.sbe26plus.driver import ProtocolState
 from mi.instrument.seabird.sbe26plus.driver import Parameter
@@ -53,8 +53,6 @@ from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceCalibrationDat
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceStatusDataParticleKey
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
-from mi.core.instrument.port_agent_client import  PortAgentPacket
-from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverParameter, DriverConnectionState, DriverAsyncEvent
 from mi.core.instrument.instrument_protocol import DriverProtocolState
 from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
@@ -62,12 +60,6 @@ from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandExc
 from pyon.core.exception import Conflict
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
-
-from mi.instrument.seabird.sbe26plus.test.sample_data import SAMPLE_DEVICE_CALIBRATION
-from mi.instrument.seabird.sbe26plus.test.sample_data import SAMPLE_DEVICE_STATUS
-from mi.instrument.seabird.sbe26plus.test.sample_data import SAMPLE_STATISTICS
-from mi.instrument.seabird.sbe26plus.test.sample_data import SAMPLE_TIDE_DATA
-from mi.instrument.seabird.sbe26plus.test.sample_data import SAMPLE_WAVE_BURST
 
 # Globals
 raw_stream_received = False
@@ -127,16 +119,260 @@ PARAMS = {
     Parameter.LOGGING : bool,
 }
 
+
+SAMPLE_TIDE_DATA = "tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404" + NEWLINE
+
+SAMPLE_DEVICE_STATUS =\
+"SBE 26plus V 6.1e  SN 1329    05 Oct 2012  17:19:27" + NEWLINE +\
+"user info=ooi" + NEWLINE +\
+"quartz pressure sensor: serial number = 122094, range = 300 psia" + NEWLINE +\
+"internal temperature sensor" + NEWLINE +\
+"conductivity = NO" + NEWLINE +\
+"iop =  7.4 ma  vmain = 16.2 V  vlith =  9.0 V" + NEWLINE +\
+"last sample: p = 14.5361, t = 23.8155, s =  0.0000" + NEWLINE +\
+"" + NEWLINE +\
+"tide measurement: interval = 3.000 minutes, duration = 60 seconds" + NEWLINE +\
+"measure waves every 6 tide samples" + NEWLINE +\
+"512 wave samples/burst at 4.00 scans/sec, duration = 128 seconds" + NEWLINE +\
+"logging start time = do not use start time" + NEWLINE +\
+"logging stop time = do not use stop time" + NEWLINE +\
+"" + NEWLINE +\
+"tide samples/day = 480.000" + NEWLINE +\
+"wave bursts/day = 80.000" + NEWLINE +\
+"memory endurance = 258.0 days" + NEWLINE +\
+"nominal alkaline battery endurance = 272.8 days" + NEWLINE +\
+"total recorded tide measurements = 5982" + NEWLINE +\
+"total recorded wave bursts = 4525" + NEWLINE +\
+"tide measurements since last start = 11" + NEWLINE +\
+"wave bursts since last start = 1" + NEWLINE +\
+"" + NEWLINE +\
+"transmit real-time tide data = YES" + NEWLINE +\
+"transmit real-time wave burst data = YES" + NEWLINE +\
+"transmit real-time wave statistics = YES" + NEWLINE +\
+"real-time wave statistics settings:" + NEWLINE +\
+"  number of wave samples per burst to use for wave statistics = 512" + NEWLINE +\
+"  use measured temperature for density calculation" + NEWLINE +\
+"  height of pressure sensor from bottom (meters) = 10.0" + NEWLINE +\
+"  number of spectral estimates for each frequency band = 5" + NEWLINE +\
+"  minimum allowable attenuation = 0.0025" + NEWLINE +\
+"  minimum period (seconds) to use in auto-spectrum = 0.0e+00" + NEWLINE +\
+"  maximum period (seconds) to use in auto-spectrum = 1.0e+06" + NEWLINE +\
+"  hanning window cutoff = 0.10" + NEWLINE +\
+"  show progress messages" + NEWLINE +\
+"" + NEWLINE +\
+"status = stopped by user" + NEWLINE +\
+"logging = NO, send start command to begin logging" + NEWLINE
+
+SAMPLE_DEVICE_CALIBRATION =\
+"Pressure coefficients:  02-apr-13" + NEWLINE +\
+"    U0 = 5.100000e+00" + NEWLINE +\
+"    Y1 = -3.910859e+03" + NEWLINE +\
+"    Y2 = -1.070825e+04" + NEWLINE +\
+"    Y3 = 0.000000e+00" + NEWLINE +\
+"    C1 = 6.072786e+02" + NEWLINE +\
+"    C2 = 1.000000e+00" + NEWLINE +\
+"    C3 = -1.024374e+03" + NEWLINE +\
+"    D1 = 2.928000e-02" + NEWLINE +\
+"    D2 = 0.000000e+00" + NEWLINE +\
+"    T1 = 2.783369e+01" + NEWLINE +\
+"    T2 = 6.072020e-01" + NEWLINE +\
+"    T3 = 1.821885e+01" + NEWLINE +\
+"    T4 = 2.790597e+01" + NEWLINE +\
+"    M = 41943.0" + NEWLINE +\
+"    B = 2796.2" + NEWLINE +\
+"    OFFSET = -1.374000e-01" + NEWLINE +\
+"Temperature coefficients:  02-apr-13" + NEWLINE +\
+"    TA0 = 1.200000e-04" + NEWLINE +\
+"    TA1 = 2.558000e-04" + NEWLINE +\
+"    TA2 = -2.073449e-06" + NEWLINE +\
+"    TA3 = 1.640089e-07" + NEWLINE +\
+"Conductivity coefficients:  28-mar-12" + NEWLINE +\
+"    CG = -1.025348e+01" + NEWLINE +\
+"    CH = 1.557569e+00" + NEWLINE +\
+"    CI = -1.737200e-03" + NEWLINE +\
+"    CJ = 2.268000e-04" + NEWLINE +\
+"    CTCOR = 3.250000e-06" + NEWLINE +\
+"    CPCOR = -9.570000e-08" + NEWLINE +\
+"    CSLOPE = 1.000000e+00" + NEWLINE
+
+SAMPLE_WAVE_BURST =\
+"wave: start time = 05 Oct 2012 01:10:54" + NEWLINE +\
+"wave: ptfreq = 171791.359" + NEWLINE +\
+"  14.5102" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5078" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5134" + NEWLINE + "  14.5078" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5188" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5134" + NEWLINE + "  14.5097" + NEWLINE + "  14.5134" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5036" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5134" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5036" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5134" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE + "  14.5165" + NEWLINE +\
+"  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE +\
+"wave: end burst" + NEWLINE
+
+SAMPLE_STATISTICS =\
+"deMeanTrend................" + NEWLINE +\
+"depth =    0.000, temperature = 23.840, salinity = 35.000, density = 1023.690" + NEWLINE +\
+"" + NEWLINE +\
+"fill array..." + NEWLINE +\
+"find minIndex." + NEWLINE +\
+"hanning...................." + NEWLINE +\
+"FFT................................................................................................" + NEWLINE +\
+"normalize....." + NEWLINE +\
+"band average......................................................." + NEWLINE +\
+"Auto-Spectrum Statistics:" + NEWLINE +\
+"   nAvgBand = 5" + NEWLINE +\
+"   total variance = 1.0896e-05" + NEWLINE +\
+"   total energy = 1.0939e-01" + NEWLINE +\
+"   significant period = 5.3782e-01" + NEWLINE +\
+"   significant wave height = 1.3204e-02" + NEWLINE +\
+"" + NEWLINE +\
+"calculate dispersion.................................................................................................................................................................................................................................................................................." + NEWLINE +\
+"IFFT................................................................................................" + NEWLINE +\
+"deHanning...................." + NEWLINE +\
+"move data.." + NEWLINE +\
+"zero crossing analysis............." + NEWLINE +\
+"Time Series Statistics:" + NEWLINE +\
+"   wave integration time = 128" + NEWLINE +\
+"   number of waves = 0" + NEWLINE +\
+"   total variance = 1.1595e-05" + NEWLINE +\
+"   total energy = 1.1640e-01" + NEWLINE +\
+"   average wave height = 0.0000e+00" + NEWLINE +\
+"   average wave period = 0.0000e+00" + NEWLINE +\
+"   maximum wave height = 1.0893e-02" + NEWLINE +\
+"   significant wave height = 0.0000e+00" + NEWLINE +\
+"   significant wave period = 0.0000e+00" + NEWLINE +\
+"   H1/10 = 0.0000e+00" + NEWLINE +\
+"   H1/100 = 0.0000e+00" + NEWLINE
+
 SAMPLE_DS =\
-        "SBE 26plus" + NEWLINE +\
-        "S>ds" + NEWLINE +\
-        "ds" + NEWLINE + SAMPLE_DEVICE_STATUS +\
-        "S>" + NEWLINE
+"SBE 26plus" + NEWLINE +\
+"S>ds" + NEWLINE +\
+"ds" + NEWLINE + SAMPLE_DEVICE_STATUS +\
+"S>" + NEWLINE
 
 SAMPLE_DC =\
-        "S>dc" + NEWLINE +\
-        "dc" + NEWLINE + SAMPLE_DEVICE_CALIBRATION +\
-        "S>"
+"S>dc" + NEWLINE +\
+"dc" + NEWLINE + SAMPLE_DEVICE_CALIBRATION +\
+"S>"
 
 class DataParticleMixin(InstrumentDriverDataParticleMixin):
     '''
@@ -145,15 +381,6 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
     ###
     #   Particle Parameter and Type Definitions
     ###
-
-    # List of all data particle types
-    class DataParticleTypes(BaseEnum):
-        TakeSample = DataParticleValue.PARSED
-        TideSample = DataParticleValue.PARSED
-        WaveSample = DataParticleValue.PARSED
-        StatisticSample = DataParticleValue.PARSED
-        DeviceCalibration = DataParticleValue.PARSED
-        DeviceStatus = DataParticleValue.PARSED
 
     _tide_sample_parameters = {
         SBE26plusTideSampleDataParticleKey.TIMESTAMP: { 'type': float, 'value': 3558413454.0 },
@@ -298,7 +525,7 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
         @param data_particle:  SBE26plusTideSampleDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, self.DataParticleTypes.TideSample)
+        self.assert_data_particle_header(data_particle, PublishedTypes.TIDE_PARSED)
         self.assert_data_particle_parameters(data_particle, self._tide_sample_parameters, verify_values)
 
 
@@ -308,7 +535,7 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
         @param data_particle:  SBE26plusWaveBurstDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, self.DataParticleTypes.WaveSample)
+        self.assert_data_particle_header(data_particle, PublishedTypes.WAVE_BURST)
         self.assert_data_particle_parameters(data_particle, self._wave_sample_parameters, verify_values)
 
     def assert_particle_statistics(self, data_particle, verify_values = False):
@@ -317,7 +544,7 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
         @param data_particle:  SBE26plusStatisticsDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, self.DataParticleTypes.StatisticSample)
+        self.assert_data_particle_header(data_particle, PublishedTypes.STATISTICS)
         self.assert_data_particle_parameters(data_particle, self._statistics_sample_parameters, verify_values)
 
     def assert_particle_device_calibration(self, data_particle, verify_values = False):
@@ -326,7 +553,7 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
         @param data_particle:  SBE26plusDeviceCalibrationDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, self.DataParticleTypes.DeviceCalibration)
+        self.assert_data_particle_header(data_particle, PublishedTypes.DEVICE_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_sample_parameters, verify_values)
 
     def assert_particle_device_status(self, data_particle, verify_values = False):
@@ -335,7 +562,7 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
         @param data_particle:  SBE26plusDeviceStatusDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, self.DataParticleTypes.DeviceStatus)
+        self.assert_data_particle_header(data_particle, PublishedTypes.DEVICE_STATUS)
         self.assert_data_particle_parameters(data_particle, self._status_sample_parameters, verify_values)
 
 
@@ -354,38 +581,20 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
-    def test_instrument_commands_enum(self):
+    def test_driver_enums(self):
         """
-        Verify that the InstrumentCmds enumeration has no duplicate values that might cause confusion
+        Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
+        do a little extra validation for the Capabilites
         """
-        cmds = InstrumentCmds()
-        self.assert_enum_has_no_duplicates(cmds)
+        self.assert_enum_has_no_duplicates(PublishedTypes())
+        self.assert_enum_has_no_duplicates(InstrumentCmds())
+        self.assert_enum_has_no_duplicates(ProtocolState())
+        self.assert_enum_has_no_duplicates(ProtocolEvent())
+        self.assert_enum_has_no_duplicates(Parameter())
 
-    def test_protocol_state_enum(self):
-        """
-        Verify that the ProtocolState enumeration has no duplicate values that might cause confusion
-        """
-        ps = ProtocolState()
-        self.assert_enum_has_no_duplicates(ps)
-
-    def test_protocol_event_enum(self):
-        """
-        Verify that the ProtocolEvent enumeration has no duplicate values that might cause confusion
-        """
-        pe = ProtocolEvent()
-        self.assert_enum_has_no_duplicates(pe)
-
-    def test_capability_enum(self):
-        """
-        Verify that the Capability enumeration has no duplicate values that might cause confusion
-        """
+        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
-
-    def test_parameter_enum(self):
-        # Test ProtocolState.  Verify no Duplications.
-        p = Parameter()
-        self.assert_enum_has_no_duplicates(p)
 
     def test_chunker(self):
         """

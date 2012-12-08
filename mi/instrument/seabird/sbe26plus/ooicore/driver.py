@@ -1,6 +1,5 @@
 import mi.instrument.seabird.sbe26plus.driver
 
-from mi.instrument.seabird.sbe26plus.driver import PACKET_CONFIG
 from mi.instrument.seabird.sbe26plus.driver import DataParticle
 from mi.instrument.seabird.sbe26plus.driver import InstrumentDriver
 from mi.instrument.seabird.sbe26plus.driver import ProtocolState

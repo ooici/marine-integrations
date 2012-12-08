@@ -37,6 +37,8 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from ion.agents.instrument.driver_process import DriverProcess, DriverProcessType
 
+from interface.objects import AgentCommand
+
 from mi.idk.util import convert_enum_to_dict
 from mi.idk.comm_config import CommConfig
 from mi.idk.config import Config
@@ -44,33 +46,28 @@ from mi.idk.common import Singleton
 from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.instrument_agent_client import InstrumentAgentDataSubscribers
 from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
-from mi.core.instrument.instrument_driver import DriverProtocolState
-from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.idk.exceptions import IDKException
 from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import TestNoCommConfig
-from mi.core.exceptions import InstrumentException
-from pyon.core.exception import Conflict
 
+from mi.core.exceptions import InstrumentException
+from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.tcp_client import TcpClient
 from mi.core.common import BaseEnum
 
-from interface.objects import AgentCommand
-
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-
 from ion.agents.instrument.common import InstErrorCode
-from mi.core.instrument.instrument_driver import DriverConnectionState
-
 from ion.agents.port.port_agent_process import PortAgentProcess
 
+from pyon.core.exception import Conflict
 from pyon.agent.agent import ResourceAgentState
-
 from pyon.agent.agent import ResourceAgentEvent
 
 # Do not remove this import.  It is for package building.
@@ -134,7 +131,7 @@ class InstrumentDriverTestConfig(Singleton):
         
         self.instrument_agent_resource_id = kwargs.get('instrument_agent_resource_id')
         self.instrument_agent_name = kwargs.get('instrument_agent_name')
-        self.instrument_agent_packet_config = kwargs.get('instrument_agent_packet_config')
+        self.instrument_agent_packet_config = self._build_packet_config(kwargs.get('instrument_agent_packet_config'))
         self.instrument_agent_stream_definition = kwargs.get('instrument_agent_stream_definition')
         if kwargs.get('instrument_agent_module'):
             self.instrument_agent_module = kwargs.get('instrument_agent_module')
@@ -156,6 +153,37 @@ class InstrumentDriverTestConfig(Singleton):
             self.driver_startup_config = kwargs.get('driver_startup_config')
 
         self.initialized = True
+
+
+    def _build_packet_config(self, param_config):
+        """
+        Build a packet config from various data types.
+        @param packet_config: packet config object. Can be enum, dict or list
+        @return list of stream names to create
+        """
+        params = []
+        if(isinstance(param_config, list)):
+            params = param_config
+
+        elif(isinstance(param_config, BaseEnum)):
+            params = param_config.list()
+
+        elif(isinstance(param_config, dict)):
+            params = [ value for (key, value) in param_config.items() ]
+
+        else:
+            log.error("Unknown param_config type")
+            return []
+
+        result = []
+        for i in params:
+            if(isinstance(i, tuple)):
+                log.debug("BLAMMM")
+                result.append(i[0])
+            else:
+                result.append(i)
+
+        return result
 
 
 class InstrumentDriverDataParticleMixin(unittest.TestCase):
@@ -925,6 +953,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.container = self.instrument_agent_manager.container
 
+        log.debug("Packet Config: %s" % self.test_config.instrument_agent_packet_config)
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.instrument_agent_packet_config,
         )
@@ -1102,7 +1131,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         Verifies the acquire_status command.
         """
         # Set up all data subscriptions.  Stream names are defined
-        # in the driver PACKET_CONFIG dictionary
+        # in the test config singleton
         self.data_subscribers.start_data_subscribers()
         self.addCleanup(self.data_subscribers.stop_data_subscribers)
 
