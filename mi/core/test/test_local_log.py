@@ -12,12 +12,14 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from nose.plugins.attrib import attr
 from mock import Mock
+
 import unittest
+from mi.core.unit_test import MiUnitTest
 
 from mi.idk.exceptions import InvalidParameters
 
 @attr('UNIT', group='mi')
-class TestLogger(unittest.TestCase):
+class TestLogger(MiUnitTest):
     """
     Test the logger object
     """    

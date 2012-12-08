@@ -18,7 +18,8 @@ from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
 #from mi.core.instrument.data_particle import DataParticle
 from mi.instrument.satlantic.par_ser_600m.driver import SAMPLE_REGEX
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticle
-from pyon.util.unit_test import IonUnitTestCase
+from mi.core.unit_test import MiUnitTestCase
+import unittest
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.common import BaseEnum
 
@@ -26,7 +27,7 @@ Directions = MenuInstrumentProtocol.MenuTree.Directions
 
 
 @attr('UNIT', group='mi')
-class TestUnitInstrumentProtocol(IonUnitTestCase):
+class TestUnitInstrumentProtocol(MiUnitTestCase):
     """
     Test cases for instrument protocol class. Functions in this class provide
     instrument protocol unit tests and provide a tutorial on use of
@@ -54,7 +55,8 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
 
         # Test the format of the result in the individual driver tests. Here,
         # just tests that the result is there.
-        
+
+    @unittest.skip('Not Written')
     def test_publish_raw(self):
         """
         Tests to see if raw data is appropriately published back out to
@@ -68,7 +70,8 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
         # compare response to original packet
         
         self.assertTrue(False)
-    
+
+    @unittest.skip('Not Written')
     def test_publish_parsed_data(self):
         """
         Tests to see if parsed data is appropriately published back to the
@@ -77,6 +80,7 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
         # similar to above
         self.assertTrue(False)
 
+    @unittest.skip('Not Written')
     def test_publish_engineering_data(self):
         """
         Tests to see if engineering data is appropriately published back to the
@@ -171,7 +175,7 @@ class TestUnitInstrumentProtocol(IonUnitTestCase):
 
 
 @attr('UNIT', group='mi')
-class TestUnitMenuInstrumentProtocol(IonUnitTestCase):
+class TestUnitMenuInstrumentProtocol(MiUnitTestCase):
     """
     Test cases for instrument protocol class. Functions in this class provide
     instrument protocol unit tests and provide a tutorial on use of
@@ -203,10 +207,11 @@ class TestUnitMenuInstrumentProtocol(IonUnitTestCase):
         
         def protocol_callback(self, arg):
             callback_result = arg
-            
-        self.protocol = MenuInstrumentProtocol(protocol_callback)
 
-    
+        # Call no longer valid. MenuInstrumentProtocol now takes 4 args.
+        #self.protocol = MenuInstrumentProtocol(protocol_callback)
+
+    @unittest.skip("SKIP - Not Written")
     def test_navigation(self):
         """
         Test the navigate method to get between menus

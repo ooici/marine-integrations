@@ -31,7 +31,7 @@ from pyon.public import StreamSubscriberRegistrar
 from prototype.sci_data.stream_defs import ctd_stream_definition
 from pyon.agent.agent import ResourceAgentClient
 from interface.objects import AgentCommand
-from pyon.util.int_test import IonIntegrationTestCase
+from mi.core.unit_test import MiIntTestCase
 from pyon.util.context import LocalContextMixin
 from pyon.public import CFG
 from pyon.event.event import EventSubscriber, EventPublisher
@@ -86,7 +86,7 @@ class FakeProcess(LocalContextMixin):
 
 @attr('HARDWARE', group='mi')
 @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 60}}})
-class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
+class TestInstrumentAgentWithTrhph(TrhphTestCase, MiIntTestCase):
     """
     R2 instrument agent tests with the TRHPH driver.
     """
@@ -165,11 +165,11 @@ class TestInstrumentAgentWithTrhph(TrhphTestCase, IonIntegrationTestCase):
         self.addCleanup(self._reset)
 
     def addCleanup(self, f):
-        IonIntegrationTestCase.addCleanup(self, f)
+        MiIntTestCase.addCleanup(self, f)
 
     def tearDown(self):
         try:
-            IonIntegrationTestCase.tearDown(self)
+            MiIntTestCase.tearDown(self)
         finally:
             TrhphTestCase.tearDown(self)
 

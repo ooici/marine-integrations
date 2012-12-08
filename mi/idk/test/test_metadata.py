@@ -18,6 +18,7 @@ import sys
 from nose.plugins.attrib import attr
 from mock import Mock
 import unittest
+from mi.core.unit_test import MiUnitTest
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.metadata import Metadata
@@ -25,7 +26,7 @@ from mi.idk.metadata import Metadata
 from mi.idk.exceptions import InvalidParameters
 
 @attr('UNIT', group='mi')
-class TestMetadata(unittest.TestCase):
+class TestMetadata(MiUnitTest):
     """
     Test the metadata object
     """    

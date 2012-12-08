@@ -19,6 +19,7 @@ import sys
 from nose.plugins.attrib import attr
 from mock import Mock
 import unittest
+from mi.core.unit_test import MiUnitTest
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.idk_git import IDKGit
@@ -35,7 +36,7 @@ if exists("/private/tmp"):
     
 
 @attr('UNIT', group='mi')
-class TestGit(unittest.TestCase):
+class TestGit(MiUnitTest):
     """
     Test the git for the IDK
     """

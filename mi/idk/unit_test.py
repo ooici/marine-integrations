@@ -28,7 +28,9 @@ from mi.core.log import get_logger ; log = get_logger()
 import gevent
 import json
 from mock import Mock
-from pyon.util.int_test import IonIntegrationTestCase
+import unittest
+from mi.core.unit_test import MiIntTestCase
+from mi.core.unit_test import MiUnitTest
 from ion.agents.port.port_agent_process import PortAgentProcessType
 from interface.objects import AgentCapability
 from interface.objects import CapabilityType
@@ -158,7 +160,7 @@ class InstrumentDriverTestConfig(Singleton):
         self.initialized = True
 
 
-class InstrumentDriverDataParticleMixin(unittest.TestCase):
+class InstrumentDriverDataParticleMixin(MiUnitTest):
     """
     Base class for data particle mixin.  Used for data particle validation.
     """
@@ -393,7 +395,7 @@ class InstrumentDriverDataParticleMixin(unittest.TestCase):
                 self.assertIsInstance(param_value, param_type)
 
 
-class InstrumentDriverTestCase(IonIntegrationTestCase):
+class InstrumentDriverTestCase(MiIntTestCase):
     """
     Base class for instrument driver tests
     """

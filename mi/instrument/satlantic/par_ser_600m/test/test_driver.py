@@ -12,6 +12,8 @@ from gevent import monkey; monkey.patch_all()
 import gevent
 
 import unittest
+
+from mi.core.unit_test import MiTestCase
 import time
 import json
 from mock import Mock, call, DEFAULT
@@ -728,7 +730,7 @@ class SatlanticParProtocolIntegrationTest(InstrumentDriverIntegrationTestCase):
 
         
 @attr('UNIT', group='mi')
-class SatlanticParDecoratorTest(PyonTestCase):
+class SatlanticParDecoratorTest(MiTestCase):
     
     def setUp(self):
         self.checksum_decorator = SatlanticChecksumDecorator()

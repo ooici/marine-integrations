@@ -12,6 +12,7 @@ __license__ = 'Apache 2.0'
 
 import logging
 import unittest
+from mi.core.unit_test import MiUnitTest
 import re
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -22,7 +23,7 @@ mi_logger = logging.getLogger('mi_logger')
 
 #@unittest.skip('Do not run hardware test.')
 @attr('UNIT', group='mi')
-class TestRSNDataDecorator(unittest.TestCase):
+class TestRSNDataDecorator(MiUnitTest):
 
     def setUp(self):
         self.decorator = RSNTimestampDecorator()

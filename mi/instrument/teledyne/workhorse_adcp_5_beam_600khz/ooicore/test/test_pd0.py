@@ -9,7 +9,7 @@ __license__ = 'Apache 2.0'
 
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.pd0 import PD0DataStructure
 
-from unittest import TestCase
+from mi.core.unit_test import MiUnitTest
 from nose.plugins.attrib import attr
 
 
@@ -24,7 +24,7 @@ def _read_sample(filename='mi/instrument/teledyne'
 
 
 @attr('UNIT', group='mi')
-class Test(TestCase):
+class Test(MiUnitTest):
     """
     Unit tests for PD0DataStructure
     """

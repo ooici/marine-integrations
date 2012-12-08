@@ -19,6 +19,7 @@ import sys
 from nose.plugins.attrib import attr
 from mock import Mock
 import unittest
+from mi.core.unit_test import MiUnitTest
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.nose_test import NoseTest
@@ -31,7 +32,7 @@ TEST_DRIVER_FLAVOR = 'ooicore'
 DRIVER_TEST_MODULE = 'mi.instrument.seabird.sbe37smb.ooicore.test.test_driver'
 
 @attr('UNIT', group='mi')
-class TestNose(unittest.TestCase):
+class TestNose(MiUnitTest):
     """
     Test the nose_test IDK module
     """

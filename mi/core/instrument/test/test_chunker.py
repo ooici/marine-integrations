@@ -11,6 +11,7 @@ __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
 import unittest
+from mi.core.unit_test import MiUnitTest, MiUnitTestCase
 import re
 from nose.plugins.attrib import attr
 from pyon.util.unit_test import IonUnitTestCase
@@ -20,7 +21,7 @@ from mi.core.exceptions import SampleException
 from mi.core.instrument.chunker import StringChunker
 
 @attr('UNIT', group='mi')
-class UnitTestStringChunker(IonUnitTestCase):
+class UnitTestStringChunker(MiUnitTestCase):
     """
     Test the basic functionality of the chunker system via unit tests
     """
@@ -260,7 +261,7 @@ class UnitTestStringChunker(IonUnitTestCase):
                 
 @unittest.skip("Write this when a binary chunker is needed")
 @attr('UNIT', group='mi')
-class UnitTestBinaryChunker(IonUnitTestCase):
+class UnitTestBinaryChunker(MiUnitTestCase):
     """
     Test the basic functionality of the chunker system via unit tests
     """

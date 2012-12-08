@@ -12,6 +12,7 @@ __license__ = 'Apache 2.0'
 
 import logging
 import unittest
+#from mi.core.unit_test import MiUnitTest
 import re
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -20,9 +21,9 @@ from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacke
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
 
-#@unittest.skip('NOTE!!!! TestPortAgent SKIPPED!')
+@unittest.skip('BROKEN - Useful in past, likely in future, but not just now')
 @attr('UNIT', group='mi')
-#class TestPortAgent(unittest.TestCase):
+#class TestPortAgent(MiUnitTest):
 class TestPortAgentClient():
 
     def setUp(self):
