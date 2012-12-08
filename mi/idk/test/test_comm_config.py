@@ -15,10 +15,12 @@ from os import makedirs
 from os import remove
 from os.path import exists
 import sys
+import string
 
 from nose.plugins.attrib import attr
 from mock import Mock
 import unittest
+from mi.core.unit_test import MiUnitTest
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.metadata import Metadata
@@ -42,7 +44,7 @@ if exists("/private/tmp"):
 CONFIG_FILE="comm_config.yml"
 
 @attr('UNIT', group='mi')
-class TestCommConfig(unittest.TestCase):
+class TestCommConfig(MiUnitTest):
     """
     Test the comm config object.  
     """    
@@ -147,8 +149,10 @@ class TestCommConfig(unittest.TestCase):
         log.debug("CONFIG: %s" % config.serialize())
         
         config.store_to_file()
-        
-        self.assertEqual(self.config_content(), self.read_config())
+
+        # order isnt the same, so lets turn it into an array of label: value's then sort and compare.
+        self.assertEqual(sorted(string.replace(self.config_content(), "\n", '').split('  ')),
+                         sorted(string.replace(self.read_config(), "\n", '').split('  ')))
         
     def test_config_read_ethernet(self):
         config = CommConfig.get_config_from_type(self.config_file(), "ethernet")

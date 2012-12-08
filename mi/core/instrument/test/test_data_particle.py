@@ -14,7 +14,7 @@ __license__ = 'Apache 2.0'
 import json
 import base64
 from nose.plugins.attrib import attr
-from pyon.util.unit_test import IonUnitTestCase
+from mi.core.unit_test import MiUnitTestCase
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException
@@ -26,7 +26,7 @@ TEST_PARTICLE_VERSION = 1
 TEST_PARTICLE_TYPE = 'test_particle_foo'
 
 @attr('UNIT', group='mi')
-class TestUnitDataParticle(IonUnitTestCase):
+class TestUnitDataParticle(MiUnitTestCase):
     """
     Test cases for the DataParticleGenerator class. Functions in this class
     provide unit tests and provide a tutorial on use of

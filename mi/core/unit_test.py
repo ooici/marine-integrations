@@ -10,16 +10,47 @@ We have the stand alone test case for tests that don't require or can't
 integrate with the common ION test case.
 """
 
-from unittest import TestCase
 
-class MIUnitTest(unittest.TestCase):
+import unittest
+from pyon.util.unit_test import IonUnitTestCase
+from pyon.util.unit_test import PyonTestCase
+from pyon.util.int_test import IonIntegrationTestCase
+
+
+class MiUnitTest(unittest.TestCase):
     """
     Base class for non-ion tests.  Use only if needed to avoid ion 
     test common code.
     """
+    def shortDescription(self):
+        return None
 
 
-class IONTestCase(IonIntegrationTestCase):
+class MiUnitTestCase(IonUnitTestCase):
     """
     Base class for most tests in MI.
     """
+    def shortDescription(self):
+        return None
+
+    def test_verify_service(self):
+        pass
+
+class MiTestCase(PyonTestCase):
+    """
+    Base class for most tests in MI.
+    """
+    def shortDescription(self):
+        return None
+
+    def test_verify_service(self):
+        pass
+
+class MiIntTestCase(IonIntegrationTestCase):
+    """
+    Base class for most tests in MI.
+    """
+
+    def shortDescription(self):
+        return None
+

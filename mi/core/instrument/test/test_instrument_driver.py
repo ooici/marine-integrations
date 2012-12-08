@@ -14,6 +14,7 @@ from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
 from pyon.util.containers import DotDict
 from pyon.util.unit_test import IonUnitTestCase
+from mi.core.unit_test import MiUnitTestCase
 
 from mock import Mock
 
@@ -25,7 +26,7 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 
 @attr('UNIT', group='mi')
-class TestUnitInstrumentDriver(IonUnitTestCase):
+class TestUnitInstrumentDriver(MiUnitTestCase):
     """
     Test cases for instrument driver class. Functions in this class provide
     instrument driver unit tests and provide a tutorial on use of

@@ -34,8 +34,8 @@ from mi.idk.exceptions import MissingExecutable
 from mi.idk.exceptions import FailedToLaunch
 from mi.idk.exceptions import SampleTimeout
 
+from mi.core.unit_test import MiIntTestCase
 
-from pyon.util.int_test import IonIntegrationTestCase
 from pyon.container.cc import Container
 from pyon.util.context import LocalContextMixin
 
@@ -113,7 +113,7 @@ class InstrumentAgentClient(object):
         # Derive a special test case so we can instantiate a testcase object.
         # then we can run start_container which initialized the capability container
         # There will eventually be a better way to do this I'm sure.
-        class _StartContainer(IonIntegrationTestCase):
+        class _StartContainer(MiIntTestCase):
             def runTest(self): pass
 
         testcase = _StartContainer()
@@ -140,7 +140,7 @@ class InstrumentAgentClient(object):
 
         # Derive a special test case so we can instantiate a testcase object.
         # then we can run start_container which initiallized the capability container
-        class _StartContainer(IonIntegrationTestCase):
+        class _StartContainer(MiIntTestCase):
             def runTest(self): pass
 
         testcase = _StartContainer()
