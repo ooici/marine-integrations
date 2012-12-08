@@ -21,7 +21,7 @@ from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException
 from mi.core.log import get_logger ; log = get_logger()
 
-class DataParticleType(BaseEnum):
+class CommonDataParticleType(BaseEnum):
     RAW = "raw"
 
 class DataParticleKey(BaseEnum):

@@ -27,7 +27,7 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, DataParticleType
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
@@ -62,8 +62,8 @@ DS_REGEX_MATCHER = re.compile(DS_REGEX, re.DOTALL)
 #    Driver Constant Definitions
 ###
 
-class PublishedTypes(BaseEnum):
-    RAW = DataParticleType.RAW,
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW,
     TIDE_PARSED = 'tide_parsed',
     WAVE_BURST = 'wave_burst_parsed',
     DEVICE_STATUS = 'device_status_parsed',
@@ -203,80 +203,6 @@ class Prompt(BaseEnum):
 # Data Particles
 ################################################################################
 
-class SBE26plusTakeSampleDataParticleKey(BaseEnum):
-    PRESSURE = "pressure"           # p = calculated and stored pressure (psia).
-    PRESSURE_TEMP = "pressure_temp" # pt = calculated pressure temperature (not stored) (C).
-    TEMPERATURE = "temperature"     # t = calculated and stored temperature (C).
-    CONDUCTIVITY = "conductivity"   # c = calculated and stored conductivity (S/m)
-    SALINITY = "salinity"           # s = calculated salinity (not stored) (psu).
-
-class SBE26plusTakeSampleDataParticle(DataParticle):
-    """
-    Routines for parsing raw data into a data particle structure. Override
-    the building of values, and the rest should come along for free.
-
-    # -158.9284 -8388.96  -3.2164
-    ['p', 'pt', 't']
-    # -158.5166 -8392.30  -3.2164 -1.02535   0.0000
-    ['p', 'pt', 't', 'c', 's']
-    """
-
-    def _build_parsed_values(self):
-        """
-        Take something in the autosample format and split it into
-        values with appropriate tags
-
-        @throws SampleException If there is a problem with sample creation
-        """
-
-        pat1 = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)'
-        regex1 = re.compile(pat1, re.MULTILINE|re.DOTALL)
-        pat2 = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)'
-        regex2 = re.compile(pat2, re.MULTILINE|re.DOTALL)
-
-        count = 5
-        match = regex1.match(self.raw_data)
-        if not match:
-            count = 3
-            match = regex2.match(self.raw_data)
-            if not match:
-                raise SampleException("No regex match of parsed sample data: [%s]" %
-                              self.raw_data)
-
-        # initialize
-        PRESSURE = None
-        PRESSURE_temp = None
-        temperature = None
-        conductivity = None
-        salinity = None
-
-        if 2 < count:
-            PRESSURE = float(match.group(1))
-            PRESSURE_temp = float(match.group(2))
-            temperature = float(match.group(3))
-
-
-        if 5 == count:
-            conductivity = float(match.group(4))
-            salinity = float(match.group(5))
-
-
-
-        result = [{DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.PRESSURE,
-                   DataParticleKey.VALUE: PRESSURE},
-                  {DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.PRESSURE_TEMP,
-                   DataParticleKey.VALUE: PRESSURE_temp},
-                  {DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.TEMPERATURE,
-                   DataParticleKey.VALUE: temperature},
-                  {DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.CONDUCTIVITY,
-                   DataParticleKey.VALUE: conductivity},
-                  {DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.SALINITY,
-                   DataParticleKey.VALUE: salinity}]
-
-        log.debug("in SBE26plusTakeSampleDataParticle._build_parsed_values result = " + repr(result))
-
-        return result
-
 class SBE26plusTideSampleDataParticleKey(BaseEnum):
     TIMESTAMP = "timestamp"
     PRESSURE = "pressure"           # p = calculated and stored pressure (psia).
@@ -290,6 +216,7 @@ class SBE26plusTideSampleDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.TIDE_PARSED
 
     def _build_parsed_values(self):
         """
@@ -334,9 +261,7 @@ class SBE26plusTideSampleDataParticle(DataParticle):
             conductivity = float(match.group(5))
             salinity = float(match.group(6))
         except IndexError:
-            """
-            These are optional. Quietly ignore if they dont occur.
-            """
+            #These are optional. Quietly ignore if they dont occur.
 
         result = [{DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: timestamp},
@@ -363,6 +288,8 @@ class SBE26plusWaveBurstDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.WAVE_BURST
+
     def _build_parsed_values(self):
         """
         Take something in the autosample format and split it into
@@ -470,6 +397,7 @@ class SBE26plusStatisticsDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.STATISTICS
 
     class StatisticType(BaseEnum):
         NONE = 0
@@ -642,6 +570,8 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.DEVICE_CALIBRATION
+
     @staticmethod
     def _string_to_date(datestr, fmt):
         """
@@ -870,6 +800,7 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.DEVICE_STATUS
 
     def _build_parsed_values(self):
         """

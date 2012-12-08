@@ -24,7 +24,7 @@ from nose.plugins.attrib import attr
 from mi.instrument.seabird.sbe26plus.test.test_driver import SBE26PlusUnitTest
 from mi.instrument.seabird.sbe26plus.test.test_driver import SBE26PlusIntegrationTest
 from mi.instrument.seabird.sbe26plus.test.test_driver import SBE26PlusQualificationTest
-from mi.instrument.seabird.sbe26plus.driver import PublishedTypes
+from mi.instrument.seabird.sbe26plus.driver import DataParticleType
 from mi.idk.unit_test import InstrumentDriverTestCase
 
 InstrumentDriverTestCase.initialize(
@@ -33,7 +33,7 @@ InstrumentDriverTestCase.initialize(
 
     instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'Agent007',
-    instrument_agent_packet_config = PublishedTypes()
+    instrument_agent_packet_config = DataParticleType()
 )
 
 ###############################################################################

@@ -31,7 +31,7 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from interface.objects import AgentCommand
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-from mi.instrument.seabird.sbe26plus.driver import PublishedTypes
+from mi.instrument.seabird.sbe26plus.driver import DataParticleType
 from mi.instrument.seabird.sbe26plus.driver import InstrumentDriver
 from mi.instrument.seabird.sbe26plus.driver import ProtocolState
 from mi.instrument.seabird.sbe26plus.driver import Parameter
@@ -525,7 +525,7 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
         @param data_particle:  SBE26plusTideSampleDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, PublishedTypes.TIDE_PARSED)
+        self.assert_data_particle_header(data_particle, DataParticleType.TIDE_PARSED)
         self.assert_data_particle_parameters(data_particle, self._tide_sample_parameters, verify_values)
 
 
@@ -535,7 +535,7 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
         @param data_particle:  SBE26plusWaveBurstDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, PublishedTypes.WAVE_BURST)
+        self.assert_data_particle_header(data_particle, DataParticleType.WAVE_BURST)
         self.assert_data_particle_parameters(data_particle, self._wave_sample_parameters, verify_values)
 
     def assert_particle_statistics(self, data_particle, verify_values = False):
@@ -544,7 +544,7 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
         @param data_particle:  SBE26plusStatisticsDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, PublishedTypes.STATISTICS)
+        self.assert_data_particle_header(data_particle, DataParticleType.STATISTICS)
         self.assert_data_particle_parameters(data_particle, self._statistics_sample_parameters, verify_values)
 
     def assert_particle_device_calibration(self, data_particle, verify_values = False):
@@ -553,7 +553,7 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
         @param data_particle:  SBE26plusDeviceCalibrationDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, PublishedTypes.DEVICE_CALIBRATION)
+        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_sample_parameters, verify_values)
 
     def assert_particle_device_status(self, data_particle, verify_values = False):
@@ -562,7 +562,7 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
         @param data_particle:  SBE26plusDeviceStatusDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, PublishedTypes.DEVICE_STATUS)
+        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_STATUS)
         self.assert_data_particle_parameters(data_particle, self._status_sample_parameters, verify_values)
 
 
@@ -586,7 +586,7 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
         do a little extra validation for the Capabilites
         """
-        self.assert_enum_has_no_duplicates(PublishedTypes())
+        self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(InstrumentCmds())
         self.assert_enum_has_no_duplicates(ProtocolState())
         self.assert_enum_has_no_duplicates(ProtocolEvent())
