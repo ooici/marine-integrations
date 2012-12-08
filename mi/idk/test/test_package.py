@@ -367,7 +367,6 @@ class TestDriverFileList(IDKPackageNose):
 
         self.assertEqual(sorted(files), sorted(known_files))
 
-    @unittest.skip("long running unit test")
     def test_sbe37_list(self):
         metadata = Metadata('seabird', 'sbe37smb', 'example')
         filelist = DriverFileList(metadata, Config().get('working_repo'))
@@ -498,7 +497,6 @@ class TestDriverEggGenerator(IDKPackageNose):
         self.assertTrue(exists(egg_file))
 
 
-    @unittest.skip("Long running unit test")
     def test_sbe37_egg(self):
         egg_file = self._generator.save()
         self.assertTrue(exists(egg_file))

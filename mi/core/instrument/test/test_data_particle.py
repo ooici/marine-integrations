@@ -166,7 +166,7 @@ class TestUnitDataParticle(MiUnitTestCase):
             preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
             internal_timestamp=self.sample_internal_timestamp)
 
-        self.assertRaises(SampleException, test_particle.generate_raw)
+        self.assertRaises(SampleException, test_particle.generate)
     
     def test_get_set_value(self):
         """
