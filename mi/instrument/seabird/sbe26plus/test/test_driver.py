@@ -627,6 +627,7 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
         self.assert_chunker_fragmented_sample(chunker, SAMPLE_DEVICE_STATUS, 512)
         self.assert_chunker_combined_sample(chunker, SAMPLE_DEVICE_STATUS)
 
+
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles

@@ -63,11 +63,11 @@ DS_REGEX_MATCHER = re.compile(DS_REGEX, re.DOTALL)
 ###
 
 class DataParticleType(BaseEnum):
-    RAW = CommonDataParticleType.RAW,
-    TIDE_PARSED = 'tide_parsed',
-    WAVE_BURST = 'wave_burst_parsed',
-    DEVICE_STATUS = 'device_status_parsed',
-    DEVICE_CALIBRATION = 'device_calibration_parsed',
+    RAW = CommonDataParticleType.RAW
+    TIDE_PARSED = 'tide_parsed'
+    WAVE_BURST = 'wave_burst_parsed'
+    DEVICE_STATUS = 'device_status_parsed'
+    DEVICE_CALIBRATION = 'device_calibration_parsed'
     STATISTICS = 'statistics_parsed'
 
 class InstrumentCmds(BaseEnum):
