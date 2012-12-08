@@ -49,7 +49,7 @@ TIMEOUT = 10
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW,
-    PARSED = 'tide_parsed',
+    PARSED = 'parsed',
 
 class Command(BaseEnum):
     DIRECT_SET = "SET"
