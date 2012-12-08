@@ -19,6 +19,7 @@ __license__ = 'Apache 2.0'
 
 import logging
 import unittest
+from mi.core.unit_test import MiUnitTest
 from nose.plugins.attrib import attr
 from mock import Mock
 from mi.core.common import BaseEnum
@@ -207,7 +208,7 @@ def _print_dict(title, d):
 
 @unittest.skip('Need to align with new refactoring')
 @attr('UNIT', group='mi')
-class DriverTest(unittest.TestCase):
+class DriverTest(MiUnitTest):
 
     def setUp(self):
         self.callback = Mock()

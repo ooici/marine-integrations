@@ -18,6 +18,7 @@ import os
 from nose.plugins.attrib import attr
 from mock import Mock
 import unittest
+from mi.core.unit_test import MiUnitTest
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.metadata import Metadata
@@ -34,7 +35,7 @@ if exists("/private/tmp"):
     ROOTDIR = "/private%s" % ROOTDIR
 
 @attr('UNIT', group='mi')
-class TestConfig(unittest.TestCase):
+class TestConfig(MiUnitTest):
     """
     Test the config object.  
     """    
@@ -79,7 +80,7 @@ class TestConfig(unittest.TestCase):
         self.assertTrue(config.get("working_repo"))
         self.assertTrue(config.get("template_dir"))
         self.assertTrue(config.get("couchdb"))
-        self.assertTrue(config.get("rabbit-server"))
+        self.assertTrue(config.get("rabbitmq"))
 
     def test_overloaded_config(self):
         """Test that the overloaded configuration"""
@@ -91,13 +92,15 @@ class TestConfig(unittest.TestCase):
         # reload the configuration
         config.cm.init(ROOTDIR)
 
+
+
         expected_string = "idk:\n  working_repo: %s\n  couchdb: %s" % (config.get("working_repo"), config.get("couchdb"))
 
         self.assertEqual(expected_string, self.read_config())
         self.assertEqual(config.get("couchdb"), "couchdb")
         self.assertTrue(config.get("working_repo"))
         self.assertTrue(config.get("template_dir"))
-        self.assertTrue(config.get("rabbit-server"))
+        self.assertTrue(config.get("rabbitmq"))
 
 
 

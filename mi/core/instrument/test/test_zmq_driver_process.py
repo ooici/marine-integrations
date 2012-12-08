@@ -22,8 +22,8 @@ from pyon.util.unit_test import PyonTestCase
 
 from mi.core.instrument.zmq_driver_client import ZmqDriverClient
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
-import mi.core.mi_logger 
-
+import mi.core.mi_logger
+from mi.core.unit_test import MiTestCase
 
 mi_logger = logging.getLogger('mi_logger')
 
@@ -33,7 +33,7 @@ mi_logger = logging.getLogger('mi_logger')
 # bin/nosetests -s -v ion/services/mi/test/test_zmq_driver_process.py
 
 @attr('UNIT', group='mi')
-class TestZmqDriverProcess(PyonTestCase):    
+class TestZmqDriverProcess(MiTestCase):
     """
     Unit tests for ZMQ driver process.
     """

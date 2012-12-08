@@ -430,7 +430,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
             log.debug(str(ret))
             master_list.append(getattr(c, k))
             self.assertEqual(len(ret), 1)
-        self.assertEqual(len(p._filter_capabilities(master_list)), 5)
+        self.assertEqual(len(p._filter_capabilities(master_list)), 8)
 
         # Negative Testing
         self.assertEqual(len(p._filter_capabilities(['BIRD', 'ABOVE', 'WATER'])), 0)
@@ -849,7 +849,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
                       'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
 
             self.assertTrue(state in ret[0])
-        self.assertEqual(len(ret[0]), 3)
+        self.assertEqual(len(ret[0]), 7)
 
 
 

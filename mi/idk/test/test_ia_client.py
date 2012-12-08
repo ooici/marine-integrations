@@ -13,12 +13,13 @@ __license__ = 'Apache 2.0'
 from nose.plugins.attrib import attr
 from mock import Mock
 import unittest
+from mi.core.unit_test import MiUnitTest
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.instrument_agent_client import InstrumentAgentClient
 
 @attr('UNIT', group='mi')
-class TestIAStart(unittest.TestCase):
+class TestIAStart(MiUnitTest):
     """
     Test the instrument agent startup
     """
@@ -28,6 +29,9 @@ class TestIAStart(unittest.TestCase):
         """
         self.ia_client = InstrumentAgentClient()
 
+    """
+    @TODO This test should start/stop rabbitmq and couch in setup, as it leaves the system in a bad state.
+    """
     def test_container_rabbitmq(self):
         """Test that rabbitmq can be started"""
 

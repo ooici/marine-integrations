@@ -26,7 +26,7 @@ from pyon.public import StreamSubscriberRegistrar
 from prototype.sci_data.stream_defs import ctd_stream_definition
 from pyon.agent.agent import ResourceAgentClient
 from interface.objects import AgentCommand
-from pyon.util.int_test import IonIntegrationTestCase
+from mi.core.unit_test import MiIntTestCase
 from pyon.util.context import LocalContextMixin
 """
 from ion.services.mi.drivers.sbe37.sbe37_driver import SBE37Channel
@@ -59,7 +59,7 @@ class FakeProcess(LocalContextMixin):
 @unittest.skip('Need to align.')
 @attr('HARDWARE', group='sa')
 @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 60}}})
-class TestInstrumentAgent(IonIntegrationTestCase):
+class TestInstrumentAgent(MiIntTestCase):
     """
     Test cases for instrument agent class. Functions in this class provide
     instrument agent integration tests and provide a tutorial on use of

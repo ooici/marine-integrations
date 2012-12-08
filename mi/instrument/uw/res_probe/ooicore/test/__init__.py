@@ -14,13 +14,15 @@ __license__ = 'Apache 2.0'
 
 import os
 import unittest
+from mi.core.unit_test import MiUnitTest
+
 from mi.core.mi_logger import mi_logger
 log = mi_logger
 
 
 @unittest.skipIf(os.getenv('UW_TRHPH') is None,
                  'UW_TRHPH environment variable undefined')
-class TrhphTestCase(unittest.TestCase):
+class TrhphTestCase(MiUnitTest):
     """
     Base class for test cases dependent on a TRHPH instrument or simulator.
     This is based on the UW_TRHPH environment variable.
