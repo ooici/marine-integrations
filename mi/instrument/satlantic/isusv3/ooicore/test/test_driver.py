@@ -62,6 +62,8 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverParameter
 
+from mi.core.instrument.logger_client import LoggerClient
+
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
@@ -130,6 +132,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
     def reset_test_vars(self):
         self.raw_stream_received = False
         self.parsed_stream_received = False
+
         
     def my_event_callback(self, event):
         event_type = event['type']
@@ -644,7 +647,7 @@ class ISUS3UnitTestCase(InstrumentDriverUnitTestCase):
         paPacket.attach_data(test_sample)
 
         test_driver._protocol.got_data(paPacket)
-        
+
         self.assertTrue(self.raw_stream_received)
         self.assertTrue(self.parsed_stream_received)
 

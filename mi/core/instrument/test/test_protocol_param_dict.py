@@ -12,12 +12,12 @@ __license__ = 'Apache 2.0'
 
 from ooi.logging import log
 from nose.plugins.attrib import attr
-from pyon.util.unit_test import IonUnitTestCase
+from mi.core.unit_test import MiUnitTestCase
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 
 @attr('UNIT', group='mi')
-class TestUnitProtocolParameterDict(IonUnitTestCase):
+class TestUnitProtocolParameterDict(MiUnitTestCase):
     """
     Test cases for instrument driver class. Functions in this class provide
     instrument driver unit tests and provide a tutorial on use of

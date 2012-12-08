@@ -10,13 +10,11 @@ Unit tests for the basic trhph module.
 
 import mi.instrument.uw.res_probe.ooicore.trhph as trhph
 
-
-from unittest import TestCase
+from mi.core.unit_test import MiUnitTest
 from nose.plugins.attrib import attr
 
-
 @attr('UNIT', group='mi')
-class BasicTrhphTest(TestCase):
+class BasicTrhphTest(MiUnitTest):
     """
     Unit tests for the basic trhph module.
     """

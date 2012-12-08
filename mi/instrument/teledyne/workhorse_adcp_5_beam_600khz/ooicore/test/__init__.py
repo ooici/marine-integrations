@@ -20,12 +20,13 @@ from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.receiver import
 import yaml
 import os
 import unittest
+from mi.core.unit_test import MiUnitTest
 from mi.core.mi_logger import mi_logger as log
 
 
 @unittest.skipIf(os.getenv('VADCP') is None,
                  'VADCP environment variable undefined')
-class VadcpTestCase(unittest.TestCase):
+class VadcpTestCase(MiUnitTest):
     """
     """
 
