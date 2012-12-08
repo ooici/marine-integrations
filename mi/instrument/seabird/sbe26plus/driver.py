@@ -2368,9 +2368,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         if prompt != Prompt.COMMAND:
             raise InstrumentProtocolException('ds command not recognized: %s.' % response)
 
-        sample = self._extract_sample(SBE26plusDeviceStatusDataParticle, DS_REGEX_MATCHER, response, True)
-
-
         for line in response.split(NEWLINE):
             hit_count = self._param_dict.multi_match_update(line)
 
@@ -2415,17 +2412,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         if prompt != Prompt.COMMAND:
             raise InstrumentProtocolException('ts command not recognized: %s', response)
 
-        for line in response.split(NEWLINE):
-            sample = None
-            sample = self._extract_sample(SBE26plusTakeSampleDataParticle, TS_REGEX_MATCHER, line, True)
-            if sample:
-                log.debug("GOT A SAMPLE!!!!")
-                match = TS_REGEX_MATCHER.match(line)
-                result = match.group(0)
-                break
-
-        if not sample:
-            raise SampleException('Response did not contain sample: %s' % repr(response))
+        result = response
 
         log.debug("_parse_ts_response RETURNING RESULT=" + str(result))
         return result
@@ -2435,11 +2422,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
-        self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk)
-        self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk)
-        self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk)
-        self._extract_sample(SBE26plusDeviceCalibrationDataParticle, DC_REGEX_MATCHER, chunk)
-        self._extract_sample(SBE26plusDeviceStatusDataParticle, DS_REGEX_MATCHER, chunk)
+        if(self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk)): return
+        if(self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk)): return
+        if(self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk)): return
+        if(self._extract_sample(SBE26plusDeviceCalibrationDataParticle, DC_REGEX_MATCHER, chunk)): return
+        if(self._extract_sample(SBE26plusDeviceStatusDataParticle, DS_REGEX_MATCHER, chunk)): return
 
     ########################################################################
     # Static helpers to format set commands.

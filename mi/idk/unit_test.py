@@ -55,7 +55,7 @@ from mi.core.exceptions import InstrumentException
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.data_particle import CommonDataParticleType, DataParticle, DataParticleKey, DataParticleValue
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -862,7 +862,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
             particle_dict = json.loads(p)
             stream_type = particle_dict.get('stream_name')
             self.assertIsNotNone(stream_type)
-            if(stream_type != DataParticleValue.RAW):
+            if(stream_type != CommonDataParticleType.RAW):
                 particles.append(p)
 
         log.debug("Non raw particles: %s " % particles)

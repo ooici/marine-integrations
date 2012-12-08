@@ -576,7 +576,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                        preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
 
         if self._driver_event:
-            self._driver_event(DriverAsyncEvent.SAMPLE, particle)
+            self._driver_event(DriverAsyncEvent.SAMPLE, particle.generate())
 
     def add_to_buffer(self, data):
         '''
