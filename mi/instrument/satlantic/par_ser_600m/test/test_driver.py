@@ -45,6 +45,7 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import AgentCapabilityType
 
+from mi.instrument.satlantic.par_ser_600m.driver import DataParticleType
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARInstrumentProtocol
 from mi.instrument.satlantic.par_ser_600m.driver import PARProtocolState
 from mi.instrument.satlantic.par_ser_600m.driver import PARProtocolEvent
@@ -279,7 +280,7 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
         sample_parsed_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.STREAM_NAME: DataParticleValue.PARSED,
+            DataParticleKey.STREAM_NAME: DataParticleType.PARSED,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,

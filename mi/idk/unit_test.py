@@ -199,7 +199,7 @@ class InstrumentDriverDataParticleMixin(MiUnitTest):
         @return: dictionary representation of a data particle
         """
         if (isinstance(data_particle, DataParticle)):
-            sample_dict = json.loads(data_particle.generate_parsed())
+            sample_dict = json.loads(data_particle.generate())
         elif (isinstance(data_particle, str)):
             sample_dict = json.loads(data_particle)
         elif (isinstance(data_particle, dict)):
@@ -785,7 +785,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         else:
             test_particle = particle_type(raw_input, port_timestamp=port_timestamp)
             
-        parsed_result = test_particle.generate_parsed()
+        parsed_result = test_particle.generate()
         decoded_parsed = json.loads(parsed_result)
         
         driver_time = decoded_parsed[DataParticleKey.DRIVER_TIMESTAMP]
