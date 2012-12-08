@@ -51,6 +51,7 @@ class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW,
     PARSED = 'parsed',
 
+
 class Command(BaseEnum):
     DIRECT_SET = "SET"
     BACK_MENU = "BACK_MENU"

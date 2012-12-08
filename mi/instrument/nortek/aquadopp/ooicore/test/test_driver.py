@@ -53,6 +53,7 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
+from mi.instrument.nortek.aquadopp.ooicore.driver import DataParticleType
 from mi.instrument.nortek.aquadopp.ooicore.driver import InstrumentPrompts
 from mi.instrument.nortek.aquadopp.ooicore.driver import InstrumentCmds
 from mi.instrument.nortek.aquadopp.ooicore.driver import Capability
@@ -60,7 +61,6 @@ from mi.instrument.nortek.aquadopp.ooicore.driver import Protocol
 from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolState
 from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolEvent
 from mi.instrument.nortek.aquadopp.ooicore.driver import Parameter
-from mi.instrument.nortek.aquadopp.ooicore.driver import PACKET_CONFIG
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticle
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticleKey
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticle
@@ -84,8 +84,7 @@ InstrumentDriverTestCase.initialize(
 
     instrument_agent_resource_id = 'nortek_aquadopp_dw_ooicore',
     instrument_agent_name = 'nortek_aquadopp_dw_ooicore_agent',
-    instrument_agent_packet_config = PACKET_CONFIG,
-    #instrument_agent_stream_definition = {}
+    instrument_agent_packet_config = DataParticleType(),
     driver_startup_config = {
         Parameter.TRANSMIT_PULSE_LENGTH: 0x7d
         }
@@ -386,7 +385,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.STREAM_NAME: DataParticleValue.PARSED,
+            DataParticleKey.STREAM_NAME: DataParticleType.DIAGNOSTIC_HEADER,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
@@ -411,7 +410,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.STREAM_NAME: DataParticleValue.PARSED,
+            DataParticleKey.STREAM_NAME: DataParticleType.DIAGNOSTIC_DATA,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
@@ -436,7 +435,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.STREAM_NAME: DataParticleValue.PARSED,
+            DataParticleKey.STREAM_NAME: DataParticleType.PARSED,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
@@ -486,17 +485,17 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         particle = AquadoppDwDiagnosticHeaderDataParticle(diagnostic_header_sample().replace(chr(0), chr(1), 1),
                                                           port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
-            particle.generate_parsed()
+            particle.generate()
          
         particle = AquadoppDwDiagnosticDataParticle(diagnostic_sample().replace(chr(0), chr(1), 1),
                                                           port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
-            particle.generate_parsed()
+            particle.generate()
          
         particle = AquadoppDwVelocityDataParticle(velocity_sample().replace(chr(0), chr(1), 1),
                                                           port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
-            particle.generate_parsed()
+            particle.generate()
          
  
 ###############################################################################
@@ -1273,7 +1272,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
     def assertSampleDataParticle(self, sample):
         log.debug('assertSampleDataParticle: sample=%s' %sample)
         self.assertTrue(sample[DataParticleKey.STREAM_NAME],
-            DataParticleValue.PARSED)
+            DataParticleType.PARSED)
         self.assertTrue(sample[DataParticleKey.PKT_FORMAT_ID],
             DataParticleValue.JSON_DATA)
         self.assertTrue(sample[DataParticleKey.PKT_VERSION], 1)
