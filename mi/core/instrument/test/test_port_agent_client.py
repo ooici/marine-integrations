@@ -12,7 +12,7 @@ __license__ = 'Apache 2.0'
 
 import logging
 import unittest
-#from mi.core.unit_test import MiUnitTest
+from mi.core.unit_test import MiUnitTest
 import re
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -23,9 +23,7 @@ from mi.core.log import get_logger ; log = get_logger()
 
 @unittest.skip('BROKEN - Useful in past, likely in future, but not just now')
 @attr('UNIT', group='mi')
-#class TestPortAgent(MiUnitTest):
-class TestPortAgentClient():
-
+class TestPortAgentClient(MiUnitTest):
     def setUp(self):
         self.ipaddr = "67.58.49.194"
         self.port  = 4000
@@ -38,7 +36,7 @@ class TestPortAgentClient():
             
         print "Got " + validity + " port agent packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
         
-    #@unittest.skip('not finished yet')
+    @unittest.skip('not finished yet')
     def test_port_agent_client_receive(self):
         ipaddr = "67.58.49.194"
         port  = 4000
@@ -46,6 +44,7 @@ class TestPortAgentClient():
         #paClient = PortAgentClient(ipaddr, port)
         paClient.init_comms(self.myGotData)
         
+    @unittest.skip('not finished yet')
     def test_port_agent_client_send(self):
         ipaddr = "67.58.49.194"
         port  = 4000
@@ -54,8 +53,3 @@ class TestPortAgentClient():
         paClient.init_comms(self.myGotData)
         
         paClient.send('this is a test\n')
-        
-if __name__ == '__main__':
-    app = TestPortAgent()
-    app.setUp
-    app.test_port_agent_client_receive()

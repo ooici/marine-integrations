@@ -168,7 +168,7 @@ STATUS_PATTERN += r'serial sync mode *([ a-zA-Z]+) *'
 STATUS_REGEX = re.compile(STATUS_PATTERN)
 
 # Packet config for SBE37 data granules.
-STREAM_NAME_PARSED = DataParticleValue.PARSED
+STREAM_NAME_PARSED = 'ctd_parsed_param_dict'
 STREAM_NAME_RAW = DataParticleValue.RAW
 #PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
 

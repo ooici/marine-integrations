@@ -150,8 +150,8 @@ SAMPLE_PATTERN += r'(, *(\d+)-(\d+)-(\d+), *(\d+):(\d+):(\d+))?'
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
         
 # Packet config for SBE37 data granules.
-STREAM_NAME_PARSED = DataParticleValue.PARSED
-STREAM_NAME_RAW = DataParticleValue.RAW
+STREAM_NAME_PARSED = 'parsed'
+STREAM_NAME_RAW = 'raw'
 #PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
 
 

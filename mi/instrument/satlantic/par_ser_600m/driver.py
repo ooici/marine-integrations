@@ -57,8 +57,8 @@ EOLN = "\r\n"
 RETRY = 3
 
 # Packet config for SBE37 data granules.
-STREAM_NAME_PARSED = DataParticleValue.PARSED
-STREAM_NAME_RAW = DataParticleValue.RAW
+STREAM_NAME_PARSED = 'parsed'
+STREAM_NAME_RAW = 'raw'
 
 PACKET_CONFIG = {
     STREAM_NAME_PARSED : 'parsed_param_dict',
@@ -180,6 +180,8 @@ class SatlanticPARDataParticle(DataParticle):
     Satlantic PAR sensor. Overrides the building of values, and the rest comes
     along for free.
     """
+    _data_particle_type = 'parsed'
+
     def _build_parsed_values(self):
         """
         Take something in the sample format and split it into

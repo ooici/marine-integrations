@@ -15,7 +15,6 @@ from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
-#from mi.core.instrument.data_particle import DataParticle
 from mi.instrument.satlantic.par_ser_600m.driver import SAMPLE_REGEX
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticle
 from mi.core.unit_test import MiUnitTestCase
@@ -24,7 +23,6 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.common import BaseEnum
 
 Directions = MenuInstrumentProtocol.MenuTree.Directions
-
 
 @attr('UNIT', group='mi')
 class TestUnitInstrumentProtocol(MiUnitTestCase):
@@ -51,8 +49,7 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
                                                publish=False)
 
         log.debug("R: %s" % result)
-        self.assertEqual(result['stream_name'], SatlanticPARDataParticle.)
-        self.assertTrue(result['raw'])
+        self.assertEqual(result['stream_name'], SatlanticPARDataParticle(None, None).data_particle_type())
 
         # Test the format of the result in the individual driver tests. Here,
         # just tests that the result is there.

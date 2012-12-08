@@ -248,19 +248,45 @@ class RawDataParticle(DataParticle):
                   raise SampleException("raw data not a complete port agent packet")
 
 
+        payload = None
+        length = None
+        type = None
+        checksum = None
+
+        # Attempt to convert values
+        try: 
+            payload = base64.b64encode(port_agent_packet.get("raw"))
+        except TypeError:
+            pass
+
+        try: 
+            length = int(port_agent_packet.get("length"))
+        except TypeError: 
+            pass
+
+        try: 
+            type = int(port_agent_packet.get("type"))
+        except TypeError: 
+            pass
+
+        try: 
+            checksum = int(port_agent_packet.get("checksum"))
+        except TypeError: 
+            pass
+
         result = [{
                       DataParticleKey.VALUE_ID: RawDataParticleKey.PAYLOAD,
-                      DataParticleKey.VALUE: base64.b64encode(port_agent_packet.get("raw")),
+                      DataParticleKey.VALUE: payload,
                       DataParticleKey.BINARY: True},
                   {
                       DataParticleKey.VALUE_ID: RawDataParticleKey.LENGTH,
-                      DataParticleKey.VALUE: int(port_agent_packet.get("length"))},
+                      DataParticleKey.VALUE: length},
                   {
                       DataParticleKey.VALUE_ID: RawDataParticleKey.PARTICLE_TYPE,
-                      DataParticleKey.VALUE: int(port_agent_packet.get("type"))},
+                      DataParticleKey.VALUE: type},
                   {
                       DataParticleKey.VALUE_ID: RawDataParticleKey.CHECKSUM,
-                      DataParticleKey.VALUE: int(port_agent_packet.get("checksum"))},
+                      DataParticleKey.VALUE: checksum},
         ]
 
         return result
