@@ -230,7 +230,7 @@ class RawDataParticle(DataParticle):
 
     It essentially is a translation of the port agent packet
     """
-    _data_particle_type = DataParticleType.RAW
+    _data_particle_type = CommonDataParticleType.RAW
 
     def _build_parsed_values(self):
         """

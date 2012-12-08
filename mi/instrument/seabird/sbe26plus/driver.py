@@ -262,6 +262,7 @@ class SBE26plusTideSampleDataParticle(DataParticle):
             salinity = float(match.group(6))
         except IndexError:
             #These are optional. Quietly ignore if they dont occur.
+            pass
 
         result = [{DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: timestamp},
