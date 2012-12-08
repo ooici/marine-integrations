@@ -19,7 +19,7 @@ from mi.core.unit_test import MiUnitTestCase
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
-from mi.core.instrument.data_particle import RawDataParticle, DataParticleType
+from mi.core.instrument.data_particle import RawDataParticle, CommonDataParticleType
 from mi.core.instrument.port_agent_client import PortAgentPacket
 
 TEST_PARTICLE_VERSION = 1
@@ -101,7 +101,7 @@ class TestUnitDataParticle(MiUnitTestCase):
         self.sample_raw_particle = {
                                DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
                                DataParticleKey.PKT_VERSION: TEST_PARTICLE_VERSION,
-                               DataParticleKey.STREAM_NAME: DataParticleType.RAW,
+                               DataParticleKey.STREAM_NAME: CommonDataParticleType.RAW,
                                DataParticleKey.INTERNAL_TIMESTAMP: self.sample_internal_timestamp,
                                DataParticleKey.PORT_TIMESTAMP: self.sample_port_timestamp,
                                DataParticleKey.DRIVER_TIMESTAMP: self.sample_driver_timestamp,
