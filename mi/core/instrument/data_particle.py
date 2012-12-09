@@ -220,7 +220,7 @@ class DataParticle(object):
 class RawDataParticleKey(BaseEnum):
     PAYLOAD = "raw"
     LENGTH = "length"
-    TYPE = "packet_type"
+    TYPE = "type"
     CHECKSUM = "checksum"
 
 class RawDataParticle(DataParticle):
