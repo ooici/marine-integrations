@@ -455,100 +455,6 @@ class DriverTestMixin(MiUnitTest):
             if(param_value):
                 self.assertIsInstance(param_value, param_type)
 
-    def assert_driver_connect(self, driver):
-        """
-        If a driver isn't connected, then connect it and verify that it worked.
-        @param driver: instrument driver object
-        """
-        mock_port_agent = Mock(spec=PortAgentClient)
-
-        #invoke configure and connect to set up the _protocol attribute
-        if(not driver._protocol):
-            config = {'mock_port_agent' : mock_port_agent}
-            driver.configure(config = config)
-            driver.connect()
-            current_state = driver.get_resource_state()
-            self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Verify we have driver internals running
-        self.assertIsNotNone(driver._protocol)
-        self.assertIsNotNone(driver._protocol._protocol_fsm)
-
-    def assert_capabilities(self, driver, capabilities):
-        """
-        Verify all capabilities expected are in the FSM.  Then verify that the capabilities
-        available for each state.
-        @param driver: a mocked up driver
-        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
-        """
-        self.assert_protocol_states(driver,capabilities)
-        self.assert_all_capabilities(driver,capabilities)
-        self.assert_state_capabilities(driver,capabilities)
-
-    def assert_protocol_states(self, driver, capabilities):
-        """
-        Verify that the protocol states defined in the driver match the list of states in the
-        capabilities dictionary.
-        @param driver: a mocked up driver
-        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
-        """
-        self.assert_driver_connect(driver)
-        fsm_states = sorted(driver._protocol._protocol_fsm.states.list())
-        self.assertTrue(fsm_states)
-
-        expected_states = sorted(capabilities.keys())
-
-        log.debug("Defined Protocol States: %s" % fsm_states)
-        log.debug("Expected Protocol States: %s" % expected_states)
-
-        self.assertEqual(fsm_states, expected_states)
-
-
-    def assert_all_capabilities(self, driver, capabilities):
-        """
-        Build a list of all the capabilities in the passed in dict and verify they are all availalbe
-        in the FSM
-        @param driver: a mocked up driver
-        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
-        """
-        self.assert_driver_connect(driver)
-        all_capabilities = sorted(driver._protocol._protocol_fsm.get_events(current_state=False))
-        expected_capabilities = []
-
-        for (state, capability_list) in capabilities.items():
-            for s in capability_list:
-                if(not s in expected_capabilities):
-                    expected_capabilities.append(s)
-
-        expected_capabilities.sort()
-
-        log.debug("All Reported Capabilities: %s" % all_capabilities)
-        log.debug("All Expected Capabilities: %s" % expected_capabilities)
-
-        self.assertEqual(all_capabilities, expected_capabilities)
-
-
-    def assert_state_capabilities(self, driver, capabilities):
-        """
-        Walk through all instrument states and verify fsm capabilities available
-        as reported by the driver.
-        @param driver: a mocked up driver
-        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
-        """
-        self.assert_driver_connect(driver)
-        driver.set_test_mode(True)
-
-        # Verify state specific capabilities
-        for (state, capability_list) in capabilities.items():
-            driver.test_force_state(state=state)
-            reported_capabilities = sorted(driver._protocol._protocol_fsm.get_events(current_state=True))
-            expected_capabilities = sorted(capability_list)
-
-            log.debug("Current Driver State: %s" % state)
-            log.debug("Expected Capabilities: %s" % expected_capabilities)
-            log.debug("Reported Capabilities: %s" % reported_capabilities)
-
-            self.assertEqual(reported_capabilities, expected_capabilities)
 
 
 class InstrumentDriverTestCase(MiIntTestCase):
@@ -867,10 +773,6 @@ class InstrumentDriverTestCase(MiIntTestCase):
         result = chunker.get_next_data()
         self.assertEqual(result, None)
 
-    ###
-    #   Common Unit Tests
-    ###
-
 
 class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     """
@@ -925,6 +827,30 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
 
         self.assertEqual(parsed_result, standard)
 
+    def assert_force_state(self, driver, protocol_state):
+        """
+        For the driver state to protocol_state
+        @param driver: Instrument driver instance.
+        @param protocol_state: State to transistion to
+        """
+        driver.test_force_state(state = protocol_state)
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, protocol_state)
+
+    def assert_driver_connected(self, driver, initial_protocol_state = DriverProtocolState.AUTOSAMPLE):
+        """
+        Check to see if the driver is connected, if it isn't then initialize the driver.  Finally
+        force the instrument state to the initial_protocol_state.
+        @param driver: Instrument driver instance.
+        @param initial_protocol_state: the state to force the driver too
+        """
+        current_state = driver.get_resource_state()
+        if(current_state == DriverConnectionState.UNCONFIGURED):
+            self.assert_initialize_driver(driver, initial_protocol_state)
+        else:
+            self.assert_force_state(driver, initial_protocol_state)
+
+
     def assert_initialize_driver(self, driver, initial_protocol_state = DriverProtocolState.AUTOSAMPLE):
         """
         Initialize an instrument driver with a mock port agent.  This will allow us to test the
@@ -958,9 +884,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
         # Force the instrument into a known state
-        driver.test_force_state(state = initial_protocol_state)
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, initial_protocol_state)
+        self.assert_force_state(driver, initial_protocol_state)
 
     def assert_raw_particle_published(self, driver, assert_callback, verify_values = False):
         """
@@ -1032,6 +956,83 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         particle_assert_method(particles.pop(), verify_values)
 
 
+    def assert_capabilities(self, driver, capabilities):
+        """
+        Verify all capabilities expected are in the FSM.  Then verify that the capabilities
+        available for each state.
+        @param driver: a mocked up driver
+        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
+        """
+        self.assert_protocol_states(driver,capabilities)
+        self.assert_all_capabilities(driver,capabilities)
+        self.assert_state_capabilities(driver,capabilities)
+
+    def assert_protocol_states(self, driver, capabilities):
+        """
+        Verify that the protocol states defined in the driver match the list of states in the
+        capabilities dictionary.
+        @param driver: a mocked up driver
+        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
+        """
+        self.assert_driver_connected(driver)
+        fsm_states = sorted(driver._protocol._protocol_fsm.states.list())
+        self.assertTrue(fsm_states)
+
+        expected_states = sorted(capabilities.keys())
+
+        log.debug("Defined Protocol States: %s" % fsm_states)
+        log.debug("Expected Protocol States: %s" % expected_states)
+
+        self.assertEqual(fsm_states, expected_states)
+
+
+    def assert_all_capabilities(self, driver, capabilities):
+        """
+        Build a list of all the capabilities in the passed in dict and verify they are all availalbe
+        in the FSM
+        @param driver: a mocked up driver
+        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
+        """
+        self.assert_driver_connected(driver)
+        all_capabilities = sorted(driver._protocol._protocol_fsm.get_events(current_state=False))
+        expected_capabilities = []
+
+        for (state, capability_list) in capabilities.items():
+            for s in capability_list:
+                if(not s in expected_capabilities):
+                    expected_capabilities.append(s)
+
+        expected_capabilities.sort()
+
+        log.debug("All Reported Capabilities: %s" % all_capabilities)
+        log.debug("All Expected Capabilities: %s" % expected_capabilities)
+
+        self.assertEqual(all_capabilities, expected_capabilities)
+
+
+    def assert_state_capabilities(self, driver, capabilities):
+        """
+        Walk through all instrument states and verify fsm capabilities available
+        as reported by the driver.
+        @param driver: a mocked up driver
+        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
+        """
+        self.assert_driver_connected(driver)
+        driver.set_test_mode(True)
+
+        # Verify state specific capabilities
+        for (state, capability_list) in capabilities.items():
+            self.assert_force_state(driver, state)
+            reported_capabilities = sorted(driver._protocol._protocol_fsm.get_events(current_state=True))
+            expected_capabilities = sorted(capability_list)
+
+            log.debug("Current Driver State: %s" % state)
+            log.debug("Expected Capabilities: %s" % expected_capabilities)
+            log.debug("Reported Capabilities: %s" % reported_capabilities)
+
+            self.assertEqual(reported_capabilities, expected_capabilities)
+
+
 class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must inherit from here to get _start_container
     def setUp(self):
         """
@@ -1053,6 +1054,45 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         InstrumentDriverTestCase.tearDown(self)
 
+    ###
+    #   Common assert methods
+    ###
+    def assert_initialize_driver(self, expected_state = DriverProtocolState.COMMAND):
+        """
+        Walk an uninitialized driver through it's initialize process.  Verify the final
+        state is correct.
+        @param expected_state: final state expected state after discover
+        """
+        log.info("test_connect test started")
+
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverProtocolState.UNKNOWN)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('discover_state')
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverProtocolState.COMMAND)
+
+    ###
+    #   Common Integration Tests
+    ###
     def test_driver_process(self):
         """
         @Brief Test for correct launch of driver process and communications, including asynchronous driver events.

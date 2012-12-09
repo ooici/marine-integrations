@@ -683,9 +683,7 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
         Verify the set of parameters known by the driver
         """
         driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_driver_connect(driver)
-        driver.set_test_mode(True)
-        driver.test_force_state(state=ProtocolState.COMMAND)
+        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
 
         expected_parameters = sorted(self._driver_parameters.keys())
         reported_parameters = sorted(driver.get_resource(Parameter.ALL))
@@ -761,6 +759,17 @@ class SBE26PlusIntegrationTest(InstrumentDriverIntegrationTestCase):
                     self.assertTrue(isinstance(val, PARAMS[key]))
                 else:
                     log.debug("*** Skipping " + key + " Because value is None ***")
+
+
+    def test_parameters(self):
+        """
+        Test driver parameters and verify their type.  Startup parameters also verify the parameter
+        value.  This test confirms that parameters are being read/converted properly and that
+        the startup has been applied.
+        """
+        self.assert_initialize_driver()
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+
 
     def test_get_set(self):
         """
