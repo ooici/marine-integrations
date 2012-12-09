@@ -57,7 +57,12 @@ from mi.core.exceptions import InstrumentException
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
-from mi.core.instrument.data_particle import CommonDataParticleType, DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.data_particle import CommonDataParticleType
+from mi.core.instrument.data_particle import DataParticle
+from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import DataParticleValue
+from mi.core.instrument.data_particle import RawDataParticle
+from mi.core.instrument.data_particle import RawDataParticleKey
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -79,6 +84,7 @@ GO_ACTIVE_TIMEOUT=180
 GET_TIMEOUT=30
 SET_TIMEOUT=90
 EXECUTE_TIMEOUT=30
+SAMPLE_RAW_DATA="Iam Apublished Message"
 
 class AgentCapabilityType(BaseEnum):
     AGENT_COMMAND = 'agent_command'
@@ -187,10 +193,26 @@ class InstrumentDriverTestConfig(Singleton):
         return result
 
 
-class InstrumentDriverDataParticleMixin(MiUnitTest):
+class DriverTestMixin(MiUnitTest):
     """
     Base class for data particle mixin.  Used for data particle validation.
     """
+    _raw_sample_parameters = {
+        RawDataParticleKey.PAYLOAD: {'type': unicode, 'value': u'SWFtIEFwdWJsaXNoZWQgTWVzc2FnZQ=='},
+        RawDataParticleKey.LENGTH: {'type': int, 'value': 22},
+        RawDataParticleKey.TYPE: {'type': int, 'value': 2},
+        RawDataParticleKey.CHECKSUM: {'type': int, 'value': 2757}
+    }
+
+    def assert_particle_raw(self, data_particle, verify_values = False):
+        '''
+        Verify a raw data particles
+        @param data_particle:  SBE26plusTideSampleDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, CommonDataParticleType.RAW)
+        self.assert_data_particle_parameters(data_particle, self._raw_sample_parameters, verify_values)
+
     def convert_data_particle_to_dict(self, data_particle):
         """
         Convert a data particle object to a dict.  This will work for data particles as
@@ -225,7 +247,17 @@ class InstrumentDriverDataParticleMixin(MiUnitTest):
 
     def assert_data_particle_parameters(self, data_particle, param_dict, verify_values = False):
         """
-        Verify the data particles contain all parameters in the parameter enum and verify the
+        Alias for assert_parameters.
+
+        @param data_particle: the data particle to examine
+        @param parameter_dict: dict with parameter names and types
+        @param verify_values: bool should ve verify parameter values
+        """
+        self.assert_parameters(data_particle,param_dict,verify_values)
+
+    def assert_parameters(self, current_parameters, param_dict, verify_values = False):
+        """
+        Verify the parameters contain all parameters in the parameter enum and verify the
         types match those defined in the enum.
 
         parameter_dict_examples:
@@ -257,11 +289,11 @@ class InstrumentDriverDataParticleMixin(MiUnitTest):
 
         This will verify the type is a float, it is required and we will not validate the key.
 
-        @param data_particle: the data particle to examine
+        @param current_parameters: the current parameters to examine
         @param parameter_dict: dict with parameter names and types
         @param verify_values: bool should ve verify parameter values
         """
-        sample_dict = self.convert_data_particle_to_dict(data_particle)
+        sample_dict = self.convert_data_particle_to_dict(current_parameters)
         self.assertIsInstance(param_dict, dict)
 
         # Get the values in the data particle for parameter validation
@@ -366,9 +398,11 @@ class InstrumentDriverDataParticleMixin(MiUnitTest):
             # get the parameter value
             param_value = sample['value']
             log.debug("Data Particle Parameter (%s): %s" % (sample, type(param_value)))
+            log.debug("Particle Dict (%s)" % param_value)
 
             # get the parameter type
             param_def = param_dict.get(param_name)
+            log.debug("Particle Def (%s) " % param_def)
             self.assertIsNotNone(param_def)
             if(isinstance(param_def, dict)):
                 param_type = param_def.get(DataParticleParameterConfigKey.TYPE)
@@ -420,6 +454,101 @@ class InstrumentDriverDataParticleMixin(MiUnitTest):
 
             if(param_value):
                 self.assertIsInstance(param_value, param_type)
+
+    def assert_driver_connect(self, driver):
+        """
+        If a driver isn't connected, then connect it and verify that it worked.
+        @param driver: instrument driver object
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+
+        #invoke configure and connect to set up the _protocol attribute
+        if(not driver._protocol):
+            config = {'mock_port_agent' : mock_port_agent}
+            driver.configure(config = config)
+            driver.connect()
+            current_state = driver.get_resource_state()
+            self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Verify we have driver internals running
+        self.assertIsNotNone(driver._protocol)
+        self.assertIsNotNone(driver._protocol._protocol_fsm)
+
+    def assert_capabilities(self, driver, capabilities):
+        """
+        Verify all capabilities expected are in the FSM.  Then verify that the capabilities
+        available for each state.
+        @param driver: a mocked up driver
+        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
+        """
+        self.assert_protocol_states(driver,capabilities)
+        self.assert_all_capabilities(driver,capabilities)
+        self.assert_state_capabilities(driver,capabilities)
+
+    def assert_protocol_states(self, driver, capabilities):
+        """
+        Verify that the protocol states defined in the driver match the list of states in the
+        capabilities dictionary.
+        @param driver: a mocked up driver
+        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
+        """
+        self.assert_driver_connect(driver)
+        fsm_states = sorted(driver._protocol._protocol_fsm.states.list())
+        self.assertTrue(fsm_states)
+
+        expected_states = sorted(capabilities.keys())
+
+        log.debug("Defined Protocol States: %s" % fsm_states)
+        log.debug("Expected Protocol States: %s" % expected_states)
+
+        self.assertEqual(fsm_states, expected_states)
+
+
+    def assert_all_capabilities(self, driver, capabilities):
+        """
+        Build a list of all the capabilities in the passed in dict and verify they are all availalbe
+        in the FSM
+        @param driver: a mocked up driver
+        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
+        """
+        self.assert_driver_connect(driver)
+        all_capabilities = sorted(driver._protocol._protocol_fsm.get_events(current_state=False))
+        expected_capabilities = []
+
+        for (state, capability_list) in capabilities.items():
+            for s in capability_list:
+                if(not s in expected_capabilities):
+                    expected_capabilities.append(s)
+
+        expected_capabilities.sort()
+
+        log.debug("All Reported Capabilities: %s" % all_capabilities)
+        log.debug("All Expected Capabilities: %s" % expected_capabilities)
+
+        self.assertEqual(all_capabilities, expected_capabilities)
+
+
+    def assert_state_capabilities(self, driver, capabilities):
+        """
+        Walk through all instrument states and verify fsm capabilities available
+        as reported by the driver.
+        @param driver: a mocked up driver
+        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
+        """
+        self.assert_driver_connect(driver)
+        driver.set_test_mode(True)
+
+        # Verify state specific capabilities
+        for (state, capability_list) in capabilities.items():
+            driver.test_force_state(state=state)
+            reported_capabilities = sorted(driver._protocol._protocol_fsm.get_events(current_state=True))
+            expected_capabilities = sorted(capability_list)
+
+            log.debug("Current Driver State: %s" % state)
+            log.debug("Expected Capabilities: %s" % expected_capabilities)
+            log.debug("Reported Capabilities: %s" % reported_capabilities)
+
+            self.assertEqual(reported_capabilities, expected_capabilities)
 
 
 class InstrumentDriverTestCase(MiIntTestCase):
@@ -832,6 +961,36 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         driver.test_force_state(state = initial_protocol_state)
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, initial_protocol_state)
+
+    def assert_raw_particle_published(self, driver, assert_callback, verify_values = False):
+        """
+        Verify that every call to got_data publishes a raw data particle
+
+        Create a port agent packet, send it through got_data, then finally grab the data particle
+        from the data particle queue and verify it using the passed in assert method.
+        @param driver: instrument driver with mock port agent client
+        @param verify_values: Should we validate values?
+        """
+        sample_data = SAMPLE_RAW_DATA
+        log.debug("Sample to publish: %s" % sample_data)
+
+        # Create and populate the port agent packet.
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data(sample_data)
+        port_agent_packet.pack_header()
+
+        self.clear_data_particle_queue()
+
+        # Push the data into the driver
+        driver._protocol.got_data(port_agent_packet)
+        self.assertEqual(len(self._data_particle_received), 1)
+        particle = self._data_particle_received.pop()
+        particle_dict = json.loads(particle)
+        log.debug("Raw Particle: %s" % particle_dict)
+
+        # Verify the data particle
+        self.assert_particle_raw(particle_dict, verify_values)
+
 
     def assert_particle_published(self, driver, sample_data, particle_assert_method, verify_values = False):
         """

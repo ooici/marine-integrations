@@ -1,6 +1,6 @@
 """
 @package mi.instrument.seabird.sbe26plus.ooicore.test.test_driver
-@file /Users/unwin/OOI/Workspace/code/marine-integrations/mi/instrument/seabird/sbe26plus/ooicore/driver.py
+@file mi/instrument/seabird/sbe26plus/ooicore/driver.py
 @author Roger Unwin
 @brief Test cases for ooicore driver
 

@@ -781,12 +781,12 @@ class SatlanticParProtocolQualificationTest(InstrumentDriverQualificationTestCas
         """
 
         if (isinstance(val, SatlanticPARDataParticle)):
-            sample_dict = json.loads(val.generate_parsed())
+            sample_dict = json.loads(val.generate())
         else:
             sample_dict = val
 
         self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
-            DataParticleValue.PARSED)
+            DataParticleType.PARSED)
         self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
             DataParticleValue.JSON_DATA)
         self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)

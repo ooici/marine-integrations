@@ -25,7 +25,7 @@ from mock import Mock
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
 from nose.plugins.attrib import attr
-from mi.idk.unit_test import InstrumentDriverDataParticleMixin
+from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
@@ -68,56 +68,6 @@ parsed_stream_received = False
 ###
 #   Driver parameters for the tests
 ###
-
-PARAMS = {
-    # DS # parameters - contains all setsampling parameters
-    Parameter.DEVICE_VERSION : str,
-    Parameter.SERIAL_NUMBER : str,
-    Parameter.DS_DEVICE_DATE_TIME : str,
-    Parameter.USER_INFO : str,
-    Parameter.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER : float,
-    Parameter.QUARTZ_PRESSURE_SENSOR_RANGE : float,
-    Parameter.EXTERNAL_TEMPERATURE_SENSOR : bool,
-    Parameter.CONDUCTIVITY : bool,
-    Parameter.IOP_MA : float,
-    Parameter.VMAIN_V : float,
-    Parameter.VLITH_V : float,
-    Parameter.LAST_SAMPLE_P : float,
-    Parameter.LAST_SAMPLE_T : float,
-    Parameter.LAST_SAMPLE_S : float,
-    Parameter.TIDE_INTERVAL : int,
-    Parameter.TIDE_MEASUREMENT_DURATION : int,
-    Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : float,
-    Parameter.WAVE_SAMPLES_PER_BURST : int,
-    Parameter.WAVE_SAMPLES_SCANS_PER_SECOND : float,
-    Parameter.USE_START_TIME : bool,
-    Parameter.USE_STOP_TIME : bool,
-    Parameter.TIDE_SAMPLES_PER_DAY : float,
-    Parameter.WAVE_BURSTS_PER_DAY : float,
-    Parameter.MEMORY_ENDURANCE : float,
-    Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE : float,
-    Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS : float,
-    Parameter.TOTAL_RECORDED_WAVE_BURSTS : float,
-    Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START : float,
-    Parameter.WAVE_BURSTS_SINCE_LAST_START : float,
-    Parameter.TXREALTIME : bool,
-    Parameter.TXWAVEBURST : bool,
-    Parameter.TXWAVESTATS : bool,
-    Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS : int,
-    Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC : bool,
-    Parameter.USE_MEASURED_TEMP_FOR_DENSITY_CALC : bool,
-    Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR : float,
-    Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR : float,
-    Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM : float,
-    Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND : int,
-    Parameter.MIN_ALLOWABLE_ATTENUATION : float,
-    Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : float,
-    Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM : float,
-    Parameter.HANNING_WINDOW_CUTOFF : float,
-    Parameter.SHOW_PROGRESS_MESSAGES : bool,
-    Parameter.STATUS : str,
-    Parameter.LOGGING : bool,
-}
 
 
 SAMPLE_TIDE_DATA = "tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404" + NEWLINE
@@ -374,13 +324,62 @@ SAMPLE_DC =\
 "dc" + NEWLINE + SAMPLE_DEVICE_CALIBRATION +\
 "S>"
 
-class DataParticleMixin(InstrumentDriverDataParticleMixin):
+class DataParticleMixin(DriverTestMixin):
     '''
     Mixin class used for storing data particle constance and common data assertion methods.
     '''
     ###
-    #   Particle Parameter and Type Definitions
+    #  Parameter and Type Definitions
     ###
+    _driver_parameters = {
+        # DS # parameters - contains all setsampling parameters
+        Parameter.DEVICE_VERSION : str,
+        Parameter.SERIAL_NUMBER : str,
+        Parameter.DS_DEVICE_DATE_TIME : str,
+        Parameter.USER_INFO : str,
+        Parameter.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER : float,
+        Parameter.QUARTZ_PRESSURE_SENSOR_RANGE : float,
+        Parameter.EXTERNAL_TEMPERATURE_SENSOR : bool,
+        Parameter.CONDUCTIVITY : bool,
+        Parameter.IOP_MA : float,
+        Parameter.VMAIN_V : float,
+        Parameter.VLITH_V : float,
+        Parameter.LAST_SAMPLE_P : float,
+        Parameter.LAST_SAMPLE_T : float,
+        Parameter.LAST_SAMPLE_S : float,
+        Parameter.TIDE_INTERVAL : int,
+        Parameter.TIDE_MEASUREMENT_DURATION : int,
+        Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : float,
+        Parameter.WAVE_SAMPLES_PER_BURST : int,
+        Parameter.WAVE_SAMPLES_SCANS_PER_SECOND : float,
+        Parameter.USE_START_TIME : bool,
+        Parameter.USE_STOP_TIME : bool,
+        Parameter.TIDE_SAMPLES_PER_DAY : float,
+        Parameter.WAVE_BURSTS_PER_DAY : float,
+        Parameter.MEMORY_ENDURANCE : float,
+        Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE : float,
+        Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS : float,
+        Parameter.TOTAL_RECORDED_WAVE_BURSTS : float,
+        Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START : float,
+        Parameter.WAVE_BURSTS_SINCE_LAST_START : float,
+        Parameter.TXREALTIME : bool,
+        Parameter.TXWAVEBURST : bool,
+        Parameter.TXWAVESTATS : bool,
+        Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS : int,
+        Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC : bool,
+        Parameter.USE_MEASURED_TEMP_FOR_DENSITY_CALC : bool,
+        Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR : float,
+        Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR : float,
+        Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM : float,
+        Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND : int,
+        Parameter.MIN_ALLOWABLE_ATTENUATION : float,
+        Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : float,
+        Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM : float,
+        Parameter.HANNING_WINDOW_CUTOFF : float,
+        Parameter.SHOW_PROGRESS_MESSAGES : bool,
+        Parameter.STATUS : str,
+        Parameter.LOGGING : bool,
+        }
 
     _tide_sample_parameters = {
         SBE26plusTideSampleDataParticleKey.TIMESTAMP: { 'type': float, 'value': 3558413454.0 },
@@ -499,7 +498,22 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
         SBE26plusDeviceStatusDataParticleKey.LOGGING: { 'type': bool, 'value': False },
     }
 
-    def assertSampleDataParticle(self, data_particle):
+
+    ###
+    #   Driver Parameter Methods
+    ###
+    def assert_driver_parameters(self, current_parameters, verify_values = False):
+        """
+        Verify that all driver parameters are correct and potentially verify values.
+        @param current_parameters: driver parameters read from the driver instance
+        @param verify_values: should we verify values against definition?
+        """
+        self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
+
+    ###
+    #   Data Particle Parameters Methods
+    ###
+    def assert_sample_data_particle(self, data_particle):
         '''
         Verify a particle is a know particle to this driver and verify the particle is
         correct
@@ -636,6 +650,8 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
+        self.assert_raw_particle_published(driver, True)
+
         # Start validating data particles
         self.assert_particle_published(driver, SAMPLE_TIDE_DATA, self.assert_particle_tide_sample, True)
         self.assert_particle_published(driver, SAMPLE_WAVE_BURST, self.assert_particle_wave_burst, True)
@@ -662,45 +678,47 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
         self.assertEquals(driver_capabilities, protocol._filter_capabilities(test_capabilities))
 
 
-    def test_get_resource_capabilities(self):
+    def test_driver_parameters(self):
+        """
+        Verify the set of parameters known by the driver
+        """
         driver = InstrumentDriver(self._got_data_event_callback)
-        driver._build_protocol()
-        p = driver._protocol
-        args = []
-        kwargs = {}
-
-        # Force State UNKNOWN
+        self.assert_driver_connect(driver)
         driver.set_test_mode(True)
-        driver.test_force_state(state = DriverProtocolState.UNKNOWN)
+        driver.test_force_state(state=ProtocolState.COMMAND)
 
-        ret = driver.get_resource_capabilities(*args, **kwargs)
-        self.assertEqual(ret[0], [])
+        expected_parameters = sorted(self._driver_parameters.keys())
+        reported_parameters = sorted(driver.get_resource(Parameter.ALL))
 
-        # Force State COMMAND
-        driver.test_force_state(state = DriverProtocolState.COMMAND)
+        log.debug("Reported Parameters: %s" % reported_parameters)
+        log.debug("Expected Parameters: %s" % expected_parameters)
 
-        ret = driver.get_resource_capabilities(*args, **kwargs)
-        for state in ['DRIVER_EVENT_ACQUIRE_STATUS', 'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                      'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
-
-            self.assertTrue(state in ret[0])
-        self.assertEqual(len(ret[0]), 4)
-
-        # Force State AUTOSAMPLE
-        driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
-
-        ret = driver.get_resource_capabilities(*args, **kwargs)
-        for state in ['DRIVER_EVENT_STOP_AUTOSAMPLE']:
-            self.assertTrue(state in ret[0])
-        self.assertEqual(len(ret[0]), 1)
-
-        # Force State DIRECT_ACCESS
-        driver.test_force_state(state = DriverProtocolState.DIRECT_ACCESS)
-
-        ret = driver.get_resource_capabilities(*args, **kwargs)
-        self.assertEqual(ret[0], [])
+        self.assertEqual(reported_parameters, expected_parameters)
 
 
+    def test_capabilities(self):
+        """
+        Verify the FSM reports capabilities as expected.  All states defined in this dict must
+        also be defined in the protocol FSM.
+        """
+        capabilities = {
+            ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER', 'DRIVER_FORCE_STATE'],
+            ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                    'DRIVER_EVENT_ACQUIRE_STATUS',
+                                    'DRIVER_EVENT_CLOCK_SYNC',
+                                    'DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_SET',
+                                    'DRIVER_EVENT_START_AUTOSAMPLE',
+                                    'DRIVER_EVENT_START_DIRECT',
+                                    'PROTOCOL_EVENT_INIT_LOGGING',
+                                    'PROTOCOL_EVENT_QUIT_SESSION',
+                                    'PROTOCOL_EVENT_SETSAMPLING'],
+            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET', 'DRIVER_EVENT_STOP_AUTOSAMPLE'],
+            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
+        }
+
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_capabilities(driver, capabilities)
 
 
 ###############################################################################

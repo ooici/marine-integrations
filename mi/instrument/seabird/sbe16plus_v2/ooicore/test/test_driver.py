@@ -241,9 +241,8 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
 
     def test_status_line(self):
         particle = SBE16StatusParticle(VALID_DS_RESPONSE, port_timestamp = 3558720820.531179)
-        parsed = particle.generate()
+        parsed = particle.generate_parsed()
 
-    @unittest.skip("Needs updating post publishing update")
     def test_got_data(self):
         """
         Create a mock port agent
@@ -310,6 +309,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
   
         test_driver._protocol.got_data(paPacket)
 
+        self.assertTrue(self.raw_stream_received is 1)
         self.assertTrue(self.parsed_stream_received is 1)
         
         test_sample = VALID_DS_RESPONSE
@@ -320,6 +320,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
   
         test_driver._protocol.got_data(paPacket)
 
+        self.assertTrue(self.raw_stream_received is 2)
         self.assertTrue(self.parsed_stream_received is 2)
         
                 

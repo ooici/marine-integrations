@@ -220,7 +220,7 @@ class DataParticle(object):
 class RawDataParticleKey(BaseEnum):
     PAYLOAD = "raw"
     LENGTH = "length"
-    PARTICLE_TYPE = "type"
+    TYPE = "packet_type"
     CHECKSUM = "checksum"
 
 class RawDataParticle(DataParticle):
@@ -245,7 +245,7 @@ class RawDataParticle(DataParticle):
 
         for param in ["raw", "length", "type", "checksum"]:
              if(not param in port_agent_packet.keys()):
-                  raise SampleException("raw data not a complete port agent packet")
+                  raise SampleException("raw data not a complete port agent packet. missing %s" % param)
 
 
         payload = None
@@ -282,7 +282,7 @@ class RawDataParticle(DataParticle):
                       DataParticleKey.VALUE_ID: RawDataParticleKey.LENGTH,
                       DataParticleKey.VALUE: length},
                   {
-                      DataParticleKey.VALUE_ID: RawDataParticleKey.PARTICLE_TYPE,
+                      DataParticleKey.VALUE_ID: RawDataParticleKey.TYPE,
                       DataParticleKey.VALUE: type},
                   {
                       DataParticleKey.VALUE_ID: RawDataParticleKey.CHECKSUM,
