@@ -19,7 +19,7 @@ from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.test.driver_tes
 from mi.instrument.teledyne.workhorse_adcp_5_beam_600khz.ooicore.defs import \
     AdcpUnitConnConfig
 
-from mi.core.instrument.driver_int_test_support import DriverIntegrationTestSupport
+#from mi.core.instrument.driver_int_test_support import DriverIntegrationTestSupport
 from nose.plugins.attrib import attr
 
 from mi.core.instrument.instrument_driver import InstrumentDriver

@@ -36,7 +36,7 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 
 from mi.core.exceptions import InstrumentProtocolException
@@ -112,14 +112,9 @@ SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
 STREAM_NAME_PARSED = 'parsed'
 STREAM_NAME_RAW = 'raw'
 
-"""
-DHE: Using ctd values right now; not sure what to use for isus yet.
-"""
-PACKET_CONFIG = {
-        'parsed' : ('prototype.sci_data.stream_defs', 'ctd_stream_packet'),
-        'raw' : None            
-}
-
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW,
+    PARSED = 'parsed',
 
 # @todo May need some regex(s) for data format returned...at least to confirm
 # that it is data.
@@ -486,6 +481,8 @@ class ISUSDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.PARSED
+
     def _build_parsed_values(self):
         """
         Take something in the autosample/TS format and split it into

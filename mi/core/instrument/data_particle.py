@@ -5,8 +5,7 @@
 @file mi/core/instrument/data_particle_generator.py
 @author Steve Foley
 @brief Contains logic to generate data particles to be exchanged between
-the driver and agent. This involves a JSON interchange format, raw vs parsed
-formats, etc.
+the driver and agent. This involves a JSON interchange format
 """
 
 __author__ = 'Steve Foley'
@@ -21,6 +20,9 @@ import json
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException
 from mi.core.log import get_logger ; log = get_logger()
+
+class CommonDataParticleType(BaseEnum):
+    RAW = "raw"
 
 class DataParticleKey(BaseEnum):
     PKT_FORMAT_ID = "pkt_format_id"
@@ -38,8 +40,6 @@ class DataParticleKey(BaseEnum):
 
 class DataParticleValue(BaseEnum):
     JSON_DATA = "JSON_Data"
-    RAW = "raw"
-    PARSED = "parsed"
     ENG = "eng"
     OK = "ok"
     CHECKSUM_FAILED = "checksum_failed"
@@ -58,6 +58,8 @@ class DataParticle(object):
     modify fields in the outgoing packet. The hope is to have most of the superclass
     code be called by the child class with just values overridden as needed.
     """
+
+    _data_particle_type = None
 
     def __init__(self, raw_data,
                  port_timestamp=None,
@@ -104,55 +106,18 @@ class DataParticle(object):
         else:
             raise NotImplementedException("Value %s not available in particle!", id)
         
-    def generate_raw(self):
-        """
-        Generates a JSON packet from raw bytes of sensor data and associates a
-        timestamp with it
-        
-        @return A JSON_raw string, properly structured with port agent time stamp
-           and driver timestamp
-        @throws SampleException If there is a problem with the inputs
-        """
-        for time in [DataParticleKey.INTERNAL_TIMESTAMP,
-                     DataParticleKey.DRIVER_TIMESTAMP,
-                     DataParticleKey.PORT_TIMESTAMP]:
-            if  not self._check_timestamp(self.contents[time]):
-                raise SampleException("Invalid port agent timestamp in raw packet")
 
-        # verify preferred timestamp exists in the structure...
-        if not self._check_preferred_timestamps():
-            raise SampleException("Preferred timestamp, %s, not in particle!" %
-                                  self.contents[DataParticleKey.PREFERRED_TIMESTAMP])
-        
-        # build response structure
-        result = self._build_base_structure()
-        result[DataParticleKey.STREAM_NAME] = DataParticleValue.RAW
-        result[DataParticleKey.VALUES] = self._build_raw_values()
-        
-        # JSONify response, sorting is nice for testing
-        json_result = json.dumps(result, sort_keys=True)
-        
-        # return result
-        return json_result
-        
-    def _build_raw_values(self):
+    def data_particle_type(self):
         """
-        Build just the values list for a raw data structure. This will be
-        added to the "values" tag in the JSON structure. Just the structure
-        is built so that a child class can override this class, but call it
-        with super() to get the base structure before modification
-        
-        @returns A list that is ready to be added to the "values" tag before
-           the structure is JSONified
+        Return the data particle type (aka stream name)
+        @raise: NotImplementedException if _data_particle_type is not set
         """
-        result = [{
-            DataParticleKey.VALUE_ID: DataParticleValue.RAW,
-            DataParticleKey.VALUE: base64.b64encode(self.raw_data),
-            DataParticleKey.BINARY: True}]
+        if(self._data_particle_type == None):
+            raise NotImplementedException("_data_particle_type not initialized")
 
-        return result
-        
-    def generate_parsed(self):
+        return self._data_particle_type
+
+    def generate(self):
         """
         Generates a JSON_parsed packet from a sample dictionary of sensor data and
         associates a timestamp with it
@@ -175,7 +140,7 @@ class DataParticle(object):
         
         # build response structure
         result = self._build_base_structure()
-        result[DataParticleKey.STREAM_NAME] = DataParticleValue.PARSED
+        result[DataParticleKey.STREAM_NAME] = self.data_particle_type()
         result[DataParticleKey.VALUES] = self._build_parsed_values()
         
         # JSONify response, sorting is nice for testing
@@ -251,3 +216,77 @@ class DataParticle(object):
                                   self.contents[DataParticleKey.PREFERRED_TIMESTAMP])
         
         return True
+
+class RawDataParticleKey(BaseEnum):
+    PAYLOAD = "raw"
+    LENGTH = "length"
+    TYPE = "type"
+    CHECKSUM = "checksum"
+
+class RawDataParticle(DataParticle):
+    """
+    This class a common data particle for generating data particles of raw
+    data.
+
+    It essentially is a translation of the port agent packet
+    """
+    _data_particle_type = CommonDataParticleType.RAW
+
+    def _build_parsed_values(self):
+        """
+        Build a particle out of a port agent packet.
+        @returns A list that is ready to be added to the "values" tag before
+           the structure is JSONified
+        """
+
+        port_agent_packet = self.raw_data
+        if(not isinstance(port_agent_packet, dict)):
+            raise SampleException("raw data not a dictionary")
+
+        for param in ["raw", "length", "type", "checksum"]:
+             if(not param in port_agent_packet.keys()):
+                  raise SampleException("raw data not a complete port agent packet. missing %s" % param)
+
+
+        payload = None
+        length = None
+        type = None
+        checksum = None
+
+        # Attempt to convert values
+        try: 
+            payload = base64.b64encode(port_agent_packet.get("raw"))
+        except TypeError:
+            pass
+
+        try: 
+            length = int(port_agent_packet.get("length"))
+        except TypeError: 
+            pass
+
+        try: 
+            type = int(port_agent_packet.get("type"))
+        except TypeError: 
+            pass
+
+        try: 
+            checksum = int(port_agent_packet.get("checksum"))
+        except TypeError: 
+            pass
+
+        result = [{
+                      DataParticleKey.VALUE_ID: RawDataParticleKey.PAYLOAD,
+                      DataParticleKey.VALUE: payload,
+                      DataParticleKey.BINARY: True},
+                  {
+                      DataParticleKey.VALUE_ID: RawDataParticleKey.LENGTH,
+                      DataParticleKey.VALUE: length},
+                  {
+                      DataParticleKey.VALUE_ID: RawDataParticleKey.TYPE,
+                      DataParticleKey.VALUE: type},
+                  {
+                      DataParticleKey.VALUE_ID: RawDataParticleKey.CHECKSUM,
+                      DataParticleKey.VALUE: checksum},
+        ]
+
+        return result

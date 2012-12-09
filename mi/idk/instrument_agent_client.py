@@ -24,6 +24,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from pyon.core import bootstrap
 bootstrap.testing = False
 
+from mi.core.common import BaseEnum
 from mi.idk.config import Config
 
 from mi.idk.exceptions import TestNoDeployFile
@@ -307,14 +308,19 @@ class InstrumentAgentDataSubscribers(object):
         self.samples_received = {}
         self.data_subscribers = {}
         self.container = Container.instance
-        if not self.container:
-            raise NoContainer()
 
         self._build_stream_config()        
+
 
     def _build_stream_config(self):
         """
         """
+        if(not self.packet_config):
+            return
+
+        streams = self.packet_config
+        log.debug("Streams: %s", streams)
+
         # Create a pubsub client to create streams.
         pubsub_client = PubsubManagementServiceClient(node=self.container.node)
         dataset_management = DatasetManagementServiceClient() 
@@ -322,15 +328,15 @@ class InstrumentAgentDataSubscribers(object):
         # Create streams and subscriptions for each stream named in driver.
         self.stream_config = {}
 
-        streams = self.packet_config
-
-        for (stream_name, param_dict_name) in streams.iteritems():
+        for stream_name in streams:
             pd_id = dataset_management.read_parameter_dictionary_by_name(DEFAULT_PARAM_DICT, id_only=True)
             if(not pd_id):
                 log.error("No pd_id found for param_dict '%s'" % DEFAULT_PARAM_DICT)
 
             stream_def_id = pubsub_client.create_stream_definition(name=stream_name,
                                                                    parameter_dictionary_id=pd_id)
+            log.debug("Stream: %s (%s), stream_def_id %s" % (stream_name, type(stream_name), stream_def_id))
+
             #pd = pubsub_client.read_stream_definition(stream_def_id).parameter_dictionary
             pd = None
 

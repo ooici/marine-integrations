@@ -126,10 +126,24 @@ class PortAgentPacket():
     
     def get_header(self):
         return self.__header
-    
+
     def get_data(self):
         return self.__data
-    
+
+    def get_timestamp(self):
+        return self.__port_agent_timestamp
+
+    def get_as_dict(self):
+        """
+        Return a dictionary representation of a port agent packet
+        """
+        return {
+            'type': self.__type,
+            'length': self.__length,
+            'checksum': self.__checksum,
+            'raw': self.__data
+        }
+
     def is_valid(self):
         return self.__isValid
                     

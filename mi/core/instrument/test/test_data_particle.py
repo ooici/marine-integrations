@@ -19,8 +19,11 @@ from mi.core.unit_test import MiUnitTestCase
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.data_particle import RawDataParticle, CommonDataParticleType
+from mi.core.instrument.port_agent_client import PortAgentPacket
 
 TEST_PARTICLE_VERSION = 1
+TEST_PARTICLE_TYPE = 'test_particle_foo'
 
 @attr('UNIT', group='mi')
 class TestUnitDataParticle(MiUnitTestCase):
@@ -38,6 +41,8 @@ class TestUnitDataParticle(MiUnitTestCase):
         @retval Value list for parased data set [{'value_id': foo,
                                                  'value': bar}, ...]                                   
         """
+        _data_particle_type = TEST_PARTICLE_TYPE
+
         def _build_parsed_values(self):
             result = [{DataParticleKey.VALUE_ID: "temp",
                        DataParticleKey.VALUE: "23.45"},
@@ -46,7 +51,14 @@ class TestUnitDataParticle(MiUnitTestCase):
                       {DataParticleKey.VALUE_ID: "depth",
                        DataParticleKey.VALUE: "305.16"}]
             return result
-    
+
+    class BadDataParticle(DataParticle):
+         """
+         Define a data particle that doesn't initialize _data_particle_type.
+         Should raise an exception when _data_particle_type isn't initialized
+         """
+         pass
+
     def setUp(self):
         """
         """
@@ -63,7 +75,7 @@ class TestUnitDataParticle(MiUnitTestCase):
         self.sample_parsed_particle = {
                                 DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
                                 DataParticleKey.PKT_VERSION: TEST_PARTICLE_VERSION,
-                                DataParticleKey.STREAM_NAME: DataParticleValue.PARSED,
+                                DataParticleKey.STREAM_NAME: TEST_PARTICLE_TYPE,
                                 DataParticleKey.PORT_TIMESTAMP: self.sample_port_timestamp,
                                 DataParticleKey.DRIVER_TIMESTAMP: self.sample_driver_timestamp,
                                 DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.DRIVER_TIMESTAMP,
@@ -78,61 +90,74 @@ class TestUnitDataParticle(MiUnitTestCase):
                                     ]
                                 }
 
-        self.raw_test_particle = self.TestDataParticle(self.sample_raw_data,
+        self.port_agent_packet = PortAgentPacket()
+        self.port_agent_packet.attach_data(self.sample_raw_data)
+        self.port_agent_packet.pack_header()
+
+        self.raw_test_particle = RawDataParticle(self.port_agent_packet.get_as_dict(),
                                     port_timestamp=self.sample_port_timestamp,
                                     internal_timestamp=self.sample_internal_timestamp)
+
         self.sample_raw_particle = {
                                DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
                                DataParticleKey.PKT_VERSION: TEST_PARTICLE_VERSION,
-                               DataParticleKey.STREAM_NAME: DataParticleValue.RAW,
+                               DataParticleKey.STREAM_NAME: CommonDataParticleType.RAW,
                                DataParticleKey.INTERNAL_TIMESTAMP: self.sample_internal_timestamp,
                                DataParticleKey.PORT_TIMESTAMP: self.sample_port_timestamp,
                                DataParticleKey.DRIVER_TIMESTAMP: self.sample_driver_timestamp,
                                DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
                                DataParticleKey.QUALITY_FLAG: "ok",
                                DataParticleKey.VALUES: [
-                                  {
-                                    DataParticleKey.VALUE_ID: "raw",
-                                    DataParticleKey.VALUE: base64.b64encode(self.sample_raw_data),
-                                    "binary": True
-                                  }
+                                   { DataParticleKey.VALUE_ID: "raw",
+                                     DataParticleKey.VALUE: base64.b64encode(self.sample_raw_data),
+                                     "binary": True },
+                                   { DataParticleKey.VALUE_ID: "length",
+                                     DataParticleKey.VALUE: int(31)},
+                                   { DataParticleKey.VALUE_ID: "type",
+                                     DataParticleKey.VALUE: int(2)},
+                                  { DataParticleKey.VALUE_ID: "checksum",
+                                    DataParticleKey.VALUE: int(2392)},
                                   ]
                                 }
 
-    def test_generate_raw(self):
+    def test_parsed_generate(self):
         """
-        Test generation of a raw format data particle
-        """
-        raw_result = self.raw_test_particle.generate_raw()
-        decoded_raw = json.loads(raw_result)
-        
-        driver_time = decoded_raw["driver_timestamp"]
-        self.sample_raw_particle["driver_timestamp"] = driver_time
-        
-        # run it through json so unicode and everything lines up
-        standard = json.dumps(self.sample_raw_particle, sort_keys=True)
-        self.assertEqual(raw_result, standard)
-        
-    
-    def test_generate_parsed(self):
-        """
-        Test generation of a parsed format data particle
+        Test generation of a data particle
         """
         # Create some sample data as a param dict
         # Submit it to a data particle generator with a timestamp
         # compare to JSON-ified output
         #   Be sure to check timestamp format as BASE64 and de-encode it.
         #   Sanity check it as well.
-        parsed_result = self.parsed_test_particle.generate_parsed()
+        parsed_result = self.parsed_test_particle.generate()
         decoded_parsed = json.loads(parsed_result)
-        
+
         driver_time = decoded_parsed["driver_timestamp"]
         self.sample_parsed_particle["driver_timestamp"] = driver_time
-        
+
         # run it through json so unicode and everything lines up
         standard = json.dumps(self.sample_parsed_particle, sort_keys=True)
         self.assertEqual(parsed_result, standard)
-        
+
+    def test_raw_generate(self):
+        """
+        Test generation of a raw data particle
+        """
+        # Create some sample data as a param dict
+        # Submit it to a data particle generator with a timestamp
+        # compare to JSON-ified output
+        #   Be sure to check timestamp format as BASE64 and de-encode it.
+        #   Sanity check it as well.
+        raw_result = self.raw_test_particle.generate()
+        decoded_raw = json.loads(raw_result)
+
+        driver_time = decoded_raw["driver_timestamp"]
+        self.sample_raw_particle["driver_timestamp"] = driver_time
+
+        # run it through json so unicode and everything lines up
+        standard = json.dumps(self.sample_raw_particle, sort_keys=True)
+        self.assertEqual(raw_result, standard)
+
     def test_timestamps(self):
         """
         Test bad timestamp configurations
@@ -141,7 +166,7 @@ class TestUnitDataParticle(MiUnitTestCase):
             preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
             internal_timestamp=self.sample_internal_timestamp)
 
-        self.assertRaises(SampleException, test_particle.generate_raw)
+        self.assertRaises(SampleException, test_particle.generate)
     
     def test_get_set_value(self):
         """
@@ -167,4 +192,15 @@ class TestUnitDataParticle(MiUnitTestCase):
         
         self.assertRaises(NotImplementedException, test_particle.get_value,
                           "bad_key")
-        
+
+    def test_data_particle_type(self):
+        """
+        Test that the Data particle will raise an exception if the data particle type
+        is not set
+        """
+        particle = self.BadDataParticle(self.sample_raw_data,
+                                        port_timestamp=self.sample_port_timestamp,
+                                        internal_timestamp=self.sample_internal_timestamp)
+
+        with self.assertRaises(NotImplementedException):
+            particle.data_particle_type()

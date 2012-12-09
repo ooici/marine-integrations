@@ -26,7 +26,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from mi.core.common import InstErrorCode
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.exceptions import InstrumentException
@@ -56,14 +56,9 @@ RESET_DELAY = 6
 EOLN = "\r\n"
 RETRY = 3
 
-# Packet config for SBE37 data granules.
-STREAM_NAME_PARSED = DataParticleValue.PARSED
-STREAM_NAME_RAW = DataParticleValue.RAW
-
-PACKET_CONFIG = {
-    STREAM_NAME_PARSED : 'parsed_param_dict',
-    STREAM_NAME_RAW : 'raw_param_dict'
-}
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW
+    PARSED = 'parsed'
 
 class PARSpecificDriverEvents(BaseEnum):
     START_POLL = 'DRIVER_EVENT_START_POLL'
@@ -180,6 +175,8 @@ class SatlanticPARDataParticle(DataParticle):
     Satlantic PAR sensor. Overrides the building of values, and the rest comes
     along for free.
     """
+    _data_particle_type = DataParticleType.PARSED
+
     def _build_parsed_values(self):
         """
         Take something in the sample format and split it into

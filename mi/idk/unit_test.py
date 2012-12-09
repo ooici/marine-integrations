@@ -39,6 +39,8 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from ion.agents.instrument.driver_process import DriverProcess, DriverProcessType
 
+from interface.objects import AgentCommand
+
 from mi.idk.util import convert_enum_to_dict
 from mi.idk.comm_config import CommConfig
 from mi.idk.config import Config
@@ -46,33 +48,33 @@ from mi.idk.common import Singleton
 from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.instrument_agent_client import InstrumentAgentDataSubscribers
 from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
-from mi.core.instrument.instrument_driver import DriverProtocolState
-from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.idk.exceptions import IDKException
 from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import TestNoCommConfig
-from mi.core.exceptions import InstrumentException
-from pyon.core.exception import Conflict
 
+from mi.core.exceptions import InstrumentException
+from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.data_particle import CommonDataParticleType
+from mi.core.instrument.data_particle import DataParticle
+from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import DataParticleValue
+from mi.core.instrument.data_particle import RawDataParticle
+from mi.core.instrument.data_particle import RawDataParticleKey
+from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.tcp_client import TcpClient
 from mi.core.common import BaseEnum
 
-from interface.objects import AgentCommand
-
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-
 from ion.agents.instrument.common import InstErrorCode
-from mi.core.instrument.instrument_driver import DriverConnectionState
-
 from ion.agents.port.port_agent_process import PortAgentProcess
 
+from pyon.core.exception import Conflict
 from pyon.agent.agent import ResourceAgentState
-
 from pyon.agent.agent import ResourceAgentEvent
 
 # Do not remove this import.  It is for package building.
@@ -82,6 +84,7 @@ GO_ACTIVE_TIMEOUT=180
 GET_TIMEOUT=30
 SET_TIMEOUT=90
 EXECUTE_TIMEOUT=30
+SAMPLE_RAW_DATA="Iam Apublished Message"
 
 class AgentCapabilityType(BaseEnum):
     AGENT_COMMAND = 'agent_command'
@@ -136,7 +139,7 @@ class InstrumentDriverTestConfig(Singleton):
         
         self.instrument_agent_resource_id = kwargs.get('instrument_agent_resource_id')
         self.instrument_agent_name = kwargs.get('instrument_agent_name')
-        self.instrument_agent_packet_config = kwargs.get('instrument_agent_packet_config')
+        self.instrument_agent_packet_config = self._build_packet_config(kwargs.get('instrument_agent_packet_config'))
         self.instrument_agent_stream_definition = kwargs.get('instrument_agent_stream_definition')
         if kwargs.get('instrument_agent_module'):
             self.instrument_agent_module = kwargs.get('instrument_agent_module')
@@ -159,11 +162,57 @@ class InstrumentDriverTestConfig(Singleton):
 
         self.initialized = True
 
+    def _build_packet_config(self, param_config):
+        """
+        Build a packet config from various data types.
+        @param packet_config: packet config object. Can be enum, dict or list
+        @return list of stream names to create
+        """
+        params = []
+        if(isinstance(param_config, list)):
+            params = param_config
 
-class InstrumentDriverDataParticleMixin(MiUnitTest):
+        elif(isinstance(param_config, BaseEnum)):
+            params = param_config.list()
+
+        elif(isinstance(param_config, dict)):
+            params = [ value for (key, value) in param_config.items() ]
+
+        else:
+            log.error("Unknown param_config type")
+            return []
+
+        result = []
+        for i in params:
+            if(isinstance(i, tuple)):
+                log.debug("BLAMMM")
+                result.append(i[0])
+            else:
+                result.append(i)
+
+        return result
+
+
+class DriverTestMixin(MiUnitTest):
     """
     Base class for data particle mixin.  Used for data particle validation.
     """
+    _raw_sample_parameters = {
+        RawDataParticleKey.PAYLOAD: {'type': unicode, 'value': u'SWFtIEFwdWJsaXNoZWQgTWVzc2FnZQ=='},
+        RawDataParticleKey.LENGTH: {'type': int, 'value': 22},
+        RawDataParticleKey.TYPE: {'type': int, 'value': 2},
+        RawDataParticleKey.CHECKSUM: {'type': int, 'value': 2757}
+    }
+
+    def assert_particle_raw(self, data_particle, verify_values = False):
+        '''
+        Verify a raw data particles
+        @param data_particle:  SBE26plusTideSampleDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, CommonDataParticleType.RAW)
+        self.assert_data_particle_parameters(data_particle, self._raw_sample_parameters, verify_values)
+
     def convert_data_particle_to_dict(self, data_particle):
         """
         Convert a data particle object to a dict.  This will work for data particles as
@@ -172,7 +221,7 @@ class InstrumentDriverDataParticleMixin(MiUnitTest):
         @return: dictionary representation of a data particle
         """
         if (isinstance(data_particle, DataParticle)):
-            sample_dict = json.loads(data_particle.generate_parsed())
+            sample_dict = json.loads(data_particle.generate())
         elif (isinstance(data_particle, str)):
             sample_dict = json.loads(data_particle)
         elif (isinstance(data_particle, dict)):
@@ -198,7 +247,17 @@ class InstrumentDriverDataParticleMixin(MiUnitTest):
 
     def assert_data_particle_parameters(self, data_particle, param_dict, verify_values = False):
         """
-        Verify the data particles contain all parameters in the parameter enum and verify the
+        Alias for assert_parameters.
+
+        @param data_particle: the data particle to examine
+        @param parameter_dict: dict with parameter names and types
+        @param verify_values: bool should ve verify parameter values
+        """
+        self.assert_parameters(data_particle,param_dict,verify_values)
+
+    def assert_parameters(self, current_parameters, param_dict, verify_values = False):
+        """
+        Verify the parameters contain all parameters in the parameter enum and verify the
         types match those defined in the enum.
 
         parameter_dict_examples:
@@ -230,11 +289,11 @@ class InstrumentDriverDataParticleMixin(MiUnitTest):
 
         This will verify the type is a float, it is required and we will not validate the key.
 
-        @param data_particle: the data particle to examine
+        @param current_parameters: the current parameters to examine
         @param parameter_dict: dict with parameter names and types
         @param verify_values: bool should ve verify parameter values
         """
-        sample_dict = self.convert_data_particle_to_dict(data_particle)
+        sample_dict = self.convert_data_particle_to_dict(current_parameters)
         self.assertIsInstance(param_dict, dict)
 
         # Get the values in the data particle for parameter validation
@@ -339,9 +398,11 @@ class InstrumentDriverDataParticleMixin(MiUnitTest):
             # get the parameter value
             param_value = sample['value']
             log.debug("Data Particle Parameter (%s): %s" % (sample, type(param_value)))
+            log.debug("Particle Dict (%s)" % param_value)
 
             # get the parameter type
             param_def = param_dict.get(param_name)
+            log.debug("Particle Def (%s) " % param_def)
             self.assertIsNotNone(param_def)
             if(isinstance(param_def, dict)):
                 param_type = param_def.get(DataParticleParameterConfigKey.TYPE)
@@ -393,6 +454,7 @@ class InstrumentDriverDataParticleMixin(MiUnitTest):
 
             if(param_value):
                 self.assertIsInstance(param_value, param_type)
+
 
 
 class InstrumentDriverTestCase(MiIntTestCase):
@@ -711,10 +773,6 @@ class InstrumentDriverTestCase(MiIntTestCase):
         result = chunker.get_next_data()
         self.assertEqual(result, None)
 
-    ###
-    #   Common Unit Tests
-    ###
-
 
 class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
     """
@@ -758,7 +816,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         else:
             test_particle = particle_type(raw_input, port_timestamp=port_timestamp)
             
-        parsed_result = test_particle.generate_parsed()
+        parsed_result = test_particle.generate()
         decoded_parsed = json.loads(parsed_result)
         
         driver_time = decoded_parsed[DataParticleKey.DRIVER_TIMESTAMP]
@@ -768,6 +826,30 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         standard = json.dumps(happy_structure, sort_keys=True)
 
         self.assertEqual(parsed_result, standard)
+
+    def assert_force_state(self, driver, protocol_state):
+        """
+        For the driver state to protocol_state
+        @param driver: Instrument driver instance.
+        @param protocol_state: State to transistion to
+        """
+        driver.test_force_state(state = protocol_state)
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, protocol_state)
+
+    def assert_driver_connected(self, driver, initial_protocol_state = DriverProtocolState.AUTOSAMPLE):
+        """
+        Check to see if the driver is connected, if it isn't then initialize the driver.  Finally
+        force the instrument state to the initial_protocol_state.
+        @param driver: Instrument driver instance.
+        @param initial_protocol_state: the state to force the driver too
+        """
+        current_state = driver.get_resource_state()
+        if(current_state == DriverConnectionState.UNCONFIGURED):
+            self.assert_initialize_driver(driver, initial_protocol_state)
+        else:
+            self.assert_force_state(driver, initial_protocol_state)
+
 
     def assert_initialize_driver(self, driver, initial_protocol_state = DriverProtocolState.AUTOSAMPLE):
         """
@@ -802,9 +884,37 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
         # Force the instrument into a known state
-        driver.test_force_state(state = initial_protocol_state)
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, initial_protocol_state)
+        self.assert_force_state(driver, initial_protocol_state)
+
+    def assert_raw_particle_published(self, driver, assert_callback, verify_values = False):
+        """
+        Verify that every call to got_data publishes a raw data particle
+
+        Create a port agent packet, send it through got_data, then finally grab the data particle
+        from the data particle queue and verify it using the passed in assert method.
+        @param driver: instrument driver with mock port agent client
+        @param verify_values: Should we validate values?
+        """
+        sample_data = SAMPLE_RAW_DATA
+        log.debug("Sample to publish: %s" % sample_data)
+
+        # Create and populate the port agent packet.
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data(sample_data)
+        port_agent_packet.pack_header()
+
+        self.clear_data_particle_queue()
+
+        # Push the data into the driver
+        driver._protocol.got_data(port_agent_packet)
+        self.assertEqual(len(self._data_particle_received), 1)
+        particle = self._data_particle_received.pop()
+        particle_dict = json.loads(particle)
+        log.debug("Raw Particle: %s" % particle_dict)
+
+        # Verify the data particle
+        self.assert_particle_raw(particle_dict, verify_values)
+
 
     def assert_particle_published(self, driver, sample_data, particle_assert_method, verify_values = False):
         """
@@ -836,7 +946,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
             particle_dict = json.loads(p)
             stream_type = particle_dict.get('stream_name')
             self.assertIsNotNone(stream_type)
-            if(stream_type != DataParticleValue.RAW):
+            if(stream_type != CommonDataParticleType.RAW):
                 particles.append(p)
 
         log.debug("Non raw particles: %s " % particles)
@@ -844,6 +954,83 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
 
         # Verify the data particle
         particle_assert_method(particles.pop(), verify_values)
+
+
+    def assert_capabilities(self, driver, capabilities):
+        """
+        Verify all capabilities expected are in the FSM.  Then verify that the capabilities
+        available for each state.
+        @param driver: a mocked up driver
+        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
+        """
+        self.assert_protocol_states(driver,capabilities)
+        self.assert_all_capabilities(driver,capabilities)
+        self.assert_state_capabilities(driver,capabilities)
+
+    def assert_protocol_states(self, driver, capabilities):
+        """
+        Verify that the protocol states defined in the driver match the list of states in the
+        capabilities dictionary.
+        @param driver: a mocked up driver
+        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
+        """
+        self.assert_driver_connected(driver)
+        fsm_states = sorted(driver._protocol._protocol_fsm.states.list())
+        self.assertTrue(fsm_states)
+
+        expected_states = sorted(capabilities.keys())
+
+        log.debug("Defined Protocol States: %s" % fsm_states)
+        log.debug("Expected Protocol States: %s" % expected_states)
+
+        self.assertEqual(fsm_states, expected_states)
+
+
+    def assert_all_capabilities(self, driver, capabilities):
+        """
+        Build a list of all the capabilities in the passed in dict and verify they are all availalbe
+        in the FSM
+        @param driver: a mocked up driver
+        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
+        """
+        self.assert_driver_connected(driver)
+        all_capabilities = sorted(driver._protocol._protocol_fsm.get_events(current_state=False))
+        expected_capabilities = []
+
+        for (state, capability_list) in capabilities.items():
+            for s in capability_list:
+                if(not s in expected_capabilities):
+                    expected_capabilities.append(s)
+
+        expected_capabilities.sort()
+
+        log.debug("All Reported Capabilities: %s" % all_capabilities)
+        log.debug("All Expected Capabilities: %s" % expected_capabilities)
+
+        self.assertEqual(all_capabilities, expected_capabilities)
+
+
+    def assert_state_capabilities(self, driver, capabilities):
+        """
+        Walk through all instrument states and verify fsm capabilities available
+        as reported by the driver.
+        @param driver: a mocked up driver
+        @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
+        """
+        self.assert_driver_connected(driver)
+        driver.set_test_mode(True)
+
+        # Verify state specific capabilities
+        for (state, capability_list) in capabilities.items():
+            self.assert_force_state(driver, state)
+            reported_capabilities = sorted(driver._protocol._protocol_fsm.get_events(current_state=True))
+            expected_capabilities = sorted(capability_list)
+
+            log.debug("Current Driver State: %s" % state)
+            log.debug("Expected Capabilities: %s" % expected_capabilities)
+            log.debug("Reported Capabilities: %s" % reported_capabilities)
+
+            self.assertEqual(reported_capabilities, expected_capabilities)
 
 
 class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must inherit from here to get _start_container
@@ -867,6 +1054,45 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         InstrumentDriverTestCase.tearDown(self)
 
+    ###
+    #   Common assert methods
+    ###
+    def assert_initialize_driver(self, expected_state = DriverProtocolState.COMMAND):
+        """
+        Walk an uninitialized driver through it's initialize process.  Verify the final
+        state is correct.
+        @param expected_state: final state expected state after discover
+        """
+        log.info("test_connect test started")
+
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverProtocolState.UNKNOWN)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('discover_state')
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverProtocolState.COMMAND)
+
+    ###
+    #   Common Integration Tests
+    ###
     def test_driver_process(self):
         """
         @Brief Test for correct launch of driver process and communications, including asynchronous driver events.
@@ -927,6 +1153,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.container = self.instrument_agent_manager.container
 
+        log.debug("Packet Config: %s" % self.test_config.instrument_agent_packet_config)
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.instrument_agent_packet_config,
         )
@@ -1104,7 +1331,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         Verifies the acquire_status command.
         """
         # Set up all data subscriptions.  Stream names are defined
-        # in the driver PACKET_CONFIG dictionary
+        # in the test config singleton
         self.data_subscribers.start_data_subscribers()
         self.addCleanup(self.data_subscribers.stop_data_subscribers)
 
