@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Lytle Johnson
+  driver_make: sami
+  driver_model: pc02w
+  driver_name: cgsn
+  email: catrax@rockisland.com
+  release_notes: CGSN Initial ADCPT implmementation
+  version: '0.1'
