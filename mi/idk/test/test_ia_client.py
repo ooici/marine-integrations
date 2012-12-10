@@ -18,7 +18,7 @@ from mi.core.unit_test import MiUnitTest
 from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.instrument_agent_client import InstrumentAgentClient, InstrumentAgentDataSubscribers
 
-@attr('UNIT', group='mi')
+@attr('IDK', group='mi')
 class TestIAStart(MiUnitTest):
     """
     Test the instrument agent startup
