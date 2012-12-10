@@ -118,8 +118,17 @@ class BaseEnum(object):
     @classmethod
     def list(cls):
         """List the values of this enum."""
-        return [getattr(cls,attr) for attr in dir(cls) if \
-            not callable(getattr(cls,attr)) and not attr.startswith('__')]
+        return [getattr(cls,attr) for attr in dir(cls) if\
+                not callable(getattr(cls,attr)) and not attr.startswith('__')]
+
+    @classmethod
+    def dict(cls):
+        """Return a dict representation of this enum."""
+        result = {}
+        for attr in dir(cls):
+            if not callable(getattr(cls,attr)) and not attr.startswith('__'):
+                result[attr] = getattr(cls,attr)
+        return result
 
     @classmethod
     def has(cls, item):

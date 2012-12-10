@@ -41,9 +41,8 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
-from mi.instrument.seabird.sbe37smb.ooicore.driver import PACKET_CONFIG
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DataParticle
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Driver
+from mi.instrument.seabird.sbe37smb.ooicore.driver import DataParticleType
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolEvent
@@ -113,8 +112,7 @@ InstrumentDriverTestCase.initialize(
 
     instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'Agent007',
-    instrument_agent_packet_config = PACKET_CONFIG,
-    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
+    instrument_agent_packet_config = DataParticleType()
 )
 #
 
@@ -207,7 +205,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
     def test_zero_data(self):
         particle = SBE37DataParticle('#87.9140,5.42747, 556.864,   37.1829, 1506.961, 02 Jan 2001, 15:34:51',
                                      port_timestamp = 3558720820.531179)
-        parsed = particle.generate_parsed()
+        parsed = particle.generate()
         self.assertNotEquals(parsed, None)
         particle = SBE37DataParticle('#00.0000,5.42747, 556.864,   37.1829, 1506.961, 02 Jan 2001, 15:34:51',
                                      port_timestamp = 3558720820.531179)
@@ -223,15 +221,15 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         particle = SBE37DataParticle('#fo.oooo,5.42747, 556.864,   37.1829, 1506.961, 02 Jan 2001, 15:34:51',
                                      port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
-            particle.generate_parsed()
+            particle.generate()
         particle = SBE37DataParticle('#87.9140,f.ooooo, 556.864,   37.1829, 1506.961, 02 Jan 2001, 15:34:51',
                                      port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
-            particle.generate_parsed()
+            particle.generate()
         particle = SBE37DataParticle('#87.9140,5.42747, foo.ooo,   37.1829, 1506.961, 02 Jan 2001, 15:34:51',
                                      port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
-            particle.generate_parsed()
+            particle.generate()
 
 
 ###############################################################################

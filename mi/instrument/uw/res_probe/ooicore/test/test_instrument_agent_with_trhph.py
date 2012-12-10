@@ -24,11 +24,11 @@ from nose.plugins.attrib import attr
 from mock import patch
 
 # ION imports.
-from interface.objects import StreamQuery
+#from interface.objects import StreamQuery
 from interface.services.icontainer_agent import ContainerAgentClient
 from interface.services.dm.ipubsub_management_service import PubsubManagementServiceClient
-from pyon.public import StreamSubscriberRegistrar
-from prototype.sci_data.stream_defs import ctd_stream_definition
+#from pyon.public import StreamSubscriberRegistrar
+#from prototype.sci_data.stream_defs import ctd_stream_definition
 from pyon.agent.agent import ResourceAgentClient
 from interface.objects import AgentCommand
 from mi.core.unit_test import MiIntTestCase
@@ -84,6 +84,7 @@ class FakeProcess(LocalContextMixin):
     process_type = ''
 
 
+@unittest.skip("depricated tests")
 @attr('HARDWARE', group='mi')
 @patch.dict(CFG, {'endpoint':{'receive':{'timeout': 60}}})
 class TestInstrumentAgentWithTrhph(TrhphTestCase, MiIntTestCase):

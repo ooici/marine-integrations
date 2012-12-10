@@ -24,6 +24,9 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.data_particle import DataParticle
+from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 
 
@@ -33,16 +36,19 @@ NEWLINE = '\r\n'
 # default timeout.
 TIMEOUT = 10
 
-# Packet config
-PACKET_CONFIG = {
-    'parsed' : None,
-    'raw' : None
-}
+###
+#    Driver Constant Definitions
+###
+
+class DataParticleType(BaseEnum):
+    """
+    Data particle types produced by this driver
+    """
+    RAW = CommonDataParticleType.RAW
 
 class ProtocolState(BaseEnum):
     """
-    Protocol states
-    enum.
+    Instrument protocol states
     """
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
@@ -87,6 +93,11 @@ class Parameter(DriverParameter):
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
+    """
+
+class InstrumentCommand(BaseEnum):
+    """
+    Instrument command strings
     """
 
 
@@ -217,6 +228,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
+
+    def _filter_capabilities(self, events):
+        """
+        Return a list of currently available capabilities.
+        """
+        return [x for x in events if Capability.has(x)]
 
     ########################################################################
     # Unknown handlers.

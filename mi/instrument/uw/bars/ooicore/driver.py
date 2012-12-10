@@ -20,7 +20,7 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentTimeoutException
 
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict, ParameterDictVisibility
 
@@ -47,11 +47,10 @@ NEWLINE = '\r'
 # default timeout.
 TIMEOUT = 10
 
-# Packet config
-PACKET_CONFIG = {
-    DataParticleValue.PARSED:'trhph_parsed',
-    DataParticleValue.RAW:'raw'
-}
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW,
+    PARSED = 'parsed',
+
 
 class Command(BaseEnum):
     DIRECT_SET = "SET"
@@ -252,6 +251,8 @@ class BarsDataParticle(DataParticle):
     Satlantic PAR sensor. Overrides the building of values, and the rest comes
     along for free.
     """
+    _data_particle_type = DataParticleType.PARSED
+
     def _build_parsed_values(self):
         """
         Take something in the sample format and split it into

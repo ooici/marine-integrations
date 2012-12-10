@@ -37,13 +37,11 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictVal
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
-
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
 
 from mi.core.common import InstErrorCode
 
 from mi.core.log import get_logger ; log = get_logger()
-
 
 # newline.
 NEWLINE = '\n\r'
@@ -77,15 +75,11 @@ DIAGNOSTIC_DATA_HEADER_REGEX = re.compile(DIAGNOSTIC_DATA_HEADER_PATTERN, re.DOT
 DIAGNOSTIC_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % DIAGNOSTIC_DATA_SYNC_BYTES
 DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN, re.DOTALL)
 
-# Packet config for vector data granules.
-STREAM_NAME_PARSED = DataParticleValue.PARSED
-STREAM_NAME_RAW = DataParticleValue.RAW
-
-# Packet config
-PACKET_CONFIG = {
-    STREAM_NAME_PARSED : 'parsed_param_dict',
-    STREAM_NAME_RAW : 'raw_param_dict'
-}
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW
+    PARSED = 'parsed'
+    DIAGNOSTIC_DATA = 'data'
+    DIAGNOSTIC_HEADER = 'header'
 
 # Device prompts.
 class InstrumentPrompts(BaseEnum):
@@ -616,6 +610,8 @@ class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
     """
     Routine for parsing diagnostic data header into a data particle structure for the Aquadopp DW sensor. 
     """
+    _data_particle_type = DataParticleType.DIAGNOSTIC_HEADER
+
     def _build_parsed_values(self):
         """
         Take something in the diagnostic data header sample format and parse it into
@@ -726,6 +722,8 @@ class AquadoppDwVelocityDataParticle(DataParticle):
     """
     Routine for parsing velocity data into a data particle structure for the Aquadopp DW sensor. 
     """
+    _data_particle_type = DataParticleType.PARSED
+
     def _build_parsed_values(self):
         """
         Take something in the velocity data sample format and parse it into
@@ -838,6 +836,8 @@ class AquadoppDwDiagnosticDataParticle(AquadoppDwVelocityDataParticle):
     Routine for parsing diagnostic data into a data particle structure for the Aquadopp DW sensor. 
     This structure is the same as the velocity data, so particle is built with the same method
     """
+    _data_particle_type = DataParticleType.DIAGNOSTIC_DATA
+
     def _build_parsed_values(self):
         """
         Take something in the diagnostic data sample format and parse it into

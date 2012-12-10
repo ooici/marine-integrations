@@ -30,7 +30,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import ResourceAgentEvent
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
@@ -39,6 +39,10 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.log import get_logger
 log = get_logger()
+
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW
+    PARSED = 'parsed'
 
 class SBE37ProtocolState(BaseEnum):
     """
@@ -149,24 +153,6 @@ SAMPLE_PATTERN += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'
 SAMPLE_PATTERN += r'(, *(\d+)-(\d+)-(\d+), *(\d+):(\d+):(\d+))?'
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
         
-# Packet config for SBE37 data granules.
-STREAM_NAME_PARSED = DataParticleValue.PARSED
-STREAM_NAME_RAW = DataParticleValue.RAW
-#PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
-
-
-# TODO: Where are the param dict definitions kept and related to driver versions?
-PACKET_CONFIG = {
-    STREAM_NAME_PARSED : 'ctd_parsed_param_dict',
-    STREAM_NAME_RAW : 'ctd_raw_param_dict'
-}
-
-# TODO: remove this old definition:
-#PACKET_CONFIG = {
-#        'ctd_parsed' : ('prototype.sci_data.stream_defs', 'ctd_stream_packet'),
-#        'ctd_raw' : None
-#}
-
 ###############################################################################
 # Seabird Electronics 37-SMP MicroCAT Driver.
 ###############################################################################
@@ -210,6 +196,8 @@ class SBE37DataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.PARSED
+
     def _build_parsed_values(self):
         """
         Take something in the autosample/TS format and split it into
