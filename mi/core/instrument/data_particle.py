@@ -22,6 +22,10 @@ from mi.core.exceptions import SampleException, ReadOnlyException, NotImplemente
 from mi.core.log import get_logger ; log = get_logger()
 
 class CommonDataParticleType(BaseEnum):
+    """
+    This enum defines all the common particle types defined in the modules.  Currently there is only one, but by
+    using an enum here we have the opportunity to define more common data particles.
+    """
     RAW = "raw"
 
 class DataParticleKey(BaseEnum):
@@ -59,6 +63,9 @@ class DataParticle(object):
     code be called by the child class with just values overridden as needed.
     """
 
+    # data particle type is intended to be defined in each derived data particle class.  This value should be unique
+    # for all data particles.  Best practice is to access this variable using the accessor method:
+    # data_particle_type()
     _data_particle_type = None
 
     def __init__(self, raw_data,
