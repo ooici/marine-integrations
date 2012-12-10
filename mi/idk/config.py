@@ -116,7 +116,9 @@ class ConfigManager(Singleton):
         origin = idk_repo
 
         log.debug( "Does '%s' contain '%s'" % (origin, MI_REPO_NAME))
-        if origin.find(MI_REPO_NAME) < 0:
+        # Added second criteria as a quick fix to get buildbot working.  Need a better
+        # way of identifing the idk dir
+        if origin.find(MI_REPO_NAME) < 0 and origin.find('/build'):
             raise IDKWrongRunningDirectory(msg="Please run this process from the root your local MI git repository")
         
         self.set(YAML_CONFIG_WORKING_REPO, idk_repo)
