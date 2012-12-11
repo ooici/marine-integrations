@@ -65,22 +65,27 @@ class TestConfig(MiUnitTest):
 
     def write_config(self):
         outfile = open(self.config_file(), "a")
-        outfile.write("  couchdb: couchdb")
+        outfile.write("  couchdb: couchdb\n")
+        outfile.write("  start_couch: True\n")
+        outfile.write("  start_rabbit: True\n")
         outfile.close()
 
     def test_default_config(self):
         """Test that the default configuration is created"""
-        print "pbb"
+
         config = Config(ROOTDIR)
         self.assertTrue(config)
 
-        expected_string = "idk:\n  working_repo: %s\n" % config.get("working_repo")
+        expected_string = "idk:\n  start_couch: false\n  working_repo: %s\n  start_rabbit: false\n" % config.get("working_repo")
+
 
         self.assertEqual(expected_string, self.read_config())
         self.assertTrue(config.get("working_repo"))
         self.assertTrue(config.get("template_dir"))
         self.assertTrue(config.get("couchdb"))
         self.assertTrue(config.get("rabbitmq"))
+        self.assertTrue(False == config.get("start_rabbit"))
+        self.assertTrue(False == config.get("start_couch"))
 
     def test_overloaded_config(self):
         """Test that the overloaded configuration"""
@@ -94,13 +99,15 @@ class TestConfig(MiUnitTest):
 
 
 
-        expected_string = "idk:\n  working_repo: %s\n  couchdb: %s" % (config.get("working_repo"), config.get("couchdb"))
+        expected_string = "idk:\n  start_couch: false\n  working_repo: %s\n  start_rabbit: false\n  couchdb: %s\n  start_couch: True\n  start_rabbit: True\n" % (config.get("working_repo"), config.get("couchdb"))
 
         self.assertEqual(expected_string, self.read_config())
         self.assertEqual(config.get("couchdb"), "couchdb")
         self.assertTrue(config.get("working_repo"))
         self.assertTrue(config.get("template_dir"))
         self.assertTrue(config.get("rabbitmq"))
+        self.assertTrue(True == config.get("start_rabbit"))
+        self.assertTrue(True == config.get("start_couch"))
 
 
 
