@@ -3,6 +3,7 @@ __author__ = 'Bill French'
 import argparse
 
 from mi.idk.nose_test import NoseTest
+from mi.idk.nose_test import BUILDBOT_DRIVER_FILE
 from mi.idk.metadata import Metadata
 
 def run():
@@ -18,6 +19,8 @@ def run():
     elif( opts.qualification ):
         app.report_header()
         app.run_qualification()
+    elif( opts.buildbot ):
+        app.run_buildbot()
     else:
         app.run()
 
@@ -29,8 +32,10 @@ def parseArgs():
                         help="only run integration tests" )
     parser.add_argument("-q", dest='qualification', action="store_true",
         help="only run qualification tests" )
+    parser.add_argument("-b", dest='buildbot', action="store_true",
+        help="run all tests for drivers listed in %s" % BUILDBOT_DRIVER_FILE)
     parser.add_argument("-t", dest='testname',
-                        help="test function name to run (all if not set)" )
+        help="test function name to run (all if not set)" )
     #parser.add_argument("-m", dest='launch_monitor', action="store_true",
     #                    help="Launch data file monitor" )
     return parser.parse_args()

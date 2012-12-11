@@ -1,0 +1,6 @@
+comm:
+  command_port: 3002
+  data_port: 3001
+  device_addr: 10.180.80.172
+  device_port: 2101
+  method: ethernet
