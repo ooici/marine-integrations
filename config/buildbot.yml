@@ -1,0 +1,18 @@
+# This file defines all of the drivers that should have their tests run
+# by bin/test_driver -b. 
+#
+# format:
+# driver_label:
+#   make: 
+#   model:
+#   flavor:
+#
+# driver_label: free form, just used for grouping
+# make, model, and flavor must be valid. Run bin/switch_driver --list
+# for a list.
+
+
+sbe37test_simulator:
+  make: seabird
+  model: sbe37smb
+  flavor: ooicore
