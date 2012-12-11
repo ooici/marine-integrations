@@ -8,9 +8,10 @@ __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
 import os
+import csv
 import sys
 import nose
-import pyclbr
+import yaml
 import inspect
 
 from mi.core.log import get_logger ; log = get_logger()
@@ -29,6 +30,13 @@ from mi.idk.exceptions import IDKException
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
+
+BUILDBOT_DRIVER_FILE = "config/buildbot.yml"
+
+class BuildBotConfig(BaseEnum):
+    MAKE = 'make'
+    MODEL = 'model'
+    FLAVOR = 'flavor'
 
 class IDKTestClasses(BaseEnum):
     """
@@ -62,23 +70,15 @@ class NoseTest(object):
         # to resources using relative pathing.  So we just do 
         os.chdir(repo_dir)
         
-        self.metadata = metadata
-        if(not self.metadata.driver_name):
-            raise DriverNotStarted()
-
         if( log_file ):
             self.log_fh = open(log_file, "w")
         else:
             self.log_fh = sys.stdout
             
-        config_path = "%s/%s" % (self.metadata.driver_dir(), CommConfig.config_filename())
-        self.comm_config = CommConfig.get_config_from_file(config_path)
-        if(not self.comm_config):
-            raise CommConfigReadFail(msg=config_path)
-
         self.test_runner = nose.core.TextTestRunner(stream=self.log_fh)
 
-        self._inspect_driver_module(self._driver_test_module())
+        if(metadata):
+            self._init_test(metadata)
 
     def __del__(self):
         """
@@ -86,6 +86,21 @@ class NoseTest(object):
         takes STDOUT from us which seems weird (a bug?)
         """
         sys.stdout = sys.__stdout__
+
+    def _init_test(self, metadata):
+        """
+        initialize the test with driver metadata
+        """
+        self.metadata = metadata
+        if(not self.metadata.driver_name):
+            raise DriverNotStarted()
+
+        config_path = "%s/%s" % (self.metadata.driver_dir(), CommConfig.config_filename())
+        self.comm_config = CommConfig.get_config_from_file(config_path)
+        if(not self.comm_config):
+            raise CommConfigReadFail(msg=config_path)
+
+        self._inspect_driver_module(self._driver_test_module())
 
     def _log(self, message):
         """
@@ -251,9 +266,46 @@ class NoseTest(object):
 
         return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
 
+    def run_buildbot(self):
+        """
+        Run all tests for drivers listed in driver config file, BUILDBOT_DRIVER_FILE
+        """
+        for (key, config) in self._read_buildbot_config():
+            make = config.get(BuildBotConfig.MAKE)
+            model = config.get(BuildBotConfig.MODEL)
+            flavor =config.get(BuildBotConfig.FLAVOR)
+            metadata = Metadata(make, model, flavor)
 
-if __name__ == '__main__':
-    metadata = Metadata()
-    test = NoseTest(metadata)
+            try:
+                self._init_test(metadata)
+            except AttributeError:
+                raise IDKException("Unknown Driver: %s %s %s" % (make, model, flavor))
 
-    test.run()
+            self.run()
+
+    def _read_buildbot_config(self):
+        """
+        Read the buildbot driver config and return a list of tuples with driver configs.
+        We read the entire config file first so we can raise an exception before we run
+        any tests.
+        @return: list of tuples containing driver configs.
+        @raise IDKConfigMissing if a driver config is missing a parameter
+        """
+        config_file = os.path.join(Config().base_dir(), BUILDBOT_DRIVER_FILE)
+        drivers = yaml.load(file(config_file))
+
+        log.error("Read drivers from %s" % config_file)
+        log.error("Yaml load result: %s" % drivers)
+
+        result = []
+
+        # verify we have everything we need in the config
+        for (key, config) in drivers.items():
+            if(not config.get(BuildBotConfig.MAKE)
+               or not config.get(BuildBotConfig.MODEL)
+               or not config.get(BuildBotConfig.FLAVOR)):
+                raise IDKConfigMissing("%s missing configuration" % key)
+
+        return drivers.items()
+
+
