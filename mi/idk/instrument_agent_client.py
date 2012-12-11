@@ -99,8 +99,10 @@ class InstrumentAgentClient(object):
         """
         log.info("Startup Instrument Agent")
 
-        self.start_couchdb()
-        self.start_rabbitmq_server()
+        if Config().get("start_couch"):
+            self.start_couchdb()
+        if Config().get("start_rabbit"):
+            self.start_rabbitmq_server()
 
         # No need to start the container twice
         self.container = Container.instance
@@ -147,8 +149,10 @@ class InstrumentAgentClient(object):
         testcase.container = self.container
         testcase._stop_container()
 
-        self.stop_couchdb()
-        self.stop_rabbitmq_server()
+        if Config().get("start_couch"):
+            self.stop_couchdb()
+        if Config().get("start_rabbit"):
+            self.stop_rabbitmq_server()
 
         self.container = None
 
