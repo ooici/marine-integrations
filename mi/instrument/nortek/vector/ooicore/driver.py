@@ -838,25 +838,25 @@ class VectorSystemDataParticle(DataParticle):
         if None == analog_input:
             raise SampleException("No analog_input value parsed")
         
-        result = [{DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.TIMESTAMP,
+        result = [{DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: timestamp},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.BATTERY,
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.BATTERY,
                    DataParticleKey.VALUE: battery},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.SOUND_SPEED,
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.SOUND_SPEED,
                    DataParticleKey.VALUE: sound_speed},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.HEADING,
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.HEADING,
                    DataParticleKey.VALUE: heading},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.PITCH,
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.PITCH,
                    DataParticleKey.VALUE: pitch},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.ROLL,
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ROLL,
                    DataParticleKey.VALUE: roll},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.TEMPERATURE,
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.TEMPERATURE,
                    DataParticleKey.VALUE: temperature},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.ERROR,
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ERROR,
                    DataParticleKey.VALUE: error},                   
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.STATUS,
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.STATUS,
                    DataParticleKey.VALUE: status},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.ANALOG_INPUT,
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ANALOG_INPUT,
                    DataParticleKey.VALUE: analog_input}]
  
         return result
@@ -1055,8 +1055,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         log.debug("_got_chunk: detected structure = %s", structure.encode('hex'))
         self._extract_sample(VectorVelocityDataParticle, VELOCITY_DATA_REGEX, structure)
-        self._extract_sample(VectorDiagnosticDataParticle, DIAGNOSTIC_DATA_REGEX, structure)
-        self._extract_sample(VectorDiagnosticHeaderDataParticle, DIAGNOSTIC_DATA_HEADER_REGEX, structure)
+        self._extract_sample(VectorSystemDataParticle, SYSTEM_DATA_REGEX, structure)
+        self._extract_sample(VectorVelocityHeaderDataParticle, VELOCITY_HEADER_DATA_REGEX, structure)
 
     def _get_response(self, timeout=5, expected_prompt=None):
         """

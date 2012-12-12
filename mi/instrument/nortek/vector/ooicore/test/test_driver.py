@@ -61,11 +61,11 @@ from mi.instrument.nortek.vector.ooicore.driver import ProtocolState
 from mi.instrument.nortek.vector.ooicore.driver import ProtocolEvent
 from mi.instrument.nortek.vector.ooicore.driver import Parameter
 from mi.instrument.nortek.vector.ooicore.driver import PACKET_CONFIG
-from mi.instrument.nortek.vector.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticle
-from mi.instrument.nortek.vector.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticleKey
-from mi.instrument.nortek.vector.ooicore.driver import AquadoppDwVelocityDataParticle
-from mi.instrument.nortek.vector.ooicore.driver import AquadoppDwVelocityDataParticleKey
-from mi.instrument.nortek.vector.ooicore.driver import AquadoppDwDiagnosticDataParticle
+from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityHeaderDataParticle
+from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityHeaderDataParticleKey
+from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticle
+from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticleKey
+from mi.instrument.nortek.vector.ooicore.driver import VectorSystemDataParticle
 
 from interface.objects import AgentCommand
 from interface.objects import CapabilityType
@@ -393,7 +393,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
             DataParticleKey.VALUES: diagnostic_header_particle
             }
         
-        self.compare_parsed_data_particle(AquadoppDwDiagnosticHeaderDataParticle,
+        self.compare_parsed_data_particle(VectorDiagnosticHeaderDataParticle,
                                           diagnostic_header_sample(),
                                           expected_particle)
 
@@ -418,7 +418,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
             DataParticleKey.VALUES: diagnostic_particle
             }
         
-        self.compare_parsed_data_particle(AquadoppDwDiagnosticDataParticle,
+        self.compare_parsed_data_particle(VectorDiagnosticDataParticle,
                                           diagnostic_sample(),
                                           expected_particle)
 
@@ -443,7 +443,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
             DataParticleKey.VALUES: velocity_particle
             }
         
-        self.compare_parsed_data_particle(AquadoppDwVelocityDataParticle,
+        self.compare_parsed_data_particle(VectorVelocityDataParticle,
                                           velocity_sample(),
                                           expected_particle)
 
@@ -482,17 +482,17 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
 
     def test_corrupt_data_structures(self):
         # garbage is not okay
-        particle = AquadoppDwDiagnosticHeaderDataParticle(diagnostic_header_sample().replace(chr(0), chr(1), 1),
+        particle = VectorDiagnosticHeaderDataParticle(diagnostic_header_sample().replace(chr(0), chr(1), 1),
                                                           port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate_parsed()
          
-        particle = AquadoppDwDiagnosticDataParticle(diagnostic_sample().replace(chr(0), chr(1), 1),
+        particle = VectorDiagnosticDataParticle(diagnostic_sample().replace(chr(0), chr(1), 1),
                                                           port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate_parsed()
          
-        particle = AquadoppDwVelocityDataParticle(velocity_sample().replace(chr(0), chr(1), 1),
+        particle = VectorVelocityDataParticle(velocity_sample().replace(chr(0), chr(1), 1),
                                                           port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate_parsed()
@@ -857,7 +857,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
 
         # wait for some samples to be generated
-        gevent.sleep(100)
+        gevent.sleep(120)
 
         # Verify we received at least 4 samples.
         sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
@@ -1231,17 +1231,17 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         value_ids = []
         for value in values:
             value_ids.append(value['value_id'])
-        if AquadoppDwVelocityDataParticleKey.TIMESTAMP in value_ids:
-            log.debug('assertSampleDataParticle: AquadoppDwVelocityDataParticle/AquadoppDwDiagnosticDataParticle detected')
-            self.assertEqual(sorted(value_ids), sorted(AquadoppDwVelocityDataParticleKey.list()))
+        if VectorVelocityDataParticleKey.TIMESTAMP in value_ids:
+            log.debug('assertSampleDataParticle: VectorVelocityDataParticle/VectorDiagnosticDataParticle detected')
+            self.assertEqual(sorted(value_ids), sorted(VectorVelocityDataParticleKey.list()))
             for value in values:
-                if value['value_id'] == AquadoppDwVelocityDataParticleKey.TIMESTAMP:
+                if value['value_id'] == VectorVelocityDataParticleKey.TIMESTAMP:
                     self.assertTrue(isinstance(value['value'], str))
                 else:
                     self.assertTrue(isinstance(value['value'], int))
-        elif AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS in value_ids:
-            log.debug('assertSampleDataParticle: AquadoppDwDiagnosticHeaderDataParticle detected')
-            self.assertEqual(sorted(value_ids), sorted(AquadoppDwDiagnosticHeaderDataParticleKey.list()))
+        elif VectorDiagnosticHeaderDataParticleKey.RECORDS in value_ids:
+            log.debug('assertSampleDataParticle: VectorDiagnosticHeaderDataParticle detected')
+            self.assertEqual(sorted(value_ids), sorted(VectorDiagnosticHeaderDataParticleKey.list()))
             for value in values:
                 self.assertTrue(isinstance(value['value'], int))
         else:
