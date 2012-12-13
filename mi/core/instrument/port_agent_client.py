@@ -21,30 +21,34 @@ import binascii
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import InstrumentConnectionException
 
-HEADER_SIZE = 16
+HEADER_SIZE = 16 # BBBBHHLL = 1 + 1 + 1 + 1 + 2 + 2 + 4 + 4 = 16
+
 
 """
 Packet Types
 """
 DATA_FROM_DRIVER = 2
 
-"""
-Offsets into the packed header fields
-"""
+
 OFFSET_P_CHECKSUM_LOW = 6
 OFFSET_P_CHECKSUM_HIGH = 7
 
 """
 Offsets into the unpacked header fields
 """
-OFFSET_UP_TYPE = 3
-OFFSET_UP_LENGTH = 4
-OFFSET_UP_CHECKSUM = 5
+SYNC_BYTE1_INDEX = 0
+SYNC_BYTE1_INDEX = 1
+SYNC_BYTE1_INDEX = 2
+TYPE_INDEX = 3
+LENGTH_INDEX = 4 # packet size (including header)
+CHECKSUM_INDEX = 5
+TIMESTAMP_INDEX = 6
 
 class PortAgentPacket():
     """
     An object that encapsulates the details packets that are sent to and
-    received from the port agent.  
+    received from the port agent.
+    https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+Port+Agent+Design
     """
     
     def __init__(self):
@@ -52,17 +56,25 @@ class PortAgentPacket():
         self.__data = None
         self.__type = None
         self.__length = None
-        self.__timestamp_low = None
-        self.__timestamp_high = None
+        self.__port_agent_timestamp = None
         self.__recv_checksum  = None
         self.__checksum = None
+
         
     def unpack_header(self, header):
         self.__header = header
-        up_header = struct.unpack_from('>BBBBHHLL', header)
-        self.__type = up_header[OFFSET_UP_TYPE]
-        self.__length = int(up_header[OFFSET_UP_LENGTH]) - HEADER_SIZE
-        self.__recv_checksum  = int(up_header[OFFSET_UP_CHECKSUM])
+        #@TODO may want to switch from big endian to network order '!' instead of '>' note network order is big endian.
+        # B = unsigned char size 1 bytes
+        # H = unsigned short size 2 bytes
+        # L = unsigned long size 4 bytes
+        # d = float size8 bytes
+        variable_tuple = struct.unpack_from('>BBBBHHd', header)
+        # change offset to index.
+        self.__type = variable_tuple[TYPE_INDEX]
+        self.__length = int(variable_tuple[LENGTH_INDEX]) - HEADER_SIZE
+        self.__recv_checksum  = int(variable_tuple[CHECKSUM_INDEX])
+        self.__port_agent_timestamp = variable_tuple[TIMESTAMP_INDEX]
+
 
     def pack_header(self):
         """
@@ -76,12 +88,17 @@ class PortAgentPacket():
         else:
             self.__type = DATA_FROM_DRIVER
             self.__length = len(self.__data)
-            
-            up_header = (0xa3, 0x9d, 0x7a, self.__type, self.__length + HEADER_SIZE, 0, 0, 0)
-            format = '>BBBBHHLL'
+
+            variable_tuple = (0xa3, 0x9d, 0x7a, self.__type, self.__length + HEADER_SIZE, 0x0000, float(self.__port_agent_timestamp))
+
+            # B = unsigned char size 1 bytes
+            # H = unsigned short size 2 bytes
+            # L = unsigned long size 4 bytes
+            # d = float size 8 bytes
+            format = '>BBBBHHd'
             size = struct.calcsize(format)
             self.__header = array.array('B', '\0' * HEADER_SIZE)
-            struct.pack_into(format, self.__header, 0, *up_header)
+            struct.pack_into(format, self.__header, 0, *variable_tuple)
             #print "here it is: ", binascii.hexlify(self.__header)
             
             """
@@ -89,6 +106,10 @@ class PortAgentPacket():
             populated header fields
             """
             self.__checksum = self.calculate_checksum()
+
+            self.__header[OFFSET_P_CHECKSUM_HIGH] = self.__checksum & 0x00ff
+            self.__header[OFFSET_P_CHECKSUM_LOW] = (self.__checksum & 0xff00) >> 8
+
         
     def attach_data(self, data):
         self.__data = data
@@ -130,8 +151,24 @@ class PortAgentPacket():
     def get_data(self):
         return self.__data
 
+    def set_timestamp(self, port_agent_timestamp):
+        self.__port_agent_timestamp = port_agent_timestamp
+
+
     def get_timestamp(self):
         return self.__port_agent_timestamp
+
+    def get_header_length(self):
+        return self.__length
+
+    def get_header_type(self):
+        return self.__type
+
+    def get_header_checksum(self):
+        return self.__checksum
+
+    def get_header_recv_checksum (self):
+        return self.__recv_checksum
 
     def get_as_dict(self):
         """
