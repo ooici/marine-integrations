@@ -78,15 +78,15 @@ class TestPortAgentPacket(MiUnitTest):
 
     def setUp(self):
         self.pap = PortAgentPacket()
-        self.test_time = time.time()
-        self.ntp_time = self.system_to_ntp_time(self.test_time)
+        #self.test_time = time.time()
+        #self.ntp_time = self.system_to_ntp_time(self.test_time)
 
-        self.pap.set_timestamp(self.ntp_time)
+        #self.pap.set_timestamp(self.ntp_time)
 
 
     def test_pack_header(self):
         self.pap.attach_data("Only the length of this matters?") # 32 chars
-        self.pap.set_timestamp(3564425404.85)
+        #self.pap.set_timestamp(3564425404.85)
         self.pap.pack_header()
         header = self.pap.get_header()
         self.assertEqual(header, array.array('B', [163, 157, 122, 2, 0, 48, 14, 145, 65, 234, 142, 154, 23, 155, 51, 51]))

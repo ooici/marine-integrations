@@ -14,6 +14,7 @@ __license__ = 'Apache 2.0'
 import socket
 import threading
 import time
+import datetime
 import struct
 import array
 import binascii
@@ -43,6 +44,10 @@ TYPE_INDEX = 3
 LENGTH_INDEX = 4 # packet size (including header)
 CHECKSUM_INDEX = 5
 TIMESTAMP_INDEX = 6
+
+SYSTEM_EPOCH = datetime.date(*time.gmtime(0)[0:3])
+NTP_EPOCH = datetime.date(1900, 1, 1)
+NTP_DELTA = (SYSTEM_EPOCH - NTP_EPOCH).days * 24 * 3600
 
 class PortAgentPacket():
     """
@@ -88,8 +93,10 @@ class PortAgentPacket():
         else:
             self.__type = DATA_FROM_DRIVER
             self.__length = len(self.__data)
+            self.__port_agent_timestamp = time.time() + NTP_DELTA
 
-            variable_tuple = (0xa3, 0x9d, 0x7a, self.__type, self.__length + HEADER_SIZE, 0x0000, float(self.__port_agent_timestamp))
+
+            variable_tuple = (0xa3, 0x9d, 0x7a, self.__type, self.__length + HEADER_SIZE, 0x0000, self.__port_agent_timestamp)
 
             # B = unsigned char size 1 bytes
             # H = unsigned short size 2 bytes
@@ -150,10 +157,6 @@ class PortAgentPacket():
 
     def get_data(self):
         return self.__data
-
-    def set_timestamp(self, port_agent_timestamp):
-        self.__port_agent_timestamp = port_agent_timestamp
-
 
     def get_timestamp(self):
         return self.__port_agent_timestamp
