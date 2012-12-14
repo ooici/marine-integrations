@@ -8,10 +8,103 @@
 uses the PolledScheduler and provides a common, simplified interface
 for instrument and platform drivers.
 
+The scheduler is configured by passing a configuration dictionary
+to the constructor or my calling add_config.  Calling add_config
+more than once create new schedulers, but leave older schedulers
+inplace.
+
+Note: All schedulers with trigger type of 'polled' are required
+to have unique names.  An exception is thrown if you try to add
+duplicate names.
+
 Configuration Dict:
 
+config = {
+    # Scheduler for an absolute time.  All parameters are required.
+    'absolute_job': {
+        DriverSchedulerConfigKey.TRIGGER: {
+            DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.ABSOLUTE,
+            DriverSchedulerConfigKey.DATE: some_date_object_or_string
+        }
+        DriverSchedulerConfigKey.CALLBACK: self._callback_method
+    },
+
+    # Scheduler using a cron style syntax, cron parameters are optional,
+    # but at least one must be explicitly specified.
+    'cron_job': {
+        DriverSchedulerConfigKey.TRIGGER: {
+            DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.CRON,
+            DriverSchedulerConfigKey.YEAR: '*',
+            DriverSchedulerConfigKey.MONTH: '*',
+            DriverSchedulerConfigKey.DAY: '*',
+            DriverSchedulerConfigKey.WEEK: '1',
+            DriverSchedulerConfigKey.DAY_OF_WEEK: '*',
+            DriverSchedulerConfigKey.HOUR: '*/3',
+            DriverSchedulerConfigKey.MINUTE: '*',
+            DriverSchedulerConfigKey.SECOND: '*'
+        },
+        DriverSchedulerConfigKey.CALLBACK: self._callback_method
+    },
+
+    # Scheduler using a interval style job, all parameters are optional,
+    # but at least one must be explicitly specified. Default value is 0
+    'interval_job': {
+        DriverSchedulerConfigKey.TRIGGER: {
+            DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+            DriverSchedulerConfigKey.WEEKS: '1',
+            DriverSchedulerConfigKey.DAYS: '1',
+            DriverSchedulerConfigKey.HOURS: '1',
+            DriverSchedulerConfigKey.MINUTES: '1',
+            DriverSchedulerConfigKey.SECONDS: '1'
+        }
+    },
+
+    # Scheduler using a polled interval style job, the minimum interval
+    # is required and indicates the minimum amount of time the scheduler
+    # will let a job run when polled. The maximum interval indicates how
+    # long to wait before the job is automatically run.  If no maximum is
+    # provided then the job will only run when polled.
+    'polled_interval_job': {
+        DriverSchedulerConfigKey.TRIGGER: {
+            DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.POLLED_INTERVAL,
+            DriverSchedulerConfigKey.MINIMAL_INTERVAL: {
+                DriverSchedulerConfigKey.WEEKS: '1',
+                DriverSchedulerConfigKey.DAYS: '1',
+                DriverSchedulerConfigKey.HOURS: '1',
+                DriverSchedulerConfigKey.MINUTES: '1',
+                DriverSchedulerConfigKey.SECONDS: '1'
+            },
+            DriverSchedulerConfigKey.MAXIMUM_INTERVAL: {
+                DriverSchedulerConfigKey.WEEKS: '1',
+                DriverSchedulerConfigKey.DAYS: '1',
+                DriverSchedulerConfigKey.HOURS: '1',
+                DriverSchedulerConfigKey.MINUTES: '1',
+                DriverSchedulerConfigKey.SECONDS: '1'
+            }
+        }
+    }
+}
 
 
+USAGE:
+
+scheduler = DriverScheduler(config)
+
+-or-
+
+scheduler = DriverScheduler()
+scheduler.add_config(config)
+
+# To run polled jobs
+job_name = 'polled_interval_job'
+
+try:
+    if(scheduler.run_job(job_name)):
+        log.info("Job has been triggered to run")
+    else:
+        log.info("Job has not reached the minimum runtime yet")
+except LookupError:
+    log.error("No job found with that name")
 
 """
 
@@ -66,7 +159,6 @@ class DriverSchedulerConfigKey(BaseEnum):
     MINUTE = 'minute'
     SECOND = 'second'
 
-
 class DriverScheduler(object):
     """
     Class to facilitate event scheduling in drivers.
@@ -87,6 +179,15 @@ class DriverScheduler(object):
         self._scheduler = PolledScheduler()
         if(config):
             self.add_config(config)
+
+    def run_job(self, name):
+        """
+        Try to run a polled job with the passed in name.  If it
+        runs then return true, otherwise false.
+        @param name: name of the job
+        @raise LookupError if we fail to find the job
+        """
+        return self._scheduler.run_polled_job(name)
 
     def add_config(self, config):
         """
@@ -151,6 +252,11 @@ class DriverScheduler(object):
             raise SchedulerException("unknown trigger type '%s'" % trigger_type)
 
     def _get_trigger_from_config(self, config):
+        """
+        get and validate the trigger dictionary from the config object.
+        @param config: configuration object to inspect
+        @return: dictionary from the config for the trigger config
+        """
         trigger = config.get(DriverSchedulerConfigKey.TRIGGER)
         if(trigger == None):
             raise SchedulerException("trigger definition missing")
@@ -160,6 +266,11 @@ class DriverScheduler(object):
         return trigger
 
     def _get_callback_from_config(self, config):
+        """
+        get and verify the callback parameter from a job config.
+        @param config: configuration object to inspect
+        @return: callback method from the config for the trigger config
+        """
         callback = config.get(DriverSchedulerConfigKey.CALLBACK)
         if(callback == None):
             raise SchedulerException("callback definition missing")

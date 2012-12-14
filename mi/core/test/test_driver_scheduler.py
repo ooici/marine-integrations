@@ -133,8 +133,9 @@ class TestDriverScheduler(MiUnitTest):
         """
         Test a job scheduler using an absolute job
         """
+        test_name = 'interval_job'
         config = {
-            'interval_job': {
+            test_name: {
                 DriverSchedulerConfigKey.TRIGGER: {
                     DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.POLLED_INTERVAL,
                     DriverSchedulerConfigKey.MINIMAL_INTERVAL: {DriverSchedulerConfigKey.SECONDS: 1},
@@ -144,6 +145,16 @@ class TestDriverScheduler(MiUnitTest):
             }
         }
         self._scheduler.add_config(config)
+
+        # Verify automatic trigger
+        self.assert_event_triggered()
+
+        # Test the polled trigger
+        self.assertFalse(self._scheduler.run_job(test_name))
+        time.sleep(1.1)
+        self.assertTrue(self._scheduler.run_job(test_name))
+
+        # Check the automatic trigger again
         self.assert_event_triggered()
 
     ###
@@ -337,6 +348,12 @@ class TestDriverScheduler(MiUnitTest):
         with self.assertRaisesRegexp(SchedulerException, "failed to schedule job: Not adding job since a job named 'some_test' already exists"):
             self._scheduler.add_config(config)
             self._scheduler.add_config(config)
+
+        # Run a job that doesn't exist
+        with self.assertRaisesRegexp(LookupError, "no PolledIntervalJob found named"):
+            self._scheduler.run_job('who_are_you')
+
+
 
 
 
