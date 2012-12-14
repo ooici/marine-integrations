@@ -246,7 +246,8 @@ class PolledScheduler(Scheduler):
 
         if not next_wakeup_time == None and next_wakeup_time <= now:
             log.debug("submit job to pool: %s" % job)
-            self._threadpool.submit(self._run_job, job, [next_wakeup_time])
+            if(not self._threadpool._shutdown):
+                self._threadpool.submit(self._run_job, job, [next_wakeup_time])
 
             # Increase the job's run count
             if job.coalesce:

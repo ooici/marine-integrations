@@ -59,11 +59,22 @@ config = {
         }
     },
 
-    # Scheduler using a polled interval style job, the minimum interval
-    # is required and indicates the minimum amount of time the scheduler
-    # will let a job run when polled. The maximum interval indicates how
-    # long to wait before the job is automatically run.  If no maximum is
-    # provided then the job will only run when polled.
+    # Scheduler using a polled interval style job.  This type of job
+    # will automatically be triggered to run at a rate of 'maximum interval'
+    # since the last run time.  The job can also be coerced in to running
+    # before the automatically triggered time by manually requesting the
+    # process be run using the run_job(job_name) method.  When manually
+    # triggering the job it will only run if the current time is >= to
+    # the last run time + the minimum interval.
+    #
+    # Minimum interval is a required parameter and just like the interval
+    # job, at least one parameter in the interval configuration is required
+    # to be set.
+    #
+    # Maximum interval is an optional parameter.  If set the job will
+    # be triggered to run automatically if it has not run from the
+    # max interval duration.  If not given the job must be manually
+    # polled to cause the trigger to fire.
     'polled_interval_job': {
         DriverSchedulerConfigKey.TRIGGER: {
             DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.POLLED_INTERVAL,
