@@ -151,11 +151,17 @@ class TestUnitDataParticle(MiUnitTestCase):
         raw_result = self.raw_test_particle.generate()
         decoded_raw = json.loads(raw_result)
 
+        # get values that change from instance to instance to maintain them the same across instances
+        checksum = decoded_raw[DataParticleKey.VALUES][3][DataParticleKey.VALUE]
         driver_time = decoded_raw["driver_timestamp"]
+
+        # and set....
         self.sample_raw_particle["driver_timestamp"] = driver_time
+        self.sample_raw_particle[DataParticleKey.VALUES][3][DataParticleKey.VALUE] = checksum
 
         # run it through json so unicode and everything lines up
         standard = json.dumps(self.sample_raw_particle, sort_keys=True)
+
         self.assertEqual(raw_result, standard)
 
     def test_timestamps(self):
