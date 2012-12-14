@@ -8,6 +8,44 @@
 Scheduling methods include absolute time, elapse time, cron syntax
 and a minimum elapse time (polled mode).
 
+Usage:
+
+For triggered events:
+
+def some_callback(self): ...
+
+scheduler = PolledScheduler()
+scheduler.start()
+
+# An absolute time event
+dt = datetime.datetime.now() + datetime.timedelta(0,1)
+job = scheduler.add_date_job(some_callback, dt)
+
+# An interval based event
+job = scheduler.add_interval_job(self._callback, seconds=3)
+
+# A cron style event
+job = scheduler.add_cron_job(some_callback, second='*/3')
+
+# A polled event with an interval
+test_name = 'test_job'
+min_interval = PolledScheduler.interval(seconds=1)
+max_interval = PolledScheduler.interval(seconds=3)
+job = scheduler.add_polled_job(some_callback, test_name, min_interval, max_interval)
+
+For Polled events:
+
+# max_interval is optional.  If not specified then events will only be triggered by
+# by calling schedule.run_polled_job(test_name)
+test_name = 'test_job'
+min_interval = PolledScheduler.interval(seconds=1)
+max_interval = PolledScheduler.interval(seconds=3)
+job = scheduler.add_polled_job(some_callback, test_name, min_interval, max_interval)
+
+...
+
+scheduler.run_polled_job(test_name)
+
 This module extends the Advanced Python Scheduler:
 @see http://packages.python.org/APScheduler
 """
