@@ -1,6 +1,6 @@
 """
-@package mi.instrument.seabird.sbe26plus.ooicore.test.test_driver
-@file mi/instrument/seabird/sbe26plus/ooicore/driver.py
+@package mi.instrument.seabird.sbe26plus.test.test_driver
+@file marine-integrations/mi/instrument/seabird/sbe26plus/driver.py
 @author Roger Unwin
 @brief Test cases for ooicore driver
 
@@ -11,38 +11,35 @@ USAGE:
        $ bin/test_driver -u
        $ bin/test_driver -i
        $ bin/test_driver -q
-
-   * From pyon
-
 """
-
 
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
-import unittest
+
+from gevent import monkey; monkey.patch_all()
+
+from mi.core.log import get_logger ; log = get_logger()
+
 from nose.plugins.attrib import attr
-from mi.instrument.seabird.sbe26plus.test.test_driver import SeaBird26PlusUnitTest
-from mi.instrument.seabird.sbe26plus.test.test_driver import SeaBird26PlusIntegrationTest
-from mi.instrument.seabird.sbe26plus.test.test_driver import SeaBird26PlusQualificationTest
-from mi.instrument.seabird.sbe26plus.driver import DataParticleType
-from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import InstrumentDriverUnitTestCase
+from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
+from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 
-InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
-    driver_class="InstrumentDriver",
-
-    instrument_agent_resource_id = '123xyz',
-    instrument_agent_name = 'Agent007',
-    instrument_agent_packet_config = DataParticleType()
-)
 
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
+# 1. Pick a single method within the class.                                   #
+# 2. Create an instance of the class                                          #
+# 3. If the method to be tested tries to call out, over-ride the offending    #
+#    method with a mock                                                       #
+# 4. Using above, try to cover all paths through the functions                #
+# 5. Negative testing if at all possible.                                     #
 ###############################################################################
 @attr('UNIT', group='mi')
-class UnitFromIDK(SeaBird26PlusUnitTest):
-    pass
+class SeaBirdUnitTest(InstrumentDriverUnitTestCase):
+    def setUp(self):
+        InstrumentDriverUnitTestCase.setUp(self)
 
 
 ###############################################################################
@@ -53,8 +50,9 @@ class UnitFromIDK(SeaBird26PlusUnitTest):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class IntFromIDK(SeaBird26PlusIntegrationTest):
-    pass
+class SeaBirdIntegrationTest(InstrumentDriverIntegrationTestCase):
+    def setUp(self):
+        InstrumentDriverIntegrationTestCase.setUp(self)
 
 
 ###############################################################################
@@ -63,5 +61,8 @@ class IntFromIDK(SeaBird26PlusIntegrationTest):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('QUAL', group='mi')
-class QualFromIDK(SeaBird26PlusQualificationTest):
-    pass
+class SeaBirdQualificationTest(InstrumentDriverQualificationTestCase):
+    def setUp(self):
+        InstrumentDriverQualificationTestCase.setUp(self)
+
+

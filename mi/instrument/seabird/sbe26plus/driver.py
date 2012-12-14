@@ -18,11 +18,12 @@ import ntplib
 
 from mi.core.log import get_logger ; log = get_logger()
 
+from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
+from mi.instrument.seabird.driver import SeaBirdProtocol
+
 from mi.core.common import BaseEnum
 from mi.core.time import get_timestamp_delayed
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
-from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -1028,7 +1029,7 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
 # Driver
 ###############################################################################
 
-class InstrumentDriver(SingleConnectionInstrumentDriver):
+class InstrumentDriver(SeaBirdInstrumentDriver):
     """
     InstrumentDriver subclass
     Subclasses SingleConnectionInstrumentDriver with connection state
@@ -1040,7 +1041,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         @param evt_callback Driver process event callback.
         """
         #Construct superclass.
-        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+        SeaBirdInstrumentDriver.__init__(self, evt_callback)
 
     ########################################################################
     # Superclass overrides for resource query.
@@ -1061,7 +1062,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 # Protocol
 ###############################################################################
 
-class Protocol(CommandResponseInstrumentProtocol):
+class Protocol(SeaBirdProtocol):
     """
     Instrument protocol class for sbe26plus driver.
     Subclasses CommandResponseInstrumentProtocol
@@ -1075,7 +1076,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param driver_event Driver process event callback.
         """
         # Construct protocol superclass.
-        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+        SeaBirdProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build sbe26plus protocol state machine.
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
