@@ -86,6 +86,10 @@ SET_TIMEOUT=90
 EXECUTE_TIMEOUT=30
 SAMPLE_RAW_DATA="Iam Apublished Message"
 
+class DriverStartupConfigKey(BaseEnum):
+    PARAMETERS = 'parameters'
+    SCHEDULER = 'scheduler'
+
 class AgentCapabilityType(BaseEnum):
     AGENT_COMMAND = 'agent_command'
     AGENT_PARAMETER = 'agent_parameter'

@@ -25,15 +25,26 @@ from mi.instrument.seabird.sbe26plus.test.test_driver import SeaBird26PlusUnitTe
 from mi.instrument.seabird.sbe26plus.test.test_driver import SeaBird26PlusIntegrationTest
 from mi.instrument.seabird.sbe26plus.test.test_driver import SeaBird26PlusQualificationTest
 from mi.instrument.seabird.sbe26plus.driver import DataParticleType
+from mi.instrument.seabird.sbe26plus.driver import ScheduledEvents
 from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import DriverStartupConfigKey
+from mi.core.driver_scheduler import DriverSchedulerConfigKey
 
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
-    driver_class="InstrumentDriver",
-
     instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'Agent007',
-    instrument_agent_packet_config = DataParticleType()
+    instrument_agent_packet_config = DataParticleType(),
+
+    driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
+    driver_class="InstrumentDriver",
+    driver_startup_config = {
+        DriverStartupConfigKey.PARAMETERS: {},
+        DriverStartupConfigKey.SCHEDULER: {
+           ScheduledEvents.ACQUIRE_STATUS: {
+               DriverSchedulerConfigKey.TRIGGER: {}
+           }
+        }
+    }
 )
 
 ###############################################################################

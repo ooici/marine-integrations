@@ -63,6 +63,9 @@ DS_REGEX_MATCHER = re.compile(DS_REGEX, re.DOTALL)
 #    Driver Constant Definitions
 ###
 
+class ScheduledEvents(BaseEnum):
+    ACQUIRE_STATUS = 'acquire_status'
+
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
     TIDE_PARSED = 'tide_parsed'
