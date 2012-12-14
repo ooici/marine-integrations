@@ -277,7 +277,7 @@ class TestDriverScheduler(MiUnitTest):
         }
 
         # Missing all cron settings
-        with self.assertRaisesRegexp(SchedulerException, 'at least one interval parameter required'):
+        with self.assertRaisesRegexp(SchedulerException, 'at least interval parameter required'):
             self._scheduler.add_config(config)
 
         # Wrong parameter type
