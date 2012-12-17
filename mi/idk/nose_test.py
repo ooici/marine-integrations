@@ -266,46 +266,6 @@ class NoseTest(object):
 
         return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
 
-    def run_buildbot(self):
-        """
-        Run all tests for drivers listed in driver config file, BUILDBOT_DRIVER_FILE
-        """
-        for (key, config) in self._read_buildbot_config():
-            make = config.get(BuildBotConfig.MAKE)
-            model = config.get(BuildBotConfig.MODEL)
-            flavor =config.get(BuildBotConfig.FLAVOR)
-            metadata = Metadata(make, model, flavor)
 
-            try:
-                self._init_test(metadata)
-            except AttributeError:
-                raise IDKException("Unknown Driver: %s %s %s" % (make, model, flavor))
-
-            self.run()
-
-    def _read_buildbot_config(self):
-        """
-        Read the buildbot driver config and return a list of tuples with driver configs.
-        We read the entire config file first so we can raise an exception before we run
-        any tests.
-        @return: list of tuples containing driver configs.
-        @raise IDKConfigMissing if a driver config is missing a parameter
-        """
-        config_file = os.path.join(Config().base_dir(), BUILDBOT_DRIVER_FILE)
-        drivers = yaml.load(file(config_file))
-
-        log.error("Read drivers from %s" % config_file)
-        log.error("Yaml load result: %s" % drivers)
-
-        result = []
-
-        # verify we have everything we need in the config
-        for (key, config) in drivers.items():
-            if(not config.get(BuildBotConfig.MAKE)
-               or not config.get(BuildBotConfig.MODEL)
-               or not config.get(BuildBotConfig.FLAVOR)):
-                raise IDKConfigMissing("%s missing configuration" % key)
-
-        return drivers.items()
 
 
