@@ -277,7 +277,7 @@ class Parameter(DriverParameter):
     NUMBER_DIAG_SAMPLES = 'NumberDiagnosticSamples'
     A1_2_SPARE = 'A1_2Spare'
     B0_2_SPARE = 'B0_2Spare'
-    B1_2_SPARE = 'B1_2Spare'
+    NUMBER_SAMPLES_PER_BURST = 'NumberSamplesPerBurst'
     USER_2_SPARE = 'User2Spare'
     ANALOG_OUTPUT_SCALE = 'AnalogOutputScale'
     CORRELATION_THRESHOLD = 'CorrelationThreshold'
@@ -915,7 +915,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Parameter.NUMBER_DIAG_SAMPLES,
         Parameter.A1_2_SPARE,
         Parameter.B0_2_SPARE,
-        Parameter.B1_2_SPARE,
+        Parameter.NUMBER_SAMPLES_PER_BURST,
         Parameter.USER_2_SPARE,
         Parameter.ANALOG_OUTPUT_SCALE,
         Parameter.CORRELATION_THRESHOLD,
@@ -1016,8 +1016,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     ########################################################################
     # overridden superclass methods
-    ########################################################################
-
+    ########################################################################    
+                
     def set_init_params(self, config):
         """
         over-ridden to handle binary block configuration
@@ -1073,7 +1073,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             prompt_list = self._prompts.list()
         else:
             assert isinstance(expected_prompt, str)
-            prompt_list = [expected_prompt]            
+            prompt_list = [expected_prompt]   
         while True:
             for item in prompt_list:
                 if item in self._promptbuf:
@@ -1766,10 +1766,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{2}).*' % str(450),
                              lambda match : match.group(1),
                              lambda string : string)
-        self._param_dict.add(Parameter.B1_2_SPARE,
+        self._param_dict.add(Parameter.NUMBER_SAMPLES_PER_BURST,
                              r'^.{%s}(.{2}).*' % str(452),
-                             lambda match : match.group(1),
-                             lambda string : string)
+                             lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
+                             BinaryProtocolParameterDict.word_to_string)
         self._param_dict.add(Parameter.USER_2_SPARE,
                              r'^.{%s}(.{2}).*' % str(454),
                              lambda match : match.group(1),
@@ -2006,11 +2006,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval return The time as a string
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        if (len(response) != 16):
+        if (len(response) != 10):
             log.warn("_handler_command_read_id: Bad read ID response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid read ID response. (%s)", response.encode('hex'))
         log.debug("_handler_command_read_id: response=%s", response.encode('hex')) 
-        return response[0:14]
+        return response[0:8]
         
     def _parse_read_hw_config(self, response, prompt):
         """ Parse the response from the instrument for a read hw config command.
