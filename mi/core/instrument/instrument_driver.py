@@ -19,8 +19,6 @@ from mi.core.exceptions import NotImplementedException
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.instrument.instrument_fsm import InstrumentFSM
-from mi.core.driver_scheduler import DriverScheduler
-from mi.core.driver_scheduler import DriverSchedulerConfigKey
 from mi.core.instrument.port_agent_client import PortAgentClient
 
 from mi.core.log import get_logger,LoggerManager
@@ -180,12 +178,6 @@ class InstrumentDriver(object):
         self._send_event = event_callback
         self._test_mode = False
 
-        # Scheduler variables.  _scheduler_config might be considered
-        # redundant, but if we ever want to reinit the scheduler it
-        # will be needed.
-        self._scheduler = None
-        self._scheduler_callback = {}
-        self._scheduler_config = {}
 
     #############################################################
     # Device connection interface.
@@ -354,91 +346,6 @@ class InstrumentDriver(object):
             event['value'] = val
             self._send_event(event)
 
-    ########################################################################
-    # Scheduler interface.
-    ########################################################################
-    def _add_scheduler(self, name, callback):
-        """
-        Stage a scheduler in a driver.  The job will actually be configured
-        and started by initialize_scheduler
-
-        @param name the name of the job
-        @param callback the handler when the job is triggered
-        @raise KeyError if we try to add a job twice
-        """
-        if(self._scheduler_callback.get(name)):
-            raise KeyError("duplicate scheduler exists for '%s'" % name)
-
-        self._scheduler_callback[name] = callback
-        self._add_scheduler_job(name)
-
-    def _add_scheduler_job(self, name):
-        """
-        Map the driver configuration to a scheduler configuration.  If
-        the scheduler has been started then also add the job.
-        @param name the name of the job
-        @raise KeyError if job name does not exists in the callback config
-        @raise KeyError if job is already configured
-        """
-        # Do nothing if the scheduler isn't initialized
-        if(not self._scheduler):
-            return
-
-        callback = self._scheduler_callback.get(name)
-        if(not callback):
-            raise KeyError("callback not defined in driver for '%s'" % name)
-
-        if(self._scheduler_config.get(name)):
-            raise KeyError("scheduler job already configured '%s'" % name)
-
-        scheduler_config = self._get_scheduler_config()
-
-        # No config?  Nothing to do then.
-        if(scheduler_config == None):
-            return
-
-        job_config = scheduler_config.get(name)
-
-        if(job_config):
-            # Store the scheduler configuration
-            self._scheduler_config[name] = {
-                DriverSchedulerConfigKey.TRIGGER: job_config.get(DriverSchedulerConfigKey.TRIGGER),
-                DriverSchedulerConfigKey.CALLBACK: callback
-            }
-            config = {name: self._scheduler_config[name]}
-            log.debug("Scheduler job with config: %s" % config)
-
-            # start the job.  Note, this lazily starts the scheduler too :)
-            self._scheduler.add_config(config)
-
-    def _get_scheduler_config(self):
-        """
-        Get the configuration dictionary to use for initializing jobs
-
-        Returned dictionary structure:
-        {
-            'job_name': {
-                DriverSchedulerConfigKey.TRIGGER: {}
-            }
-        }
-
-        @return: scheduler configuration dictionary
-        """
-        # Currently the startup config is in the child class.
-        # @TODO should the config code be promoted?
-        config = self._startup_config
-        return config.get(DriverConfigKey.SCHEDULER)
-
-    def initialize_scheduler(self):
-        """
-        Activate all configured schedulers added using _add_scheduler.
-        Timers start when the job is activated.
-        """
-        if(self._scheduler == None):
-            self._scheduler = DriverScheduler()
-            for name in self._scheduler_callback.keys():
-                self._add_scheduler_job(name)
-
 
     ########################################################################
     # Test interface.
@@ -589,9 +496,9 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         if(self._protocol):
             param_config = None
             if(len(config)):
-                param_config = config.get(DriverConfigKey.PARAMETERS)
+                param_config = config
             elif(len(self._startup_config)):
-                param_config = self._startup_config.get(DriverConfigKey.PARAMETERS)
+                param_config = self._startup_config
 
             if(param_config):
                 self._protocol.set_init_params(param_config)

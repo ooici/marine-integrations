@@ -71,6 +71,12 @@ class PolledScheduler(Scheduler):
     Specialized advanced scheduler that allows for polled interval
     jobs.
     """
+    def __init__(self):
+        """
+        ensure we are running in daemon mode, so we won't wait for 
+        unfinished threads on shutdown
+        """
+        Scheduler.__init__(self, {'demonic': True})
 
     @staticmethod
     def interval(weeks=0, days=0, hours=0, minutes=0, seconds=0):
@@ -217,7 +223,7 @@ class PolledScheduler(Scheduler):
         next_wakeup_time=None
 
         run_times = job.get_run_times(now)
-        if run_times:
+        if run_times and not self._threadpool._shutdown:
             self._threadpool.submit(self._run_job, job, run_times)
 
             # Increase the job's run count

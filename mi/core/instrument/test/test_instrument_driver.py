@@ -26,10 +26,6 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
-from mi.core.driver_scheduler import DriverScheduler
-from mi.core.instrument.instrument_driver import DriverConfigKey
-from mi.core.driver_scheduler import DriverSchedulerConfigKey
-from mi.core.driver_scheduler import TriggerType
 
 @attr('UNIT', group='mi')
 class TestUnitInstrumentDriver(MiUnitTestCase):
@@ -42,7 +38,6 @@ class TestUnitInstrumentDriver(MiUnitTestCase):
         self.mock = DotDict()
         self.mock.port_agent = Mock(name='port_agent_client')
         self.mock.callback = Mock(name='callback')
-        self._trigger_count = 0
 
         def mock_set(values):
             assert isinstance(values, dict)
@@ -84,11 +79,6 @@ class TestUnitInstrumentDriver(MiUnitTestCase):
                              default_value=40)
         self.driver._protocol._param_dict.set_default("bat")
 
-    def _scheduler_callback(self):
-        """
-        Callback to test the scheduler
-        """
-        self._trigger_count += 1
                 
     def test_test_mode(self):
         """
@@ -199,47 +189,6 @@ class TestUnitInstrumentDriver(MiUnitTestCase):
 
     ##### Integration tests for startup config in the SBE37 integration suite
 
-    def test_scheduler(self):
-        """
-        Test to see that the scheduler can add and remove jobs properly
-        Jobs are just queued for adding unit we call initialize_scheduler
-        then the jobs are actually created.
-        """
-        dt = datetime.datetime.now() + datetime.timedelta(0,1)
-        job_name = 'test_job'
-        startup_config = {
-            DriverConfigKey.SCHEDULER: {
-                job_name: {
-                    DriverSchedulerConfigKey.TRIGGER: {
-                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.ABSOLUTE,
-                        DriverSchedulerConfigKey.DATE: dt
-                    }
-                }
-            }
-        }
 
-        self.driver.set_init_params(startup_config)
-
-        # Verify we are initialized properly
-        self.assertIsNone(self.driver._scheduler)
-        self.assertEqual(self.driver._scheduler_config, {})
-        self.assertEqual(self.driver._scheduler_callback, {})
-
-        # Verify the the scheduler is created
-        self.driver.initialize_scheduler()
-        self.assertIsInstance(self.driver._scheduler, DriverScheduler)
-        self.assertEqual(self.driver._scheduler_config, {})
-        self.assertEqual(self.driver._scheduler_callback, {})
-
-        # Now lets see some magic happen.  Lets add our schedulers.  Generally
-        # This would be done as part of the driver init, but it can happen
-        # anytime.  If the scheduler has already been initialized the
-        # job will be started right away
-        self.driver._add_scheduler(job_name, self._scheduler_callback)
-        self.assertEqual(0, self._trigger_count)
-        time.sleep(1.1)
-        self.assertEqual(1, self._trigger_count)
-
-        ##### Integration tests for test_scheduler in the SBE37 integration suite
 
 
