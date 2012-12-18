@@ -657,6 +657,13 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         
         # command the instrument to set the user configuration.
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SET_CONFIGURATION, user_configuration=base64.b64encode(user_config2()))
+        
+        values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
+        #print("va=%s" %values_after)
+        
+        # check to see if config got set in instrument
+        self.assertEquals(values_after[Parameter.MEASUREMENT_INTERVAL], 600)
+        self.assertEquals(values_after[Parameter.NUMBER_SAMPLES_PER_BURST], 10)
          
 
     def test_instrument_read_clock(self):
