@@ -1032,7 +1032,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentParameterException("Invalid init config format")
                 
         if DriverParameter.ALL in config:
-            binary_config = config[DriverParameter.ALL]
+            binary_config = base64.b64decode(config[DriverParameter.ALL])
             # make the configuration string look like it came from instrument to get all the methods to be happy
             binary_config += InstrumentPrompts.Z_ACK    
             log.debug("config len=%d, config=%s" %(len(binary_config), binary_config.encode('hex')))
@@ -1933,6 +1933,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentParameterException('set_configuration command missing user_configuration parameter.')
         if not isinstance(user_configuration, str):
             raise InstrumentParameterException('set_configuration command requires a string user_configuration parameter.')
+        user_configuration = base64.b64decode(user_configuration)
         self._dump_config(user_configuration)        
             
         cmd_line = cmd + user_configuration
