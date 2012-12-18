@@ -297,7 +297,7 @@ class BinaryParameterDictVal(ParameterDictVal):
                  submenu_write=None,                 
                  multi_match=False,
                  direct_access=False,
-                 startup_param=False,
+                 startup_param=True,
                  default_value=None,
                  init_value=None):
         """
@@ -365,7 +365,7 @@ class BinaryProtocolParameterDict(ProtocolParameterDict):
             visibility=ParameterDictVisibility.READ_WRITE,
             menu_path_read=None, submenu_read=None,
             menu_path_write=None, submenu_write=None,
-            multi_match=False, direct_access=False, startup_param=False,
+            multi_match=False, direct_access=False, startup_param=True,
             default_value=None, init_value=None):
         """
         Add a parameter object to the dictionary.
@@ -1594,8 +1594,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.BLANKING_DISTANCE,
                              r'^.{%s}(.{2}).*' % str(6),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True)
+                             BinaryProtocolParameterDict.word_to_string)
         self._param_dict.add(Parameter.RECEIVE_LENGTH,
                              r'^.{%s}(.{2}).*' % str(8),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
@@ -1616,7 +1615,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{2}).*' % str(16),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
                              BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True,
                              init_value=60)
         self._param_dict.add(Parameter.USER_NUMBER_BEAMS,
                              r'^.{%s}(.{2}).*' % str(18),
@@ -1629,8 +1627,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.POWER_CONTROL_REGISTER,
                              r'^.{%s}(.{2}).*' % str(22),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True)
+                             BinaryProtocolParameterDict.word_to_string)
         self._param_dict.add(Parameter.A1_1_SPARE,
                              r'^.{%s}(.{2}).*' % str(24),
                              lambda match : match.group(1),
@@ -1647,13 +1644,11 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{2}).*' % str(30),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
                              BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True,
                              init_value=2)
         self._param_dict.add(Parameter.COORDINATE_SYSTEM,
                              r'^.{%s}(.{2}).*' % str(32),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
                              BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True,
                              init_value=1)
         self._param_dict.add(Parameter.NUMBER_BINS,
                              r'^.{%s}(.{2}).*' % str(34),
@@ -1667,7 +1662,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{2}).*' % str(38),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
                              BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True,
                              init_value=3600)
         self._param_dict.add(Parameter.DEPLOYMENT_NAME,
                              r'^.{%s}(.{6}).*' % str(40),
@@ -1685,7 +1679,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{4}).*' % str(54),
                              lambda match : BinaryProtocolParameterDict.convert_double_word_to_int(match.group(1)),
                              BinaryProtocolParameterDict.double_word_to_string,
-                             startup_param=True,
                              init_value=43200)
         self._param_dict.add(Parameter.MODE,
                              r'^.{%s}(.{2}).*' % str(58),
@@ -1694,13 +1687,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.ADJUSTMENT_SOUND_SPEED,
                              r'^.{%s}(.{2}).*' % str(60),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True)
+                             BinaryProtocolParameterDict.word_to_string)
         self._param_dict.add(Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
                              r'^.{%s}(.{2}).*' % str(62),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
                              BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True,
                              init_value=20)
         self._param_dict.add(Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC,
                              r'^.{%s}(.{2}).*' % str(64),
