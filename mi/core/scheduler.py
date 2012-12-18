@@ -87,6 +87,7 @@ class PolledScheduler(Scheduler):
             minutes=minutes, seconds=seconds)
         return interval
 
+
     def add_polled_job(self, func, name, min_interval, max_interval=None,
                        start_date=None, args=None, kwargs=None,
                        jobstore='default', **options):
