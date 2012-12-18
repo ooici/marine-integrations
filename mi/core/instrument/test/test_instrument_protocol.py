@@ -56,6 +56,17 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         """
         self._trigger_count += 1
 
+    def assert_scheduled_event_triggered(self):
+        count = 0
+        for i in range(0, 40):
+            count = self._trigger_count
+            log.debug("check for triggered event, count %d" % self._trigger_count)
+            if(count): break
+            time.sleep(0.3)
+
+        self.assertGreater(count, 0)
+
+
     def test_extraction(self):
         sample_line = "SATPAR0229,10.01,2206748544,234\r\n"
         result = self.protocol._extract_sample(SatlanticPARDataParticle,
@@ -224,8 +235,7 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         # job will be started right away
         self.protocol._add_scheduler(job_name, self._scheduler_callback)
         self.assertEqual(0, self._trigger_count)
-        time.sleep(2)
-        self.assertEqual(1, self._trigger_count)
+        self.assert_scheduled_event_triggered()
 
         ##### Integration tests for test_scheduler in the SBE37 integration suite
 
