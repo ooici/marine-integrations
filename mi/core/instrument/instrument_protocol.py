@@ -68,6 +68,12 @@ class InstrumentProtocol(object):
         # Driver configuration passed from the user
         self._startup_config = {}
 
+        # scheduler config is a bit redundant now, but if we ever want to
+        # re-initialize a scheduler we will need it.
+        self._scheduler = None
+        self._scheduler_callback = {}
+        self._scheduler_config = {}
+
     ########################################################################
     # Helper methods
     ########################################################################
@@ -239,9 +245,10 @@ class InstrumentProtocol(object):
 
         self._startup_config = config
 
-        if(config.get(DriverConfigKey.PARAMETERS)):
-            for name in config.keys():
-                self._param_dict.set_init_value(name, config[name])
+        param_config = config.get(DriverConfigKey.PARAMETERS)
+        if(param_config):
+            for name in param_config.keys():
+                self._param_dict.set_init_value(name, param_config[name])
     
     def get_startup_config(self):
         """
