@@ -26,10 +26,11 @@ from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
 from nose.plugins.attrib import attr
 from mi.idk.unit_test import DriverTestMixin
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from interface.objects import AgentCommand
+
+from mi.instrument.seabird.test.test_driver import SeaBirdUnitTest
+from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
+from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
+
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 from mi.instrument.seabird.sbe26plus.driver import DataParticleType
 from mi.instrument.seabird.sbe26plus.driver import InstrumentDriver
@@ -52,12 +53,15 @@ from mi.instrument.seabird.sbe26plus.driver import SBE26plusStatisticsDataPartic
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceCalibrationDataParticleKey
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceStatusDataParticleKey
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
+from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import DataParticleValue
 from mi.core.instrument.instrument_driver import DriverParameter, DriverConnectionState, DriverAsyncEvent
 from mi.core.instrument.instrument_protocol import DriverProtocolState
 from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException
+
 from pyon.core.exception import Conflict
+from interface.objects import AgentCommand
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 
@@ -324,7 +328,7 @@ SAMPLE_DC =\
 "dc" + NEWLINE + SAMPLE_DEVICE_CALIBRATION +\
 "S>"
 
-class DataParticleMixin(DriverTestMixin):
+class SeaBird26PlusMixin(DriverTestMixin):
     '''
     Mixin class used for storing data particle constance and common data assertion methods.
     '''
@@ -591,9 +595,9 @@ class DataParticleMixin(DriverTestMixin):
 # 5. Negative testing if at all possible.                                     #
 ###############################################################################
 @attr('UNIT', group='mi')
-class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
+class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
     def setUp(self):
-        InstrumentDriverUnitTestCase.setUp(self)
+        SeaBirdUnitTest.setUp(self)
 
     def test_driver_enums(self):
         """
@@ -727,9 +731,9 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class SBE26PlusIntegrationTest(InstrumentDriverIntegrationTestCase):
+class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
     def setUp(self):
-        InstrumentDriverIntegrationTestCase.setUp(self)
+        SeaBirdIntegrationTest.setUp(self)
 
     ###
     #    Add instrument specific integration tests
@@ -769,6 +773,7 @@ class SBE26PlusIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        self.assert_driver_parameters(reply, self._driver_parameters)
 
 
     def test_get_set(self):
@@ -1609,15 +1614,13 @@ class SBE26PlusIntegrationTest(InstrumentDriverIntegrationTestCase):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('QUAL', group='mi')
-class SBE26PlusQualificationTest(InstrumentDriverQualificationTestCase):
+class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixin):
     def setUp(self):
-        InstrumentDriverQualificationTestCase.setUp(self)
+        SeaBirdQualificationTest.setUp(self)
 
     def check_state(self, desired_state):
         current_state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(current_state, desired_state)
-
-
 
     ###
     #    Add instrument specific qualification tests
