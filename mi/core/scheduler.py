@@ -205,6 +205,9 @@ class PolledScheduler(Scheduler):
                         next_wakeup_time = self._process_original_job(job, now, alias, jobstore)
 
             log.debug("_process_jobs loop complete")
+            log.debug("_process_jobs next polled wakeup %s" % next_polled_wakeup_time)
+            log.debug("_process_jobs next wakeup %s" % next_wakeup_time)
+
             if(next_polled_wakeup_time and next_wakeup_time):
                 return min(next_polled_wakeup_time, next_wakeup_time)
             elif(next_wakeup_time == None):
@@ -223,8 +226,9 @@ class PolledScheduler(Scheduler):
         next_wakeup_time=None
 
         run_times = job.get_run_times(now)
-        if run_times and not self._threadpool._shutdown:
-            self._threadpool.submit(self._run_job, job, run_times)
+        if run_times:
+            if(not self._threadpool._shutdown):
+                self._threadpool.submit(self._run_job, job, run_times)
 
             # Increase the job's run count
             if job.coalesce:
