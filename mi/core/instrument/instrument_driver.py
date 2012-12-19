@@ -911,10 +911,10 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         try:
             addr = config['addr']
             port = config['port']
+            cmd_port = config.get('cmd_port')
 
             if isinstance(addr, str) and isinstance(port, int) and len(addr)>0:
-                #return LoggerClient(addr, port)
-                return PortAgentClient(addr, port)
+                return PortAgentClient(addr, port, cmd_port)
             else:
                 raise InstrumentParameterException('Invalid comms config dict.')
 

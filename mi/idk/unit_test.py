@@ -640,9 +640,11 @@ class InstrumentDriverTestCase(MiIntTestCase):
 
     def port_agent_comm_config(self):
         port = self.port_agent.get_data_port()
+        cmd_port = self.port_agent.get_command_port()
         return {
             'addr': 'localhost',
-            'port': port
+            'port': port,
+            'cmd_port': cmd_port
         }
 
     #####

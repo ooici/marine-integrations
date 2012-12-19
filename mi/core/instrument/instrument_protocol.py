@@ -68,13 +68,6 @@ class InstrumentProtocol(object):
         # Driver configuration passed from the user
         self._startup_config = {}
 
-        # Scheduler variables.  _scheduler_config might be considered
-        # redundant, but if we ever want to reinit the scheduler it
-        # will be needed.
-        self._scheduler = None
-        self._scheduler_callback = {}
-        self._scheduler_config = {}
-
     ########################################################################
     # Helper methods
     ########################################################################
@@ -214,6 +207,8 @@ class InstrumentProtocol(object):
 
         @return: scheduler configuration dictionary
         """
+        # Currently the startup config is in the child class.
+        # @TODO should the config code be promoted?
         config = self._startup_config
         return config.get(DriverConfigKey.SCHEDULER)
 
@@ -244,10 +239,9 @@ class InstrumentProtocol(object):
 
         self._startup_config = config
 
-        parameter_config = config.get(DriverConfigKey.PARAMETERS)
-        if(parameter_config):
-            for name in parameter_config.keys():
-                self._param_dict.set_init_value(name, parameter_config[name])
+        if(config.get(DriverConfigKey.PARAMETERS)):
+            for name in config.keys():
+                self._param_dict.set_init_value(name, config[name])
     
     def get_startup_config(self):
         """
