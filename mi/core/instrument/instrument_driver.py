@@ -19,12 +19,17 @@ from mi.core.exceptions import NotImplementedException
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.instrument.instrument_fsm import InstrumentFSM
-from mi.core.instrument.logger_client import LoggerClient
 from mi.core.instrument.port_agent_client import PortAgentClient
-
 
 from mi.core.log import get_logger,LoggerManager
 log = get_logger()
+
+class DriverConfigKey(BaseEnum):
+    """
+    Dictionary keys for driver config objects
+    """
+    PARAMETERS = 'parameters'
+    SCHEDULER = 'scheduler'
 
 # This is a copy since we can't import from pyon.
 class ResourceAgentState(BaseEnum):
@@ -172,6 +177,7 @@ class InstrumentDriver(object):
         LoggerManager()
         self._send_event = event_callback
         self._test_mode = False
+
 
     #############################################################
     # Device connection interface.
@@ -340,6 +346,7 @@ class InstrumentDriver(object):
             event['value'] = val
             self._send_event(event)
 
+
     ########################################################################
     # Test interface.
     ########################################################################
@@ -416,7 +423,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._connection_fsm.start(DriverConnectionState.UNCONFIGURED)
         
         self._pre_da_config = {}
-        self._pre_connect_config = {}
+        self._startup_config = {}
                 
     #############################################################
     # Device connection interface.
@@ -471,29 +478,32 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
     #############################################################
     def set_init_params(self, config):
         """
-        Set the initialization parameters down in the protocol. These are the
-        values that should be set upon initialization or re-initialization of
-        a device.
+        Set the initialization parameters down in the protocol and store the
+        driver configuration in the driver.
 
         If the protocol hasn't been setup yet cache the config.  Next time
         this method is called, if you call it with an empty config it will
         read from the cache.
 
-        @param config This default configuration assumes a simple name/value
-        dict of the parameters and their initialization parameters. Stranger
-        parameters can be adjusted by over riding this method.
+        @param config This default configuration assumes a structure driver
+        configuration dict with keys named in DriverConfigKey.
+        Stranger parameters can be adjusted by over riding this method.
         @raise InstrumentParameterException If the config cannot be applied
         """
         if not isinstance(config, dict):
             raise InstrumentParameterException("Incompatible initialization parameters")
 
         if(self._protocol):
+            param_config = None
             if(len(config)):
-                self._protocol.set_init_params(config)
-            elif(len(self._pre_connect_config)):
-                self._protocol.set_init_params(self._pre_connect_config)
-        else:
-            self._pre_connect_config = config
+                param_config = config
+            elif(len(self._startup_config)):
+                param_config = self._startup_config
+
+            if(param_config):
+                self._protocol.set_init_params(param_config)
+
+        self._startup_config = config
     
     def apply_startup_params(self):
         """
@@ -901,10 +911,10 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         try:
             addr = config['addr']
             port = config['port']
+            cmd_port = config.get('cmd_port')
 
             if isinstance(addr, str) and isinstance(port, int) and len(addr)>0:
-                #return LoggerClient(addr, port)
-                return PortAgentClient(addr, port)
+                return PortAgentClient(addr, port, cmd_port)
             else:
                 raise InstrumentParameterException('Invalid comms config dict.')
 

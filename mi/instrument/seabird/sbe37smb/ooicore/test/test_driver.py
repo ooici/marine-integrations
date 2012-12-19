@@ -330,7 +330,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         # Test the driver returned state unconfigured.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-        
+
     def test_connect(self):
         """
         Test configuring and connecting to the device through the port

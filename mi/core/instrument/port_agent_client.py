@@ -196,12 +196,13 @@ class PortAgentClient(object):
     asynchronously via a callback from this client's listener thread.
     """
     
-    def __init__(self, host, port, delim=None):
+    def __init__(self, host, port, cmd_port, delim=None):
         """
         Logger client constructor.
         """
         self.host = host
         self.port = port
+        self.cmd_port = cmd_port
         self.sock = None
         self.listener_thread = None
         self.stop_event = None
@@ -257,16 +258,47 @@ class PortAgentClient(object):
         """
         paPacket.verify_checksum()
         self.user_callback(paPacket)
-        
-    def send(self, data):
+
+    def send_break(self):
+        """
+        Command the port agent to send a break
+        """
+        self._command_port_agent('break')
+
+    def _command_port_agent(self, cmd):
+        """
+        Command the port agent.  We connect to the command port, send the command
+        and then disconnect.  Connection is not persistent
+        @raise InstrumentConnectionException if cmd_port is missing.  We don't
+                        currently do this on init  where is should happen because
+                        some instruments wont set the  command port quite yet.
+        """
+        try:
+            if(not self.cmd_port):
+                raise InstrumentConnectionException("Missing port agent command port config")
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((self.host, self.cmd_port))
+            log.info('PortAgentClient.init_comms(): connected to port agent at %s:%i.'
+                     % (self.host, self.cmd_port))
+            self.send(cmd, sock)
+            sock.close()
+        except Exception as e:
+            log.error("send_break(): Exception occurred.", exc_info=True)
+            raise InstrumentConnectionException('Failed to connect to port agent command port at %s:%i (%s).'
+                                                % (self.host, self.cmd_port, e))
+
+
+    def send(self, data, sock=None):
         """
         Send data to the port agent.
         """
-        
-        if self.sock:
+        if(not sock):
+            sock = self.sock
+
+        if sock:
             while len(data) > 0:
                 try:
-                    sent = self.sock.send(data)
+                    sent = sock.send(data)
                     gone = data[:sent]
                     data = data[sent:]
                 except socket.error:

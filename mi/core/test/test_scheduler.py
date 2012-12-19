@@ -36,6 +36,8 @@ class TestScheduler(MiUnitTest):
         self._scheduler.start()
         self._triggered =[]
 
+        self.assertTrue(self._scheduler.daemonic)
+
     def _callback(self):
         """
         event callback for event processing
