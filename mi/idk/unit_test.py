@@ -86,6 +86,10 @@ SET_TIMEOUT=90
 EXECUTE_TIMEOUT=30
 SAMPLE_RAW_DATA="Iam Apublished Message"
 
+class DriverStartupConfigKey(BaseEnum):
+    PARAMETERS = 'parameters'
+    SCHEDULER = 'scheduler'
+
 class AgentCapabilityType(BaseEnum):
     AGENT_COMMAND = 'agent_command'
     AGENT_PARAMETER = 'agent_parameter'
@@ -636,9 +640,11 @@ class InstrumentDriverTestCase(MiIntTestCase):
 
     def port_agent_comm_config(self):
         port = self.port_agent.get_data_port()
+        cmd_port = self.port_agent.get_command_port()
         return {
             'addr': 'localhost',
-            'port': port
+            'port': port,
+            'cmd_port': cmd_port
         }
 
     #####

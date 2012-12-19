@@ -8,6 +8,44 @@
 Scheduling methods include absolute time, elapse time, cron syntax
 and a minimum elapse time (polled mode).
 
+Usage:
+
+For triggered events:
+
+def some_callback(self): ...
+
+scheduler = PolledScheduler()
+scheduler.start()
+
+# An absolute time event
+dt = datetime.datetime.now() + datetime.timedelta(0,1)
+job = scheduler.add_date_job(some_callback, dt)
+
+# An interval based event
+job = scheduler.add_interval_job(self._callback, seconds=3)
+
+# A cron style event
+job = scheduler.add_cron_job(some_callback, second='*/3')
+
+# A polled event with an interval
+test_name = 'test_job'
+min_interval = PolledScheduler.interval(seconds=1)
+max_interval = PolledScheduler.interval(seconds=3)
+job = scheduler.add_polled_job(some_callback, test_name, min_interval, max_interval)
+
+For Polled events:
+
+# max_interval is optional.  If not specified then events will only be triggered by
+# by calling schedule.run_polled_job(test_name)
+test_name = 'test_job'
+min_interval = PolledScheduler.interval(seconds=1)
+max_interval = PolledScheduler.interval(seconds=3)
+job = scheduler.add_polled_job(some_callback, test_name, min_interval, max_interval)
+
+...
+
+scheduler.run_polled_job(test_name)
+
 This module extends the Advanced Python Scheduler:
 @see http://packages.python.org/APScheduler
 """
@@ -33,6 +71,12 @@ class PolledScheduler(Scheduler):
     Specialized advanced scheduler that allows for polled interval
     jobs.
     """
+    def __init__(self):
+        """
+        ensure we are running in daemon mode, so we won't wait for 
+        unfinished threads on shutdown
+        """
+        Scheduler.__init__(self, {'demonic': True})
 
     @staticmethod
     def interval(weeks=0, days=0, hours=0, minutes=0, seconds=0):
@@ -48,6 +92,7 @@ class PolledScheduler(Scheduler):
         interval = timedelta(weeks=weeks, days=days, hours=hours,
             minutes=minutes, seconds=seconds)
         return interval
+
 
     def add_polled_job(self, func, name, min_interval, max_interval=None,
                        start_date=None, args=None, kwargs=None,
@@ -160,6 +205,9 @@ class PolledScheduler(Scheduler):
                         next_wakeup_time = self._process_original_job(job, now, alias, jobstore)
 
             log.debug("_process_jobs loop complete")
+            log.debug("_process_jobs next polled wakeup %s" % next_polled_wakeup_time)
+            log.debug("_process_jobs next wakeup %s" % next_wakeup_time)
+
             if(next_polled_wakeup_time and next_wakeup_time):
                 return min(next_polled_wakeup_time, next_wakeup_time)
             elif(next_wakeup_time == None):
@@ -179,7 +227,8 @@ class PolledScheduler(Scheduler):
 
         run_times = job.get_run_times(now)
         if run_times:
-            self._threadpool.submit(self._run_job, job, run_times)
+            if(not self._threadpool._shutdown):
+                self._threadpool.submit(self._run_job, job, run_times)
 
             # Increase the job's run count
             if job.coalesce:
@@ -208,7 +257,8 @@ class PolledScheduler(Scheduler):
 
         if not next_wakeup_time == None and next_wakeup_time <= now:
             log.debug("submit job to pool: %s" % job)
-            self._threadpool.submit(self._run_job, job, [next_wakeup_time])
+            if(not self._threadpool._shutdown):
+                self._threadpool.submit(self._run_job, job, [next_wakeup_time])
 
             # Increase the job's run count
             if job.coalesce:

@@ -10,6 +10,8 @@
 __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
+import time
+import datetime
 from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
 from pyon.util.containers import DotDict
@@ -76,6 +78,7 @@ class TestUnitInstrumentDriver(MiUnitTestCase):
                              startup_param=False,
                              default_value=40)
         self.driver._protocol._param_dict.set_default("bat")
+
                 
     def test_test_mode(self):
         """
@@ -183,7 +186,9 @@ class TestUnitInstrumentDriver(MiUnitTestCase):
         self.assertTrue(self.driver._protocol._param_dict.get("bar"), 150)
         self.assertTrue(self.driver._protocol._param_dict.get("baz"), 2000)
         self.assertTrue(self.driver._protocol._param_dict.get("bat"), 40)
-        
-        
+
     ##### Integration tests for startup config in the SBE37 integration suite
-        
+
+
+
+
