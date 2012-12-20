@@ -1995,7 +1995,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         unique_set = Set(item for item in list_in)
         return [(item) for item in unique_set]
 
-    #@unittest.skip("TEMP SKIP PROBLEMATIC QUAL TESTS.")
+    @unittest.skip("PROBLEM WITH command=ResourceAgentEvent.GO_ACTIVE")
     def test_driver_notification_messages(self, timeout=GO_ACTIVE_TIMEOUT):
         """
         @brief This tests event messages from the driver.  The following
