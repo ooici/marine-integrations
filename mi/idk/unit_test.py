@@ -1580,7 +1580,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
-
     def assert_start_autosample(self, timeout=GO_ACTIVE_TIMEOUT):
         '''
         Enter autosample mode from command
@@ -1594,7 +1593,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.STREAMING)
-
 
     def assert_enter_command_mode(self, timeout=GO_ACTIVE_TIMEOUT):
         '''
@@ -1649,7 +1647,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, DriverProtocolState.COMMAND)
 
-    @unittest.skip("TEMP SKIP PROBLEMATIC QUAL TESTS.")
+    #@unittest.skip("TEMP SKIP PROBLEMATIC QUAL TESTS.")
     def assert_direct_access_start_telnet(self, timeout=600):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -1695,7 +1693,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
-
     def assert_switch_driver_state(self, command, result_state):
         '''
         Transition to a new driver state using command passed.
@@ -1708,7 +1705,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, result_state)
 
-    @unittest.skip("TEMP SKIP PROBLEMATIC QUAL TESTS.")
+    #@unittest.skip("TEMP SKIP PROBLEMATIC QUAL TESTS.")
     def test_instrument_agent_common_state_model_lifecycle(self,  timeout=GO_ACTIVE_TIMEOUT):
         """
         @brief Test agent state transitions.
@@ -1872,7 +1869,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
-    @unittest.skip("TEMP SKIP PROBLEMATIC QUAL TESTS.")
+    #@unittest.skip("TEMP SKIP PROBLEMATIC QUAL TESTS.")
     def test_instrument_agent_to_instrument_driver_connectivity(self, timeout=GO_ACTIVE_TIMEOUT):
         """
         @brief This test verifies that the instrument agent can
@@ -1914,8 +1911,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
-
-
     @unittest.skip("not an integration tests, should be in unit tests")
     def test_instrument_error_code_enum(self):
         """
@@ -1924,7 +1919,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         self.assertTrue(self.check_for_reused_values(InstErrorCode))
         pass
-
 
     @unittest.skip("not an integration tests, should be in unit tests")
     def test_driver_connection_state_enum(self):
@@ -1944,12 +1938,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.assertTrue(self.check_for_reused_values(ResourceAgentEvent))
 
-
     @unittest.skip("not an integration tests, should be in unit tests")
     def test_resource_agent_state_enum(self):
 
         self.assertTrue(self.check_for_reused_values(ResourceAgentState))
-
 
     @unittest.skip("not an integration tests, should be in unit tests")
     def check_for_reused_values(self, obj):
@@ -1971,7 +1963,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         # If this assert fails, then two of the enumerations have an identical value...
         return match == outer_match
-
 
     @unittest.skip("not an integration tests, should be in unit tests")
     def test_driver_async_event_enum(self):
@@ -2004,7 +1995,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         unique_set = Set(item for item in list_in)
         return [(item) for item in unique_set]
 
-    @unittest.skip("TEMP SKIP PROBLEMATIC QUAL TESTS.")
+    #@unittest.skip("TEMP SKIP PROBLEMATIC QUAL TESTS.")
     def test_driver_notification_messages(self, timeout=GO_ACTIVE_TIMEOUT):
         """
         @brief This tests event messages from the driver.  The following
