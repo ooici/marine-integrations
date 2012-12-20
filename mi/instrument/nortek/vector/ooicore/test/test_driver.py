@@ -67,6 +67,7 @@ from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityHeaderDataP
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticle
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticleKey
 from mi.instrument.nortek.vector.ooicore.driver import VectorSystemDataParticle
+from mi.instrument.nortek.vector.ooicore.driver import VectorSystemDataParticleKey
 
 from interface.objects import AgentCommand
 from interface.objects import CapabilityType
@@ -728,6 +729,20 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertTrue(re.search(r'VEC 8181.*', response[1]))
 
 
+    def test_instrument_read_fat(self):
+        """
+        @brief Test for reading FAT
+        """
+        self.put_driver_in_command_mode()
+        
+        # command the instrument to read the FAT.
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_FAT)
+        
+        log.debug("read ID returned:")
+        for item in response[1]:
+            log.debug("%s", item)
+
+
     def test_instrument_read_hw_config(self):
         """
         @brief Test for reading HW config
@@ -849,7 +864,6 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('get_resource', [Parameter.WRAP_MODE, Parameter.NUMBER_SAMPLES_PER_BURST, Parameter.MEASUREMENT_INTERVAL])
         self.assertEqual(new_params, reply)
         
-    @unittest.skip("skip until issue with acquire_data command resolved, command fails to return ACK from instrument")
     def test_instrument_acquire_sample(self):
         """
         Test acquire sample command and events.
@@ -1238,19 +1252,27 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         value_ids = []
         for value in values:
             value_ids.append(value['value_id'])
-        if VectorVelocityDataParticleKey.TIMESTAMP in value_ids:
-            log.debug('assertSampleDataParticle: VectorVelocityDataParticle/VectorDiagnosticDataParticle detected')
+        if VectorVelocityDataParticleKey.ANALOG_INPUT2 in value_ids:
+            log.debug('assertSampleDataParticle: VectorVelocityDataParticle detected')
             self.assertEqual(sorted(value_ids), sorted(VectorVelocityDataParticleKey.list()))
             for value in values:
-                if value['value_id'] == VectorVelocityDataParticleKey.TIMESTAMP:
+                self.assertTrue(isinstance(value['value'], int))
+        elif VectorVelocityHeaderDataParticleKey.NUMBER_OF_RECORDS in value_ids:
+            log.debug('assertSampleDataParticle: VectorVelocityHeaderDataParticle detected')
+            self.assertEqual(sorted(value_ids), sorted(VectorVelocityHeaderDataParticleKey.list()))
+            for value in values:
+                if value['value_id'] == VectorVelocityHeaderDataParticleKey.TIMESTAMP:
                     self.assertTrue(isinstance(value['value'], str))
                 else:
                     self.assertTrue(isinstance(value['value'], int))
-        elif VectorDiagnosticHeaderDataParticleKey.RECORDS in value_ids:
-            log.debug('assertSampleDataParticle: VectorDiagnosticHeaderDataParticle detected')
-            self.assertEqual(sorted(value_ids), sorted(VectorDiagnosticHeaderDataParticleKey.list()))
+        elif VectorSystemDataParticleKey.BATTERY in value_ids:
+            log.debug('assertSampleDataParticle: VectorSystemDataParticleKey detected')
+            self.assertEqual(sorted(value_ids), sorted(VectorSystemDataParticleKey.list()))
             for value in values:
-                self.assertTrue(isinstance(value['value'], int))
+                if value['value_id'] == VectorSystemDataParticleKey.TIMESTAMP:
+                    self.assertTrue(isinstance(value['value'], str))
+                else:
+                    self.assertTrue(isinstance(value['value'], int))
         else:
             self.fail('Unknown data particle')
 
@@ -1312,9 +1334,9 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         self.assert_set_parameter(Parameter.BLANKING_DISTANCE, 40)
         self.assert_set_parameter(Parameter.BLANKING_DISTANCE, value_before_set)
 
-        value_before_set = self.get_parameter(Parameter.AVG_INTERVAL)
-        self.assert_set_parameter(Parameter.AVG_INTERVAL, 4)
-        self.assert_set_parameter(Parameter.AVG_INTERVAL, value_before_set)
+        value_before_set = self.get_parameter(Parameter.NUMBER_SAMPLES_PER_BURST)
+        self.assert_set_parameter(Parameter.NUMBER_SAMPLES_PER_BURST, 60)
+        self.assert_set_parameter(Parameter.NUMBER_SAMPLES_PER_BURST, value_before_set)
 
         self.assert_reset()
         
@@ -1342,9 +1364,11 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 ProtocolEvent.READ_BATTERY_VOLTAGE,
                 ProtocolEvent.READ_CLOCK, 
                 ProtocolEvent.READ_ID,
+                ProtocolEvent.READ_FAT,
                 ProtocolEvent.READ_MODE,
                 ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME,
-                ProtocolEvent.START_MEASUREMENT_IMMEDIATE
+                ProtocolEvent.START_MEASUREMENT_IMMEDIATE,
+                ProtocolEvent.SET_CONFIGURATION
             ],
             AgentCapabilityType.RESOURCE_PARAMETER: [
                 Parameter.TRANSMIT_PULSE_LENGTH,
@@ -1382,6 +1406,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 Parameter.WAVE_BLANKING_DISTANCE,
                 Parameter.WAVE_CELL_SIZE,
                 Parameter.NUMBER_DIAG_SAMPLES,
+                Parameter.NUMBER_SAMPLES_PER_BURST,
                 Parameter.ANALOG_OUTPUT_SCALE,
                 Parameter.CORRELATION_THRESHOLD,
                 Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
