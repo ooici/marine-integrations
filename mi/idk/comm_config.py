@@ -197,7 +197,7 @@ class CommConfig(object):
         return False
 
     @staticmethod
-    def get_config_from_console(filename, default_type = None):
+    def get_config_from_console(filename, default_type = ConfigTypes.ETHERNET):
         """
         @brief Factory method.  Prompt and read the config type from the console
         @param filename The file where the comm config is stored in
