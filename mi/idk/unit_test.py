@@ -235,6 +235,42 @@ class DriverTestMixin(MiUnitTest):
 
         return sample_dict
 
+    def get_data_particle_values_as_dict(self, data_particle):
+        """
+        Return all of the data particle values as a dictionary with the value id as the key and the value as the
+        value.  This method will decimate the data, in the any characteristics other than value id and value.  i.e.
+        binary.
+        @param: data_particle: data particle to inspect
+        @return: return a dictionary with keys and values { value-id: value }
+        @raise: IDKException when missing values dictionary
+        """
+        sample_dict = self.convert_data_particle_to_dict(data_particle)
+
+        values = sample_dict.get('values')
+        if(not values):
+            raise IDKException("Data particle missing values")
+
+        if(not isinstance(values, list)):
+            raise IDKException("Data particle values not a list")
+
+        result = {}
+        for param in values:
+            if(not isinstance(param, dict)):
+                raise IDKException("must be a dict")
+
+            key = param.get('value_id')
+            if(key == None):
+                raise IDKException("value_id not defined")
+
+            if(key in result.keys()):
+                raise IDKException("duplicate value detected for %s" % key)
+
+            result[key] = param.get('value')
+
+
+        return result
+
+
     def assert_data_particle_header(self, data_particle, stream_name):
         """
         Verify a data particle header is formatted properly
@@ -251,13 +287,15 @@ class DriverTestMixin(MiUnitTest):
 
     def assert_data_particle_parameters(self, data_particle, param_dict, verify_values = False):
         """
-        Alias for assert_parameters.
+        Verify data partice parameters.  Does a quick conversion of the values to a dict
+        so that common methods can operate on them.
 
         @param data_particle: the data particle to examine
         @param parameter_dict: dict with parameter names and types
         @param verify_values: bool should ve verify parameter values
         """
-        self.assert_parameters(data_particle,param_dict,verify_values)
+        sample_dict = self.get_data_particle_values_as_dict(data_particle)
+        self.assert_parameters(sample_dict,param_dict,verify_values)
 
     def assert_parameters(self, current_parameters, param_dict, verify_values = False):
         """
@@ -274,12 +312,23 @@ class DriverTestMixin(MiUnitTest):
          value: value of the parameter being validated.  This is useful for unit tests where
                 parameters are known.
 
+         Following only used for driver parameter verification
+         startup: Verifies the parameter is defined as a startup parameter
+         directaccess: Verifies the parameter is defined as a direct access parameter
+         readonly: Verifies the parameter is defined as a readonly parameter
+         verify: Verifies the default value of the parameter
+
          {
              'some_key': {
                  type: float,
                  required: False,
                  name: 'some_key',
                  value: 1.1
+
+                 startup: False
+                 directaccess: False
+                 readonly: False
+                 default: some_value
              }
          }
 
@@ -293,27 +342,21 @@ class DriverTestMixin(MiUnitTest):
 
         This will verify the type is a float, it is required and we will not validate the key.
 
-        @param current_parameters: the current parameters to examine
+        @param current_parameters: list of parameters to examine
         @param parameter_dict: dict with parameter names and types
         @param verify_values: bool should ve verify parameter values
         """
-        sample_dict = self.convert_data_particle_to_dict(current_parameters)
+        self.assertIsInstance(current_parameters, dict)
         self.assertIsInstance(param_dict, dict)
 
-        # Get the values in the data particle for parameter validation
-        values = sample_dict.get('values')
-        self.assertIsNotNone(values)
-        self.assertIsInstance(values, list)
-
-        self.assert_data_particle_parameter_names(param_dict)
-        self.assert_data_particle_parameter_set(values, param_dict)
-        self.assert_data_particle_parameter_types(values, param_dict)
+        self.assert_parameter_names(param_dict)
+        self.assert_parameter_set(current_parameters, param_dict)
+        self.assert_parameter_types(current_parameters, param_dict)
 
         if(verify_values):
-            self.assert_data_particle_parameter_value(values, param_dict)
+            self.assert_parameter_value(current_parameters, param_dict)
 
-
-    def assert_data_particle_parameter_names(self, param_dict):
+    def assert_parameter_names(self, param_dict):
         """
         Verify that the names of the parameter dictionary keys match the parameter value 'name'.  This
         is useful when the parameter dict is built using constants.  If name is none then ignore.
@@ -336,26 +379,22 @@ class DriverTestMixin(MiUnitTest):
                 if(name != None):
                     self.assertEqual(key, name)
 
-
-    def assert_data_particle_parameter_set(self, sample_values, param_dict):
+    def assert_parameter_set(self, sample_values, param_dict):
         """
         Verify all required parameters appear in sample_dict as described in param_dict.  Also verify
         that there are no extra values in the sample dict that are not listed as optional in the
         param_dict
-        @param sample_dict: parsed data particle to inspect
+        @param sample_values: parsed data particle to inspect
         @param param_dict: dictionary containing parameter validation information
         """
-        sample_keys = []
+        self.assertIsInstance(sample_values, dict)
+        self.assertIsInstance(param_dict, dict)
+
         required_keys = []
         optional_keys = []
 
         # get all the sample parameter names
-        for item in sample_values:
-            self.assertIsInstance(item, dict)
-            name = item.get('value_id')
-            self.assertIsNotNone(name)
-            sample_keys.append(name)
-
+        sample_keys = sample_values.keys()
         log.info("Sample Keys: %s" % sample_keys)
 
         # split the parameters into optional and required
@@ -387,23 +426,14 @@ class DriverTestMixin(MiUnitTest):
         self.assertEqual(len(sample_keys), 0)
 
 
-    def assert_data_particle_parameter_value(self, sample_values, param_dict):
+    def assert_parameter_value(self, sample_values, param_dict):
         """
         Verify the value in the data particle parameter with the value in the param dict.  This test
         is useful in unit testing when the values are known.
         @param sample_dict: parsed data particle to inspect
         @param param_dict: dictionary containing parameter validation information
         """
-        for sample in sample_values:
-            # get the parameter name
-            param_name = sample.get('value_id')
-            self.assertIsNotNone(param_name)
-
-            # get the parameter value
-            param_value = sample['value']
-            log.debug("Data Particle Parameter (%s): %s" % (sample, type(param_value)))
-            log.debug("Particle Dict (%s)" % param_value)
-
+        for (param_name, param_value) in sample_values.items():
             # get the parameter type
             param_def = param_dict.get(param_name)
             log.debug("Particle Def (%s) " % param_def)
@@ -422,21 +452,14 @@ class DriverTestMixin(MiUnitTest):
                 pass
 
 
-    def assert_data_particle_parameter_types(self, sample_values, param_dict):
+    def assert_parameter_types(self, sample_values, param_dict):
         """
         Verify all parameters in the sample_dict are of the same type as described in the param_dict
         @param sample_dict: parsed data particle to inspect
         @param param_dict: dictionary containing parameter validation information
         """
-        for sample in sample_values:
-            # get the parameter name
-            param_name = sample.get('value_id')
-            self.assertIsNotNone(param_name)
-
-            # get the parameter value
-            param_value = sample['value']
-
-            log.debug("Data Particle Parameter (%s): %s" % (sample, type(param_value)))
+        for (param_name, param_value) in sample_values.items():
+            log.debug("Data Particle Parameter (%s): %s" % (param_name, type(param_value)))
 
             # get the parameter type
             param_def = param_dict.get(param_name)
