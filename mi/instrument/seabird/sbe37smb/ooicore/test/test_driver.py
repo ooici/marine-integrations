@@ -271,7 +271,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
                         list))
         
         self.assertTrue(parsed_dict[DataParticleKey.STREAM_NAME],
-                        DataParticleValue.PARSED)
+                        DataParticleType.PARSED)
         self.assertTrue(parsed_dict[DataParticleKey.PKT_FORMAT_ID],
                         DataParticleValue.JSON_DATA)
         self.assertTrue(parsed_dict[DataParticleKey.PKT_VERSION], 1)
@@ -1241,7 +1241,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
             sample_dict = val
 
         self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME],
-            DataParticleValue.PARSED)
+            DataParticleType.PARSED)
         self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID],
             DataParticleValue.JSON_DATA)
         self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
@@ -1768,7 +1768,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         # make sure there aren't any junk samples in the parsed
         # data queue.
-        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
+        self.data_subscribers.clear_sample_queue(DataParticleType.PARSED)
         cmd = AgentCommand(command=SBE37ProtocolEvent.ACQUIRE_SAMPLE)
         reply = self.instrument_agent_client.execute_resource(cmd)
 
@@ -1780,7 +1780,7 @@ class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
 
         # Watch the parsed data queue and return once three samples
         # have been read or the default timeout has been reached.
-        samples = self.data_subscribers.get_samples(DataParticleValue.PARSED, 3)
+        samples = self.data_subscribers.get_samples(DataParticleType.PARSED, 3)
         self.assertGreaterEqual(len(samples), 3)
 
         self.assertSampleDataParticle(samples.pop())
