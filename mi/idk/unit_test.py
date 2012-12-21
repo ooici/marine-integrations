@@ -31,6 +31,10 @@ from mock import Mock
 import unittest
 from mi.core.unit_test import MiIntTestCase
 from mi.core.unit_test import MiUnitTest
+from mi.core.instrument.instrument_driver import InstrumentDriver
+from mi.core.instrument.instrument_protocol import InstrumentProtocol
+from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from ion.agents.port.port_agent_process import PortAgentProcessType
 from interface.objects import AgentCapability
 from interface.objects import CapabilityType
@@ -97,7 +101,7 @@ class AgentCapabilityType(BaseEnum):
     RESOURCE_INTERFACE = 'resource_interface'
     RESOURCE_PARAMETER = 'resource_parameter'
 
-class DataParticleParameterConfigKey(BaseEnum):
+class ParameterTestConfigKey(BaseEnum):
     """
     Defines the dict keys used in the data particle parameter config used in unit tests of data particles
     """
@@ -105,6 +109,10 @@ class DataParticleParameterConfigKey(BaseEnum):
     REQUIRED = 'required'
     NAME = 'name'
     VALUE = 'value'
+    DIRECT_ACCESS = 'directaccess'
+    STARTUP = 'startup'
+    READONLY = 'readonly'
+    DEFAULT = 'default'
 
 class InstrumentDriverTestConfig(Singleton):
     """
@@ -297,6 +305,63 @@ class DriverTestMixin(MiUnitTest):
         sample_dict = self.get_data_particle_values_as_dict(data_particle)
         self.assert_parameters(sample_dict,param_dict,verify_values)
 
+    def assert_driver_parameter_definition(self, driver, param_dict):
+        """
+        Verify the parameters have been defined as expected in the driver protocol.
+
+        parameter_dict_examples:
+
+         startup: Verifies the parameter is defined as a startup parameter
+         directaccess: Verifies the parameter is defined as a direct access parameter
+         readonly: Verifies the parameter is defined as a readonly parameter
+         verify: Verifies the default value of the parameter
+
+         {
+             'some_key': {
+                 startup: False
+                 directaccess: False
+                 readonly: False
+                 default: some_value
+             }
+         }
+
+        @param driver: driver to inspect, must have a protocol defined
+        @param parameter_dict: dict with parameter names and types
+        """
+        self.assertIsInstance(driver, InstrumentDriver)
+        self.assertIsInstance(driver._protocol, InstrumentProtocol)
+        self.assertIsInstance(driver._protocol._param_dict, ProtocolParameterDict)
+        self.assertIsInstance(param_dict, dict)
+
+        pd = driver._protocol._param_dict
+
+        for (name, config) in param_dict.items():
+            log.debug("Verify parameter: %s" % name)
+            self.assertIsInstance(config, dict)
+
+            startup = config.get(ParameterTestConfigKey.STARTUP)
+            da = config.get(ParameterTestConfigKey.DIRECT_ACCESS)
+            readonly = config.get(ParameterTestConfigKey.READONLY)
+            default = config.get(ParameterTestConfigKey.DEFAULT)
+
+            if(da == True):
+                self.assertIn(name, pd.get_direct_access_list(), msg="%s not a direct access parameters %s" % (name, pd.get_direct_access_list()))
+            elif(da == False):
+                self.assertNotIn(name, pd.get_direct_access_list(), msg="%s is a direct access parameters %s" % (name, pd.get_direct_access_list()))
+
+            if(startup == True):
+                self.assertIn(name, pd.get_startup_list(), msg="%s is not a startup parameter" % name)
+            elif(startup == False):
+                self.assertNotIn(name, pd.get_startup_list(), msg="%s is a startup parameter" % name)
+
+            if(readonly == True):
+                self.assertIn(name, pd.get_visibility_list(ParameterDictVisibility.READ_ONLY), msg="%s is not a read only parameter" % name)
+            elif(readonly == False):
+                self.assertIn(name, pd.get_visibility_list(ParameterDictVisibility.READ_WRITE), msg="%s is a read only parameter" % name)
+
+            if(default):
+                self.assertEqual(default, pd.get_default_value(name), "%s default value incorrect: %s != %s" % (name, default, pd.get_default_value(name)))
+
     def assert_parameters(self, current_parameters, param_dict, verify_values = False):
         """
         Verify the parameters contain all parameters in the parameter enum and verify the
@@ -375,7 +440,7 @@ class DriverTestMixin(MiUnitTest):
         """
         for key, param_def in param_dict.items():
             if(isinstance(param_def, dict)):
-                name = param_def.get(DataParticleParameterConfigKey.NAME)
+                name = param_def.get(ParameterTestConfigKey.NAME)
                 if(name != None):
                     self.assertEqual(key, name)
 
@@ -400,7 +465,7 @@ class DriverTestMixin(MiUnitTest):
         # split the parameters into optional and required
         for key, param in param_dict.items():
             if(isinstance(param, dict)):
-                required = param.get(DataParticleParameterConfigKey.REQUIRED, True)
+                required = param.get(ParameterTestConfigKey.REQUIRED, True)
                 if(required):
                     required_keys.append(key)
                 else:
@@ -439,14 +504,14 @@ class DriverTestMixin(MiUnitTest):
             log.debug("Particle Def (%s) " % param_def)
             self.assertIsNotNone(param_def)
             if(isinstance(param_def, dict)):
-                param_type = param_def.get(DataParticleParameterConfigKey.TYPE)
+                param_type = param_def.get(ParameterTestConfigKey.TYPE)
                 self.assertIsNotNone(type)
             else:
                 param_type = param_def
 
             try:
-                required_value = param_def[DataParticleParameterConfigKey.VALUE]
-                self.assertEqual(param_value, required_value)
+                required_value = param_def[ParameterTestConfigKey.VALUE]
+                self.assertEqual(param_value, required_value, msg="%s value not equal: %s != %s" % (param_name, param_value, required_value))
             except KeyError:
                 # Ignore key errors
                 pass
@@ -465,19 +530,19 @@ class DriverTestMixin(MiUnitTest):
             param_def = param_dict.get(param_name)
             self.assertIsNotNone(param_def)
             if(isinstance(param_def, dict)):
-                param_type = param_def.get(DataParticleParameterConfigKey.TYPE)
+                param_type = param_def.get(ParameterTestConfigKey.TYPE)
                 self.assertIsNotNone(type)
             else:
                 param_type = param_def
 
             # is this a required parameter
             if(isinstance(param_def, dict)):
-                required = param_def.get(DataParticleParameterConfigKey.REQUIRED, True)
+                required = param_def.get(ParameterTestConfigKey.REQUIRED, True)
             else:
                 required = param_def
 
             if(required):
-                self.assertIsNotNone(param_value)
+                self.assertIsNotNone(param_value, msg="%s required field None" % param_name)
 
             if(param_value):
                 self.assertIsInstance(param_value, param_type)
@@ -1118,6 +1183,9 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverProtocolState.COMMAND)
+
+        # Apply startup parameters
+        state = self.driver_client.cmd_dvr('apply_startup_params')
 
     ###
     #   Common Integration Tests

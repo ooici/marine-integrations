@@ -26,6 +26,7 @@ from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
 from nose.plugins.attrib import attr
 from mi.idk.unit_test import DriverTestMixin
+from mi.idk.unit_test import ParameterTestConfigKey
 
 from mi.instrument.seabird.test.test_driver import SeaBirdUnitTest
 from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
@@ -328,12 +329,14 @@ SAMPLE_DC =\
 "dc" + NEWLINE + SAMPLE_DEVICE_CALIBRATION +\
 "S>"
 
-TYPE = 'type'
-READONLY = 'readonly'
-STARTUP = 'startup'
-DA = 'directaccess'
-VALUE = 'value'
-REQUIRED = 'required'
+# Create some short names for the parameter test config
+TYPE = ParameterTestConfigKey.TYPE
+READONLY = ParameterTestConfigKey.READONLY
+STARTUP = ParameterTestConfigKey.STARTUP
+DA = ParameterTestConfigKey.DIRECT_ACCESS
+VALUE = ParameterTestConfigKey.VALUE
+REQUIRED = ParameterTestConfigKey.REQUIRED
+DEFAULT = ParameterTestConfigKey.DEFAULT
 
 class SeaBird26PlusMixin(DriverTestMixin):
     '''
@@ -344,40 +347,40 @@ class SeaBird26PlusMixin(DriverTestMixin):
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.EXTERNAL_TEMPERATURE_SENSOR: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: False},
-        Parameter.CONDUCTIVITY: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: False},
+        Parameter.EXTERNAL_TEMPERATURE_SENSOR: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.CONDUCTIVITY: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.USER_INFO : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
-        Parameter.TXREALTIME: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: False},
-        Parameter.TXWAVEBURST: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: False},
+        Parameter.TXREALTIME: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.TXWAVEBURST: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
 
         # Set sampling parameters
-        Parameter.TIDE_INTERVAL : {TYPE: int, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.TIDE_MEASUREMENT_DURATION : {TYPE: int, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.WAVE_SAMPLES_PER_BURST : {TYPE: int, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.WAVE_SAMPLES_SCANS_PER_SECOND : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.USE_START_TIME : {TYPE: bool, READONLY: False, DA: True, STARTUP: False, REQUIRED: False},
-        Parameter.USE_STOP_TIME : {TYPE: bool, READONLY: False, DA: True, STARTUP: False, REQUIRED: False},
-        Parameter.TIDE_SAMPLES_PER_DAY : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.WAVE_BURSTS_PER_DAY : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.MEMORY_ENDURANCE : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.TOTAL_RECORDED_WAVE_BURSTS : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.WAVE_BURSTS_SINCE_LAST_START : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.TXWAVESTATS : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS : {TYPE: int, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.USE_MEASURED_TEMP_FOR_DENSITY_CALC : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND : {TYPE: int, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.MIN_ALLOWABLE_ATTENUATION : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
-        Parameter.HANNING_WINDOW_CUTOFF : {TYPE: float, READONLY: False, DA: False, STARTUP: True, REQUIRED: False},
+        Parameter.TIDE_INTERVAL : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TIDE_MEASUREMENT_DURATION : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.WAVE_SAMPLES_PER_BURST : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.WAVE_SAMPLES_SCANS_PER_SECOND : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.USE_START_TIME : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.USE_STOP_TIME : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TIDE_SAMPLES_PER_DAY : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.WAVE_BURSTS_PER_DAY : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.MEMORY_ENDURANCE : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TOTAL_RECORDED_WAVE_BURSTS : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.WAVE_BURSTS_SINCE_LAST_START : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TXWAVESTATS : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.USE_MEASURED_TEMP_FOR_DENSITY_CALC : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.MIN_ALLOWABLE_ATTENUATION : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.HANNING_WINDOW_CUTOFF : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
 
         # DS parameters - also includes sampling parameters
         Parameter.DEVICE_VERSION : {TYPE: str, READONLY: True},
@@ -388,10 +391,10 @@ class SeaBird26PlusMixin(DriverTestMixin):
         Parameter.IOP_MA : {TYPE: float, READONLY: True},
         Parameter.VMAIN_V : {TYPE: float, READONLY: True},
         Parameter.VLITH_V : {TYPE: float, READONLY: True},
-        Parameter.LAST_SAMPLE_P : {TYPE: float, READONLY: True},
-        Parameter.LAST_SAMPLE_T : {TYPE: float, READONLY: True},
-        Parameter.LAST_SAMPLE_S : {TYPE: float, READONLY: True},
-        Parameter.SHOW_PROGRESS_MESSAGES : { TYPE: bool, READONLY: True},
+        Parameter.LAST_SAMPLE_P : {TYPE: float, READONLY: True, REQUIRED: False},
+        Parameter.LAST_SAMPLE_T : {TYPE: float, READONLY: True, REQUIRED: False},
+        Parameter.LAST_SAMPLE_S : {TYPE: float, READONLY: True, REQUIRED: False},
+        Parameter.SHOW_PROGRESS_MESSAGES : { TYPE: bool, READONLY: True, REQUIRED: False},
         Parameter.STATUS : { TYPE: str, READONLY: True},
         Parameter.LOGGING : { TYPE: bool, READONLY: True},
         }
@@ -707,6 +710,9 @@ class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
 
         self.assertEqual(reported_parameters, expected_parameters)
 
+        # Verify the parameter definitions
+        self.assert_driver_parameter_definition(driver, self._driver_parameters)
+
 
     def test_capabilities(self):
         """
@@ -748,31 +754,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
     ###
     #    Add instrument specific integration tests
     ###
-
-    def assert_param_dict(self, pd, all_params=False):
-        """
-        Verify all device parameters exist and are correct type.
-        """
-
-        # Make it loop through once to warn with debugging of issues, 2nd time can send the exception
-        # PARAMS is the master type list
-
-        if all_params:
-            log.debug("DICT 1 *********" + str(pd.keys()))
-            log.debug("DICT 2 *********" + str(PARAMS.keys()))
-            self.assertEqual(set(pd.keys()), set(PARAMS.keys()))
-
-            for (key, type_val) in PARAMS.iteritems():
-                self.assertTrue(isinstance(pd[key], type_val))
-        else:
-            for (key, val) in pd.iteritems():
-                self.assertTrue(PARAMS.has_key(key))
-
-                if val is not None: # If its not defined, lets just skip it, only catch wrong type assignments.
-                    log.debug("Asserting that " + key +  " is of type " + str(PARAMS[key]))
-                    self.assertTrue(isinstance(val, PARAMS[key]))
-                else:
-                    log.debug("*** Skipping " + key + " Because value is None ***")
 
     def test_parameters(self):
         """
