@@ -59,7 +59,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from mi.idk.unit_test import SocketTester
+from mi.core.tcp_client import TcpClient
 
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
@@ -524,7 +524,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
         log.warn("go_direct_access retval=" + str(retval.result))
 
         # start 'telnet' client with returned address and port
-        s = SocketTester(retval.result['ip_address'], retval.result['port'])
+        s = TcpClient(retval.result['ip_address'], retval.result['port'])
 
         # look for and swallow 'Username' prompt
         try_count = 0

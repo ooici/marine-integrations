@@ -3,23 +3,48 @@ __author__ = 'Bill French'
 import argparse
 
 from mi.idk.nose_test import NoseTest
+from mi.idk.nose_test import BUILDBOT_DRIVER_FILE
 from mi.idk.metadata import Metadata
+from mi.core.log import get_logger ; log = get_logger()
+
+import yaml
+import os
+from mi.idk.config import Config
+from mi.idk.nose_test import BuildBotConfig
+
+BUILDBOT_DRIVER_FILE = "config/buildbot.yml"
 
 def run():
-    opts = parseArgs()
-    app = NoseTest(Metadata(), testname=opts.testname)
 
-    if( opts.unit ):
-        app.report_header()
-        app.run_unit()
-    elif( opts.integration ):
-        app.report_header()
-        app.run_integration()
-    elif( opts.qualification ):
-        app.report_header()
-        app.run_qualification()
+    opts = parseArgs()
+
+
+    if( opts.buildbot ):
+        devices = read_buildbot_config()
+
+        for (key, config) in devices:
+            make = config.get(BuildBotConfig.MAKE)
+            model = config.get(BuildBotConfig.MODEL)
+            flavor =config.get(BuildBotConfig.FLAVOR)
+            metadata = Metadata(make, model, flavor)
+            app = NoseTest(metadata, testname=opts.testname)
+            app.report_header()
+            app.run_unit()
+            app.run_integration()
+            app.run_qualification()
     else:
-        app.run()
+        app = NoseTest(Metadata(), testname=opts.testname)
+        if( opts.unit ):
+            app.report_header()
+            app.run_unit()
+        elif( opts.integration ):
+            app.report_header()
+            app.run_integration()
+        elif( opts.qualification ):
+            app.report_header()
+            app.run_qualification()
+        else:
+            app.run()
 
 def parseArgs():
     parser = argparse.ArgumentParser(description="IDK Start Driver")
@@ -29,12 +54,38 @@ def parseArgs():
                         help="only run integration tests" )
     parser.add_argument("-q", dest='qualification', action="store_true",
         help="only run qualification tests" )
+    parser.add_argument("-b", dest='buildbot', action="store_true",
+        help="run all tests for drivers listed in %s" % BUILDBOT_DRIVER_FILE)
     parser.add_argument("-t", dest='testname',
-                        help="test function name to run (all if not set)" )
+        help="test function name to run (all if not set)" )
     #parser.add_argument("-m", dest='launch_monitor', action="store_true",
     #                    help="Launch data file monitor" )
     return parser.parse_args()
 
+def read_buildbot_config():
+    """
+    Read the buildbot driver config and return a list of tuples with driver configs.
+    We read the entire config file first so we can raise an exception before we run
+    any tests.
+    @return: list of tuples containing driver configs.
+    @raise IDKConfigMissing if a driver config is missing a parameter
+    """
+    config_file = os.path.join(Config().base_dir(), BUILDBOT_DRIVER_FILE)
+    drivers = yaml.load(file(config_file))
+
+    log.error("Read drivers from %s" % config_file)
+    log.error("Yaml load result: %s" % drivers)
+
+    result = []
+
+    # verify we have everything we need in the config
+    for (key, config) in drivers.items():
+        if(not config.get(BuildBotConfig.MAKE)
+           or not config.get(BuildBotConfig.MODEL)
+           or not config.get(BuildBotConfig.FLAVOR)):
+            raise IDKConfigMissing("%s missing configuration" % key)
+
+    return drivers.items()
 
 if __name__ == '__main__':
     run()

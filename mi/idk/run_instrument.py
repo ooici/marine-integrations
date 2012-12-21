@@ -22,7 +22,7 @@ from pyon.event.event import EventSubscriber
 from pyon.ion.stream import StandaloneStreamSubscriber
 
 # Pyon unittest support.
-from pyon.util.int_test import IonIntegrationTestCase
+from mi.core.unit_test import MiIntTestCase
 
 # Agent imports.
 from pyon.util.context import LocalContextMixin
@@ -93,7 +93,7 @@ class FakeProcess(LocalContextMixin):
     process_type = ''
 
 
-class RunInstrument(IonIntegrationTestCase):
+class RunInstrument(MiIntTestCase):
     """
     Main class for communicating with an instrument
     """

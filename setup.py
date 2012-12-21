@@ -27,7 +27,7 @@ setup(  name = 'marine-integrations',
         dependency_links = [
             'http://sddevrepo.oceanobservatories.org/releases/',
             'https://github.com/ooici/pyon/tarball/master#egg=pyon',
-            'https://github.com/ooici/utilities/tarball/master#egg=utilities-9999'
+            'https://github.com/ooici/utilities/tarball/v2012.12.12#egg=utilities-2012.12.12',
         ],
         test_suite = 'pyon',
         entry_points = {
@@ -41,6 +41,7 @@ setup(  name = 'marine-integrations',
             'gitpy==0.6.0',
             'snakefood==1.4',
             'ntplib>=0.1.9',
+            'apscheduler==2.0.3',
             'utilities',
         ],
      )

@@ -44,8 +44,12 @@ DEFAULT_CONFIG = "extern/ion-definitions/res/config/idk.yml"
 IDK_YAML_GROUP = "idk"
 YAML_CONFIG_WORKING_REPO = "working_repo"
 YAML_CONFIG_TEMPLATE_DIR = "template_dir"
+YAML_CONFIG_START_RABBIT = "start_rabbit"
+YAML_CONFIG_START_COUCH = "start_couch"
 
 MI_REPO_NAME = "marine-integrations"
+
+DISABLE_START_RABBIT_AND_COUCH = True
 
 class ConfigManager(Singleton):
     """
@@ -88,6 +92,7 @@ class ConfigManager(Singleton):
         if not self.get("working_repo"):
             raise WorkingRepoNotSet()
 
+
         self.read_config([ os.path.join(self.get("working_repo"), DEFAULT_CONFIG),
                            cfgpath ])
         pass
@@ -116,10 +121,14 @@ class ConfigManager(Singleton):
         origin = idk_repo
 
         log.debug( "Does '%s' contain '%s'" % (origin, MI_REPO_NAME))
-        if origin.find(MI_REPO_NAME) < 0:
+        # Added second criteria as a quick fix to get buildbot working.  Need a better
+        # way of identifing the idk dir
+        if origin.find(MI_REPO_NAME) < 0 and origin.find('/build') < 0:
             raise IDKWrongRunningDirectory(msg="Please run this process from the root your local MI git repository")
         
         self.set(YAML_CONFIG_WORKING_REPO, idk_repo)
+        self.set(YAML_CONFIG_START_RABBIT, False)
+        self.set(YAML_CONFIG_START_COUCH, False)
            
     
     def write(self):

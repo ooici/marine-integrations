@@ -13,12 +13,13 @@ __license__ = 'Apache 2.0'
 from nose.plugins.attrib import attr
 from mock import Mock
 import unittest
+from mi.core.unit_test import MiUnitTest
 
 from mi.core.log import get_logger ; log = get_logger()
-from mi.idk.instrument_agent_client import InstrumentAgentClient
+from mi.idk.instrument_agent_client import InstrumentAgentClient, InstrumentAgentDataSubscribers
 
-@attr('UNIT', group='mi')
-class TestIAStart(unittest.TestCase):
+@attr('IDK', group='mi')
+class TestIAStart(MiUnitTest):
     """
     Test the instrument agent startup
     """
@@ -29,7 +30,10 @@ class TestIAStart(unittest.TestCase):
         self.ia_client = InstrumentAgentClient()
 
     def test_container_rabbitmq(self):
-        """Test that rabbitmq can be started"""
+        """
+        Test that rabbitmq can be started
+        @TODO This test should start/stop rabbitmq and couch in setup, as it leaves the system in a bad state.
+        """
 
         self.ia_client.start_rabbitmq_server()
         pid = self.ia_client._read_pidfile(self.ia_client._pid_filename("rabbitmq"))
@@ -66,6 +70,13 @@ class TestIAStart(unittest.TestCase):
         self.assertTrue(self.ia_client.container)
         self.ia_client.stop_container()
         self.assertFalse(self.ia_client.container)
+
+    def test_data_subscriber(self):
+        """
+        Test that we can build data subscribers using the packet config from the IDK
+        """
+        data_subscriber = InstrumentAgentDataSubscribers()
+
 
 
 

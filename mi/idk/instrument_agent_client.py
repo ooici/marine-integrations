@@ -24,6 +24,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from pyon.core import bootstrap
 bootstrap.testing = False
 
+from mi.core.common import BaseEnum
 from mi.idk.config import Config
 
 from mi.idk.exceptions import TestNoDeployFile
@@ -33,8 +34,8 @@ from mi.idk.exceptions import MissingExecutable
 from mi.idk.exceptions import FailedToLaunch
 from mi.idk.exceptions import SampleTimeout
 
+from mi.core.unit_test import MiIntTestCase
 
-from pyon.util.int_test import IonIntegrationTestCase
 from pyon.container.cc import Container
 from pyon.util.context import LocalContextMixin
 
@@ -98,8 +99,10 @@ class InstrumentAgentClient(object):
         """
         log.info("Startup Instrument Agent")
 
-        self.start_couchdb()
-        self.start_rabbitmq_server()
+        if Config().get("start_couch"):
+            self.start_couchdb()
+        if Config().get("start_rabbit"):
+            self.start_rabbitmq_server()
 
         # No need to start the container twice
         self.container = Container.instance
@@ -112,7 +115,7 @@ class InstrumentAgentClient(object):
         # Derive a special test case so we can instantiate a testcase object.
         # then we can run start_container which initialized the capability container
         # There will eventually be a better way to do this I'm sure.
-        class _StartContainer(IonIntegrationTestCase):
+        class _StartContainer(MiIntTestCase):
             def runTest(self): pass
 
         testcase = _StartContainer()
@@ -139,15 +142,17 @@ class InstrumentAgentClient(object):
 
         # Derive a special test case so we can instantiate a testcase object.
         # then we can run start_container which initiallized the capability container
-        class _StartContainer(IonIntegrationTestCase):
+        class _StartContainer(MiIntTestCase):
             def runTest(self): pass
 
         testcase = _StartContainer()
         testcase.container = self.container
         testcase._stop_container()
 
-        self.stop_couchdb()
-        self.stop_rabbitmq_server()
+        if Config().get("start_couch"):
+            self.stop_couchdb()
+        if Config().get("start_rabbit"):
+            self.stop_rabbitmq_server()
 
         self.container = None
 
@@ -307,14 +312,19 @@ class InstrumentAgentDataSubscribers(object):
         self.samples_received = {}
         self.data_subscribers = {}
         self.container = Container.instance
-        if not self.container:
-            raise NoContainer()
 
         self._build_stream_config()        
+
 
     def _build_stream_config(self):
         """
         """
+        if(not self.packet_config):
+            return
+
+        streams = self.packet_config
+        log.debug("Streams: %s", streams)
+
         # Create a pubsub client to create streams.
         pubsub_client = PubsubManagementServiceClient(node=self.container.node)
         dataset_management = DatasetManagementServiceClient() 
@@ -322,15 +332,15 @@ class InstrumentAgentDataSubscribers(object):
         # Create streams and subscriptions for each stream named in driver.
         self.stream_config = {}
 
-        streams = self.packet_config
-
-        for (stream_name, param_dict_name) in streams.iteritems():
+        for stream_name in streams:
             pd_id = dataset_management.read_parameter_dictionary_by_name(DEFAULT_PARAM_DICT, id_only=True)
             if(not pd_id):
                 log.error("No pd_id found for param_dict '%s'" % DEFAULT_PARAM_DICT)
 
             stream_def_id = pubsub_client.create_stream_definition(name=stream_name,
                                                                    parameter_dictionary_id=pd_id)
+            log.debug("Stream: %s (%s), stream_def_id %s" % (stream_name, type(stream_name), stream_def_id))
+
             #pd = pubsub_client.read_stream_definition(stream_def_id).parameter_dictionary
             pd = None
 

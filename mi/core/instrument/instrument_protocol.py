@@ -20,6 +20,10 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.common import BaseEnum, InstErrorCode
 from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import RawDataParticle
+from mi.core.instrument.instrument_driver import DriverConfigKey
+from mi.core.driver_scheduler import DriverScheduler
+from mi.core.driver_scheduler import DriverSchedulerConfigKey
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -61,6 +65,15 @@ class InstrumentProtocol(object):
         # mode
         self._pre_direct_access_config = None
 
+        # Driver configuration passed from the user
+        self._startup_config = {}
+
+        # scheduler config is a bit redundant now, but if we ever want to
+        # re-initialize a scheduler we will need it.
+        self._scheduler = None
+        self._scheduler_callback = {}
+        self._scheduler_config = {}
+
     ########################################################################
     # Helper methods
     ########################################################################
@@ -74,8 +87,8 @@ class InstrumentProtocol(object):
 
     def _extract_sample(self, particle_class, regex, line, publish=True):
         """
-        Extract sample from a response line if present and publish "raw" and
-        "parsed" sample events to agent. 
+        Extract sample from a response line if present and publish
+        parsed particle
 
         @param particle_class The class to instantiate for this specific
             data particle. Parameterizing this allows for simple, standard
@@ -97,16 +110,13 @@ class InstrumentProtocol(object):
         
             particle = particle_class(line,
                 preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
-            
-            raw_sample = particle.generate_raw()
-            parsed_sample = particle.generate_parsed()
-            if publish and self._driver_event:
-                self._driver_event(DriverAsyncEvent.SAMPLE, raw_sample)
-    
+
+            parsed_sample = particle.generate()
+
             if publish and self._driver_event:
                 self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
     
-            sample = dict(parsed=json.loads(parsed_sample), raw=json.loads(raw_sample))
+            sample = json.loads(parsed_sample)
             return sample
         return sample
 
@@ -133,6 +143,91 @@ class InstrumentProtocol(object):
 
         return events
 
+    ########################################################################
+    # Scheduler interface.
+    ########################################################################
+    def _add_scheduler(self, name, callback):
+        """
+        Stage a scheduler in a driver.  The job will actually be configured
+        and started by initialize_scheduler
+
+        @param name the name of the job
+        @param callback the handler when the job is triggered
+        @raise KeyError if we try to add a job twice
+        """
+        if(self._scheduler_callback.get(name)):
+            raise KeyError("duplicate scheduler exists for '%s'" % name)
+
+        self._scheduler_callback[name] = callback
+        self._add_scheduler_job(name)
+
+    def _add_scheduler_job(self, name):
+        """
+        Map the driver configuration to a scheduler configuration.  If
+        the scheduler has been started then also add the job.
+        @param name the name of the job
+        @raise KeyError if job name does not exists in the callback config
+        @raise KeyError if job is already configured
+        """
+        # Do nothing if the scheduler isn't initialized
+        if(not self._scheduler):
+            return
+
+        callback = self._scheduler_callback.get(name)
+        if(not callback):
+            raise KeyError("callback not defined in driver for '%s'" % name)
+
+        if(self._scheduler_config.get(name)):
+            raise KeyError("scheduler job already configured '%s'" % name)
+
+        scheduler_config = self._get_scheduler_config()
+
+        # No config?  Nothing to do then.
+        if(scheduler_config == None):
+            return
+
+        job_config = scheduler_config.get(name)
+
+        if(job_config):
+            # Store the scheduler configuration
+            self._scheduler_config[name] = {
+                DriverSchedulerConfigKey.TRIGGER: job_config.get(DriverSchedulerConfigKey.TRIGGER),
+                DriverSchedulerConfigKey.CALLBACK: callback
+            }
+            config = {name: self._scheduler_config[name]}
+            log.debug("Scheduler job with config: %s" % config)
+
+            # start the job.  Note, this lazily starts the scheduler too :)
+            self._scheduler.add_config(config)
+
+    def _get_scheduler_config(self):
+        """
+        Get the configuration dictionary to use for initializing jobs
+
+        Returned dictionary structure:
+        {
+            'job_name': {
+                DriverSchedulerConfigKey.TRIGGER: {}
+            }
+        }
+
+        @return: scheduler configuration dictionary
+        """
+        # Currently the startup config is in the child class.
+        # @TODO should the config code be promoted?
+        config = self._startup_config
+        return config.get(DriverConfigKey.SCHEDULER)
+
+    def initialize_scheduler(self):
+        """
+        Activate all configured schedulers added using _add_scheduler.
+        Timers start when the job is activated.
+        """
+        if(self._scheduler == None):
+            self._scheduler = DriverScheduler()
+            for name in self._scheduler_callback.keys():
+                self._add_scheduler_job(name)
+
     #############################################################
     # Configuration logic
     #############################################################
@@ -147,9 +242,13 @@ class InstrumentProtocol(object):
         """
         if not isinstance(config, dict):
             raise InstrumentParameterException("Invalid init config format")
-            
-        for name in config.keys():
-            self._param_dict.set_init_value(name, config[name])
+
+        self._startup_config = config
+
+        param_config = config.get(DriverConfigKey.PARAMETERS)
+        if(param_config):
+            for name in param_config.keys():
+                self._param_dict.set_init_value(name, param_config[name])
     
     def get_startup_config(self):
         """
@@ -566,6 +665,19 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             while(chunk):
                 self._got_chunk(chunk)
                 chunk = self._chunker.get_next_data()
+
+            self.publish_raw(port_agent_packet)
+
+    def publish_raw(self, port_agent_packet):
+        """
+        Publish raw data
+        @param: port_agent_packet port agent packet containing raw
+        """
+        particle = RawDataParticle(port_agent_packet.get_as_dict(),
+                       preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
+
+        if self._driver_event:
+            self._driver_event(DriverAsyncEvent.SAMPLE, particle.generate())
 
     def add_to_buffer(self, data):
         '''

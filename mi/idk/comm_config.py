@@ -38,9 +38,14 @@ from mi.idk.exceptions import DriverParameterUndefined
 from mi.idk.exceptions import NoConfigFileSpecified
 from mi.idk.exceptions import CommConfigReadFail
 from mi.idk.exceptions import InvalidCommType
+from mi.core.common import BaseEnum
 
 DEFAULT_DATA_PORT = 6001
 DEFAULT_CMD_PORT = 6002
+
+class ConfigTypes(BaseEnum):
+    ETHERNET = 'ethernet'
+    SERIAL = 'serial'
 
 class CommConfig(object):
     """
@@ -192,7 +197,7 @@ class CommConfig(object):
         return False
 
     @staticmethod
-    def get_config_from_console(filename, default_type = None):
+    def get_config_from_console(filename, default_type = ConfigTypes.ETHERNET):
         """
         @brief Factory method.  Prompt and read the config type from the console
         @param filename The file where the comm config is stored in
@@ -201,9 +206,10 @@ class CommConfig(object):
         print( "\nDriver Comm Configuration" )
 
         # Currently there is only one connection type so let's just default to that
-        #type = prompt.text( 'Type [' + CommConfig.valid_type_string() + ']', default_type )
-        type='ethernet'
-        print "Type: ethernet"
+
+        type = prompt.text( 'Type [' + CommConfig.valid_type_string() + ']', default_type )
+        #type=ConfigTypes.ETHERNET
+        #print "Type: ethernet"
 
         config = CommConfig.get_config_from_type(filename, type)
 
@@ -221,8 +227,11 @@ class CommConfig(object):
         @retval A CommConfig object for the type entered on the console
         """
         valid_types = CommConfig.valid_type_list()
-        if( valid_types.count( type ) ):
-            config = CommConfigEthernet(filename)
+        if( type in valid_types ):
+            if ConfigTypes.ETHERNET == type:
+                config = CommConfigEthernet(filename)
+            elif ConfigTypes.SERIAL == type:
+                config = CommConfigSerial(filename)
             return config
         else:
             raise InvalidCommType(msg=type)
@@ -264,7 +273,7 @@ class CommConfigEthernet(CommConfig):
     """
 
     @staticmethod
-    def method(): return 'ethernet'
+    def method(): return ConfigTypes.ETHERNET
 
     def __init__(self, filename):
         self.device_addr = None
@@ -297,10 +306,109 @@ class CommConfigEthernet(CommConfig):
         return config
 
 
+class CommConfigSerial(CommConfig):
+    """
+    Serial CommConfig object.  Defines data store for serial based loggers connections
+    """
+
+    @staticmethod
+    def method(): return ConfigTypes.SERIAL
+
+    def __init__(self, filename):
+        self.device_os_port = None
+        self.device_baud = None
+        self.device_data_bits = None
+        self.device_parity = None
+        self.device_stop_bits = None
+        self.device_flow_control = None # hardware/software/none
+
+        CommConfig.__init__(self, filename)
+
+    def _init_from_yaml(self, yamlInput):
+        CommConfig._init_from_yaml(self, yamlInput)
+
+        if( yamlInput ):
+            self.device_os_port = yamlInput['comm'].get('device_os_port')
+            self.device_baud = yamlInput['comm'].get('device_baud')
+            self.device_data_bits = yamlInput['comm'].get('device_data_bits')
+            self.device_parity = yamlInput['comm'].get('device_parity')
+            self.device_stop_bits = yamlInput['comm'].get('device_stop_bits')
+            self.device_flow_control = yamlInput['comm'].get('device_flow_control')
+
+    def get_from_console(self):
+        self.device_os_port = prompt.text( 'Device OS Port', self.device_os_port )
+        self.device_baud = prompt.text( 'Device Baud', self.device_baud )
+        if self.device_baud not in [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]:
+            raise InvalidCommType(str(self.device_baud) + " is not an allowed value for device baud. " +\
+                                  "[1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]")
+        self.device_data_bits = prompt.text( 'Device Data Bits', self.device_data_bits )
+        if self.device_data_bits not in [5, 6, 7, 8]:
+            raise InvalidCommType(str(self.device_data_bits) +\
+                                  " is not an allowed value for device data bits [5, 6, 7, 8].")
+        self.device_parity = prompt.text( 'Device Parity', self.device_parity )
+        if 'n' == self.device_parity.lower() or 'none' == self.device_parity.lower():
+            self.device_parity = 0
+        elif 'o' == self.device_parity.lower() or 'odd' == self.device_parity.lower():
+            self.device_parity = 1
+        elif 'e' == self.device_parity.lower() or 'even' == self.device_parity.lower():
+            self.device_parity = 2
+        elif 0 <= self.device_parity <= 2:
+            """
+            acceptable
+            """
+        else:
+            raise InvalidCommType(str(self.device_parity) + \
+                                  " is not an allowed value for device parity. [none, odd, even]")
+        self.device_stop_bits = prompt.text( 'Device Stop Bits', self.device_stop_bits )
+        if self.device_stop_bits not in [0, 1, 2]:
+            raise InvalidCommType(str(self.device_stop_bits) + \
+                                  " is not an allowed value for device stop bits [0, 1, 2].")
+        self.device_flow_control = prompt.text( 'Device Flow Control', self.device_flow_control )
+
+        if 'n' == self.device_flow_control.lower() or 'none' == self.device_flow_control.lower():
+            self.device_flow_control = 0
+        elif 'h' == self.device_flow_control.lower() or 'hardware' == self.device_flow_control.lower():
+            self.device_flow_control = 1
+        elif 's' == self.device_flow_control.lower() or 'software' == self.device_flow_control.lower():
+            self.device_flow_control = 2
+        elif 0 <= self.device_flow_control <= 2:
+            """
+            acceptable
+            """
+        else:
+            raise InvalidCommType(str(self.device_flow_control) + \
+                                  " is not an allowed value for device flow control. [none, hardware, software]")
+
+
+        CommConfig.get_from_console(self)
+
+    def display_config(self):
+        PARITY = ['none', 'odd', 'even']
+        FLOW_CONTROL = ['none', 'hardware', 'software']
+
+        CommConfig.display_config(self)
+        print( "Device OS Port: " + str(self.device_os_port ))
+        print( "Device Baud: " + str(self.device_baud ))
+        print( "Device Data Bits: " + str(self.device_data_bits ))
+        print( "Device Parity: " + PARITY[self.device_parity])
+        print( "Device Stop Bits: " + str(self.device_stop_bits ))
+        print( "Device Flow Control: " + FLOW_CONTROL[self.device_flow_control])
+
+    def _config_dictionary(self):
+        config = CommConfig._config_dictionary(self)
+        config['device_os_port'] = self.device_os_port
+        config['device_baud'] = int(self.device_baud)
+        config['device_data_bits'] = int(self.device_data_bits)
+        config['device_parity'] = int(self.device_parity)
+        config['device_stop_bits'] = int(self.device_stop_bits)
+        config['device_flow_control'] = int(self.device_flow_control)
+
+        return config
+
+
 # List of all known CommConfig objects
-_CONFIG_OBJECTS = [ CommConfigEthernet ]
+_CONFIG_OBJECTS = [ CommConfigEthernet, CommConfigSerial ]
 
 
 if __name__ == '__main__':
     pass
-
