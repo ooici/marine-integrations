@@ -16,6 +16,7 @@ import string
 import re
 import copy
 import base64
+from ordereddict import OrderedDict
 
 from mi.core.common import BaseEnum
 from mi.core.time import get_timestamp_delayed
@@ -65,6 +66,7 @@ DIAGNOSTIC_DATA_HEADER_SYNC_BYTES = '\xa5\x06\x12\x00'
 DIAGNOSTIC_DATA_LEN = 42
 DIAGNOSTIC_DATA_SYNC_BYTES = '\xa5\x80\x15\x00'
 CHECK_SUM_SEED = 0xb58c
+FAT_LENGTH = 512
 
 sample_structures = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
                      [DIAGNOSTIC_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
@@ -116,6 +118,7 @@ class InstrumentCmds(BaseEnum):
     START_MEASUREMENT_WITHOUT_RECORDER = 'ST'
     ACQUIRE_DATA                       = 'AD'
     CONFIRMATION                       = 'MC'        # confirm a break request
+    READ_FAT                           = 'RF'
     # SAMPLE_AVG_TIME                    = 'A'
     # SAMPLE_INTERVAL_TIME               = 'M'
     # GET_ALL_CONFIGURATIONS             = 'GA'
@@ -151,6 +154,7 @@ class ExportedInstrumentCommand(BaseEnum):
     GET_HEAD_CONFIGURATION = "EXPORTED_INSTRUMENT_CMD_GET_HEAD_CONFIGURATION"
     START_MEASUREMENT_AT_SPECIFIC_TIME = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME"
     START_MEASUREMENT_IMMEDIATE = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE"
+    READ_FAT = "EXPORTED_INSTRUMENT_CMD_READ_FAT"
 
 class ProtocolEvent(BaseEnum):
     """
@@ -181,6 +185,7 @@ class ProtocolEvent(BaseEnum):
     GET_HEAD_CONFIGURATION = ExportedInstrumentCommand.GET_HEAD_CONFIGURATION
     START_MEASUREMENT_AT_SPECIFIC_TIME = ExportedInstrumentCommand.START_MEASUREMENT_AT_SPECIFIC_TIME
     START_MEASUREMENT_IMMEDIATE = ExportedInstrumentCommand.START_MEASUREMENT_IMMEDIATE
+    READ_FAT = ExportedInstrumentCommand.READ_FAT
 
 class Capability(BaseEnum):
     """
@@ -202,6 +207,7 @@ class Capability(BaseEnum):
     GET_HEAD_CONFIGURATION = ProtocolEvent.GET_HEAD_CONFIGURATION
     START_MEASUREMENT_AT_SPECIFIC_TIME = ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME
     START_MEASUREMENT_IMMEDIATE = ProtocolEvent.START_MEASUREMENT_IMMEDIATE
+    READ_FAT = ProtocolEvent.READ_FAT
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -953,6 +959,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_HEAD_CONFIGURATION, self._handler_command_get_head_config)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME, self._handler_command_start_measurement_specific_time)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_IMMEDIATE, self._handler_command_start_measurement_immediate)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.READ_FAT, self._handler_command_read_fat)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
@@ -974,6 +981,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.READ_ID, self._parse_read_id)
         self._add_response_handler(InstrumentCmds.READ_HW_CONFIGURATION, self._parse_read_hw_config)
         self._add_response_handler(InstrumentCmds.READ_HEAD_CONFIGURATION, self._parse_read_head_config)
+        self._add_response_handler(InstrumentCmds.READ_FAT, self._parse_read_fat)
 
         # Construct the parameter dictionary containing device parameters, current parameter values, and set formatting functions.
         self._build_param_dict()
@@ -1269,7 +1277,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         # Issue start command and switch to autosample if successful.
-        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_AT_SPECIFIC_TIME, 
+        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_IMMEDIATE, 
                                    expected_prompt = InstrumentPrompts.Z_ACK, *args, **kwargs)
                 
         next_state = ProtocolState.AUTOSAMPLE        
@@ -1388,6 +1396,19 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION, 
+                                   expected_prompt = InstrumentPrompts.Z_ACK)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_read_fat(self):
+        """
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        # Issue read clock command.
+        result = self._do_cmd_resp(InstrumentCmds.READ_FAT, 
                                    expected_prompt = InstrumentPrompts.Z_ACK)
 
         return (next_state, (next_agent_state, result))
@@ -2036,4 +2057,34 @@ class Protocol(CommandResponseInstrumentProtocol):
         parsed['System'] = base64.b64encode(response[22:198])
         parsed['NBeams'] = BinaryProtocolParameterDict.convert_word_to_int(response[220:222])  
         return parsed
+    
+    def _parse_read_fat(self, response, prompt):
+        """ Parse the response from the instrument for a read fat command.
+        
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if not len(response) == FAT_LENGTH + 2:
+            raise InstrumentProtocolException("Read FAT response length %d wrong, should be %d", len(response), FAT_LENGTH + 2)
+        
+        FAT = response[:-2]    
+        print self._dump_config(FAT)
+
+        parsed = []
+         
+        record_length = 16
+        for index in range(0, FAT_LENGTH-record_length, record_length):
+            record = FAT[index:index+record_length]
+            record_number = index / record_length
+            parsed_record = OrderedDict([('FileNumber', record_number), 
+                                         ('FileName', record[0:6].rstrip(chr(0x00))), 
+                                         ('SequenceNumber', ord(record[6:7])), 
+                                         ('Status', record[7:8]), 
+                                         ('StartAddr', record[8:12].encode('hex')), 
+                                         ('StopAddr', record[12:record_length].encode('hex'))])
+            parsed.append(parsed_record)  
+        return parsed
+
                     

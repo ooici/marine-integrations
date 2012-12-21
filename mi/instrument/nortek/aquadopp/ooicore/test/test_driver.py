@@ -763,6 +763,20 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertTrue(re.search(r'AQD 9984.*', response[1]))
 
 
+    def test_instrument_read_fat(self):
+        """
+        @brief Test for reading FAT
+        """
+        self.put_driver_in_command_mode()
+        
+        # command the instrument to read the FAT.
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_FAT)
+        
+        log.debug("read ID returned:")
+        for item in response[1]:
+            log.debug("%s", item)
+
+
     def test_instrument_read_hw_config(self):
         """
         @brief Test for reading HW config
