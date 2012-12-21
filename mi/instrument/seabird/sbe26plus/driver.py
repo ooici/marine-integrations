@@ -28,6 +28,7 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentParameterException
@@ -2065,19 +2066,22 @@ class Protocol(SeaBirdProtocol):
             ds_line_01,
             lambda match : string.upper(match.group(1)),
             self._string_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.SERIAL_NUMBER,
             ds_line_01,
             lambda match : string.upper(match.group(2)),
             self._string_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.DS_DEVICE_DATE_TIME,
             ds_line_01,
             lambda match : string.upper(match.group(3)),
             self._string_to_numeric_date_time_string,
-            multi_match=True) # will need to make this a date time once that is sorted out
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY) # will need to make this a date time once that is sorted out
 
         self._param_dict.add(Parameter.USER_INFO,
             ds_line_02,
@@ -2091,23 +2095,35 @@ class Protocol(SeaBirdProtocol):
             ds_line_03,
             lambda match : float(match.group(1)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.QUARTZ_PRESSURE_SENSOR_RANGE,
             ds_line_03,
             lambda match : float(match.group(2)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.EXTERNAL_TEMPERATURE_SENSOR,
             ds_line_04,
             lambda match : False if (match.group(1)=='internal') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            startup_param=True,
+            direct_access=True,
+            default_value=False
+        )
 
         self._param_dict.add(Parameter.CONDUCTIVITY,
             ds_line_05,
             lambda match : False if (match.group(1)=='NO') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            startup_param=True,
+            direct_access=True,
+            default_value=False
+        )
 
         #
         # Next 3 work together to pull 3 values out of a single line.
@@ -2116,17 +2132,20 @@ class Protocol(SeaBirdProtocol):
             ds_line_06,
             lambda match : float(match.group(1)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.VMAIN_V,
             ds_line_06,
             lambda match : float(match.group(2)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.VLITH_V,
             ds_line_06,
             lambda match : float(match.group(3)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         #
         # Next 3 work together to pull 3 values out of a single line.
@@ -2135,19 +2154,22 @@ class Protocol(SeaBirdProtocol):
             ds_line_07a,
             lambda match : float(match.group(1)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.LAST_SAMPLE_T,
             ds_line_07a,
             lambda match : float(match.group(2)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.LAST_SAMPLE_S,
             ds_line_07a,
             lambda match : float(match.group(3)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         #
         # Altewrnate for when S is not present
@@ -2156,13 +2178,15 @@ class Protocol(SeaBirdProtocol):
             ds_line_07b,
             lambda match : float(match.group(1)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.LAST_SAMPLE_T,
             ds_line_07b,
             lambda match : float(match.group(2)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         #
         # Next 2 work together to pull 2 values out of a single line.
@@ -2258,12 +2282,22 @@ class Protocol(SeaBirdProtocol):
         self._param_dict.add(Parameter.TXREALTIME,
             ds_line_21,
             lambda match : False if (match.group(1)=='NO') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            startup_param=True,
+            direct_access=True,
+            default_value=False
+        )
 
         self._param_dict.add(Parameter.TXWAVEBURST,
             ds_line_22,
             lambda match : False if (match.group(1)=='NO') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            startup_param=True,
+            direct_access=True,
+            default_value=False
+        )
 
         self._param_dict.add(Parameter.TXWAVESTATS,
             ds_line_23,
@@ -2328,17 +2362,20 @@ class Protocol(SeaBirdProtocol):
         self._param_dict.add(Parameter.SHOW_PROGRESS_MESSAGES,
             ds_line_34,
             lambda match : True if (match.group(1)=='show') else False,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.STATUS,
             ds_line_35,
             lambda match : string.upper(match.group(1)),
-            self._string_to_string)
+            self._string_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.LOGGING,
             ds_line_36,
             lambda match : False if (match.group(1)=='NO') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
 
     def _update_params(self, *args, **kwargs):
