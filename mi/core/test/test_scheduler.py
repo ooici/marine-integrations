@@ -56,7 +56,7 @@ class TestScheduler(MiUnitTest):
         seconds = timedelta_seconds(delta)
         self.assertLessEqual(abs(seconds), delta_seconds)
 
-    def assert_event_triggered(self, expected_arrival = None, poll_time = 0.3, timeout = 10):
+    def assert_event_triggered(self, expected_arrival = None, poll_time = 0.5, timeout = 10):
         """
         Verify a timer was triggered within the timeout, and if
         if expected arrival is set, check the date time arrived for a match
