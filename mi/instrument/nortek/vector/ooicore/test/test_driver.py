@@ -62,7 +62,6 @@ from mi.instrument.nortek.vector.ooicore.driver import Protocol
 from mi.instrument.nortek.vector.ooicore.driver import ProtocolState
 from mi.instrument.nortek.vector.ooicore.driver import ProtocolEvent
 from mi.instrument.nortek.vector.ooicore.driver import Parameter
-from mi.instrument.nortek.vector.ooicore.driver import PACKET_CONFIG
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityHeaderDataParticle
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityHeaderDataParticleKey
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticle
