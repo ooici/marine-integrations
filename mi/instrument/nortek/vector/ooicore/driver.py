@@ -715,6 +715,8 @@ class VectorVelocityHeaderDataParticle(DataParticle):
     """
     Routine for parsing velocity data into a data particle structure for the Vector sensor. 
     """
+    _data_particle_type = DataParticleType.DIAGNOSTIC_DATA
+
     def _build_parsed_values(self):
         """
         Take something in the velocity data sample format and parse it into
