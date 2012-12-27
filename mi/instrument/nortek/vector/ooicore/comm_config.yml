@@ -2,5 +2,5 @@ comm:
   command_port: 5113
   data_port: 5112
   device_addr: localhost
-  device_port: 2101
+  device_port: 2102
   method: ethernet

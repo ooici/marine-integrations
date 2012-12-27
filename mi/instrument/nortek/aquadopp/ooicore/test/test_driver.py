@@ -28,6 +28,7 @@ import unittest
 import re
 import time
 import datetime
+import base64
 
 from nose.plugins.attrib import attr
 
@@ -596,7 +597,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         values_before = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)        
         #print("vb=%s" %values_before)
         
-        self.driver_client.cmd_dvr('set_init_params', {DriverParameter.ALL: user_config1()})
+        self.driver_client.cmd_dvr('set_init_params', {DriverParameter.ALL: base64.b64encode(user_config1())})
         self.driver_client.cmd_dvr("apply_startup_params") 
 
         values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
@@ -684,7 +685,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.put_driver_in_command_mode()
         
         # command the instrument to set the user configuration.
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SET_CONFIGURATION, user_configuration=user_config2())
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SET_CONFIGURATION, user_configuration=base64.b64encode(user_config2()))
         
         values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
         #print("va=%s" %values_after)
@@ -759,6 +760,20 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         
         log.debug("read ID returned: %s", response)
         self.assertTrue(re.search(r'AQD 9984.*', response[1]))
+
+
+    def test_instrument_read_fat(self):
+        """
+        @brief Test for reading FAT
+        """
+        self.put_driver_in_command_mode()
+        
+        # command the instrument to read the FAT.
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_FAT)
+        
+        log.debug("read ID returned:")
+        for item in response[1]:
+            log.debug("%s", item)
 
 
     def test_instrument_read_hw_config(self):
@@ -1468,7 +1483,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         # command the instrument to set the user configuration.
         cmd = AgentCommand(command=ResourceAgentEvent.EXECUTE_RESOURCE,
                            args=[ProtocolEvent.SET_CONFIGURATION],
-                           kwargs={'user_configuration':user_config2()})
+                           kwargs={'user_configuration':base64.b64encode(user_config2())})
         try:
             self.instrument_agent_client.execute_agent(cmd)
             pass
