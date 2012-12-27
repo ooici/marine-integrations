@@ -35,6 +35,7 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentTimeoutException
 from pyon.agent.agent import ResourceAgentState
 
 NEWLINE = '\r\n'
@@ -1478,24 +1479,28 @@ class Protocol(SeaBirdProtocol):
 
     def _parse_setsampling_response(self, response, prompt): #(self, cmd, *args, **kwargs):
         """
-        Parse handler for set command.
+        Parse handler for set command. Timeout if we don't parse in a timely manor.  Not
+        infinite loop here.
         @param response command response string.
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if set command misunderstood.
+        @throws InstrumentTimeoutException if we don't parse the setsample in a timely manor
         """
-
-
-
         desired_prompt = ", new value = "
         done = False
+        starttime = time.time()
+
         while not done:
+            if(starttime + TIMEOUT < time.time()):
+                raise InstrumentTimeoutException("failed to parse set sample sting in a timely manor")
+
             (prompt, response) = self._get_response(expected_prompt=desired_prompt)
             self._promptbuf = ''
             self._linebuf = ''
             time.sleep(0.1)
 
-            log.debug("prompt = " + str(prompt))
-            log.debug("response = " + str(response))
+            log.debug("mmprompt = " + str(prompt))
+            log.debug("mmresponse = " + str(response))
 
             if "tide interval (integer minutes) " in response:
                 if 'TIDE_INTERVAL' in self._sampling_args:
@@ -1538,6 +1543,7 @@ class Protocol(SeaBirdProtocol):
                         done = True
                     self._connection.send(self._true_false_to_string(self._sampling_args['TXWAVESTATS']) + NEWLINE)
                 else:
+                    done = True
                     self._connection.send(NEWLINE)
             elif "show progress messages (y/n) = " in response:
                 if 'SHOW_PROGRESS_MESSAGES' in self._sampling_args:

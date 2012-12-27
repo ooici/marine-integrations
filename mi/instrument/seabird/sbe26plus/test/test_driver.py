@@ -4,6 +4,10 @@
 @author Roger Unwin
 @brief Test cases for ooicore driver
 
+@todo Figure out clock sync off by one issue
+@todo figure out the pattern for applying startup config
+@todo what to do with startup parameters that don't have a startup value
+
 USAGE:
  Make tests verbose and provide stdout
    * From the IDK
@@ -24,6 +28,7 @@ from mock import Mock
 
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
+from mi.core.time import get_timestamp_delayed
 from nose.plugins.attrib import attr
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
@@ -765,212 +770,75 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         self.assert_driver_parameters(reply, True)
 
+    def test_set(self):
+        self.assert_initialize_driver()
+
+        # The clock in this instrument is a little odd.  It looks like if you wait until the edge of a second
+        # to set it, it immediately ticks after the set, making it off by 1.  For now we will accept this
+        # behavior, but we need to check this behavior on all SBE instruments.
+        # @todo Revisit clock sync across SBE instruments
+        set_time = get_timestamp_delayed("%d %b %Y  %H:%M:%S")
+        # One second later
+        expected_time = get_timestamp_delayed("%d %b %Y  %H:%M:%S")
+        self.assert_set(Parameter.DS_DEVICE_DATE_TIME, set_time, no_get=True)
+        self.assert_get(Parameter.DS_DEVICE_DATE_TIME, expected_time.upper())
+
+        self.assert_set(Parameter.USER_INFO, 'iontest'.upper())
+
+        self.assert_set(Parameter.TIDE_INTERVAL, 3)
+        #self.assert_set_exception(Parameter.TIDE_INTERVAL, 'foo')
+
+        #self.assert_set_readonly(Parameter.DEVICE_VERSION)
+        #self.assert_set_readonly(Parameter.SERIAL_NUMBER)
+        #self.assert_set_readonly(Parameter.DS_DEVICE_DATA_TIME)
+        #self.assert_set_readonly(Parameter.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER)
+        #self.assert_set_readonly(Parameter.QUARTZ_PRESSURE_SENSOR_RANGE)
+        #self.assert_set_readonly(Parameter.EXTERNAL_TEMPERATURE_SENSOR)
+        #self.assert_set_readonly(Parameter.CONDUCTIVITY)
+        #self.assert_set_readonly(IOP_MA)
+        #self.assert_set_readonly(VMAIN_V)
+        #self.assert_set_readonly(VLITH_V)
+        #self.assert_set_readonly(LAST_SAMPLE_P)
+        #self.assert_set_readonly(LAST_SAMPLE_T)
+        #self.assert_set_readonly(LAST_SAMPLE_S)
+
+        #self.assert_set_readonly(TIDE_INTERVAL)
+        #self.assert_set_readonly(TIDE_MEASUREMENT_DURATION)
+        #self.assert_set_readonly(TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS)
+        #self.assert_set_readonly(WAVE_SAMPLES_PER_BURST)
+        #self.assert_set_readonly(WAVE_SAMPLES_SCANS_PER_SECOND)
+        #self.assert_set_readonly(USE_START_TIME)
+        #self.assert_set_readonly(USE_STOP_TIME)
+        #self.assert_set_readonly(TXWAVESTATS)
+        #self.assert_set_readonly(TIDE_SAMPLES_PER_DAY)
+        #self.assert_set_readonly(WAVE_BURSTS_PER_DAY)
+        #self.assert_set_readonly(MEMORY_ENDURANCE)
+        #self.assert_set_readonly(NOMINAL_ALKALINE_BATTERY_ENDURANCE)
+        #self.assert_set_readonly(TOTAL_RECORDED_TIDE_MEASUREMENTS)
+        #self.assert_set_readonly(TOTAL_RECORDED_WAVE_BURSTS)
+        #self.assert_set_readonly(TIDE_MEASUREMENTS_SINCE_LAST_START)
+        #self.assert_set_readonly(WAVE_BURSTS_SINCE_LAST_START)
+        #self.assert_set_readonly(TXREALTIME)
+        #self.assert_set_readonly(TXWAVEBURST)
+        #self.assert_set_readonly(NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS)
+        #self.assert_set_readonly(USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC)
+        #self.assert_set_readonly(USE_MEASURED_TEMP_FOR_DENSITY_CALC)
+        #self.assert_set_readonly(AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR)
+        #self.assert_set_readonly(AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR)
+        #self.assert_set_readonly(PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM)
+        #self.assert_set_readonly(SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND)
+        #self.assert_set_readonly(MIN_ALLOWABLE_ATTENUATION)
+        #self.assert_set_readonly(MIN_PERIOD_IN_AUTO_SPECTRUM)
+        #self.assert_set_readonly(MAX_PERIOD_IN_AUTO_SPECTRUM)
+        #self.assert_set_readonly(HANNING_WINDOW_CUTOFF)
+        #self.assert_set_readonly(SHOW_PROGRESS_MESSAGES)
+        #self.assert_set_readonly(STATUS)
+        #self.assert_set_readonly(LOGGING)
+
     def test_get_set(self):
         """
         Test device parameter access.
         """
-
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.UNKNOWN)
-        
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        # Test 1 Conductivity = Y, small subset of possible parameters.
-
-        log.debug("get/set Test 1 - Conductivity = Y, small subset of possible parameters.")
-        params = {
-            Parameter.CONDUCTIVITY : True,
-            Parameter.TXWAVESTATS : False
-        }
-        reply = self.driver_client.cmd_dvr('set_resource', params)
-        self.assertEqual(reply, None)
-
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_param_dict(reply)
-
-
-        log.debug("get/set Test 2 - Conductivity = N, small subset of possible parameters.")
-        params = {
-            Parameter.CONDUCTIVITY : False,
-        }
-        reply = self.driver_client.cmd_dvr('set_resource', params)
-        self.assertEqual(reply, None)
-
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_param_dict(reply)
-
-
-        log.debug("get/set Test 3 - internal temperature sensor, small subset of possible parameters.")
-        params = {
-            Parameter.DS_DEVICE_DATE_TIME : time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))),
-            Parameter.EXTERNAL_TEMPERATURE_SENSOR : False,
-        }
-        reply = self.driver_client.cmd_dvr('set_resource', params)
-        self.assertEqual(reply, None)
-
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_param_dict(reply)
-
-
-        log.debug("get/set Test 4 - external temperature sensor, small subset of possible parameters.")
-        params = {
-            Parameter.EXTERNAL_TEMPERATURE_SENSOR : True,
-        }
-        reply = self.driver_client.cmd_dvr('set_resource', params)
-        self.assertEqual(reply, None)
-
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_param_dict(reply)
-
-        log.debug("get/set Test 5 - get master set of possible parameters.")
-        params = [
-            # DS
-            Parameter.DEVICE_VERSION,
-            Parameter.SERIAL_NUMBER,
-            Parameter.DS_DEVICE_DATE_TIME,
-            Parameter.USER_INFO,
-            Parameter.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER,
-            Parameter.QUARTZ_PRESSURE_SENSOR_RANGE,
-            Parameter.EXTERNAL_TEMPERATURE_SENSOR,
-            Parameter.CONDUCTIVITY,
-            Parameter.IOP_MA,
-            Parameter.VMAIN_V,
-            Parameter.VLITH_V,
-            Parameter.LAST_SAMPLE_P,
-            Parameter.LAST_SAMPLE_T,
-            Parameter.LAST_SAMPLE_S,
-
-            # DS/SETSAMPLING
-            Parameter.TIDE_INTERVAL,
-            Parameter.TIDE_MEASUREMENT_DURATION,
-            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS,
-            Parameter.WAVE_SAMPLES_PER_BURST,
-            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND,
-            Parameter.USE_START_TIME,
-            #Parameter.START_TIME,
-            Parameter.USE_STOP_TIME,
-            #Parameter.STOP_TIME,
-            Parameter.TXWAVESTATS,
-            Parameter.TIDE_SAMPLES_PER_DAY,
-            Parameter.WAVE_BURSTS_PER_DAY,
-            Parameter.MEMORY_ENDURANCE,
-            Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE,
-            Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS,
-            Parameter.TOTAL_RECORDED_WAVE_BURSTS,
-            Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START,
-            Parameter.WAVE_BURSTS_SINCE_LAST_START,
-            Parameter.TXREALTIME,
-            Parameter.TXWAVEBURST,
-            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS,
-            Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC,
-            Parameter.USE_MEASURED_TEMP_FOR_DENSITY_CALC,
-            Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR,
-            Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR,
-            Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM,
-            Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND,
-            Parameter.MIN_ALLOWABLE_ATTENUATION,
-            Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM,
-            Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM,
-            Parameter.HANNING_WINDOW_CUTOFF,
-            Parameter.SHOW_PROGRESS_MESSAGES,
-            Parameter.STATUS,
-            Parameter.LOGGING,
-        ]
-
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_param_dict(reply)
-
-        log.debug("get/set Test 6 - get master set of possible parameters using array containing Parameter.ALL")
-
-
-        params3 = [
-            Parameter.ALL
-        ]
-
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_param_dict(reply)
-
-
-        log.debug("get/set Test 7 - Negative testing, broken values. Should get exception")
-        params = {
-            Parameter.EXTERNAL_TEMPERATURE_SENSOR : 5,
-
-        }
-        exception = False
-        try:
-            reply = self.driver_client.cmd_dvr('set_resource', params)
-        except InstrumentParameterException:
-            exception = True
-        self.assertTrue(exception)
-
-
-        log.debug("get/set Test 8 - Negative testing, broken labels. Should get exception")
-        params = {
-            "ROGER" : 5,
-            "PETER RABBIT" : True,
-            "WEB" : float(2.0),
-        }
-        exception = False
-        try:
-            reply = self.driver_client.cmd_dvr('set_resource', params)
-        except InstrumentParameterException:
-            exception = True
-        self.assertTrue(exception)
-
-
-        log.debug("get/set Test 9 - Negative testing, empty params dict")
-        params = {
-        }
-
-        reply = self.driver_client.cmd_dvr('set_resource', params)
-        self.assertEqual(reply, None)
-
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_param_dict(reply)
-
-
-        log.debug("get/set Test 10 - Negative testing, None instead of dict")
-        exception = False
-        try:
-            reply = self.driver_client.cmd_dvr('set_resource', None)
-        except InstrumentParameterException:
-            exception = True
-        self.assertTrue(exception)
-
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_param_dict(reply)
-
-
-
-        log.debug("get/set Test N - Conductivity = Y, full set of set variables to known sane values.")
-        params = {
-            Parameter.DS_DEVICE_DATE_TIME : time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))),
-            Parameter.USER_INFO : "whoi",
-            Parameter.TXREALTIME : True,
-            Parameter.TXWAVEBURST : True,
-            Parameter.CONDUCTIVITY : True,
-            Parameter.EXTERNAL_TEMPERATURE_SENSOR : True,
-        }
-        reply = self.driver_client.cmd_dvr('set_resource', params)
-        self.assertEqual(reply, None)
-
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_param_dict(reply)
 
 
     # WORKS TUE
