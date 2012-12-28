@@ -11,12 +11,20 @@ __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
 import logging
+import time
+import datetime
 from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
 from mi.instrument.satlantic.par_ser_600m.driver import SAMPLE_REGEX
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticle
+
+from mi.core.driver_scheduler import DriverScheduler
+from mi.core.instrument.instrument_driver import DriverConfigKey
+from mi.core.driver_scheduler import DriverSchedulerConfigKey
+from mi.core.driver_scheduler import TriggerType
+
 from mi.core.unit_test import MiUnitTestCase
 import unittest
 from mi.core.exceptions import InstrumentParameterException
@@ -35,12 +43,30 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         """
         """
         self.callback_result = None
-        
+        self._trigger_count = 0
+
         def protocol_callback(self, arg):
             callback_result = arg
             
         self.protocol = InstrumentProtocol(protocol_callback)
-    
+
+    def _scheduler_callback(self):
+        """
+        Callback to test the scheduler
+        """
+        self._trigger_count += 1
+
+    def assert_scheduled_event_triggered(self):
+        count = 0
+        for i in range(0, 40):
+            count = self._trigger_count
+            log.debug("check for triggered event, count %d" % self._trigger_count)
+            if(count): break
+            time.sleep(0.3)
+
+        self.assertGreater(count, 0)
+
+
     def test_extraction(self):
         sample_line = "SATPAR0229,10.01,2206748544,234\r\n"
         result = self.protocol._extract_sample(SatlanticPARDataParticle,
@@ -161,7 +187,7 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         # mark init params
         self.assertRaises(InstrumentParameterException,
                           self.protocol.set_init_params, [])
-        self.protocol.set_init_params({"foo": 1111, "baz":2222})
+        self.protocol.set_init_params({DriverConfigKey.PARAMETERS: {"foo": 1111, "baz":2222}})
         
         # get new startup config
         result = self.protocol.get_startup_config()
@@ -170,6 +196,48 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         self.assertEquals(result["foo"], 1111) # init param
         self.assertEquals(result["bar"], 0)   # default param
         self.assertEquals(result["qux"], 6666) # set param
+
+    def test_scheduler(self):
+        """
+        Test to see that the scheduler can add and remove jobs properly
+        Jobs are just queued for adding unit we call initialize_scheduler
+        then the jobs are actually created.
+        """
+        dt = datetime.datetime.now() + datetime.timedelta(0,1)
+        job_name = 'test_job'
+        startup_config = {
+            DriverConfigKey.SCHEDULER: {
+                job_name: {
+                    DriverSchedulerConfigKey.TRIGGER: {
+                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.ABSOLUTE,
+                        DriverSchedulerConfigKey.DATE: dt
+                    }
+                }
+            }
+        }
+
+        self.protocol.set_init_params(startup_config)
+
+        # Verify we are initialized properly
+        self.assertIsNone(self.protocol._scheduler)
+        self.assertEqual(self.protocol._scheduler_config, {})
+        self.assertEqual(self.protocol._scheduler_callback, {})
+
+        # Verify the the scheduler is created
+        self.protocol.initialize_scheduler()
+        self.assertIsInstance(self.protocol._scheduler, DriverScheduler)
+        self.assertEqual(self.protocol._scheduler_config, {})
+        self.assertEqual(self.protocol._scheduler_callback, {})
+
+        # Now lets see some magic happen.  Lets add our schedulers.  Generally
+        # This would be done as part of the protocol init, but it can happen
+        # anytime.  If the scheduler has already been initialized the
+        # job will be started right away
+        self.protocol._add_scheduler(job_name, self._scheduler_callback)
+        self.assertEqual(0, self._trigger_count)
+        self.assert_scheduled_event_triggered()
+
+        ##### Integration tests for test_scheduler in the SBE37 integration suite
 
 
 @attr('UNIT', group='mi')

@@ -16,6 +16,7 @@ import string
 import re
 import copy
 import base64
+from ordereddict import OrderedDict
 
 from mi.core.common import BaseEnum
 from mi.core.time import get_timestamp_delayed
@@ -65,6 +66,7 @@ DIAGNOSTIC_DATA_HEADER_SYNC_BYTES = '\xa5\x06\x12\x00'
 DIAGNOSTIC_DATA_LEN = 42
 DIAGNOSTIC_DATA_SYNC_BYTES = '\xa5\x80\x15\x00'
 CHECK_SUM_SEED = 0xb58c
+FAT_LENGTH = 512
 
 sample_structures = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
                      [DIAGNOSTIC_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
@@ -112,6 +114,7 @@ class InstrumentCmds(BaseEnum):
     START_MEASUREMENT_WITHOUT_RECORDER = 'ST'
     ACQUIRE_DATA                       = 'AD'
     CONFIRMATION                       = 'MC'        # confirm a break request
+    READ_FAT                           = 'RF'
     # SAMPLE_AVG_TIME                    = 'A'
     # SAMPLE_INTERVAL_TIME               = 'M'
     # GET_ALL_CONFIGURATIONS             = 'GA'
@@ -147,6 +150,7 @@ class ExportedInstrumentCommand(BaseEnum):
     GET_HEAD_CONFIGURATION = "EXPORTED_INSTRUMENT_CMD_GET_HEAD_CONFIGURATION"
     START_MEASUREMENT_AT_SPECIFIC_TIME = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME"
     START_MEASUREMENT_IMMEDIATE = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE"
+    READ_FAT = "EXPORTED_INSTRUMENT_CMD_READ_FAT"
 
 class ProtocolEvent(BaseEnum):
     """
@@ -177,6 +181,7 @@ class ProtocolEvent(BaseEnum):
     GET_HEAD_CONFIGURATION = ExportedInstrumentCommand.GET_HEAD_CONFIGURATION
     START_MEASUREMENT_AT_SPECIFIC_TIME = ExportedInstrumentCommand.START_MEASUREMENT_AT_SPECIFIC_TIME
     START_MEASUREMENT_IMMEDIATE = ExportedInstrumentCommand.START_MEASUREMENT_IMMEDIATE
+    READ_FAT = ExportedInstrumentCommand.READ_FAT
 
 class Capability(BaseEnum):
     """
@@ -198,6 +203,7 @@ class Capability(BaseEnum):
     GET_HEAD_CONFIGURATION = ProtocolEvent.GET_HEAD_CONFIGURATION
     START_MEASUREMENT_AT_SPECIFIC_TIME = ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME
     START_MEASUREMENT_IMMEDIATE = ProtocolEvent.START_MEASUREMENT_IMMEDIATE
+    READ_FAT = ProtocolEvent.READ_FAT
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -293,7 +299,7 @@ class BinaryParameterDictVal(ParameterDictVal):
                  submenu_write=None,                 
                  multi_match=False,
                  direct_access=False,
-                 startup_param=False,
+                 startup_param=True,
                  default_value=None,
                  init_value=None):
         """
@@ -361,7 +367,7 @@ class BinaryProtocolParameterDict(ProtocolParameterDict):
             visibility=ParameterDictVisibility.READ_WRITE,
             menu_path_read=None, submenu_read=None,
             menu_path_write=None, submenu_write=None,
-            multi_match=False, direct_access=False, startup_param=False,
+            multi_match=False, direct_access=False, startup_param=True,
             default_value=None, init_value=None):
         """
         Add a parameter object to the dictionary.
@@ -955,6 +961,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_HEAD_CONFIGURATION, self._handler_command_get_head_config)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME, self._handler_command_start_measurement_specific_time)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_IMMEDIATE, self._handler_command_start_measurement_immediate)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.READ_FAT, self._handler_command_read_fat)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
@@ -976,6 +983,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.READ_ID, self._parse_read_id)
         self._add_response_handler(InstrumentCmds.READ_HW_CONFIGURATION, self._parse_read_hw_config)
         self._add_response_handler(InstrumentCmds.READ_HEAD_CONFIGURATION, self._parse_read_head_config)
+        self._add_response_handler(InstrumentCmds.READ_FAT, self._parse_read_fat)
 
         # Construct the parameter dictionary containing device parameters, current parameter values, and set formatting functions.
         self._build_param_dict()
@@ -1026,7 +1034,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentParameterException("Invalid init config format")
                 
         if DriverParameter.ALL in config:
-            binary_config = config[DriverParameter.ALL]
+            binary_config = base64.b64decode(config[DriverParameter.ALL])
             # make the configuration string look like it came from instrument to get all the methods to be happy
             binary_config += InstrumentPrompts.Z_ACK    
             log.debug("config len=%d, config=%s" %(len(binary_config), binary_config.encode('hex')))
@@ -1271,7 +1279,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         # Issue start command and switch to autosample if successful.
-        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_AT_SPECIFIC_TIME, 
+        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_IMMEDIATE, 
                                    expected_prompt = InstrumentPrompts.Z_ACK, *args, **kwargs)
                 
         next_state = ProtocolState.AUTOSAMPLE        
@@ -1390,6 +1398,19 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION, 
+                                   expected_prompt = InstrumentPrompts.Z_ACK)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_read_fat(self):
+        """
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        # Issue read clock command.
+        result = self._do_cmd_resp(InstrumentCmds.READ_FAT, 
                                    expected_prompt = InstrumentPrompts.Z_ACK)
 
         return (next_state, (next_agent_state, result))
@@ -1587,8 +1608,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.BLANKING_DISTANCE,
                              r'^.{%s}(.{2}).*' % str(6),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True)
+                             BinaryProtocolParameterDict.word_to_string)
         self._param_dict.add(Parameter.RECEIVE_LENGTH,
                              r'^.{%s}(.{2}).*' % str(8),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
@@ -1609,7 +1629,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{2}).*' % str(16),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
                              BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True,
                              init_value=60)
         self._param_dict.add(Parameter.USER_NUMBER_BEAMS,
                              r'^.{%s}(.{2}).*' % str(18),
@@ -1622,8 +1641,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.POWER_CONTROL_REGISTER,
                              r'^.{%s}(.{2}).*' % str(22),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True)
+                             BinaryProtocolParameterDict.word_to_string)
         self._param_dict.add(Parameter.A1_1_SPARE,
                              r'^.{%s}(.{2}).*' % str(24),
                              lambda match : match.group(1),
@@ -1640,13 +1658,11 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{2}).*' % str(30),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
                              BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True,
                              init_value=2)
         self._param_dict.add(Parameter.COORDINATE_SYSTEM,
                              r'^.{%s}(.{2}).*' % str(32),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
                              BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True,
                              init_value=1)
         self._param_dict.add(Parameter.NUMBER_BINS,
                              r'^.{%s}(.{2}).*' % str(34),
@@ -1660,7 +1676,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{2}).*' % str(38),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
                              BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True,
                              init_value=3600)
         self._param_dict.add(Parameter.DEPLOYMENT_NAME,
                              r'^.{%s}(.{6}).*' % str(40),
@@ -1678,7 +1693,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                              r'^.{%s}(.{4}).*' % str(54),
                              lambda match : BinaryProtocolParameterDict.convert_double_word_to_int(match.group(1)),
                              BinaryProtocolParameterDict.double_word_to_string,
-                             startup_param=True,
                              init_value=43200)
         self._param_dict.add(Parameter.MODE,
                              r'^.{%s}(.{2}).*' % str(58),
@@ -1687,13 +1701,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.ADJUSTMENT_SOUND_SPEED,
                              r'^.{%s}(.{2}).*' % str(60),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
-                             BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True)
+                             BinaryProtocolParameterDict.word_to_string)
         self._param_dict.add(Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
                              r'^.{%s}(.{2}).*' % str(62),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
                              BinaryProtocolParameterDict.word_to_string,
-                             startup_param=True,
                              init_value=20)
         self._param_dict.add(Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC,
                              r'^.{%s}(.{2}).*' % str(64),
@@ -1778,8 +1790,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.USER_3_SPARE,
                              r'^.{%s}(.{2}).*' % str(460),
                              lambda match : match.group(1),
-                             lambda string : string,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             lambda string : string)
         self._param_dict.add(Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
                              r'^.{%s}(.{2}).*' % str(462),
                              lambda match : BinaryProtocolParameterDict.convert_word_to_int(match.group(1)),
@@ -1933,6 +1944,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentParameterException('set_configuration command missing user_configuration parameter.')
         if not isinstance(user_configuration, str):
             raise InstrumentParameterException('set_configuration command requires a string user_configuration parameter.')
+        user_configuration = base64.b64decode(user_configuration)
         self._dump_config(user_configuration)        
             
         cmd_line = cmd + user_configuration
@@ -2047,4 +2059,34 @@ class Protocol(CommandResponseInstrumentProtocol):
         parsed['System'] = base64.b64encode(response[22:198])
         parsed['NBeams'] = BinaryProtocolParameterDict.convert_word_to_int(response[220:222])  
         return parsed
+    
+    def _parse_read_fat(self, response, prompt):
+        """ Parse the response from the instrument for a read fat command.
+        
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if not len(response) == FAT_LENGTH + 2:
+            raise InstrumentProtocolException("Read FAT response length %d wrong, should be %d", len(response), FAT_LENGTH + 2)
+        
+        FAT = response[:-2]    
+        print self._dump_config(FAT)
+
+        parsed = []
+         
+        record_length = 16
+        for index in range(0, FAT_LENGTH-record_length, record_length):
+            record = FAT[index:index+record_length]
+            record_number = index / record_length
+            parsed_record = OrderedDict([('FileNumber', record_number), 
+                                         ('FileName', record[0:6].rstrip(chr(0x00))), 
+                                         ('SequenceNumber', ord(record[6:7])), 
+                                         ('Status', record[7:8]), 
+                                         ('StartAddr', record[8:12].encode('hex')), 
+                                         ('StopAddr', record[12:record_length].encode('hex'))])
+            parsed.append(parsed_record)  
+        return parsed
+
                     

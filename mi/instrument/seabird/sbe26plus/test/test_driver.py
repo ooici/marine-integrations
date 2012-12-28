@@ -26,10 +26,12 @@ from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
 from nose.plugins.attrib import attr
 from mi.idk.unit_test import DriverTestMixin
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from interface.objects import AgentCommand
+from mi.idk.unit_test import ParameterTestConfigKey
+
+from mi.instrument.seabird.test.test_driver import SeaBirdUnitTest
+from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
+from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
+
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 from mi.instrument.seabird.sbe26plus.driver import DataParticleType
 from mi.instrument.seabird.sbe26plus.driver import InstrumentDriver
@@ -52,12 +54,15 @@ from mi.instrument.seabird.sbe26plus.driver import SBE26plusStatisticsDataPartic
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceCalibrationDataParticleKey
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceStatusDataParticleKey
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
+from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import DataParticleValue
 from mi.core.instrument.instrument_driver import DriverParameter, DriverConnectionState, DriverAsyncEvent
 from mi.core.instrument.instrument_protocol import DriverProtocolState
 from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException
+
 from pyon.core.exception import Conflict
+from interface.objects import AgentCommand
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 
@@ -324,7 +329,16 @@ SAMPLE_DC =\
 "dc" + NEWLINE + SAMPLE_DEVICE_CALIBRATION +\
 "S>"
 
-class DataParticleMixin(DriverTestMixin):
+# Create some short names for the parameter test config
+TYPE = ParameterTestConfigKey.TYPE
+READONLY = ParameterTestConfigKey.READONLY
+STARTUP = ParameterTestConfigKey.STARTUP
+DA = ParameterTestConfigKey.DIRECT_ACCESS
+VALUE = ParameterTestConfigKey.VALUE
+REQUIRED = ParameterTestConfigKey.REQUIRED
+DEFAULT = ParameterTestConfigKey.DEFAULT
+
+class SeaBird26PlusMixin(DriverTestMixin):
     '''
     Mixin class used for storing data particle constance and common data assertion methods.
     '''
@@ -332,172 +346,175 @@ class DataParticleMixin(DriverTestMixin):
     #  Parameter and Type Definitions
     ###
     _driver_parameters = {
-        # DS # parameters - contains all setsampling parameters
-        Parameter.DEVICE_VERSION : str,
-        Parameter.SERIAL_NUMBER : str,
-        Parameter.DS_DEVICE_DATE_TIME : str,
-        Parameter.USER_INFO : str,
-        Parameter.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER : float,
-        Parameter.QUARTZ_PRESSURE_SENSOR_RANGE : float,
-        Parameter.EXTERNAL_TEMPERATURE_SENSOR : bool,
-        Parameter.CONDUCTIVITY : bool,
-        Parameter.IOP_MA : float,
-        Parameter.VMAIN_V : float,
-        Parameter.VLITH_V : float,
-        Parameter.LAST_SAMPLE_P : float,
-        Parameter.LAST_SAMPLE_T : float,
-        Parameter.LAST_SAMPLE_S : float,
-        Parameter.TIDE_INTERVAL : int,
-        Parameter.TIDE_MEASUREMENT_DURATION : int,
-        Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : float,
-        Parameter.WAVE_SAMPLES_PER_BURST : int,
-        Parameter.WAVE_SAMPLES_SCANS_PER_SECOND : float,
-        Parameter.USE_START_TIME : bool,
-        Parameter.USE_STOP_TIME : bool,
-        Parameter.TIDE_SAMPLES_PER_DAY : float,
-        Parameter.WAVE_BURSTS_PER_DAY : float,
-        Parameter.MEMORY_ENDURANCE : float,
-        Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE : float,
-        Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS : float,
-        Parameter.TOTAL_RECORDED_WAVE_BURSTS : float,
-        Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START : float,
-        Parameter.WAVE_BURSTS_SINCE_LAST_START : float,
-        Parameter.TXREALTIME : bool,
-        Parameter.TXWAVEBURST : bool,
-        Parameter.TXWAVESTATS : bool,
-        Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS : int,
-        Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC : bool,
-        Parameter.USE_MEASURED_TEMP_FOR_DENSITY_CALC : bool,
-        Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR : float,
-        Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR : float,
-        Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM : float,
-        Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND : int,
-        Parameter.MIN_ALLOWABLE_ATTENUATION : float,
-        Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : float,
-        Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM : float,
-        Parameter.HANNING_WINDOW_CUTOFF : float,
-        Parameter.SHOW_PROGRESS_MESSAGES : bool,
-        Parameter.STATUS : str,
-        Parameter.LOGGING : bool,
+        # Parameters defined in the IOS
+        Parameter.EXTERNAL_TEMPERATURE_SENSOR: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.CONDUCTIVITY: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.USER_INFO : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        Parameter.TXREALTIME: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.TXWAVEBURST: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+
+        # Set sampling parameters
+        Parameter.TIDE_INTERVAL : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TIDE_MEASUREMENT_DURATION : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.WAVE_SAMPLES_PER_BURST : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.WAVE_SAMPLES_SCANS_PER_SECOND : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.USE_START_TIME : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.USE_STOP_TIME : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TIDE_SAMPLES_PER_DAY : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.WAVE_BURSTS_PER_DAY : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.MEMORY_ENDURANCE : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TOTAL_RECORDED_WAVE_BURSTS : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.WAVE_BURSTS_SINCE_LAST_START : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TXWAVESTATS : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.USE_MEASURED_TEMP_FOR_DENSITY_CALC : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.MIN_ALLOWABLE_ATTENUATION : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.HANNING_WINDOW_CUTOFF : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+
+        # DS parameters - also includes sampling parameters
+        Parameter.DEVICE_VERSION : {TYPE: str, READONLY: True},
+        Parameter.SERIAL_NUMBER : {TYPE: str, READONLY: True},
+        Parameter.DS_DEVICE_DATE_TIME : {TYPE: str, READONLY: True},
+        Parameter.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER : {TYPE: float, READONLY: True},
+        Parameter.QUARTZ_PRESSURE_SENSOR_RANGE : {TYPE: float, READONLY: True},
+        Parameter.IOP_MA : {TYPE: float, READONLY: True},
+        Parameter.VMAIN_V : {TYPE: float, READONLY: True},
+        Parameter.VLITH_V : {TYPE: float, READONLY: True},
+        Parameter.LAST_SAMPLE_P : {TYPE: float, READONLY: True, REQUIRED: False},
+        Parameter.LAST_SAMPLE_T : {TYPE: float, READONLY: True, REQUIRED: False},
+        Parameter.LAST_SAMPLE_S : {TYPE: float, READONLY: True, REQUIRED: False},
+        Parameter.SHOW_PROGRESS_MESSAGES : { TYPE: bool, READONLY: True, REQUIRED: False},
+        Parameter.STATUS : { TYPE: str, READONLY: True},
+        Parameter.LOGGING : { TYPE: bool, READONLY: True},
         }
 
     _tide_sample_parameters = {
-        SBE26plusTideSampleDataParticleKey.TIMESTAMP: { 'type': float, 'value': 3558413454.0 },
-        SBE26plusTideSampleDataParticleKey.PRESSURE: { 'type': float, 'value': 14.5385 },
-        SBE26plusTideSampleDataParticleKey.PRESSURE_TEMP: { 'type': float, 'value': 24.228 },
-        SBE26plusTideSampleDataParticleKey.TEMPERATURE: { 'type': float, 'value': 23.8404 },
-        SBE26plusTideSampleDataParticleKey.CONDUCTIVITY: { 'type': float, 'required': False },
-        SBE26plusTideSampleDataParticleKey.SALINITY: { 'type': float, 'required': False }
+        SBE26plusTideSampleDataParticleKey.TIMESTAMP: {TYPE: float, VALUE: 3558413454.0 },
+        SBE26plusTideSampleDataParticleKey.PRESSURE: {TYPE: float, VALUE: 14.5385 },
+        SBE26plusTideSampleDataParticleKey.PRESSURE_TEMP: {TYPE: float, VALUE: 24.228 },
+        SBE26plusTideSampleDataParticleKey.TEMPERATURE: {TYPE: float, VALUE: 23.8404 },
+        SBE26plusTideSampleDataParticleKey.CONDUCTIVITY: {TYPE: float, REQUIRED: False },
+        SBE26plusTideSampleDataParticleKey.SALINITY: {TYPE: float, REQUIRED: False }
     }
 
     _wave_sample_parameters = {
-        SBE26plusWaveBurstDataParticleKey.TIMESTAMP: { 'type': float, 'value': 3558413454.0 },
-        SBE26plusWaveBurstDataParticleKey.PTFREQ: { 'type': float, 'value': 171791.359 },
-        SBE26plusWaveBurstDataParticleKey.PTRAW: { 'type': list }
+        SBE26plusWaveBurstDataParticleKey.TIMESTAMP: {TYPE: float, VALUE: 3558413454.0 },
+        SBE26plusWaveBurstDataParticleKey.PTFREQ: {TYPE: float, VALUE: 171791.359 },
+        SBE26plusWaveBurstDataParticleKey.PTRAW: {TYPE: list }
     }
 
     _statistics_sample_parameters = {
-        SBE26plusStatisticsDataParticleKey.DEPTH: { 'type': float, 'value': 0.0 },
-        SBE26plusStatisticsDataParticleKey.TEMPERATURE: { 'type': float, 'value': 23.840 },
-        SBE26plusStatisticsDataParticleKey.SALINITY: { 'type': float, 'value': 35.000 },
-        SBE26plusStatisticsDataParticleKey.DENSITY: { 'type': float, 'value': 1023.690 },
-        SBE26plusStatisticsDataParticleKey.N_AGV_BAND: { 'type': int, 'value': 5 },
-        SBE26plusStatisticsDataParticleKey.TOTAL_VARIANCE: { 'type': float, 'value': 1.0896e-05 },
-        SBE26plusStatisticsDataParticleKey.TOTAL_ENERGY: { 'type': float, 'value': 1.0939e-01 },
-        SBE26plusStatisticsDataParticleKey.SIGNIFICANT_PERIOD: { 'type': float, 'value': 5.3782e-01 },
-        SBE26plusStatisticsDataParticleKey.SIGNIFICANT_WAVE_HEIGHT: { 'type': float, 'value': 1.3204e-02 },
-        SBE26plusStatisticsDataParticleKey.TSS_WAVE_INTEGRATION_TIME: { 'type': int, 'value': 128 },
-        SBE26plusStatisticsDataParticleKey.TSS_NUMBER_OF_WAVES: { 'type': float, 'value': 0 },
-        SBE26plusStatisticsDataParticleKey.TSS_TOTAL_VARIANCE: { 'type': float, 'value': 1.1595e-05 },
-        SBE26plusStatisticsDataParticleKey.TSS_TOTAL_ENERGY: { 'type': float, 'value': 1.1640e-01 },
-        SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_HEIGHT: { 'type': float, 'value': 0.0000e+00 },
-        SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_PERIOD: { 'type': float, 'value': 0.0000e+00 },
-        SBE26plusStatisticsDataParticleKey.TSS_MAXIMUM_WAVE_HEIGHT: { 'type': float, 'value': 1.0893e-02 },
-        SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_HEIGHT: { 'type': float, 'value': 0.0000e+00 },
-        SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_PERIOD: { 'type': float, 'value': 0.0000e+00 },
-        SBE26plusStatisticsDataParticleKey.TSS_H1_10: { 'type': float, 'value': 0.0000e+00 },
-        SBE26plusStatisticsDataParticleKey.TSS_H1_100: { 'type': float, 'value': 0.0000e+00 }
+        SBE26plusStatisticsDataParticleKey.DEPTH: {TYPE: float, VALUE: 0.0 },
+        SBE26plusStatisticsDataParticleKey.TEMPERATURE: {TYPE: float, VALUE: 23.840 },
+        SBE26plusStatisticsDataParticleKey.SALINITY: {TYPE: float, VALUE: 35.000 },
+        SBE26plusStatisticsDataParticleKey.DENSITY: {TYPE: float, VALUE: 1023.690 },
+        SBE26plusStatisticsDataParticleKey.N_AGV_BAND: {TYPE: int, VALUE: 5 },
+        SBE26plusStatisticsDataParticleKey.TOTAL_VARIANCE: {TYPE: float, VALUE: 1.0896e-05 },
+        SBE26plusStatisticsDataParticleKey.TOTAL_ENERGY: {TYPE: float, VALUE: 1.0939e-01 },
+        SBE26plusStatisticsDataParticleKey.SIGNIFICANT_PERIOD: {TYPE: float, VALUE: 5.3782e-01 },
+        SBE26plusStatisticsDataParticleKey.SIGNIFICANT_WAVE_HEIGHT: {TYPE: float, VALUE: 1.3204e-02 },
+        SBE26plusStatisticsDataParticleKey.TSS_WAVE_INTEGRATION_TIME: {TYPE: int, VALUE: 128 },
+        SBE26plusStatisticsDataParticleKey.TSS_NUMBER_OF_WAVES: {TYPE: float, VALUE: 0 },
+        SBE26plusStatisticsDataParticleKey.TSS_TOTAL_VARIANCE: {TYPE: float, VALUE: 1.1595e-05 },
+        SBE26plusStatisticsDataParticleKey.TSS_TOTAL_ENERGY: {TYPE: float, VALUE: 1.1640e-01 },
+        SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_HEIGHT: {TYPE: float, VALUE: 0.0000e+00 },
+        SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_PERIOD: {TYPE: float, VALUE: 0.0000e+00 },
+        SBE26plusStatisticsDataParticleKey.TSS_MAXIMUM_WAVE_HEIGHT: {TYPE: float, VALUE: 1.0893e-02 },
+        SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_HEIGHT: {TYPE: float, VALUE: 0.0000e+00 },
+        SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_PERIOD: {TYPE: float, VALUE: 0.0000e+00 },
+        SBE26plusStatisticsDataParticleKey.TSS_H1_10: {TYPE: float, VALUE: 0.0000e+00 },
+        SBE26plusStatisticsDataParticleKey.TSS_H1_100: {TYPE: float, VALUE: 0.0000e+00 }
     }
 
     _calibration_sample_parameters = {
-        SBE26plusDeviceCalibrationDataParticleKey.PCALDATE: { 'type': list, 'value': [2, 4, 2013] },
-        SBE26plusDeviceCalibrationDataParticleKey.PU0: { 'type': float, 'value': 5.100000e+00 },
-        SBE26plusDeviceCalibrationDataParticleKey.PY1: { 'type': float, 'value': -3.910859e+03 },
-        SBE26plusDeviceCalibrationDataParticleKey.PY2: { 'type': float, 'value': -1.070825e+04 },
-        SBE26plusDeviceCalibrationDataParticleKey.PY3: { 'type': float, 'value':  0.000000e+00  },
-        SBE26plusDeviceCalibrationDataParticleKey.PC1: { 'type': float, 'value': 6.072786e+02 },
-        SBE26plusDeviceCalibrationDataParticleKey.PC2: { 'type': float, 'value': 1.000000e+00 },
-        SBE26plusDeviceCalibrationDataParticleKey.PC3: { 'type': float, 'value': -1.024374e+03 },
-        SBE26plusDeviceCalibrationDataParticleKey.PD1: { 'type': float, 'value':  2.928000e-02 },
-        SBE26plusDeviceCalibrationDataParticleKey.PD2: { 'type': float, 'value': 0.000000e+00 },
-        SBE26plusDeviceCalibrationDataParticleKey.PT1: { 'type': float, 'value': 2.783369e+01 },
-        SBE26plusDeviceCalibrationDataParticleKey.PT2: { 'type': float, 'value': 6.072020e-01 },
-        SBE26plusDeviceCalibrationDataParticleKey.PT3: { 'type': float, 'value': 1.821885e+01 },
-        SBE26plusDeviceCalibrationDataParticleKey.PT4: { 'type': float, 'value': 2.790597e+01 },
-        SBE26plusDeviceCalibrationDataParticleKey.FACTORY_M: { 'type': float, 'value': 41943.0 },
-        SBE26plusDeviceCalibrationDataParticleKey.FACTORY_B: { 'type': float, 'value': 2796.2 },
-        SBE26plusDeviceCalibrationDataParticleKey.POFFSET: { 'type': float, 'value': -1.374000e-01 },
-        SBE26plusDeviceCalibrationDataParticleKey.TCALDATE: { 'type': list, 'value': [2, 4, 2013] },
-        SBE26plusDeviceCalibrationDataParticleKey.TA0: { 'type': float, 'value': 1.200000e-04 },
-        SBE26plusDeviceCalibrationDataParticleKey.TA1: { 'type': float, 'value': 2.558000e-04 },
-        SBE26plusDeviceCalibrationDataParticleKey.TA2: { 'type': float, 'value': -2.073449e-06 },
-        SBE26plusDeviceCalibrationDataParticleKey.TA3: { 'type': float, 'value': 1.640089e-07 },
-        SBE26plusDeviceCalibrationDataParticleKey.CCALDATE: { 'type': list, 'value': [28, 3, 2012] },
-        SBE26plusDeviceCalibrationDataParticleKey.CG: { 'type': float, 'value': -1.025348e+01 },
-        SBE26plusDeviceCalibrationDataParticleKey.CH: { 'type': float, 'value': 1.557569e+00 },
-        SBE26plusDeviceCalibrationDataParticleKey.CI: { 'type': float, 'value': -1.737200e-03 },
-        SBE26plusDeviceCalibrationDataParticleKey.CJ: { 'type': float, 'value': 2.268000e-04 },
-        SBE26plusDeviceCalibrationDataParticleKey.CTCOR: { 'type': float, 'value': 3.250000e-06 },
-        SBE26plusDeviceCalibrationDataParticleKey.CPCOR: { 'type': float, 'value': -9.570000e-08 },
-        SBE26plusDeviceCalibrationDataParticleKey.CSLOPE: { 'type': float, 'value': 1.000000e+00 }
+        SBE26plusDeviceCalibrationDataParticleKey.PCALDATE: {TYPE: list, VALUE: [2, 4, 2013] },
+        SBE26plusDeviceCalibrationDataParticleKey.PU0: {TYPE: float, VALUE: 5.100000e+00 },
+        SBE26plusDeviceCalibrationDataParticleKey.PY1: {TYPE: float, VALUE: -3.910859e+03 },
+        SBE26plusDeviceCalibrationDataParticleKey.PY2: {TYPE: float, VALUE: -1.070825e+04 },
+        SBE26plusDeviceCalibrationDataParticleKey.PY3: {TYPE: float, VALUE:  0.000000e+00  },
+        SBE26plusDeviceCalibrationDataParticleKey.PC1: {TYPE: float, VALUE: 6.072786e+02 },
+        SBE26plusDeviceCalibrationDataParticleKey.PC2: {TYPE: float, VALUE: 1.000000e+00 },
+        SBE26plusDeviceCalibrationDataParticleKey.PC3: {TYPE: float, VALUE: -1.024374e+03 },
+        SBE26plusDeviceCalibrationDataParticleKey.PD1: {TYPE: float, VALUE:  2.928000e-02 },
+        SBE26plusDeviceCalibrationDataParticleKey.PD2: {TYPE: float, VALUE: 0.000000e+00 },
+        SBE26plusDeviceCalibrationDataParticleKey.PT1: {TYPE: float, VALUE: 2.783369e+01 },
+        SBE26plusDeviceCalibrationDataParticleKey.PT2: {TYPE: float, VALUE: 6.072020e-01 },
+        SBE26plusDeviceCalibrationDataParticleKey.PT3: {TYPE: float, VALUE: 1.821885e+01 },
+        SBE26plusDeviceCalibrationDataParticleKey.PT4: {TYPE: float, VALUE: 2.790597e+01 },
+        SBE26plusDeviceCalibrationDataParticleKey.FACTORY_M: {TYPE: float, VALUE: 41943.0 },
+        SBE26plusDeviceCalibrationDataParticleKey.FACTORY_B: {TYPE: float, VALUE: 2796.2 },
+        SBE26plusDeviceCalibrationDataParticleKey.POFFSET: {TYPE: float, VALUE: -1.374000e-01 },
+        SBE26plusDeviceCalibrationDataParticleKey.TCALDATE: {TYPE: list, VALUE: [2, 4, 2013] },
+        SBE26plusDeviceCalibrationDataParticleKey.TA0: {TYPE: float, VALUE: 1.200000e-04 },
+        SBE26plusDeviceCalibrationDataParticleKey.TA1: {TYPE: float, VALUE: 2.558000e-04 },
+        SBE26plusDeviceCalibrationDataParticleKey.TA2: {TYPE: float, VALUE: -2.073449e-06 },
+        SBE26plusDeviceCalibrationDataParticleKey.TA3: {TYPE: float, VALUE: 1.640089e-07 },
+        SBE26plusDeviceCalibrationDataParticleKey.CCALDATE: {TYPE: list, VALUE: [28, 3, 2012] },
+        SBE26plusDeviceCalibrationDataParticleKey.CG: {TYPE: float, VALUE: -1.025348e+01 },
+        SBE26plusDeviceCalibrationDataParticleKey.CH: {TYPE: float, VALUE: 1.557569e+00 },
+        SBE26plusDeviceCalibrationDataParticleKey.CI: {TYPE: float, VALUE: -1.737200e-03 },
+        SBE26plusDeviceCalibrationDataParticleKey.CJ: {TYPE: float, VALUE: 2.268000e-04 },
+        SBE26plusDeviceCalibrationDataParticleKey.CTCOR: {TYPE: float, VALUE: 3.250000e-06 },
+        SBE26plusDeviceCalibrationDataParticleKey.CPCOR: {TYPE: float, VALUE: -9.570000e-08 },
+        SBE26plusDeviceCalibrationDataParticleKey.CSLOPE: {TYPE: float, VALUE: 1.000000e+00 }
     }
 
     _status_sample_parameters = {
-        SBE26plusDeviceStatusDataParticleKey.DEVICE_VERSION: { 'type': unicode, 'value': u'6.1e' },
-        SBE26plusDeviceStatusDataParticleKey.SERIAL_NUMBER: { 'type': unicode, 'value': u'1329' },
-        SBE26plusDeviceStatusDataParticleKey.DS_DEVICE_DATE_TIME: { 'type': unicode, 'value': u'05 Oct 2012  17:19:27' },
-        SBE26plusDeviceStatusDataParticleKey.USER_INFO: { 'type': unicode, 'value': u'ooi' },
-        SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER: { 'type': float, 'value': 122094 },
-        SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_RANGE: { 'type': float, 'value': 300 },
-        SBE26plusDeviceStatusDataParticleKey.EXTERNAL_TEMPERATURE_SENSOR: { 'type': bool, 'value': False },
-        SBE26plusDeviceStatusDataParticleKey.CONDUCTIVITY: { 'type': bool, 'value': False },
-        SBE26plusDeviceStatusDataParticleKey.IOP_MA: { 'type': float, 'value': 7.4 },
-        SBE26plusDeviceStatusDataParticleKey.VMAIN_V: { 'type': float, 'value': 16.2 },
-        SBE26plusDeviceStatusDataParticleKey.VLITH_V: { 'type': float, 'value': 9.0 },
-        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_P: { 'type': float, 'value': 14.5361 },
-        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_T: { 'type': float, 'value': 23.8155 },
-        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_S: { 'type': float, 'value': 0.0 },
-        SBE26plusDeviceStatusDataParticleKey.TIDE_INTERVAL: { 'type': int, 'value': 3.0 },
-        SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENT_DURATION: { 'type': int, 'value': 60 },
-        SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: { 'type': int, 'value': 6 },
-        SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_PER_BURST: { 'type': int, 'value': 512 },
-        SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_SCANS_PER_SECOND: { 'type': float, 'value': 4.0 },
-        SBE26plusDeviceStatusDataParticleKey.USE_START_TIME: { 'type': bool, 'value': False },
-        SBE26plusDeviceStatusDataParticleKey.USE_STOP_TIME: { 'type': bool, 'value': False },
-        SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_PER_DAY: { 'type': float, 'value': 480.0 },
-        SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_PER_DAY: { 'type': float, 'value': 80.0 },
-        SBE26plusDeviceStatusDataParticleKey.MEMORY_ENDURANCE: { 'type': float, 'value': 258.0 },
-        SBE26plusDeviceStatusDataParticleKey.NOMINAL_ALKALINE_BATTERY_ENDURANCE: { 'type': float, 'value': 272.8 },
-        SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_TIDE_MEASUREMENTS: { 'type': float, 'value': 5982 },
-        SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_WAVE_BURSTS: { 'type': float, 'value': 4525 },
-        SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENTS_SINCE_LAST_START: { 'type': float, 'value': 11 },
-        SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_SINCE_LAST_START: { 'type': float, 'value': 1 },
-        SBE26plusDeviceStatusDataParticleKey.TXREALTIME: { 'type': bool, 'value': True },
-        SBE26plusDeviceStatusDataParticleKey.TXWAVEBURST: { 'type': bool, 'value': True },
-        SBE26plusDeviceStatusDataParticleKey.TXWAVESTATS: { 'type': bool, 'value': True },
-        SBE26plusDeviceStatusDataParticleKey.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS: { 'type': int, 'value': 512 },
-        SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_FOR_DENSITY_CALC: { 'type': bool, 'value': False  },
-        SBE26plusDeviceStatusDataParticleKey.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: { 'type': float, 'value': 10.0 },
-        SBE26plusDeviceStatusDataParticleKey.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND: { 'type': int, 'value': 5 },
-        SBE26plusDeviceStatusDataParticleKey.MIN_ALLOWABLE_ATTENUATION: { 'type': float, 'value': 0.0025 },
-        SBE26plusDeviceStatusDataParticleKey.MIN_PERIOD_IN_AUTO_SPECTRUM: { 'type': float, 'value': 0.0e+00 },
-        SBE26plusDeviceStatusDataParticleKey.MAX_PERIOD_IN_AUTO_SPECTRUM: { 'type': float, 'value': 1.0e+06 },
-        SBE26plusDeviceStatusDataParticleKey.HANNING_WINDOW_CUTOFF: { 'type': float, 'value': 0.10 },
-        SBE26plusDeviceStatusDataParticleKey.SHOW_PROGRESS_MESSAGES: { 'type': bool, 'value': True },
-        SBE26plusDeviceStatusDataParticleKey.STATUS: { 'type': unicode, 'value': u'stopped by user' },
-        SBE26plusDeviceStatusDataParticleKey.LOGGING: { 'type': bool, 'value': False },
+        SBE26plusDeviceStatusDataParticleKey.DEVICE_VERSION: {TYPE: unicode, VALUE: u'6.1e' },
+        SBE26plusDeviceStatusDataParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: u'1329' },
+        SBE26plusDeviceStatusDataParticleKey.DS_DEVICE_DATE_TIME: {TYPE: unicode, VALUE: u'05 Oct 2012  17:19:27' },
+        SBE26plusDeviceStatusDataParticleKey.USER_INFO: {TYPE: unicode, VALUE: u'ooi' },
+        SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER: {TYPE: float, VALUE: 122094 },
+        SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_RANGE: {TYPE: float, VALUE: 300 },
+        SBE26plusDeviceStatusDataParticleKey.EXTERNAL_TEMPERATURE_SENSOR: {TYPE: bool, VALUE: False },
+        SBE26plusDeviceStatusDataParticleKey.CONDUCTIVITY: {TYPE: bool, VALUE: False },
+        SBE26plusDeviceStatusDataParticleKey.IOP_MA: {TYPE: float, VALUE: 7.4 },
+        SBE26plusDeviceStatusDataParticleKey.VMAIN_V: {TYPE: float, VALUE: 16.2 },
+        SBE26plusDeviceStatusDataParticleKey.VLITH_V: {TYPE: float, VALUE: 9.0 },
+        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_P: {TYPE: float, VALUE: 14.5361 },
+        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_T: {TYPE: float, VALUE: 23.8155 },
+        SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_S: {TYPE: float, VALUE: 0.0 },
+        SBE26plusDeviceStatusDataParticleKey.TIDE_INTERVAL: {TYPE: int, VALUE: 3.0 },
+        SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENT_DURATION: {TYPE: int, VALUE: 60 },
+        SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: {TYPE: int, VALUE: 6 },
+        SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_PER_BURST: {TYPE: int, VALUE: 512 },
+        SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_SCANS_PER_SECOND: {TYPE: float, VALUE: 4.0 },
+        SBE26plusDeviceStatusDataParticleKey.USE_START_TIME: {TYPE: bool, VALUE: False },
+        SBE26plusDeviceStatusDataParticleKey.USE_STOP_TIME: {TYPE: bool, VALUE: False },
+        SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_PER_DAY: {TYPE: float, VALUE: 480.0 },
+        SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_PER_DAY: {TYPE: float, VALUE: 80.0 },
+        SBE26plusDeviceStatusDataParticleKey.MEMORY_ENDURANCE: {TYPE: float, VALUE: 258.0 },
+        SBE26plusDeviceStatusDataParticleKey.NOMINAL_ALKALINE_BATTERY_ENDURANCE: {TYPE: float, VALUE: 272.8 },
+        SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_TIDE_MEASUREMENTS: {TYPE: float, VALUE: 5982 },
+        SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_WAVE_BURSTS: {TYPE: float, VALUE: 4525 },
+        SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENTS_SINCE_LAST_START: {TYPE: float, VALUE: 11 },
+        SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_SINCE_LAST_START: {TYPE: float, VALUE: 1 },
+        SBE26plusDeviceStatusDataParticleKey.TXREALTIME: {TYPE: bool, VALUE: True },
+        SBE26plusDeviceStatusDataParticleKey.TXWAVEBURST: {TYPE: bool, VALUE: True },
+        SBE26plusDeviceStatusDataParticleKey.TXWAVESTATS: {TYPE: bool, VALUE: True },
+        SBE26plusDeviceStatusDataParticleKey.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS: {TYPE: int, VALUE: 512 },
+        SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_FOR_DENSITY_CALC: {TYPE: bool, VALUE: False  },
+        SBE26plusDeviceStatusDataParticleKey.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: {TYPE: float, VALUE: 10.0 },
+        SBE26plusDeviceStatusDataParticleKey.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND: {TYPE: int, VALUE: 5 },
+        SBE26plusDeviceStatusDataParticleKey.MIN_ALLOWABLE_ATTENUATION: {TYPE: float, VALUE: 0.0025 },
+        SBE26plusDeviceStatusDataParticleKey.MIN_PERIOD_IN_AUTO_SPECTRUM: {TYPE: float, VALUE: 0.0e+00 },
+        SBE26plusDeviceStatusDataParticleKey.MAX_PERIOD_IN_AUTO_SPECTRUM: {TYPE: float, VALUE: 1.0e+06 },
+        SBE26plusDeviceStatusDataParticleKey.HANNING_WINDOW_CUTOFF: {TYPE: float, VALUE: 0.10 },
+        SBE26plusDeviceStatusDataParticleKey.SHOW_PROGRESS_MESSAGES: {TYPE: bool, VALUE: True },
+        SBE26plusDeviceStatusDataParticleKey.STATUS: {TYPE: unicode, VALUE: u'stopped by user' },
+        SBE26plusDeviceStatusDataParticleKey.LOGGING: {TYPE: bool, VALUE: False },
     }
-
 
     ###
     #   Driver Parameter Methods
@@ -591,9 +608,9 @@ class DataParticleMixin(DriverTestMixin):
 # 5. Negative testing if at all possible.                                     #
 ###############################################################################
 @attr('UNIT', group='mi')
-class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
+class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
     def setUp(self):
-        InstrumentDriverUnitTestCase.setUp(self)
+        SeaBirdUnitTest.setUp(self)
 
     def test_driver_enums(self):
         """
@@ -693,6 +710,9 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
 
         self.assertEqual(reported_parameters, expected_parameters)
 
+        # Verify the parameter definitions
+        self.assert_driver_parameter_definition(driver, self._driver_parameters)
+
 
     def test_capabilities(self):
         """
@@ -727,39 +747,13 @@ class SBE26PlusUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class SBE26PlusIntegrationTest(InstrumentDriverIntegrationTestCase):
+class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
     def setUp(self):
-        InstrumentDriverIntegrationTestCase.setUp(self)
+        SeaBirdIntegrationTest.setUp(self)
 
     ###
     #    Add instrument specific integration tests
     ###
-
-    def assert_param_dict(self, pd, all_params=False):
-        """
-        Verify all device parameters exist and are correct type.
-        """
-
-        # Make it loop through once to warn with debugging of issues, 2nd time can send the exception
-        # PARAMS is the master type list
-
-        if all_params:
-            log.debug("DICT 1 *********" + str(pd.keys()))
-            log.debug("DICT 2 *********" + str(PARAMS.keys()))
-            self.assertEqual(set(pd.keys()), set(PARAMS.keys()))
-
-            for (key, type_val) in PARAMS.iteritems():
-                self.assertTrue(isinstance(pd[key], type_val))
-        else:
-            for (key, val) in pd.iteritems():
-                self.assertTrue(PARAMS.has_key(key))
-
-                if val is not None: # If its not defined, lets just skip it, only catch wrong type assignments.
-                    log.debug("Asserting that " + key +  " is of type " + str(PARAMS[key]))
-                    self.assertTrue(isinstance(val, PARAMS[key]))
-                else:
-                    log.debug("*** Skipping " + key + " Because value is None ***")
-
 
     def test_parameters(self):
         """
@@ -769,7 +763,7 @@ class SBE26PlusIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-
+        self.assert_driver_parameters(reply, True)
 
     def test_get_set(self):
         """
@@ -1609,15 +1603,13 @@ class SBE26PlusIntegrationTest(InstrumentDriverIntegrationTestCase):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('QUAL', group='mi')
-class SBE26PlusQualificationTest(InstrumentDriverQualificationTestCase):
+class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixin):
     def setUp(self):
-        InstrumentDriverQualificationTestCase.setUp(self)
+        SeaBirdQualificationTest.setUp(self)
 
     def check_state(self, desired_state):
         current_state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(current_state, desired_state)
-
-
 
     ###
     #    Add instrument specific qualification tests
