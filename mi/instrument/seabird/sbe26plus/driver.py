@@ -1543,8 +1543,12 @@ class Protocol(SeaBirdProtocol):
                         done = True
                     self._connection.send(self._true_false_to_string(self._sampling_args['TXWAVESTATS']) + NEWLINE)
                 else:
+                    # We default to no just for consistency sake. We might want to change the behavior here because this
+                    # parameter affects the ability to set parameters.  Options, default to no if not explicit (what
+                    # we are doing now), decide Yes or No based on parameters to be set, or raise an exception if incorrect
+                    # for parameter set
+                    self._connection.send(self._true_false_to_string(False) + NEWLINE)
                     done = True
-                    self._connection.send(NEWLINE)
             elif "show progress messages (y/n) = " in response:
                 if 'SHOW_PROGRESS_MESSAGES' in self._sampling_args:
                     self._connection.send(self._true_false_to_string(self._sampling_args['SHOW_PROGRESS_MESSAGES']) + NEWLINE)
@@ -2238,12 +2242,22 @@ class Protocol(SeaBirdProtocol):
         self._param_dict.add(Parameter.USE_START_TIME,
             ds_line_11b,
             lambda match : False if (match.group(1)=='do not') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            startup_param=True,
+            direct_access=True,
+            default_value=False
+        )
 
         self._param_dict.add(Parameter.USE_STOP_TIME,
             ds_line_12b,
             lambda match : False if (match.group(1)=='do not') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            startup_param=True,
+            direct_access=True,
+            default_value=False
+        )
 
         self._param_dict.add(Parameter.TIDE_SAMPLES_PER_DAY,
             ds_line_13,

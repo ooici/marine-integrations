@@ -771,6 +771,9 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_driver_parameters(reply, True)
 
     def test_set(self):
+        """
+        Test all set commands. Verify all exception cases.
+        """
         self.assert_initialize_driver()
 
         # The clock in this instrument is a little odd.  It looks like if you wait until the edge of a second
@@ -783,143 +786,155 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_set(Parameter.DS_DEVICE_DATE_TIME, set_time, no_get=True)
         self.assert_get(Parameter.DS_DEVICE_DATE_TIME, expected_time.upper())
 
+        ###
+        #   Instrument Parameteres
+        ###
         self.assert_set(Parameter.USER_INFO, 'iontest'.upper())
 
-        self.assert_set(Parameter.TIDE_INTERVAL, 3)
-        #self.assert_set_exception(Parameter.TIDE_INTERVAL, 'foo')
+        ###
+        #   Set Sample Parameters
+        ###
+        # Tested in another method
 
-        #self.assert_set_readonly(Parameter.DEVICE_VERSION)
-        #self.assert_set_readonly(Parameter.SERIAL_NUMBER)
-        #self.assert_set_readonly(Parameter.DS_DEVICE_DATA_TIME)
-        #self.assert_set_readonly(Parameter.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER)
-        #self.assert_set_readonly(Parameter.QUARTZ_PRESSURE_SENSOR_RANGE)
-        #self.assert_set_readonly(Parameter.EXTERNAL_TEMPERATURE_SENSOR)
-        #self.assert_set_readonly(Parameter.CONDUCTIVITY)
-        #self.assert_set_readonly(IOP_MA)
-        #self.assert_set_readonly(VMAIN_V)
-        #self.assert_set_readonly(VLITH_V)
-        #self.assert_set_readonly(LAST_SAMPLE_P)
-        #self.assert_set_readonly(LAST_SAMPLE_T)
-        #self.assert_set_readonly(LAST_SAMPLE_S)
+        ###
+        #   Read only parameters
+        ###
+        self.assert_set_readonly(Parameter.DEVICE_VERSION)
+        self.assert_set_readonly(Parameter.SERIAL_NUMBER)
+        self.assert_set_readonly(Parameter.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER)
+        self.assert_set_readonly(Parameter.QUARTZ_PRESSURE_SENSOR_RANGE)
+        self.assert_set_readonly(Parameter.EXTERNAL_TEMPERATURE_SENSOR)
+        self.assert_set_readonly(Parameter.CONDUCTIVITY)
+        self.assert_set_readonly(Parameter.IOP_MA)
+        self.assert_set_readonly(Parameter.VMAIN_V)
+        self.assert_set_readonly(Parameter.VLITH_V)
+        self.assert_set_readonly(Parameter.LAST_SAMPLE_P)
+        self.assert_set_readonly(Parameter.LAST_SAMPLE_T)
+        self.assert_set_readonly(Parameter.LAST_SAMPLE_S)
+        self.assert_set_readonly(Parameter.TXREALTIME)
+        self.assert_set_readonly(Parameter.TXWAVEBURST)
+        self.assert_set_readonly(Parameter.SHOW_PROGRESS_MESSAGES)
+        self.assert_set_readonly(Parameter.STATUS)
+        self.assert_set_readonly(Parameter.LOGGING)
 
-        #self.assert_set_readonly(TIDE_INTERVAL)
-        #self.assert_set_readonly(TIDE_MEASUREMENT_DURATION)
-        #self.assert_set_readonly(TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS)
-        #self.assert_set_readonly(WAVE_SAMPLES_PER_BURST)
-        #self.assert_set_readonly(WAVE_SAMPLES_SCANS_PER_SECOND)
-        #self.assert_set_readonly(USE_START_TIME)
-        #self.assert_set_readonly(USE_STOP_TIME)
-        #self.assert_set_readonly(TXWAVESTATS)
-        #self.assert_set_readonly(TIDE_SAMPLES_PER_DAY)
-        #self.assert_set_readonly(WAVE_BURSTS_PER_DAY)
-        #self.assert_set_readonly(MEMORY_ENDURANCE)
-        #self.assert_set_readonly(NOMINAL_ALKALINE_BATTERY_ENDURANCE)
-        #self.assert_set_readonly(TOTAL_RECORDED_TIDE_MEASUREMENTS)
-        #self.assert_set_readonly(TOTAL_RECORDED_WAVE_BURSTS)
-        #self.assert_set_readonly(TIDE_MEASUREMENTS_SINCE_LAST_START)
-        #self.assert_set_readonly(WAVE_BURSTS_SINCE_LAST_START)
-        #self.assert_set_readonly(TXREALTIME)
-        #self.assert_set_readonly(TXWAVEBURST)
-        #self.assert_set_readonly(NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS)
-        #self.assert_set_readonly(USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC)
-        #self.assert_set_readonly(USE_MEASURED_TEMP_FOR_DENSITY_CALC)
-        #self.assert_set_readonly(AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR)
-        #self.assert_set_readonly(AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR)
-        #self.assert_set_readonly(PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM)
-        #self.assert_set_readonly(SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND)
-        #self.assert_set_readonly(MIN_ALLOWABLE_ATTENUATION)
-        #self.assert_set_readonly(MIN_PERIOD_IN_AUTO_SPECTRUM)
-        #self.assert_set_readonly(MAX_PERIOD_IN_AUTO_SPECTRUM)
-        #self.assert_set_readonly(HANNING_WINDOW_CUTOFF)
-        #self.assert_set_readonly(SHOW_PROGRESS_MESSAGES)
-        #self.assert_set_readonly(STATUS)
-        #self.assert_set_readonly(LOGGING)
-
-    def test_get_set(self):
-        """
-        Test device parameter access.
-        """
-
-
-    # WORKS TUE
     def test_set_sampling(self):
         """
         @brief Test device setsampling.
 
         setsampling functionality now handled via set.  Below test converted to use set.
+        This tests assumes Conductivity is set to false as described in the IOS, we verify
+        this, but don't set it because this is a startup parameter.
         """
-        parameter_all = [
-            Parameter.ALL
-        ]
+        self.assert_initialize_driver()
+        self.assert_get(Parameter.CONDUCTIVITY, False)
 
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+        self.assert_set_sampling_no_txwavestats()
 
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+    def assert_set_sampling_no_txwavestats(self):
+        """
+        Test setting parameters, including bad parameter tests, for all parameters in the set
+        sampling when txwavestats is set to false.
 
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.UNKNOWN)
-
-        reply = self.driver_client.cmd_dvr('discover_state')
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        # Critical that for this test conductivity be in a known state.
-        # Need to add a second testing section to test with Conductivity = False
-        new_params = {
-            Parameter.CONDUCTIVITY : True,
-        }
-        reply = self.driver_client.cmd_dvr('set_resource', new_params)
-
-        # POSITIVE TESTING
-
+        Parameter set:
+            * Tide interval (integer minutes)
+                - Range 1 - 720
+            * Tide measurement duration (seconds)
+                - Range: 10 - 43200 sec
+            * Measure wave burst after every N tide samples
+                - Range 1 - 10,000
+            * Number of wave samples per burst
+                - Range 4 - 60,000
+            * wave sample duration
+                - Range [0.25, 0.5, 0.75, 1.0]
+            * use start time - Not set, driver hard codes to false
+                - Range [y, n]
+            * use stop time - Not set, driver hard codes to false
+                - Range [y, n]
+            * TXWAVESTATS (real-time wave statistics)
+                - Set to False for this test
+        """
         log.debug("setsampling Test 1 - TXWAVESTATS = N, small subset of possible parameters.")
-
         sampling_params = {
-            Parameter.TIDE_INTERVAL : 18,
-            Parameter.TXWAVESTATS : False,
-            }
+            Parameter.TIDE_INTERVAL: 18,
+            Parameter.TIDE_MEASUREMENT_DURATION: 60,
+            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: 6000,
+            Parameter.WAVE_SAMPLES_PER_BURST: 1000,
+            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND: 0.25,
+            Parameter.TXWAVESTATS: False,
+        }
 
-        # Set parameters and verify.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SETSAMPLING, sampling_params)
+        # First tests to verify we can set all parameters properly
+        self.assert_set_bulk(sampling_params)
 
-        self.assertEqual(reply, None)
+        # Tide interval parameter.  Check edges, out of range and invalid data
+        sampling_params[Parameter.TIDE_INTERVAL] = 1
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = 720
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = 0
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = 721
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = "foo"
+        self.assert_set_bulk_exception(sampling_params)
 
-        reply = self.driver_client.cmd_dvr('get_resource', parameter_all)
-
-        """
-        Test 1: TXWAVESTATS = N
-            Set:
-                * Tide interval (integer minutes)
-                    - Range 1 - 720
-                * Tide measurement duration (seconds)
-                    - Range: 10 - 43200 sec
-                * Measure wave burst after every N tide samples
-                    - Range 1 - 10,000
-                * Number of wave samples per burst
-                    - Range 4 - 60,000
-                * wave sample duration
-                    - Range [0.25, 0.5, 0.75, 1.0]
-                * use start time
-                    - Range [y, n]
-                * use stop time
-                    - Range [y, n]
-                * TXWAVESTATS (real-time wave statistics)
-        """
-
+    def placeholder(self):
         log.debug("TEST 2 - TXWAVESTATS = N, full set of possible parameters")
-
+        ###
+        # Test 2: TXWAVESTATS = Y
+        #     Set:
+        #         * Tide interval (integer minutes)
+        #             - Range 1 - 720
+        #         * Tide measurement duration (seconds)
+        #             - Range: 10 - 43200 sec
+        #         * Measure wave burst after every N tide samples
+        #             - Range 1 - 10,000
+        #         * Number of wave samples per burst
+        #             - Range 4 - 60,000
+        #         * wave sample duration
+        #             - Range [0.25, 0.5, 0.75, 1.0]
+        #             - USE WAVE_SAMPLES_SCANS_PER_SECOND instead
+        #               where WAVE_SAMPLES_SCANS_PER_SECOND = 1 / wave_sample_duration
+        #         * use start time
+        #             - Range [y, n]
+        #         * use stop time
+        #             - Range [y, n]
+        #         * TXWAVESTATS (real-time wave statistics)
+        #             - Range [y, n]
+        #             OPTIONAL DEPENDING ON TXWAVESTATS
+        #             * Show progress messages
+        #               - Range [y, n]
+        #             * Number of wave samples per burst to use for wave
+        #               statistics
+        #               - Range > 512, power of 2...
+        #             * Use measured temperature and conductivity for
+        #               density calculation
+        #               - Range [y,n]
+        #             * Average water temperature above the pressure sensor
+        #               - Degrees C
+        #             * Height of pressure sensor from bottom
+        #               - Distance Meters
+        #             * Number of spectral estimates for each frequency
+        #               band
+        #               - You may have used Plan Deployment to determine
+        #                 desired value
+        #             * Minimum allowable attenuation
+        #             * Minimum period (seconds) to use in auto-spectrum
+        #               Minimum of the two following
+        #               - frequency where (measured pressure / pressure at
+        #                 surface) < (minimum allowable attenuation / wave
+        #                 sample duration).
+        #               - (1 / minimum period). Frequencies > fmax are not
+        #                 processed.
+        #             * Maximum period (seconds) to use in auto-spectrum
+        #                - ( 1 / maximum period). Frequencies < fmin are
+        #                  not processed.
+        #             * Hanning window cutoff
+        #                - Hanning window suppresses spectral leakage that
+        #                  occurs when time series to be Fourier transformed
+        #                  contains periodic signal that does not correspond
+        #                  to one of exact frequencies of FFT.
+        ###
         sampling_params = {
             Parameter.TIDE_INTERVAL : 9,
             Parameter.TIDE_MEASUREMENT_DURATION : 540,
@@ -930,76 +945,8 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
             Parameter.USE_STOP_TIME : False,
             Parameter.TXWAVESTATS : False,
         }
+        #self.assert_set_bulk(sampling_params)
 
-        # Set parameters and verify.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-        reply = self.driver_client.cmd_dvr('set_resource', sampling_params)
-
-        self.assertEqual(reply, None)
-
-        reply = self.driver_client.cmd_dvr('get_resource', parameter_all)
-
-        """
-        Test 2: TXWAVESTATS = Y
-            Set:
-                * Tide interval (integer minutes)
-                    - Range 1 - 720
-                * Tide measurement duration (seconds)
-                    - Range: 10 - 43200 sec
-                * Measure wave burst after every N tide samples
-                    - Range 1 - 10,000
-                * Number of wave samples per burst
-                    - Range 4 - 60,000
-                * wave sample duration
-                    - Range [0.25, 0.5, 0.75, 1.0]
-                    - USE WAVE_SAMPLES_SCANS_PER_SECOND instead
-                      where WAVE_SAMPLES_SCANS_PER_SECOND = 1 / wave_sample_duration
-                * use start time
-                    - Range [y, n]
-                * use stop time
-                    - Range [y, n]
-                * TXWAVESTATS (real-time wave statistics)
-                    - Range [y, n]
-                    OPTIONAL DEPENDING ON TXWAVESTATS
-                    * Show progress messages
-                      - Range [y, n]
-                    * Number of wave samples per burst to use for wave
-                      statistics
-                      - Range > 512, power of 2...
-                    * Use measured temperature and conductivity for
-                      density calculation
-                      - Range [y,n]
-                    * Average water temperature above the pressure sensor
-                      - Degrees C
-                    * Height of pressure sensor from bottom
-                      - Distance Meters
-                    * Number of spectral estimates for each frequency
-                      band
-                      - You may have used Plan Deployment to determine
-                        desired value
-                    * Minimum allowable attenuation
-                    * Minimum period (seconds) to use in auto-spectrum
-                      Minimum of the two following
-                      - frequency where (measured pressure / pressure at
-                        surface) < (minimum allowable attenuation / wave
-                        sample duration).
-                      - (1 / minimum period). Frequencies > fmax are not
-                        processed.
-                    * Maximum period (seconds) to use in auto-spectrum
-                       - ( 1 / maximum period). Frequencies < fmin are
-                         not processed.
-                    * Hanning window cutoff
-                       - Hanning window suppresses spectral leakage that
-                         occurs when time series to be Fourier transformed
-                         contains periodic signal that does not correspond
-                         to one of exact frequencies of FFT.
-        """
-        for x in range(0,3):
-            log.debug("***")
-        log.debug("TEST 2 - TXWAVESTATS = N")
-        for x in range(0,3):
-            log.debug("***")
         sampling_params = {
             Parameter.TIDE_INTERVAL : 18, #1,
             Parameter.TIDE_MEASUREMENT_DURATION : 1080,
@@ -1018,20 +965,8 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
             Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : 1.0,
             Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM : 1.0,
             Parameter.HANNING_WINDOW_CUTOFF : 1.0
-            }
-
-
-
-        # Set parameters and verify.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        #reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SETSAMPLING, sampling_params)
-        reply = self.driver_client.cmd_dvr('set_resource', sampling_params)
-
-        self.assertEqual(reply, None)
-
-        reply = self.driver_client.cmd_dvr('get_resource', parameter_all)
+        }
+        #self.assert_set_bulk(sampling_params)
 
         """
         Test 3: These 2 prompts appears only if you enter N for using measured T and C for density calculation
@@ -1039,11 +974,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
                 Average salinity above the pressure sensor (PSU) = 35.0, new value =
 
         """
-        for x in range(0,3):
-            log.debug("***")
-        log.debug("TEST 3 - TXWAVESTATS = N, USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC=N")
-        for x in range(0,3):
-            log.debug("***")
         sampling_params = {
             Parameter.TIDE_INTERVAL : 18, #4,
             Parameter.TIDE_MEASUREMENT_DURATION : 1080, #40,
@@ -1065,19 +995,8 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
             Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM : 1.0,
             Parameter.HANNING_WINDOW_CUTOFF : 1.0
         }
+        #self.assert_set_bulk(sampling_params)
 
-
-
-        # Set parameters and verify.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SETSAMPLING, sampling_params)
-
-        self.assertEqual(reply, None)
-
-        # Alternate specification for all params
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         """
 
         Test 1B: TXWAVESTATS = N, NEGATIVE TESTING
@@ -1100,13 +1019,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
                     - Range [y, n]
                 * TXWAVESTATS (real-time wave statistics)
         """
-
-        for x in range(0,30):
-            log.debug("***")
-        log.debug("Test 1B: TXWAVESTATS = N, NEGATIVE TESTING")
-        log.debug("Need to decide to test and throw exception on out of range, or what?")
-        for x in range(0,30):
-            log.debug("***")
         sampling_params = {
             Parameter.TIDE_INTERVAL : 800,
             Parameter.TIDE_MEASUREMENT_DURATION : 1,
@@ -1116,27 +1028,21 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
             Parameter.USE_START_TIME : False,
             Parameter.USE_STOP_TIME : False,
             Parameter.TXWAVESTATS : False,
-            }
+        }
 
-        # Set parameters and verify.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolState.COMMAND)
-
-        exception = False
-        try:
-            #reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SETSAMPLING, sampling_params)
-            reply = self.driver_client.cmd_dvr('set_resource', sampling_params)
-        except InstrumentParameterException:
-            exception = True
-        self.assertTrue(exception)
-
-        reply = self.driver_client.cmd_dvr('get_resource', parameter_all)
+        #try:
+        #    #reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SETSAMPLING, sampling_params)
+        #    reply = self.driver_client.cmd_dvr('set_resource', sampling_params)
+        #except InstrumentParameterException:
+        #    exception = True
+        #self.assertTrue(exception)
 
     def test_take_sample(self):
         """
         @brief execute the take_sample (ts) command and verify that a line with at
         least 3 floats is returned, indicating a acceptable sample.
         """
+        self.assert_initialize_driver()
 
         self.put_instrument_in_command_mode()
 
