@@ -31,6 +31,7 @@ from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 
 from distutils.log import warn as printf
 from json import dumps
@@ -51,35 +52,29 @@ NUM_BYTES_IN_ENSEMBLE_INDEX = 4
 NUM_DATA_TYPES_INDEX = 10
 DATA_TYPE_LOC_INDEX_BASE = 12
 
-
-
 ENSEMBLE_REGEX = r'7F7F*'
 ENSEMBLE_REGEX_MATCHER = re.compile(ENSEMBLE_REGEX)
-
 
 ENSEMBLE_HEADER_ID = '7F7F'
 FIXED_LEADER_ID = '0000'
 VAR_LEADER_ID = '8000'
-
 VELOCITY_ID = '0001'
 CORR_MAG_ID = '0002'
 ECHO_INTENSITY_ID = '0003'
 PERCENT_GOOD_ID = '0004'
 STATUS_ID = '0005'
 BOTTOM_TRACK_ID = '0006'
-
-
-
-
 ENSEMBLE_LENGTH_LOC = 4         #index in header where number of bytes in ensemble is located
 
 ## globals
 NumCells = 0              #value from fixed leader datq; used to determine size of velocity and other data records.
 num_data_types = 0        #value from header data; used to determine size of header record and total number of data records.
 num_bytes_in_ensemble = 0 #value from header data; used to determine size of ensemble and calculate checksum.
+
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    ENSEMBLE = 'ensemble_parsed'
+    ENSEMBLE_PARSED = 'ensemble_parsed'
+
 
 class InstrumentCmds(BaseEnum):
     """
@@ -87,17 +82,6 @@ class InstrumentCmds(BaseEnum):
     Represents the commands the driver implements and the string that must be sent to the instrument to
     execute the command.
     """
-    SETSAMPLING = 'setsampling'
-    DISPLAY_STATUS = 'ds'
-    QUIT_SESSION = 'qs'
-    DISPLAY_CALIBRATION = 'dc'
-    START_LOGGING = 'start'
-    STOP_LOGGING = 'stop'
-    SET = 'set'
-    GET = 'get'
-    TAKE_SAMPLE = 'ts'
-    INIT_LOGGING = 'initlogging'
-#--------------------------------------
     BREAK = 'break'
     SET = 'set'
     GET = 'get'
@@ -113,6 +97,22 @@ class InstrumentCmds(BaseEnum):
     START_DEPLOYMENT = 'CS'
     SAVE_SETUP_TO_RAM = 'CK'
     RETRIEVE_DATA_ENSEMBLE = 'CE'
+    TIME_OF_FIRST_PING = 'TIME_OF_FIRST_PING'
+    TIME_OF_FIRST_PING_Y2K = 'TIME_OF_FIRST_PING_Y2K'
+    SET_REAL_TIME_CLOCK = 'SET_REAL_TIME_CLOCK'
+    SET_REAL_TIME_CLOCK_Y2K = 'SET_REAL_TIME_CLOCK_Y2K'
+    DATA_OUT = 'DATA_OUT'
+    INSTRUMENT_ID = 'INSTRUMENT_ID'  #only shows up in PD12, set by PEn
+#----------------------------
+    SETSAMPLING = 'setsampling'
+    DISPLAY_STATUS = 'ds'
+    QUIT_SESSION = 'qs'
+    DISPLAY_CALIBRATION = 'dc'
+    START_LOGGING = 'start'
+    STOP_LOGGING = 'stop'
+    TAKE_SAMPLE = 'ts'
+    INIT_LOGGING = 'initlogging'
+
 
 class ProtocolState(BaseEnum):
     """
@@ -121,110 +121,98 @@ class ProtocolState(BaseEnum):
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
-    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    TEST = DriverProtocolState.TEST
-    CALIBRATE = DriverProtocolState.CALIBRATE
 
 class ProtocolEvent(BaseEnum):
     """
     Protocol events
     """
+    BREAK_ALARM = 'BREAK_ALARM'
+    BREAK_SUCCESS = 'BREAK_SUCCESS'
+    CS = 'CS'
+    SELF_DEPLOY = 'SELF_DEPLOY'
+    POWERING_DOWN = 'POWERING_DOWN'
+    GET = DriverEvent.GET
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
+    """
+    These may be required events...??
     DISCOVER = DriverEvent.DISCOVER
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
-    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-
+    """
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
-    ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
+    BREAK_ALARM = ProtocolEvent.BREAK_ALARM
+    BREAK_SUCCESS = ProtocolEvent.BREAK_SUCCESS
+    CS = ProtocolEvent.CS
+    SELF_DEPLOY = ProtocolEvent.SELF_DEPLOY
+    POWERING_DOWN = ProtocolEvent.POWERING_DOWN
+    
+
 
 class Parameter(DriverParameter):
     """
     Device parameters
     """
     # DS
-    DEVICE_VERSION = 'DEVICE_VERSION' # str,
-    SERIAL_NUMBER = 'SERIAL_NUMBER' # str,
-    INSTRUMENT_ID = 'INSTRUMENT_ID'
-    TRANSMIT_POWER = 'TRANSMIT_POWER'
-    SPEED_OF_SOUND = 'SPEED_OF_SOUND'
-    SALINITY = 'SALINITY'
+    TRANSMIT_POWER = 'TRANSMIT_POWER'  #same as SystemPower in particle
+    SPEED_OF_SOUND = 'SPEED_OF_SOUND'  #same as in particle
+    SALINITY = 'SALINITY'  #same as in particle
     TIME_PER_BURST = 'TIME_PER_BURST'
     ENSEMBLE_PER_BURST = 'ENSEMBLE_PER_BURST'
     TIME_PER_ENSEMBLE = 'TIME_PER_ENSEMBLE'
-    TIME_OF_FIRST_PING = 'TIME_OF_FIRST_PING'
-    TIME_OF_FIRST_PING_Y2K = 'TIME_OF_FIRST_PING_Y2K'
     TIME_BETWEEN_PINGS = 'TIME_BETWEEN_PINGS'
-    SET_REAL_TIME_CLOCK = 'SET_REAL_TIME_CLOCK'
-    SET_REAL_TIME_CLOCK_Y2K = 'SET_REAL_TIME_CLOCK_Y2K'
     BUFFERED_OUTPUT_PERIOD = 'BUFFERED_OUTPUT_PERIOD'
     FALSE_TARGET_THRESHOLD_MAXIMUM = 'FALSE_TARGET_THRESHOLD_MAXIMUM'
-    MODE_1_BANDWIDTH_CONTROL = 'MODE_1_BANDWIDTH_CONTROL'
-    LOW_CORRELATION_THRESHOLD = 'LOW_CORRELATION_THRESHOLD'
-    DATA_OUT = 'DATA_OUT'
-    ERROR_VELOCITY_THRESHOLD = 'ERROR_VELOCITY_THRESHOLD'
+    MODE_1_BANDWIDTH_CONTROL = 'MODE_1_BANDWIDTH_CONTROL'  #same as SYS_BW in particle
+    LOW_CORRELATION_THRESHOLD = 'LOW_CORRELATION_THRESHOLD'  #same as LOW_CORR_THRESH in particle; WC cmd.
+    ERROR_VELOCITY_THRESHOLD = 'ERROR_VELOCITY_THRESHOLD'  #same as ERR_VEL_MAX in particle; initially set by WE.
     BLANK_AFTER_TRANSMIT = 'BLANK_AFTER_TRANSMIT'
     CLIP_DATA_PAST_BOTTOM = 'CLIP_DATA_PAST_BOTTOM'
     RECEIVER_GAIN_SELECT = 'RECEIVER_GAIN_SELECT'
-    WATER_REFERENCE_LAYER = 'WATER_REFERENCE_LAYER'
-    NUMBER_OF_DEPTH_CELLS = 'NUMBER_OF_DEPTH_CELLS'
-    PINGS_PER_ENSEMBLE = 'PINGS_PER_ENSEMBLE'
-    DEPTH_CELL_SIZE = 'DEPTH_CELL_SIZE'
-    TRANSMIT_LENGTH = 'TRANSMIT_LENGTH'
+    WATER_REFERENCE_LAYER = 'WATER_REFERENCE_LAYER'  #tuple, same as particle (WL cmd)
+    NUMBER_OF_DEPTH_CELLS = 'NUMBER_OF_DEPTH_CELLS' #same as NUM_CELLS in particle
+    PINGS_PER_ENSEMBLE = 'PINGS_PER_ENSEMBLE'  #same as in particle
+    DEPTH_CELL_SIZE = 'DEPTH_CELL_SIZE'  #same as DEPTH_CELL_LEN in particle
+    TRANSMIT_LENGTH = 'TRANSMIT_LENGTH'  #different than XMIT_PULSE_LEN(WT) in particle.
     PING_WEIGHT = 'PING_WEIGHT'
     AMBIGUITY_VELOCITY = 'AMBIGUITY_VELOCITY'
+
 
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
     """
+    COMMAND = 'S>'
+    BAD_COMMAND = '? cmd S>'
+    AUTOSAMPLE = 'S>'
+    CONFIRMATION_PROMPT = 'proceed Y/N ?'
 
-class InstrumentCommand(BaseEnum):
-    """
-    Instrument command strings
-    """
-    SETSAMPLING = 'setsampling'
-    DISPLAY_STATUS = 'ds'
-    QUIT_SESSION = 'qs'
-    DISPLAY_CALIBRATION = 'dc'
-    START_LOGGING = 'start'
-    STOP_LOGGING = 'stop'
-    SET = 'set'
-    GET = 'get'
-    TAKE_SAMPLE = 'ts'
-    INIT_LOGGING = 'initlogging'
-#--------------------------------------
-    BREAK = 'break'
-    SET = 'set'
-    GET = 'get'
-    POWER_DOWN = 'CZ'
-    CLEAR_ERROR_STATUS_WORD = 'CY'
-    CLEAR_FAULT_LOG = 'FC'
-    DISPLAY_SYSTEM_CONFIGURATION = 'PS0'
-    DISPLAY_TRANSFORMATION_MATRIX = 'PS3'
-    DISPLAY_FAULT_LOG = 'FD'
-    BUILT_IN_TEST = 'PT200'
-    OUTPUT_CALIBRATION_DATA = 'AC'
-    SET_COLLECTION_MODE = 'CF'
-    START_DEPLOYMENT = 'CS'
-    SAVE_SETUP_TO_RAM = 'CK'
-    RETRIEVE_DATA_ENSEMBLE = 'CE'
 
+adcpt_cache_dict = {
+    'TRANSMIT_POWER' : None, 
+    'SPEED_OF_SOUND'  : None,
+    'SALINITY' :  None,
+    'TIME_PER_BURST' :  None,
+    'ENSEMBLE_PER_BURST' :  None,
+    'TIME_PER_ENSEMBLE' :  None,
+    'TIME_BETWEEN_PINGS' :  None,
+    'BUFFERED_OUTPUT_PERIOD' : None ,
+    'FALSE_TARGET_THRESHOLD_MAXIMUM' :  None,
+    'MODE_1_BANDWIDTH_CONTROL' :  None,
+    'LOW_CORRELATION_THRESHOLD' : None ,
+    'ERROR_VELOCITY_THRESHOLD' :  None,
+    'BLANK_AFTER_TRANSMIT' :  None,
+    'CLIP_DATA_PAST_BOTTOM' :  None,
+    'RECEIVER_GAIN_SELECT' :  None,
+    'WATER_REFERENCE_LAYER' : None ,
+    'NUMBER_OF_DEPTH_CELLS' :  None,
+    'PINGS_PER_ENSEMBLE' :  None,
+    'DEPTH_CELL_SIZE' :  None,
+    'TRANSMIT_LENGTH' : None ,
+    'PING_WEIGHT' :  None,
+    'AMBIGUITY_VELOCITY': None }
+    
 
 ###############################################################################
 # Data Particles
@@ -238,15 +226,15 @@ class ADCPT_EnsembleDataParticleKey(BaseEnum):
     SYS_CONFIG = "SysConfig"
     LAG_LEN = "LagLength"
     NUM_BEAMS = "NumBeams"
-    NUM_CELLS = "NumCells"
-    PINGS_PER_ENSEMBLE = "Pings_per_ensemble"
-    DEPTH_CELL_LEN = "Depth_cell_length"
+    NUM_CELLS = "NumCells"  #same as NUMBER_OF_CELLS in parameters
+    PINGS_PER_ENSEMBLE = "Pings_per_ensemble"  #same as in parameters
+    DEPTH_CELL_LEN = "Depth_cell_length"  #same as DEPTH_CELL_SIZE in parameters
     BLANK_AFTER_TX = "Blank_after_transmit"
     PROFILING_MODE = "Profiling_Mode"
-    LOW_CORR_THRESH = "Low_correlation_threshold"
+    LOW_CORR_THRESH = "Low_correlation_threshold"  #same as LOW_CORRELATION_THRESHOLD in parameters
     NUM_CODE_REPS = "Number_of_code_repetitions"
     PERCENT_GD_MIN = "Percent_of_GD_minimum"
-    ERR_VEL_MAX = "Error_velocity_maximum"
+    ERR_VEL_MAX = "Error_velocity_maximum"  #same as ERROR_VELOCITY_THRESHOLD in parameters
     TIME_BETWEEN_PINGS = "Time_between_pings"
     COORD_XFRM = "Coordinate_transform"
     HEAD_ALIGN = "Heading_alignment"
@@ -254,13 +242,13 @@ class ADCPT_EnsembleDataParticleKey(BaseEnum):
     SENSOR_SRC = "Sensor_source"
     SENSOR_AVAIL = "Sensor_availability"
     BIN1_DIST = "Distance_to_bin_1"
-    XMIT_PULSE_LEN = "Xmit_Pulse_Length"
-    WP_REF_LAYER_AVG = "WP_ref_layer_avg"
+    XMIT_PULSE_LEN = "Xmit_Pulse_Length"  #different than TRANSMIT_LENGTH in params
+    WP_REF_LAYER_AVG = "WP_ref_layer_avg"  #tuple, same as parameters.
     FALSE_TARGET_THRESH = "False_Target_Threshold"
     XMIT_LAG_DIST = "Transmit_Lag_Distance"
     CPU_SN = "CPU_board_serial_number"
-    SYS_BW = "System_Bandwidth"
-    SYS_PWR = "System_Power"
+    SYS_BW = "System_Bandwidth"  #same as MODE_1_BANDWIDTH_CONTROL in parameters
+    SYS_PWR = "System_Power"  #same as TransmitPower in parameters
     INST_SN = "Instrument_Serial_Number"
     BEAM_ANGLE = "Beam_Angle"
 #-------var leader data format------------
@@ -269,12 +257,12 @@ class ADCPT_EnsembleDataParticleKey(BaseEnum):
     TIMESTAMP = "timestamp"
     ENSEMBLE_NUM_MSB = "Ensemble_number_msb"
     BIT_RESULT = "Built_in_Test_Results"
-    SPEED_OF_SOUND = "Speed_of_sound"
+    SPEED_OF_SOUND = "Speed_of_sound"  #same as in parameters
     DEPTH_OF_XDUCER = "Depth_of_transducer"
     HEADING = "Heading"
     PITCH = "Pitch"
     ROLL = "Roll"
-    SALINITY = "Salinity"
+    SALINITY = "Salinity"  #same as in parameters
     TEMPERATURE = "Temperature"
     MIN_PRE_PING_WAIT_TIME = "Min_pre_ping_wait_time"
     HDG_DEV = "Heading_deviation"
@@ -328,7 +316,9 @@ class ADCPT_EnsembleDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
-    _data_particle_type = DataParticleType.ENSEMBLE
+    global adcpt_cache_dict
+    
+    _data_particle_type = DataParticleType.ENSEMBLE_PARSED
 
     def get_byte_value(self,str,index):
         """
@@ -342,7 +332,8 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         """
         upper_byte_loc = index+BYTE_SIZE
         lower_byte_loc = index
-        return int(str[upper_byte_loc:upper_byte_loc + BYTE_SIZE]+str[lower_byte_loc:lower_byte_loc + BYTE_SIZE],16)
+        return int(str[upper_byte_loc:upper_byte_loc + BYTE_SIZE]+
+                   str[lower_byte_loc:lower_byte_loc + BYTE_SIZE],16)
     
     def get_double_word_value(self,str,index):
         """
@@ -353,8 +344,8 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         lower_middle_byte_loc = index+BYTE_SIZE
         lower_byte_loc = index
         return int(str[upper_byte_loc:upper_byte_loc + BYTE_SIZE] +\
-                   str[upper_middle_byte_loc:upper_middle_byte_loc + BYTE_SIZE] +\
-                   str[lower_middle_byte_loc:lower_middle_byte_loc + BYTE_SIZE] +\
+                   str[upper_middle_byte_loc:upper_middle_byte_loc + BYTE_SIZE] +
+                   str[lower_middle_byte_loc:lower_middle_byte_loc + BYTE_SIZE] +
                    str[lower_byte_loc:lower_byte_loc + BYTE_SIZE], 16)
     
     def get_signed_word_value(self,str,index):
@@ -364,7 +355,8 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         """
         upper_byte_loc = index+BYTE_SIZE
         lower_byte_loc = index
-        temp = int(str[upper_byte_loc:upper_byte_loc + BYTE_SIZE]+str[lower_byte_loc:lower_byte_loc + BYTE_SIZE],16)
+        temp = int(str[upper_byte_loc:upper_byte_loc + BYTE_SIZE]+
+                   str[lower_byte_loc:lower_byte_loc + BYTE_SIZE],16)
         if temp > 0x7fff:
             temp ^= 0xffff
             temp *= -1
@@ -377,7 +369,8 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         """
         upper_byte_loc = index+BYTE_SIZE
         lower_byte_loc = index
-        return str[upper_byte_loc:upper_byte_loc + BYTE_SIZE] + str[lower_byte_loc:lower_byte_loc + BYTE_SIZE]
+        return (str[upper_byte_loc:upper_byte_loc + BYTE_SIZE] +
+                str[lower_byte_loc:lower_byte_loc + BYTE_SIZE])
     
     def calc_checksum(self,str, num_bytes):
         sum = 0
@@ -416,12 +409,15 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         NumCells = self.get_byte_value(str,start_index + 18)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.NUM_CELLS,
                        DataParticleKey.VALUE: NumCells})
+        adcpt_cache_dict[Parameter.NUMBER_OF_DEPTH_CELLS] = NumCells
         PingsPerEnsemble = self.get_word_value(str,start_index + 20)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.PINGS_PER_ENSEMBLE,
                        DataParticleKey.VALUE: PingsPerEnsemble})
+        adcpt_cache_dict[Parameter.PINGS_PER_ENSEMBLE] = PingsPerEnsemble
         DepthCellLength = self.get_word_value(str,start_index + 24)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.DEPTH_CELL_LEN,
                        DataParticleKey.VALUE: DepthCellLength})
+        adcpt_cache_dict[Parameter.DEPTH_CELL_SIZE] = DepthCellLength
         Blank_after_transmit = self.get_word_value(str,start_index + 28)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.BLANK_AFTER_TX,
                        DataParticleKey.VALUE: Blank_after_transmit})
@@ -431,18 +427,22 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         Low_correlation_threshold = self.get_byte_value(str,start_index + 34)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.LOW_CORR_THRESH,
                        DataParticleKey.VALUE: Low_correlation_threshold})
-        Number_of_code_repetitions = self.get_byte_value(str,start_index + 36)
+        code_repetitions = self.get_byte_value(str,start_index + 36)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.NUM_CODE_REPS,
-                       DataParticleKey.VALUE: Number_of_code_repetitions})
+                       DataParticleKey.VALUE: code_repetitions})
         Percent_of_GD_minimum = self.get_byte_value(str,start_index + 38)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.PERCENT_GD_MIN,
                        DataParticleKey.VALUE: Percent_of_GD_minimum})
         Error_velocity_maximum = self.get_word_value(str,start_index + 40)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.ERR_VEL_MAX,
                        DataParticleKey.VALUE: Error_velocity_maximum})
-        Time_between_pings = [self.get_byte_value(str,start_index + 44),self.get_byte_value(str,start_index + 46),self.get_byte_value(str,start_index + 48)]
+        adcpt_cache_dict[Parameter.ERROR_VELOCITY_THRESHOLD] = Error_velocity_maximum
+        Time_between_pings = [self.get_byte_value(str,start_index + 44),
+                              self.get_byte_value(str,start_index + 46),
+                              self.get_byte_value(str,start_index + 48)]
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.TIME_BETWEEN_PINGS,
                        DataParticleKey.VALUE: Time_between_pings})
+        adcpt_cache_dict[Parameter.TIME_BETWEEN_PINGS] = Time_between_pings
         Coordinate_transform = self.get_byte_value(str,start_index + 50)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.COORD_XFRM,
                        DataParticleKey.VALUE: Coordinate_transform})
@@ -483,6 +483,7 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         System_Power = self.get_byte_value(str,start_index + 104)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.SYS_PWR,
                        DataParticleKey.VALUE: System_Power})
+        adcpt_cache_dict[Parameter.TRANSMIT_POWER] = System_Power
         ###### Instrument serial number merely reported as raw string; not clear from documentation how to decode it.
         Instrument_Serial_Number = str[start_index + 108:start_index + 116]
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.INST_SN,
@@ -497,8 +498,8 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         Ensemble_Number = self.get_word_value(str,start_index + 4)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.ENSEMBLE_NUMBER,
                        DataParticleKey.VALUE: Ensemble_Number})
-        RTC_date_time = [self.get_byte_value(str,start_index + 8),self.get_byte_value(str,start_index + 10),\
-                         self.get_byte_value(str,start_index + 12),self.get_byte_value(str,start_index + 14),\
+        RTC_date_time = [self.get_byte_value(str,start_index + 8),self.get_byte_value(str,start_index + 10),
+                         self.get_byte_value(str,start_index + 12),self.get_byte_value(str,start_index + 14),
                          self.get_byte_value(str,start_index + 16),self.get_byte_value(str,start_index + 18),
                          self.get_byte_value(str,start_index + 20)]
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.RTC_DATE_TIME,
@@ -519,6 +520,7 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         Speed_of_sound = self.get_word_value(str,start_index + 28)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.SPEED_OF_SOUND,
                        DataParticleKey.VALUE: Speed_of_sound})
+        adcpt_cache_dict[Parameter.SPEED_OF_SOUND] = Speed_of_sound
         Depth_of_transducer = self.get_word_value(str,start_index + 32)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.DEPTH_OF_XDUCER,
                        DataParticleKey.VALUE: Depth_of_transducer})
@@ -537,7 +539,9 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         Temperature = self.get_word_value(str,start_index + 52)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.TEMPERATURE,
                        DataParticleKey.VALUE: Temperature})
-        Min_pre_ping_wait_time = [self.get_byte_value(str,start_index + 56),self.get_byte_value(str,start_index + 58),self.get_byte_value(str,start_index + 60)]
+        Min_pre_ping_wait_time = [self.get_byte_value(str,start_index + 56),
+                                  self.get_byte_value(str,start_index + 58),
+                                  self.get_byte_value(str,start_index + 60)]
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.MIN_PRE_PING_WAIT_TIME,
                        DataParticleKey.VALUE: Min_pre_ping_wait_time})
         Heading_deviation = self.get_byte_value(str,start_index + 62)
@@ -576,7 +580,7 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         status_word = self.get_double_word_value(str,start_index + 84)
         working_list = []
         bin_str = bin(status_word)[2:]
-        zero_fill = string.zfill(bin_str,32)
+        zero_fill = bin_str.zfill(32)
         assert len(zero_fill) == 32
         working_list = list(zero_fill)
         working_list.reverse()
@@ -688,9 +692,9 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         Pressure_sensor_variance = self.get_double_word_value(str,start_index + 104)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.PRESSURE_VAR,
                        DataParticleKey.VALUE: Pressure_sensor_variance})
-        RTCY2K_date_time = [self.get_byte_value(str,start_index + 114),self.get_byte_value(str,start_index + 116),\
+        RTCY2K_date_time = [self.get_byte_value(str,start_index + 114),self.get_byte_value(str,start_index + 116),
                             self.get_byte_value(str,start_index + 118),self.get_byte_value(str,start_index + 120),
-                            self.get_byte_value(str,start_index + 122),self.get_byte_value(str,start_index + 124),\
+                            self.get_byte_value(str,start_index + 122),self.get_byte_value(str,start_index + 124),
                             self.get_byte_value(str,start_index + 126),self.get_byte_value(str,start_index + 128)]
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.RTCY2K_DATE_TIME,
                        DataParticleKey.VALUE: RTCY2K_date_time})
@@ -702,8 +706,8 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         local_index = 4   #starting location in header
         for cell_count in range(0,NumCells):
             vel_list = [self.get_signed_word_value(str,start_index + local_index),
-                         self.get_signed_word_value(str,start_index + local_index+4),\
-                         self.get_signed_word_value(str,start_index + local_index+8),\
+                         self.get_signed_word_value(str,start_index + local_index+4),
+                         self.get_signed_word_value(str,start_index + local_index+8),
                          self.get_signed_word_value(str,start_index + local_index+12)]
             templist.append(vel_list)
             local_index += SIZE_OF_CELL_DATA
@@ -718,8 +722,8 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         local_index = 4   #starting location in header
         for cell_count in range(0,NumCells):
             vel_list = [self.get_byte_value(str,start_index + local_index),
-                         self.get_byte_value(str,start_index + local_index+2),\
-                         self.get_byte_value(str,start_index + local_index+4),\
+                         self.get_byte_value(str,start_index + local_index+2),
+                         self.get_byte_value(str,start_index + local_index+4),
                          self.get_byte_value(str,start_index + local_index+6)]
             templist.append(vel_list)
             local_index += SIZE_OF_CELL_DATA
@@ -746,7 +750,7 @@ class ADCPT_EnsembleDataParticle(DataParticle):
                    DataParticleKey.VALUE: num_data_types},
                   {DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.NUM_BYTES_IN_ENSEMBLE,
                   DataParticleKey.VALUE: num_bytes_in_ensemble}]
-
+        
         # calculate checksum over entire ensemble and compare the value to the checksum attached to end of ensemble.
         # assert error if not equal
         num_chars = num_bytes_in_ensemble*2
@@ -793,7 +797,8 @@ class ADCPT_EnsembleDataParticle(DataParticle):
 #        log.debug("parsed ensemble result: %s" % result)
 #        printf('\n*** the parsed ensemble ****')
 #        printf(dumps(result, indent = 4))
-        
+#        log.info( dumps(result, indent=4))
+        log.debug("after parsing ensemble, adcpt_cache_dict is %s" % adcpt_cache_dict)        
         return result  
         """
             # not yet implemented; IOS? no need for bottom data? test ensemble does not use this one.
@@ -801,10 +806,10 @@ class ADCPT_EnsembleDataParticle(DataParticle):
                 parse_bottom_track_record(data_stream,id_offset)
         """
 
+
 ###############################################################################
 # Driver
 ###############################################################################
-
 class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass
@@ -822,17 +827,16 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     ########################################################################
     # Superclass overrides for resource query.
     ########################################################################
-
     def get_resource_params(self):
         """
         Return list of device parameters available.
         """
+        log.debug("get_resource_params: parmeter list %s" % Parameter.list())
         return Parameter.list()
 
     ########################################################################
     # Protocol builder.
     ########################################################################
-
     def _build_protocol(self):
         """
         Construct the driver protocol state machine.
@@ -843,12 +847,13 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 ###########################################################################
 # Protocol
 ###########################################################################
-
 class Protocol(CommandResponseInstrumentProtocol):
     """
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
+    global adcpt_cache_dict
+    
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -859,26 +864,23 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Construct protocol superclass.
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
-        # Build protocol state machine.
+        # Build ADCPT protocol state machine.
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
                             ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.BREAK_SUCCESS, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.BREAK_ALARM, self._handler_unknown_enter)
 
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_execute)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,  self._handler_command_autosample_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CS, self._handler_command_execute_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.POWERING_DOWN, self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SELF_DEPLOY, self._handler_command_execute_autosample)
 
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.BREAK_SUCCESS, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,  self._handler_command_autosample_get)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -890,7 +892,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add sample handlers.
 
-        # State state machine in UNKNOWN state.
+        # Start state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
         # commands sent sent to device to be filtered in responses for telnet DA
@@ -898,6 +900,37 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         #
         self._chunker = StringChunker(Protocol.sieve_function)
+
+    def _sync_param_dict(self):
+        """
+        Syncs values in _param_dict to those in adcpt_cache_dict
+        """
+        local_dict = self._param_dict.get_config()
+        for key in local_dict.keys():
+            if self._param_dict.get(key) != adcpt_cache_dict[key]:
+                self._param_dict[key] = adcpt_cache_dict[key]
+
+    def _update_params(self, *args, **kwargs):
+        """
+        Update the parameter dictionary. Wake the device then issue
+        display status and display calibration commands. The parameter
+        dict will match line output and udpate itself.
+        @throws InstrumentTimeoutException if device cannot be timely woken.
+        @throws InstrumentProtocolException if ds/dc misunderstood.        # Get old param dict config.
+        old_config = self._param_dict.get_config()
+
+        # Issue display commands and parse results.
+        timeout = kwargs.get('timeout', TIMEOUT)
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, timeout=timeout)
+        #################################################################self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION, timeout=timeout)
+
+        # Get new param dict config. If it differs from the old config,
+        # tell driver superclass to publish a config change event.
+        new_config = self._param_dict.get_config()
+        if new_config != old_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        """
+        pass
 
     def get_word_value(self,str,index):
         """
@@ -922,7 +955,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             strip = raw_data[pos:]
             expected_length = 0
             if len(strip) > ENSEMBLE_LENGTH_LOC+WORD_SIZE:  #make sure you have long-enough string to get the ensemble size
-                ensemble_length_bytes = int(strip[ENSEMBLE_LENGTH_LOC+2:ENSEMBLE_LENGTH_LOC+4] + \
+                ensemble_length_bytes = int(strip[ENSEMBLE_LENGTH_LOC+2:ENSEMBLE_LENGTH_LOC+4] + 
                                             strip[ENSEMBLE_LENGTH_LOC:ENSEMBLE_LENGTH_LOC+2],16)
                 ensemble_length_chars = BYTE_SIZE*ensemble_length_bytes+WORD_SIZE  #size in header didn't include size of checksum word
                 if len(strip) >= ensemble_length_chars:
@@ -937,10 +970,192 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
-        For each parameter key, add match stirng, match lambda function,
+        For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
+        adcpt: not using regex/match lambdas, but keeping them in the calls
+        to avoid errors.
         """
+        ds_line_01 = r'user info=(.*)$'
         # Add parameter handlers to parameter dict.
+
+        self._param_dict.add(Parameter.SALINITY,
+            ds_line_01,
+            lambda st: adcpt_cache_dict[Parameter.SALINITY],
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.SALINITY],
+            startup_param = True,
+            default_value = 35)
+        
+        self._param_dict.add(Parameter.SPEED_OF_SOUND,
+            ds_line_01,
+            lambda st: adcpt_cache_dict[Parameter.SPEED_OF_SOUND],
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.SPEED_OF_SOUND],
+            startup_param = True,
+            default_value = 1500,
+            visibility=ParameterDictVisibility.READ_ONLY)
+
+        self._param_dict.add(Parameter.TRANSMIT_POWER,
+            ds_line_01,
+            lambda st: adcpt_cache_dict[Parameter.TRANSMIT_POWER],
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.TRANSMIT_POWER],
+            default_value = 255,
+            visibility=ParameterDictVisibility.READ_ONLY)
+
+        self._param_dict.add(Parameter.TIME_PER_BURST,
+            ds_line_01,
+            lambda : adcpt_cache_dict[Parameter.TIME_PER_BURST],
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.TIME_PER_BURST],
+            startup_param = True,
+            default_value = '00:00:00:00')
+
+        self._param_dict.add(Parameter.ENSEMBLE_PER_BURST,
+            ds_line_01,
+            lambda : adcpt_cache_dict[Parameter.ENSEMBLE_PER_BURST],
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.ENSEMBLE_PER_BURST],
+            startup_param = True,
+            default_value = 0)
+
+        self._param_dict.add(Parameter.TIME_PER_ENSEMBLE,
+            ds_line_01,
+            lambda : adcpt_cache_dict[Parameter.TIME_PER_ENSEMBLE],
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.TIME_PER_ENSEMBLE],
+            startup_param = True,
+            default_value = '01:00:00:00')
+
+        self._param_dict.add(Parameter.TIME_BETWEEN_PINGS,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.TIME_BETWEEN_PINGS],
+            startup_param = True,
+            default_value = '01:20:00')
+
+        self._param_dict.add(Parameter.BUFFERED_OUTPUT_PERIOD,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.BUFFERED_OUTPUT_PERIOD],
+            startup_param = True,
+            default_value = '00:00:00')
+
+        self._param_dict.add(Parameter.FALSE_TARGET_THRESHOLD_MAXIMUM,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.FALSE_TARGET_THRESHOLD_MAXIMUM],
+            default_value = 50)
+
+        self._param_dict.add(Parameter.MODE_1_BANDWIDTH_CONTROL,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.MODE_1_BANDWIDTH_CONTROL],
+            visibility=ParameterDictVisibility.READ_ONLY,
+            default_value = 1)
+
+        self._param_dict.add(Parameter.LOW_CORRELATION_THRESHOLD,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.LOW_CORRELATION_THRESHOLD],
+            default_value = 64)
+
+        self._param_dict.add(Parameter.ERROR_VELOCITY_THRESHOLD,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.ERROR_VELOCITY_THRESHOLD],
+            default_value = 2000)
+
+        self._param_dict.add(Parameter.BLANK_AFTER_TRANSMIT,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.BLANK_AFTER_TRANSMIT],
+            default_value = 352,
+            visibility=ParameterDictVisibility.READ_ONLY)
+
+        self._param_dict.add(Parameter.CLIP_DATA_PAST_BOTTOM,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.CLIP_DATA_PAST_BOTTOM],
+            default_value = 0)
+
+        self._param_dict.add(Parameter.RECEIVER_GAIN_SELECT,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.RECEIVER_GAIN_SELECT],
+            default_value = 1)
+
+        self._param_dict.add(Parameter.WATER_REFERENCE_LAYER,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.WATER_REFERENCE_LAYER],
+            default_value = [1,5])
+
+        self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.NUMBER_OF_DEPTH_CELLS],
+            startup_param = True,
+            default_value = 30)
+
+        self._param_dict.add(Parameter.PINGS_PER_ENSEMBLE,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.PINGS_PER_ENSEMBLE],
+            startup_param = True,
+            default_value = 45)
+
+        self._param_dict.add(Parameter.DEPTH_CELL_SIZE,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.DEPTH_CELL_SIZE],
+            startup_param = True,
+            default_value = [800,40,3200])
+
+        self._param_dict.add(Parameter.TRANSMIT_LENGTH,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.TRANSMIT_LENGTH],
+            startup_param = True,
+            default_value = 0)
+
+        self._param_dict.add(Parameter.PING_WEIGHT,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.PING_WEIGHT],
+            startup_param = True,
+            default_value = 0)
+
+        self._param_dict.add(Parameter.AMBIGUITY_VELOCITY,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.AMBIGUITY_VELOCITY],
+            startup_param = True,
+            default_value = 175)
+        
+        local_dict = self._param_dict.get_config()
+        log.debug("&&&&&&&&&&&&& _build_param_dict: _param_dict: %s" % local_dict)
+        log.debug("^^^^^^^^^^^^^  at same time the adcpt_cache_dict is %s" % adcpt_cache_dict)
+         
+    @staticmethod
+    def _string_to_string(v):
+        return v
 
     def _got_chunk(self, chunk):
         """
@@ -961,7 +1176,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Unknown handlers.
     ########################################################################
-
     def _handler_unknown_enter(self, *args, **kwargs):
         """
         Enter unknown state.
@@ -986,7 +1200,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
-
     def _handler_command_enter(self, *args, **kwargs):
         """
         Enter command state.
@@ -996,6 +1209,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Command device to update parameters and send a config change event.
         #self._update_params()
 
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_command_execute(self, *args, **kwargs):
+        """
+        Executing in command state.
+        """
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -1036,47 +1257,39 @@ class Protocol(CommandResponseInstrumentProtocol):
         return (next_state, (next_agent_state, result))
 
     ########################################################################
-    # Direct access handlers.
+    # Autosample handlers.
     ########################################################################
-
-    def _handler_direct_access_enter(self, *args, **kwargs):
-        """
-        Enter direct access state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        self._sent_cmds = []
-
-    def _handler_direct_access_exit(self, *args, **kwargs):
-        """
-        Exit direct access state.
-        """
+  
+    def _handler_command_execute_autosample(self, *args, **kwargs):
         pass
 
-    def _handler_direct_access_execute_direct(self, data):
-        """
-        """
-        next_state = None
-        result = None
-        next_agent_state = None
-
-        self._do_cmd_direct(data)
-
-        # add sent command to list for 'echo' filtering in callback
-        self._sent_cmds.append(data)
-
-        return (next_state, (next_agent_state, result))
-
-    def _handler_direct_access_stop_direct(self):
-        """
-        @throw InstrumentProtocolException on invalid command
-        """
+    def _handler_command_autosample_get(self, *args, **kwargs):
+        self._sync_param_dict()     #make sure data is up-to-date
         next_state = None
         result = None
 
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+        # Retrieve the required parameter, raise if not present.
+        try:
+            params = args[0]
 
-        return (next_state, (next_agent_state, result))
+        except IndexError:
+            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
+
+        # If all params requested, retrieve config.
+        if params == DriverParameter.ALL or DriverParameter.ALL in params:
+            result = self._param_dict.get_config()
+
+        # If not all params, confirm a list or tuple of params to retrieve.
+        # Raise if not a list or tuple.
+        # Retireve each key in the list, raise if any are invalid.
+
+        else:
+            if not isinstance(params, (list, tuple)):
+                raise InstrumentParameterException('Get argument not a list or tuple.')
+            result = {}
+            for key in params:
+                val = self._param_dict.get(key)
+                result[key] = val
+
+        return (next_state, result)
+

@@ -17,7 +17,6 @@ __author__ = 'Lytle Johnson'
 __license__ = 'Apache 2.0'
 
 import unittest
-
 import re
 
 from nose.plugins.attrib import attr
@@ -32,6 +31,7 @@ from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
+from mi.idk.unit_test import ParameterTestConfigKey
 
 from interface.objects import AgentCommand
 
@@ -50,7 +50,7 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 
 from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import InstrumentDriver
 from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import DataParticleType
-from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import InstrumentCommand
+from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import InstrumentCmds
 from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ProtocolState
 from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ProtocolEvent
 from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import Capability
@@ -60,6 +60,7 @@ from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import Prompt
 from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ADCPT_EnsembleDataParticleKey
 from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ADCPT_EnsembleDataParticle
 from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import NEWLINE
+from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import adcpt_cache_dict
 
 from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException
@@ -72,7 +73,6 @@ from pyon.agent.agent import ResourceAgentEvent
 # Globals
 raw_stream_received = False
 parsed_stream_received = False
-
 
 SAMPLE_RAW_DATA = "7F7FF002000612004D008E008001FA01740200003228C941000D041E2D002003600101400900D0070114001F000000007D3DD104610301053200620028000006FED0FC090100FF00A148000014800001000C0C0D0D323862000000FF050800E014C5EE93EE2300040A000000000000454A4F4B4A4E829F80810088BDB09DFFFFFF9208000000140C0C0D0D323862000120FF570089000FFF0080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000025D585068650D0D2C0C0D0C0E0C0E0C0D0C0E0D0C0C0E0E0B0D0E0D0D0D0C0C0C0C0E0F0E0C0D0F0C0D0E0F0D0C0C0D0D0D00000E0D00000D0B00000D0C00000C0C00000C0B00000E0C00000D0C00000D0C00000D0C00000C0C00000D0C00000C00000000000000000000000000000000000000000000000000035A52675150434B454341484142414841424148414241484142414841424148414241484142414841424148414241474142414841424147414241484143414841424148414241484142414841424148414241484142414841424148414241484142414741424148414241484142414741424148414241484100040400005F0000640000006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400FA604091"
 
@@ -88,6 +88,15 @@ InstrumentDriverTestCase.initialize(
     driver_startup_config = {}
 )
 
+# Create some short names for the parameter test config
+TYPE = ParameterTestConfigKey.TYPE
+READONLY = ParameterTestConfigKey.READONLY
+STARTUP = ParameterTestConfigKey.STARTUP
+DA = ParameterTestConfigKey.DIRECT_ACCESS
+VALUE = ParameterTestConfigKey.VALUE
+REQUIRED = ParameterTestConfigKey.REQUIRED
+DEFAULT = ParameterTestConfigKey.DEFAULT
+
 class ADCPTMixin(DriverTestMixin):
     '''
     Mixin class used for storing data particle constance and common data assertion methods.
@@ -96,38 +105,31 @@ class ADCPTMixin(DriverTestMixin):
     # Parameter and Type Definitions
     ###
     _driver_parameters = {
-
-        # DS # parameters - contains all setsampling parameters
-        Parameter.DEVICE_VERSION : str,
-        Parameter.SERIAL_NUMBER : str,
-        Parameter.INSTRUMENT_ID : str,
-        Parameter.TRANSMIT_POWER : str,
-        Parameter.SPEED_OF_SOUND : int,
-        Parameter.SALINITY : float,
-        Parameter.TIME_PER_BURST : bool,
-        Parameter.ENSEMBLE_PER_BURST : bool,
-        Parameter.TIME_PER_ENSEMBLE : float,
-        Parameter.TIME_OF_FIRST_PING : float,
-        Parameter.TIME_OF_FIRST_PING_Y2K : float,
-        Parameter.TIME_BETWEEN_PINGS : float,
-        Parameter.SET_REAL_TIME_CLOCK : float,
-        Parameter.BUFFERED_OUTPUT_PERIOD : float,
-        Parameter.FALSE_TARGET_THRESHOLD_MAXIMUM : int,
-        Parameter.MODE_1_BANDWIDTH_CONTROL : int,
-        Parameter.LOW_CORRELATION_THRESHOLD : float,
-        Parameter.DATA_OUT : int,
-        Parameter.ERROR_VELOCITY_THRESHOLD : float,
-        Parameter.BLANK_AFTER_TRANSMIT : bool,
-        Parameter.CLIP_DATA_PAST_BOTTOM : bool,
-        Parameter.RECEIVER_GAIN_SELECT : float,
-        Parameter.WATER_REFERENCE_LAYER : float,
-        Parameter.NUMBER_OF_DEPTH_CELLS : float,
-        Parameter.PINGS_PER_ENSEMBLE : float,
-        Parameter.DEPTH_CELL_SIZE : float,
-        Parameter.TRANSMIT_LENGTH : float,
-        Parameter.PING_WEIGHT : float,
-        Parameter.AMBIGUITY_VELOCITY : float,
+        # Parameters defined in the IOS
+        Parameter.TRANSMIT_POWER : {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 255},
+        Parameter.SPEED_OF_SOUND : {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: 1500},
+        Parameter.SALINITY : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 35},
+        Parameter.TIME_PER_BURST : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00:00'},
+        Parameter.ENSEMBLE_PER_BURST : {TYPE:int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0},
+        Parameter.TIME_PER_ENSEMBLE : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '01:00:00:00'},
+        Parameter.TIME_BETWEEN_PINGS : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '01:20:00'},
+        Parameter.BUFFERED_OUTPUT_PERIOD : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00'},
+        Parameter.FALSE_TARGET_THRESHOLD_MAXIMUM : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 50},
+        Parameter.MODE_1_BANDWIDTH_CONTROL : {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 1},
+        Parameter.LOW_CORRELATION_THRESHOLD : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 64},
+        Parameter.ERROR_VELOCITY_THRESHOLD : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 2000},
+        Parameter.BLANK_AFTER_TRANSMIT : {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 352},
+        Parameter.CLIP_DATA_PAST_BOTTOM : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
+        Parameter.RECEIVER_GAIN_SELECT : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 1},
+        Parameter.WATER_REFERENCE_LAYER : {TYPE: list, READONLY: False, DA: False, STARTUP: False, DEFAULT: [1,5]},
+        Parameter.NUMBER_OF_DEPTH_CELLS : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 30},
+        Parameter.PINGS_PER_ENSEMBLE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 45},
+        Parameter.DEPTH_CELL_SIZE : {TYPE: list, READONLY: False, DA: False, STARTUP: True, DEFAULT: [800,40,3200]},
+        Parameter.TRANSMIT_LENGTH : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0},
+        Parameter.PING_WEIGHT : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0},
+        Parameter.AMBIGUITY_VELOCITY : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 175},
         }
+
  
     _header_sample_parameters = {
         ADCPT_EnsembleDataParticleKey.NUM_BYTES_IN_ENSEMBLE: {'type': int, 'value': 752 },
@@ -150,7 +152,9 @@ class ADCPTMixin(DriverTestMixin):
         ADCPT_EnsembleDataParticleKey.COORD_XFRM: {'type': int, 'value': 31},
         ADCPT_EnsembleDataParticleKey.HEAD_ALIGN: {'type': int, 'value': 0},
         ADCPT_EnsembleDataParticleKey.HEAD_BIAS: {'type': int, 'value': 0},
+        #  This needs to be expanded
         ADCPT_EnsembleDataParticleKey.SENSOR_SRC: {'type': int, 'value': 125},
+        #   This needs to be expanded
         ADCPT_EnsembleDataParticleKey.SENSOR_AVAIL: {'type': int, 'value': 61},
         ADCPT_EnsembleDataParticleKey.BIN1_DIST: {'type': int, 'value': 1233},
         ADCPT_EnsembleDataParticleKey.XMIT_PULSE_LEN: {'type': int, 'value': 865},
@@ -211,41 +215,42 @@ class ADCPTMixin(DriverTestMixin):
         ADCPT_EnsembleDataParticleKey.PRESSURE_VAR: {'type': int, 'value': 2194},
         ADCPT_EnsembleDataParticleKey.RTCY2K_DATE_TIME: {'type': list, 'value': [20,12,12,13,13,50,56,98]},
 ###------------Velocity data
-        ADCPT_EnsembleDataParticleKey.VELOCITY_DATA: {'type': list, 'value': \
-            [[-224, 87, 137, -241],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],\
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],\
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],\
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],\
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],\
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],\
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],\
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],\
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],\
+        ADCPT_EnsembleDataParticleKey.VELOCITY_DATA: {'type': list, 'value': 
+            [[-224, 87, 137, -241],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
+            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
+            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
+            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
+            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
+            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
+            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
+            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
+            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
             [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768]]},
 ###------------Correlation magnitude data
-        ADCPT_EnsembleDataParticleKey.CORR_MAG_DATA: {'type': list, 'value': \
-            [[93, 88, 80, 104],[101, 13, 13, 44],[12, 13, 12, 14],[12, 14, 12, 13], [12, 14, 13, 12],\
-            [12, 14, 14, 11], [13, 14, 13, 13], [13, 12, 12, 12], [12, 14, 15, 14],\
-            [12, 13, 15, 12], [13, 14, 15, 13], [12, 12, 13, 13], [13, 0, 0, 14], [13, 0, 0, 13], [11, 0, 0, 13],\
-            [12, 0, 0, 12], [12, 0, 0, 12], [11, 0, 0, 14], [12, 0, 0, 13],[12, 0, 0, 13], [12, 0, 0, 13],\
-            [12, 0, 0, 12], [12, 0, 0, 13],\
+        ADCPT_EnsembleDataParticleKey.CORR_MAG_DATA: {'type': list, 'value': 
+            [[93, 88, 80, 104],[101, 13, 13, 44],[12, 13, 12, 14],[12, 14, 12, 13], [12, 14, 13, 12],
+            [12, 14, 14, 11], [13, 14, 13, 13], [13, 12, 12, 12], [12, 14, 15, 14],
+            [12, 13, 15, 12], [13, 14, 15, 13], [12, 12, 13, 13], [13, 0, 0, 14], [13, 0, 0, 13], [11, 0, 0, 13],
+            [12, 0, 0, 12], [12, 0, 0, 12], [11, 0, 0, 14], [12, 0, 0, 13],[12, 0, 0, 13], [12, 0, 0, 13],
+            [12, 0, 0, 12], [12, 0, 0, 13],
             [12, 0, 0, 12], [0 ,0 , 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0],[0, 0, 0, 0]]},
 ###------------Echo intensity data
-        ADCPT_EnsembleDataParticleKey.ECHO_INTENSITY_DATA: {'type': list, 'value': \
-            [[90, 82, 103, 81], [80, 67, 75, 69], [67, 65, 72, 65],[66, 65, 72, 65], [66, 65, 72, 65], \
-            [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], \
-            [66, 65, 72, 65], [66, 65, 71, 65], [66, 65, 72, 65], [66, 65, 71, 65], [66, 65, 72, 65], \
-            [67, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], \
-            [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 71, 65], \
+        ADCPT_EnsembleDataParticleKey.ECHO_INTENSITY_DATA: {'type': list, 'value': 
+            [[90, 82, 103, 81], [80, 67, 75, 69], [67, 65, 72, 65],[66, 65, 72, 65], [66, 65, 72, 65], 
+            [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], 
+            [66, 65, 72, 65], [66, 65, 71, 65], [66, 65, 72, 65], [66, 65, 71, 65], [66, 65, 72, 65], 
+            [67, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], 
+            [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 71, 65], 
             [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 71, 65], [66, 65, 72, 65], [66, 65, 72, 65]]},
 ###------------Percent good data
-        ADCPT_EnsembleDataParticleKey.PERCENT_GOOD_DATA: {'type': list, 'value': \
-            [[4, 0, 0, 95], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], \
-            [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], \
-            [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], \
-            [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], \
+        ADCPT_EnsembleDataParticleKey.PERCENT_GOOD_DATA: {'type': list, 'value': 
+            [[4, 0, 0, 95], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], 
+            [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], 
+            [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], 
+            [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], 
             [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0]]}
         }
+
 # Driver Parameter Methods
     ###
     def assert_driver_parameters(self, current_parameters, verify_values = False):
@@ -276,7 +281,7 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: SBE26plusTideSampleDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, DataParticleType.ENSEMBLE)
+        self.assert_data_particle_header(data_particle, DataParticleType.ENSEMBLE_PARSED)
         self.assert_data_particle_parameters(data_particle, self._header_sample_parameters, verify_values)
 
 #################################### RULES ####################################
@@ -327,7 +332,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase,ADCPTMixin):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
-
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -337,12 +341,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase,ADCPTMixin):
         self.assert_enum_has_no_duplicates(ProtocolState())
         self.assert_enum_has_no_duplicates(ProtocolEvent())
         self.assert_enum_has_no_duplicates(Parameter())
-        self.assert_enum_has_no_duplicates(InstrumentCommand())
+        self.assert_enum_has_no_duplicates(InstrumentCmds())
 
         # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
-
 
     def test_chunker(self):
         """
@@ -368,14 +371,13 @@ class DriverUnitTest(InstrumentDriverUnitTestCase,ADCPTMixin):
         # Start validating data particles
         self.assert_particle_published(driver, SAMPLE_RAW_DATA, self.assert_particle_header_sample, True)
 
-
     def test_protocol_filter_capabilities(self):
         """
         This tests driver filter_capabilities.
         Iterate through available capabilities, and verify that they can pass successfully through the filter.
         Test silly made up capabilities to verify they are blocked by filter.
         """
-        mock_callback = Mock()
+        mock_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         protocol = Protocol(Prompt, NEWLINE, mock_callback)
         driver_capabilities = Capability().list()
         test_capabilities = Capability().list()
@@ -386,6 +388,61 @@ class DriverUnitTest(InstrumentDriverUnitTestCase,ADCPTMixin):
         # Verify "BOGUS_CAPABILITY was filtered out
         self.assertEquals(sorted(driver_capabilities),
                           sorted(protocol._filter_capabilities(test_capabilities)))
+
+    def test_driver_parameters(self):
+        """
+        Verify the set of parameters known by the driver
+        """
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
+
+        expected_parameters = sorted(self._driver_parameters.keys())
+        reported_parameters = sorted(driver.get_resource(Parameter.ALL))
+
+        log.debug("Reported Parameters: %s" % reported_parameters)
+        log.debug("Expected Parameters: %s" % expected_parameters)
+
+        self.assertEqual(reported_parameters, expected_parameters)
+
+        # Verify the parameter definitions
+        self.assert_driver_parameter_definition(driver, self._driver_parameters)
+
+
+    def test_capabilities(self):
+        """
+        Verify the FSM reports capabilities as expected. All states defined in this dict must
+        also be defined in the protocol FSM.
+        """
+        capabilities = {
+            ProtocolState.UNKNOWN: ['BREAK_ALARM', 'BREAK_SUCCESS'],
+            ProtocolState.COMMAND: ['POWERING_DOWN',
+                                    'CS',
+                                    'SELF_DEPLOY',
+                                    'DRIVER_EVENT_GET'],
+            ProtocolState.AUTOSAMPLE: ['BREAK_SUCCESS',
+                                       'DRIVER_EVENT_GET'],
+        }
+
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_capabilities(driver, capabilities)
+
+    def test_sync_param_dict(self):
+        mock_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
+        protocol = Protocol(Prompt, NEWLINE, mock_callback)
+        saved_values = []
+        cached_list = []
+        param_dict_list = []
+        #save current values in adcpt_cache_dict
+        #load adcpt_cache_dict with new values
+        #call sync_param_dict
+        #get list of adcpt_cache_dict values
+        #get list of param_dict values
+        #restore original values in adcpt_cache_dict
+        
+        log.debug("cached values: %s" % cached_list)
+        log.debug("param_dict values: %s" % param_dict_list)
+
+        self.assertEqual(cached_list, param_dict_list)
 
 
 ###############################################################################
@@ -399,7 +456,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase,ADCPTMixin):
 class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
-
 
 
 ###############################################################################
@@ -426,18 +482,15 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
         self.assert_direct_access_stop_telnet()
 
-
     def test_poll(self):
         '''
         No polling for a single sample
         '''
 
-
     def test_autosample(self):
         '''
         start and stop autosample and verify data particle
         '''
-
 
     def test_get_set_parameters(self):
         '''
@@ -445,7 +498,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         ensuring that read only parameters fail on set.
         '''
         self.assert_enter_command_mode()
-
 
     def test_get_capabilities(self):
         """
