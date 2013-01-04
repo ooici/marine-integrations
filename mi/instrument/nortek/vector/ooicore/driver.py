@@ -80,8 +80,9 @@ VELOCITY_HEADER_DATA_REGEX = re.compile(VELOCITY_HEADER_DATA_PATTERN, re.DOTALL)
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
     PARSED = 'parsed'
-    DIAGNOSTIC_DATA = 'data'
-    DIAGNOSTIC_HEADER = 'header'
+    VELOCITY = 'velocity'
+    VELOCITY_HEADER = 'velocity_header'
+    SYSTEM = 'system'
 
 # Device prompts.
 class InstrumentPrompts(BaseEnum):
@@ -613,13 +614,13 @@ class VectorVelocityDataParticleKey(BaseEnum):
             
 class VectorVelocityDataParticle(DataParticle):
     """
-    Routine for parsing diagnostic data header into a data particle structure for the Vector sensor. 
+    Routine for parsing velocity data into a data particle structure for the Vector sensor. 
     """
-    _data_particle_type = DataParticleType.DIAGNOSTIC_HEADER
+    _data_particle_type = DataParticleType.VELOCITY
 
     def _build_parsed_values(self):
         """
-        Take something in the diagnostic data header sample format and parse it into
+        Take something in the velocity data sample format and parse it into
         values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
@@ -713,13 +714,13 @@ class VectorVelocityHeaderDataParticleKey(BaseEnum):
         
 class VectorVelocityHeaderDataParticle(DataParticle):
     """
-    Routine for parsing velocity data into a data particle structure for the Vector sensor. 
+    Routine for parsing velocity header data into a data particle structure for the Vector sensor. 
     """
-    _data_particle_type = DataParticleType.DIAGNOSTIC_DATA
+    _data_particle_type = DataParticleType.VELOCITY_HEADER
 
     def _build_parsed_values(self):
         """
-        Take something in the velocity data sample format and parse it into
+        Take something in the velocity header data sample format and parse it into
         values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
@@ -792,9 +793,9 @@ class VectorSystemDataParticleKey(BaseEnum):
         
 class VectorSystemDataParticle(DataParticle):
     """
-    Routine for parsing velocity data into a data particle structure for the Vector sensor. 
+    Routine for parsing system data into a data particle structure for the Vector sensor. 
     """
-    _data_particle_type = DataParticleType.PARSED
+    _data_particle_type = DataParticleType.SYSTEM
 
     def _build_parsed_values(self):
         """
