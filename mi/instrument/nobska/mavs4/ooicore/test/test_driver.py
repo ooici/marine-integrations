@@ -233,7 +233,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         pass 
 
     
-    def Xtest_instrument_wakeup(self):
+    def test_instrument_wakeup(self):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' state
         """
@@ -255,7 +255,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         self.assertEqual(state, ProtocolStates.UNKNOWN)
 
         # discover instrument state and transition to command.
-        reply = self.driver_client.cmd_dvr('discover')
+        reply = self.driver_client.cmd_dvr('discover_state')
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
@@ -351,7 +351,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED) 
         """       
 
-    def Xtest_instrumment_autosample(self):
+    def test_instrumment_autosample(self):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' state
         """

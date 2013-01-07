@@ -35,6 +35,7 @@ from mi.core.exceptions import InstrumentTimeoutException, \
                                InstrumentStateException
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.common import InstErrorCode
+from mi.core.instrument.chunker import StringChunker
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -295,14 +296,38 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.STOP_DIRECT, self._handler_direct_access_stop_direct)
 
+        # Set state machine in UNKNOWN state. 
+        self._protocol_fsm.start(ProtocolStates.UNKNOWN)
+
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
 
-        # Set state machine in UNKNOWN state. 
-        self._protocol_fsm.start(ProtocolStates.UNKNOWN)
+        # create chunker for processing instrument samples.
+        self._chunker = StringChunker(mavs4InstrumentProtocol.chunker_sieve_function)
 
 
+    @staticmethod
+    def chunker_sieve_function(raw_data):
+        """ The method that detects data sample structures from instrument
+        """
+        return_list = []
+        
+        """
+        for structure_sync, structure_len in sample_structures:
+            start = raw_data.find(structure_sync)
+            if start != -1:    # found a sync pattern
+                if start+structure_len <= len(raw_data):    # only check the CRC if all of the structure has arrived
+                    calculated_checksum = BinaryProtocolParameterDict.calculate_checksum(raw_data[start:start+structure_len], structure_len)
+                    #log.debug('chunker_sieve_function: calculated checksum = %s' % calculated_checksum)
+                    sent_checksum = BinaryProtocolParameterDict.convert_word_to_int(raw_data[start+structure_len-2:start+structure_len])
+                    if sent_checksum == calculated_checksum:
+                        return_list.append((start, start+structure_len))        
+                        #log.debug("chunker_sieve_function: found %s", raw_data[start:start+structure_len].encode('hex'))
+        """
+                
+        return return_list
+    
     ########################################################################
     # overridden superclass methods
     ########################################################################
@@ -389,32 +414,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             resp_result = resp_handler(result, prompt)
         return resp_result
    
-    def got_data(self, data):
-        """
-        Callback for receiving new data from the device.
-        """
-        if self.get_current_state() == ProtocolStates.DIRECT_ACCESS:
-            # direct access mode
-            if len(data) > 0:
-                log.debug("mavs4InstrumentProtocol.got_data(): <" + data + ">") 
-                if self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
-                    # TODO: what about logging this as an event?
-            return
-        
-        if len(data)>0:
-            # Call the superclass to update line and prompt buffers.
-            MenuInstrumentProtocol.got_data(self, data)
-    
-            # If in streaming mode, process the buffer for samples to publish.
-            cur_state = self.get_current_state()
-            if cur_state == ProtocolStates.AUTOSAMPLE:
-                if INSTRUMENT_NEWLINE in self._linebuf:
-                    lines = self._linebuf.split(INSTRUMENT_NEWLINE)
-                    self._linebuf = lines[-1]
-                    for line in lines:
-                        self._extract_sample(line)  
-                        
     def _go_to_root_menu(self):
         self._do_cmd_resp(InstrumentCmds.EXIT_SUB_MENU, expected_prompt=InstrumentPrompts.MAIN_MENU, timeout=4)
                           
