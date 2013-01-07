@@ -81,9 +81,9 @@ DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN, re.DOTALL)
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    PARSED = 'parsed'
-    DIAGNOSTIC_DATA = 'data'
-    DIAGNOSTIC_HEADER = 'header'
+    VELOCITY = 'velocity'
+    DIAGNOSTIC = 'diagnostic'
+    DIAGNOSTIC_HEADER = 'diagnostic_header'
 
 # Device prompts.
 class InstrumentPrompts(BaseEnum):
@@ -730,7 +730,7 @@ class AquadoppDwVelocityDataParticle(DataParticle):
     """
     Routine for parsing velocity data into a data particle structure for the Aquadopp DW sensor. 
     """
-    _data_particle_type = DataParticleType.PARSED
+    _data_particle_type = DataParticleType.VELOCITY
 
     def _build_parsed_values(self):
         """
@@ -844,7 +844,7 @@ class AquadoppDwDiagnosticDataParticle(AquadoppDwVelocityDataParticle):
     Routine for parsing diagnostic data into a data particle structure for the Aquadopp DW sensor. 
     This structure is the same as the velocity data, so particle is built with the same method
     """
-    _data_particle_type = DataParticleType.DIAGNOSTIC_DATA
+    _data_particle_type = DataParticleType.DIAGNOSTIC
 
     def _build_parsed_values(self):
         """
