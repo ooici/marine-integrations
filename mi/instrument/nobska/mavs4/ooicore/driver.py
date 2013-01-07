@@ -1,8 +1,6 @@
-#!/usr/bin/env python
-
 """
-@package mi.instrument.nobska.mavs4.mavs4.driver
-@file /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nobska/mavs4/mavs4/driver.py
+@package mi.instrument.nobska.mavs4.ooicore.driver
+@file /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nobska/mavs4/ooicore/driver.py
 @author Bill Bollenbacher
 @brief Driver for the mavs4
 Release notes:
@@ -23,7 +21,6 @@ from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -36,14 +33,14 @@ from mi.core.exceptions import InstrumentTimeoutException, \
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.common import InstErrorCode
 from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
 
 from mi.core.log import get_logger
 log = get_logger()
 
-###
-#   Module wide values
-###
-#log = logging.getLogger('mi_logger')
+
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW
 
 INSTRUMENT_NEWLINE = '\r\n'
 WRITE_DELAY = 0
@@ -93,7 +90,7 @@ class ProtocolStates(BaseEnum):
     CALIBRATE = DriverProtocolState.CALIBRATE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
     
-class ProtocolEvents(BaseEnum):
+class ProtocolEvent(BaseEnum):
     """
     Protocol events for MAVS-4. Cherry picked from DriverEvent enum.
     """
@@ -104,12 +101,20 @@ class ProtocolEvents(BaseEnum):
     DISCOVER = DriverEvent.DISCOVER
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    TEST = DriverEvent.TEST
-    RUN_TEST = DriverEvent.RUN_TEST
-    CALIBRATE = DriverEvent.CALIBRATE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
+    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
+
+class Capability(BaseEnum):
+    """
+    Capabilities that are exposed to the user (subset of above)
+    """
+    GET = ProtocolEvent.GET
+    SET = ProtocolEvent.SET
+    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
+    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
 
 # Device specific parameters.
 class InstrumentParameters(DriverParameter):
@@ -126,28 +131,6 @@ class InstrumentParameters(DriverParameter):
     SAMPLES_PER_BURST = 'SamplesPerBurst'
     INTERVAL_BETWEEN_BURSTS = 'IntervalBetweenBursts'
 
-class Channel(BaseEnum):
-    """
-    Enumerated driver channels.  
-    """
-    #CTD = DriverChannel.CTD
-    #ALL = DriverChannel.ALL
-
-#class Command(DriverCommand):
-#    pass
-
-class MetadataParameter(BaseEnum):
-    pass
-
-class Error(BaseEnum):
-    pass
-
-class Capability(BaseEnum):
-    pass
-
-class Status(BaseEnum):
-    pass
-
 class SubMenues(BaseEnum):
     ROOT        = 'root_menu'
     SET_TIME    = 'set_time'
@@ -159,13 +142,6 @@ class SubMenues(BaseEnum):
     OFFLOAD     = 'offload'
     PICO_DOS    = 'pico_dos'
     DUMMY       = 'dummy'
-
-# Packet config for MAVS-4 data granules.
-# TODO: set this up for MAVS-4
-PACKET_CONFIG = {
-        'adcp_parsed' : ('prototype.sci_data.stream_defs', 'ctd_stream_packet'),
-        'adcp_raw' : None            
-}
 
 class Mavs4ProtocolParameterDict(ProtocolParameterDict):
     
@@ -226,12 +202,6 @@ class mavs4InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         self._protocol = mavs4InstrumentProtocol(InstrumentPrompts, INSTRUMENT_NEWLINE, self._driver_event)
         
-    def get_resource_params(self):
-        """
-        Return list of device parameters available.
-        """
-        return InstrumentParameters.list()        
-
 ###
 #   Protocol for mavs4
 ###
@@ -260,6 +230,32 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         
         MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event)
                 
+        self._protocol_fsm = InstrumentFSM(ProtocolStates, 
+                                           ProtocolEvent, 
+                                           ProtocolEvent.ENTER,
+                                           ProtocolEvent.EXIT)
+
+        # Add event handlers for protocol state machine.
+        self._protocol_fsm.add_handler(ProtocolStates.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(ProtocolStates.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
+        self._protocol_fsm.add_handler(ProtocolStates.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.GET, self._handler_get)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
+
+        # Set state machine in UNKNOWN state. 
+        self._protocol_fsm.start(ProtocolStates.UNKNOWN)
+
         # these build handlers will be called by the base class during the
         # navigate_and_execute sequence.        
         self._add_build_handler(InstrumentCmds.ENTER_TIME, self._build_time_command)
@@ -271,33 +267,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
-
-        self._protocol_fsm = InstrumentFSM(ProtocolStates, 
-                                           ProtocolEvents, 
-                                           ProtocolEvents.ENTER,
-                                           ProtocolEvents.EXIT)
-
-        # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolStates.UNKNOWN, ProtocolEvents.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolStates.UNKNOWN, ProtocolEvents.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(ProtocolStates.UNKNOWN, ProtocolEvents.DISCOVER, self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.START_AUTOSAMPLE, self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.GET, self._handler_get)
-        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.TEST, self._handler_command_test)
-        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvents.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.ENTER, self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvents.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.EXIT, self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
-        self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvents.STOP_DIRECT, self._handler_direct_access_stop_direct)
-
-        # Set state machine in UNKNOWN state. 
-        self._protocol_fsm.start(ProtocolStates.UNKNOWN)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -328,6 +297,12 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 
         return return_list
     
+    def _filter_capabilities(self, events):
+        """
+        """ 
+        events_out = [x for x in events if Capability.has(x)]
+        return events_out
+
     ########################################################################
     # overridden superclass methods
     ########################################################################

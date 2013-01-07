@@ -49,10 +49,10 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
-from mi.instrument.nobska.mavs4.ooicore.driver import PACKET_CONFIG
+from mi.instrument.nobska.mavs4.ooicore.driver import DataParticleType
 from mi.instrument.nobska.mavs4.ooicore.driver import mavs4InstrumentDriver
 from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolStates
-from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolEvents
+from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolEvent
 from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentParameters
 
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -121,10 +121,9 @@ InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.nobska.mavs4.ooicore.driver',
     driver_class="mavs4InstrumentDriver",
 
-    instrument_agent_resource_id = '123xyz',
-    instrument_agent_name = 'Agent007',
-    instrument_agent_packet_config = PACKET_CONFIG,
-    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
+    instrument_agent_resource_id = 'nobska_mavs4_ooicore',
+    instrument_agent_name = 'nobska_mavs4_ooicore_agent',
+    instrument_agent_packet_config = DataParticleType()
 )
 
 
