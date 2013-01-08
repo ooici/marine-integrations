@@ -93,6 +93,9 @@ class InstrumentCmds(BaseEnum):
     TAKE_SAMPLE = 'ts'
     INIT_LOGGING = 'initlogging'
 
+    SEND_LAST_SAMPLE = "sl"
+    SEND_LAST_SAMPLE_SLEEP = "slo"
+
 class ProtocolState(BaseEnum):
     """
     Protocol states
@@ -114,10 +117,13 @@ class ProtocolEvent(BaseEnum):
     DISCOVER = DriverEvent.DISCOVER
 
     ### Common driver commands, should these be promoted?  What if the command isn't supported?
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE         # TS
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE     # START
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE       # DTOP
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS         # DS
+    ACQUIRE_CONFIGURATION = "PROTOCOL_EVENT_ACQUIRE_CONFIGURATION" # DC
+    SEND_LAST_SAMPLE = "PROTOCOL_EVENT_SEND_LAST_SAMPLE" # SL
+    SEND_LAST_SAMPLE_SLEEP = "PROTOCOL_EVENT_SEND_LAST_SAMPLE_SLEEP" # SLO
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     FORCE_STATE = DriverEvent.FORCE_STATE
     START_DIRECT = DriverEvent.START_DIRECT
@@ -134,11 +140,41 @@ class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
+    # TS ?
     ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
+
+    # DS ONLY
     ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
+
+    # DC
+    ACQUIRE_CONFIGURATION = ProtocolEvent.ACQUIRE_CONFIGURATION
+    # SL
+    SEND_LAST_SAMPLE = ProtocolEvent.SEND_LAST_SAMPLE
+    # SLO
+    SEND_LAST_SAMPLE_SLEEP = ProtocolEvent.SEND_LAST_SAMPLE_SLEEP
+
+    '''
+    start
+    logging will start in 10 seconds
+    sl
+    SBE 26plus
+    S>sl
+    sl
+    p = -99.0000, t = -99.0000
+    S>slo
+    slo
+    p = -99.0000, t = -99.0000
+    '''
+
+
+    # QS
+    QUIT_SESSION = ProtocolEvent.QUIT_SESSION
+    # SETSAMPLING
+    SETSAMPLING = ProtocolEvent.SETSAMPLING
+
+    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
 
 class Parameter(DriverParameter):
     """
@@ -1101,7 +1137,11 @@ class Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SETSAMPLING,            self._handler_command_setsampling)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC,             self._handler_command_clock_sync)
+
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_aquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION,  self._handler_command_aquire_configuration)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SEND_LAST_SAMPLE,       self._handler_command_send_last_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SEND_LAST_SAMPLE_SLEEP, self._handler_command_send_last_sample_sleep)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION,           self._handler_command_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.INIT_LOGGING,           self._handler_command_init_logging)
@@ -1126,6 +1166,9 @@ class Protocol(SeaBirdProtocol):
         self._add_build_handler(InstrumentCmds.DISPLAY_STATUS,              self._build_simple_command)
         self._add_build_handler(InstrumentCmds.QUIT_SESSION,                self._build_simple_command)
         self._add_build_handler(InstrumentCmds.DISPLAY_CALIBRATION,         self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SEND_LAST_SAMPLE,            self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SEND_LAST_SAMPLE_SLEEP,      self._build_simple_command)
+
         self._add_build_handler(InstrumentCmds.START_LOGGING,               self._build_simple_command)
         self._add_build_handler(InstrumentCmds.STOP_LOGGING,                self._build_simple_command)
         self._add_build_handler(InstrumentCmds.SET,                         self._build_set_command)
@@ -1136,6 +1179,12 @@ class Protocol(SeaBirdProtocol):
         self._add_response_handler(InstrumentCmds.SETSAMPLING,              self._parse_setsampling_response)
         self._add_response_handler(InstrumentCmds.DISPLAY_STATUS,           self._parse_ds_response)
         self._add_response_handler(InstrumentCmds.DISPLAY_CALIBRATION,      self._parse_dc_response)
+
+
+        self._add_response_handler(InstrumentCmds.SEND_LAST_SAMPLE,         self._parse_sl_response)
+        self._add_response_handler(InstrumentCmds.SEND_LAST_SAMPLE_SLEEP,   self._parse_slo_response)
+
+
         self._add_response_handler(InstrumentCmds.SET,                      self._parse_set_response)
         self._add_response_handler(InstrumentCmds.TAKE_SAMPLE,              self._parse_ts_response)
         self._add_response_handler(InstrumentCmds.INIT_LOGGING,             self._parse_init_logging_response)
@@ -1274,8 +1323,6 @@ class Protocol(SeaBirdProtocol):
         """
         # Command device to update parameters and send a config change event.
 
-        self._restore_da_params()
-
         log.debug("*** IN _handler_command_enter(), updating params")
         self._update_params()
 
@@ -1311,7 +1358,46 @@ class Protocol(SeaBirdProtocol):
         next_state = None
         next_agent_state = None
         kwargs['timeout'] = 30
-        result = self._do_cmd_resp('ds', *args, **kwargs)
+        result = self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_aquire_configuration(self, *args, **kwargs):
+        """
+        @param args:
+        @param kwargs:
+        @return:
+        """
+        next_state = None
+        next_agent_state = None
+        kwargs['timeout'] = 30
+        result = self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_send_last_sample(self, *args, **kwargs):
+        """
+        @param args:
+        @param kwargs:
+        @return:
+        """
+        next_state = None
+        next_agent_state = None
+        kwargs['timeout'] = 30
+        result = self._do_cmd_resp(InstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_send_last_sample_sleep(self, *args, **kwargs):
+        """
+        @param args:
+        @param kwargs:
+        @return:
+        """
+        next_state = None
+        next_agent_state = None
+        kwargs['timeout'] = 30
+        result = self._do_cmd_resp(InstrumentCmds.SEND_LAST_SAMPLE_SLEEP, *args, **kwargs)
 
         return (next_state, (next_agent_state, result))
 
@@ -1881,28 +1967,13 @@ class Protocol(SeaBirdProtocol):
         Enter direct access state.
         """
 
-        self._save_da_params()
+
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._sent_cmds = []
 
-    def _save_da_params(self):
-        # Doing the ds command here causes issues.  I think we have to trust the last value that we
-        # fetched from a ds/dc
-
-        #self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, timeout=kwargs.get('timeout', TIMEOUT))
-
-        pd = self._param_dict.get_config()
-
-        self._da_save_dict = {}
-        for p in [Parameter.EXTERNAL_TEMPERATURE_SENSOR,
-                  Parameter.CONDUCTIVITY,
-                  Parameter.TXREALTIME,
-                  Parameter.TXWAVEBURST]:
-            self._da_save_dict[p] = pd[p]
-            log.debug("DIRECT ACCESS PARAM SAVE " + str(p) + " = " + str(self._da_save_dict[p]))
 
     def _handler_direct_access_execute_direct(self, data):
         """
@@ -1936,55 +2007,6 @@ class Protocol(SeaBirdProtocol):
         Exit direct access state.
         """
         pass
-
-    def _restore_da_params(self):
-        """
-        called from _handler_command_enter, as it behaves poorly
-        if caled from _handler_direct_access_exit
-        @return:
-        """
-        run = True
-        try:
-            if self._da_save_dict == None:
-                run = False
-        except:
-            run = False
-
-        if run == True:
-            # clear out the last command.
-            self._promptbuf = ''
-            self._linebuf = ''
-
-            for k in self._da_save_dict.keys():
-                v = self._da_save_dict[k]
-
-                try:
-                    str_val = self._param_dict.format(k, v)
-                    set_cmd = '%s=%s' % (k, str_val) + NEWLINE
-                    log.debug("DIRECT ACCESS PARAM RESTORE " + str(k) + "=" + str_val)
-                except KeyError:
-                    raise InstrumentParameterException('Unknown driver parameter %s' % param)
-
-                # clear out the last command.
-                self._promptbuf = ''
-                self._linebuf = ''
-                self._do_cmd_direct(set_cmd)
-
-                (prompt, response) = self._get_response(timeout=30)
-                while prompt != Prompt.COMMAND:
-                    if prompt == Prompt.CONFIRMATION_PROMPT:
-                        # clear out the last command.
-                        self._promptbuf = ''
-                        self._linebuf = ''
-                        self._do_cmd_direct("y" + NEWLINE)
-                        (prompt, response) = self._get_response(timeout=30)
-                    else:
-                        (prompt, response) = self._get_response(timeout=30)
-
-            self._da_save_dict = None
-            # clear out the last command.
-            self._promptbuf = ''
-            self._linebuf = ''
 
     ########################################################################
     # Private helpers.
@@ -2072,6 +2094,7 @@ class Protocol(SeaBirdProtocol):
 
         # Next 2 work together to pull 2 values out of a single line.
         #
+
         self._param_dict.add(Parameter.DEVICE_VERSION,
             ds_line_01,
             lambda match : string.upper(match.group(1)),
@@ -2244,8 +2267,8 @@ class Protocol(SeaBirdProtocol):
             lambda match : False if (match.group(1)=='do not') else True,
             self._true_false_to_string,
             visibility=ParameterDictVisibility.READ_ONLY,
-            startup_param=True,
-            direct_access=True,
+            startup_param=False,
+            direct_access=False,
             default_value=False
         )
 
@@ -2254,8 +2277,8 @@ class Protocol(SeaBirdProtocol):
             lambda match : False if (match.group(1)=='do not') else True,
             self._true_false_to_string,
             visibility=ParameterDictVisibility.READ_ONLY,
-            startup_param=True,
-            direct_access=True,
+            startup_param=False,
+            direct_access=False,
             default_value=False
         )
 
@@ -2457,6 +2480,34 @@ class Protocol(SeaBirdProtocol):
             result = match.group(1)
 
         return result
+
+
+
+    def _parse_sl_response(self, response, prompt):
+        """
+        Response handler for dc command
+        """
+        if prompt != Prompt.COMMAND:
+            raise InstrumentProtocolException('sl command not recognized: %s.' % response)
+
+
+        result = response
+
+        log.debug("_parse_sl_response RETURNING RESULT=" + str(result))
+        return result
+
+
+    def _parse_slo_response(self, response, prompt):
+        """
+        Response handler for dc command
+        """
+
+        result = response
+
+        log.debug("_parse_slo_response RETURNING RESULT=" + str(result))
+        return result
+
+
 
     def _parse_ts_response(self, response, prompt):
         """
