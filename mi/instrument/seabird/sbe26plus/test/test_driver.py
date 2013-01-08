@@ -354,8 +354,8 @@ class SeaBird26PlusMixin(DriverTestMixin):
         Parameter.EXTERNAL_TEMPERATURE_SENSOR: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.CONDUCTIVITY: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.USER_INFO : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
-        Parameter.TXREALTIME: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
-        Parameter.TXWAVEBURST: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.TXREALTIME: {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
+        Parameter.TXWAVEBURST: {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
 
         # Set sampling parameters
         Parameter.TIDE_INTERVAL : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
@@ -766,8 +766,8 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         the startup has been applied.
         """
         self.assert_initialize_driver()
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_driver_parameters(reply, True)
+        reply = self.driver_clienrt.cmd_dvr('get_resource', Parameter.ALL)
+        self.assert_driver_parametes(reply, True)
 
     def test_set(self):
         """
@@ -1115,8 +1115,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         """
         self.assert_initialize_driver()
 
-        self.put_instrument_in_command_mode()
-
         # take a sample.
         sample = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
         log.debug("sample = " + repr(sample[1]))
@@ -1131,11 +1129,12 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         """
         @brief Test initialize logging command.
         """
-        self.put_instrument_in_command_mode()
-
+        self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.INIT_LOGGING)
-
         self.assertTrue(reply)
+
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_get(Parameter.LOGGING, True)
 
     def test_quit_session(self):
         """
@@ -1145,9 +1144,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         this test wakes it up after placing it in the timedout (quit session) state, then
         verifies it can obtain paramaters to assert the instrument is working.
         """
-
-        self.put_instrument_in_command_mode()
-
+        self.assert_initialize_driver()
 
         # Note quit session just sleeps the device, so its safe to remain in COMMAND mode.
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.QUIT_SESSION)
@@ -1155,21 +1152,18 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assertEqual(reply, None)
 
         # Must stay in COMMAND state (but sleeping)
-        self.check_state(ProtocolState.COMMAND)
+        self.assert_current_state(ProtocolState.COMMAND)
         # now can we return to command state?
 
-        params = [
-            Parameter.ALL
-        ]
-        reply = self.driver_client.cmd_dvr('get_resource', params)
-        self.assert_param_dict(reply)
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_get(Parameter.LOGGING, False)
 
     def test_get_resource_capabilities(self):
         """
         Test get resource capabilities.
         """
         # Test the driver is in state unconfigured.
-        self.put_instrument_in_command_mode()
+        self.assert_initialize_driver()
 
         # COMMAND
         (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
@@ -1258,15 +1252,14 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
 
     def test_connect_configure_disconnect(self):
         """
-        @ BRIEF connect and then disconnect, verify state
+        @brief connect and then disconnect, verify state
         """
-
-        self.put_instrument_in_command_mode()
+        self.assert_initialize_driver()
 
         reply = self.driver_client.cmd_dvr('disconnect')
         self.assertEqual(reply, None)
 
-        self.check_state(DriverConnectionState.DISCONNECTED)
+        self.assert_current_state(DriverConnectionState.DISCONNECTED)
 
     def test_bad_commands(self):
         """
@@ -1412,35 +1405,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.put_instrument_in_command_mode()
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
         self.check_state(ProtocolState.COMMAND)
-
-    def check_state(self, desired_state):
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, desired_state)
-
-    def put_instrument_in_command_mode(self):
-        log.info("test_connect test started")
-
-        # Test the driver is in state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        self.check_state(ProtocolState.UNKNOWN)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        self.check_state(ProtocolState.COMMAND)
-
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

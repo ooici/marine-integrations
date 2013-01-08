@@ -41,6 +41,8 @@ InstrumentDriverTestCase.initialize(
     driver_startup_config = {
         DriverStartupConfigKey.PARAMETERS: {
             Parameter.TXWAVESTATS: False,
+            Parameter.TXREALTIME: True,
+            Parameter.TXWAVEBURST: False,
         },
         DriverStartupConfigKey.SCHEDULER: {
            ScheduledEvents.ACQUIRE_STATUS: {

@@ -2069,7 +2069,7 @@ class Protocol(SeaBirdProtocol):
         ds_line_35 = r'status = (logging|waiting|stopped)' # status = stopped by user
         ds_line_36 = r'logging = (YES|NO)' # logging = NO, send start command to begin logging
 
-        #
+
         # Next 2 work together to pull 2 values out of a single line.
         #
         self._param_dict.add(Parameter.DEVICE_VERSION,
@@ -2303,17 +2303,15 @@ class Protocol(SeaBirdProtocol):
             ds_line_21,
             lambda match : False if (match.group(1)=='NO') else True,
             self._true_false_to_string,
-            visibility=ParameterDictVisibility.READ_ONLY,
             startup_param=True,
             direct_access=True,
-            default_value=False
+            default_value=True
         )
 
         self._param_dict.add(Parameter.TXWAVEBURST,
             ds_line_22,
             lambda match : False if (match.group(1)=='NO') else True,
             self._true_false_to_string,
-            visibility=ParameterDictVisibility.READ_ONLY,
             startup_param=True,
             direct_access=True,
             default_value=False

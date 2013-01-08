@@ -1153,6 +1153,15 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
     ###
     #   Common assert methods
     ###
+    def assert_current_state(self, target_state):
+        """
+        Verify the driver state
+        @param state:
+        @return:
+        """
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, target_state)
+
     def assert_initialize_driver(self):
         """
         Walk an uninitialized driver through it's initialize process.  Verify the final
@@ -1162,22 +1171,19 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         log.info("test_connect test started")
 
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+        self.assert_current_state(DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+        self.assert_current_state(DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverProtocolState.UNKNOWN)
+        self.assert_current_state(DriverProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('discover_state')
