@@ -18,6 +18,7 @@ import datetime
 import copy
 
 from mi.core.common import BaseEnum
+from mi.core.time import get_timestamp_delayed
 from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
@@ -245,6 +246,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
@@ -307,9 +309,39 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     # overridden superclass methods
     ########################################################################
 
+    def _get_response(self, timeout=10, expected_prompt=None):
+        """
+        Get a response from the instrument, and do not ignore white space as in base class method..        
+        @param timeout The timeout in seconds
+        @param expected_prompt Only consider the specific expected prompt as
+        presented by this string
+        @throw InstrumentProtocolExecption on timeout
+        """
+        # Grab time for timeout and wait for prompt.
+
+        starttime = time.time()
+        if expected_prompt == None:
+            prompt_list = self._prompts.list()
+        else:
+            if isinstance(expected_prompt, str):
+                prompt_list = [expected_prompt]
+            else:
+                prompt_list = expected_prompt
+
+        while True:
+            for item in prompt_list:
+                if self._promptbuf.endswith(item):
+                    return (item, self._linebuf)
+                else:
+                    time.sleep(.1)
+
+            if time.time() > starttime + timeout:
+                log.debug("_get_response: promptbuf=%s (%s)" %(self._promptbuf, self._promptbuf.encode("hex")))
+                raise InstrumentTimeoutException("in InstrumentProtocol._get_response()")
+
     def _navigate_and_execute(self, cmds, **kwargs):
         """
-        Navigate to a sub-menu and execute a list of commands.  
+        Navigate to a sub-menu and execute a list of commands instead of just one command as in the base class.  
         @param cmds The list of commands to execute.
         @param expected_prompt optional kwarg passed through to do_cmd_resp.
         @param timeout=timeout optional wakeup and command timeout.
@@ -346,7 +378,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
-        Perform a command-response on the device.
+        Perform a command-response on the device. 
+        Send commands a character at a time to spoon feed instrument so it doesn't drop characters!
         @param cmd The command to execute.
         @param args positional arguments to pass to the build handler.
         @param timeout=timeout optional command timeout.
@@ -369,19 +402,24 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         cmd_line = build_handler(cmd, value)
         
+        self._linebuf = ''
+        self._promptbuf = ''
+        
         # Send command.
-        log.debug('mavs4InstrumentProtocol._do_cmd_resp: %s, timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,' 
-                  %(cmd_line, timeout, expected_prompt, expected_prompt.encode("hex")))
+        log.debug('mavs4InstrumentProtocol._do_cmd_resp: <%s> (%s), timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,' 
+                  %(cmd_line, cmd_line.encode("hex"), timeout, expected_prompt, expected_prompt.encode("hex")))
         if cmd_line == InstrumentCmds.EXIT_SUB_MENU:
             self._connection.send(cmd_line)
         else:
             for char in cmd_line:        # Clear line and prompt buffers for result.
                 self._linebuf = ''
                 self._promptbuf = ''
+                log.debug('mavs4InstrumentProtocol._do_cmd_resp: sending char <%s>' %char)
                 self._connection.send(char)
                 # Wait for the character to be echoed, timeout exception
                 self._get_response(timeout, expected_prompt='%s'%char)
             self._connection.send(INSTRUMENT_NEWLINE)
+        log.debug('mavs4InstrumentProtocol._do_cmd_resp: command sent, looking for response')
         (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
         resp_handler = self._response_handlers.get(cmd, None)
         resp_result = None
@@ -570,7 +608,29 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         
         return (next_state, result)
 
+    def _handler_command_clock_sync(self, *args, **kwargs):
+        """
+        sync clock close to a second edge 
+        @retval (next_state, result) tuple, (None, None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
 
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        str_time = get_timestamp_delayed("%M %S %d %H %y %m")
+        byte_time = ''
+        for v in str_time.split():
+            byte_time += chr(int('0x'+v, base=16))
+        values = str_time.split()
+        log.info("_handler_command_clock_sync: time set to %s:m %s:s %s:d %s:h %s:y %s:M (%s)" %(values[0], values[1], values[2], values[3], values[4], values[5], byte_time.encode('hex'))) 
+        self._do_cmd_resp(InstrumentCmds.SET_REAL_TIME_CLOCK, byte_time, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
+    
     ########################################################################
     # Autosample handlers.
     ########################################################################
@@ -773,7 +833,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              self._int_to_string,
                              value=0)
 
-    def  _get_prompt(self, timeout, delay=1):
+    def  _get_prompt(self, timeout, delay=4):
         """
         _wakeup is replaced by this method for this instrument to search for 
         prompt strings at other than just the end of the line.  There is no 
@@ -799,22 +859,13 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             time.sleep(delay)
             
             for item in self._prompts.list():
-                if item in self._promptbuf:
+                if self._promptbuf.endswith(item):
                     log.debug('wakeup got prompt: %s' % repr(item))
                     return item
 
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException()
 
-    def _extract_sample(self, line, publish=True):
-        """
-        Extract sample from a response line if present and publish to agent.
-        @param line string to match for sample.
-        @param publsih boolean to publish sample (default True).
-        @retval Sample dictionary if present or None.
-        """
-        return  # TODO remove this when sample format is known
-        
     def _update_params(self, *args, **kwargs):
         """
         Update the parameter dictionary. Issue the upload command. The response

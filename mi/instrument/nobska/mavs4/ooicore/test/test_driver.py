@@ -75,22 +75,6 @@ WILL_ECHO_CMD = '\xff\xfd\x03\xff\xfb\x03\xff\xfb\x01'
 # 'do echo' command sequence to be sent back from telnet client
 DO_ECHO_CMD   = '\xff\xfb\x03\xff\xfd\x03\xff\xfd\x01'
 
-
-# Device specific parameters.
-class TestInstrumentParameters(DriverParameter):
-    """
-    Device parameters for MAVS-4.
-    """
-    SYS_CLOCK = 'sys_clock'
-    DATA_MONITOR = 'DataMonitor'
-    QUERY_MODE = 'QueryMode'
-    MEASUREMENT_FREQUENCY = 'MeasurementFrequency'
-    MEASUREMENTS_PER_SAMPLE = 'MeasurementsPerSample'
-    SAMPLE_PERIOD_SECS = 'SamplePeriod.secs'
-    SAMPLE_PERIOD_TICKS = 'SamplePeriod.ticks'
-    SAMPLES_PER_BURST = 'SamplesPerBurst'
-    INTERVAL_BETWEEN_BURSTS = 'IntervalBetweenBursts'
-
 # Used to validate param config retrieved from driver.
 parameter_types = {
     InstrumentParameters.SYS_CLOCK : str,
@@ -194,23 +178,23 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         return 'mavs4InstrumentDriver'    
     
 
-    def assertParamDict(self, pd, all_params=False):
+    def assertParamDictionariesEqual(self, pd1, pd2, all_params=False):
         """
         Verify all device parameters exist and are correct type.
         """
         if all_params:
-            self.assertEqual(set(pd.keys()), set(parameter_types.keys()),
-                             'not all parameters are present')
-            for (key, type_val) in parameter_types.iteritems():
-                self.assertTrue(isinstance(pd[key], type_val),
-                                'parameter %s not type %s' %(key, str(type_val)))
+            self.assertEqual(set(pd1.keys()), set(pd2.keys()))
+            #print str(pd1)
+            #print str(pd2)
+            for (key, type_val) in pd2.iteritems():
+                #print key
+                #print type_val
+                self.assertTrue(isinstance(pd1[key], type_val))
         else:
-            for (key, val) in pd.iteritems():
-                self.assertTrue(parameter_types.has_key(key),
-                                'unexpected parameter %s' %key)
-                self.assertTrue(isinstance(val, parameter_types[key]),
-                                'parameter %s not type %s' %(key, str(parameter_types[key])))
-    
+            for (key, val) in pd1.iteritems():
+                self.assertTrue(pd2.has_key(key))
+                self.assertTrue(isinstance(val, pd2[key]))
+        
     def assertParamVals(self, params, correct_params):
         """
         Verify parameters take the correct values.
@@ -290,26 +274,27 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         self.assertEqual(state, ProtocolStates.COMMAND)
 
         # get the list of device parameters
-        reply = self.driver_client.cmd_dvr('get_resource_params')
-        self.assertParamList(reply)
+        reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
+        self.assertParamDictionariesEqual(reply, parameter_types, True)
 
+        """
         # Get all device parameters. Confirm all expected keys are retrieved
         # and have correct type.
         reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
         self.assertParamDict(reply, True)
-        """
+
         log.debug("test_get_set: parameters:" )
         for parameter in parameter_list:
             log.debug("%s = %s" %(parameter, reply[parameter]))
-        """
         
         # Remember original configuration.
         orig_config = reply
+        """
         
         # Grab a subset of parameters.
         params = [InstrumentParameters.SYS_CLOCK]
         reply = self.driver_client.cmd_dvr('get_resource', params)
-        self.assertParamDict(reply)
+        self.assertParamDictionariesEqual(reply, parameter_types)
         for (name, value) in reply.iteritems():
             log.debug('parameter %s=%s' %(name, value))        
 
