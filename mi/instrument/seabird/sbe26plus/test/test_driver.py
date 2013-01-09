@@ -769,7 +769,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         the startup has been applied.
         """
         self.assert_initialize_driver()
-        reply = self.driver_clienrt.cmd_dvr('get_resource', Parameter.ALL)
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         self.assert_driver_parametes(reply, True)
 
     def test_set(self):

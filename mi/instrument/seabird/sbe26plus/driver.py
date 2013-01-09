@@ -201,7 +201,9 @@ class Parameter(DriverParameter):
     TIDE_MEASUREMENT_DURATION = 'TIDE_MEASUREMENT_DURATION' # int,
     TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS = 'TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS' # int,
     WAVE_SAMPLES_PER_BURST = 'WAVE_SAMPLES_PER_BURST' # float,
+
     WAVE_SAMPLES_SCANS_PER_SECOND = 'WAVE_SAMPLES_SCANS_PER_SECOND' # 4.0 = 0.25
+
     USE_START_TIME = 'USE_START_TIME' # bool,
     USE_STOP_TIME = 'USE_STOP_TIME' # bool,
     TXWAVESTATS = 'TXWAVESTATS' # bool,
@@ -217,7 +219,6 @@ class Parameter(DriverParameter):
     TXWAVEBURST = 'TxWave' # bool,
     NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' # int,
     USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' # bool,
-    USE_MEASURED_TEMP_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_FOR_DENSITY_CALC'
     AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR'
     AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = 'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR'
     PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM = 'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM' # float,
@@ -245,9 +246,10 @@ class Prompt(BaseEnum):
 # Data Particles
 ################################################################################
 
+# presf_tide_measurement
 class SBE26plusTideSampleDataParticleKey(BaseEnum):
-    TIMESTAMP = "timestamp"
-    PRESSURE = "pressure"           # p = calculated and stored pressure (psia).
+    TIMESTAMP = "date_time_string"
+    PRESSURE = "absolute_pressure"  # p = calculated and stored pressure (psia).
     PRESSURE_TEMP = "pressure_temp" # pt = calculated pressure temperature (not stored) (C).
     TEMPERATURE = "temperature"     # t = calculated and stored temperature (C).
     CONDUCTIVITY = "conductivity"   # c = calculated and stored conductivity (S/m)
@@ -321,10 +323,11 @@ class SBE26plusTideSampleDataParticle(DataParticle):
 
         return result
 
+# presf_wave_burst
 class SBE26plusWaveBurstDataParticleKey(BaseEnum):
-    TIMESTAMP = "timestamp"         # start time of wave measurement.
-    PTFREQ = "ptfreq"               # ptfreq = pressure temperature frequency (Hz);
-    PTRAW = "ptraw"                 # calculated pressure temperature number
+    TIMESTAMP = "date_time_string"         # start time of wave measurement.
+    PTFREQ = "ptemp_frequency"      # ptfreq = pressure temperature frequency (Hz);
+    PTRAW = "absolute_pressure"     # calculated pressure temperature number
 
 class SBE26plusWaveBurstDataParticle(DataParticle):
     """
@@ -408,6 +411,7 @@ class SBE26plusWaveBurstDataParticle(DataParticle):
 
         return result
 
+# presf_wave_statistics
 class SBE26plusStatisticsDataParticleKey(BaseEnum):
     # deMeanTrend
     DEPTH = "depth"
@@ -416,24 +420,24 @@ class SBE26plusStatisticsDataParticleKey(BaseEnum):
     DENSITY = "density"
 
     # Auto-Spectrum Statistics:
-    N_AGV_BAND = "nAvgBand"
-    TOTAL_VARIANCE = "total_variance"
-    TOTAL_ENERGY = "total_energy"
-    SIGNIFICANT_PERIOD = "significant_period"
-    SIGNIFICANT_WAVE_HEIGHT = "significant_wave_height"
+    N_AGV_BAND = "n_avg_band"
+    TOTAL_VARIANCE = "ass_total_variance"
+    TOTAL_ENERGY = "ass_total_energy"
+    SIGNIFICANT_PERIOD = "ass_sig_wave_period"
+    SIGNIFICANT_WAVE_HEIGHT = "ass_sig_wave_height"
 
     # Time Series Statistics:
     TSS_WAVE_INTEGRATION_TIME = "tss_wave_integration_time"
     TSS_NUMBER_OF_WAVES = "tss_number_of_waves"
     TSS_TOTAL_VARIANCE = "tss_total_variance"
     TSS_TOTAL_ENERGY = "tss_total_energy"
-    TSS_AVERAGE_WAVE_HEIGHT = "tss_average_wave_height"
-    TSS_AVERAGE_WAVE_PERIOD = "tss_average_wave_period"
-    TSS_MAXIMUM_WAVE_HEIGHT = "tss_maximum_wave_height"
-    TSS_SIGNIFICANT_WAVE_HEIGHT = "tss_significant_wave_height"
-    TSS_SIGNIFICANT_WAVE_PERIOD = "tss_significant_wave_period"
-    TSS_H1_10 = "tss_height_highest_10_percent_waves"
-    TSS_H1_100 = "tss_height_highest_1_percent_waves"
+    TSS_AVERAGE_WAVE_HEIGHT = "tss_avg_wave_height"
+    TSS_AVERAGE_WAVE_PERIOD = "tss_avg_wave_period"
+    TSS_MAXIMUM_WAVE_HEIGHT = "tss_max_wave_height"
+    TSS_SIGNIFICANT_WAVE_HEIGHT = "tss_sig_wave_height"
+    TSS_SIGNIFICANT_WAVE_PERIOD = "tss_sig_wave_period"
+    TSS_H1_10 = "tss_10_wave_height"
+    TSS_H1_100 = "tss_1_wave_height"
 
 class SBE26plusStatisticsDataParticle(DataParticle):
     """
@@ -576,37 +580,38 @@ class SBE26plusStatisticsDataParticle(DataParticle):
 
         return result
 
+# presf_calibration_coefficients
 class SBE26plusDeviceCalibrationDataParticleKey(BaseEnum):
-    PCALDATE = 'pcaldate' # tuple,
-    PU0 = 'pu0' # float,
-    PY1 = 'py1' # float,
-    PY2 = 'py2' # float,
-    PY3 = 'py3' # float,
-    PC1 = 'pc1' # float,
-    PC2 = 'pc2' # float,
-    PC3 = 'pc3' # float,
-    PD1 = 'pd1' # float,
-    PD2 = 'pd2' # float,
-    PT1 = 'pt1' # float,
-    PT2 = 'pt2' # float,
-    PT3 = 'pt3' # float,
-    PT4 = 'pt4' # float,
-    FACTORY_M = 'factory_m' # float,
-    FACTORY_B = 'factory_b' # float,
-    POFFSET = 'poffset' # float,
-    TCALDATE = 'tcaldate' # tuple,
-    TA0 = 'ta0' # float,
-    TA1 = 'ta1' # float,
-    TA2 = 'ta2' # float,
-    TA3 = 'ta3' # float,
-    CCALDATE = 'ccaldate' # tuple,
-    CG = 'cg' # float,
-    CH = 'ch' # float,
-    CI = 'ci' # float,
-    CJ = 'cj' # float,
-    CTCOR = 'ctcor' # float,
-    CPCOR = 'cpcor' # float,
-    CSLOPE = 'cslope' # float,
+    PCALDATE = 'calibration_date_pressure' # tuple,
+    PU0 = 'press_coeff_pu0' # float,
+    PY1 = 'press_coeff_py1' # float,
+    PY2 = 'press_coeff_py2' # float,
+    PY3 = 'press_coeff_py3' # float,
+    PC1 = 'press_coeff_pc1' # float,
+    PC2 = 'press_coeff_pc2' # float,
+    PC3 = 'press_coeff_pc3' # float,
+    PD1 = 'press_coeff_pd1' # float,
+    PD2 = 'press_coeff_pd2' # float,
+    PT1 = 'press_coeff_pt1' # float,
+    PT2 = 'press_coeff_pt2' # float,
+    PT3 = 'press_coeff_pt3' # float,
+    PT4 = 'press_coeff_pt4' # float,
+    FACTORY_M = 'press_coeff_m' # float,
+    FACTORY_B = 'press_coeff_b' # float,
+    POFFSET = 'press_coeff_poffset' # float,
+    TCALDATE = 'calibration_date_temperature' # tuple,
+    TA0 = 'temp_coeff_ta0' # float,
+    TA1 = 'temp_coeff_ta1' # float,
+    TA2 = 'temp_coeff_ta2' # float,
+    TA3 = 'temp_coeff_ta3' # float,
+    CCALDATE = 'calibration_date_cond' # tuple,
+    CG = 'cond_coeff_cg' # float,
+    CH = 'cond_coeff_ch' # float,
+    CI = 'cond_coeff_ci' # float,
+    CJ = 'cond_coeff_cj' # float,
+    CTCOR = 'cond_coeff_ctcor' # float,
+    CPCOR = 'cond_coeff_cpcor' # float,
+    CSLOPE = 'cond_coeff_cslope' # float,
 
 class SBE26plusDeviceCalibrationDataParticle(DataParticle):
     """
@@ -785,58 +790,60 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
 
         return result
 
+# presf_operating_status
 class SBE26plusDeviceStatusDataParticleKey(BaseEnum):
     # DS
-    DEVICE_VERSION = 'DEVICE_VERSION' # str,
-    SERIAL_NUMBER = 'SERIAL_NUMBER' # str,
-    DS_DEVICE_DATE_TIME = 'DateTime' # str for now, later ***
-    USER_INFO = 'USERINFO' # str,
-    QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER = 'QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER' # float,
-    QUARTZ_PRESSURE_SENSOR_RANGE = 'QUARTZ_PRESSURE_SENSOR_RANGE' # float,
-    EXTERNAL_TEMPERATURE_SENSOR = 'ExternalTemperature' # bool,
-    CONDUCTIVITY = 'CONDUCTIVITY' # bool,
-    IOP_MA = 'IOP_MA' # float,
-    VMAIN_V = 'VMAIN_V' # float,
-    VLITH_V = 'VLITH_V' # float,
-    LAST_SAMPLE_P = 'LAST_SAMPLE_P' # float,
-    LAST_SAMPLE_T = 'LAST_SAMPLE_T' # float,
-    LAST_SAMPLE_S = 'LAST_SAMPLE_S' # float,
+    DEVICE_VERSION = 'firmware_version' # str,
+    SERIAL_NUMBER = 'serial_number' # str,
+    DS_DEVICE_DATE_TIME = 'date_time_string' # str for now, later ***
+    USER_INFO = 'user_info' # str,
+    QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER = 'quartz_pressure_sensor_serial_number' # float,
+    QUARTZ_PRESSURE_SENSOR_RANGE = 'pressure_sensor_range' # float,
+    EXTERNAL_TEMPERATURE_SENSOR = 'external_temperature_sensor' # bool,
+    CONDUCTIVITY = 'external_conductivity_sensor' # bool,
+    IOP_MA = 'operational_current' # float,
+    VMAIN_V = 'battery_voltage_main' # float,
+    VLITH_V = 'battery_voltage_lithium' # float,
+    LAST_SAMPLE_P = 'last_sample_absolute_press' # float,
+    LAST_SAMPLE_T = 'last_sample_temp' # float,
+    LAST_SAMPLE_S = 'last_sample_saln' # float,
 
     # DS/SETSAMPLING
-    TIDE_INTERVAL = 'TIDE_INTERVAL' # int,
-    TIDE_MEASUREMENT_DURATION = 'TIDE_MEASUREMENT_DURATION' # int,
-    TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS = 'TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS' # int,
-    WAVE_SAMPLES_PER_BURST = 'WAVE_SAMPLES_PER_BURST' # float,
-    WAVE_SAMPLES_SCANS_PER_SECOND = 'WAVE_SAMPLES_SCANS_PER_SECOND' # 4.0 = 0.25
-    USE_START_TIME = 'USE_START_TIME' # bool,
-    #START_TIME = 'START_TIME' # ***
-    USE_STOP_TIME = 'USE_STOP_TIME' # bool,
-    #STOP_TIME = 'STOP_TIME' # ***
-    TXWAVESTATS = 'TXWAVESTATS' # bool,
-    TIDE_SAMPLES_PER_DAY = 'TIDE_SAMPLES_PER_DAY' # float,
-    WAVE_BURSTS_PER_DAY = 'WAVE_BURSTS_PER_DAY' # float,
-    MEMORY_ENDURANCE = 'MEMORY_ENDURANCE' # float,
-    NOMINAL_ALKALINE_BATTERY_ENDURANCE = 'NOMINAL_ALKALINE_BATTERY_ENDURANCE' # float,
-    TOTAL_RECORDED_TIDE_MEASUREMENTS = 'TOTAL_RECORDED_TIDE_MEASUREMENTS' # float,
-    TOTAL_RECORDED_WAVE_BURSTS = 'TOTAL_RECORDED_WAVE_BURSTS' # float,
-    TIDE_MEASUREMENTS_SINCE_LAST_START = 'TIDE_MEASUREMENTS_SINCE_LAST_START' # float,
-    WAVE_BURSTS_SINCE_LAST_START = 'WAVE_BURSTS_SINCE_LAST_START' # float,
-    TXREALTIME = 'TxTide' # bool,
-    TXWAVEBURST = 'TxWave' # bool,
-    NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' # int,
-    #USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' # bool,
-    USE_MEASURED_TEMP_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_FOR_DENSITY_CALC'
-    #AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR'
-    #AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = 'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR'
-    PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM = 'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM' # float,
-    SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND = 'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND' # int,
-    MIN_ALLOWABLE_ATTENUATION = 'MIN_ALLOWABLE_ATTENUATION' # float,
-    MIN_PERIOD_IN_AUTO_SPECTRUM = 'MIN_PERIOD_IN_AUTO_SPECTRUM' # float,
-    MAX_PERIOD_IN_AUTO_SPECTRUM = 'MAX_PERIOD_IN_AUTO_SPECTRUM' # float,
-    HANNING_WINDOW_CUTOFF = 'HANNING_WINDOW_CUTOFF' # float,
-    SHOW_PROGRESS_MESSAGES = 'SHOW_PROGRESS_MESSAGES' # bool,
-    STATUS = 'STATUS' # str,
-    LOGGING = 'LOGGING' # bool,
+    TIDE_INTERVAL = 'tide_measurement_interval' # int,
+    TIDE_MEASUREMENT_DURATION = 'tide_measurement_duration' # int,
+    TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS = 'wave_samples_between_tide_measurement' # int,
+    WAVE_SAMPLES_PER_BURST = 'wave_samples_per_burst' # float,
+    WAVE_SAMPLES_SCANS_PER_SECOND = 'wave_samples_scans_per_second' # 4.0 = 0.25
+    USE_START_TIME = 'use_start_time' # bool,
+    #START_TIME = 'logging_start_time' # ***
+    USE_STOP_TIME = 'use_stop_time' # bool,
+    #STOP_TIME = 'logging_stop_time' # ***
+    TXWAVESTATS = 'tx_wave_stats' # bool,               ##########################################
+    TIDE_SAMPLES_PER_DAY = 'tide_samples_per_day' # float,
+    WAVE_BURSTS_PER_DAY = 'wave_bursts_per_day' # float,
+    MEMORY_ENDURANCE = 'memory_endurance' # float,
+    NOMINAL_ALKALINE_BATTERY_ENDURANCE = 'nominal_alkaline_battery_endurance' # float,
+    TOTAL_RECORDED_TIDE_MEASUREMENTS = 'total_recorded_tide_measurements' # float,
+    TOTAL_RECORDED_WAVE_BURSTS = 'total_recorded_wave_bursts' # float,
+    TIDE_MEASUREMENTS_SINCE_LAST_START = 'tide_measurements_since_last_start' # float,
+    WAVE_BURSTS_SINCE_LAST_START = 'wave_bursts_since_last_start' # float,
+    WAVE_SAMPLES_DURATION = 'wave_samples_duration'
+    TXREALTIME = 'tx_tide_samples' # bool,
+    TXWAVEBURST = 'tx_wave_bursts' # bool,
+    NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'num_wave_samples_per_burst_for_wave_statistics' # int,
+    USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'use_measured_temp_and_cond_for_density_calc' # bool,
+    # USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC is interchangable with USE_MEASURED_TEMP_FOR_DENSITY_CALC
+    #AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = 'avg_water_temp_above_pressure_sensor'
+    #AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = 'avg_salinity_above_pressure_sensor'
+    PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM = 'pressure_sensor_height_from_bottom' # float,
+    SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND = 'num_spectral_estimates_for_each_frequency_band' # int,
+    MIN_ALLOWABLE_ATTENUATION = 'min_allowable_attenuation' # float,
+    MIN_PERIOD_IN_AUTO_SPECTRUM = 'min_period_in_auto_spectrum' # float,
+    MAX_PERIOD_IN_AUTO_SPECTRUM = 'max_period_in_auto_spectrum' # float,
+    HANNING_WINDOW_CUTOFF = 'hanning_window_cutoff' # float,
+    SHOW_PROGRESS_MESSAGES = 'show_progress_messages' # bool,
+    STATUS = 'device_status' # str,
+    LOGGING = 'logging_status' # bool,
 
 class SBE26plusDeviceStatusDataParticle(DataParticle):
     """
@@ -907,12 +914,10 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 re.compile(r'last sample: p = +([\d.\-]+), t = +([\d.\-]+)'),
                 lambda match : float(match.group(2))
             ),
-
             SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_S:  (
                 re.compile(r'last sample: .*?, s = +([\d.\-]+)'),
                 lambda match : float(match.group(1))
             ),
-
             SBE26plusDeviceStatusDataParticleKey.TIDE_INTERVAL:  (
                 re.compile(r'tide measurement: interval = (\d+).000 minutes, duration = ([\d.\-]+) seconds'),
                 lambda match : int(match.group(1))
@@ -933,7 +938,7 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 re.compile(r'([\d.\-]+) wave samples/burst at ([\d.\-]+) scans/sec, duration = ([\d.\-]+) seconds'),
                 lambda match : float(match.group(2))
             ),
-            SBE26plusDeviceStatusDataParticleKey.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS:  (
+            SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_DURATION:  (
                 re.compile(r'([\d.\-]+) wave samples/burst at ([\d.\-]+) scans/sec, duration = ([\d.\-]+) seconds'),
                 lambda match : int(match.group(3))
             ),
@@ -993,12 +998,13 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 re.compile(r' +number of wave samples per burst to use for wave statistics = (\d+)'),
                 lambda match : int(match.group(1))
             ),
+            # combined this into the regex of below.
             #SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC:  (
             #    re.compile(r' +(do not|) use measured temperature and conductivity for density calculation'),
             #    lambda match : False if (match.group(1)=='do not') else True
             #),
-            SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_FOR_DENSITY_CALC:  (
-                re.compile(r' +(do not|) use measured temperature for density calculation'),
+            SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC:  (
+                re.compile(r' +(do not|) use measured temperature (and conductivity |)for density calculation'),
                 lambda match : True if (match.group(1)=='do not') else False
             ),
             #SBE26plusDeviceStatusDataParticleKey.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR:  (
@@ -1651,8 +1657,8 @@ class Protocol(SeaBirdProtocol):
                 else:
                     self._connection.send(NEWLINE)
             elif "use measured temperature for density calculation " in response:
-                if 'USE_MEASURED_TEMP_FOR_DENSITY_CALC' in self._sampling_args:
-                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_MEASURED_TEMP_FOR_DENSITY_CALC']) + NEWLINE)
+                if 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' in self._sampling_args:
+                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC']) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
             elif "average water temperature above the pressure sensor (deg C) = " in response:
@@ -1761,7 +1767,6 @@ class Protocol(SeaBirdProtocol):
                 'SHOW_PROGRESS_MESSAGES',
                 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS',
                 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC',
-                'USE_MEASURED_TEMP_FOR_DENSITY_CALC',
                 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR',
                 'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR',
                 'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM',
@@ -2355,7 +2360,7 @@ class Protocol(SeaBirdProtocol):
             lambda match : False if (match.group(1)=='do not') else True,
             self._true_false_to_string)
 
-        self._param_dict.add(Parameter.USE_MEASURED_TEMP_FOR_DENSITY_CALC,
+        self._param_dict.add(Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC,
             ds_line_25_b,
             lambda match : True if (match.group(1)=='do not') else False,
             self._true_false_to_string)
