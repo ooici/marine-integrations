@@ -75,7 +75,6 @@ class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
     ENSEMBLE_PARSED = 'ensemble_parsed'
 
-
 class InstrumentCmds(BaseEnum):
     """
     Device specific commands
@@ -83,9 +82,30 @@ class InstrumentCmds(BaseEnum):
     execute the command.
     """
     BREAK = 'break'
-    SET = 'set'
-    GET = 'get'
     POWER_DOWN = 'CZ'
+    START_DEPLOYMENT = 'CS'
+    RETRIEVE_FACTORY_SETUP = 'CR1'
+    SAVE_SETUP_TO_RAM = 'CK'
+    SEND_LAST_DATA_ENSEMBLE = 'CE'
+    SET_COMM_PARAMS = 'CB411'  #9600 baud, no parity, 1 stop bit
+    SET_COLLECTION_MODE = 'CF11211'   #data comes out as ascii-hex
+    HEADING_ALIGNMENT_DEFAULT = 'EA00000'  #this is the value for a stationary instrument
+    TRANSDUCER_DEPTH_DEFAULT = 'ED00000'  #mfr says use EZ cmd to override
+    SALINITY_DEFAULT = 'ES35'  #would be overwritten if there were a salinity sensor, but default is NO SALINITY SENSOR
+    SET_SALINITY = 'ES'
+    COOORD_XFRM_DEFAULT = 'EX11111'
+    SENSORS_DEFAULT = 'EZ1111101'  #calc sp_of_snd from data, sensors for pitch,roll,hdg,temp,depth. NO SALINITY SENSOR.
+    BANDWIDTH_WIDE = 'WB0'
+    NUMBER_OF_DEPTH_CELLS_DEFAULT = 'WN030'  #user-settable
+    SET_NUMBER_OF_DEPTH_CELLS = 'WN'
+    PINGS_PER_ENSEMBLE_DEFAULT = 'WP00045'  #user-settable
+    SET_PINGS_PER_ENSEMBLE = 'WP'
+    DEPTH_CELL_SIZE_DEFAULT = 'WS0800'  #user-settable
+    SET_DEPTH_CELL_SIZE = 'WS'
+    TIME_PER_ENSEMBLE_DEFAULT = 'TE01:00:00.00'  #user-settable
+    SET_TIME_PER_ENSEMBLE = 'TE'
+    TIME_BETWEEN_PINGS_DEFAULT = 'TP01:20.00'  #user-settable
+    SET_TIME_BETWEEN_PINGS = 'TP'
     CLEAR_ERROR_STATUS_WORD = 'CY'
     CLEAR_FAULT_LOG = 'FC'
     DISPLAY_SYSTEM_CONFIGURATION = 'PS0'
@@ -93,27 +113,12 @@ class InstrumentCmds(BaseEnum):
     DISPLAY_FAULT_LOG = 'FD'
     BUILT_IN_TEST = 'PT200'
     OUTPUT_CALIBRATION_DATA = 'AC'
-    SET_COLLECTION_MODE = 'CF'
-    START_DEPLOYMENT = 'CS'
-    SAVE_SETUP_TO_RAM = 'CK'
-    RETRIEVE_DATA_ENSEMBLE = 'CE'
-    TIME_OF_FIRST_PING = 'TIME_OF_FIRST_PING'
-    TIME_OF_FIRST_PING_Y2K = 'TIME_OF_FIRST_PING_Y2K'
-    SET_REAL_TIME_CLOCK = 'SET_REAL_TIME_CLOCK'
-    SET_REAL_TIME_CLOCK_Y2K = 'SET_REAL_TIME_CLOCK_Y2K'
-    DATA_OUT = 'DATA_OUT'
-    INSTRUMENT_ID = 'INSTRUMENT_ID'  #only shows up in PD12, set by PEn
-#----------------------------
-    SETSAMPLING = 'setsampling'
-    DISPLAY_STATUS = 'ds'
-    QUIT_SESSION = 'qs'
-    DISPLAY_CALIBRATION = 'dc'
-    START_LOGGING = 'start'
-    STOP_LOGGING = 'stop'
-    TAKE_SAMPLE = 'ts'
-    INIT_LOGGING = 'initlogging'
-
-
+    SET_TIME_OF_FIRST_PING = 'TF'  #time format = yy/mm/dd,hh:mm:ss
+    SET_TIME_OF_FIRST_PING_Y2K = 'TG'  #time format = ccyy/mm/dd,hh:mm:ss
+    SET_REAL_TIME_CLOCK = 'TS'  #time format = yy/mm/dd,hh:mm:ss
+    SET_REAL_TIME_CLOCK_Y2K = 'TT'  #time format = ccyy/mm/dd,hh:mm:ss
+    SET_INSTRUMENT_ID = 'CI'
+    
 class ProtocolState(BaseEnum):
     """
     Instrument protocol states
@@ -128,28 +133,26 @@ class ProtocolEvent(BaseEnum):
     """
     BREAK_ALARM = 'BREAK_ALARM'
     BREAK_SUCCESS = 'BREAK_SUCCESS'
-    CS = 'CS'
+    START_AUTOSAMPLE = 'START_AUTOSAMPLE'
     SELF_DEPLOY = 'SELF_DEPLOY'
     POWERING_DOWN = 'POWERING_DOWN'
+    #
     GET = DriverEvent.GET
+    SET = DriverEvent.SET
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
-    """
-    These may be required events...??
     DISCOVER = DriverEvent.DISCOVER
-    """
+    
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    BREAK_ALARM = ProtocolEvent.BREAK_ALARM
-    BREAK_SUCCESS = ProtocolEvent.BREAK_SUCCESS
-    CS = ProtocolEvent.CS
-    SELF_DEPLOY = ProtocolEvent.SELF_DEPLOY
-    POWERING_DOWN = ProtocolEvent.POWERING_DOWN
+#    BREAK_ALARM = ProtocolEvent.BREAK_ALARM
+#    BREAK_SUCCESS = ProtocolEvent.BREAK_SUCCESS
+    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
+#    SELF_DEPLOY = ProtocolEvent.SELF_DEPLOY
+#    POWERING_DOWN = ProtocolEvent.POWERING_DOWN
     
-
-
 class Parameter(DriverParameter):
     """
     Device parameters
@@ -177,16 +180,30 @@ class Parameter(DriverParameter):
     TRANSMIT_LENGTH = 'TRANSMIT_LENGTH'  #different than XMIT_PULSE_LEN(WT) in particle.
     PING_WEIGHT = 'PING_WEIGHT'
     AMBIGUITY_VELOCITY = 'AMBIGUITY_VELOCITY'
-
+    TEMPERATURE = 'TEMPERATURE'  #same as TEMPERATURE in particle
+    DEPTH_OF_XDUCER = 'DEPTH_OF_XDUCER'  #same as DEPTH_OF_XDUCER in particle
+    CALC_SPD_SND_FROM_DATA = 'CALC_SPD_SND_FROM_DATA'
+    USE_DEPTH_FROM_SENSOR = 'USE_DEPTH_FROM_SENSOR'
+    USE_HEADING_FROM_SENSOR = 'USE_HEADING_FROM_SENSOR'
+    USE_PITCH_FROM_SENSOR = 'USE_PITCH_FROM_SENSOR'
+    USE_ROLL_FROM_SENSOR = 'USE_ROLL_FROM_SENSOR'
+    USE_SALINITY_FROM_SENSOR = 'USE_SALINITY_FROM_SENSOR'
+    USE_TEMPERATURE_FROM_SENSOR = 'USE_TEMPERATURE_FROM_SENSOR'
+    DEPTH_SENSOR_AVAIL = 'DEPTH_SENSOR_AVAIL'
+    HEADING_SENSOR_AVAIL = 'HEADING_SENSOR_AVAIL'
+    PITCH_SENSOR_AVAIL = 'PITCH_SENSOR_AVAIL'
+    ROLL_SENSOR_AVAIL = 'ROLL_SENSOR_AVAIL'
+    SALINITY_SENSOR_AVAIL = 'SALINITY_SENSOR_AVAIL'
+    TEMPERATURE_SENSOR_AVAIL = 'TEMPERATURE_SENSOR_AVAIL'
 
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
     """
-    COMMAND = 'S>'
-    BAD_COMMAND = '? cmd S>'
-    AUTOSAMPLE = 'S>'
-    CONFIRMATION_PROMPT = 'proceed Y/N ?'
+    COMMAND = '>'
+#    BAD_COMMAND = '? cmd S>'
+    AUTOSAMPLE = None
+#    CONFIRMATION_PROMPT = 'proceed Y/N ?'
 
 
 adcpt_cache_dict = {
@@ -211,8 +228,23 @@ adcpt_cache_dict = {
     'DEPTH_CELL_SIZE' :  None,
     'TRANSMIT_LENGTH' : None ,
     'PING_WEIGHT' :  None,
-    'AMBIGUITY_VELOCITY': None }
-    
+    'AMBIGUITY_VELOCITY': None,
+    'TEMPERATURE' : None,
+    'DEPTH_OF_XDUCER' : None,
+    'CALC_SPD_SND_FROM_DATA' : None,
+    'USE_DEPTH_FROM_SENSOR' : None,
+    'USE_HEADING_FROM_SENSOR' : None,
+    'USE_PITCH_FROM_SENSOR' : None,
+    'USE_ROLL_FROM_SENSOR' : None,
+    'USE_SALINITY_FROM_SENSOR' : None,
+    'USE_TEMPERATURE_FROM_SENSOR' : None,
+    'DEPTH_SENSOR_AVAIL' : None,
+    'HEADING_SENSOR_AVAIL' : None,
+    'PITCH_SENSOR_AVAIL' : None,
+    'ROLL_SENSOR_AVAIL' : None,
+    'SALINITY_SENSOR_AVAIL' : None,
+    'TEMPERATURE_SENSOR_AVAIL' : None }
+  
 
 ###############################################################################
 # Data Particles
@@ -239,8 +271,26 @@ class ADCPT_EnsembleDataParticleKey(BaseEnum):
     COORD_XFRM = "Coordinate_transform"
     HEAD_ALIGN = "Heading_alignment"
     HEAD_BIAS  = "Heading_bias"
-    SENSOR_SRC = "Sensor_source"
-    SENSOR_AVAIL = "Sensor_availability"
+    #SENSOR_SRC = "Sensor_source"
+
+    CALC_SPD_SND_FROM_DATA = "Calc_spd_snd_from_data"
+    USE_DEPTH_FROM_SENSOR = "Use_depth_from_sensor"
+    USE_HEADING_FROM_SENSOR = "Use_heading_from_sensor"
+    USE_PITCH_FROM_SENSOR = "Use_pitch_from_sensor"
+    USE_ROLL_FROM_SENSOR = "Use_roll_from_sensor"
+    USE_SALINITY_FROM_SENSOR = "Use_salinity_from_sensor"
+    USE_TEMPERATURE_FROM_SENSOR = "Use_temperature_from_sensor"
+
+    #SENSOR_AVAIL = "Sensor_availability"
+    
+    DEPTH_SENSOR_AVAIL = "Depth_sensor_avail"
+    HEADING_SENSOR_AVAIL = "Heading_sensor_avail"
+    PITCH_SENSOR_AVAIL = "Pitch_sensor_avail"
+    ROLL_SENSOR_AVAIL = "Roll_sensor_avail"
+    SALINITY_SENSOR_AVAIL = "Salinity_sensor_avail"
+    TEMPERATURE_SENSOR_AVAIL = "Temperature_sensor_avail"
+
+
     BIN1_DIST = "Distance_to_bin_1"
     XMIT_PULSE_LEN = "Xmit_Pulse_Length"  #different than TRANSMIT_LENGTH in params
     WP_REF_LAYER_AVG = "WP_ref_layer_avg"  #tuple, same as parameters.
@@ -453,11 +503,102 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.HEAD_BIAS,
                        DataParticleKey.VALUE: Heading_bias})
         Sensor_source = self.get_byte_value(str,start_index + 60)
-        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.SENSOR_SRC,
-                       DataParticleKey.VALUE: Sensor_source})
+        working_list = []
+        bin_str = bin(Sensor_source)[2:]
+        zero_fill = bin_str.zfill(8)
+        assert len(zero_fill) == 8
+        working_list = list(bin_str)
+        working_list.reverse()
+
+        Calc_spd_snd_from_data = False
+        Use_depth_from_sensor = False
+        Use_heading_from_sensor = False
+        Use_pitch_from_sensor = False
+        Use_roll_from_sensor = False
+        Use_salinity_from_sensor = False
+        Use_temperature_from_sensor = False
+        if working_list[0] == '1':    
+            Use_temperature_from_sensor = True
+        if working_list[1] == '1':    
+            Use_salinity_from_sensor = True
+        if working_list[2] == '1':    
+            Use_roll_from_sensor = True
+        if working_list[3] == '1':    
+            Use_pitch_from_sensor = True
+        if working_list[4] == '1':    
+            Use_heading_from_sensor = True
+        if working_list[5] == '1':    
+            Use_depth_from_sensor = True
+        if working_list[6] == '1':    
+            Calc_spd_snd_from_data = True
+        adcpt_cache_dict[Parameter.CALC_SPD_SND_FROM_DATA] = Calc_spd_snd_from_data
+        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.CALC_SPD_SND_FROM_DATA,
+                       DataParticleKey.VALUE: Calc_spd_snd_from_data})
+        adcpt_cache_dict[Parameter.USE_DEPTH_FROM_SENSOR] = Use_depth_from_sensor
+        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.USE_DEPTH_FROM_SENSOR,
+                       DataParticleKey.VALUE: Use_depth_from_sensor})
+        adcpt_cache_dict[Parameter.USE_HEADING_FROM_SENSOR] = Use_heading_from_sensor
+        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.USE_HEADING_FROM_SENSOR,
+                       DataParticleKey.VALUE: Use_heading_from_sensor})
+        adcpt_cache_dict[Parameter.USE_PITCH_FROM_SENSOR] = Use_pitch_from_sensor
+        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.USE_PITCH_FROM_SENSOR,
+                       DataParticleKey.VALUE: Use_pitch_from_sensor})
+        adcpt_cache_dict[Parameter.USE_ROLL_FROM_SENSOR] = Use_roll_from_sensor
+        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.USE_ROLL_FROM_SENSOR,
+                       DataParticleKey.VALUE: Use_roll_from_sensor})
+        adcpt_cache_dict[Parameter.USE_SALINITY_FROM_SENSOR] = Use_salinity_from_sensor
+        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.USE_SALINITY_FROM_SENSOR,
+                       DataParticleKey.VALUE: Use_salinity_from_sensor})
+        adcpt_cache_dict[Parameter.USE_TEMPERATURE_FROM_SENSOR] = Use_temperature_from_sensor
+        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.USE_TEMPERATURE_FROM_SENSOR,
+                       DataParticleKey.VALUE: Use_temperature_from_sensor})
+
         Sensor_availability = self.get_byte_value(str,start_index + 62)
-        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.SENSOR_AVAIL,
-                       DataParticleKey.VALUE: Sensor_availability})
+        working_list = []
+        bin_str = bin(Sensor_availability)[2:]
+        zero_fill = bin_str.zfill(8)
+        assert len(zero_fill) == 8
+        working_list = list(bin_str)
+        working_list.reverse()
+
+        Depth_sensor_avail = False
+        Heading_sensor_avail = False
+        Pitch_sensor_avail = False
+        Roll_sensor_avail = False
+        Salinity_sensor_avail = False
+        Temperature_sensor_avail = False
+    
+        if working_list[0] == '1':    
+            Temperature_sensor_avail = True
+        if working_list[1] == '1':    
+            Salinity_sensor_avail = True
+        if working_list[2] == '1':    
+            Roll_sensor_avail = True
+        if working_list[3] == '1':    
+            Pitch_sensor_avail = True
+        if working_list[4] == '1':    
+            Heading_sensor_avail = True
+        if working_list[5] == '1':    
+            Depth_sensor_avail = True
+        adcpt_cache_dict[Parameter.DEPTH_SENSOR_AVAIL] = Depth_sensor_avail
+        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.DEPTH_SENSOR_AVAIL,
+                       DataParticleKey.VALUE: Depth_sensor_avail})
+        adcpt_cache_dict[Parameter.HEADING_SENSOR_AVAIL] = Heading_sensor_avail
+        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.HEADING_SENSOR_AVAIL,
+                       DataParticleKey.VALUE: Heading_sensor_avail})
+        adcpt_cache_dict[Parameter.PITCH_SENSOR_AVAIL] = Pitch_sensor_avail
+        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.PITCH_SENSOR_AVAIL,
+                       DataParticleKey.VALUE: Pitch_sensor_avail})
+        adcpt_cache_dict[Parameter.ROLL_SENSOR_AVAIL] = Roll_sensor_avail
+        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.ROLL_SENSOR_AVAIL,
+                       DataParticleKey.VALUE: Roll_sensor_avail})
+        adcpt_cache_dict[Parameter.SALINITY_SENSOR_AVAIL] = Salinity_sensor_avail
+        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.SALINITY_SENSOR_AVAIL,
+                       DataParticleKey.VALUE: Salinity_sensor_avail})
+        adcpt_cache_dict[Parameter.TEMPERATURE_SENSOR_AVAIL] = Temperature_sensor_avail
+        retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.TEMPERATURE_SENSOR_AVAIL,
+                       DataParticleKey.VALUE: Temperature_sensor_avail})
+
         Distance_to_bin_1 = self.get_word_value(str,start_index + 64)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.BIN1_DIST,
                        DataParticleKey.VALUE: Distance_to_bin_1})
@@ -524,6 +665,7 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         Depth_of_transducer = self.get_word_value(str,start_index + 32)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.DEPTH_OF_XDUCER,
                        DataParticleKey.VALUE: Depth_of_transducer})
+        adcpt_cache_dict[Parameter.DEPTH_OF_XDUCER] = Depth_of_transducer
         Heading = self.get_byte_value(str,start_index + 36)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.HEADING,
                        DataParticleKey.VALUE: Heading})
@@ -536,9 +678,11 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         Salinity = self.get_word_value(str,start_index + 48)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.SALINITY,
                        DataParticleKey.VALUE: Salinity})
+        adcpt_cache_dict[Parameter.SALINITY] = Salinity
         Temperature = self.get_word_value(str,start_index + 52)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.TEMPERATURE,
                        DataParticleKey.VALUE: Temperature})
+        adcpt_cache_dict[Parameter.TEMPERATURE] = Temperature
         Min_pre_ping_wait_time = [self.get_byte_value(str,start_index + 56),
                                   self.get_byte_value(str,start_index + 58),
                                   self.get_byte_value(str,start_index + 60)]
@@ -869,26 +1013,70 @@ class Protocol(CommandResponseInstrumentProtocol):
                             ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.BREAK_SUCCESS, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.BREAK_SUCCESS, self._handler_unknown_break_success)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.BREAK_ALARM, self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
 
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_execute)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,  self._handler_command_autosample_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CS, self._handler_command_execute_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.POWERING_DOWN, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SELF_DEPLOY, self._handler_command_execute_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,  self._handler_command_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,  self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.POWERING_DOWN, self._handler_command_powering_down)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SELF_DEPLOY, self._handler_command_self_deploy)
 
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.BREAK_SUCCESS, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,  self._handler_command_autosample_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.BREAK_SUCCESS, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,  self._handler_autosample_get)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
 
         # Add build handlers for device commands.
+        self._add_build_handler(InstrumentCmds.POWER_DOWN, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.START_DEPLOYMENT, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.RETRIEVE_FACTORY_SETUP, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SAVE_SETUP_TO_RAM, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SEND_LAST_DATA_ENSEMBLE, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SET_COMM_PARAMS, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SET_COLLECTION_MODE, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.HEADING_ALIGNMENT_DEFAULT, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.TRANSDUCER_DEPTH_DEFAULT, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SALINITY_DEFAULT, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SET_SALINITY, self._build_set_command)
+        self._add_build_handler(InstrumentCmds.COOORD_XFRM_DEFAULT, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SENSORS_DEFAULT, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.BANDWIDTH_WIDE, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.NUMBER_OF_DEPTH_CELLS_DEFAULT, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SET_NUMBER_OF_DEPTH_CELLS, self._build_set_command)
+        self._add_build_handler(InstrumentCmds.PINGS_PER_ENSEMBLE_DEFAULT, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SET_PINGS_PER_ENSEMBLE, self._build_set_command)
+        self._add_build_handler(InstrumentCmds.DEPTH_CELL_SIZE_DEFAULT, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SET_DEPTH_CELL_SIZE, self._build_set_command)
+        self._add_build_handler(InstrumentCmds.TIME_PER_ENSEMBLE_DEFAULT, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SET_TIME_PER_ENSEMBLE, self._build_set_command)
+        self._add_build_handler(InstrumentCmds.TIME_BETWEEN_PINGS_DEFAULT, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SET_TIME_BETWEEN_PINGS, self._build_set_command)
+        self._add_build_handler(InstrumentCmds.CLEAR_ERROR_STATUS_WORD, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.CLEAR_FAULT_LOG, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DISPLAY_SYSTEM_CONFIGURATION, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DISPLAY_TRANSFORMATION_MATRIX, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DISPLAY_FAULT_LOG, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.BUILT_IN_TEST, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.OUTPUT_CALIBRATION_DATA, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SET_TIME_OF_FIRST_PING, self._build_set_command)
+        self._add_build_handler(InstrumentCmds.SET_TIME_OF_FIRST_PING_Y2K, self._build_set_command)
+        self._add_build_handler(InstrumentCmds.SET_REAL_TIME_CLOCK, self._build_set_command)
+        self._add_build_handler(InstrumentCmds.SET_REAL_TIME_CLOCK_Y2K, self._build_set_command)
+        self._add_build_handler(InstrumentCmds.SET_INSTRUMENT_ID, self._build_simple_command)
 
         # Add response handlers for device commands.
+        self._add_response_handler(InstrumentCmds.DISPLAY_SYSTEM_CONFIGURATION, self._parse_display_system_configuration_response)
+        self._add_response_handler(InstrumentCmds.DISPLAY_TRANSFORMATION_MATRIX, self._parse_display_transformation_matrix_response)
+        self._add_response_handler(InstrumentCmds.DISPLAY_FAULT_LOG, self._parse_display_fault_log_response)
+        self._add_response_handler(InstrumentCmds.BUILT_IN_TEST, self._parse_built_in_test_response)
+        self._add_response_handler(InstrumentCmds.OUTPUT_CALIBRATION_DATA, self._parse_output_calibration_data_response)
 
         # Add sample handlers.
 
@@ -898,40 +1086,53 @@ class Protocol(CommandResponseInstrumentProtocol):
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        #
         self._chunker = StringChunker(Protocol.sieve_function)
 
-    def _sync_param_dict(self):
+    def _build_simple_command(self, cmd):
         """
-        Syncs values in _param_dict to those in adcpt_cache_dict
+        Build handler for basic adcpt commands.
+        @param cmd the simple adcpt command to format (no value to attach to the command)
+        @retval The command to be sent to the device.
         """
-        local_dict = self._param_dict.get_config()
-        for key in local_dict.keys():
-            if self._param_dict.get(key) != adcpt_cache_dict[key]:
-                self._param_dict[key] = adcpt_cache_dict[key]
+        print("$$$$$$$$$$$$$$$$$$$$$$$ simple_cmd: %s" % cmd)
+        return cmd + NEWLINE
+    
+    def _build_set_command(self, cmd, param, val):
+        """
+        Build handler for set commands. param=val followed by newline.
+        String val constructed by param dict formatting function.
+        @param param the parameter key to set.
+        @param val the parameter value to set.
+        @ retval The set command to be sent to the device.
+        @ retval The set command to be sent to the device.
+        @throws InstrumentProtocolException if the parameter is not valid or
+        if the formatting function could not accept the value passed.
+        """
+        print("$$$$$$$$$$$$$$$$$$$$$$$ set_cmd: %s" % cmd)
+        try:
+            str_val = self._param_dict.format(param, val)
+            set_cmd = '%s%s' % (param, str_val)
 
-    def _update_params(self, *args, **kwargs):
-        """
-        Update the parameter dictionary. Wake the device then issue
-        display status and display calibration commands. The parameter
-        dict will match line output and udpate itself.
-        @throws InstrumentTimeoutException if device cannot be timely woken.
-        @throws InstrumentProtocolException if ds/dc misunderstood.        # Get old param dict config.
-        old_config = self._param_dict.get_config()
+            set_cmd = set_cmd + NEWLINE
+        except KeyError:
+            raise InstrumentParameterException('Unknown driver parameter %s' % param)
 
-        # Issue display commands and parse results.
-        timeout = kwargs.get('timeout', TIMEOUT)
-        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, timeout=timeout)
-        #################################################################self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION, timeout=timeout)
+        return set_cmd
 
-        # Get new param dict config. If it differs from the old config,
-        # tell driver superclass to publish a config change event.
-        new_config = self._param_dict.get_config()
-        if new_config != old_config:
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-        """
+    def _wakeup(self, timeout):
+        # Always awake for this instrument!
         pass
+   
+    
+    def _send_wakeup(self):
+        """
+        Send a newline to attempt to wake the sbe26plus device.
+        """
 
+        self._connection.send(NEWLINE)
+
+    
+    
     def get_word_value(self,str,index):
         """
         Returns value of a 2-byte word in an ascii-hex string into a decimal integer
@@ -946,7 +1147,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @returns a list of chunks identified, if any. The chunks are all the same type.
         """
        
-        #        log.debug("on entry to sieve_function raw_data is %s" % raw_data)
+        #        log.debug("on entry to sieve_function raw_data is %s" % raw_data)_driver_event(DriverAsyncEvent.STATE_CHANGE)
         start_pos = 0   #starting index in a string for search
         return_list = []
         numIDs = raw_data.count(ENSEMBLE_HEADER_ID)    #see how many ensembles to look for
@@ -975,9 +1176,21 @@ class Protocol(CommandResponseInstrumentProtocol):
         adcpt: not using regex/match lambdas, but keeping them in the calls
         to avoid errors.
         """
-        ds_line_01 = r'user info=(.*)$'
         # Add parameter handlers to parameter dict.
-
+        """
+        temp_list = []
+        temp_list.append(Parameter.SALINITY)
+        temp_list.append(ds_line_01)
+        temp_list.append(lambda st: adcpt_cache_dict[Parameter.SALINITY])
+        temp_list.append(self._string_to_string)
+        temp_list.append('value = adcpt_cache_dict[Parameter.SALINITY]')
+        temp_list.append('startup_param = True')
+        temp_list.append('default_value = 35')
+        self._param_dict.add(*tuple(temp_list))
+        print temp_list
+        """
+        ds_line_01 = r'user info=(.*)$'
+                                
         self._param_dict.add(Parameter.SALINITY,
             ds_line_01,
             lambda st: adcpt_cache_dict[Parameter.SALINITY],
@@ -985,7 +1198,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             value = adcpt_cache_dict[Parameter.SALINITY],
             startup_param = True,
             default_value = 35)
-        
+
         self._param_dict.add(Parameter.SPEED_OF_SOUND,
             ds_line_01,
             lambda st: adcpt_cache_dict[Parameter.SPEED_OF_SOUND],
@@ -1148,11 +1361,145 @@ class Protocol(CommandResponseInstrumentProtocol):
             value = adcpt_cache_dict[Parameter.AMBIGUITY_VELOCITY],
             startup_param = True,
             default_value = 175)
-        
+        self._param_dict.add(Parameter.TEMPERATURE,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.TEMPERATURE],
+            startup_param = False,
+            default_value = 0)
+        self._param_dict.add(Parameter.DEPTH_OF_XDUCER,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.DEPTH_OF_XDUCER],
+            startup_param = False,
+            default_value = 0)
+        self._param_dict.add(Parameter.CALC_SPD_SND_FROM_DATA,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.CALC_SPD_SND_FROM_DATA],
+            startup_param = True,
+            default_value = True)
+        self._param_dict.add(Parameter.USE_DEPTH_FROM_SENSOR,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.USE_DEPTH_FROM_SENSOR],
+            startup_param = True,
+            default_value = True)
+        self._param_dict.add(Parameter.USE_HEADING_FROM_SENSOR,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.USE_HEADING_FROM_SENSOR],
+            startup_param = True,
+            default_value = True)
+        self._param_dict.add(Parameter.USE_PITCH_FROM_SENSOR,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.USE_PITCH_FROM_SENSOR],
+            startup_param = True,
+            default_value = True)
+        self._param_dict.add(Parameter.USE_ROLL_FROM_SENSOR,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.USE_ROLL_FROM_SENSOR],
+            startup_param = True,
+            default_value = True)
+        self._param_dict.add(Parameter.USE_SALINITY_FROM_SENSOR,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.USE_SALINITY_FROM_SENSOR],
+            startup_param = True,
+            default_value = False)
+        self._param_dict.add(Parameter.USE_TEMPERATURE_FROM_SENSOR,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.USE_TEMPERATURE_FROM_SENSOR],
+            startup_param = True,
+            default_value = True)
+        self._param_dict.add(Parameter.DEPTH_SENSOR_AVAIL,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.DEPTH_SENSOR_AVAIL],
+            startup_param = True,
+            default_value = True)
+        self._param_dict.add(Parameter.HEADING_SENSOR_AVAIL,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.HEADING_SENSOR_AVAIL],
+            startup_param = True,
+            default_value = True)
+        self._param_dict.add(Parameter.PITCH_SENSOR_AVAIL,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.PITCH_SENSOR_AVAIL],
+            startup_param = True,
+            default_value = True)
+        self._param_dict.add(Parameter.ROLL_SENSOR_AVAIL,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.ROLL_SENSOR_AVAIL],
+            startup_param = True,
+            default_value = True)
+        self._param_dict.add(Parameter.SALINITY_SENSOR_AVAIL,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.SALINITY_SENSOR_AVAIL],
+            startup_param = True,
+            default_value = False)
+        self._param_dict.add(Parameter.TEMPERATURE_SENSOR_AVAIL,
+            ds_line_01,
+            lambda match : string.upper(match.group(1)),
+            self._string_to_string,
+            value = adcpt_cache_dict[Parameter.TEMPERATURE_SENSOR_AVAIL],
+            startup_param = True,
+            default_value = True)
+            
         local_dict = self._param_dict.get_config()
-        log.debug("&&&&&&&&&&&&& _build_param_dict: _param_dict: %s" % local_dict)
-        log.debug("^^^^^^^^^^^^^  at same time the adcpt_cache_dict is %s" % adcpt_cache_dict)
+#        log.debug("&&&&&&&&&&&&& _build_param_dict: _param_dict: %s" % local_dict)
+#        log.debug("^^^^^^^^^^^^^  at same time the adcpt_cache_dict is %s" % adcpt_cache_dict)
          
+    def _update_params(self, *args, **kwargs):
+        """
+        Update the parameter dictionary. Wake the device then issue
+        display status and display calibration commands. The parameter
+        dict will match line output and udpate itself.
+        @throws InstrumentTimeoutException if device cannot be timely woken.
+        @throws InstrumentProtocolException if ds/dc misunderstood.
+        """
+        # Get old param dict config.
+        old_config = self._param_dict.get_config()
+
+        # Issue display commands and parse results.
+        
+        ### adcpt--send CE command to get last ensemble (wait for response)
+        ### adcpt--make sure ensemble goes through parser!!
+        ### adcpt--ok to leave new values in cache?? Steve F. says inefficient to call
+        ###    _build_param_dict every time.
+        
+#        timeout = kwargs.get('timeout', TIMEOUT)
+#        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, timeout=timeout)
+#        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS)
+        #################################################################self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION, timeout=timeout)
+
+        # Get new param dict config. If it differs from the old config,
+        # tell driver superclass to publish a config change event.
+        new_config = self._param_dict.get_config()
+        if new_config != old_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
     @staticmethod
     def _string_to_string(v):
         return v
@@ -1174,12 +1521,40 @@ class Protocol(CommandResponseInstrumentProtocol):
         return [x for x in events if Capability.has(x)]
 
     ########################################################################
+    # response handlers.
+    ########################################################################
+    def _parse_display_system_configuration_response(self,*args,**kwargs):
+        pass
+    def _parse_display_transformation_matrix_response(self,*args,**kwargs):
+        pass
+    def _parse_display_fault_log_response(self,*args,**kwargs):
+        pass
+    def _parse_built_in_test_response(self,*args,**kwargs):
+        pass
+    def _parse_output_calibration_data_response(self,*args,**kwargs):
+        pass
+
+
+    ########################################################################
     # Unknown handlers.
     ########################################################################
+    def _handler_unknown_break_success(self, *args, **kwargs):
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_unknown_break_success"
+        next_state = ProtocolState.COMMAND
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        return(next_state)
+
+    def _handler_unknown_break_alarm(self, *args, **kwargs):
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_unknown_break_alarm"
+        next_state = None
+        return(next_state)
+
     def _handler_unknown_enter(self, *args, **kwargs):
         """
         Enter unknown state.
         """
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_unknown_enter"
+        
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -1188,46 +1563,148 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Exit unknown state.
         """
-        pass
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_unknown_exit"
 
+        pass
+        
     def _handler_unknown_discover(self, *args, **kwargs):
         """
-        Discover current state
-        @retval (next_state, result)
+        Discover current state; can be COMMAND or AUTOSAMPLE.
+        @retval (next_state, result), (ProtocolState.COMMAND or
+        State.AUTOSAMPLE, None) if successful.
+        @throws InstrumentTimeoutException if the device cannot be woken.
+        @throws InstrumentStateException if the device response does not correspond to
+        an expected state.
         """
-        return (ProtocolState.COMMAND, ResourceAgentState.IDLE)
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_unknown_discover"
+
+        timeout = kwargs.get('timeout', TIMEOUT)
+
+        next_state = None
+        result = None
+
+        current_state = self._protocol_fsm.get_current_state()
+
+        if current_state == ProtocolState.AUTOSAMPLE:
+            result = ResourceAgentState.STREAMING
+
+        elif current_state == ProtocolState.COMMAND:
+            result = ResourceAgentState.IDLE
+        """
+
+        elif current_state == ProtocolState.UNKNOWN:
+
+            # Wakeup the device with timeout if passed.
+
+            delay = 0.5
+
+            prompt = self._wakeup(timeout=timeout, delay=delay)
+            prompt = self._wakeup(timeout)
+
+         # Set the state to change.
+        # Raise if the prompt returned does not match command or autosample.
+
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS,timeout=timeout)
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION,timeout=timeout)
+        pd = self._param_dict.get_config()
+
+        if pd[Parameter.LOGGING] == True:
+            next_state = ProtocolState.AUTOSAMPLE
+            result = ResourceAgentState.STREAMING
+        elif pd[Parameter.LOGGING] == False:
+            next_state = ProtocolState.COMMAND
+            result = ResourceAgentState.IDLE
+        else:
+            raise InstrumentStateException('Unknown state.')
+        """
+        return (next_state, result)
+
 
     ########################################################################
     # Command handlers.
     ########################################################################
+    _command_set_cmds = [
+                    InstrumentCmds.SET_COMM_PARAMS,
+                    InstrumentCmds.RETRIEVE_FACTORY_SETUP]
+    
     def _handler_command_enter(self, *args, **kwargs):
         """
         Enter command state.
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_command_enter"
+
+
+        instrument_setup_cmds = [
+            InstrumentCmds.SET_COMM_PARAMS,
+            InstrumentCmds.RETRIEVE_FACTORY_SETUP,
+            InstrumentCmds.SET_COLLECTION_MODE,
+            InstrumentCmds.HEADING_ALIGNMENT_DEFAULT,
+            InstrumentCmds.TRANSDUCER_DEPTH_DEFAULT,
+            InstrumentCmds.SALINITY_DEFAULT,
+            InstrumentCmds.COOORD_XFRM_DEFAULT,
+            InstrumentCmds.SENSORS_DEFAULT,
+            InstrumentCmds.BANDWIDTH_WIDE,
+            InstrumentCmds.NUMBER_OF_DEPTH_CELLS_DEFAULT,
+            InstrumentCmds.PINGS_PER_ENSEMBLE_DEFAULT,
+            InstrumentCmds.DEPTH_CELL_SIZE_DEFAULT,
+            InstrumentCmds.TIME_PER_ENSEMBLE_DEFAULT,
+            InstrumentCmds.TIME_BETWEEN_PINGS_DEFAULT ]
+        # make sure comm is set up properly.
+        # send these commands first, because their default values could override
+        # something you have set if you run these last.
+        
+        
         # Command device to update parameters and send a config change event.
-        #self._update_params()
+
+        
+        self._update_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    def _handler_command_execute(self, *args, **kwargs):
-        """
-        Executing in command state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        for cmd in instrument_setup_cmds:
+            result = self._do_cmd_no_resp(cmd)
+
+        next_agent_state = None
+        result = None
+#        next_state = ProtocolState.COMMAND
+        next_state = None
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_get(self, *args, **kwargs):
         """
         Get parameter
         """
-        next_state = None
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_command_get"
+        next_state = ProtocolState.COMMAND
+        self._build_param_dict()     #make sure data is up-to-date
         result = None
 
+        # Retrieve the required parameter, raise if not present.
+        try:
+            params = args[0]
+
+        except IndexError:
+            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
+
+        # If all params requested, retrieve config.
+        if params == DriverParameter.ALL or DriverParameter.ALL in params:
+            result = self._param_dict.get_config()
+
+        # If not all params, confirm a list or tuple of params to retrieve.
+        # Raise if not a list or tuple.
+        # Retireve each key in the list, raise if any are invalid.
+
+        else:
+            if not isinstance(params, (list, tuple)):
+                raise InstrumentParameterException('Get argument not a list or tuple.')
+            result = {}
+            for key in params:
+                val = self._param_dict.get(key)
+                result[key] = val
 
         return (next_state, result)
 
@@ -1235,36 +1712,117 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Set parameter
         """
-        next_state = None
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_command_set"
+
+        no_parm_cmds = [
+            InstrumentCmds.SAVE_SETUP_TO_RAM,
+            InstrumentCmds.SEND_LAST_DATA_ENSEMBLE,
+            InstrumentCmds.SENSORS_DEFAULT,
+            InstrumentCmds.CLEAR_ERROR_STATUS_WORD,
+            InstrumentCmds.CLEAR_FAULT_LOG,
+            InstrumentCmds.DISPLAY_SYSTEM_CONFIGURATION,
+            InstrumentCmds.DISPLAY_TRANSFORMATION_MATRIX,
+            InstrumentCmds.DISPLAY_FAULT_LOG,
+            InstrumentCmds.BUILT_IN_TEST,
+            InstrumentCmds.OUTPUT_CALIBRATION_DATA ]
+        set_cmds = [
+            InstrumentCmds.SET_COMM_PARAMS,
+            InstrumentCmds.SET_COLLECTION_MODE,
+            InstrumentCmds.SET_SALINITY,
+            InstrumentCmds.SET_NUMBER_OF_DEPTH_CELLS,
+            InstrumentCmds.SET_PINGS_PER_ENSEMBLE,
+            InstrumentCmds.SET_DEPTH_CELL_SIZE,
+            InstrumentCmds.SET_TIME_PER_ENSEMBLE,
+            InstrumentCmds.SET_TIME_BETWEEN_PINGS,
+            InstrumentCmds.SET_TIME_OF_FIRST_PING,
+            InstrumentCmds.SET_TIME_OF_FIRST_PING_Y2K,
+            InstrumentCmds.SET_REAL_TIME_CLOCK,
+            InstrumentCmds.SET_REAL_TIME_CLOCK_Y2K,
+            InstrumentCmds.SET_INSTRUMENT_ID  ]
+         
+        if arg[0] in set_cmds:
+            total_command = arg[0] + arg[1]
+            self._command_set_cmds.append( total_command )
+            next_state = ProtocolState.COMMAND
+        elif arg[0] in no_parm_cmds:
+            self._command_set_cmds.append(arg[0])
+            next_state = ProtocolState.COMMAND
+        elif arg[0] == InstrumentCmds.START_DEPLOYMENT:
+            # if input command == 'DEPLOY', set up for state change 
+            # generate an event for go-to-deployment
+            next_state = ProtocolState.AUTOSAMPLE
+
         result = None
 
         return (next_state, result)
 
-    def _handler_command_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        pass
+    def _handler_command_self_deploy(self, *args, **kwargs):
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_self_deploy"
+        next_state = ProtocolState.AUTOSAMPLE
+        return(next_state)
 
-    def _handler_command_start_direct(self):
-        """
-        Start direct access
-        """
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
+    def _handler_command_start_autosample(self, *args, **kwargs):
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_command_start_autosample"
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+
         result = None
-        log.debug("_handler_command_start_direct: entering DA mode")
+        return (next_state, (next_agent_state, result)) 
+
+    def _handler_command_exit(self, *args, **kwargs):
+        global command_set_cmds
+        # send the commands that accumulated during 'execute'
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_command_exit"
+
+        final_before_deploy_cmds = [
+            InstrumentCmds.SAVE_SETUP_TO_RAM,
+            InstrumentCmds.START_DEPLOYMENT ]
+        
+        self._command_set_cmds.extend(final_before_deploy_cmds)
+        for cmd in self._command_set_cmds:
+            self._do_cmd_no_resp(cmd)
+        
+        #send cmds sent other than minimum required
+        #send remaining min req'd cmds
+       
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = None
+        result = None
         return (next_state, (next_agent_state, result))
+        
+    def _handler_command_powering_down(self, *args, **kwargs):
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_command_powering_down"
+        next_state = ProtocolState.UNKNOWN
+        return(next_state)
 
     ########################################################################
     # Autosample handlers.
     ########################################################################
-  
-    def _handler_command_execute_autosample(self, *args, **kwargs):
-        pass
+    def _handler_autosample_exit(self,*args,**kwargs):
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_exit"
 
-    def _handler_command_autosample_get(self, *args, **kwargs):
-        self._sync_param_dict()     #make sure data is up-to-date
+
+    def _handler_autosample_enter(self,*args,**kwargs):
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_enter"
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+    
+    def _handler_autosample_break_success(self, *args, **kwargs):
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_break_success"
+        next_state = ProtocolState.COMMAND
+        return(next_state)
+
+
+    def _handler_autosample_break_alarm(self, *args, **kwargs):
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_break_alarm"
+
+
+
+    def _handler_autosample_get(self, *args, **kwargs):
+        print"^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_get"
+
+        self._build_param_dict()     #make sure data is up-to-date
         next_state = None
         result = None
 
