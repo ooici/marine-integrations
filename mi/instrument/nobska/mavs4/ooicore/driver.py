@@ -43,6 +43,10 @@ log = get_logger()
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
 
+COMMAND = 'command'
+RESPONSE = 'response'
+NEXT_COMMAND = 'next_comand'
+
 INSTRUMENT_NEWLINE = '\r\n'
 WRITE_DELAY = 0
 
@@ -70,7 +74,7 @@ class InstrumentPrompts(BaseEnum):
     CHANGE_TIME = 'Change time & date (Yes/No) [N] ?\a\b'
     
 class InstrumentCmds(BaseEnum):
-    EXIT_SUB_MENU = '\x03'   # CTRL-C (end of text)
+    CONTROL_C     = '\x03'   # CTRL-C (end of text)
     DEPLOY_GO     = '\a'     # CTRL-G (bell)
     SET_TIME      = '1'
     ENTER_TIME    = ''
@@ -258,18 +262,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # Set state machine in UNKNOWN state. 
         self._protocol_fsm.start(ProtocolStates.UNKNOWN)
 
-        # these build handlers will be called by the base class during the
-        # navigate_and_execute sequence.        
-        self._add_build_handler(InstrumentCmds.ENTER_TIME, self._build_time_command)
-        self._add_build_handler(InstrumentCmds.SET_TIME, self._build_keypress_command)
-        self._add_build_handler(InstrumentCmds.ANSWER_YES, self._build_keypress_command)
-        self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_keypress_command)
-        self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_keypress_command)
-        self._add_build_handler(InstrumentCmds.EXIT_SUB_MENU, self._build_keypress_command)
-        
-        # Add response handlers for device commands.
-        self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
-
+        self._build_command_handlers()
+ 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
@@ -330,7 +324,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         while True:
             for item in prompt_list:
-                if self._promptbuf.endswith(item):
+                if item in self._promptbuf:
                     return (item, self._linebuf)
                 else:
                     time.sleep(.1)
@@ -339,7 +333,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 log.debug("_get_response: promptbuf=%s (%s)" %(self._promptbuf, self._promptbuf.encode("hex")))
                 raise InstrumentTimeoutException("in InstrumentProtocol._get_response()")
 
-    def _navigate_and_execute(self, cmds, **kwargs):
+    def _navigate_and_execute(self, cmd, **kwargs):
         """
         Navigate to a sub-menu and execute a list of commands instead of just one command as in the base class.  
         @param cmds The list of commands to execute.
@@ -350,8 +344,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
-
-        resp_result = None
 
         # Get dest_submenu 
         dest_submenu = kwargs.pop('dest_submenu', None)
@@ -367,14 +359,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             timeout = directions.get_timeout()
             self._do_cmd_resp(command, expected_prompt = response, timeout = timeout)
 
-        for interaction in cmds:
-            command = interaction[0]
-            response = interaction[1]
-            log.debug('_navigate_and_execute: sending cmd: %s with expected response %s and kwargs: %s to _do_cmd_resp.' 
-                      %(command, response, kwargs))
-            resp_result = self._do_cmd_resp(command, expected_prompt = response, **kwargs)
- 
-        return resp_result
+        command = cmd
+        while command != None:
+            log.debug('_navigate_and_execute: sending cmd:%s, kwargs: %s to _do_cmd_resp.' 
+                      %(command, kwargs))
+            command = self._do_cmd_resp(command, **kwargs)
 
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
@@ -398,37 +387,58 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if not build_handler:
             raise InstrumentProtocolException('_do_cmd_resp: Cannot build command: %s' % cmd)
         
-        value = kwargs.get('value', None)
+        val = kwargs.get('value', None)
 
-        cmd_line = build_handler(cmd, value)
-        
-        self._linebuf = ''
-        self._promptbuf = ''
+        (cmd_line, expected_response, next_cmd) = build_handler(command=cmd, value=val)
+        if expected_prompt == None:
+            expected_prompt = expected_response
+            
+        print("cl=%s" %cmd_line)
+        print("ep=%s" %expected_prompt)
         
         # Send command.
         log.debug('mavs4InstrumentProtocol._do_cmd_resp: <%s> (%s), timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,' 
-                  %(cmd_line, cmd_line.encode("hex"), timeout, expected_prompt, expected_prompt.encode("hex")))
-        if cmd_line == InstrumentCmds.EXIT_SUB_MENU:
-            self._connection.send(cmd_line)
-        else:
-            for char in cmd_line:        # Clear line and prompt buffers for result.
-                self._linebuf = ''
-                self._promptbuf = ''
-                log.debug('mavs4InstrumentProtocol._do_cmd_resp: sending char <%s>' %char)
-                self._connection.send(char)
-                # Wait for the character to be echoed, timeout exception
-                self._get_response(timeout, expected_prompt='%s'%char)
-            self._connection.send(INSTRUMENT_NEWLINE)
+                  %(cmd_line, cmd_line.encode("hex"), timeout, expected_prompt, 
+                    expected_prompt.encode("hex") if expected_prompt != None else ''))
+        for char in cmd_line:       
+            self._linebuf = ''      # Clear line and prompt buffers for result.
+            self._promptbuf = ''
+            log.debug('mavs4InstrumentProtocol._do_cmd_resp: sending char <%s>' %char)
+            self._connection.send(char)
+            # Wait for the character to be echoed, timeout exception
+            self._get_response(timeout, expected_prompt='%s'%char)
+        self._connection.send(INSTRUMENT_NEWLINE)
         log.debug('mavs4InstrumentProtocol._do_cmd_resp: command sent, looking for response')
         (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
         resp_handler = self._response_handlers.get(cmd, None)
-        resp_result = None
         if resp_handler:
             resp_result = resp_handler(result, prompt)
-        return resp_result
+        else:
+            resp_result = None
+        if next_cmd == None:
+            next_cmd = resp_result
+        return next_cmd
    
     def _go_to_root_menu(self):
-        self._do_cmd_resp(InstrumentCmds.EXIT_SUB_MENU, expected_prompt=InstrumentPrompts.MAIN_MENU, timeout=4)
+        for attempt in range(0,5):
+            self._linebuf = ''
+            self._promptbuf = ''
+            log.debug("_go_to_root_menu: sending 3 control-c characters in case instrument is asleep")
+            # need to spoon feed this instrument or it drops characters (sigh!)
+            self._connection.send(InstrumentCmds.CONTROL_C)
+            time.sleep(.1)
+            self._connection.send(InstrumentCmds.CONTROL_C)
+            time.sleep(.1)
+            self._connection.send(InstrumentCmds.CONTROL_C)
+            time.sleep(.1)            
+            (prompt, result) = self._get_response(timeout= 4,
+                                                  expected_prompt=[InstrumentPrompts.MAIN_MENU,
+                                                                   InstrumentPrompts.WAKEUP,
+                                                                   InstrumentPrompts.SLEEPING])
+            log.debug("_go_to_root_menu: got prompt %s" %prompt)
+            if prompt == InstrumentPrompts.MAIN_MENU:
+                return
+                
                           
     def _float_to_string(self, v):
         """
@@ -447,6 +457,23 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             return str(v)
                 
 
+    def _build_keypress_command(self, **kwargs):
+        """
+        Builder for simple, non-EOLN-terminated commands
+        over-ridden to return dictionary expected by this classes _do_cmd_resp() method
+
+        @param cmd The command to build
+        @param args Unused arguments
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device (set to None to indicate not specified)
+            The next command to be sent to device (set to None to indicate not specified)
+        """
+        cmd = kwargs.get('command', None)
+        if cmd == None:
+            raise InstrumentParameterException('_build_keypress_command: command not specified.')
+        return ("%s" %(cmd), None, None)
+    
     ########################################################################
     # State Unknown handlers.
     ########################################################################
@@ -556,8 +583,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 raise InstrumentTimeoutException()
                                     
             dest_submenu = self._param_dict.get_menu_path_write(key)
-            commands = self._param_dict.get_submenu_write(key)
-            self._navigate_and_execute(commands, value=val, dest_submenu=dest_submenu, timeout=5)
+            command = self._param_dict.get_submenu_write(key)
+            self._navigate_and_execute(command, value=val, dest_submenu=dest_submenu, timeout=5)
 
         self._update_params()
             
@@ -780,10 +807,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda string : string,
                              value='',
                              menu_path_read=SubMenues.ROOT,
-                             submenu_read=[[InstrumentCmds.SET_TIME, InstrumentPrompts.SET_TIME]],
+                             submenu_read=InstrumentCmds.SET_TIME,
                              menu_path_write=SubMenues.SET_TIME,
-                             submenu_write=[[InstrumentCmds.ENTER_TIME, InstrumentPrompts.SET_TIME],
-                                            [InstrumentCmds.ANSWER_YES, InstrumentPrompts.SET_TIME]])
+                             submenu_write=InstrumentCmds.ENTER_TIME)
 
         self._param_dict.add(InstrumentParameters.DATA_MONITOR,
                              '', 
@@ -833,6 +859,63 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              self._int_to_string,
                              value=0)
 
+    def _build_command_handlers(self):
+        # these build handlers will be called by the base class during the
+        # navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ENTER_TIME, self._build_enter_time_command)
+        self._add_build_handler(InstrumentCmds.SET_TIME, self._build_keypress_command)
+        self._add_build_handler(InstrumentCmds.ANSWER_YES, self._build_answer_yes_command)
+        self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_keypress_command)
+        self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_keypress_command)
+        
+        # Add response handlers for device commands.
+        self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
+        
+    def _build_enter_time_command(self, **kwargs):
+        """
+        Build handler for time set command 
+        String cmd constructed by param dict formatting function.
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device
+        """
+        val = kwargs.get('value', None)
+        if val == None:
+            raise InstrumentParameterException('set time command requires a value.')
+        cmd = self._param_dict.format(InstrumentParameters.SYS_CLOCK, val)
+        log.debug("_build_enter_time_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.SET_TIME, InstrumentCmds.ANSWER_YES)
+
+    def _build_answer_yes_command(self, **kwargs):
+        """
+        Build handler for answer yes command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device (set to None to indicate there isn't one)
+        """
+        cmd = InstrumentCmds.ANSWER_YES
+        log.debug("_build_answer_yes_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.SET_TIME, None)
+
+    def _parse_time_response(self, response, prompt):
+        """
+        Parse handler for upload command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if upload command misunderstood.
+        @ retval The next command to be sent to device (set to None to indicate there isn't one)
+        """
+        if not InstrumentPrompts.GET_TIME in response:
+            raise InstrumentProtocolException('get time command not recognized: %s.' % response)
+        
+        log.debug("_parse_time_response: response=%s" %response)
+
+        if not self._param_dict.update(InstrumentParameters.SYS_CLOCK, response.splitlines()[-1]):
+            log.debug('_parse_time_response: Failed to parse %s' %InstrumentParameters.SYS_CLOCK)
+        return None
+              
     def  _get_prompt(self, timeout, delay=4):
         """
         _wakeup is replaced by this method for this instrument to search for 
@@ -851,6 +934,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # Grab time for timeout.
         starttime = time.time()
         
+        prompts = self._sorted_longest_to_shortest(self._prompts.list())
+        log.debug("prompts=%s" %prompts)
+        
         while True:
             # Send a line return and wait a sec.
             log.debug('Sending 2 newlines to get a response from the instrument.')
@@ -858,9 +944,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             self._connection.send(INSTRUMENT_NEWLINE + INSTRUMENT_NEWLINE)
             time.sleep(delay)
             
-            for item in self._prompts.list():
-                if self._promptbuf.endswith(item):
-                    log.debug('wakeup got prompt: %s' % repr(item))
+            for item in prompts:
+                if item in self._promptbuf:
+                    log.debug('_get_prompt got prompt: %s' % repr(item))
                     return item
 
             if time.time() > starttime + timeout:
@@ -899,37 +985,13 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             commands = self._param_dict.get_submenu_read(key)
             self._navigate_and_execute(commands, dest_submenu=dest_submenu, timeout=5)
 
-
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-
-    def _build_time_command(self, throw_away, val):
-        """
-        Build handler for time set command 
-        String cmd constructed by param dict formatting function.
-        @ retval The set command to be sent to the device.
-        """
-        cmd = self._param_dict.format(InstrumentParameters.SYS_CLOCK, val)
- 
-        log.debug("_build_time_command: cmd=%s" %cmd)
-        return cmd
-
-    def _parse_time_response(self, response, prompt):
-        """
-        Parse handler for upload command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if upload command misunderstood.
-        """
-        if not InstrumentPrompts.GET_TIME in response:
-            raise InstrumentProtocolException('get time command not recognized: %s.' % response)
-        
-        log.debug("_parse_time_response: response=%s" %response)
-
-        if not self._param_dict.update(InstrumentParameters.SYS_CLOCK, response.splitlines()[-1]):
-            log.debug('_parse_time_response: Failed to parse %s' %InstrumentParameters.SYS_CLOCK)
-              
-
+            
+    def _sorted_longest_to_shortest(self, list):
+        sorted_list = sorted(list, key=len, reverse=True)
+        #log.debug("list=%s \nsorted=%s" %(list, sorted_list))
+        return sorted_list
