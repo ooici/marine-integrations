@@ -1615,8 +1615,10 @@ class Protocol(SeaBirdProtocol):
                 else:
                     self._connection.send(NEWLINE)
             elif "wave Sample duration (0.25, 0.50, 0.75, 1.0) seconds" in response:
+                # WAVE_SAMPLES_SCANS_PER_SECOND = 4, wave Sample duration = 1/4...
                 if 'WAVE_SAMPLES_SCANS_PER_SECOND' in self._sampling_args:
-                    self._connection.send(self._float_to_string(1 / self._sampling_args['WAVE_SAMPLES_SCANS_PER_SECOND']) + NEWLINE)
+                    val = float(1.0 / float(self._sampling_args['WAVE_SAMPLES_SCANS_PER_SECOND']))
+                    self._connection.send(self._float_to_string(val) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
             elif "use start time (y/n)" in response:
@@ -2248,7 +2250,7 @@ class Protocol(SeaBirdProtocol):
 
         #
         # Next 3 work together to pull 3 values out of a single line.
-        #
+        # 1000 wave samples/burst at 4.00 scans/sec, duration = 250 seconds
         self._param_dict.add(Parameter.WAVE_SAMPLES_PER_BURST,
             ds_line_10,
             lambda match : int(match.group(1)),
@@ -2590,7 +2592,6 @@ class Protocol(SeaBirdProtocol):
         @retval a float string formatted for sbe37 set operations.
         @throws InstrumentParameterException if value is not a float.
         """
-
 
         if not isinstance(v, float):
             raise InstrumentParameterException('Value %s is not a float.' % v)

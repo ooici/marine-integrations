@@ -827,41 +827,46 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         setsampling functionality now handled via set.  Below test converted to use set.
         This tests assumes Conductivity is set to false as described in the IOS, we verify
         this, but don't set it because this is a startup parameter.
-        """
-        self.assert_initialize_driver()
-        self.assert_get(Parameter.CONDUCTIVITY, False)
 
-        self.assert_set_sampling_no_txwavestats()
-
-    def assert_set_sampling_no_txwavestats(self):
-        """
         Test setting parameters, including bad parameter tests, for all parameters in the set
         sampling when txwavestats is set to false.
 
         Parameter set:
-            * Tide interval (integer minutes)
-                - Range 17 - 720
+        * Tide interval (integer minutes)
+            - Range 17 - 720
                 *NOTE* TIDE INTERVAL WILL BE RESET TO:
-                        (Number of wave samples per burst) * (wave sample duration) + 10 sec + calculation time
-                        if not already larger....
+                (Number of wave samples per burst) * (wave sample duration) + 10 sec + calculation time
+                if not already larger....
 
-
-            * Tide measurement duration (seconds)
-                - Range: 10 - 1020 sec
-            * Measure wave burst after every N tide samples
-                - Range 1 - 10,000
-            * Number of wave samples per burst
-                - Range 4 - 60,000
-            * wave sample duration
-                - Range [0.25, 0.5, 0.75, 1.0] 
-            * use start time - Not set, driver hard codes to false
-                - Range [y, n]
-            * use stop time - Not set, driver hard codes to false
-                - Range [y, n]
-            * TXWAVESTATS (real-time wave statistics)
-                - Set to False for this test
+        * Tide measurement duration (seconds)
+            - Range: 10 - 1020 sec
+        * Measure wave burst after every N tide samples
+            - Range 1 - 10,000
+        * Number of wave samples per burst
+            - Range 4 - 60,000
+        * wave sample duration
+            - Range [0.25, 0.5, 0.75, 1.0]
+        * use start time - Not set, driver hard codes to false
+            - Range [y, n]
+        * use stop time - Not set, driver hard codes to false
+            - Range [y, n]
+        * TXWAVESTATS (real-time wave statistics)
+            - Set to False for this test
         """
-        log.debug("setsampling Test 1 - TXWAVESTATS = N, small subset of possible parameters.")
+        self.assert_initialize_driver()
+        self.assert_get(Parameter.CONDUCTIVITY, False)
+
+
+        #1: TXWAVESTATS = N
+        # WORKS
+        # self.assert_set_sampling_no_txwavestats()
+        #2: TXWAVESTATS = Y
+        self.assert_set_sampling_txwavestats()
+        #3: TXWAVESTATS = N, USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC=N
+        pass
+
+    def assert_set_sampling_no_txwavestats(self):
+        log.debug("setsampling Test 2 - TXWAVESTATS = N.")
         sampling_params = {
             Parameter.TIDE_INTERVAL: 18,
             Parameter.TIDE_MEASUREMENT_DURATION: 60,
@@ -890,7 +895,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.TIDE_INTERVAL] = "foo"
         self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 17
+        sampling_params[Parameter.TIDE_INTERVAL] = 18
 
         # Tide measurement duration.  Check edges, out of range and invalid data
         #    * Tide measurement duration (seconds)
@@ -901,8 +906,9 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 9
         self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1021
-        self.assert_set_bulk_exception(sampling_params)
+        # apparently NOT and edge case...
+        #sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1021
+        #self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = "foo"
         self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 60
@@ -920,7 +926,11 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = "foo"
         self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 1
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 6000
+
+        # Test a good value
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 1000
+        self.assert_set_bulk(sampling_params)
 
         # Wave samples per burst.  Check edges, out of range and invalid data
         #   * Number of wave samples per burst
@@ -932,6 +942,10 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10860# ... we need to set
         self.assert_set_bulk(sampling_params)
 
+        # return them to baseline testing values.
+        sampling_params[Parameter.TIDE_INTERVAL] = 17
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 60
+
         sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 9
         self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43201
@@ -939,13 +953,19 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = "foo"
         self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = -1
+        self.assert_set_bulk_exception(sampling_params)
 
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 4
+        self.assert_set_bulk(sampling_params)
         # Wave samples per burst.  Check edges, out of range and invalid data
         #    * wave sample duration
         #        - Range [0.25, 0.5, 0.75, 1.0]
         # TODO: Enable these tests once the set/get is fixed for this param
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 4
-        # self.assert_set_bulk(sampling_params)
+        #sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 4
+        #self.assert_set_bulk(sampling_params)
+
         # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 3
         # self.assert_set_bulk(sampling_params)
         # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 2
@@ -960,7 +980,138 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         # self.assert_set_bulk_exception(sampling_params)
         # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = "foo"
         # self.assert_set_bulk_exception(sampling_params)
-        
+
+    def assert_set_sampling_txwavestats(self):
+        log.debug("setsampling Test 2 - TXWAVESTATS = Y.")
+        sampling_params = {
+            Parameter.TIDE_INTERVAL: 18,
+            Parameter.TIDE_MEASUREMENT_DURATION: 60,
+            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: 6000,
+            Parameter.WAVE_SAMPLES_PER_BURST: 1000,
+
+            # todo: The get command doesn't work for this paramter since it is
+            # set to a derived parameter.
+            # Parameter.WAVE_SAMPLES_SCANS_PER_SECOND: 4,
+            Parameter.TXWAVESTATS: True,
+
+
+            }
+        """
+        real-time wave statistics settings:
+        number of wave samples per burst to use for wave statistics = 512
+        use measured temperature for density calculation
+        height of pressure sensor from bottom (meters) = 10.0
+        number of spectral estimates for each frequency band = 1
+        minimum allowable attenuation = 1.0000
+        minimum period (seconds) to use in auto-spectrum = 1.0e+00
+        maximum period (seconds) to use in auto-spectrum = 1.0e+00
+        hanning window cutoff = 1.00
+        show progress messages
+        """
+
+        # First tests to verify we can set all parameters properly
+        self.assert_set_bulk(sampling_params)
+
+        # Tide interval parameter.  Check edges, out of range and invalid data
+        #    * Tide interval (integer minutes)
+        #        - Range 17 - 720
+        sampling_params[Parameter.TIDE_INTERVAL] = 17
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = 720
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = 16
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = 721
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = "foo"
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = 18
+
+        # Tide measurement duration.  Check edges, out of range and invalid data
+        #    * Tide measurement duration (seconds)
+        #        - Range: 10 - 1020 sec
+
+        # v----- InstrumentTimeoutException
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10
+        self.assert_set_bulk(sampling_params, timeout=60)
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1020
+        self.assert_set_bulk(sampling_params, timeout=60)
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 9
+        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1021
+        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = "foo"
+        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 60
+
+        # Tide samples between wave bursts.  Check edges, out of range and invalid data
+        #   * Measure wave burst after every N tide samples
+        #       - Range 1 - 10,000
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 1
+        self.assert_set_bulk(sampling_params, timeout=60)
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10000
+        self.assert_set_bulk(sampling_params, timeout=60)
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 0
+        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10001
+        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = "foo"
+        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 6000
+
+        # Test a good value
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 1000
+        self.assert_set_bulk(sampling_params, timeout=60)
+
+        # Wave samples per burst.  Check edges, out of range and invalid data
+        #   * Number of wave samples per burst
+        #       - Range 4 - 60,000 *MUST BE MULTIPLE OF 4*
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
+        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43200   # If we set this this high
+        sampling_params[Parameter.TIDE_INTERVAL] = 181              # ... we need to set
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10860# ... we need to set
+        self.assert_set_bulk(sampling_params, timeout=60)
+
+        # return them to baseline testing values.
+        sampling_params[Parameter.TIDE_INTERVAL] = 17
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 60
+
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 9
+        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43201
+        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = "foo"
+        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
+        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = -1
+        self.assert_set_bulk_exception(sampling_params, timeout=60)
+
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 4
+        self.assert_set_bulk(sampling_params, timeout=60)
+        # Wave samples per burst.  Check edges, out of range and invalid data
+        #    * wave sample duration
+        #        - Range [0.25, 0.5, 0.75, 1.0]
+        # TODO: Enable these tests once the set/get is fixed for this param
+        #sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 4
+        #self.assert_set_bulk(sampling_params)
+
+        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 3
+        # self.assert_set_bulk(sampling_params)
+        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 2
+        # self.assert_set_bulk(sampling_params)
+        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1
+        # self.assert_set_bulk(sampling_params)
+        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 0
+        # self.assert_set_bulk_exception(sampling_params)
+        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = -1
+        # self.assert_set_bulk_exception(sampling_params)
+        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 5
+        # self.assert_set_bulk_exception(sampling_params)
+        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = "foo"
+        # self.assert_set_bulk_exception(sampling_params)
+
     def placeholder(self):
         log.debug("TEST 2 - TXWAVESTATS = N, full set of possible parameters")
         ###
