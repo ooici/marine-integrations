@@ -393,9 +393,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if expected_prompt == None:
             expected_prompt = expected_response
             
-        print("cl=%s" %cmd_line)
-        print("ep=%s" %expected_prompt)
-        
         # Send command.
         log.debug('mavs4InstrumentProtocol._do_cmd_resp: <%s> (%s), timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,' 
                   %(cmd_line, cmd_line.encode("hex"), timeout, expected_prompt, 
@@ -863,7 +860,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # these build handlers will be called by the base class during the
         # navigate_and_execute sequence.        
         self._add_build_handler(InstrumentCmds.ENTER_TIME, self._build_enter_time_command)
-        self._add_build_handler(InstrumentCmds.SET_TIME, self._build_keypress_command)
+        self._add_build_handler(InstrumentCmds.SET_TIME, self._build_set_time_command)
         self._add_build_handler(InstrumentCmds.ANSWER_YES, self._build_answer_yes_command)
         self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_keypress_command)
         self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_keypress_command)
@@ -887,6 +884,18 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         log.debug("_build_enter_time_command: cmd=%s" %cmd)
         return (cmd, InstrumentPrompts.SET_TIME, InstrumentCmds.ANSWER_YES)
 
+    def _build_set_time_command(self, **kwargs):
+        """
+        Build handler for time set command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device (set to None to indicate there isn't one)
+        """
+        cmd = InstrumentCmds.SET_TIME
+        log.debug("_build_set_time_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.SET_TIME, None)
+
     def _build_answer_yes_command(self, **kwargs):
         """
         Build handler for answer yes command 
@@ -908,7 +917,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @ retval The next command to be sent to device (set to None to indicate there isn't one)
         """
         if not InstrumentPrompts.GET_TIME in response:
-            raise InstrumentProtocolException('get time command not recognized: %s.' % response)
+            raise InstrumentProtocolException('get time command not recognized by instrument: %s.' % response)
         
         log.debug("_parse_time_response: response=%s" %response)
 
