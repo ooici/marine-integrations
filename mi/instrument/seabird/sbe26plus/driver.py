@@ -218,7 +218,7 @@ class Parameter(DriverParameter):
     TXREALTIME = 'TxTide' # bool,
     TXWAVEBURST = 'TxWave' # bool,
     NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' # int,
-    USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' # bool,
+    USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC_ROGER' # bool,
     AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR'
     AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = 'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR'
     PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM = 'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM' # float,
@@ -1653,16 +1653,17 @@ class Protocol(SeaBirdProtocol):
                     self._connection.send(self._int_to_string(self._sampling_args['NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS']) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
-            elif "use measured temperature and conductivity for density calculation (y/n) = " in response:
+            elif "use measured temperature and conductivity for density calculation (y/n) = " in response  or \
+                 "use measured temperature for density calculation " in response:
                 if 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' in self._sampling_args:
                     self._connection.send(self._true_false_to_string(self._sampling_args['USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC']) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
-            elif "use measured temperature for density calculation " in response:
-                if 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' in self._sampling_args:
-                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC']) + NEWLINE)
-                else:
-                    self._connection.send(NEWLINE)
+            #elif "use measured temperature for density calculation " in response:
+            #    if 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' in self._sampling_args:
+            #        self._connection.send(self._true_false_to_string(self._sampling_args['USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC']) + NEWLINE)
+            #    else:
+            #        self._connection.send(NEWLINE)
             elif "average water temperature above the pressure sensor (deg C) = " in response:
                 if 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR' in self._sampling_args:
                     self._connection.send(self._float_to_string(self._sampling_args['AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR']) + NEWLINE)
@@ -2082,8 +2083,9 @@ class Protocol(SeaBirdProtocol):
         # real-time wave statistics settings:
         ds_line_24 = r' +number of wave samples per burst to use for wave statistics = (\d+)'
 
-        ds_line_25_a = r' +(do not|) use measured temperature and conductivity for density calculation'
-        ds_line_25_b = r' +(do not|) use measured temperature for density calculation'
+        #             '  use measured temperature for density calculation'
+        ds_line_25 = r' +(do not |)use measured temperature (and conductivity |)for density calculation'
+        #ds_line_25_b = r' +(do not|) use measured temperature for density calculation'
 
         ds_line_26 = r' +average water temperature above the pressure sensor \(deg C\) = ([\d.]+)' # float
         ds_line_27 = r' +average salinity above the pressure sensor \(PSU\) = ([\d.]+)' # float
@@ -2358,14 +2360,14 @@ class Protocol(SeaBirdProtocol):
             self._int_to_string)
 
         self._param_dict.add(Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC,
-            ds_line_25_a,
+            ds_line_25,
             lambda match : False if (match.group(1)=='do not') else True,
             self._true_false_to_string)
 
-        self._param_dict.add(Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC,
-            ds_line_25_b,
-            lambda match : True if (match.group(1)=='do not') else False,
-            self._true_false_to_string)
+        #self._param_dict.add(Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC,
+        #    ds_line_25_b,
+        #    lambda match : True if (match.group(1)=='do not') else False,
+        #    self._true_false_to_string)
 
         self._param_dict.add(Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR,
             ds_line_26,
@@ -2458,6 +2460,7 @@ class Protocol(SeaBirdProtocol):
             raise InstrumentProtocolException('ds command not recognized: %s.' % response)
 
         for line in response.split(NEWLINE):
+            log.debug("_parse_ds_response -- " + line)
             hit_count = self._param_dict.multi_match_update(line)
 
         # return the Ds as text
