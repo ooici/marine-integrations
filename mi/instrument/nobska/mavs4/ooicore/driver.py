@@ -31,7 +31,9 @@ from mi.core.exceptions import InstrumentTimeoutException, \
                                InstrumentParameterException, \
                                InstrumentProtocolException, \
                                InstrumentStateException
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
+from mi.core.instrument.protocol_param_dict import ParameterDictVal
 from mi.core.common import InstErrorCode
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
@@ -59,30 +61,29 @@ class InstrumentPrompts(BaseEnum):
     MAVS-4 prompts.
     The main menu prompt has 2 bells and the sub menu prompts have one; the PicoDOS prompt has none.
     """
-    MAIN_MENU   = '\a\b ? \a\b'
-    SUB_MENU    = '\a\b'
-    PICO_DOS    = 'Enter command >> '
-    SLEEPING    = 'Sleeping . . .'
-    WAKEUP      = 'Enter <CTRL>-<C> now to wake up?'
-    DEPLOY      = '>>> <CTRL>-<C> to terminate deployment <<<'
-    UPLOAD      = '\x04'    # EOT
-    DOWNLOAD    = ' \a'
-    SET_DONE    = 'New parameters accepted.'
-    SET_FAILED  = 'Invalid entry'
-    SET_TIME    = '] ? \a\b'
-    GET_TIME    = 'Enter correct time ['
-    CHANGE_TIME = 'Change time & date (Yes/No) [N] ?\a\b'
+    MAIN_MENU     = '\a\b ? \a\b'
+    SUB_MENU      = '\a\b'
+    PICO_DOS      = 'Enter command >> '
+    SLEEPING      = 'Sleeping . . .'
+    SLEEP_WAKEUP  = 'Enter <CTRL>-<C> now to wake up?'
+    DEPLOY_WAKEUP = '>>> <CTRL>-<C> to terminate deployment <<<'
+    SET_DONE      = 'New parameters accepted.'
+    SET_FAILED    = 'Invalid entry'
+    SET_TIME      = '] ? \a\b'
+    GET_TIME      = 'Enter correct time ['
+    CHANGE_TIME   = 'Change time & date (Yes/No) [N] ?\a\b'
+    NOTE_INPUT    = '> '
+    DEPLOY_MENU   = 'G| Go (<CTRL>-<G> skips checks)\r\n\r\n'
     
 class InstrumentCmds(BaseEnum):
     CONTROL_C     = '\x03'   # CTRL-C (end of text)
     DEPLOY_GO     = '\a'     # CTRL-G (bell)
     SET_TIME      = '1'
-    ENTER_TIME    = ''
+    ENTER_TIME    = 'enter_time'
     ANSWER_YES    = 'y'
     DEPLOY_MENU   = '6'
-    UPLOAD        = 'u'
-    DOWNLOAD      = 'b'
-    END_OF_TRANS  = '\x04'   # CTRL-D (end of transmission)
+    SET_NOTE      = 'set_note'
+    ENTER_NOTE    = 'enter_note'
 
 class ProtocolStates(BaseEnum):
     """
@@ -127,14 +128,22 @@ class InstrumentParameters(DriverParameter):
     Device parameters for MAVS-4.
     """
     SYS_CLOCK = 'sys_clock'
-    DATA_MONITOR = 'DataMonitor'
-    QUERY_MODE = 'QueryMode'
-    MEASUREMENT_FREQUENCY = 'MeasurementFrequency'
-    MEASUREMENTS_PER_SAMPLE = 'MeasurementsPerSample'
-    SAMPLE_PERIOD_SECS = 'SamplePeriod.secs'
-    SAMPLE_PERIOD_TICKS = 'SamplePeriod.ticks'
-    SAMPLES_PER_BURST = 'SamplesPerBurst'
-    INTERVAL_BETWEEN_BURSTS = 'IntervalBetweenBursts'
+    NOTE1 = 'note1'
+    NOTE2 = 'note2'
+    NOTE3 = 'note3'
+    VELOCITY_FRAME = 'velocity_frame'
+    MONITOR = 'monitor'
+    QUERY_MODE = 'query_mode'
+    MEASUREMENT_FREQUENCY = 'measurement_frequency'
+    MEASUREMENTS_PER_SAMPLE = 'measurements_per_sample'
+    SAMPLE_PERIOD = 'sample_period'
+    SAMPLES_PER_BURST = 'samples_per_burst'
+    BURST_INTERVAL = 'bursts_interval'
+    
+class DeployMenuParameters(BaseEnum):
+    NOTE1 = InstrumentParameters.NOTE1
+    NOTE2 = InstrumentParameters.NOTE2
+    NOTE3 = InstrumentParameters.NOTE3
 
 class SubMenues(BaseEnum):
     ROOT        = 'root_menu'
@@ -148,8 +157,107 @@ class SubMenues(BaseEnum):
     PICO_DOS    = 'pico_dos'
     DUMMY       = 'dummy'
 
+class MultilineParameterDictVal(ParameterDictVal):
+    
+    def __init__(self, name, pattern, f_getval, f_format, value=None,
+                 visibility=ParameterDictVisibility.READ_WRITE,
+                 menu_path_read=None,
+                 submenu_read=None,
+                 menu_path_write=None,
+                 submenu_write=None,                 
+                 multi_match=False,
+                 direct_access=False,
+                 startup_param=True,
+                 default_value=None,
+                 init_value=None):
+        """
+        Parameter value constructor.
+        @param name The parameter name.
+        @param pattern The regex that matches the parameter in line output.
+        @param f_getval The fuction that extracts the value from a regex match.
+        @param f_format The function that formats the parameter value for a set command.
+        @param visibility The ParameterDictVisibility value that indicates what
+        the access to this parameter is
+        @param menu_path The path of menu options required to get to the parameter
+        value display when presented in a menu-based instrument
+        @param value The parameter value (initializes to None).
+        """
+        self.name = name
+        self.pattern = pattern
+        #log.debug('BinaryParameterDictVal.__int__(); pattern=%s' %pattern)
+        self.regex = re.compile(pattern, re.DOTALL)
+        self.f_getval = f_getval
+        self.f_format = f_format
+        self.value = value
+        self.menu_path_read = menu_path_read
+        self.submenu_read = submenu_read
+        self.menu_path_write = menu_path_write
+        self.submenu_write = submenu_write
+        self.visibility = visibility
+        self.multi_match = multi_match
+        self.direct_access = direct_access
+        self.startup_param = startup_param
+        self.default_value = default_value
+        self.init_value = init_value        
+
+    def update(self, input):
+        """
+        Attempt to udpate a parameter value. If the input string matches the
+        value regex, extract and update the dictionary value.
+        @param input A string possibly containing the parameter value.
+        @retval True if an update was successful, False otherwise.
+        """
+        match = self.regex.search(input)
+        #log.debug("MultilineParameterDictVal.update: match=<%s> input=<%s>" %(match.group(0), input))
+        if match:
+            self.value = self.f_getval(match)
+            log.debug('MultilineParameterDictVal.update: Updated parameter %s=<%s>', self.name, str(self.value))
+            return True
+        else:
+            return False
+
 class Mavs4ProtocolParameterDict(ProtocolParameterDict):
     
+    def add(self, name, pattern, f_getval, f_format, value=None,
+            visibility=ParameterDictVisibility.READ_WRITE,
+            menu_path_read=None, submenu_read=None,
+            menu_path_write=None, submenu_write=None,
+            multi_match=False, direct_access=False, startup_param=True,
+            default_value=None, init_value=None):
+        """
+        Add a parameter object to the dictionary.
+        @param name The parameter name.
+        @param pattern The regex that matches the parameter in line output.
+        @param f_getval The function that extracts the value from a regex match.
+        @param f_format The function that formats the parameter value for a set command.
+        @param visibility The ParameterDictVisibility value that indicates what
+        the access to this parameter is
+        @param menu_path The path of menu options required to get to the parameter
+        value display when presented in a menu-based instrument
+        @param direct_access T/F for tagging this as a direct access parameter
+        to be saved and restored in and out of direct access
+        @param startup_param T/F for tagging this as a startup parameter to be
+        applied when the instrument is first configured
+        @param default_value The default value to use for this parameter when
+        a value is needed, but no other instructions have been provided.
+        @param init_value The value that a parameter should be set to during
+        initialization or re-initialization
+        @param value The parameter value (initializes to None).        
+        """
+        val = MultilineParameterDictVal(name, pattern, f_getval, f_format,
+                                        value=value,
+                                        visibility=visibility,
+                                        menu_path_read=menu_path_read,
+                                        submenu_read=submenu_read,
+                                        menu_path_write=menu_path_write,
+                                        submenu_write=submenu_write,
+                                        multi_match=multi_match,
+                                        direct_access=direct_access,
+                                        startup_param=startup_param,
+                                        default_value=default_value,
+                                        init_value=init_value)
+        self._param_dict[name] = val
+        
     def set_from_string(self, name, line):
         """
         Set a parameter value in the dictionary.
@@ -185,7 +293,7 @@ class Mavs4ProtocolParameterDict(ProtocolParameterDict):
         return self._param_dict[name].f_format(self._param_dict[name].value)
     
     def update(self, name, response):
-        log.debug('Mavs4ProtocolParameterDict.update(): set %s from %s' %(name, response))
+        #log.debug('Mavs4ProtocolParameterDict.update(): set %s from %s' %(name, response))
         return self._param_dict[name].update(response)
 
 ###
@@ -230,7 +338,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         menu = MenuInstrumentProtocol.MenuTree({
             SubMenues.ROOT       : [],
             SubMenues.SET_TIME   : [Directions(InstrumentCmds.SET_TIME, InstrumentPrompts.SET_TIME)],
-            SubMenues.DEPLOY     : [Directions(InstrumentCmds.DEPLOY_MENU, InstrumentPrompts.SUB_MENU, 20)]
+            SubMenues.DEPLOY     : [Directions(InstrumentCmds.DEPLOY_MENU, InstrumentPrompts.DEPLOY_MENU, 20)]
             })
         
         MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event)
@@ -387,9 +495,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if not build_handler:
             raise InstrumentProtocolException('_do_cmd_resp: Cannot build command: %s' % cmd)
         
-        val = kwargs.get('value', None)
-
-        (cmd_line, expected_response, next_cmd) = build_handler(command=cmd, value=val)
+        (cmd_line, expected_response, next_cmd) = build_handler(command=cmd, **kwargs)
         if expected_prompt == None:
             expected_prompt = expected_response
             
@@ -409,7 +515,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
         resp_handler = self._response_handlers.get(cmd, None)
         if resp_handler:
-            resp_result = resp_handler(result, prompt)
+            resp_result = resp_handler(result, prompt, **kwargs)
         else:
             resp_result = None
         if next_cmd == None:
@@ -417,20 +523,31 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         return next_cmd
    
     def _go_to_root_menu(self):
+        # try to get main menu if instrument is not sleeping by sending one control-c
+        self._linebuf = ''
+        self._promptbuf = ''
+        self._connection.send(InstrumentCmds.CONTROL_C)
+        try:
+            (prompt, result) = self._get_response(timeout= 2, expected_prompt=[InstrumentPrompts.MAIN_MENU])
+        except:
+            log.debug("_go_to_root_menu: instrument must be asleep, will try to wake it up")
+        else:
+            log.debug("_go_to_root_menu: got main menu prompt")
+            if prompt == InstrumentPrompts.MAIN_MENU:
+                return
         for attempt in range(0,5):
             self._linebuf = ''
             self._promptbuf = ''
-            log.debug("_go_to_root_menu: sending 3 control-c characters in case instrument is asleep")
+            log.debug("_go_to_root_menu: sending 3 control-c characters to wake up sleeping instrument")
             # need to spoon feed this instrument or it drops characters (sigh!)
             self._connection.send(InstrumentCmds.CONTROL_C)
             time.sleep(.1)
             self._connection.send(InstrumentCmds.CONTROL_C)
             time.sleep(.1)
             self._connection.send(InstrumentCmds.CONTROL_C)
-            time.sleep(.1)            
             (prompt, result) = self._get_response(timeout= 4,
                                                   expected_prompt=[InstrumentPrompts.MAIN_MENU,
-                                                                   InstrumentPrompts.WAKEUP,
+                                                                   InstrumentPrompts.SLEEP_WAKEUP,
                                                                    InstrumentPrompts.SLEEPING])
             log.debug("_go_to_root_menu: got prompt %s" %prompt)
             if prompt == InstrumentPrompts.MAIN_MENU:
@@ -581,7 +698,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                                     
             dest_submenu = self._param_dict.get_menu_path_write(key)
             command = self._param_dict.get_submenu_write(key)
-            self._navigate_and_execute(command, value=val, dest_submenu=dest_submenu, timeout=5)
+            self._navigate_and_execute(command, name=key, value=val, dest_submenu=dest_submenu, timeout=5)
 
         self._update_params()
             
@@ -808,7 +925,37 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=SubMenues.SET_TIME,
                              submenu_write=InstrumentCmds.ENTER_TIME)
 
-        self._param_dict.add(InstrumentParameters.DATA_MONITOR,
+        self._param_dict.add(InstrumentParameters.NOTE1,
+                             r'.*Notes 1\| (.*?)\r\n.*', 
+                             lambda match : match.group(1),
+                             lambda string : string,
+                             value='',
+                             menu_path_read=SubMenues.ROOT,
+                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_write=SubMenues.DEPLOY,
+                             submenu_write=InstrumentCmds.SET_NOTE)
+
+        self._param_dict.add(InstrumentParameters.NOTE2,
+                             r'.*2\| (.*?)\r\n.*', 
+                             lambda match : match.group(1),
+                             lambda string : string,
+                             value='',
+                             menu_path_read=SubMenues.ROOT,
+                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_write=SubMenues.DEPLOY,
+                             submenu_write=InstrumentCmds.SET_NOTE)
+
+        self._param_dict.add(InstrumentParameters.NOTE3,
+                             r'.*3\| (.*?)\r\n.*', 
+                             lambda match : match.group(1),
+                             lambda string : string,
+                             value='',
+                             menu_path_read=SubMenues.ROOT,
+                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_write=SubMenues.DEPLOY,
+                             submenu_write=InstrumentCmds.SET_NOTE)
+
+        self._param_dict.add(InstrumentParameters.MONITOR,
                              '', 
                              lambda line : int(line),
                              self._int_to_string,
@@ -832,13 +979,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              self._int_to_string,
                              value=0)
 
-        self._param_dict.add(InstrumentParameters.SAMPLE_PERIOD_SECS,
-                             '', 
-                             lambda line : int(line),
-                             self._int_to_string,
-                             value=0)
-
-        self._param_dict.add(InstrumentParameters.SAMPLE_PERIOD_TICKS,
+        self._param_dict.add(InstrumentParameters.SAMPLE_PERIOD,
                              '', 
                              lambda line : int(line),
                              self._int_to_string,
@@ -850,7 +991,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              self._int_to_string,
                              value=0)
 
-        self._param_dict.add(InstrumentParameters.INTERVAL_BETWEEN_BURSTS,
+        self._param_dict.add(InstrumentParameters.BURST_INTERVAL,
                              '', 
                              lambda line : int(line),
                              self._int_to_string,
@@ -859,15 +1000,60 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the
         # navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ENTER_NOTE, self._build_enter_note_command)
+        self._add_build_handler(InstrumentCmds.SET_NOTE, self._build_set_note_command)
+        self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_deploy_menu_command)
         self._add_build_handler(InstrumentCmds.ENTER_TIME, self._build_enter_time_command)
         self._add_build_handler(InstrumentCmds.SET_TIME, self._build_set_time_command)
         self._add_build_handler(InstrumentCmds.ANSWER_YES, self._build_answer_yes_command)
-        self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_keypress_command)
-        self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_keypress_command)
+        #self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_deploy_go_command)
         
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
+        self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
         
+    def _build_enter_note_command(self, **kwargs):
+        """
+        Build handler for note set command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device (set to None to indicate there isn't one)
+        """
+        value = kwargs.get('value', None)
+        if value == None:
+            raise InstrumentParameterException('set note command requires a value.')
+        cmd = value
+        log.debug("_build_enter_note_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.DEPLOY_MENU, None)
+
+    def _build_set_note_command(self, **kwargs):
+        """
+        Build handler for note set command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        name = kwargs.get('name', None)
+        if name == None:
+            raise InstrumentParameterException('set note command requires a name.')
+        cmd = "%s" %(name[-1])
+        log.debug("_build_set_note_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.NOTE_INPUT, InstrumentCmds.ENTER_NOTE)
+
+    def _build_deploy_menu_command(self, **kwargs):
+        """
+        Build handler for entering deploy menu command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device (set to None to indicate there isn't one)
+        """
+        cmd = InstrumentCmds.DEPLOY_MENU
+        log.debug("_build_deploy_menu_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.DEPLOY_MENU, None)
+
     def _build_enter_time_command(self, **kwargs):
         """
         Build handler for time set command 
@@ -908,9 +1094,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         log.debug("_build_answer_yes_command: cmd=%s" %cmd)
         return (cmd, InstrumentPrompts.SET_TIME, None)
 
-    def _parse_time_response(self, response, prompt):
+    def _parse_time_response(self, response, prompt, **kwargs):
         """
-        Parse handler for upload command.
+        Parse handler for time command.
         @param response command response string.
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if upload command misunderstood.
@@ -925,7 +1111,24 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             log.debug('_parse_time_response: Failed to parse %s' %InstrumentParameters.SYS_CLOCK)
         return None
               
-    def  _get_prompt(self, timeout, delay=4):
+    def _parse_deploy_menu_response(self, response, prompt, **kwargs):
+        """
+        Parse handler for deploy command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if upload command misunderstood.
+        @ retval The next command to be sent to device (set to None to indicate there isn't one)
+        """
+        if not InstrumentPrompts.DEPLOY_MENU in response:
+            raise InstrumentProtocolException('deploy menu command not recognized by instrument: %s.' %response)
+        
+        for parameter in DeployMenuParameters.list():
+            #log.debug('_parse_deploy_menu_response: name=%s, response=%s' %(parameter, response))
+            if not self._param_dict.update(parameter, response):
+                log.debug('_parse_deploy_menu_response: Failed to parse %s' %parameter)
+        return None
+              
+    def  _get_prompt(self, timeout, delay=2):
         """
         _wakeup is replaced by this method for this instrument to search for 
         prompt strings at other than just the end of the line.  There is no 
@@ -943,14 +1146,18 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # Grab time for timeout.
         starttime = time.time()
         
+        # get longest prompt to match by sorting the prompts longest to shortest
         prompts = self._sorted_longest_to_shortest(self._prompts.list())
         log.debug("prompts=%s" %prompts)
         
         while True:
-            # Send a line return and wait a sec.
+            # Send a line return and wait a 2 sec.
             log.debug('Sending 2 newlines to get a response from the instrument.')
             # Send two newlines to attempt to wake the MAVS-4 device and get a response.
-            self._connection.send(INSTRUMENT_NEWLINE + INSTRUMENT_NEWLINE)
+            # need to spoon feed this instrument or it drops characters (sigh!)
+            self._connection.send(INSTRUMENT_NEWLINE)
+            time.sleep(.1)
+            self._connection.send(INSTRUMENT_NEWLINE)
             time.sleep(delay)
             
             for item in prompts:
@@ -974,9 +1181,19 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # Get old param dict config.
         old_config = self._param_dict.get_config()
         
-        params_to_get = [InstrumentParameters.SYS_CLOCK]
+        deploy_menu_prameters_parsed = False
+        
+        params_to_get = [InstrumentParameters.SYS_CLOCK,
+                         InstrumentParameters.NOTE1,
+                         InstrumentParameters.NOTE2,
+                         InstrumentParameters.NOTE3]
 
         for key in params_to_get:
+            if key in DeployMenuParameters.list():
+                if deploy_menu_prameters_parsed == True:
+                    continue
+                else:
+                    deploy_menu_prameters_parsed = True
             # go to root menu.
             got_prompt = False
             for i in range(10):
@@ -991,8 +1208,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 raise InstrumentTimeoutException()
                                     
             dest_submenu = self._param_dict.get_menu_path_read(key)
-            commands = self._param_dict.get_submenu_read(key)
-            self._navigate_and_execute(commands, dest_submenu=dest_submenu, timeout=5)
+            command = self._param_dict.get_submenu_read(key)
+            self._navigate_and_execute(command, name=key, dest_submenu=dest_submenu, timeout=10)
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.

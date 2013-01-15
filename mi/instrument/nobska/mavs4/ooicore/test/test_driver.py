@@ -78,26 +78,32 @@ DO_ECHO_CMD   = '\xff\xfb\x03\xff\xfd\x03\xff\xfd\x01'
 # Used to validate param config retrieved from driver.
 parameter_types = {
     InstrumentParameters.SYS_CLOCK : str,
-    InstrumentParameters.DATA_MONITOR : int,
+    InstrumentParameters.NOTE1 : str,
+    InstrumentParameters.NOTE2 : str,
+    InstrumentParameters.NOTE3 : str,
+    InstrumentParameters.VELOCITY_FRAME : int,
+    InstrumentParameters.MONITOR : int,
     InstrumentParameters.QUERY_MODE : int,
     InstrumentParameters.MEASUREMENT_FREQUENCY : float,
     InstrumentParameters.MEASUREMENTS_PER_SAMPLE : int,
-    InstrumentParameters.SAMPLE_PERIOD_SECS : int,
-    InstrumentParameters.SAMPLE_PERIOD_TICKS : int,
+    InstrumentParameters.SAMPLE_PERIOD : int,
     InstrumentParameters.SAMPLES_PER_BURST : int,
-    InstrumentParameters.INTERVAL_BETWEEN_BURSTS : int,
+    InstrumentParameters.BURST_INTERVAL : int,
 }
 
 parameter_list = [
     InstrumentParameters.SYS_CLOCK,
-    InstrumentParameters.DATA_MONITOR,
+    InstrumentParameters.NOTE1,
+    InstrumentParameters.NOTE2,
+    InstrumentParameters.NOTE3,
+    InstrumentParameters.VELOCITY_FRAME,
+    InstrumentParameters.MONITOR,
     InstrumentParameters.QUERY_MODE,
     InstrumentParameters.MEASUREMENT_FREQUENCY,
     InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
-    InstrumentParameters.SAMPLE_PERIOD_SECS,
-    InstrumentParameters.SAMPLE_PERIOD_TICKS,
+    InstrumentParameters.SAMPLE_PERIOD,
     InstrumentParameters.SAMPLES_PER_BURST,
-    InstrumentParameters.INTERVAL_BETWEEN_BURSTS,
+    InstrumentParameters.BURST_INTERVAL,
 ]
     
 ## Initialize the test configuration
@@ -275,7 +281,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
 
         # get the list of device parameters
         reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
-        self.assertParamDictionariesEqual(reply, parameter_types, True)
+        #self.assertParamDictionariesEqual(reply, parameter_types, True)
 
         """
         # Get all device parameters. Confirm all expected keys are retrieved
@@ -292,7 +298,8 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         """
         
         # Grab a subset of parameters.
-        params = [InstrumentParameters.SYS_CLOCK]
+        #params = [InstrumentParameters.SYS_CLOCK]
+        params = [InstrumentParameters.NOTE3]
         reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertParamDictionariesEqual(reply, parameter_types)
         for (name, value) in reply.iteritems():
@@ -302,13 +309,15 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         orig_params = reply
         
         # Construct new parameters to set.
-        new_params = {InstrumentParameters.SYS_CLOCK : '03/29/2002 11:11:42'}
+        #new_params = {InstrumentParameters.SYS_CLOCK : '03/29/2002 11:11:42'}
+        new_params = {InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())}
 
         # Set parameters and verify.
         reply = self.driver_client.cmd_dvr('set_resource', new_params)
         reply = self.driver_client.cmd_dvr('get_resource', params)
-        log.debug('set=%s, got=%s' %(new_params[InstrumentParameters.SYS_CLOCK], reply[InstrumentParameters.SYS_CLOCK]))
-        #self.assertParamVals(reply, new_params)
+        #log.debug('set=%s, got=%s' %(new_params[InstrumentParameters.SYS_CLOCK], reply[InstrumentParameters.SYS_CLOCK]))
+        log.debug('set=%s, got=%s' %(new_params[InstrumentParameters.NOTE3], reply[InstrumentParameters.NOTE3]))
+        self.assertParamVals(reply, new_params)
         
         """
         # Restore original parameters and verify.
