@@ -61,29 +61,33 @@ class InstrumentPrompts(BaseEnum):
     MAVS-4 prompts.
     The main menu prompt has 2 bells and the sub menu prompts have one; the PicoDOS prompt has none.
     """
-    MAIN_MENU     = '\a\b ? \a\b'
-    SUB_MENU      = '\a\b'
-    PICO_DOS      = 'Enter command >> '
-    SLEEPING      = 'Sleeping . . .'
-    SLEEP_WAKEUP  = 'Enter <CTRL>-<C> now to wake up?'
-    DEPLOY_WAKEUP = '>>> <CTRL>-<C> to terminate deployment <<<'
-    SET_DONE      = 'New parameters accepted.'
-    SET_FAILED    = 'Invalid entry'
-    SET_TIME      = '] ? \a\b'
-    GET_TIME      = 'Enter correct time ['
-    CHANGE_TIME   = 'Change time & date (Yes/No) [N] ?\a\b'
-    NOTE_INPUT    = '> '
-    DEPLOY_MENU   = 'G| Go (<CTRL>-<G> skips checks)\r\n\r\n'
+    MAIN_MENU      = '\a\b ? \a\b'
+    SUB_MENU       = '\a\b'
+    PICO_DOS       = 'Enter command >> '
+    SLEEPING       = 'Sleeping . . .'
+    SLEEP_WAKEUP   = 'Enter <CTRL>-<C> now to wake up?'
+    DEPLOY_WAKEUP  = '>>> <CTRL>-<C> to terminate deployment <<<'
+    SET_DONE       = 'New parameters accepted.'
+    SET_FAILED     = 'Invalid entry'
+    SET_TIME       = '] ? \a\b'
+    GET_TIME       = 'Enter correct time ['
+    CHANGE_TIME    = 'Change time & date (Yes/No) [N] ?\a\b'
+    NOTE_INPUT     = '> '
+    DEPLOY_MENU    = 'G| Go (<CTRL>-<G> skips checks)\r\n\r\n'
+    SELECTION      = 'Selection  ?'
+    DISPLAY_FORMAT = 'Set display format (HDS) [S] ?'
     
 class InstrumentCmds(BaseEnum):
-    CONTROL_C     = '\x03'   # CTRL-C (end of text)
-    DEPLOY_GO     = '\a'     # CTRL-G (bell)
-    SET_TIME      = '1'
-    ENTER_TIME    = 'enter_time'
-    ANSWER_YES    = 'y'
-    DEPLOY_MENU   = '6'
-    SET_NOTE      = 'set_note'
-    ENTER_NOTE    = 'enter_note'
+    CONTROL_C       = '\x03'   # CTRL-C (end of text)
+    DEPLOY_GO       = '\a'     # CTRL-G (bell)
+    SET_TIME        = '1'
+    ENTER_TIME      = 'enter_time'
+    ANSWER_YES      = 'y'
+    DEPLOY_MENU     = '6'
+    SET_NOTE        = 'set_note'
+    ENTER_NOTE      = 'enter_note'
+    SET_VEL_FRAME   = 'F'
+    ENTER_VEL_FRAME = 'enter_velocity_frame'
 
 class ProtocolStates(BaseEnum):
     """
@@ -144,6 +148,7 @@ class DeployMenuParameters(BaseEnum):
     NOTE1 = InstrumentParameters.NOTE1
     NOTE2 = InstrumentParameters.NOTE2
     NOTE3 = InstrumentParameters.NOTE3
+    VELOCITY_FRAME = InstrumentParameters.VELOCITY_FRAME
 
 class SubMenues(BaseEnum):
     ROOT        = 'root_menu'
@@ -434,12 +439,12 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             for item in prompt_list:
                 if item in self._promptbuf:
                     return (item, self._linebuf)
-                else:
-                    time.sleep(.1)
 
             if time.time() > starttime + timeout:
                 log.debug("_get_response: promptbuf=%s (%s)" %(self._promptbuf, self._promptbuf.encode("hex")))
                 raise InstrumentTimeoutException("in InstrumentProtocol._get_response()")
+
+            time.sleep(.1)
 
     def _navigate_and_execute(self, cmd, **kwargs):
         """
@@ -523,37 +528,50 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         return next_cmd
    
     def _go_to_root_menu(self):
-        # try to get main menu if instrument is not sleeping by sending one control-c
-        self._linebuf = ''
-        self._promptbuf = ''
-        self._connection.send(InstrumentCmds.CONTROL_C)
-        try:
-            (prompt, result) = self._get_response(timeout= 2, expected_prompt=[InstrumentPrompts.MAIN_MENU])
-        except:
-            log.debug("_go_to_root_menu: instrument must be asleep, will try to wake it up")
-        else:
-            log.debug("_go_to_root_menu: got main menu prompt")
-            if prompt == InstrumentPrompts.MAIN_MENU:
-                return
+        # try to get root menu if instrument is not sleeping by sending single control-c
+        for attempt in range(0,2):
+            self._linebuf = ''
+            self._promptbuf = ''
+            self._connection.send(InstrumentCmds.CONTROL_C)
+            try:
+                (prompt, result) = self._get_response(timeout= 4, expected_prompt=[InstrumentPrompts.MAIN_MENU,
+                                                                                   InstrumentPrompts.SLEEPING])
+            except:
+                log.debug('_go_to_root_menu: TIMED_OUT WAITING FOR ROOT MENU FROM ONE CONTROL-C !!!!!!!!!!!!!!!')
+                pass
+            else:
+                if prompt == InstrumentPrompts.MAIN_MENU:
+                    log.debug("_go_to_root_menu: got root menu prompt")
+                    return
+                if prompt == InstrumentPrompts.SLEEPING:
+                    log.debug("_go_to_root_menu: GOT SLEEPING PROMPT !!!!!!!!!!!!!!!!!!!!!!!")
+                    break
+        # instrument acts like it's asleep, so try to wake it up and get to root menu
         for attempt in range(0,5):
             self._linebuf = ''
             self._promptbuf = ''
+            prompt = 'no prompt received'
             log.debug("_go_to_root_menu: sending 3 control-c characters to wake up sleeping instrument")
-            # need to spoon feed this instrument or it drops characters (sigh!)
+            # spoon feed the control-c characters so instrument doesn't drop them if they are sent too fast
             self._connection.send(InstrumentCmds.CONTROL_C)
             time.sleep(.1)
             self._connection.send(InstrumentCmds.CONTROL_C)
             time.sleep(.1)
             self._connection.send(InstrumentCmds.CONTROL_C)
-            (prompt, result) = self._get_response(timeout= 4,
-                                                  expected_prompt=[InstrumentPrompts.MAIN_MENU,
-                                                                   InstrumentPrompts.SLEEP_WAKEUP,
-                                                                   InstrumentPrompts.SLEEPING])
-            log.debug("_go_to_root_menu: got prompt %s" %prompt)
+            time.sleep(.1)
+            try:
+                (prompt, result) = self._get_response(timeout= 4, expected_prompt=[InstrumentPrompts.MAIN_MENU,
+                                                                                   InstrumentPrompts.SLEEP_WAKEUP,
+                                                                                   InstrumentPrompts.SLEEPING])
+            except:
+                log.debug('_go_to_root_menu: TIMED_OUT WAITING FOR PROMPT FROM 3 CONTROL-Cs !!!!!!!!!!!!!!!')
+                pass
+            log.debug("_go_to_root_menu: prompt after sending 3 control-c characters = <%s>" %prompt)
             if prompt == InstrumentPrompts.MAIN_MENU:
                 return
+        log.debug("_go_to_root_menu: failed to get to root menu, prompt=%s (%s)" %(self._prompt, self._prompt.encode("hex")))
+        raise InstrumentTimeoutException("failed to get to root menu.")
                 
-                          
     def _float_to_string(self, v):
         """
         Write a float value to string formatted for "generic" set operations.
@@ -906,6 +924,19 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     # Private helpers.
     ########################################################################
         
+    def _parse_velocity_frame(self, velocity_frame):
+        #log.debug('_parse_velocity_frame: vf=%s (%s)' %(velocity_frame, velocity_frame.encode('hex')))
+        if 'No Velocity Frame' in velocity_frame:
+            return 1
+        if '(U, V, W)' in velocity_frame:
+            return 2
+        if '(E, N, W)' in velocity_frame:
+            return 3
+        if '(S, \xE9, W)' in velocity_frame:
+            return 4
+        else:
+            return 0
+    
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with MAVS4 parameters.
@@ -955,6 +986,16 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_NOTE)
 
+        self._param_dict.add(InstrumentParameters.VELOCITY_FRAME,
+                             r'.*Data  F\| Velocity Frame (.*?) TTag FSec Axes.*', 
+                             lambda match : self._parse_velocity_frame(match.group(1)),
+                             lambda string : string,
+                             value='',
+                             menu_path_read=SubMenues.ROOT,
+                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_write=SubMenues.DEPLOY,
+                             submenu_write=InstrumentCmds.SET_VEL_FRAME)
+
         self._param_dict.add(InstrumentParameters.MONITOR,
                              '', 
                              lambda line : int(line),
@@ -1000,6 +1041,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the
         # navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ENTER_VEL_FRAME, self._build_enter_velocity_frame_command)
+        self._add_build_handler(InstrumentCmds.SET_VEL_FRAME, self._build_set_velocity_frame_command)
         self._add_build_handler(InstrumentCmds.ENTER_NOTE, self._build_enter_note_command)
         self._add_build_handler(InstrumentCmds.SET_NOTE, self._build_set_note_command)
         self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_deploy_menu_command)
@@ -1012,9 +1055,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
         self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
         
-    def _build_enter_note_command(self, **kwargs):
+    def _build_enter_velocity_frame_command(self, **kwargs):
         """
-        Build handler for note set command 
+        Build handler for velocity frame enter command 
         @ retval list with:
             The command to be sent to the device
             The response expected from the device
@@ -1022,7 +1065,36 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         """
         value = kwargs.get('value', None)
         if value == None:
-            raise InstrumentParameterException('set note command requires a value.')
+            raise InstrumentParameterException('enter velocity frame command requires a value.')
+        cmd = str(value)
+        log.debug("_build_enter_velocity_frame_command: cmd=%s" %cmd)
+        if value == 1:
+            return (cmd, InstrumentPrompts.DISPLAY_FORMAT, None)            
+        return (cmd, InstrumentPrompts.DEPLOY_MENU, None)
+
+    def _build_set_velocity_frame_command(self, **kwargs):
+        """
+        Build handler for velocity frame set command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        cmd = InstrumentCmds.SET_VEL_FRAME
+        log.debug("_build_set_velocity_frame_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.SELECTION, InstrumentCmds.ENTER_VEL_FRAME)
+
+    def _build_enter_note_command(self, **kwargs):
+        """
+        Build handler for note enter command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device (set to None to indicate there isn't one)
+        """
+        value = kwargs.get('value', None)
+        if value == None:
+            raise InstrumentParameterException('enter note command requires a value.')
         cmd = value
         log.debug("_build_enter_note_command: cmd=%s" %cmd)
         return (cmd, InstrumentPrompts.DEPLOY_MENU, None)
@@ -1128,7 +1200,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 log.debug('_parse_deploy_menu_response: Failed to parse %s' %parameter)
         return None
               
-    def  _get_prompt(self, timeout, delay=2):
+    def  _get_prompt(self, timeout=8, delay=4):
         """
         _wakeup is replaced by this method for this instrument to search for 
         prompt strings at other than just the end of the line.  There is no 
@@ -1140,9 +1212,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @param delay The time to wait between consecutive wakeups.
         @throw InstrumentTimeoutException if the device could not be woken.
         """
-        # Clear the prompt buffer.
-        self._promptbuf = ''
-        
         # Grab time for timeout.
         starttime = time.time()
         
@@ -1151,12 +1220,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         log.debug("prompts=%s" %prompts)
         
         while True:
-            # Send a line return and wait a 2 sec.
-            log.debug('Sending 2 newlines to get a response from the instrument.')
-            # Send two newlines to attempt to wake the MAVS-4 device and get a response.
-            # need to spoon feed this instrument or it drops characters (sigh!)
-            self._connection.send(INSTRUMENT_NEWLINE)
-            time.sleep(.1)
+            # Clear the prompt buffer.
+            self._promptbuf = ''
+        
+            # Send a line return and wait a 4 sec.
+            log.debug('Sending newline to get a response from the instrument.')
             self._connection.send(INSTRUMENT_NEWLINE)
             time.sleep(delay)
             

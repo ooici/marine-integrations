@@ -299,7 +299,8 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         
         # Grab a subset of parameters.
         #params = [InstrumentParameters.SYS_CLOCK]
-        params = [InstrumentParameters.NOTE3]
+        #params = [InstrumentParameters.NOTE3]
+        params = [InstrumentParameters.VELOCITY_FRAME]
         reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertParamDictionariesEqual(reply, parameter_types)
         for (name, value) in reply.iteritems():
@@ -310,13 +311,15 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         
         # Construct new parameters to set.
         #new_params = {InstrumentParameters.SYS_CLOCK : '03/29/2002 11:11:42'}
-        new_params = {InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())}
+        #new_params = {InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())}
+        new_params = {InstrumentParameters.VELOCITY_FRAME : 4}
 
         # Set parameters and verify.
         reply = self.driver_client.cmd_dvr('set_resource', new_params)
         reply = self.driver_client.cmd_dvr('get_resource', params)
         #log.debug('set=%s, got=%s' %(new_params[InstrumentParameters.SYS_CLOCK], reply[InstrumentParameters.SYS_CLOCK]))
-        log.debug('set=%s, got=%s' %(new_params[InstrumentParameters.NOTE3], reply[InstrumentParameters.NOTE3]))
+        #log.debug('set=%s, got=%s' %(new_params[InstrumentParameters.NOTE3], reply[InstrumentParameters.NOTE3]))
+        log.debug('set=%s, got=%s' %(new_params[InstrumentParameters.VELOCITY_FRAME], reply[InstrumentParameters.VELOCITY_FRAME]))
         self.assertParamVals(reply, new_params)
         
         """
