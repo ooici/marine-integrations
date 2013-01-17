@@ -1,6 +1,10 @@
 comm:
-  command_port: 6002
-  data_port: 6001
-  device_addr: 10.180.80.178
-  device_port: 2101
-  method: ethernet
+  command_port: 2102
+  data_port: 2101
+  device_baud: 9600
+  device_data_bits: 8
+  device_flow_control: 0
+  device_os_port: ttymi01
+  device_parity: 0
+  device_stop_bits: 1
+  method: serial
