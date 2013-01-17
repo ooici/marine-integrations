@@ -75,7 +75,22 @@ from random import randint
 raw_stream_received = False
 parsed_stream_received = False
 
-SAMPLE_RAW_DATA = "7F7FF002000612004D008E008001FA01740200003228C941000D041E2D002003600101400900D0070114001F000000007D3DD104610301053200620028000006FED0FC090100FF00A148000014800001000C0C0D0D323862000000FF050800E014C5EE93EE2300040A000000000000454A4F4B4A4E829F80810088BDB09DFFFFFF9208000000140C0C0D0D323862000120FF570089000FFF0080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000025D585068650D0D2C0C0D0C0E0C0E0C0D0C0E0D0C0C0E0E0B0D0E0D0D0D0C0C0C0C0E0F0E0C0D0F0C0D0E0F0D0C0C0D0D0D00000E0D00000D0B00000D0C00000C0C00000C0B00000E0C00000D0C00000D0C00000D0C00000C0C00000D0C00000C00000000000000000000000000000000000000000000000000035A52675150434B454341484142414841424148414241484142414841424148414241484142414841424148414241474142414841424147414241484143414841424148414241484142414841424148414241484142414841424148414241484142414741424148414241484142414741424148414241484100040400005F0000640000006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400FA604091"
+SAMPLE_RAW_DATA = "7F7FF002000612004D008E008001FA01740200003228C941000D041E2D002003600101400900D0070\
+114001F000000007D3DD104610301053200620028000006FED0FC090100FF00A148000014800001000C0C0D0D323862000000\
+FF050800E014C5EE93EE2300040A000000000000454A4F4B4A4E829F80810088BDB09DFFFFFF9208000000140C0C0D0D323862\
+000120FF570089000FFF0080008000800080008000800080008000800080008000800080008000800080008000800080008000\
+800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080\
+00800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800\
+0800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080\
+008000800080008000800080008000800080008000800080008000800080008000800080008000025D585068650D0D2C0C0D0\
+C0E0C0E0C0D0C0E0D0C0C0E0E0B0D0E0D0D0D0C0C0C0C0E0F0E0C0D0F0C0D0E0F0D0C0C0D0D0D00000E0D00000D0B00000D0\
+C00000C0C00000C0B00000E0C00000D0C00000D0C00000D0C00000C0C00000D0C00000C00000000000000000000000000000\
+000000000000000000000035A52675150434B454341484142414841424148414241484142414841424148414241484142414\
+8414241484142414741424148414241474142414841434148414241484142414841424148414241484142414841424148414\
+24148414241484142414741424148414241484142414741424148414241484100040400005F00006400000064000000640000\
+006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400\
+00006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400\
+FA604091"
 
 ###
 #   Driver parameters for the tests
@@ -107,44 +122,37 @@ class ADCPTMixin(DriverTestMixin):
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.TRANSMIT_POWER : {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 255},
-        Parameter.SPEED_OF_SOUND : {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: 1500},
+        Parameter.TRANSMIT_POWER : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 255},
+        Parameter.SPEED_OF_SOUND : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1500},
         Parameter.SALINITY : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 35},
         Parameter.TIME_PER_BURST : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00:00'},
-        Parameter.ENSEMBLE_PER_BURST : {TYPE:int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0},
+        Parameter.ENSEMBLES_PER_BURST : {TYPE:int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0},
         Parameter.TIME_PER_ENSEMBLE : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '01:00:00:00'},
+        Parameter.TIME_OF_FIRST_PING : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00/00/00, 00:00:00'},
+        Parameter.TIME_OF_FIRST_PING_Y2K : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '0000/00/00, 00:00:00'},
         Parameter.TIME_BETWEEN_PINGS : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '01:20:00'},
+        Parameter.REAL_TIME_CLOCK : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00/00/00, 00:00:00'},
+        Parameter.REAL_TIME_CLOCK_Y2K : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '0000/00/00, 00:00:00'},
         Parameter.BUFFERED_OUTPUT_PERIOD : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00'},
         Parameter.FALSE_TARGET_THRESHOLD_MAXIMUM : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 50},
-        Parameter.MODE_1_BANDWIDTH_CONTROL : {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 1},
         Parameter.LOW_CORRELATION_THRESHOLD : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 64},
         Parameter.ERROR_VELOCITY_THRESHOLD : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 2000},
-        Parameter.BLANK_AFTER_TRANSMIT : {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 352},
         Parameter.CLIP_DATA_PAST_BOTTOM : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
         Parameter.RECEIVER_GAIN_SELECT : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 1},
         Parameter.WATER_REFERENCE_LAYER : {TYPE: list, READONLY: False, DA: False, STARTUP: False, DEFAULT: [1,5]},
         Parameter.NUMBER_OF_DEPTH_CELLS : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 30},
         Parameter.PINGS_PER_ENSEMBLE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 45},
-        Parameter.DEPTH_CELL_SIZE : {TYPE: list, READONLY: False, DA: False, STARTUP: True, DEFAULT: [800,40,3200]},
+        Parameter.DEPTH_CELL_SIZE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 800 },
         Parameter.TRANSMIT_LENGTH : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0},
         Parameter.PING_WEIGHT : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0},
         Parameter.AMBIGUITY_VELOCITY : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 175},
-        Parameter.TEMPERATURE : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
-        Parameter.DEPTH_OF_XDUCER : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
-        Parameter.CALC_SPD_SND_FROM_DATA : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: True},
-        Parameter.USE_DEPTH_FROM_SENSOR : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: True},
-        Parameter.USE_HEADING_FROM_SENSOR : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: True},
-        Parameter.USE_PITCH_FROM_SENSOR : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: True},
-        Parameter.USE_ROLL_FROM_SENSOR : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: True},
-        Parameter.USE_SALINITY_FROM_SENSOR : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
-        Parameter.USE_TEMPERATURE_FROM_SENSOR : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: True},
-        Parameter.DEPTH_SENSOR_AVAIL : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: True},
-        Parameter.HEADING_SENSOR_AVAIL : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: True},
-        Parameter.PITCH_SENSOR_AVAIL : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: True},
-        Parameter.ROLL_SENSOR_AVAIL : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: True},
-        Parameter.SALINITY_SENSOR_AVAIL : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
-        Parameter.TEMPERATURE_SENSOR_AVAIL : {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: True}
-        }
+
+        Parameter.MODE_1_BANDWIDTH_CONTROL : {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 1},
+        Parameter.BLANK_AFTER_TRANSMIT : {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: 352},
+        Parameter.DATA_OUT : {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: 111100000},
+        Parameter.INSTRUMENT_ID : {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: 0},
+        Parameter.WATER_PROFILING_MODE : {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: 1}
+            }
 
  
     _header_sample_parameters = {
@@ -168,7 +176,6 @@ class ADCPTMixin(DriverTestMixin):
         ADCPT_EnsembleDataParticleKey.COORD_XFRM: {'type': int, 'value': 31},
         ADCPT_EnsembleDataParticleKey.HEAD_ALIGN: {'type': int, 'value': 0},
         ADCPT_EnsembleDataParticleKey.HEAD_BIAS: {'type': int, 'value': 0},
-        #  This needs to be expanded
         ADCPT_EnsembleDataParticleKey.CALC_SPD_SND_FROM_DATA : {TYPE: bool, 'value': True},
         ADCPT_EnsembleDataParticleKey.USE_DEPTH_FROM_SENSOR : {TYPE: bool, 'value': True},
         ADCPT_EnsembleDataParticleKey.USE_HEADING_FROM_SENSOR : {TYPE: bool, 'value': True},
@@ -176,7 +183,6 @@ class ADCPTMixin(DriverTestMixin):
         ADCPT_EnsembleDataParticleKey.USE_ROLL_FROM_SENSOR : {TYPE: bool, 'value': True},
         ADCPT_EnsembleDataParticleKey.USE_SALINITY_FROM_SENSOR : {TYPE: bool, 'value': False},
         ADCPT_EnsembleDataParticleKey.USE_TEMPERATURE_FROM_SENSOR : {TYPE: bool, 'value': True},
-        #   This needs to be expanded
         ADCPT_EnsembleDataParticleKey.DEPTH_SENSOR_AVAIL : {TYPE: bool, 'value': True},
         ADCPT_EnsembleDataParticleKey.HEADING_SENSOR_AVAIL : {TYPE: bool, 'value': True},
         ADCPT_EnsembleDataParticleKey.PITCH_SENSOR_AVAIL : {TYPE: bool, 'value': True},
@@ -311,48 +317,9 @@ class ADCPTMixin(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.ENSEMBLE_PARSED)
         self.assert_data_particle_parameters(data_particle, self._header_sample_parameters, verify_values)
 
-#################################### RULES ####################################
-#                                                                             #
-# Common capabilities in the base class                                       #
-#                                                                             #
-# Instrument specific stuff in the derived class                              #
-#                                                                             #
-# Generator spits out either stubs or comments describing test this here,     #
-# test that there.                                                            #
-#                                                                             #
-# Qualification tests are driven through the instrument_agent                 #
-#                                                                             #
-###############################################################################
-
-###
-#   Driver constant definitions
-###
-
-###############################################################################
-#                           DATA PARTICLE TEST MIXIN                          #
-#     Defines a set of assert methods used for data particle verification     #
-#                                                                             #
-#  In python mixin classes are classes designed such that they wouldn't be    #
-#  able to stand on their own, but are inherited by other classes generally   #
-#  using multiple inheritance.                                                #
-#                                                                             #
-# This class defines a configuration structure for testing and common assert  #
-# methods for validating data particles.
-###############################################################################
-
 
 ###############################################################################
 #                                UNIT TESTS                                   #
-#         Unit tests test the method calls and parameters using Mock.         #
-#                                                                             #
-#   These tests are especially useful for testing parsers and other data      #
-#   handling.  The tests generally focus on small segments of code, like a    #
-#   single function call, but more complex code using Mock objects.  However  #
-#   if you find yourself mocking too much maybe it is better as an            #
-#   integration test.                                                         #
-#                                                                             #
-#   Unit tests do not start up external processes like the port agent or      #
-#   driver process.                                                           #
 ###############################################################################
 @attr('UNIT', group='mi')
 class DriverUnitTest(InstrumentDriverUnitTestCase,ADCPTMixin):
@@ -425,7 +392,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase,ADCPTMixin):
 
         expected_parameters = sorted(self._driver_parameters.keys())
         reported_parameters = sorted(driver.get_resource(Parameter.ALL))
-
+        my_parameters = sorted(driver.get_resource(Parameter.ALL))
+        
         log.debug("Reported Parameters: %s" % reported_parameters)
         log.debug("Expected Parameters: %s" % expected_parameters)
 
@@ -446,9 +414,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase,ADCPTMixin):
                                     'START_AUTOSAMPLE',
                                     'SELF_DEPLOY',
                                     'DRIVER_EVENT_GET',
-                                    'DRIVER_EVENT_SET'],
+                                    'DRIVER_EVENT_SET',
+                                    'PROTOCOL_EVENT_QUIT_SESSION'],
             ProtocolState.AUTOSAMPLE: ['BREAK_SUCCESS',
                                        'DRIVER_EVENT_GET'],
+            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
 
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -478,13 +448,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase,ADCPTMixin):
         
 ###############################################################################
 #                            INTEGRATION TESTS                                #
-#     Integration test test the direct driver / instrument interaction        #
-#     but making direct calls via zeromq.                                     #
-#     - Common Integration tests test the driver through the instrument agent #
-#     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
+class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, ADCPTMixin):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
@@ -504,20 +470,17 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         self.assert_initialize_driver()
 
-        # The clock in this instrument is a little odd. It looks like if you wait until the edge of a second
-        # to set it, it immediately ticks after the set, making it off by 1. For now we will accept this
-        # behavior, but we need to check this behavior on all SBE instruments.
-        # @todo Revisit clock sync across SBE instruments
         set_time = get_timestamp_delayed("%d %b %Y %H:%M:%S")
         # One second later
         expected_time = get_timestamp_delayed("%d %b %Y %H:%M:%S")
-        self.assert_set(Parameter.DS_DEVICE_DATE_TIME, set_time, no_get=True)
-        self.assert_get(Parameter.DS_DEVICE_DATE_TIME, expected_time.upper())
+        print "timestamp: ",expected_time
+#        self.assert_set(Parameter.DS_DEVICE_DATE_TIME, set_time, no_get=True)
+#        self.assert_get(Parameter.DS_DEVICE_DATE_TIME, expected_time.upper())
 
         ###
         # Instrument Parameteres
         ###
-        self.assert_set(Parameter.USER_INFO, 'iontest'.upper())
+        self.assert_set(Parameter.SALINITY, 'iontest'.upper())
 
         ###
         # Set Sample Parameters
@@ -527,23 +490,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         ###
         # Read only parameters
         ###
-        self.assert_set_readonly(Parameter.DEVICE_VERSION)
-        self.assert_set_readonly(Parameter.SERIAL_NUMBER)
-        self.assert_set_readonly(Parameter.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER)
-        self.assert_set_readonly(Parameter.QUARTZ_PRESSURE_SENSOR_RANGE)
-        self.assert_set_readonly(Parameter.EXTERNAL_TEMPERATURE_SENSOR)
-        self.assert_set_readonly(Parameter.CONDUCTIVITY)
-        self.assert_set_readonly(Parameter.IOP_MA)
-        self.assert_set_readonly(Parameter.VMAIN_V)
-        self.assert_set_readonly(Parameter.VLITH_V)
-        self.assert_set_readonly(Parameter.LAST_SAMPLE_P)
-        self.assert_set_readonly(Parameter.LAST_SAMPLE_T)
-        self.assert_set_readonly(Parameter.LAST_SAMPLE_S)
-        self.assert_set_readonly(Parameter.TXREALTIME)
-        self.assert_set_readonly(Parameter.TXWAVEBURST)
-        self.assert_set_readonly(Parameter.SHOW_PROGRESS_MESSAGES)
-        self.assert_set_readonly(Parameter.STATUS)
-        self.assert_set_readonly(Parameter.LOGGING)
+        self.assert_set_readonly(Parameter.BLANK_AFTER_TRANSMIT)
+        self.assert_set_readonly(Parameter.MODE1_BANDWIDTH_CONTROL)
+
+#  these are cut and paste from sbe26plus. Not used but keep for reference.
 
     def test_set_sampling(self):
         """
@@ -557,6 +507,35 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_get(Parameter.CONDUCTIVITY, False)
 
         self.assert_set_sampling_no_txwavestats()
+
+    def check_state(self, expected_state):
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, expected_state)
+
+    def put_instrument_in_command_mode(self):
+        """Wrap the steps and asserts for going into command mode.
+           May be used in multiple test cases.
+        """
+        # Test that the driver is in state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver and transition to disconnected.
+        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test that the driver is in state disconnected.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Setup the protocol state machine and the connection to port agent.
+        self.driver_client.cmd_dvr('connect')
+
+        # Test that the driver protocol is in state unknown.
+        self.check_state(ProtocolState.UNKNOWN)
+
+        # Discover what state the instrument is in and set the protocol state accordingly.
+        self.driver_client.cmd_dvr('discover_state')
+
+        # Test that the driver protocol is in state command.
+        self.check_state(ProtocolState.COMMAND)
 
     def assert_set_sampling_no_txwavestats(self):
         """
@@ -889,8 +868,8 @@ verifies it can obtain paramaters to assert the instrument is working.
 
     def test_get_resource_capabilities(self):
         """
-Test get resource capabilities.
-"""
+        Test get resource capabilities.
+        """
         # Test the driver is in state unconfigured.
         self.assert_initialize_driver()
 
@@ -992,9 +971,9 @@ Test get resource capabilities.
 
     def test_bad_commands(self):
         """
-@brief test that bad commands are handled with grace and style.
-"""
-
+        @brief test that bad commands are handled with grace and style.
+        """
+        print ">>>>>>>>>>>>>>>>>>>>>>>>> got to test_bad_commands"
         # Test the driver is in state unconfigured.
         self.check_state(DriverConnectionState.UNCONFIGURED)
 
@@ -1112,9 +1091,9 @@ also tests execute_resource
 
     def test_connect(self):
         """
-Test configuring and connecting to the device through the port
-agent. Discover device state.
-"""
+        Test configuring and connecting to the device through the port
+        agent. Discover device state.
+        """
         log.info("test_connect test started")
         self.put_instrument_in_command_mode()
 
