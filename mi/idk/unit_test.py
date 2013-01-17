@@ -1233,7 +1233,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         if(not no_get):
             self.assert_get(param, value)
 
-    def assert_set_bulk(self, param_dict, timeout=10):
+    def assert_set_bulk(self, param_dict):
         """
         Verify we can bulk set parameters.  First bulk set the parameters and
         then verify with individual gets.
@@ -1241,7 +1241,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         """
         self.assertIsInstance(param_dict, dict)
 
-        reply = self.driver_client.cmd_dvr('set_resource', param_dict, timeout=timeout)
+        reply = self.driver_client.cmd_dvr('set_resource', param_dict)
         self.assertIsNone(reply, None)
 
         for (key, value) in param_dict.items():

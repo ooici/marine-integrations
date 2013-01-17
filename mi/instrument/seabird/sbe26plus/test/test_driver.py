@@ -614,9 +614,9 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         # WORKS
         # self.assert_set_sampling_no_txwavestats()
         #2: TXWAVESTATS = Y, USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC=N
-        # self.assert_set_sampling_txwavestats_dont_use_conductivity()  # issue with preload of USE_MEASURED_TEMP_FOR_DENSITY_CALC instead of USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC
+        self.assert_set_sampling_txwavestats_dont_use_conductivity()  # issue with preload of USE_MEASURED_TEMP_FOR_DENSITY_CALC instead of USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC
         #3: TXWAVESTATS = Y, USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC=Y
-        self.assert_set_sampling_txwavestats_use_conductivity()
+        #self.assert_set_sampling_txwavestats_use_conductivity()
         pass
 
 
@@ -738,18 +738,14 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = "foo"
         # self.assert_set_bulk_exception(sampling_params)
 
-    def assert_set_sampling_txwavestats_use_conductivity(self):
-        log.debug("setsampling Test 2 - TXWAVESTATS = Y. CONDUCTIVITY = Y")
+    def set_baseline_txwavestats_use_conductivity(self):
         sampling_params = {
             Parameter.TIDE_INTERVAL: 18,
             Parameter.TIDE_MEASUREMENT_DURATION: 60,
-            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: 6000,
-            Parameter.WAVE_SAMPLES_PER_BURST: 1000,
-
-            # TODO: The get command doesn't work for this paramter since it is set to a derived parameter.
-            # Parameter.WAVE_SAMPLES_SCANS_PER_SECOND: 4,
-            Parameter.TXWAVESTATS: True,
+            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: 8,
             Parameter.WAVE_SAMPLES_PER_BURST: 512,
+            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND: 4.0,
+            Parameter.TXWAVESTATS: True,
             Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC: True,
             Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: 10.0,
             Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND: 1,
@@ -757,9 +753,14 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
             Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM: 0.0,
             Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM: 1.0,
             Parameter.HANNING_WINDOW_CUTOFF: 1.0
-            
-            
         }
+        # Set all parameters to a known ground state
+        self.assert_set_bulk(sampling_params)
+        return sampling_params
+        
+    def assert_set_sampling_txwavestats_use_conductivity(self):
+        log.debug("setsampling Test 3 - TXWAVESTATS = Y. CONDUCTIVITY = Y")
+        self.set_baseline_txwavestats_use_conductivity()
         
         """
         use measured temperature for density calculation (y/n) = n, new value = y
@@ -770,6 +771,288 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         maximum period (seconds) to use in auto-spectrum = 1.0e+00, new value =
         hanning window cutoff = 1.00, new value =
         """
+        
+
+        # First tests to verify we can set all parameters properly
+        sampling_params = self.set_baseline_txwavestats_use_conductivity()
+
+        # Tide interval parameter.  Check edges, out of range and invalid data
+        #    * Tide interval (integer minutes)
+        #        - Range 17 - 720
+        sampling_params[Parameter.TIDE_INTERVAL] = 17
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = 720
+        self.assert_set_bulk(sampling_params) #was bombing here timeout
+        sampling_params[Parameter.TIDE_INTERVAL] = 16
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = 721
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = "foo"
+        self.assert_set_bulk_exception(sampling_params)
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_use_conductivity()
+        
+        # Tide measurement duration.  Check edges, out of range and invalid data
+        #    * Tide measurement duration (seconds)
+        #        - Range: 10 - 1020 sec
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1020
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 9
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1021
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = "foo"
+        self.assert_set_bulk_exception(sampling_params)
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_use_conductivity()
+        
+        # Tide samples between wave bursts.  Check edges, out of range and invalid data
+        #   * Measure wave burst after every N tide samples
+        #       - Range 1 - 10,000
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 1
+        self.assert_set_bulk(sampling_params) # in wakeup.
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10000
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 0
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10001
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = "foo"
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 6000
+
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_use_conductivity()
+        
+        # Test a good value
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 1000
+        self.assert_set_bulk(sampling_params)
+
+        # Wave samples per burst.  Check edges, out of range and invalid data
+        #   * Number of wave samples per burst
+        #       - Range 4 - 60,000 *MUST BE MULTIPLE OF 4*
+        sampling_params[Parameter.TIDE_INTERVAL] = 720              # required for 60000
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 60000
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 36000   # If we set this this high
+        sampling_params[Parameter.TIDE_INTERVAL] = 720              # ... we need to set <--- was 1001
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10860# ... we need to set
+        self.assert_set_bulk(sampling_params)
+
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_use_conductivity()
+
+        # 512 - 60,000 in multiple of 4
+        
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = -1
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 3
+        self.assert_set_bulk_exception(sampling_params)     
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 4      
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 508      
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 511     
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43201
+        self.assert_set_bulk_exception(sampling_params)
+        
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 60001
+        self.assert_set_bulk_exception(sampling_params)           
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = "bar"
+        self.assert_set_bulk_exception(sampling_params)
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_use_conductivity()
+
+        
+        # Wave samples per burst.  Check edges, out of range and invalid data
+        #    * wave sample duration=
+        #        - Range [0.25, 0.5, 0.75, 1.0]
+        
+        
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 2.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1.33
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1.0
+        self.assert_set_bulk(sampling_params)
+        
+        # test bad values
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 3
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 0
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = -1
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 5
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = "foo"
+        self.assert_set_bulk_exception(sampling_params)
+       
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_use_conductivity()
+        
+        #
+        # New Section
+        #
+        
+        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = False
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = True
+        self.assert_set_bulk(sampling_params)
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_use_conductivity()
+        
+        
+        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = 0
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = 1000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = 100000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = -1.0
+        self.assert_set_bulk_exception(sampling_params)
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_use_conductivity()
+        
+        # int.
+        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = -1
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 0
+        self.assert_set_bulk(sampling_params)
+        
+        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 10
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 100000
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 10.0
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = "car"
+        self.assert_set_bulk_exception(sampling_params)
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_use_conductivity()
+        
+        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 0.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 0.0025
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 10.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 100.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 1000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 10000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 100000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 100
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = "tar"
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 0.0025
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_use_conductivity()
+        
+        
+        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = -1
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 0
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 0.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = float(0.0001)
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 1.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 10.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 100.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 1000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 10000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 100000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = "far"
+        self.assert_set_bulk_exception(sampling_params)
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_use_conductivity()
+        
+        
+        # The manual only shows 0.10 as a value (assert float)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 1.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = -1
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 0
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 0.0
+        self.assert_set_bulk(sampling_params)
+        # Rounds to 0.00
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = float(0.0001) 
+        self.assert_set_bulk_exception(sampling_params)
+        # Rounds to 0.01
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = float(0.006) 
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 1.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 10.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 100.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 1000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 10000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 100000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = "far"
+        self.assert_set_bulk_exception(sampling_params)
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_use_conductivity()
+        
+    def set_baseline_txwavestats_dont_use_conductivity(self):
+        sampling_params = {
+            Parameter.TIDE_INTERVAL: 18,
+            Parameter.TIDE_MEASUREMENT_DURATION: 60,
+            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: 8,
+            Parameter.WAVE_SAMPLES_PER_BURST: 512,
+            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND: 4.0,
+            Parameter.TXWAVESTATS: True,
+            Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC: False,
+            
+            # TODO: enable next 2 params, and balance the set then complete the test.
+            # Only 2 params that are different.   ****************************************************************************************************************************************************
+            Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR: 15.0,
+            Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR: 35.0,        
+            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS: 512,
+            Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: 10.0,
+            Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND: 1,
+            Parameter.MIN_ALLOWABLE_ATTENUATION: 1.0000,
+            Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM: 0.0,
+            Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM: 1.0,
+            Parameter.HANNING_WINDOW_CUTOFF: 1.0
+        }
+        # Set all parameters to a known ground state
+        self.assert_set_bulk(sampling_params)
+        return sampling_params
+    
+    def assert_set_sampling_txwavestats_dont_use_conductivity(self):
+        log.debug("setsampling Test 2 - TXWAVESTATS = Y. CONDUCTIVITY = N")
         
         """
         use measured temperature for density calculation (y/n) = y, new value = n
@@ -782,540 +1065,335 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         maximum period (seconds) to use in auto-spectrum = 1.0e+00, new value =
         hanning window cutoff = 1.00, new value =
         """
-
-        # First tests to verify we can set all parameters properly
-        self.assert_set_bulk(sampling_params)
-
-        # Tide interval parameter.  Check edges, out of range and invalid data
-        #    * Tide interval (integer minutes)
-        #        - Range 17 - 720
-        sampling_params[Parameter.TIDE_INTERVAL] = 17
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 720
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 16
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 721
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 18
-
-        # Tide measurement duration.  Check edges, out of range and invalid data
-        #    * Tide measurement duration (seconds)
-        #        - Range: 10 - 1020 sec
-
-        # v----- InstrumentTimeoutException
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1020
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 9
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1021
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 60
-
-        # Tide samples between wave bursts.  Check edges, out of range and invalid data
-        #   * Measure wave burst after every N tide samples
-        #       - Range 1 - 10,000
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 1
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10000
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 0
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10001
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 6000
-
-        # Test a good value
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 1000
-        self.assert_set_bulk(sampling_params, timeout=60)
-
-        # Wave samples per burst.  Check edges, out of range and invalid data
-        #   * Number of wave samples per burst
-        #       - Range 4 - 60,000 *MUST BE MULTIPLE OF 4*
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43200   # If we set this this high
-        sampling_params[Parameter.TIDE_INTERVAL] = 181              # ... we need to set
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10860# ... we need to set
-        self.assert_set_bulk(sampling_params, timeout=60)
-
-        # return them to baseline testing values.
-        sampling_params[Parameter.TIDE_INTERVAL] = 17
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 60
-
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 9
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43201
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = -1
-        self.assert_set_bulk_exception(sampling_params)
-
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 4
-        self.assert_set_bulk(sampling_params, timeout=60)
-        # Wave samples per burst.  Check edges, out of range and invalid data
-        #    * wave sample duration
-        #        - Range [0.25, 0.5, 0.75, 1.0]
-        # TODO: Enable these tests once the set/get is fixed for this param
-        #sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 4
-        #self.assert_set_bulk(sampling_params)
-
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 3
-        # self.assert_set_bulk(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 2
-        # self.assert_set_bulk(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1
-        # self.assert_set_bulk(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 0
-        # self.assert_set_bulk_exception(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = -1
-        # self.assert_set_bulk_exception(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 5
-        # self.assert_set_bulk_exception(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = "foo"
-        # self.assert_set_bulk_exception(sampling_params)
-
-        #
-        # New Section
-        #
-        
-        # 4 - 60,000 in multiple of 4
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 4
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 60000
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 60001
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = -1
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 3
-        self.assert_set_bulk_exception(sampling_params, timeout=60)                
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = "bar"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 512
-        
-        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = False
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = True
-        self.assert_set_bulk(sampling_params, timeout=60)
-        
-        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = 0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = 1000.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = 100000.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = -1.0
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = 0.0
-        
-        # int.
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = -1
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 1
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 10
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 100000
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 10.0
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = "car"
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 5
-        
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 0.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 0.0025
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 1.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 10.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 100.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 1000.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 10000.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 100000.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 100
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = "tar"
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 0.0025
-        
-        
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = -1
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 0.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 1.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 10.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 100/0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 1000.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 10000.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = "far"
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 0
-        
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = -1
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 0.0001
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 1.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 10.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 100.0
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 1000.0
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 10000.0
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 100000.0
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = "par"
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 0.0000001
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 1.0
-
-    def assert_set_sampling_txwavestats_dont_use_conductivity(self):
-        log.debug("setsampling Test 2 - TXWAVESTATS = Y. CONDUCTIVITY = N")
-        
-        sampling_params = {
-            Parameter.TIDE_INTERVAL: 18,
-            Parameter.TIDE_MEASUREMENT_DURATION: 60,
-            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: 6000,
-            Parameter.WAVE_SAMPLES_PER_BURST: 1000,
-
-            # TODO: The get command doesn't work for this paramter since it is set to a derived parameter.
-            # Parameter.WAVE_SAMPLES_SCANS_PER_SECOND: 4,
-            Parameter.TXWAVESTATS: True,
-            Parameter.WAVE_SAMPLES_PER_BURST: 512,
-            Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC: False,
-            Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR: 15.0,
-            Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR: 37.6,
-            Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: 10.0,
-            Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND: 1,
-            Parameter.MIN_ALLOWABLE_ATTENUATION: 1.0000,
-            Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM: 0.0,
-            Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM: 1.0,
-            Parameter.HANNING_WINDOW_CUTOFF: 1.0
-        }
-
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
             
             
-        
-        
-        
-        
-        # First tests to verify we can set all parameters properly
+            
+            
+        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -274.0 # -1 Kelvin?
+        self.assert_set_bulk(sampling_params)    
+        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -273.0 # 0 Kelvin?
         self.assert_set_bulk(sampling_params)
-
-        # Tide interval parameter.  Check edges, out of range and invalid data
-        #    * Tide interval (integer minutes)
-        #        - Range 17 - 720
-        sampling_params[Parameter.TIDE_INTERVAL] = 17
+        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -100.0 
         self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 720
+        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -30.0 
         self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 16
+        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -1.0 
         self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 721
+        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 0.0 
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 30.0 
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 100.0 # if it gets hotter than this, we are likely all dead...
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 500.0 # 500 C getting warmer
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 32767.0 # 32767 C, it's a dry heat
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = "foo"
         self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = "foo"
+        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = True
         self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 18
-
-        # Tide measurement duration.  Check edges, out of range and invalid data
-        #    * Tide measurement duration (seconds)
-        #        - Range: 10 - 1020 sec
-
-        # v----- InstrumentTimeoutException
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1020
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 9
+        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = int(1)
         self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1021
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 60
-
-        # Tide samples between wave bursts.  Check edges, out of range and invalid data
-        #   * Measure wave burst after every N tide samples
-        #       - Range 1 - 10,000
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 1
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10000
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 0
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10001
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 6000
-
-        # Test a good value
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 1000
-        self.assert_set_bulk(sampling_params, timeout=60)
-
-        # Wave samples per burst.  Check edges, out of range and invalid data
-        #   * Number of wave samples per burst
-        #       - Range 4 - 60,000 *MUST BE MULTIPLE OF 4*
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43200   # If we set this this high
-        sampling_params[Parameter.TIDE_INTERVAL] = 181              # ... we need to set
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10860# ... we need to set
-        self.assert_set_bulk(sampling_params, timeout=60)
-
-        # return them to baseline testing values.
-        sampling_params[Parameter.TIDE_INTERVAL] = 17
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 60
-
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 9
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43201
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = -1
-        self.assert_set_bulk_exception(sampling_params)
-
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 4
-        self.assert_set_bulk(sampling_params, timeout=60)
-        # Wave samples per burst.  Check edges, out of range and invalid data
-        #    * wave sample duration
-        #        - Range [0.25, 0.5, 0.75, 1.0]
-        # TODO: Enable these tests once the set/get is fixed for this param
-        #sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 4
-        #self.assert_set_bulk(sampling_params)
-
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 3
-        # self.assert_set_bulk(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 2
-        # self.assert_set_bulk(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1
-        # self.assert_set_bulk(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 0
-        # self.assert_set_bulk_exception(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = -1
-        # self.assert_set_bulk_exception(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 5
-        # self.assert_set_bulk_exception(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = "foo"
-        # self.assert_set_bulk_exception(sampling_params)
-
-        #
-        # New Section
-        #
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
         
-        # 4 - 60,000 in multiple of 4
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 4
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 60000
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 60001
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = -1
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 3
-        self.assert_set_bulk_exception(sampling_params, timeout=60)                
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = "bar"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 512
-        
-        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = False
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = True
-        self.assert_set_bulk(sampling_params, timeout=60)
-        
-        
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -274.0 # can it go below abs zero?
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -273.0 # can it do abs zero?
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -20.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -10.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 0.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 20.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 40.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 60.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 80.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 100.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 10
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -9999
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = "tsar"
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 15.0 #good value
-        
-        
-        
+        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = -1000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = -100.0
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = -10.0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 0.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 10.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 20.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 30.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 40.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 50.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 60.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 70.0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 35.0
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 100.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = -10
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 0
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 9999
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = "boo"
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 37.6 #good value
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 1000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = "foo"
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = True
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = int(1)
+        self.assert_set_bulk_exception(sampling_params)
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
+        
+        # Tide interval parameter.  Check edges, out of range and invalid data
+        #    * Tide interval (integer minutes)
+        #        - Range 17 - 720
+        sampling_params[Parameter.TIDE_INTERVAL] = 17
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = 720
+        self.assert_set_bulk(sampling_params) #was bombing here timeout
+        sampling_params[Parameter.TIDE_INTERVAL] = 16
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = 721
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = "foo"
+        self.assert_set_bulk_exception(sampling_params)
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
+        
+        # Tide measurement duration.  Check edges, out of range and invalid data
+        #    * Tide measurement duration (seconds)
+        #        - Range: 10 - 1020 sec
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10 # <--- was 60, should have been 10
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1020
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 9
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1021
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = "foo"
+        self.assert_set_bulk_exception(sampling_params)
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
+        
+        # Tide samples between wave bursts.  Check edges, out of range and invalid data
+        #   * Measure wave burst after every N tide samples
+        #       - Range 1 - 10,000
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 1
+        self.assert_set_bulk(sampling_params) # in wakeup.
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10000
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 0
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10001
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = "foo"
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 6000
+
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
+        
+        # Test a good value
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 1000
+        self.assert_set_bulk(sampling_params)
+
+        # Wave samples per burst.  Check edges, out of range and invalid data
+        #   * Number of wave samples per burst
+        #       - Range 4 - 60,000 *MUST BE MULTIPLE OF 4*
+        sampling_params[Parameter.TIDE_INTERVAL] = 720              # required for 60000
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 60000
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 36000   # If we set this this high
+        sampling_params[Parameter.TIDE_INTERVAL] = 720              # ... we need to set <--- was 1001
+        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10860# ... we need to set
+        self.assert_set_bulk(sampling_params)
+
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
+
+        # 512 - 60,000 in multiple of 4
+        
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = -1
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 3
+        self.assert_set_bulk_exception(sampling_params)     
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 4      
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 508      
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 511     
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43201
+        self.assert_set_bulk_exception(sampling_params)
+        
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 60001
+        self.assert_set_bulk_exception(sampling_params)           
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = "bar"
+        self.assert_set_bulk_exception(sampling_params)
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
+
+        
+        # Wave samples per burst.  Check edges, out of range and invalid data
+        #    * wave sample duration=
+        #        - Range [0.25, 0.5, 0.75, 1.0]
         
         
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 2.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1.33
+        self.assert_set_bulk(sampling_params)                           
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1.0
+        self.assert_set_bulk(sampling_params)
+        
+        # test bad values
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 3
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 0
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = -1
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 5
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = "foo"
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = False
+        self.assert_set_bulk_exception(sampling_params)
+       
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
+        
+        #
+        # New Section
+        #
+        
+        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = False
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = True
+        self.assert_set_bulk(sampling_params)
+        
+        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = 1
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = float(1.0)
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = "bar"
+        self.assert_set_bulk_exception(sampling_params)
+        
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
         
         
         sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = 0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = 1000.0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = 100000.0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = -1.0
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = 0.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = "foo"
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = True
+        self.assert_set_bulk_exception(sampling_params)
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
         
         # int.
         sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = -1
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 1
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
+        
         sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 10
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 100000
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 10.0
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = "car"
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 5
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = True
+        self.assert_set_bulk_exception(sampling_params)
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
         
         sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 0.0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 0.0025
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 1.0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 10.0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 100.0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 1000.0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 10000.0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 100000.0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 100
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = "tar"
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 0.0025
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = True
+        self.assert_set_bulk_exception(sampling_params)
+
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
         
         
         sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = -1
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 0.0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = float(0.0001)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 1.0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 10.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 100/0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 100.0
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 1000.0
-        self.assert_set_bulk(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 10000.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = "far"
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 0
-        
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = -1
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 0.0001
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 1.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 10.0
-        self.assert_set_bulk(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 100.0
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 1000.0
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 10000.0
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 100000.0
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = "par"
-        self.assert_set_bulk_exception(sampling_params, timeout=60)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 0.0000001
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = "far"
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = True
+        self.assert_set_bulk_exception(sampling_params)
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
+        
+        
+        # The manual only shows 0.10 as a value (assert float)
         sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 1.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = -1
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 0
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 0.0
+        self.assert_set_bulk(sampling_params)
+        # Rounds to 0.00
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = float(0.0001) 
+        self.assert_set_bulk_exception(sampling_params)
+        # Rounds to 0.01
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = float(0.006) 
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 1.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 10.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 100.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 1000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 10000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 100000.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = "far"
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = False
+        self.assert_set_bulk_exception(sampling_params)
+        
+        # set to known good
+        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
         
         
     def leftover_garbage(self):    
@@ -1811,7 +1889,7 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
             Parameter.USER_INFO : "KILROY WAZ HERE"
         }
 
-        self.instrument_agent_client.set_resource(params, timeout=60)
+        self.instrument_agent_client.set_resource(params)
 
         #self.data_subscribers.no_samples = 3
 
@@ -1822,7 +1900,7 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
 
         # wait for 3 samples, then test them!
-        samples = self.data_subscribers.get_samples('parsed', 3, timeout=300) # 6 minutes
+        samples = self.data_subscribers.get_samples('parsed', 30) # 6 minutes
         self.assertSampleDataParticle(samples.pop())
         self.assertSampleDataParticle(samples.pop())
         self.assertSampleDataParticle(samples.pop())
@@ -1830,13 +1908,13 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         # Halt streaming.
         cmd = AgentCommand(command=ProtocolEvent.STOP_AUTOSAMPLE)
         # could be in a tide sample cycle... long timeout
-        retval = self.instrument_agent_client.execute_resource(cmd, timeout=600)
+        retval = self.instrument_agent_client.execute_resource(cmd0)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=60)
+        retval = self.instrument_agent_client.execute_agent(cmd)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
@@ -1927,7 +2005,7 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
 
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=30)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.IDLE)
 
@@ -2083,7 +2161,7 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         self.assertEqual(state, ResourceAgentState.INACTIVE)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=30)
+        retval = self.instrument_agent_client.execute_agent(cmd)
         self.check_state(ResourceAgentState.IDLE)
         #state = self.instrument_agent_client.get_agent_state()
         #self.assertEqual(state, ResourceAgentState.IDLE)
@@ -2167,7 +2245,7 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
     def test_acquire_sample(self):
         """
         """
-        self.assert_sample_polled(self.assertSampleDataParticle, 'parsed', timeout=30)
+        self.assert_sample_polled(self.assertSampleDataParticle, 'parsed')
 
     def test_connect_disconnect(self):
 

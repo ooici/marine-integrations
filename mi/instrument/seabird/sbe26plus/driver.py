@@ -41,18 +41,18 @@ from pyon.agent.agent import ResourceAgentState
 NEWLINE = '\r\n'
 
 # default timeout.
-TIMEOUT = 10
+TIMEOUT = 60 # setsampling takes longer than 10 on bad internet days.
 
-TIDE_REGEX = r'(tide: start time = +\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+, p = +[\-\d.]+, pt = +[\-\d.]+, t = +[\-\d.]+.*?\r\n)'
+TIDE_REGEX = r'(tide: start time = +\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+, p = +[\-\d\.]+, pt = +[\-\d\.]+, t = +[\-\d\.]+.*?\r\n)'
 TIDE_REGEX_MATCHER = re.compile(TIDE_REGEX)
 
 WAVE_REGEX = r'(wave: start time =.*?wave: end burst\r\n)'
 WAVE_REGEX_MATCHER = re.compile(WAVE_REGEX, re.DOTALL)
 
-STATS_REGEX = r'(deMeanTrend.*?H1/100 = [\d.e+]+\r\n)'
+STATS_REGEX = r'(deMeanTrend.*?H1/100 = [\d\.e+]+\r\n)'
 STATS_REGEX_MATCHER = re.compile(STATS_REGEX, re.DOTALL)
 
-TS_REGEX = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)'
+TS_REGEX = r' +([\-\d\.]+) +([\-\d\.]+) +([\-\d\.]+)'
 TS_REGEX_MATCHER = re.compile(TS_REGEX)
 
 DC_REGEX = r'(Pressure coefficients.+?)CSLOPE = [\d+e\.].+?\r\n'
@@ -218,7 +218,12 @@ class Parameter(DriverParameter):
     TXREALTIME = 'TxTide' # bool,
     TXWAVEBURST = 'TxWave' # bool,
     NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' # int,
-    USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC_ROGER' # bool,
+    
+    
+    
+    USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' # bool,
+    
+    
     AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR'
     AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = 'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR'
     PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM = 'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM' # float,
@@ -270,9 +275,9 @@ class SBE26plusTideSampleDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
         log.debug("in SBE26plusTideSampleDataParticle._build_parsed_values")
-        pat1 = r'tide: start time = +(\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+), p = +([\-\d.]+), pt = +([\-\d.]+), t = +([\-\d.]+), c = +([\-\d.]+), s = +([\-\d.]+)\r\n'
+        pat1 = r'tide: start time = +(\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+), p = +([\-\d\.]+), pt = +([\-\d\.]+), t = +([\-\d\.]+), c = +([\-\d\.]+), s = +([\-\d\.]+)\r\n'
         regex1 = re.compile(pat1)
-        pat2 = r'tide: start time = +(\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+), p = +([\-\d.]+), pt = +([\-\d.]+), t = +([\-\d.]+)\r\n'
+        pat2 = r'tide: start time = +(\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+), p = +([\-\d\.]+), pt = +([\-\d\.]+), t = +([\-\d\.]+)\r\n'
         regex2 = re.compile(pat2)
 
         match = regex1.match(self.raw_data)
@@ -347,10 +352,10 @@ class SBE26plusWaveBurstDataParticle(DataParticle):
         start_time_pat = r'wave: start time = +(\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+)'
         start_time_matcher = re.compile(start_time_pat)
 
-        ptfreq_pat = r'wave: ptfreq = ([\d.]+)'
+        ptfreq_pat = r'wave: ptfreq = ([\d\.]+)'
         ptfreq_matcher = re.compile(ptfreq_pat)
 
-        ptraw_pat = r' +([\d.]+)'
+        ptraw_pat = r' +([\d\.]+)'
         ptraw_matcher = re.compile(ptraw_pat)
 
         # initialize
@@ -459,26 +464,26 @@ class SBE26plusStatisticsDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
 
-        dtsd_matcher = re.compile(r'depth = +([\d.e+-]+), temperature = +([\d.e+-]+), salinity = +([\d.e+-]+), density = +([\d.e+-]+)')
+        dtsd_matcher = re.compile(r'depth = +([\d\.e+-]+), temperature = +([\d\.e+-]+), salinity = +([\d\.e+-]+), density = +([\d\.e+-]+)')
 
         #going to err on the side of VERBOSE methinks...
         single_var_matchers  = {
             "nAvgBand":                 re.compile(r'   nAvgBand = (\d+)'),
-            "total variance":           re.compile(r'   total variance = ([\d.e+-]+)'),
-            "total energy":             re.compile(r'   total energy = ([\d.e+-]+)'),
-            "significant period":       re.compile(r'   significant period = ([\d.e+-]+)'),
-            "a significant wave height":re.compile(r'   significant wave height = ([\d.e+-]+)'),
+            "total variance":           re.compile(r'   total variance = ([\d\.e+-]+)'),
+            "total energy":             re.compile(r'   total energy = ([\d\.e+-]+)'),
+            "significant period":       re.compile(r'   significant period = ([\d\.e+-]+)'),
+            "a significant wave height":re.compile(r'   significant wave height = ([\d\.e+-]+)'),
             "wave integration time":    re.compile(r'   wave integration time = (\d+)'),
             "number of waves":          re.compile(r'   number of waves = (\d+)'),
-            "total variance":           re.compile(r'   total variance = ([\d.e+-]+)'),
-            "total energy":             re.compile(r'   total energy = ([\d.e+-]+)'),
-            "average wave height":      re.compile(r'   average wave height = ([\d.e+-]+)'),
-            "average wave period":      re.compile(r'   average wave period = ([\d.e+-]+)'),
-            "maximum wave height":      re.compile(r'   maximum wave height = ([\d.e+-]+)'),
-            "significant wave height":  re.compile(r'   significant wave height = ([\d.e+-]+)'),
-            "t significant wave period":re.compile(r'   significant wave period = ([\d.e+-]+)'),
-            "H1/10":                    re.compile(r'   H1/10 = ([\d.e+-]+)'),
-            "H1/100":                   re.compile(r'   H1/100 = ([\d.e+-]+)')
+            "total variance":           re.compile(r'   total variance = ([\d\.e+-]+)'),
+            "total energy":             re.compile(r'   total energy = ([\d\.e+-]+)'),
+            "average wave height":      re.compile(r'   average wave height = ([\d\.e+-]+)'),
+            "average wave period":      re.compile(r'   average wave period = ([\d\.e+-]+)'),
+            "maximum wave height":      re.compile(r'   maximum wave height = ([\d\.e+-]+)'),
+            "significant wave height":  re.compile(r'   significant wave height = ([\d\.e+-]+)'),
+            "t significant wave period":re.compile(r'   significant wave period = ([\d\.e+-]+)'),
+            "H1/10":                    re.compile(r'   H1/10 = ([\d\.e+-]+)'),
+            "H1/100":                   re.compile(r'   H1/100 = ([\d\.e+-]+)')
         }
 
         # Initialize
@@ -655,67 +660,67 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
                 lambda match : self._string_to_date(match.group(1), '%d-%b-%y')
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.PU0:  (
-                re.compile(r' +U0 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +U0 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.PY1:  (
-                re.compile(r' +Y1 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +Y1 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.PY2:  (
-                re.compile(r' +Y2 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +Y2 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.PY3:  (
-                re.compile(r' +Y3 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +Y3 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.PC1:  (
-                re.compile(r' +C1 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +C1 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.PC2:  (
-                re.compile(r' +C2 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +C2 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.PC3:  (
-                re.compile(r' +C3 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +C3 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.PD1:  (
-                re.compile(r' +D1 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +D1 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.PD2:  (
-                re.compile(r' +D2 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +D2 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.PT1:  (
-                re.compile(r' +T1 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +T1 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.PT2:  (
-                re.compile(r' +T2 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +T2 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.PT3:  (
-                re.compile(r' +T3 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +T3 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.PT4:  (
-                re.compile(r' +T4 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +T4 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.FACTORY_M:  (
-                re.compile(r' +M = ([\d.]+)'),
+                re.compile(r' +M = ([\d\.]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.FACTORY_B:  (
-                re.compile(r' +B = ([\d.]+)'),
+                re.compile(r' +B = ([\d\.]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.POFFSET:  (
-                re.compile(r' +OFFSET = (-?[\d.e\-\+]+)'),
+                re.compile(r' +OFFSET = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.TCALDATE:  (
@@ -723,19 +728,19 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
                 lambda match : self._string_to_date(match.group(1), '%d-%b-%y')
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.TA0:  (
-                re.compile(r' +TA0 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +TA0 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.TA1:  (
-                re.compile(r' +TA1 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +TA1 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.TA2:  (
-                re.compile(r' +TA2 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +TA2 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.TA3:  (
-                re.compile(r' +TA3 = (-?[\d.e\-\+]+)'),
+                re.compile(r' +TA3 = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.CCALDATE:  (
@@ -743,31 +748,31 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
                 lambda match : self._string_to_date(match.group(1), '%d-%b-%y')
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.CG:  (
-                re.compile(r' +CG = (-?[\d.e\-\+]+)'),
+                re.compile(r' +CG = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.CH:  (
-                re.compile(r' +CH = (-?[\d.e\-\+]+)'),
+                re.compile(r' +CH = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.CI:  (
-                re.compile(r' +CI = (-?[\d.e\-\+]+)'),
+                re.compile(r' +CI = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.CJ:  (
-                re.compile(r' +CJ = (-?[\d.e\-\+]+)'),
+                re.compile(r' +CJ = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.CTCOR:  (
-                re.compile(r' +CTCOR = (-?[\d.e\-\+]+)'),
+                re.compile(r' +CTCOR = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.CPCOR:  (
-                re.compile(r' +CPCOR = (-?[\d.e\-\+]+)'),
+                re.compile(r' +CPCOR = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.CSLOPE:  (
-                re.compile(r' +CSLOPE = (-?[\d.e\-\+]+)'),
+                re.compile(r' +CSLOPE = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
                 ),
         }
@@ -831,10 +836,12 @@ class SBE26plusDeviceStatusDataParticleKey(BaseEnum):
     TXREALTIME = 'tx_tide_samples' # bool,
     TXWAVEBURST = 'tx_wave_bursts' # bool,
     NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'num_wave_samples_per_burst_for_wave_statistics' # int,
+    
+
+
     USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'use_measured_temp_and_cond_for_density_calc' # bool,
-    # USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC is interchangable with USE_MEASURED_TEMP_FOR_DENSITY_CALC
-    #AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = 'avg_water_temp_above_pressure_sensor'
-    #AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = 'avg_salinity_above_pressure_sensor'
+    
+    
     PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM = 'pressure_sensor_height_from_bottom' # float,
     SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND = 'num_spectral_estimates_for_each_frequency_band' # int,
     MIN_ALLOWABLE_ATTENUATION = 'min_allowable_attenuation' # float,
@@ -879,11 +886,11 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 lambda match : match.group(1)
             ),
             SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER:  (
-                re.compile(r'quartz pressure sensor: serial number = ([\d.\-]+), range = ([\d.\-]+) psia'),
+                re.compile(r'quartz pressure sensor: serial number = ([\d\.\-]+), range = ([\d\.\-]+) psia'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_RANGE:  (
-                re.compile(r'quartz pressure sensor: serial number = ([\d.\-]+), range = ([\d.\-]+) psia'),
+                re.compile(r'quartz pressure sensor: serial number = ([\d\.\-]+), range = ([\d\.\-]+) psia'),
                 lambda match : float(match.group(2))
             ),
             SBE26plusDeviceStatusDataParticleKey.EXTERNAL_TEMPERATURE_SENSOR:  (
@@ -895,35 +902,35 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 lambda match : False if (match.group(1)=='NO') else True
             ),
             SBE26plusDeviceStatusDataParticleKey.IOP_MA:  (
-                re.compile(r'iop = +([\d.\-]+) ma  vmain = +([\d.\-]+) V  vlith = +([\d.\-]+) V'),
+                re.compile(r'iop = +([\d\.\-]+) ma  vmain = +([\d\.\-]+) V  vlith = +([\d\.\-]+) V'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.VMAIN_V:  (
-                re.compile(r'iop = +([\d.\-]+) ma  vmain = +([\d.\-]+) V  vlith = +([\d.\-]+) V'),
+                re.compile(r'iop = +([\d\.\-]+) ma  vmain = +([\d\.\-]+) V  vlith = +([\d\.\-]+) V'),
                 lambda match : float(match.group(2))
             ),
             SBE26plusDeviceStatusDataParticleKey.VLITH_V:  (
-                re.compile(r'iop = +([\d.\-]+) ma  vmain = +([\d.\-]+) V  vlith = +([\d.\-]+) V'),
+                re.compile(r'iop = +([\d\.\-]+) ma  vmain = +([\d\.\-]+) V  vlith = +([\d\.\-]+) V'),
                 lambda match : float(match.group(3))
             ),
             SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_P:  (
-                re.compile(r'last sample: p = +([\d.\-]+), t = +([\d.\-]+)'),
+                re.compile(r'last sample: p = +([\d\.\-]+), t = +([\d\.\-]+)'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_T:  (
-                re.compile(r'last sample: p = +([\d.\-]+), t = +([\d.\-]+)'),
+                re.compile(r'last sample: p = +([\d\.\-]+), t = +([\d\.\-]+)'),
                 lambda match : float(match.group(2))
             ),
             SBE26plusDeviceStatusDataParticleKey.LAST_SAMPLE_S:  (
-                re.compile(r'last sample: .*?, s = +([\d.\-]+)'),
+                re.compile(r'last sample: .*?, s = +([\d\.\-]+)'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.TIDE_INTERVAL:  (
-                re.compile(r'tide measurement: interval = (\d+).000 minutes, duration = ([\d.\-]+) seconds'),
+                re.compile(r'tide measurement: interval = (\d+).000 minutes, duration = ([\d\.\-]+) seconds'),
                 lambda match : int(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENT_DURATION:  (
-                re.compile(r'tide measurement: interval = (\d+).000 minutes, duration = ([\d.\-]+) seconds'),
+                re.compile(r'tide measurement: interval = (\d+).000 minutes, duration = ([\d\.\-]+) seconds'),
                 lambda match : int(match.group(2))
             ),
             SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS:  (
@@ -931,15 +938,15 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 lambda match : int(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_PER_BURST:  (
-                re.compile(r'([\d.\-]+) wave samples/burst at ([\d.\-]+) scans/sec, duration = ([\d.\-]+) seconds'),
+                re.compile(r'([\d\.\-]+) wave samples/burst at ([\d\.\-]+) scans/sec, duration = ([\d\.\-]+) seconds'),
                 lambda match : int(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_SCANS_PER_SECOND:  (
-                re.compile(r'([\d.\-]+) wave samples/burst at ([\d.\-]+) scans/sec, duration = ([\d.\-]+) seconds'),
+                re.compile(r'([\d\.\-]+) wave samples/burst at ([\d\.\-]+) scans/sec, duration = ([\d\.\-]+) seconds'),
                 lambda match : float(match.group(2))
             ),
             SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_DURATION:  (
-                re.compile(r'([\d.\-]+) wave samples/burst at ([\d.\-]+) scans/sec, duration = ([\d.\-]+) seconds'),
+                re.compile(r'([\d\.\-]+) wave samples/burst at ([\d\.\-]+) scans/sec, duration = ([\d\.\-]+) seconds'),
                 lambda match : int(match.group(3))
             ),
             SBE26plusDeviceStatusDataParticleKey.USE_START_TIME:  (
@@ -951,35 +958,35 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 lambda match : False if (match.group(1)=='do not') else True
             ),
             SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_PER_DAY:  (
-                re.compile(r'tide samples/day = (\d+.\d+)'),
+                re.compile(r'tide samples/day = (\d+\.\d+)'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_PER_DAY:  (
-                re.compile(r'wave bursts/day = (\d+.\d+)'),
+                re.compile(r'wave bursts/day = (\d+\.\d+)'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.MEMORY_ENDURANCE:  (
-                re.compile(r'memory endurance = (\d+.\d+) days'),
+                re.compile(r'memory endurance = (\d+\.\d+) days'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.NOMINAL_ALKALINE_BATTERY_ENDURANCE:  (
-                re.compile(r'nominal alkaline battery endurance = (\d+.\d+) days'),
+                re.compile(r'nominal alkaline battery endurance = (\d+\.\d+) days'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_TIDE_MEASUREMENTS:  (
-                re.compile(r'total recorded tide measurements = ([\d.\-]+)'),
+                re.compile(r'total recorded tide measurements = ([\d\.\-]+)'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.TOTAL_RECORDED_WAVE_BURSTS:  (
-                re.compile(r'total recorded wave bursts = ([\d.\-]+)'),
+                re.compile(r'total recorded wave bursts = ([\d\.\-]+)'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.TIDE_MEASUREMENTS_SINCE_LAST_START:  (
-                re.compile(r'tide measurements since last start = ([\d.\-]+)'),
+                re.compile(r'tide measurements since last start = ([\d\.\-]+)'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.WAVE_BURSTS_SINCE_LAST_START:  (
-                re.compile(r'wave bursts since last start = ([\d.\-]+)'),
+                re.compile(r'wave bursts since last start = ([\d\.\-]+)'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.TXREALTIME:  (
@@ -1008,15 +1015,15 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 lambda match : True if (match.group(1)=='do not') else False
             ),
             #SBE26plusDeviceStatusDataParticleKey.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR:  (
-            #    re.compile(r' +average water temperature above the pressure sensor \(deg C\) = ([\d.]+)'),
+            #    re.compile(r' +average water temperature above the pressure sensor \(deg C\) = ([\-\d\.]+)'),
             #    lambda match : float(match.group(1))
             #),
             #SBE26plusDeviceStatusDataParticleKey.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR:  (
-            #    re.compile(r' +average salinity above the pressure sensor \(PSU\) = ([\d.]+)'),
+            #    re.compile(r' +average salinity above the pressure sensor \(PSU\) = ([\-\d\.]+)'),
             #    lambda match : float(match.group(1))
             #),
             SBE26plusDeviceStatusDataParticleKey.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: (
-                re.compile(r' +height of pressure sensor from bottom \(meters\) = ([\d.]+)'),
+                re.compile(r' +height of pressure sensor from bottom \(meters\) = ([\d\.]+)'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND: (
@@ -1024,19 +1031,19 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 lambda match : int(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.MIN_ALLOWABLE_ATTENUATION: (
-                re.compile(r' +minimum allowable attenuation = ([\d.]+)'),
+                re.compile(r' +minimum allowable attenuation = ([\d\.]+)'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.MIN_PERIOD_IN_AUTO_SPECTRUM: (
-                re.compile(r' +minimum period \(seconds\) to use in auto-spectrum = (-?[\d.e\-\+]+)'),
+                re.compile(r' +minimum period \(seconds\) to use in auto-spectrum = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.MAX_PERIOD_IN_AUTO_SPECTRUM: (
-                re.compile(r' +maximum period \(seconds\) to use in auto-spectrum = (-?[\d.e\-\+]+)'),
+                re.compile(r' +maximum period \(seconds\) to use in auto-spectrum = (-?[\d\.e\-\+]+)'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.HANNING_WINDOW_CUTOFF: (
-                re.compile(r' +hanning window cutoff = ([\d.]+)'),
+                re.compile(r' +hanning window cutoff = ([\d\.]+)'),
                 lambda match : float(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.SHOW_PROGRESS_MESSAGES: (
@@ -1059,7 +1066,6 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
 
         for (key, (matcher, l_func)) in single_var_matchers.iteritems():
             vals[key] = None
-
         for line in self.raw_data.split(NEWLINE):
             for (key, (matcher, l_func)) in single_var_matchers.iteritems():
                 match = matcher.match(line)
@@ -1270,7 +1276,7 @@ class Protocol(SeaBirdProtocol):
             # Wakeup the device with timeout if passed.
 
             delay = 0.5
-
+            log.debug("############## TIMEOUT = " + str(timeout))
             prompt = self._wakeup(timeout=timeout, delay=delay)
             prompt = self._wakeup(timeout)
 
@@ -1280,6 +1286,9 @@ class Protocol(SeaBirdProtocol):
         self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS,timeout=timeout)
         self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION,timeout=timeout)
         pd = self._param_dict.get_config()
+        
+        
+        
 
         if pd[Parameter.LOGGING] == True:
             next_state = ProtocolState.AUTOSAMPLE
@@ -1294,7 +1303,7 @@ class Protocol(SeaBirdProtocol):
 
     def _handler_unknown_force_state(self, *args, **kwargs):
         """
-        Force driver into a given state for the purposes of unit testing
+        Force driver into a given state for the purposes of unit testring
         @param state=desired_state Required desired state to transition to.
         @raises InstrumentParameterException if no st'ate parameter.
         """
@@ -1468,7 +1477,6 @@ class Protocol(SeaBirdProtocol):
         # Raise if no parameter provided, or not a dict.
         try:
             params = args[0]
-            log.debug("######### params = " + str(repr(params)))
 
 
         except IndexError:
@@ -1488,7 +1496,6 @@ class Protocol(SeaBirdProtocol):
                 for (key, val) in set_params.iteritems():
                     log.debug("KEY = " + str(key) + " VALUE = " + str(val))
                     result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
-                    log.debug("**********************RESULT************* = " + str(result))
 
             if ss_params != {}:
                 # ONLY do next if a param for it is present
@@ -1548,14 +1555,13 @@ class Protocol(SeaBirdProtocol):
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
-
+        log.debug(" in _handler_command_setsampling")
         next_state = None
-        result = None
+        
 
         kwargs['expected_prompt'] = ", new value = "
 
         result = self._do_cmd_resp(InstrumentCmds.SETSAMPLING, *args, **kwargs)
-        log.debug("_handler_command_setsampling RESULT = " + str(result))
         return (next_state, result)
 
     def _build_setsampling_command(self, foo, *args, **kwargs):
@@ -1566,6 +1572,39 @@ class Protocol(SeaBirdProtocol):
         """
         log.debug("_build_setsampling_command setting _sampling_args")
         self._sampling_args = args[0]
+        
+        for (arg, val) in self._sampling_args.items():
+            # assert int
+            if arg in [Parameter.WAVE_SAMPLES_PER_BURST,
+                       Parameter.TIDE_INTERVAL,
+                       Parameter.TIDE_MEASUREMENT_DURATION,
+                       Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS,
+                       Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS,
+                       Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND
+                       ]:
+                if type(val) != int:
+                    raise InstrumentParameterException("incorrect type for " + str(arg))
+            # assert float
+            if arg in [Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR,
+                       Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR,
+                       Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM,
+                       Parameter.WAVE_SAMPLES_SCANS_PER_SECOND,
+                       Parameter.MIN_ALLOWABLE_ATTENUATION,
+                       Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM,
+                       Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM,
+                       Parameter.HANNING_WINDOW_CUTOFF
+                       ]:
+                if type(val) != float:
+                    raise InstrumentParameterException("incorrect type for " + str(arg))
+            # assert bool
+            if arg in [Parameter.USE_START_TIME,
+                       Parameter.USE_STOP_TIME,
+                       Parameter.TXWAVESTATS,
+                       Parameter.SHOW_PROGRESS_MESSAGES,
+                       Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC
+                       ]:
+                if type(val) != bool:
+                    raise InstrumentParameterException("incorrect type for " + str(arg))
 
         return InstrumentCmds.SETSAMPLING + NEWLINE
 
@@ -1583,8 +1622,8 @@ class Protocol(SeaBirdProtocol):
         starttime = time.time()
 
         while not done:
-            if(starttime + TIMEOUT < time.time()):
-                raise InstrumentTimeoutException("failed to parse set sample sting in a timely manor")
+            if (starttime + TIMEOUT < time.time()):
+                raise InstrumentTimeoutException("failed to parse set sample string in a timely(%ds) manor" % TIMEOUT)
 
             (prompt, response) = self._get_response(expected_prompt=desired_prompt)
             self._promptbuf = ''
@@ -1595,47 +1634,54 @@ class Protocol(SeaBirdProtocol):
             log.debug("mmresponse = " + str(response))
 
             if "tide interval (integer minutes) " in response:
-                if 'TIDE_INTERVAL' in self._sampling_args:
-                    self._connection.send(self._int_to_string(self._sampling_args['TIDE_INTERVAL']) + NEWLINE)
+                if Parameter.TIDE_INTERVAL in self._sampling_args:
+                    self._connection.send(self._int_to_string(self._sampling_args[Parameter.TIDE_INTERVAL]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
+                    
             elif "tide measurement duration (seconds)" in response:
-                if 'TIDE_MEASUREMENT_DURATION' in self._sampling_args:
-                    self._connection.send(self._int_to_string(self._sampling_args['TIDE_MEASUREMENT_DURATION']) + NEWLINE)
+                if Parameter.TIDE_MEASUREMENT_DURATION in self._sampling_args:
+                    self._connection.send(self._int_to_string(self._sampling_args[Parameter.TIDE_MEASUREMENT_DURATION]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
+                    
             elif "measure wave burst after every N tide samples" in response:
-                if 'TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS' in self._sampling_args:
-                    self._connection.send(self._int_to_string(self._sampling_args['TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS']) + NEWLINE)
+                if Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS in self._sampling_args:
+                    self._connection.send(self._int_to_string(self._sampling_args[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
+                    
             elif "number of wave samples per burst (multiple of 4)" in response:
-                if 'WAVE_SAMPLES_PER_BURST' in self._sampling_args:
-                    self._connection.send(self._int_to_string(self._sampling_args['WAVE_SAMPLES_PER_BURST']) + NEWLINE)
+                if Parameter.WAVE_SAMPLES_PER_BURST in self._sampling_args:
+                    self._connection.send(self._int_to_string(self._sampling_args[Parameter.WAVE_SAMPLES_PER_BURST]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
+                    
             elif "wave Sample duration (0.25, 0.50, 0.75, 1.0) seconds" in response:
                 # WAVE_SAMPLES_SCANS_PER_SECOND = 4, wave Sample duration = 1/4...
-                if 'WAVE_SAMPLES_SCANS_PER_SECOND' in self._sampling_args:
-                    val = float(1.0 / float(self._sampling_args['WAVE_SAMPLES_SCANS_PER_SECOND']))
+                if Parameter.WAVE_SAMPLES_SCANS_PER_SECOND in self._sampling_args:
+                    val = float(1.0 / float(self._sampling_args[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND]))
                     self._connection.send(self._float_to_string(val) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
+                    
             elif "use start time (y/n)" in response:
-                if 'USE_START_TIME' in self._sampling_args:
-                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_START_TIME']) + NEWLINE)
+                if Parameter.USE_START_TIME in self._sampling_args:
+                    self._connection.send(self._true_false_to_string(self._sampling_args[Parameter.USE_START_TIME]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
+                    
             elif "use stop time (y/n)" in response:
-                if 'USE_STOP_TIME' in self._sampling_args:
-                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_STOP_TIME']) + NEWLINE)
+                if Parameter.USE_STOP_TIME in self._sampling_args:
+                    self._connection.send(self._true_false_to_string(self._sampling_args[Parameter.USE_STOP_TIME]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
+                    
             elif "TXWAVESTATS (real-time wave statistics) (y/n)" in response:
-                if 'TXWAVESTATS' in self._sampling_args:
-                    if self._sampling_args['TXWAVESTATS'] == False:
+                if Parameter.TXWAVESTATS in self._sampling_args:
+                    if self._sampling_args[Parameter.TXWAVESTATS] == False:
                         done = True
-                    self._connection.send(self._true_false_to_string(self._sampling_args['TXWAVESTATS']) + NEWLINE)
+                    self._connection.send(self._true_false_to_string(self._sampling_args[Parameter.TXWAVESTATS]) + NEWLINE)
                 else:
                     # We default to no just for consistency sake. We might want to change the behavior here because this
                     # parameter affects the ability to set parameters.  Options, default to no if not explicit (what
@@ -1643,68 +1689,67 @@ class Protocol(SeaBirdProtocol):
                     # for parameter set
                     self._connection.send(self._true_false_to_string(False) + NEWLINE)
                     done = True
+                    
             elif "show progress messages (y/n) = " in response:
-                if 'SHOW_PROGRESS_MESSAGES' in self._sampling_args:
-                    self._connection.send(self._true_false_to_string(self._sampling_args['SHOW_PROGRESS_MESSAGES']) + NEWLINE)
+                if Parameter.SHOW_PROGRESS_MESSAGES in self._sampling_args:
+                    self._connection.send(self._true_false_to_string(self._sampling_args[Parameter.SHOW_PROGRESS_MESSAGES]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
+                    
             elif "number of wave samples per burst to use for wave statistics = " in response:
-                if 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' in self._sampling_args:
-                    self._connection.send(self._int_to_string(self._sampling_args['NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS']) + NEWLINE)
+                if Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS in self._sampling_args:
+                    self._connection.send(self._int_to_string(self._sampling_args[Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
+                    
             elif "use measured temperature and conductivity for density calculation (y/n) = " in response  or \
                  "use measured temperature for density calculation " in response:
-                if 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' in self._sampling_args:
-                    self._connection.send(self._true_false_to_string(self._sampling_args['USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC']) + NEWLINE)
+                if Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC in self._sampling_args:
+                    self._connection.send(self._true_false_to_string(self._sampling_args[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
-            #elif "use measured temperature for density calculation " in response:
-            #    if 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' in self._sampling_args:
-            #        self._connection.send(self._true_false_to_string(self._sampling_args['USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC']) + NEWLINE)
-            #    else:
-            #        self._connection.send(NEWLINE)
+                    
             elif "average water temperature above the pressure sensor (deg C) = " in response:
-                if 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR']) + NEWLINE)
+                if Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
 
             elif "average salinity above the pressure sensor (PSU) = " in response:
-                if 'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR']) + NEWLINE)
+                if Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
 
             elif "height of pressure sensor from bottom (meters) = " in response:
-                if 'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM']) + NEWLINE)
+                if Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
             elif "number of spectral estimates for each frequency band = " in response:
-                if 'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND' in self._sampling_args:
-                    self._connection.send(self._int_to_string(self._sampling_args['SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND']) + NEWLINE)
+                if Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND in self._sampling_args:
+                    self._connection.send(self._int_to_string(self._sampling_args[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
             elif "minimum allowable attenuation = " in response:
-                if 'MIN_ALLOWABLE_ATTENUATION' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['MIN_ALLOWABLE_ATTENUATION']) + NEWLINE)
+                if Parameter.MIN_ALLOWABLE_ATTENUATION in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args[Parameter.MIN_ALLOWABLE_ATTENUATION]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
             elif "minimum period (seconds) to use in auto-spectrum = " in response:
-                if 'MIN_PERIOD_IN_AUTO_SPECTRUM' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['MIN_PERIOD_IN_AUTO_SPECTRUM']) + NEWLINE)
+                if Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
             elif "maximum period (seconds) to use in auto-spectrum = " in response:
-                if 'MAX_PERIOD_IN_AUTO_SPECTRUM' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['MAX_PERIOD_IN_AUTO_SPECTRUM']) + NEWLINE)
+                if Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
             elif "hanning window cutoff = " in response:
                 done = True
-                if 'HANNING_WINDOW_CUTOFF' in self._sampling_args:
-                    self._connection.send(self._float_to_string(self._sampling_args['HANNING_WINDOW_CUTOFF']) + NEWLINE)
+                if Parameter.HANNING_WINDOW_CUTOFF in self._sampling_args:
+                    self._connection.send(self._float_to_string(self._sampling_args[Parameter.HANNING_WINDOW_CUTOFF]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
                 """
@@ -1759,25 +1804,25 @@ class Protocol(SeaBirdProtocol):
         log.debug("PARAMS = " + str(params))
         ss_params = {}
         set_params = {}
-        ss_keys = ['TIDE_INTERVAL',
-                'TIDE_MEASUREMENT_DURATION',
-                'TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS',
-                'WAVE_SAMPLES_PER_BURST',
-                'WAVE_SAMPLES_SCANS_PER_SECOND',
-                'USE_START_TIME',
-                'USE_STOP_TIME',
-                'TXWAVESTATS',
-                'SHOW_PROGRESS_MESSAGES',
-                'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS',
-                'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC',
-                'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR',
-                'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR',
-                'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM',
-                'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND',
-                'MIN_ALLOWABLE_ATTENUATION',
-                'MIN_PERIOD_IN_AUTO_SPECTRUM',
-                'MAX_PERIOD_IN_AUTO_SPECTRUM',
-                'HANNING_WINDOW_CUTOFF']
+        ss_keys = [Parameter.TIDE_INTERVAL,
+                   Parameter.TIDE_MEASUREMENT_DURATION,
+                   Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS,
+                   Parameter.WAVE_SAMPLES_PER_BURST,
+                   Parameter.WAVE_SAMPLES_SCANS_PER_SECOND,
+                   Parameter.USE_START_TIME,
+                   Parameter.USE_STOP_TIME,
+                   Parameter.TXWAVESTATS,
+                   Parameter.SHOW_PROGRESS_MESSAGES,
+                   Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS,
+                   Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC,
+                   Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR,
+                   Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR,
+                   Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM,
+                   Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND,
+                   Parameter.MIN_ALLOWABLE_ATTENUATION,
+                   Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM,
+                   Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM,
+                   Parameter.HANNING_WINDOW_CUTOFF]
 
         for (key, value) in params.iteritems():
             if key in ss_keys:
@@ -2049,52 +2094,50 @@ class Protocol(SeaBirdProtocol):
 
         ds_line_01 = r'SBE 26plus V ([\w.]+) +SN (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)' # NOT DONE #
         ds_line_02 = r'user info=(.*)$'
-        ds_line_03 = r'quartz pressure sensor: serial number = ([\d.\-]+), range = ([\d.\-]+) psia'
+        ds_line_03 = r'quartz pressure sensor: serial number = ([\d\.\-]+), range = ([\d\.\-]+) psia'
 
         ds_line_04 = r'(external|internal) temperature sensor' # NOT DONE #
         ds_line_05 = r'conductivity = (YES|NO)'
-        ds_line_06 = r'iop = +([\d.\-]+) ma  vmain = +([\d.\-]+) V  vlith = +([\d.\-]+) V'
+        ds_line_06 = r'iop = +([\d\.\-]+) ma  vmain = +([\d\.\-]+) V  vlith = +([\d\.\-]+) V'
 
-        ds_line_07a = r'last sample: p = +([\d.\-]+), t = +([\d.\-]+), s = +([\d.\-]+)'
-        ds_line_07b = r'last sample: p = +([\d.\-]+), t = +([\d.\-]+)'
-
-        ds_line_08 = r'tide measurement: interval = (\d+).000 minutes, duration = ([\d.\-]+) seconds'
-        ds_line_09 = r'measure waves every ([\d.\-]+) tide samples'
-        ds_line_10 = r'([\d.\-]+) wave samples/burst at ([\d.\-]+) scans/sec, duration = ([\d.\-]+) seconds'
-        ds_line_11 = r'logging start time =  (\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)' # NOT DONE #
+        ds_line_07a = r'last sample: p = +([\d\.\-]+), t = +([\d\.\-]+), s = +([\d\.\-]+)'
+        ds_line_07b = r'last sample: p = +([\d\.\-]+), t = +([\d\.\-]+)'
+        
+        ds_line_08 = r'tide measurement: interval = (\d+)\.000 minutes, duration = ([\d\.\-]+) seconds'
+        ds_line_09 = r'measure waves every ([\d\.\-]+) tide samples'
+        ds_line_10 = r'([\d\.]+) wave samples/burst at ([\d\.]+) scans/sec, duration = ([\d\.]+) seconds'
+        #ds_line_11 = r'logging start time =  (\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)' # NOT DONE #
 
         ds_line_11b = r'logging start time = (do not) use start time'
-        ds_line_12 = r'logging stop time =  (\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)' # NOT DONE #
+        #ds_line_12 = r'logging stop time =  (\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)' # NOT DONE #
         ds_line_12b = r'logging stop time = (do not) use stop time'
 
         ds_line_13 = r'tide samples/day = (\d+.\d+)'
         ds_line_14 = r'wave bursts/day = (\d+.\d+)'
         ds_line_15 = r'memory endurance = (\d+.\d+) days'
-        ds_line_16 = r'nominal alkaline battery endurance = (\d+.\d+) days'
-        ds_line_16_b = r'deployments longer than 2 years are not recommended with alkaline batteries'
-        ds_line_17 = r'total recorded tide measurements = ([\d.\-]+)'
-        ds_line_18 = r'total recorded wave bursts = ([\d.\-]+)'
-        ds_line_19 = r'tide measurements since last start = ([\d.\-]+)'
-        ds_line_20 = r'wave bursts since last start = ([\d.\-]+)'
+        ds_line_16 = r'nominal alkaline battery endurance = (\d+\.\d+) days'
+        #ds_line_16_b = r'deployments longer than 2 years are not recommended with alkaline batteries'
+        ds_line_17 = r'total recorded tide measurements = ([\d\.\-]+)'
+        ds_line_18 = r'total recorded wave bursts = ([\d\.\-]+)'
+        ds_line_19 = r'tide measurements since last start = ([\d\.\-]+)'
+        ds_line_20 = r'wave bursts since last start = ([\d\.\-]+)'
 
         ds_line_21 = r'transmit real-time tide data = (YES|NO)'
         ds_line_22 = r'transmit real-time wave burst data = (YES|NO)'
         ds_line_23 = r'transmit real-time wave statistics = (YES|NO)'
         # real-time wave statistics settings:
         ds_line_24 = r' +number of wave samples per burst to use for wave statistics = (\d+)'
-
-        #             '  use measured temperature for density calculation'
+                      
         ds_line_25 = r' +(do not |)use measured temperature (and conductivity |)for density calculation'
-        #ds_line_25_b = r' +(do not|) use measured temperature for density calculation'
-
-        ds_line_26 = r' +average water temperature above the pressure sensor \(deg C\) = ([\d.]+)' # float
-        ds_line_27 = r' +average salinity above the pressure sensor \(PSU\) = ([\d.]+)' # float
-        ds_line_28 = r' +height of pressure sensor from bottom \(meters\) = ([\d.]+)'
+#                         average water temperature above the pressure sensor (deg C) = -273.0
+        ds_line_26 = r' +average water temperature above the pressure sensor \(deg C\) = +([\-\d\.]+)' # float
+        ds_line_27 = r' +average salinity above the pressure sensor \(PSU\) = +([\-\d\.]+)' # float
+        ds_line_28 = r' +height of pressure sensor from bottom \(meters\) = ([\-\d\.]+)'
         ds_line_29 = r' +number of spectral estimates for each frequency band = (\d+)'
-        ds_line_30 = r' +minimum allowable attenuation = ([\d.]+)'
-        ds_line_31 = r' +minimum period \(seconds\) to use in auto-spectrum = (-?[\d.e\-\+]+)'
-        ds_line_32 = r' +maximum period \(seconds\) to use in auto-spectrum = (-?[\d.e\-\+]+)'
-        ds_line_33 = r' +hanning window cutoff = ([\d.]+)'
+        ds_line_30 = r' +minimum allowable attenuation = ([\d\.]+)'
+        ds_line_31 = r' +minimum period \(seconds\) to use in auto-spectrum = (-?[\d\.e\-\+]+)'
+        ds_line_32 = r' +maximum period \(seconds\) to use in auto-spectrum = (-?[\d\.e\-\+]+)'
+        ds_line_33 = r' +hanning window cutoff = ([\d\.]+)'
         ds_line_34 = r' +(do not show|show) progress messages' # NOT DONE #
 
         ds_line_35 = r'status = (logging|waiting|stopped)' # status = stopped by user
@@ -2358,16 +2401,11 @@ class Protocol(SeaBirdProtocol):
             ds_line_24,
             lambda match : int(match.group(1)),
             self._int_to_string)
-
+        
         self._param_dict.add(Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC,
             ds_line_25,
-            lambda match : False if (match.group(1)=='do not') else True,
+            lambda match : False if (match.group(1)=='do not ') else True,
             self._true_false_to_string)
-
-        #self._param_dict.add(Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC,
-        #    ds_line_25_b,
-        #    lambda match : True if (match.group(1)=='do not') else False,
-        #    self._true_false_to_string)
 
         self._param_dict.add(Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR,
             ds_line_26,
@@ -2460,8 +2498,8 @@ class Protocol(SeaBirdProtocol):
             raise InstrumentProtocolException('ds command not recognized: %s.' % response)
 
         for line in response.split(NEWLINE):
-            log.debug("_parse_ds_response -- " + line)
             hit_count = self._param_dict.multi_match_update(line)
+            log.debug(str(hit_count) + "_parse_ds_response -- " + line )
 
         # return the Ds as text
         match = DS_REGEX_MATCHER.search(response)
@@ -2469,6 +2507,7 @@ class Protocol(SeaBirdProtocol):
 
         if match:
             result = match.group(1)
+            log.debug("MATCH = " + str(result))
 
         return result
 
@@ -2490,8 +2529,6 @@ class Protocol(SeaBirdProtocol):
             result = match.group(1)
 
         return result
-
-
 
     def _parse_sl_response(self, response, prompt):
         """
