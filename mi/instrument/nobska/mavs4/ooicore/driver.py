@@ -61,21 +61,24 @@ class InstrumentPrompts(BaseEnum):
     MAVS-4 prompts.
     The main menu prompt has 2 bells and the sub menu prompts have one; the PicoDOS prompt has none.
     """
-    MAIN_MENU      = '\a\b ? \a\b'
-    SUB_MENU       = '\a\b'
-    PICO_DOS       = 'Enter command >> '
-    SLEEPING       = 'Sleeping . . .'
-    SLEEP_WAKEUP   = 'Enter <CTRL>-<C> now to wake up?'
-    DEPLOY_WAKEUP  = '>>> <CTRL>-<C> to terminate deployment <<<'
-    SET_DONE       = 'New parameters accepted.'
-    SET_FAILED     = 'Invalid entry'
-    SET_TIME       = '] ? \a\b'
-    GET_TIME       = 'Enter correct time ['
-    CHANGE_TIME    = 'Change time & date (Yes/No) [N] ?\a\b'
-    NOTE_INPUT     = '> '
-    DEPLOY_MENU    = 'G| Go (<CTRL>-<G> skips checks)\r\n\r\n'
-    SELECTION      = 'Selection  ?'
-    DISPLAY_FORMAT = 'Set display format (HDS) [S] ?'
+    MAIN_MENU       = '\a\b ? \a\b'
+    SUB_MENU        = '\a\b'
+    PICO_DOS        = 'Enter command >> '
+    SLEEPING        = 'Sleeping . . .'
+    SLEEP_WAKEUP    = 'Enter <CTRL>-<C> now to wake up?'
+    DEPLOY_WAKEUP   = '>>> <CTRL>-<C> to terminate deployment <<<'
+    SET_DONE        = 'New parameters accepted.'
+    SET_FAILED      = 'Invalid entry'
+    SET_TIME        = '] ? \a\b'
+    GET_TIME        = 'Enter correct time ['
+    CHANGE_TIME     = 'Change time & date (Yes/No) [N] ?\a\b'
+    NOTE_INPUT      = '> '
+    DEPLOY_MENU     = 'G| Go (<CTRL>-<G> skips checks)\r\n\r\n'
+    SELECTION       = 'Selection  ?'
+    DISPLAY_FORMAT  = 'Set display format (HDS) [S] ?'
+    MONITOR         = 'Enable Data Monitor (Yes/No) ['
+    LOG_DISPLAY     = 'with each sample (Yes/No) [Y] ?'
+    VELOCITY_FORMAT = 'Set acoustic axis velocity format (HDS) [S] ?'
     
 class InstrumentCmds(BaseEnum):
     CONTROL_C       = '\x03'   # CTRL-C (end of text)
@@ -88,67 +91,80 @@ class InstrumentCmds(BaseEnum):
     ENTER_NOTE      = 'enter_note'
     SET_VEL_FRAME   = 'F'
     ENTER_VEL_FRAME = 'enter_velocity_frame'
+    SET_MONITOR     = 'M'
+    ENTER_MONITOR   = 'enter_monitor'
+    ENTER_LOG_DISPLAY_TIME = 'enter_log_display_time'
+    ENTER_LOG_DISPLAY_FRACTIONAL_SECOND = 'enter_log_display_fractional_second'
+    ENTER_LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES = 'enter_log_display_acoustic_axis_velocities'
+    ENTER_ACOUSTIC_AXIS_VELOCITY_FORMAT = 'enter_log_display_acoustic_axis_velocity_format'
 
 class ProtocolStates(BaseEnum):
     """
     Protocol states for MAVS-4. Cherry picked from DriverProtocolState enum.
     """
-    UNKNOWN = DriverProtocolState.UNKNOWN
-    COMMAND = DriverProtocolState.COMMAND
-    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
-    TEST = DriverProtocolState.TEST
-    CALIBRATE = DriverProtocolState.CALIBRATE
+    UNKNOWN       = DriverProtocolState.UNKNOWN
+    COMMAND       = DriverProtocolState.COMMAND
+    AUTOSAMPLE    = DriverProtocolState.AUTOSAMPLE
+    TEST          = DriverProtocolState.TEST
+    CALIBRATE     = DriverProtocolState.CALIBRATE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
     
 class ProtocolEvent(BaseEnum):
     """
     Protocol events for MAVS-4. Cherry picked from DriverEvent enum.
     """
-    ENTER = DriverEvent.ENTER
-    EXIT = DriverEvent.EXIT
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
-    DISCOVER = DriverEvent.DISCOVER
+    ENTER            = DriverEvent.ENTER
+    EXIT             = DriverEvent.EXIT
+    GET              = DriverEvent.GET
+    SET              = DriverEvent.SET
+    DISCOVER         = DriverEvent.DISCOVER
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
-    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
+    STOP_AUTOSAMPLE  = DriverEvent.STOP_AUTOSAMPLE
+    EXECUTE_DIRECT   = DriverEvent.EXECUTE_DIRECT
+    START_DIRECT     = DriverEvent.START_DIRECT
+    STOP_DIRECT      = DriverEvent.STOP_DIRECT
+    CLOCK_SYNC       = DriverEvent.CLOCK_SYNC
 
 class Capability(BaseEnum):
     """
     Capabilities that are exposed to the user (subset of above)
     """
-    GET = ProtocolEvent.GET
-    SET = ProtocolEvent.SET
+    GET              = ProtocolEvent.GET
+    SET              = ProtocolEvent.SET
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
+    STOP_AUTOSAMPLE  = ProtocolEvent.STOP_AUTOSAMPLE
+    CLOCK_SYNC       = ProtocolEvent.CLOCK_SYNC
 
 # Device specific parameters.
 class InstrumentParameters(DriverParameter):
     """
     Device parameters for MAVS-4.
     """
-    SYS_CLOCK = 'sys_clock'
-    NOTE1 = 'note1'
-    NOTE2 = 'note2'
-    NOTE3 = 'note3'
-    VELOCITY_FRAME = 'velocity_frame'
-    MONITOR = 'monitor'
-    QUERY_MODE = 'query_mode'
-    MEASUREMENT_FREQUENCY = 'measurement_frequency'
-    MEASUREMENTS_PER_SAMPLE = 'measurements_per_sample'
-    SAMPLE_PERIOD = 'sample_period'
-    SAMPLES_PER_BURST = 'samples_per_burst'
-    BURST_INTERVAL = 'bursts_interval'
+    SYS_CLOCK                     = 'sys_clock'
+    NOTE1                         = 'note1'
+    NOTE2                         = 'note2'
+    NOTE3                         = 'note3'
+    VELOCITY_FRAME                = 'velocity_frame'
+    MONITOR                       = 'monitor'
+    LOG_DISPLAY_TIME              = 'log/display_time'
+    LOG_DISPLAY_FRACTIONAL_SECOND = 'log/display_fractional_second'
+    LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES = 'log/display_acoustic_axis_velocities'
+    QUERY_MODE                    = 'query_mode'
+    MEASUREMENT_FREQUENCY         = 'measurement_frequency'
+    MEASUREMENTS_PER_SAMPLE       = 'measurements_per_sample'
+    SAMPLE_PERIOD                 = 'sample_period'
+    SAMPLES_PER_BURST             = 'samples_per_burst'
+    BURST_INTERVAL                = 'bursts_interval'
     
 class DeployMenuParameters(BaseEnum):
-    NOTE1 = InstrumentParameters.NOTE1
-    NOTE2 = InstrumentParameters.NOTE2
-    NOTE3 = InstrumentParameters.NOTE3
-    VELOCITY_FRAME = InstrumentParameters.VELOCITY_FRAME
+    NOTE1                         = InstrumentParameters.NOTE1
+    NOTE2                         = InstrumentParameters.NOTE2
+    NOTE3                         = InstrumentParameters.NOTE3
+    VELOCITY_FRAME                = InstrumentParameters.VELOCITY_FRAME
+    MONITOR                       = InstrumentParameters.MONITOR
+    LOG_DISPLAY_TIME              = InstrumentParameters.LOG_DISPLAY_TIME
+    LOG_DISPLAY_FRACTIONAL_SECOND = InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND
+    LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES = InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES
 
 class SubMenues(BaseEnum):
     ROOT        = 'root_menu'
@@ -213,7 +229,7 @@ class MultilineParameterDictVal(ParameterDictVal):
         @retval True if an update was successful, False otherwise.
         """
         match = self.regex.search(input)
-        #log.debug("MultilineParameterDictVal.update: match=<%s> input=<%s>" %(match.group(0), input))
+        #log.debug("MultilineParameterDictVal.update: param_name=%s \nmatch=\n<%s> \ninput=\n<%s>" %(self.name, match.group(0), input))
         if match:
             self.value = self.f_getval(match)
             log.debug('MultilineParameterDictVal.update: Updated parameter %s=<%s>', self.name, str(self.value))
@@ -298,9 +314,21 @@ class Mavs4ProtocolParameterDict(ProtocolParameterDict):
         return self._param_dict[name].f_format(self._param_dict[name].value)
     
     def update(self, name, response):
-        #log.debug('Mavs4ProtocolParameterDict.update(): set %s from %s' %(name, response))
-        return self._param_dict[name].update(response)
+        #log.debug('Mavs4ProtocolParameterDict.update(): set %s from \n%s' %(name, response))
+        response = self._param_dict[name].update(response)
+        return response
 
+    def set(self, name, value):
+        """
+        Over-ridden to avoid bug in base class
+        Set a parameter value in the dictionary.
+        @param name The parameter name.
+        @param value The parameter value.
+        @raises KeyError if the name is invalid.
+        """
+        log.debug("setting " + name + " to " + str(value))
+        self._param_dict[name].value = value
+        
 ###
 #   Driver for mavs4
 ###
@@ -458,6 +486,19 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         was not recognized.
         """
 
+        # go to root menu.
+        got_prompt = False
+        for i in range(10):
+            try:
+                self._go_to_root_menu()
+                got_prompt = True
+                break
+            except:
+                pass
+            
+        if not got_prompt:                
+            raise InstrumentTimeoutException()
+                                    
         # Get dest_submenu 
         dest_submenu = kwargs.pop('dest_submenu', None)
         if dest_submenu == None:
@@ -527,6 +568,12 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             next_cmd = resp_result
         return next_cmd
    
+    def _send_control_c(self, count):
+        # spoon feed the control-c characters so instrument doesn't drop them if they are sent too fast
+        for n in range(count):
+            self._connection.send(InstrumentCmds.CONTROL_C)
+            time.sleep(.1)            
+    
     def _go_to_root_menu(self):
         # try to get root menu if instrument is not sleeping by sending single control-c
         for attempt in range(0,2):
@@ -547,18 +594,13 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                     log.debug("_go_to_root_menu: GOT SLEEPING PROMPT !!!!!!!!!!!!!!!!!!!!!!!")
                     break
         # instrument acts like it's asleep, so try to wake it up and get to root menu
+        count = 3
         for attempt in range(0,5):
             self._linebuf = ''
             self._promptbuf = ''
             prompt = 'no prompt received'
-            log.debug("_go_to_root_menu: sending 3 control-c characters to wake up sleeping instrument")
-            # spoon feed the control-c characters so instrument doesn't drop them if they are sent too fast
-            self._connection.send(InstrumentCmds.CONTROL_C)
-            time.sleep(.1)
-            self._connection.send(InstrumentCmds.CONTROL_C)
-            time.sleep(.1)
-            self._connection.send(InstrumentCmds.CONTROL_C)
-            time.sleep(.1)
+            log.debug("_go_to_root_menu: sending %d control-c characters to wake up sleeping instrument" %count)
+            self._send_control_c(count)
             try:
                 (prompt, result) = self._get_response(timeout= 4, expected_prompt=[InstrumentPrompts.MAIN_MENU,
                                                                                    InstrumentPrompts.SLEEP_WAKEUP,
@@ -569,6 +611,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             log.debug("_go_to_root_menu: prompt after sending 3 control-c characters = <%s>" %prompt)
             if prompt == InstrumentPrompts.MAIN_MENU:
                 return
+            if prompt == InstrumentPrompts.SLEEP_WAKEUP:
+                count = 1
         log.debug("_go_to_root_menu: failed to get to root menu, prompt=%s (%s)" %(self._prompt, self._prompt.encode("hex")))
         raise InstrumentTimeoutException("failed to get to root menu.")
                 
@@ -700,20 +744,31 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             if not isinstance(params_to_set, dict):
                 raise InstrumentParameterException('Set parameters not a dict.')
         
-        for (key, val) in params_to_set.iteritems():
-            # go to root menu.
-            got_prompt = False
-            for i in range(10):
-                try:
-                    self._go_to_root_menu()
-                    got_prompt = True
-                    break
-                except:
-                    pass
+        # handle monitor sub-parameters as a block to reduce I/O with instrument
+        monitor_parameters = (InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES, 
+                              InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND, 
+                              InstrumentParameters.LOG_DISPLAY_TIME)
+        monitor_parameters_dict = dict([(x, params_to_set[x]) for x in monitor_parameters if x in params_to_set])
+        if monitor_parameters_dict:
+            # set the parameter values so they can be gotten in the command builders
+            for (key, value) in monitor_parameters_dict.iteritems():
+                self._param_dict.set(key, value)
+            if params_to_set.get(InstrumentParameters.MONITOR, 'n') != 'y':
+                # if there isn't a set for enabling the monitor parameter then force a set so sub-parameters will be set
+                dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.MONITOR)
+                command = self._param_dict.get_submenu_write(InstrumentParameters.MONITOR)
+                self._navigate_and_execute(command, name=key, value='y', dest_submenu=dest_submenu, timeout=5)
+                # check to see if the monitor parameter needs to be reset from the 'enabled' value
+                monitor = self._param_dict.get(InstrumentParameters.MONITOR)
+                if monitor != 'y':
+                    dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.MONITOR)
+                    command = self._param_dict.get_submenu_write(InstrumentParameters.MONITOR)
+                    self._navigate_and_execute(command, name=key, value=monitor, dest_submenu=dest_submenu, timeout=5)
+            # remove the sub-parameters from the params_to_set dictionary
+            for parameter in monitor_parameters_dict:
+                del params_to_set[parameter]
                 
-            if not got_prompt:                
-                raise InstrumentTimeoutException()
-                                    
+        for (key, val) in params_to_set.iteritems():
             dest_submenu = self._param_dict.get_menu_path_write(key)
             command = self._param_dict.get_submenu_write(key)
             self._navigate_and_execute(command, name=key, value=val, dest_submenu=dest_submenu, timeout=5)
@@ -733,7 +788,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_state = None
         result = None
 
-        self._go_to_root_menu()
         # Issue start command and switch to autosample if successful.
         self._navigate_and_execute(InstrumentCmds.DEPLOY_GO, 
                                    dest_submenu=SubMenues.DEPLOY, 
@@ -937,6 +991,25 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         else:
             return 0
     
+    def _parse_enable_disable(self, input):
+        #log.debug('_parse_enable_disable: input=%s (%s)' %(input, input.encode('hex')))
+        if 'Enabled' in input:
+            return 'y'
+        if 'Disabled' in input:
+            return 'n'
+        else:
+            return 'unknown_state'
+    
+    def _parse_on_off(self, input):
+        #log.debug('_parse_on_off: input=%s (%s)' %(input, input.encode('hex')))
+        if 'Off' in input:
+            return 'n'
+        if 'On' in input:
+            return 'y'
+        else:
+            # handle ENTER_LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES parameter case when not off
+            return input
+    
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with MAVS4 parameters.
@@ -994,13 +1067,35 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_read=SubMenues.ROOT,
                              submenu_read=InstrumentCmds.DEPLOY_MENU,
                              menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_VEL_FRAME)
+                             submenu_write=InstrumentCmds.SET_MONITOR)
 
         self._param_dict.add(InstrumentParameters.MONITOR,
-                             '', 
-                             lambda line : int(line),
-                             self._int_to_string,
-                             value=0)
+                             r'.*M\| Monitor\s+(\w+).*', 
+                             lambda match : self._parse_enable_disable(match.group(1)),
+                             lambda string : string,
+                             value='',
+                             menu_path_read=SubMenues.ROOT,
+                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_write=SubMenues.DEPLOY,
+                             submenu_write=InstrumentCmds.SET_MONITOR)
+
+        self._param_dict.add(InstrumentParameters.LOG_DISPLAY_TIME,
+                             r'.*M\| Monitor\s+\w+\s+(\w+).*', 
+                             lambda match : self._parse_on_off(match.group(1)),
+                             lambda string : string,
+                             value='for_test')
+
+        self._param_dict.add(InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
+                             r'.*M\| Monitor\s+\w+\s+\w+\s+(\w+).*', 
+                             lambda match : self._parse_on_off(match.group(1)),
+                             lambda string : string,
+                             value='')
+
+        self._param_dict.add(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES,
+                             r'.*M\| Monitor\s+\w+\s+\w+\s+\w+\s+(\w+).*', 
+                             lambda match : self._parse_on_off(match.group(1)),
+                             lambda string : string,
+                             value='')
 
         self._param_dict.add(InstrumentParameters.QUERY_MODE,
                              '', 
@@ -1041,6 +1136,12 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the
         # navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ENTER_ACOUSTIC_AXIS_VELOCITY_FORMAT, self._build_enter_log_display_acoustic_axis_velocity_format_command)
+        self._add_build_handler(InstrumentCmds.ENTER_LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES, self._build_enter_log_display_acoustic_axis_velocities_command)
+        self._add_build_handler(InstrumentCmds.ENTER_LOG_DISPLAY_FRACTIONAL_SECOND, self._build_enter_log_display_fractional_second_command)
+        self._add_build_handler(InstrumentCmds.ENTER_LOG_DISPLAY_TIME, self._build_enter_log_display_time_command)
+        self._add_build_handler(InstrumentCmds.ENTER_MONITOR, self._build_enter_monitor_command)
+        self._add_build_handler(InstrumentCmds.SET_MONITOR, self._build_set_monitor_command)
         self._add_build_handler(InstrumentCmds.ENTER_VEL_FRAME, self._build_enter_velocity_frame_command)
         self._add_build_handler(InstrumentCmds.SET_VEL_FRAME, self._build_set_velocity_frame_command)
         self._add_build_handler(InstrumentCmds.ENTER_NOTE, self._build_enter_note_command)
@@ -1055,6 +1156,85 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
         self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
         
+    def _build_enter_log_display_acoustic_axis_velocity_format_command(self, **kwargs):
+        """
+        Build handler for log display acoustic axis velocity format enter command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        cmd = "%s" %(self._param_dict.get(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES)[0])
+        log.debug("_build_enter_log_display_acoustic_axis_velocity_format_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.DEPLOY_MENU, None)
+
+    def _build_enter_log_display_acoustic_axis_velocities_command(self, **kwargs):
+        """
+        Build handler for log display acoustic axis velocities enter command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        cmd = self._param_dict.get(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES)
+        log.debug("_build_enter_log_display_acoustic_axis_velocities_command: cmd=%s" %cmd)
+        if cmd == 'n':
+            return (cmd, InstrumentPrompts.DEPLOY_MENU, None)
+        return ('y', InstrumentPrompts.VELOCITY_FORMAT, InstrumentCmds.ENTER_ACOUSTIC_AXIS_VELOCITY_FORMAT)
+
+    def _build_enter_log_display_fractional_second_command(self, **kwargs):
+        """
+        Build handler for log display fractional second  enter command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        cmd = self._param_dict.get(InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND)
+        log.debug("_build_enter_log_display_fractional_second_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.LOG_DISPLAY, InstrumentCmds.ENTER_LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES)
+
+    def _build_enter_log_display_time_command(self, **kwargs):
+        """
+        Build handler for log display time enter command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        cmd = self._param_dict.get(InstrumentParameters.LOG_DISPLAY_TIME)
+        log.debug("_build_enter_log_display_time_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.LOG_DISPLAY, InstrumentCmds.ENTER_LOG_DISPLAY_FRACTIONAL_SECOND)
+
+    def _build_enter_monitor_command(self, **kwargs):
+        """
+        Build handler for monitor enter command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        value = kwargs.get('value', None)
+        if value == None:
+            raise InstrumentParameterException('enter monitor command requires a value.')
+        cmd = value
+        log.debug("_build_enter_monitor_command: cmd=%s" %cmd)
+        if value == 'n':
+            return (cmd, InstrumentPrompts.DEPLOY_MENU, None)            
+        return (cmd, InstrumentPrompts.LOG_DISPLAY, InstrumentCmds.ENTER_LOG_DISPLAY_TIME)
+
+    def _build_set_monitor_command(self, **kwargs):
+        """
+        Build handler for monitor set command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        cmd = InstrumentCmds.SET_MONITOR
+        log.debug("_build_set_monitor_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.MONITOR, InstrumentCmds.ENTER_MONITOR)
+
     def _build_enter_velocity_frame_command(self, **kwargs):
         """
         Build handler for velocity frame enter command 
@@ -1194,6 +1374,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if not InstrumentPrompts.DEPLOY_MENU in response:
             raise InstrumentProtocolException('deploy menu command not recognized by instrument: %s.' %response)
         
+        name = kwargs.get('name', None)
+        if name != InstrumentParameters.ALL:
+            # only get the parameter values if called from _update_params()
+            return None
         for parameter in DeployMenuParameters.list():
             #log.debug('_parse_deploy_menu_response: name=%s, response=%s' %(parameter, response))
             if not self._param_dict.update(parameter, response):
@@ -1254,29 +1438,24 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         params_to_get = [InstrumentParameters.SYS_CLOCK,
                          InstrumentParameters.NOTE1,
                          InstrumentParameters.NOTE2,
-                         InstrumentParameters.NOTE3]
+                         InstrumentParameters.NOTE3,
+                         InstrumentParameters.MONITOR,
+                         InstrumentParameters.LOG_DISPLAY_TIME,
+                         InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
+                         InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES]
 
         for key in params_to_get:
+            dest_submenu = self._param_dict.get_menu_path_read(key)
+            command = self._param_dict.get_submenu_read(key)
+
             if key in DeployMenuParameters.list():
                 if deploy_menu_prameters_parsed == True:
                     continue
                 else:
                     deploy_menu_prameters_parsed = True
-            # go to root menu.
-            got_prompt = False
-            for i in range(10):
-                try:
-                    self._go_to_root_menu()
-                    got_prompt = True
-                    break
-                except:
-                    pass
-                
-            if not got_prompt:                
-                raise InstrumentTimeoutException()
-                                    
-            dest_submenu = self._param_dict.get_menu_path_read(key)
-            command = self._param_dict.get_submenu_read(key)
+                    # set name to ALL so _parse_deploy_menu_response() knows to get all values
+                    key = InstrumentParameters.ALL
+                                                        
             self._navigate_and_execute(command, name=key, dest_submenu=dest_submenu, timeout=10)
 
         # Get new param dict config. If it differs from the old config,
