@@ -338,11 +338,11 @@ class CommConfigSerial(CommConfig):
     def get_from_console(self):
         self.device_os_port = prompt.text( 'Device OS Port', self.device_os_port )
         self.device_baud = prompt.text( 'Device Baud', self.device_baud )
-        if self.device_baud not in [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]:
+        if int(self.device_baud) not in [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]:
             raise InvalidCommType(str(self.device_baud) + " is not an allowed value for device baud. " +\
                                   "[1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]")
         self.device_data_bits = prompt.text( 'Device Data Bits', self.device_data_bits )
-        if self.device_data_bits not in [5, 6, 7, 8]:
+        if int(self.device_data_bits) not in [5, 6, 7, 8]:
             raise InvalidCommType(str(self.device_data_bits) +\
                                   " is not an allowed value for device data bits [5, 6, 7, 8].")
         self.device_parity = prompt.text( 'Device Parity', self.device_parity )
@@ -360,7 +360,7 @@ class CommConfigSerial(CommConfig):
             raise InvalidCommType(str(self.device_parity) + \
                                   " is not an allowed value for device parity. [none, odd, even]")
         self.device_stop_bits = prompt.text( 'Device Stop Bits', self.device_stop_bits )
-        if self.device_stop_bits not in [0, 1, 2]:
+        if int(self.device_stop_bits) not in [0, 1, 2]:
             raise InvalidCommType(str(self.device_stop_bits) + \
                                   " is not an allowed value for device stop bits [0, 1, 2].")
         self.device_flow_control = prompt.text( 'Device Flow Control', self.device_flow_control )
