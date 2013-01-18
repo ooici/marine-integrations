@@ -79,6 +79,7 @@ class InstrumentPrompts(BaseEnum):
     MONITOR         = 'Enable Data Monitor (Yes/No) ['
     LOG_DISPLAY     = 'with each sample (Yes/No) [Y] ?'
     VELOCITY_FORMAT = 'Set acoustic axis velocity format (HDS) [S] ?'
+    QUERY           = 'Enable Query Mode (Yes/No) ['
     
 class InstrumentCmds(BaseEnum):
     CONTROL_C       = '\x03'   # CTRL-C (end of text)
@@ -97,6 +98,8 @@ class InstrumentCmds(BaseEnum):
     ENTER_LOG_DISPLAY_FRACTIONAL_SECOND = 'enter_log_display_fractional_second'
     ENTER_LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES = 'enter_log_display_acoustic_axis_velocities'
     ENTER_ACOUSTIC_AXIS_VELOCITY_FORMAT = 'enter_log_display_acoustic_axis_velocity_format'
+    SET_QUERY       = 'Q'
+    ENTER_QUERY     = 'enter_query'
 
 class ProtocolStates(BaseEnum):
     """
@@ -165,6 +168,7 @@ class DeployMenuParameters(BaseEnum):
     LOG_DISPLAY_TIME              = InstrumentParameters.LOG_DISPLAY_TIME
     LOG_DISPLAY_FRACTIONAL_SECOND = InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND
     LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES = InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES
+    QUERY_MODE = InstrumentParameters.QUERY_MODE
 
 class SubMenues(BaseEnum):
     ROOT        = 'root_menu'
@@ -1098,10 +1102,14 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              value='')
 
         self._param_dict.add(InstrumentParameters.QUERY_MODE,
-                             '', 
-                             lambda line : int(line),
-                             self._int_to_string,
-                             value=0)
+                             r'.*Q\| Query Mode\s+(\w+).*', 
+                             lambda match : self._parse_enable_disable(match.group(1)),
+                             lambda string : string,
+                             value='',
+                             menu_path_read=SubMenues.ROOT,
+                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_write=SubMenues.DEPLOY,
+                             submenu_write=InstrumentCmds.SET_QUERY)
 
         self._param_dict.add(InstrumentParameters.MEASUREMENT_FREQUENCY,
                              '', 
@@ -1136,6 +1144,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the
         # navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ENTER_QUERY, self._build_enter_query_command)
+        self._add_build_handler(InstrumentCmds.SET_QUERY, self._build_set_query_command)
         self._add_build_handler(InstrumentCmds.ENTER_ACOUSTIC_AXIS_VELOCITY_FORMAT, self._build_enter_log_display_acoustic_axis_velocity_format_command)
         self._add_build_handler(InstrumentCmds.ENTER_LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES, self._build_enter_log_display_acoustic_axis_velocities_command)
         self._add_build_handler(InstrumentCmds.ENTER_LOG_DISPLAY_FRACTIONAL_SECOND, self._build_enter_log_display_fractional_second_command)
@@ -1156,6 +1166,33 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
         self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
         
+    def _build_enter_query_command(self, **kwargs):
+        """
+        Build handler for query enter command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        value = kwargs.get('value', None)
+        if value == None:
+            raise InstrumentParameterException('enter query command requires a value.')
+        cmd = value
+        log.debug("_build_enter_query_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.DEPLOY_MENU, None)            
+
+    def _build_set_query_command(self, **kwargs):
+        """
+        Build handler for query set command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        cmd = InstrumentCmds.SET_QUERY
+        log.debug("_build_set_query_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.QUERY, InstrumentCmds.ENTER_QUERY)
+
     def _build_enter_log_display_acoustic_axis_velocity_format_command(self, **kwargs):
         """
         Build handler for log display acoustic axis velocity format enter command 

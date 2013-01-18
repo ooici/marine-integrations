@@ -86,7 +86,7 @@ parameter_types = {
     InstrumentParameters.LOG_DISPLAY_TIME : str,
     InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : str,
     InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : str,
-    InstrumentParameters.QUERY_MODE : int,
+    InstrumentParameters.QUERY_MODE : str,
     InstrumentParameters.MEASUREMENT_FREQUENCY : float,
     InstrumentParameters.MEASUREMENTS_PER_SAMPLE : int,
     InstrumentParameters.SAMPLE_PERIOD : int,
@@ -307,10 +307,13 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         #params = [InstrumentParameters.SYS_CLOCK]
         #params = [InstrumentParameters.NOTE3]
         #params = [InstrumentParameters.VELOCITY_FRAME]
+        """
         params = [InstrumentParameters.MONITOR,
                   InstrumentParameters.LOG_DISPLAY_TIME,
                   InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
                   InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES]
+        """
+        params = [InstrumentParameters.QUERY_MODE]
         reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertParamDictionariesEqual(reply, parameter_types)
         for (name, value) in reply.iteritems():
@@ -323,11 +326,13 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         #new_params = {InstrumentParameters.SYS_CLOCK : '03/29/2002 11:11:42'}
         #new_params = {InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())}
         #new_params = {InstrumentParameters.VELOCITY_FRAME : 4}
+        """
         new_params = {InstrumentParameters.MONITOR : 'n',
                       InstrumentParameters.LOG_DISPLAY_TIME : 'y',
                       InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : 'y',
                       InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'SI'}
-
+        """
+        new_params = {InstrumentParameters.QUERY_MODE : 'n'}
         # Set parameters and verify.
         reply = self.driver_client.cmd_dvr('set_resource', new_params)
         reply = self.driver_client.cmd_dvr('get_resource', params)
