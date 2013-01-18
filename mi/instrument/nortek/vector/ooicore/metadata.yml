@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Bill Bollenbacher
+  driver_make: nortek
+  driver_model: vector
+  driver_name: ooicore
+  email: wcbollenbacher@ucsd.edu
+  release_notes: Driver for vector
+  version: '1.0'

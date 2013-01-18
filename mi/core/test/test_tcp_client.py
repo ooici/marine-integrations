@@ -21,12 +21,13 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from nose.plugins.attrib import attr
 import unittest
+from mi.core.unit_test import MiUnitTest
 
 from mi.core.tcp_client import TcpClient
 
 
 @attr('UNIT', group='mi')
-class TestTCPClient(unittest.TestCase):
+class TestTCPClient(MiUnitTest):
     """
     Test the logger object
     """    

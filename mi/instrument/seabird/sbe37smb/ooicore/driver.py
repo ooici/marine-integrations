@@ -30,7 +30,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import ResourceAgentEvent
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
@@ -39,6 +39,10 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.log import get_logger
 log = get_logger()
+
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW
+    PARSED = 'parsed'
 
 class SBE37ProtocolState(BaseEnum):
     """
@@ -141,31 +145,14 @@ SBE37_TIMEOUT = 10
 
 # Sample looks something like:
 # '#87.9140,5.42747, 556.864,   37.1829, 1506.961, 02 Jan 2001, 15:34:51'
-# Where C, T, and D are first 3 number fields respectively 
-SAMPLE_PATTERN = r'^#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'
+# Where C, T, and D are first 3 number fields respectively
+# Breaks it down a bit
+SAMPLE_PATTERN = r'#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'
 SAMPLE_PATTERN += r'(, *(-?\d+\.\d+))?(, *(-?\d+\.\d+))?'
 SAMPLE_PATTERN += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'
 SAMPLE_PATTERN += r'(, *(\d+)-(\d+)-(\d+), *(\d+):(\d+):(\d+))?'
 SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
         
-# Packet config for SBE37 data granules.
-STREAM_NAME_PARSED = DataParticleValue.PARSED
-STREAM_NAME_RAW = DataParticleValue.RAW
-#PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
-
-
-# TODO: Where are the param dict definitions kept and related to driver versions?
-PACKET_CONFIG = {
-    STREAM_NAME_PARSED : 'ctd_parsed_param_dict',
-    STREAM_NAME_RAW : 'ctd_raw_param_dict'
-}
-
-# TODO: remove this old definition:
-#PACKET_CONFIG = {
-#        'ctd_parsed' : ('prototype.sci_data.stream_defs', 'ctd_stream_packet'),
-#        'ctd_raw' : None
-#}
-
 ###############################################################################
 # Seabird Electronics 37-SMP MicroCAT Driver.
 ###############################################################################
@@ -209,6 +196,8 @@ class SBE37DataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.PARSED
+
     def _build_parsed_values(self):
         """
         Take something in the autosample/TS format and split it into
@@ -331,18 +320,16 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         patterns = []
         matchers = []
         return_list = []
-
+        
         patterns.append((SAMPLE_PATTERN)) 
-
+        
         for pattern in patterns:
             matchers.append(re.compile(pattern))
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
                 return_list.append((match.start(), match.end()))
-
         return return_list
-
         
     def _filter_capabilities(self, events):
         """
@@ -398,10 +385,10 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
             # Set the state to change.
             # Raise if the prompt returned does not match command or autosample.
-            if prompt == SBE37Prompt.COMMAND:
+            if prompt.strip() == SBE37Prompt.COMMAND:
                 next_state = SBE37ProtocolState.COMMAND
                 result = ResourceAgentState.IDLE
-            elif prompt == SBE37Prompt.AUTOSAMPLE:
+            elif prompt.strip() == SBE37Prompt.AUTOSAMPLE:
                 next_state = SBE37ProtocolState.AUTOSAMPLE
                 result = ResourceAgentState.STREAMING
             else:
@@ -805,7 +792,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if set command misunderstood.
         """
-        if prompt != SBE37Prompt.COMMAND:
+        if prompt.strip() != SBE37Prompt.COMMAND:
             raise InstrumentProtocolException('Set command not recognized: %s' % response)
 
     def _parse_dsdc_response(self, response, prompt):
@@ -815,7 +802,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if dsdc command misunderstood.
         """
-        if prompt != SBE37Prompt.COMMAND:
+        if prompt.strip() != SBE37Prompt.COMMAND:
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
         for line in response.split(SBE37_NEWLINE):
@@ -831,15 +818,15 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentSampleException if response did not contain a sample
         """
 
-        if prompt != SBE37Prompt.COMMAND:
+        if prompt.strip() != SBE37Prompt.COMMAND:
             raise InstrumentProtocolException('ts command not recognized: %s', response)
-
+        
         sample = None
         for line in response.split(SBE37_NEWLINE):
             sample = self._extract_sample(SBE37DataParticle, SAMPLE_REGEX, line, True)
             if sample:
                 break
-
+        
         if not sample:
             raise SampleException('Response did not contain sample: %s' % repr(response))
 
@@ -913,8 +900,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes. 
         """
-        self._extract_sample(SBE37DataParticle, SAMPLE_REGEX, chunk)
-
+        if self.get_current_state() == SBE37ProtocolState.AUTOSAMPLE:
+            self._extract_sample(SBE37DataParticle, SAMPLE_REGEX, chunk)
         
     def _build_param_dict(self):
         """

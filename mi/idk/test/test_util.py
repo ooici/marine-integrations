@@ -12,13 +12,14 @@ __license__ = 'Apache 2.0'
 
 from nose.plugins.attrib import attr
 import unittest
+from mi.core.unit_test import MiUnitTest
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.idk.util import convert_enum_to_dict
 
 @attr('UNIT', group='mi')
-class TestUnitTest(unittest.TestCase):
+class TestUnitTest(MiUnitTest):
     """
     Test the util functions
     """    

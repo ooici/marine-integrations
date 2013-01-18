@@ -8,15 +8,9 @@ USAGE:
  Make tests verbose and provide stdout
    * From the IDK
        $$ bin/test_driver
-       $$ bin/test_driver -u
-       $$ bin/test_driver -i
-       $$ bin/test_driver -q
-
-   * From pyon
-       $$ bin/nosetests -s -v ${driver_path}
-       $$ bin/nosetests -s -v ${driver_path} -a UNIT
-       $$ bin/nosetests -s -v ${driver_path} -a INT
-       $$ bin/nosetests -s -v ${driver_path} -a QUAL
+       $$ bin/test_driver -u [-t testname]
+       $$ bin/test_driver -i [-t testname]
+       $$ bin/test_driver -q [-t testname]
 """
 
 __author__ = '${author}'
@@ -34,11 +28,13 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import InstrumentDriverDataParticleMixin
 
 from interface.objects import AgentCommand
 
 from mi.core.instrument.logger_client import LoggerClient
 
+from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -46,23 +42,29 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import ${driver_name}${driver_class}
-from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import State
+from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import ${driver_class}
+from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import DataParticleType
+from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import InstrumentCommand
+from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import ProtocolState
+from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import ProtocolEvent
+from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import Capability
 from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import Parameter
-from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import PACKET_CONFIG
-
+from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import Protocol
+from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import Prompt
+from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import NEWLINE
 
 ###
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
     driver_module='${driver_module}',
-    driver_class="${driver_name}${driver_class}",
+    driver_class="${driver_class}",
 
     instrument_agent_resource_id = '${instrument_agent_resource_id}',
     instrument_agent_name = '${instrument_agent_name}',
-    instrument_agent_packet_config = {},
-    instrument_agent_stream_definition = {}
+    instrument_agent_packet_config = DataParticleType(),
+
+    driver_startup_config = {}
 )
 
 #################################### RULES ####################################
@@ -78,320 +80,103 @@ InstrumentDriverTestCase.initialize(
 #                                                                             #
 ###############################################################################
 
+###
+#   Driver constant definitions
+###
+
+###############################################################################
+#                           DATA PARTICLE TEST MIXIN                          #
+#     Defines a set of assert methods used for data particle verification     #
+#                                                                             #
+#  In python mixin classes are classes designed such that they wouldn't be    #
+#  able to stand on their own, but are inherited by other classes generally   #
+#  using multiple inheritance.                                                #
+#                                                                             #
+# This class defines a configuration structure for testing and common assert  #
+# methods for validating data particles.
+###############################################################################
+class DataParticleMixin(InstrumentDriverDataParticleMixin):
+    def assertSampleDataParticle(self, data_particle):
+        '''
+        Verify a particle is a know particle to this driver and verify the particle is
+        correct
+        @param data_particle: Data particle of unkown type produced by the driver
+        '''
+        if (isinstance(data_particle, RawDataParticle)):
+            self.assert_particle_raw(data_particle)
+        else:
+            log.error("Unknown Particle Detected: %s" % data_particle)
+            self.assertFalse(True)
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
+#                                                                             #
+#   These tests are especially useful for testing parsers and other data      #
+#   handling.  The tests generally focus on small segments of code, like a    #
+#   single function call, but more complex code using Mock objects.  However  #
+#   if you find yourself mocking too much maybe it is better as an            #
+#   integration test.                                                         #
+#                                                                             #
+#   Unit tests do not start up external processes like the port agent or      #
+#   driver process.                                                           #
 ###############################################################################
 @attr('UNIT', group='mi')
-class UnitFromIDK(InstrumentDriverUnitTestCase):
-	###
-	# 	Reset test verification variables.  The purpose of this method is
-	#	to reset the test verification variables to initial values.  The
-	#	individual tests should cause the variables to be set (for instance,
-	#	raw_stream_received would be set to True), and the tests should verify
-	#	that the variables have been set to the expected values.
-	###
-    def reset_test_vars(self):	
-        self.raw_stream_received = False
-        self.parsed_stream_received = False
+class DriverUnitTest(InstrumentDriverUnitTestCase):
+    def setUp(self):
+        InstrumentDriverUnitTestCase.setUp(self)
 
-	###
-	#	This is the callback that would normally publish events 
-	#	(streams, state transitions, etc.).
-	#	Use this method to test for existence of events and to examine their
-	#	attributes for correctness.
-	###         	
-    def my_event_callback(self, event):
-        event_type = event['type']
-        print str(event)
-        if event_type == DriverAsyncEvent.SAMPLE:
-            sample_value = event['value']
-            stream_type = sample_value['stream_name']
-            if stream_type == 'raw':
-                self.raw_stream_received = True
-            elif stream_type == 'parsed':
-                self.parsed_stream_received = True
-    
-    ###
-    #    Add instrument specific unit tests
-    ###
-    @unittest.skip('Instrument Driver Developer: test_valid_complete_sample skipped: please complete this test!')
-    def test_valid_complete_sample(self):
-        """
-        Create a mock port agent
-        """
-        mock_port_agent = Mock(spec=LoggerClient)
 
+    def test_driver_enums(self):
         """
-        Instantiate the driver class directly (no driver client, no driver
-        client, no zmq driver process, no driver process; just own the driver)
-        """       
-        test_driver = ${driver_name}${driver_class}(self.my_event_callback)
-        
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-        
+        Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
+        do a little extra validation for the Capabilites
         """
-        Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to the DISCONNECTED state
-        """
-        config = {'mock_port_agent' : mock_port_agent}
-        test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-        
-        """
-        Invoke the connect method of the driver: should connect to mock
-        port agent.  Verify that the connection FSM transitions to CONNECTED,
-        (which means that the FSM should now be reporting the ProtocolState).
-        """
-        test_driver.connect()
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+        self.assert_enum_has_no_duplicates(DataParticleType())
+        self.assert_enum_has_no_duplicates(ProtocolState())
+        self.assert_enum_has_no_duplicates(ProtocolEvent())
+        self.assert_enum_has_no_duplicates(Parameter())
+        self.assert_enum_has_no_duplicates(InstrumentCommand())
 
-        """
-        Force the driver into AUTOSAMPLE state so that it will parse and 
-        publish samples
-        """        
-        test_driver.set_test_mode(True)
-        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
+        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
+        self.assert_enum_has_no_duplicates(Capability())
+        self.assert_enum_complete(Capability(), ProtocolEvent())
 
-        """
-        - Reset test verification variables.
-        - Construct a complete sample
-        - Pass to got_data()
-        - Verify that raw and parsed streams have been received
-        """
-        self.reset_test_vars()
-        test_sample = "Insert sample here with appropriate line terminator"
 
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
+    def test_chunker(self):
+        """
+        Test the chunker and verify the particles created.
+        """
+        chunker = StringChunker(Protocol.sieve_function)
 
-    @unittest.skip('Instrument Driver Developer: test_invalid_sample skipped: please complete this test!')
-    def test_invalid_complete_sample(self):
-        """
-        Create a mock port agent
-        """
-        mock_port_agent = Mock(spec=LoggerClient)
 
+    def test_got_data(self):
         """
-        Instantiate the driver class directly (no driver client, no driver
-        client, no zmq driver process, no driver process; just own the driver)
-        """       
-        test_driver = ${driver_name}${driver_class}(self.my_event_callback)
-        
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-        
+        Verify sample data passed through the got data method produces the correct data particles
         """
-        Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to the DISCONNECTED state
-        """
-        config = {'mock_port_agent' : mock_port_agent}
-        test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-        
-        """
-        Invoke the connect method of the driver: should connect to mock
-        port agent.  Verify that the connection FSM transitions to CONNECTED,
-        (which means that the FSM should now be reporting the ProtocolState).
-        """
-        test_driver.connect()
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+        # Create and initialize the instrument driver with a mock port agent
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
 
-        """
-        Force the driver into AUTOSAMPLE state so that it will parse and 
-        publish samples
-        """        
-        test_driver.set_test_mode(True)
-        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
 
+    def test_protocol_filter_capabilities(self):
         """
-        - Reset test verification variables.
-        - Construct a complete sample
-        - Pass to got_data()
-        - Verify that raw and parsed streams have been received
+        This tests driver filter_capabilities.
+        Iterate through available capabilities, and verify that they can pass successfully through the filter.
+        Test silly made up capabilities to verify they are blocked by filter.
         """
-        self.reset_test_vars()
-        test_sample = "Invalid Sample"
+        mock_callback = Mock()
+        protocol = Protocol(Prompt, NEWLINE, mock_callback)
+        driver_capabilities = Capability().list()
+        test_capabilities = Capability().list()
 
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertFalse(self.raw_stream_received)
-        self.assertFalse(self.parsed_stream_received)
+        # Add a bogus capability that will be filtered out.
+        test_capabilities.append("BOGUS_CAPABILITY")
 
-    @unittest.skip('Instrument Driver Developer: test_fragmented_complete_sample skipped: please complete this test!')
-    def test_fragmented_complete_sample(self):
-        """
-        Simulate a complete sample that arrives in separate invocations of got_data();
-        result should be a complete sample published 
-        """
-        
-        """
-        Create a mock port agent
-        """
-        mock_port_agent = Mock(spec=LoggerClient)
-
-        """
-        Instantiate the driver class directly (no driver client, no driver
-        client, no zmq driver process, no driver process; just own the driver)
-        """                  
-        test_driver = ${driver_name}${driver_class}(self.my_event_callback)
-        
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-        
-        """
-        Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to that state
-        """
-        config = {'mock_port_agent' : mock_port_agent}
-        test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-        
-        """
-        Invoke the connect method of the driver: should connect to mock
-        port agent.  Verify that the connection FSM transitions to CONNECTED,
-        (which means that the FSM should now be reporting the ProtocolState).
-        """
-        test_driver.connect()
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        """
-        Force the driver into AUTOSAMPLE state so that it will parse and 
-        publish samples
-        """        
-        test_driver.set_test_mode(True)
-        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
-
-        """
-        - Reset test verification variables.
-        - Construct a fragment of a sample stream
-        - Pass to got_data()
-        - Verify that raw and parsed streams have NOT been received
-        """
-        self.reset_test_vars()
-        test_sample = "Insert a fragment of a sample here, i.e., the beginning " + \
-        	"of a sample, but not a complete sample.  The remainder will be " + \
-        	"sent in a separate message."
-
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertFalse(self.raw_stream_received)
-        self.assertFalse(self.parsed_stream_received)
-
-        """
-        - Construct the remaining fragment of the sample stream
-        - Pass to got_data()
-        - Verify that raw and parsed streams have been received
-        """
-        test_sample = "Insert a remainder of the above sample here"
-
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
-                
-    @unittest.skip('Instrument Driver Developer: test_concatenated_fragmented_sample skipped: please complete this test!')
-    def test_concatenated_fragmented_sample(self):
-        """
-        Simulate a complete sample that arrives in with a fragment concatenated.  The concatenated fragment
-        should have have a terminator.  A separate invocations of got_data() will have the remainder;
-        result should be a complete sample published 
-        """
-        
-        """
-        Create a mock port agent
-        """
-        mock_port_agent = Mock(spec=LoggerClient)
-
-        """
-        Instantiate the driver class directly (no driver client, no driver
-        client, no zmq driver process, no driver process; just own the driver)
-        """                  
-        test_driver = ${driver_name}${driver_class}(self.my_event_callback)
-        
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-        
-        """
-        Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to that state
-        """
-        config = {'mock_port_agent' : mock_port_agent}
-        test_driver.configure(config = config)
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-        
-        """
-        Invoke the connect method of the driver: should connect to mock
-        port agent.  Verify that the connection FSM transitions to CONNECTED,
-        (which means that the FSM should now be reporting the ProtocolState).
-        """
-        test_driver.connect()
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        """
-        Force the driver into AUTOSAMPLE state so that it will parse and 
-        publish samples
-        """        
-        test_driver.set_test_mode(True)
-        test_driver.test_force_state(state = DriverProtocolState.AUTOSAMPLE)
-        current_state = test_driver.get_current_state()
-        self.assertEqual(current_state, DriverProtocolState.AUTOSAMPLE)
-
-        """
-        - Reset test verification variables.
-        - Construct a sample stream with a concatenated fragment
-        - Pass to got_data()
-        - Verify that raw and parsed streams have been received
-        - Later, when the final fragment has been send, verify that raw and
-          parsed streams have been received.
-        """
-        self.reset_test_vars()
-        test_sample = "Insert a complete sample here."
-
-        """
-        - Add the beginning of another sample stream
-        - Pass to got_data()
-        """
-        test_sample += "Add the beginning of another sample stream here, but just a fragment: the rest will come" + \
-            "in another message." 
-
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
-
-        """
-        - Reset test verification variables
-        - Construct the final fragment of a sample stream
-        - Pass to got_data()
-        - Verify that raw and parsed streams have been received
-        """
-        self.reset_test_vars()
-        test_sample = \
-            "Insert the remainder of the fragmented sample that was added to the stream above."
-
-        test_driver._protocol.got_data(test_sample)
-        
-        self.assertTrue(self.raw_stream_received)
-        self.assertTrue(self.parsed_stream_received)
+        # Verify "BOGUS_CAPABILITY was filtered out
+        self.assertEquals(sorted(driver_capabilities),
+                          sorted(protocol._filter_capabilities(test_capabilities)))
 
 
 ###############################################################################
@@ -402,27 +187,60 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class IntFromIDK(InstrumentDriverIntegrationTestCase):
+class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    ###
-    #    Add instrument specific integration tests
-    ###
 
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
-# Device specific qualification tests are for                                 #
-# testing device specific capabilities                                        #
+# Device specific qualification tests are for doing final testing of ion      #
+# integration.  The generally aren't used for instrument debugging and should #
+# be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class QualFromIDK(InstrumentDriverQualificationTestCase):
+class DriverQualificationTest(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-    ###
-    #    Add instrument specific qualification tests
-    ###
+    def test_direct_access_telnet_mode(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
+
+        ###
+        #   Add instrument specific code here.
+        ###
+
+        self.assert_direct_access_stop_telnet()
 
 
+    def test_poll(self):
+        '''
+        No polling for a single sample
+        '''
+
+
+    def test_autosample(self):
+        '''
+        start and stop autosample and verify data particle
+        '''
+
+
+    def test_get_set_parameters(self):
+        '''
+        verify that all parameters can be get set properly, this includes
+        ensuring that read only parameters fail on set.
+        '''
+        self.assert_enter_command_mode()
+
+
+    def test_get_capabilities(self):
+        """
+        @brief Walk through all driver protocol states and verify capabilities
+        returned by get_current_capabilities
+        """
+        self.assert_enter_command_mode()

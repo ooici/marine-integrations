@@ -10,10 +10,13 @@
 __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
+import time
+import datetime
 from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
 from pyon.util.containers import DotDict
 from pyon.util.unit_test import IonUnitTestCase
+from mi.core.unit_test import MiUnitTestCase
 
 from mock import Mock
 
@@ -25,7 +28,7 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 
 @attr('UNIT', group='mi')
-class TestUnitInstrumentDriver(IonUnitTestCase):
+class TestUnitInstrumentDriver(MiUnitTestCase):
     """
     Test cases for instrument driver class. Functions in this class provide
     instrument driver unit tests and provide a tutorial on use of
@@ -75,6 +78,7 @@ class TestUnitInstrumentDriver(IonUnitTestCase):
                              startup_param=False,
                              default_value=40)
         self.driver._protocol._param_dict.set_default("bat")
+
                 
     def test_test_mode(self):
         """
@@ -182,7 +186,9 @@ class TestUnitInstrumentDriver(IonUnitTestCase):
         self.assertTrue(self.driver._protocol._param_dict.get("bar"), 150)
         self.assertTrue(self.driver._protocol._param_dict.get("baz"), 2000)
         self.assertTrue(self.driver._protocol._param_dict.get("bat"), 40)
-        
-        
+
     ##### Integration tests for startup config in the SBE37 integration suite
-        
+
+
+
+

@@ -32,8 +32,7 @@ InstrumentDriverTestCase.initialize(
 
     instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'Agent007',
-    instrument_agent_packet_config = PACKET_CONFIG,
-    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
+    instrument_agent_packet_config = DataParticleType()
 )
 
 ###############################################################################

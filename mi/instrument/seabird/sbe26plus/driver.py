@@ -15,31 +15,32 @@ import re
 import time
 import string
 import ntplib
-from mi.core.time import get_timestamp_delayed
+
 from mi.core.log import get_logger ; log = get_logger()
+
+from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
+from mi.instrument.seabird.driver import SeaBirdProtocol
+
 from mi.core.common import BaseEnum
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.time import get_timestamp_delayed
 from mi.core.instrument.instrument_fsm import InstrumentFSM
-from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
+from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
-from mi.core.instrument.chunker import StringChunker
 from pyon.agent.agent import ResourceAgentState
-
 
 NEWLINE = '\r\n'
 
 # default timeout.
 TIMEOUT = 10
-
-
 
 TIDE_REGEX = r'(tide: start time = +\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+, p = +[\-\d.]+, pt = +[\-\d.]+, t = +[\-\d.]+.*?\r\n)'
 TIDE_REGEX_MATCHER = re.compile(TIDE_REGEX)
@@ -50,37 +51,35 @@ WAVE_REGEX_MATCHER = re.compile(WAVE_REGEX, re.DOTALL)
 STATS_REGEX = r'(deMeanTrend.*?H1/100 = [\d.e+]+\r\n)'
 STATS_REGEX_MATCHER = re.compile(STATS_REGEX, re.DOTALL)
 
-TS_REGEX = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)' # .*?\r\n
+TS_REGEX = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)'
 TS_REGEX_MATCHER = re.compile(TS_REGEX)
 
-DC_REGEX = r'.*(Pressure coefficients.+?)\r\nS>' # dont need leading .* if .match() is changed to .search()
+DC_REGEX = r'(Pressure coefficients.+?)CSLOPE = [\d+e\.].+?\r\n'
 DC_REGEX_MATCHER = re.compile(DC_REGEX, re.DOTALL)
 
-DS_REGEX = r'.*(SBE 26plus V.+?)\r\nS>'  # dont need leading .* if .match() is changed to .search()
+DS_REGEX = r'(SBE 26plus V.+?)logging = [\w, ].+?\r\n'
 DS_REGEX_MATCHER = re.compile(DS_REGEX, re.DOTALL)
 
-# Packet config
-STREAM_NAME_PARSED = DataParticleValue.PARSED
-STREAM_NAME_RAW = DataParticleValue.RAW
-PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
+###
+#    Driver Constant Definitions
+###
 
-PACKET_CONFIG = {
-    STREAM_NAME_PARSED : 'ctd_parsed_param_dict',
-    STREAM_NAME_RAW : 'ctd_raw_param_dict'
-}
+class ScheduledEvents(BaseEnum):
+    ACQUIRE_STATUS = 'acquire_status'
 
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW
+    TIDE_PARSED = 'tide_parsed'
+    WAVE_BURST = 'wave_burst_parsed'
+    DEVICE_STATUS = 'device_status_parsed'
+    DEVICE_CALIBRATION = 'device_calibration_parsed'
+    STATISTICS = 'statistics_parsed'
 
-
-
-
-
-
-
-# Device specific parameters.
 class InstrumentCmds(BaseEnum):
     """
-    Instrument Commands
-    These are the commands that according to the science profile must be supported.
+    Device specific commands
+    Represents the commands the driver implements and the string that must be sent to the instrument to
+    execute the command.
     """
     SETSAMPLING = 'setsampling'
     DISPLAY_STATUS = 'ds'
@@ -93,11 +92,9 @@ class InstrumentCmds(BaseEnum):
     TAKE_SAMPLE = 'ts'
     INIT_LOGGING = 'initlogging'
 
-
 class ProtocolState(BaseEnum):
     """
     Protocol states
-    enum.
     """
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
@@ -107,31 +104,30 @@ class ProtocolState(BaseEnum):
 class ProtocolEvent(BaseEnum):
     """
     Protocol events
-    Should only have to define ones to ADD to the base class.  cannot remove from base class gracefully...
+    Extends protocol events to the set defined in the base class.
     """
-
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
     GET = DriverEvent.GET
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
 
+    ### Common driver commands, should these be promoted?  What if the command isn't supported?
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    SETSAMPLING = 'PROTOCOL_EVENT_SETSAMPLING'
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     FORCE_STATE = DriverEvent.FORCE_STATE
-    QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
-    INIT_LOGGING = 'PROTOCOL_EVENT_INIT_LOGGING'
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     PING_DRIVER = DriverEvent.PING_DRIVER
 
+    SETSAMPLING = 'PROTOCOL_EVENT_SETSAMPLING'
+    QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
+    INIT_LOGGING = 'PROTOCOL_EVENT_INIT_LOGGING'
 
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
-    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-
 
 class Capability(BaseEnum):
     """
@@ -143,12 +139,10 @@ class Capability(BaseEnum):
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
     ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
 
-# Device specific parameters.
 class Parameter(DriverParameter):
     """
     Device parameters
     """
-
     # DS
     DEVICE_VERSION = 'DEVICE_VERSION' # str,
     SERIAL_NUMBER = 'SERIAL_NUMBER' # str,
@@ -199,10 +193,6 @@ class Parameter(DriverParameter):
     STATUS = 'STATUS' # str,
     LOGGING = 'LOGGING' # bool,
 
-
-    # *** Fields with *** Should be converted to use:
-    #     ntp 4 64 bit timestamp http://stackoverflow.com/questions/8244204/ntp-timestamps-in-python
-
 # Device prompts.
 class Prompt(BaseEnum):
     """
@@ -214,120 +204,9 @@ class Prompt(BaseEnum):
     CONFIRMATION_PROMPT = 'proceed Y/N ?'
 
 
-
 ###############################################################################
-# Driver
-###############################################################################
-
-class InstrumentDriver(SingleConnectionInstrumentDriver):
-    """
-    InstrumentDriver subclass
-    Subclasses SingleConnectionInstrumentDriver with connection state
-    machine.
-    """
-    def __init__(self, evt_callback):
-        """
-        Driver constructor.
-        @param evt_callback Driver process event callback.
-        """
-        #Construct superclass.
-        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-
-    ########################################################################
-    # Superclass overrides for resource query.
-    ########################################################################
-
-
-    ########################################################################
-    # Protocol builder.
-    ########################################################################
-
-    def _build_protocol(self):
-        """
-        Construct the driver protocol state machine.
-        """
-        self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
-
-###############################################################################
-# Protocol
+# Data Particles
 ################################################################################
-
-
-#remove TS stream,
-
-class SBE26plusTakeSampleDataParticleKey(BaseEnum):
-    PRESSURE = "pressure"           # p = calculated and stored pressure (psia).
-    PRESSURE_TEMP = "pressure_temp" # pt = calculated pressure temperature (not stored) (C).
-    TEMPERATURE = "temperature"     # t = calculated and stored temperature (C).
-    CONDUCTIVITY = "conductivity"   # c = calculated and stored conductivity (S/m)
-    SALINITY = "salinity"           # s = calculated salinity (not stored) (psu).
-
-class SBE26plusTakeSampleDataParticle(DataParticle):
-    """
-    Routines for parsing raw data into a data particle structure. Override
-    the building of values, and the rest should come along for free.
-
-    # -158.9284 -8388.96  -3.2164
-    ['p', 'pt', 't']
-    # -158.5166 -8392.30  -3.2164 -1.02535   0.0000
-    ['p', 'pt', 't', 'c', 's']
-    """
-
-    def _build_parsed_values(self):
-        """
-        Take something in the autosample format and split it into
-        values with appropriate tags
-
-        @throws SampleException If there is a problem with sample creation
-        """
-
-        pat1 = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)'
-        regex1 = re.compile(pat1, re.MULTILINE|re.DOTALL)
-        pat2 = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)'
-        regex2 = re.compile(pat2, re.MULTILINE|re.DOTALL)
-
-        count = 5
-        match = regex1.match(self.raw_data)
-        if not match:
-            count = 3
-            match = regex2.match(self.raw_data)
-            if not match:
-                raise SampleException("No regex match of parsed sample data: [%s]" %
-                              self.raw_data)
-
-        # initialize
-        PRESSURE = None
-        PRESSURE_temp = None
-        temperature = None
-        conductivity = None
-        salinity = None
-
-        if 2 < count:
-            PRESSURE = float(match.group(1))
-            PRESSURE_temp = float(match.group(2))
-            temperature = float(match.group(3))
-
-
-        if 5 == count:
-            conductivity = float(match.group(4))
-            salinity = float(match.group(5))
-
-
-
-        result = [{DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.PRESSURE,
-                   DataParticleKey.VALUE: PRESSURE},
-                  {DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.PRESSURE_TEMP,
-                   DataParticleKey.VALUE: PRESSURE_temp},
-                  {DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.TEMPERATURE,
-                   DataParticleKey.VALUE: temperature},
-                  {DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.CONDUCTIVITY,
-                   DataParticleKey.VALUE: conductivity},
-                  {DataParticleKey.VALUE_ID: SBE26plusTakeSampleDataParticleKey.SALINITY,
-                   DataParticleKey.VALUE: salinity}]
-
-        log.debug("in SBE26plusTakeSampleDataParticle._build_parsed_values result = " + repr(result))
-
-        return result
 
 class SBE26plusTideSampleDataParticleKey(BaseEnum):
     TIMESTAMP = "timestamp"
@@ -342,6 +221,7 @@ class SBE26plusTideSampleDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.TIDE_PARSED
 
     def _build_parsed_values(self):
         """
@@ -360,8 +240,7 @@ class SBE26plusTideSampleDataParticle(DataParticle):
         if not match:
             match = regex2.match(self.raw_data)
             if not match:
-                raise SampleException("No regex match of parsed sample data: [%s]" %
-                                     self.raw_data)
+                raise SampleException("No regex match of parsed sample data: [%s]" % self.raw_data)
 
         # initialize
         timestamp = None
@@ -386,10 +265,9 @@ class SBE26plusTideSampleDataParticle(DataParticle):
         try:
             conductivity = float(match.group(5))
             salinity = float(match.group(6))
-        except ValueError:
-            """
-            These are optional. Quietly ignore if they dont occur.
-            """
+        except IndexError:
+            #These are optional. Quietly ignore if they dont occur.
+            pass
 
         result = [{DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: timestamp},
@@ -416,6 +294,8 @@ class SBE26plusWaveBurstDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.WAVE_BURST
+
     def _build_parsed_values(self):
         """
         Take something in the autosample format and split it into
@@ -441,6 +321,10 @@ class SBE26plusWaveBurstDataParticle(DataParticle):
         for line in self.raw_data.split(NEWLINE):
             log.debug("SBE26plusWaveBurstDataParticle._build_parsed_values LINE = " + repr(line))
             matched = False
+
+            # skip blank lines
+            if len(line) == 0:
+                matched = True
 
             match = start_time_matcher.match(line)
             if match:
@@ -471,9 +355,12 @@ class SBE26plusWaveBurstDataParticle(DataParticle):
                     raise SampleException("ValueError while decoding floats in data: [%s]" %
                                           self.raw_data)
 
+            if 'wave: end burst' in line:
+                matched = True
+                log.debug("End of record detected")
+
             if False == matched:
-                raise SampleException("No regex match of parsed sample data: [%s]" %
-                                      self.raw_data)
+                raise SampleException("No regex match of parsed sample data: ROW: [%s]" % line)
 
         result = [{DataParticleKey.VALUE_ID: SBE26plusWaveBurstDataParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: timestamp},
@@ -516,6 +403,12 @@ class SBE26plusStatisticsDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.STATISTICS
+
+    class StatisticType(BaseEnum):
+        NONE = 0
+        AUTO = 1
+        TSS = 2
 
     def _build_parsed_values(self):
         """
@@ -557,7 +450,7 @@ class SBE26plusStatisticsDataParticle(DataParticle):
             "total variance":           None,
             "total energy":             None,
             "significant period":       None,
-            "a significant wave height":None,
+            "significant wave height":  None,
             "wave integration time":    None,
             "number of waves":          None,
             "total variance":           None,
@@ -565,37 +458,40 @@ class SBE26plusStatisticsDataParticle(DataParticle):
             "average wave height":      None,
             "average wave period":      None,
             "maximum wave height":      None,
-            "significant wave height":  None,
+            "t significant wave height":None,
             "t significant wave period":None,
+            "t total variance":         None,
+            "t total energy":           None,
             "H1/10":                    None,
             "H1/100":                   None
         }
 
-        flip_key = None
+
+        stat_type = self.StatisticType.NONE
+
         for line in self.raw_data.split(NEWLINE):
             if 'Auto-Spectrum Statistics:' in line:
-                flip_key = 'a significant wave height'
+                stat_type = self.StatisticType.AUTO
             elif 'Time Series Statistics:' in line:
-                flip_key = 't significant wave period'
+                stat_type = self.StatisticType.TSS
 
 
             match = dtsd_matcher.match(line)
             if match:
-                depth = float(match(1))
-                temperature = float(match(2))
-                salinity = float(match(3))
-                density = float(match(4))
+                depth = float(match.group(1))
+                temperature = float(match.group(2))
+                salinity = float(match.group(3))
+                density = float(match.group(4))
 
-            for (key, matcher) in single_var_matchers:
+            for (key, matcher) in single_var_matchers.items():
                 match = single_var_matchers[key].match(line)
                 if match:
                     if key in ["nAvgBand", "wave integration time", "number of waves"]:
-                        single_var_matches[key] = int(match(1))
+                        single_var_matches[key] = int(match.group(1))
+                    elif key in ["significant wave height", "significant wave period", "total variance", "total energy"] and  stat_type == self.StatisticType.TSS:
+                        single_var_matches["t " + key] = float(match.group(1))
                     else:
-                        if "significant wave height" in line:
-                            single_var_matches[flip_key] = float(match(1))
-                        else:
-                            single_var_matches[key] = float(match(1))
+                        single_var_matches[key] = float(match.group(1))
 
 
         result = [{DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.DEPTH,
@@ -616,16 +512,16 @@ class SBE26plusStatisticsDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.SIGNIFICANT_PERIOD,
                    DataParticleKey.VALUE: single_var_matches["significant period"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.SIGNIFICANT_WAVE_HEIGHT,
-                   DataParticleKey.VALUE: single_var_matches["a significant wave height"]},
+                   DataParticleKey.VALUE: single_var_matches["significant wave height"]},
 
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_WAVE_INTEGRATION_TIME,
                    DataParticleKey.VALUE: single_var_matches["wave integration time"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_NUMBER_OF_WAVES,
                    DataParticleKey.VALUE: single_var_matches["number of waves"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_TOTAL_VARIANCE,
-                   DataParticleKey.VALUE: single_var_matches["total variance"]},
+                   DataParticleKey.VALUE: single_var_matches["t total variance"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_TOTAL_ENERGY,
-                   DataParticleKey.VALUE: single_var_matches["total energy"]},
+                   DataParticleKey.VALUE: single_var_matches["t total energy"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_HEIGHT,
                    DataParticleKey.VALUE: single_var_matches["average wave height"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_AVERAGE_WAVE_PERIOD,
@@ -633,7 +529,7 @@ class SBE26plusStatisticsDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_MAXIMUM_WAVE_HEIGHT,
                    DataParticleKey.VALUE: single_var_matches["maximum wave height"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_HEIGHT,
-                   DataParticleKey.VALUE: single_var_matches["significant wave height"]},
+                   DataParticleKey.VALUE: single_var_matches["t significant wave height"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_SIGNIFICANT_WAVE_PERIOD,
                    DataParticleKey.VALUE: single_var_matches["t significant wave period"]},
                   {DataParticleKey.VALUE_ID: SBE26plusStatisticsDataParticleKey.TSS_H1_10,
@@ -680,6 +576,8 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.DEVICE_CALIBRATION
+
     @staticmethod
     def _string_to_date(datestr, fmt):
         """
@@ -708,7 +606,6 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-
         log.debug("in SBE26plusDeviceCalibrationDataParticle._build_parsed_values")
         single_var_matchers  = {
             SBE26plusDeviceCalibrationDataParticleKey.PCALDATE:  (
@@ -890,10 +787,10 @@ class SBE26plusDeviceStatusDataParticleKey(BaseEnum):
     TXREALTIME = 'TxTide' # bool,
     TXWAVEBURST = 'TxWave' # bool,
     NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' # int,
-    USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' # bool,
+    #USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' # bool,
     USE_MEASURED_TEMP_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_FOR_DENSITY_CALC'
-    AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR'
-    AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = 'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR'
+    #AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR'
+    #AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = 'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR'
     PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM = 'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM' # float,
     SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND = 'SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND' # int,
     MIN_ALLOWABLE_ATTENUATION = 'MIN_ALLOWABLE_ATTENUATION' # float,
@@ -909,6 +806,7 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.DEVICE_STATUS
 
     def _build_parsed_values(self):
         """
@@ -922,19 +820,19 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
         single_var_matchers  = {
             SBE26plusDeviceStatusDataParticleKey.DEVICE_VERSION:  (
                 re.compile(r'SBE 26plus V ([\w.]+) +SN (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)'),
-                lambda match : string.upper(match.group(1))
+                lambda match : match.group(1)
             ),
             SBE26plusDeviceStatusDataParticleKey.SERIAL_NUMBER:  (
                 re.compile(r'SBE 26plus V ([\w.]+) +SN (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)'),
-                lambda match : string.upper(match.group(2))
+                lambda match : match.group(2)
             ),
             SBE26plusDeviceStatusDataParticleKey.DS_DEVICE_DATE_TIME:  (
                 re.compile(r'SBE 26plus V ([\w.]+) +SN (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)'),
-                lambda match : string.upper(match.group(3))
+                lambda match : match.group(3)
             ),
             SBE26plusDeviceStatusDataParticleKey.USER_INFO:  (
                 re.compile(r'user info=(.*)$'),
-                lambda match : string.upper(match.group(1))
+                lambda match : match.group(1)
             ),
             SBE26plusDeviceStatusDataParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER:  (
                 re.compile(r'quartz pressure sensor: serial number = ([\d.\-]+), range = ([\d.\-]+) psia'),
@@ -987,8 +885,8 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 lambda match : int(match.group(2))
             ),
             SBE26plusDeviceStatusDataParticleKey.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS:  (
-                re.compile(r'measure waves every ([\d.\-]+) tide samples'),
-                lambda match : float(match.group(1))
+                re.compile(r'measure waves every ([\d]+) tide samples'),
+                lambda match : int(match.group(1))
             ),
             SBE26plusDeviceStatusDataParticleKey.WAVE_SAMPLES_PER_BURST:  (
                 re.compile(r'([\d.\-]+) wave samples/burst at ([\d.\-]+) scans/sec, duration = ([\d.\-]+) seconds'),
@@ -1058,22 +956,22 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 re.compile(r' +number of wave samples per burst to use for wave statistics = (\d+)'),
                 lambda match : int(match.group(1))
             ),
-            SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC:  (
-                re.compile(r' +(do not|) use measured temperature and conductivity for density calculation'),
-                lambda match : False if (match.group(1)=='do not') else True
-            ),
+            #SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC:  (
+            #    re.compile(r' +(do not|) use measured temperature and conductivity for density calculation'),
+            #    lambda match : False if (match.group(1)=='do not') else True
+            #),
             SBE26plusDeviceStatusDataParticleKey.USE_MEASURED_TEMP_FOR_DENSITY_CALC:  (
                 re.compile(r' +(do not|) use measured temperature for density calculation'),
                 lambda match : True if (match.group(1)=='do not') else False
             ),
-            SBE26plusDeviceStatusDataParticleKey.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR:  (
-                re.compile(r' +average water temperature above the pressure sensor \(deg C\) = ([\d.]+)'),
-                lambda match : float(match.group(1))
-            ),
-            SBE26plusDeviceStatusDataParticleKey.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR:  (
-                re.compile(r' +average salinity above the pressure sensor \(PSU\) = ([\d.]+)'),
-                lambda match : float(match.group(1))
-            ),
+            #SBE26plusDeviceStatusDataParticleKey.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR:  (
+            #    re.compile(r' +average water temperature above the pressure sensor \(deg C\) = ([\d.]+)'),
+            #    lambda match : float(match.group(1))
+            #),
+            #SBE26plusDeviceStatusDataParticleKey.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR:  (
+            #    re.compile(r' +average salinity above the pressure sensor \(PSU\) = ([\d.]+)'),
+            #    lambda match : float(match.group(1))
+            #),
             SBE26plusDeviceStatusDataParticleKey.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: (
                 re.compile(r' +height of pressure sensor from bottom \(meters\) = ([\d.]+)'),
                 lambda match : float(match.group(1))
@@ -1103,8 +1001,8 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
                 lambda match : True if (match.group(1)=='show') else False
             ),
             SBE26plusDeviceStatusDataParticleKey.STATUS: (
-                re.compile(r'status = (logging|waiting|stopped)'),
-                lambda match : string.upper(match.group(1))
+                re.compile(r'status = ([\w ]+)'),
+                lambda match : match.group(1)
             ),
             SBE26plusDeviceStatusDataParticleKey.LOGGING: (
                 re.compile(r'logging = (YES|NO)'),
@@ -1130,7 +1028,45 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
 
         return result
 
-class Protocol(CommandResponseInstrumentProtocol):
+
+###############################################################################
+# Driver
+###############################################################################
+
+class InstrumentDriver(SeaBirdInstrumentDriver):
+    """
+    InstrumentDriver subclass
+    Subclasses SingleConnectionInstrumentDriver with connection state
+    machine.
+    """
+    def __init__(self, evt_callback):
+        """
+        Driver constructor.
+        @param evt_callback Driver process event callback.
+        """
+        #Construct superclass.
+        SeaBirdInstrumentDriver.__init__(self, evt_callback)
+
+    ########################################################################
+    # Superclass overrides for resource query.
+    ########################################################################
+
+    ########################################################################
+    # Protocol builder.
+    ########################################################################
+
+    def _build_protocol(self):
+        """
+        Construct the driver protocol state machine.
+        """
+        self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
+
+
+###############################################################################
+# Protocol
+###############################################################################
+
+class Protocol(SeaBirdProtocol):
     """
     Instrument protocol class for sbe26plus driver.
     Subclasses CommandResponseInstrumentProtocol
@@ -1144,7 +1080,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param driver_event Driver process event callback.
         """
         # Construct protocol superclass.
-        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+        SeaBirdProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build sbe26plus protocol state machine.
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
@@ -1184,8 +1120,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # current parameter values, and set formatting functions.
         self._build_param_dict()
 
-
-
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCmds.SETSAMPLING,                 self._build_setsampling_command)
         self._add_build_handler(InstrumentCmds.DISPLAY_STATUS,              self._build_simple_command)
@@ -1193,13 +1127,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.DISPLAY_CALIBRATION,         self._build_simple_command)
         self._add_build_handler(InstrumentCmds.START_LOGGING,               self._build_simple_command)
         self._add_build_handler(InstrumentCmds.STOP_LOGGING,                self._build_simple_command)
-
-
-
         self._add_build_handler(InstrumentCmds.SET,                         self._build_set_command)
         self._add_build_handler(InstrumentCmds.TAKE_SAMPLE,                 self._build_simple_command)
         self._add_build_handler(InstrumentCmds.INIT_LOGGING,                self._build_simple_command)
-
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.SETSAMPLING,              self._parse_setsampling_response)
@@ -1220,7 +1150,8 @@ class Protocol(CommandResponseInstrumentProtocol):
     @staticmethod
     def sieve_function(raw_data):
         """
-        The method that splits samples
+        Chunker sieve method to help the chunker identify chunks.
+        @returns a list of chunks identified, if any.  The chunks are all the same type.
         """
         sieve_matchers = [TIDE_REGEX_MATCHER,
                           WAVE_REGEX_MATCHER,
@@ -1250,10 +1181,9 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_unknown_enter(self, *args, **kwargs):
         """
         Enter unknown state.
+        Tell driver superclass to send a state change event.
+        Superclass will query the state.
         """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_unknown_discover(self, *args, **kwargs):
@@ -2136,19 +2066,22 @@ class Protocol(CommandResponseInstrumentProtocol):
             ds_line_01,
             lambda match : string.upper(match.group(1)),
             self._string_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.SERIAL_NUMBER,
             ds_line_01,
             lambda match : string.upper(match.group(2)),
             self._string_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.DS_DEVICE_DATE_TIME,
             ds_line_01,
             lambda match : string.upper(match.group(3)),
             self._string_to_numeric_date_time_string,
-            multi_match=True) # will need to make this a date time once that is sorted out
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY) # will need to make this a date time once that is sorted out
 
         self._param_dict.add(Parameter.USER_INFO,
             ds_line_02,
@@ -2162,23 +2095,35 @@ class Protocol(CommandResponseInstrumentProtocol):
             ds_line_03,
             lambda match : float(match.group(1)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.QUARTZ_PRESSURE_SENSOR_RANGE,
             ds_line_03,
             lambda match : float(match.group(2)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.EXTERNAL_TEMPERATURE_SENSOR,
             ds_line_04,
             lambda match : False if (match.group(1)=='internal') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            startup_param=True,
+            direct_access=True,
+            default_value=False
+        )
 
         self._param_dict.add(Parameter.CONDUCTIVITY,
             ds_line_05,
             lambda match : False if (match.group(1)=='NO') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            startup_param=True,
+            direct_access=True,
+            default_value=False
+        )
 
         #
         # Next 3 work together to pull 3 values out of a single line.
@@ -2187,17 +2132,20 @@ class Protocol(CommandResponseInstrumentProtocol):
             ds_line_06,
             lambda match : float(match.group(1)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.VMAIN_V,
             ds_line_06,
             lambda match : float(match.group(2)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.VLITH_V,
             ds_line_06,
             lambda match : float(match.group(3)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         #
         # Next 3 work together to pull 3 values out of a single line.
@@ -2206,19 +2154,22 @@ class Protocol(CommandResponseInstrumentProtocol):
             ds_line_07a,
             lambda match : float(match.group(1)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.LAST_SAMPLE_T,
             ds_line_07a,
             lambda match : float(match.group(2)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.LAST_SAMPLE_S,
             ds_line_07a,
             lambda match : float(match.group(3)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         #
         # Altewrnate for when S is not present
@@ -2227,13 +2178,15 @@ class Protocol(CommandResponseInstrumentProtocol):
             ds_line_07b,
             lambda match : float(match.group(1)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.LAST_SAMPLE_T,
             ds_line_07b,
             lambda match : float(match.group(2)),
             self._float_to_string,
-            multi_match=True)
+            multi_match=True,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         #
         # Next 2 work together to pull 2 values out of a single line.
@@ -2329,12 +2282,22 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.TXREALTIME,
             ds_line_21,
             lambda match : False if (match.group(1)=='NO') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            startup_param=True,
+            direct_access=True,
+            default_value=False
+        )
 
         self._param_dict.add(Parameter.TXWAVEBURST,
             ds_line_22,
             lambda match : False if (match.group(1)=='NO') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            startup_param=True,
+            direct_access=True,
+            default_value=False
+        )
 
         self._param_dict.add(Parameter.TXWAVESTATS,
             ds_line_23,
@@ -2399,17 +2362,20 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.SHOW_PROGRESS_MESSAGES,
             ds_line_34,
             lambda match : True if (match.group(1)=='show') else False,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.STATUS,
             ds_line_35,
             lambda match : string.upper(match.group(1)),
-            self._string_to_string)
+            self._string_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.LOGGING,
             ds_line_36,
             lambda match : False if (match.group(1)=='NO') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
 
     def _update_params(self, *args, **kwargs):
@@ -2442,9 +2408,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         if prompt != Prompt.COMMAND:
             raise InstrumentProtocolException('ds command not recognized: %s.' % response)
-
-        sample = self._extract_sample(SBE26plusDeviceStatusDataParticle, DS_REGEX_MATCHER, response, True)
-
 
         for line in response.split(NEWLINE):
             hit_count = self._param_dict.multi_match_update(line)
@@ -2487,87 +2450,24 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentSampleException if response did not contain a sample
         """
 
-
         if prompt != Prompt.COMMAND:
             raise InstrumentProtocolException('ts command not recognized: %s', response)
 
-        for line in response.split(NEWLINE):
-            sample = None
-            sample = self._extract_sample(SBE26plusTakeSampleDataParticle, TS_REGEX_MATCHER, line, True)
-            if sample:
-                log.debug("GOT A SAMPLE!!!!")
-                match = TS_REGEX_MATCHER.match(line)
-                result = match.group(0)
-                break
-
-        if not sample:
-            raise SampleException('Response did not contain sample: %s' % repr(response))
+        result = response
 
         log.debug("_parse_ts_response RETURNING RESULT=" + str(result))
         return result
-
-    def now_in_instrument_protocol_got_data(self, paPacket):
-        """
-        Callback for receiving new data from the device.
-        """
-
-        # bring data in.
-        paLength = paPacket.get_data_size()
-        paData = paPacket.get_data()
-
-        if self.get_current_state() == ProtocolState.DIRECT_ACCESS:
-            # direct access mode
-            if paLength > 0:
-                if len(self._sent_cmds) > 0:
-                    # there are sent commands that need to have there echoes filtered out
-                    oldest_sent_cmd = self._sent_cmds[0]
-                    if string.count(paData, oldest_sent_cmd) > 0:
-                        # found a command echo, so remove it from data and delete the command form list
-                        paData = string.replace(paData, oldest_sent_cmd, "", 1)
-                        self._sent_cmds.pop(0)
-                if self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
-
-            return
-
-        if paLength > 0:
-            # Call the superclass to update line and prompt buffers.
-            #CommandResponseInstrumentProtocol.got_data(self, paData)
-            self.add_to_buffer(paData)
-
-            # If in streaming mode, process the buffer for samples to publish.
-            cur_state = self.get_current_state()
-            if cur_state == ProtocolState.AUTOSAMPLE:
-                # if in autosample mode, hand data to chunker by default, unless... a SL SLO is detected...
-
-                self._chunker.add_chunk(paData)
-                chunk = self._chunker.get_next_data()
-                while chunk != None:
-                    # Determine what particle type it is and push accordingly
-
-                    self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk)
-                    self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk)
-                    self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk)
-
-                    # Not sure if these will ever be present in autosample.
-                    # theoretically possible
-                    self._extract_sample(SBE26plusDeviceCalibrationDataParticle, STATS_REGEX_MATCHER, chunk)
-                    self._extract_sample(SBE26plusDeviceStatusDataParticle, STATS_REGEX_MATCHER, chunk)
-
-                    # reload
-                    chunk = self._chunker.get_next_data()
-
 
     def _got_chunk(self, chunk):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
-        self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk)
-        self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk)
-        self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk)
-        self._extract_sample(SBE26plusDeviceCalibrationDataParticle, STATS_REGEX_MATCHER, chunk)
-        self._extract_sample(SBE26plusDeviceStatusDataParticle, STATS_REGEX_MATCHER, chunk)
+        if(self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk)): return
+        if(self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk)): return
+        if(self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk)): return
+        if(self._extract_sample(SBE26plusDeviceCalibrationDataParticle, DC_REGEX_MATCHER, chunk)): return
+        if(self._extract_sample(SBE26plusDeviceStatusDataParticle, DS_REGEX_MATCHER, chunk)): return
 
     ########################################################################
     # Static helpers to format set commands.

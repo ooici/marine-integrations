@@ -86,3 +86,9 @@ class SampleException(InstrumentException):
     An expected sample could not be extracted.
     """
     pass
+
+class SchedulerException(InstrumentException):
+    """
+    An error occurred in the scheduler
+    """
+    pass

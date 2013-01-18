@@ -79,6 +79,7 @@ from pyon.agent.agent import ResourceAgentEvent
 
 from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException
+from pyon.core.exception import Conflict
 from mi.core.instrument.instrument_driver import DriverParameter, DriverConnectionState, DriverAsyncEvent
 from mi.core.instrument.chunker import StringChunker
 
@@ -429,7 +430,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
             log.debug(str(ret))
             master_list.append(getattr(c, k))
             self.assertEqual(len(ret), 1)
-        self.assertEqual(len(p._filter_capabilities(master_list)), 5)
+        self.assertEqual(len(p._filter_capabilities(master_list)), 8)
 
         # Negative Testing
         self.assertEqual(len(p._filter_capabilities(['BIRD', 'ABOVE', 'WATER'])), 0)
@@ -848,7 +849,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
                       'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
 
             self.assertTrue(state in ret[0])
-        self.assertEqual(len(ret[0]), 3)
+        self.assertEqual(len(ret[0]), 7)
 
 
 
@@ -1145,8 +1146,6 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         self.assertTrue(reply)
 
-
-
     # WORKS
     def test_sample_ref_osc(self):
         """
@@ -1167,7 +1166,6 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertTrue("<RefOscFreq>" in result)
         self.assertTrue("<PCBTempRaw>" in result)
         self.assertTrue("<RefErrorPPM>" in result)
-
 
     # WORKS
     def assert_set(self, settings_dict):
@@ -1404,15 +1402,11 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
             log.debug("3 - skip_to_the_loo - Caught expected exception = " + str(ex.__class__.__name__))
         self.assertTrue(exception_happened)
 
-
-
         # Test the driver is in command mode.
         reply = self.driver_client.cmd_dvr('discover_state')
 
-
         # probably snuck back into autosample
         self.check_state(ProtocolState.COMMAND)
-
 
         # Test bad commands in COMMAND state.
 
@@ -1451,7 +1445,80 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
         self.check_state(ProtocolState.COMMAND)
 
+    # WORKS
+    def test_bad_state_transitions(self):
 
+
+        # try connect before configure
+        try:
+            reply = self.driver_client.cmd_dvr('connect', self.test_config.driver_startup_config )
+        except InstrumentStateException as ex:
+            exception_happened = True
+            log.debug("Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+        # try doscover_state before configure
+        try:
+            reply = self.driver_client.cmd_dvr('discover_state')
+        except InstrumentStateException as ex:
+            exception_happened = True
+            log.debug("Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+        # Test the driver is in state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # try doscover_state before connect
+        try:
+            reply = self.driver_client.cmd_dvr('discover_state')
+        except InstrumentStateException as ex:
+            exception_happened = True
+            log.debug("Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+
+        # Test the driver is configured for comms.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Configure driver for comms and transition to disconnected.
+        log.debug("DRIVER_STARTUP_CONFIG = " + repr(self.test_config.driver_startup_config))
+        reply = self.driver_client.cmd_dvr('connect', self.test_config.driver_startup_config )
+
+        # try configure after connect
+        try:
+            reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+        except InstrumentStateException as ex:
+            exception_happened = True
+            log.debug("Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+
+        # Test the driver is in unknown state.
+        self.check_state(ProtocolState.UNKNOWN)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('discover_state', timeout=60)
+
+        # Test the driver is in command mode.
+        self.check_state(ProtocolState.COMMAND)
+
+        # try configure after discover_state
+        try:
+            reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+        except InstrumentStateException as ex:
+            exception_happened = True
+            log.debug("Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+        # try connect after discover_state
+        try:
+            reply = self.driver_client.cmd_dvr('connect', self.test_config.driver_startup_config )
+        except InstrumentStateException as ex:
+            exception_happened = True
+            log.debug("Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
 
 
 
@@ -1998,7 +2065,6 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                 # SHOULD NEVER GET HERE. IF WE DO FAIL, SO IT IS INVESTIGATED
                 self.assertTrue(False)
 
-
     # WORKS
     def test_direct_access_telnet_mode(self):
         """
@@ -2123,13 +2189,15 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         log.debug("%%% STATE NOW ResourceAgentState.COMMAND")
 
         (agent_capabilities, unknown, driver_capabilities, driver_vars) = self.get_current_capabilities()
+        log.debug("DRIVER CAPABILITIES = " +  str(driver_capabilities))
         self.assert_capabilitys_present(agent_capabilities, ['RESOURCE_AGENT_EVENT_CLEAR',
                                                              'RESOURCE_AGENT_EVENT_RESET',
                                                              'RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS',
                                                              'RESOURCE_AGENT_EVENT_GO_INACTIVE',
                                                              'RESOURCE_AGENT_EVENT_PAUSE'])
-        self.assert_capabilitys_present(driver_capabilities, ['DRIVER_EVENT_ACQUIRE_STATUS',
-                                                              'DRIVER_EVENT_START_AUTOSAMPLE',
+        self.assert_capabilitys_present(driver_capabilities, ['PROTOCOL_EVENT_RESET_EC', 'DRIVER_EVENT_ACQUIRE_STATUS',
+                                                              'PROTOCOL_EVENT_TEST_EEPROM', 'PROTOCOL_EVENT_INIT_LOGGING',
+                                                              'PROTOCOL_EVENT_SAMPLE_REFERENCE_OSCILLATOR', 'DRIVER_EVENT_START_AUTOSAMPLE',
                                                               'DRIVER_EVENT_CLOCK_SYNC'])
 
 
@@ -2160,15 +2228,47 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         check_new_params = self.instrument_agent_client.get_resource(params)
         lt = time.strftime("%d %b %Y  %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
 
-    # WORKS
+    # WORKS - BROKE - driver_startup_config not propigated via connect in assert_enter_command_mode
     def test_connect_disconnect(self):
 
         self.assert_enter_command_mode()
+
+        # Change values of driver_startup_config variables
+        params = {
+            Parameter.SAMPLE_PERIOD: 5,
+            Parameter.BATTERY_TYPE: 0,
+            Parameter.UPLOAD_TYPE: 0,
+            Parameter.ENABLE_ALERTS: 0
+        }
+
+        self.instrument_agent_client.set_resource(params, timeout=90)
+
 
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
         retval = self.instrument_agent_client.execute_agent(cmd)
 
         self.check_agent_state(ResourceAgentState.UNINITIALIZED)
+
+        # Get back into command mode
+        self.assert_enter_command_mode()
+
+
+        '''
+        self.??????.apply_startup_params()
+
+        # Check that the defaults were reset
+        params = [
+            Parameter.SAMPLE_PERIOD,
+            Parameter.BATTERY_TYPE,
+            Parameter.UPLOAD_TYPE,
+            Parameter.ENABLE_ALERTS
+        ]
+        new_params = self.instrument_agent_client.get_resource(params)
+        self.assertEqual(new_params[Parameter.SAMPLE_PERIOD], 15)
+        self.assertEqual(new_params[Parameter.BATTERY_TYPE], 1)
+        self.assertEqual(new_params[Parameter.UPLOAD_TYPE], 1)
+        self.assertEqual(new_params[Parameter.ENABLE_ALERTS], 1)
+        '''
 
     # WORKS
     def test_execute_set_time_parameter(self):
@@ -2293,6 +2393,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         sample = samples.pop()
         self.assert_SBE54tpsHardwareDataParticle(sample)
 
+    # WORKS
     def test_sample_ref_osc(self):
         """
         @brief Test initialize logging command.
@@ -2330,6 +2431,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         sample = samples.pop()
         self.assert_SBE54tpsSampleRefOscDataParticle(sample)
 
+    # WORKS
     def test_test_eeprom(self):
         """
         @brief Test initialize logging command.
@@ -2376,3 +2478,198 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         reply = self.instrument_agent_client.execute_resource(cmd, timeout=30)
 
         self.assertTrue(reply.result)
+
+    # WORKS
+    def assert_execute_agent_gets_exception(self, command):
+        # Helper function for testing forcing exception
+        cmd = AgentCommand(command=command)
+        exception_happened = False
+        try:
+            reply = self.instrument_agent_client.execute_agent(cmd, timeout=30)
+            log.debug(str(cmd) + " EXECUTED WIHTOUT EXCEPTION!!!!")
+        except Conflict as ex:
+            exception_happened = True
+            log.debug("Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+    # WORKS
+    def assert_execute_resource_gets_exception(self, command):
+        # Helper function for testing forcing exception
+        cmd = AgentCommand(command=command)
+        exception_happened = False
+        try:
+            reply = self.instrument_agent_client.execute_resource(cmd, timeout=30)
+            log.debug(str(cmd) + " EXECUTED WIHTOUT EXCEPTION!!!!")
+        except Conflict as ex:
+            exception_happened = True
+            log.debug("Caught expected exception = " + str(ex.__class__.__name__))
+        self.assertTrue(exception_happened)
+
+    # WORKS
+    def test_execute_capability_from_bad_state(self):
+        """
+        @brief Run inappropriate capabilities at the entirely wrong time and make something exceptional happen
+        """
+
+        # force it to command state before test so auto sample doesnt bork it up.
+        self.assert_enter_command_mode()
+        self.assert_reset()
+
+
+
+        self.check_agent_state(ResourceAgentState.UNINITIALIZED)
+        #agent_capabilities, ['RESOURCE_AGENT_EVENT_INITIALIZE']
+        #driver_capabilities, []
+
+        #
+        # Test some unreachable Agent capabilities
+        #
+        #self.assert_execute_agent_gets_exception(ResourceAgentEvent.INITIALIZE)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_ACTIVE)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_INACTIVE)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.RUN)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_DIRECT_ACCESS)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_COMMAND)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.PAUSE)
+
+        #
+        # Test some unreachable driver capabilities
+        #
+        self.assert_execute_resource_gets_exception(ProtocolEvent.RESET_EC)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.TEST_EEPROM)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.INIT_LOGGING)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.SAMPLE_REFERENCE_OSCILLATOR)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.START_AUTOSAMPLE)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.CLOCK_SYNC)
+
+
+        log.debug("%%% STATE NOW ResourceAgentState.UNINITIALIZED")
+
+        self.assert_agent_command_and_agent_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE)
+        #agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_ACTIVE', 'RESOURCE_AGENT_EVENT_RESET']
+        #driver_capabilities, []
+
+        #
+        # Test some unreachable Agent capabilities
+        #
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.INITIALIZE)
+        #self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_ACTIVE)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_INACTIVE)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.RUN)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_DIRECT_ACCESS)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_COMMAND)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.PAUSE)
+
+        #
+        # Test some unreachable driver capabilities
+        #
+        self.assert_execute_resource_gets_exception(ProtocolEvent.RESET_EC)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.TEST_EEPROM)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.INIT_LOGGING)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.SAMPLE_REFERENCE_OSCILLATOR)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.START_AUTOSAMPLE)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.CLOCK_SYNC)
+
+
+        log.debug("%%% STATE NOW ResourceAgentState.INACTIVE")
+
+        self.assert_agent_command_and_resource_state(ResourceAgentEvent.GO_ACTIVE, ProtocolState.COMMAND)
+        #agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_INACTIVE', 'RESOURCE_AGENT_EVENT_RESET', 'RESOURCE_AGENT_EVENT_RUN']
+        #driver_capabilities, []
+
+        #
+        # Test some unreachable Agent capabilities
+        #
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.INITIALIZE)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_ACTIVE)
+        #self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_INACTIVE)
+        #self.assert_execute_agent_gets_exception(ResourceAgentEvent.RUN)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_DIRECT_ACCESS)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_COMMAND)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.PAUSE)
+        #
+        # Test some unreachable driver capabilities
+        #
+        self.assert_execute_resource_gets_exception(ProtocolEvent.RESET_EC)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.TEST_EEPROM)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.INIT_LOGGING)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.SAMPLE_REFERENCE_OSCILLATOR)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.START_AUTOSAMPLE)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.CLOCK_SYNC)
+
+
+        log.debug("%%% STATE NOW ResourceAgentState.IDLE")
+
+        self.assert_agent_command_and_agent_state(ResourceAgentEvent.RUN, ResourceAgentState.COMMAND)
+
+        log.debug("%%% STATE NOW ResourceAgentState.COMMAND")
+
+        #agent_capabilities, ['RESOURCE_AGENT_EVENT_CLEAR', 'RESOURCE_AGENT_EVENT_RESET', 'RESOURCE_AGENT_EVENT_GO_DIRECT_ACCESS',
+        #                     'RESOURCE_AGENT_EVENT_GO_INACTIVE', 'RESOURCE_AGENT_EVENT_PAUSE']
+        #driver_capabilities, ['PROTOCOL_EVENT_RESET_EC', 'DRIVER_EVENT_ACQUIRE_STATUS', 'PROTOCOL_EVENT_TEST_EEPROM', 'PROTOCOL_EVENT_INIT_LOGGING', 'PROTOCOL_EVENT_SAMPLE_REFERENCE_OSCILLATOR', 'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
+            kwargs={'session_type': DirectAccessTypes.telnet,
+                    #kwargs={'session_type':DirectAccessTypes.vsp,
+                    'session_timeout':600,
+                    'inactivity_timeout':600})
+        retval = self.instrument_agent_client.execute_agent(cmd)
+
+        self.check_agent_state(ResourceAgentState.DIRECT_ACCESS)
+        #agent_capabilities, ['RESOURCE_AGENT_EVENT_GO_COMMAND']
+        #driver_capabilities, []
+
+        #
+        # Test some unreachable Agent capabilities
+        #
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.INITIALIZE)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_ACTIVE)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_INACTIVE)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.RUN)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_DIRECT_ACCESS)
+        #self.assert_execute_agent_gets_exception(ResourceAgentEvent.GO_COMMAND)
+        self.assert_execute_agent_gets_exception(ResourceAgentEvent.PAUSE)
+        #
+        # Test some unreachable driver capabilities
+        #
+        self.assert_execute_resource_gets_exception(ProtocolEvent.RESET_EC)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.TEST_EEPROM)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.INIT_LOGGING)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.SAMPLE_REFERENCE_OSCILLATOR)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.START_AUTOSAMPLE)
+        self.assert_execute_resource_gets_exception(ProtocolEvent.CLOCK_SYNC)
+
+
+
+    def test_event_subscriber(self):
+
+        self.addCleanup(self.event_subscribers.stop)
+
+        self.event_subscribers.events_received = []
+        count = 0
+        self.assert_enter_command_mode()
+        for ev in self.event_subscribers.events_received:
+            count = count + 1
+            log.debug(str(count) + " test_event_subscriber EVENTS = " + repr(ev))
+
+        self.assertTrue(False) # enable debug PITA!!!!
+
+        """
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: 1 test_event_subscriber EVENTS = <interface.objects.ResourceAgentErrorEvent object at 0x1083750d0>
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: 2 test_event_subscriber EVENTS = <interface.objects.ResourceAgentStateEvent object at 0x1082c5310>
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: 3 test_event_subscriber EVENTS = <interface.objects.ResourceAgentCommandEvent object at 0x1082c5ad0>
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: 4 test_event_subscriber EVENTS = <interface.objects.ResourceAgentResourceStateEvent object at 0x1082c9b90>
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: 5 test_event_subscriber EVENTS = <interface.objects.ResourceAgentResourceStateEvent object at 0x1082cd910>
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: 6 test_event_subscriber EVENTS = <interface.objects.ResourceAgentResourceStateEvent object at 0x1082c9ed0>
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: 7 test_event_subscriber EVENTS = <interface.objects.ResourceAgentResourceStateEvent object at 0x108360410>
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: 8 test_event_subscriber EVENTS = <interface.objects.ResourceAgentStateEvent object at 0x10835f9d0>
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: 9 test_event_subscriber EVENTS = <interface.objects.ResourceAgentCommandEvent object at 0x108353bd0>
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: 10 test_event_subscriber EVENTS = <interface.objects.ResourceAgentResourceConfigEvent object at 0x105923c50>
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: 11 test_event_subscriber EVENTS = <interface.objects.ResourceAgentResourceStateEvent object at 0x105928590>
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: 12 test_event_subscriber EVENTS = <interface.objects.ResourceAgentStateEvent object at 0x108314110>
+        mi.instrument.seabird.sbe54tps.ooicore.test.test_driver: DEBUG: 13 test_event_subscriber EVENTS = <interface.objects.ResourceAgentCommandEvent object at 0x105928b90>
+        """

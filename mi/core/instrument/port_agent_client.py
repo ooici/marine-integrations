@@ -15,6 +15,7 @@ import socket
 import errno
 import threading
 import time
+import datetime
 import struct
 import array
 import binascii
@@ -22,30 +23,38 @@ import binascii
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import InstrumentConnectionException
 
-HEADER_SIZE = 16
+HEADER_SIZE = 16 # BBBBHHLL = 1 + 1 + 1 + 1 + 2 + 2 + 4 + 4 = 16
+
 
 """
 Packet Types
 """
 DATA_FROM_DRIVER = 2
 
-"""
-Offsets into the packed header fields
-"""
+
 OFFSET_P_CHECKSUM_LOW = 6
 OFFSET_P_CHECKSUM_HIGH = 7
 
 """
 Offsets into the unpacked header fields
 """
-OFFSET_UP_TYPE = 3
-OFFSET_UP_LENGTH = 4
-OFFSET_UP_CHECKSUM = 5
+SYNC_BYTE1_INDEX = 0
+SYNC_BYTE1_INDEX = 1
+SYNC_BYTE1_INDEX = 2
+TYPE_INDEX = 3
+LENGTH_INDEX = 4 # packet size (including header)
+CHECKSUM_INDEX = 5
+TIMESTAMP_INDEX = 6
+
+SYSTEM_EPOCH = datetime.date(*time.gmtime(0)[0:3])
+NTP_EPOCH = datetime.date(1900, 1, 1)
+NTP_DELTA = (SYSTEM_EPOCH - NTP_EPOCH).days * 24 * 3600
 
 class PortAgentPacket():
     """
     An object that encapsulates the details packets that are sent to and
-    received from the port agent.  
+    received from the port agent.
+    https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+Port+Agent+Design
     """
     
     def __init__(self):
@@ -53,17 +62,25 @@ class PortAgentPacket():
         self.__data = None
         self.__type = None
         self.__length = None
-        self.__timestamp_low = None
-        self.__timestamp_high = None
+        self.__port_agent_timestamp = None
         self.__recv_checksum  = None
         self.__checksum = None
+
         
     def unpack_header(self, header):
         self.__header = header
-        up_header = struct.unpack_from('>BBBBHHLL', header)
-        self.__type = up_header[OFFSET_UP_TYPE]
-        self.__length = int(up_header[OFFSET_UP_LENGTH]) - HEADER_SIZE
-        self.__recv_checksum  = int(up_header[OFFSET_UP_CHECKSUM])
+        #@TODO may want to switch from big endian to network order '!' instead of '>' note network order is big endian.
+        # B = unsigned char size 1 bytes
+        # H = unsigned short size 2 bytes
+        # L = unsigned long size 4 bytes
+        # d = float size8 bytes
+        variable_tuple = struct.unpack_from('>BBBBHHd', header)
+        # change offset to index.
+        self.__type = variable_tuple[TYPE_INDEX]
+        self.__length = int(variable_tuple[LENGTH_INDEX]) - HEADER_SIZE
+        self.__recv_checksum  = int(variable_tuple[CHECKSUM_INDEX])
+        self.__port_agent_timestamp = variable_tuple[TIMESTAMP_INDEX]
+
 
     def pack_header(self):
         """
@@ -77,12 +94,19 @@ class PortAgentPacket():
         else:
             self.__type = DATA_FROM_DRIVER
             self.__length = len(self.__data)
-            
-            up_header = (0xa3, 0x9d, 0x7a, self.__type, self.__length + HEADER_SIZE, 0, 0, 0)
-            format = '>BBBBHHLL'
+            self.__port_agent_timestamp = time.time() + NTP_DELTA
+
+
+            variable_tuple = (0xa3, 0x9d, 0x7a, self.__type, self.__length + HEADER_SIZE, 0x0000, self.__port_agent_timestamp)
+
+            # B = unsigned char size 1 bytes
+            # H = unsigned short size 2 bytes
+            # L = unsigned long size 4 bytes
+            # d = float size 8 bytes
+            format = '>BBBBHHd'
             size = struct.calcsize(format)
             self.__header = array.array('B', '\0' * HEADER_SIZE)
-            struct.pack_into(format, self.__header, 0, *up_header)
+            struct.pack_into(format, self.__header, 0, *variable_tuple)
             #print "here it is: ", binascii.hexlify(self.__header)
             
             """
@@ -90,6 +114,10 @@ class PortAgentPacket():
             populated header fields
             """
             self.__checksum = self.calculate_checksum()
+
+            self.__header[OFFSET_P_CHECKSUM_HIGH] = self.__checksum & 0x00ff
+            self.__header[OFFSET_P_CHECKSUM_LOW] = (self.__checksum & 0xff00) >> 8
+
         
     def attach_data(self, data):
         self.__data = data
@@ -127,10 +155,36 @@ class PortAgentPacket():
     
     def get_header(self):
         return self.__header
-    
+
     def get_data(self):
         return self.__data
-    
+
+    def get_timestamp(self):
+        return self.__port_agent_timestamp
+
+    def get_header_length(self):
+        return self.__length
+
+    def get_header_type(self):
+        return self.__type
+
+    def get_header_checksum(self):
+        return self.__checksum
+
+    def get_header_recv_checksum (self):
+        return self.__recv_checksum
+
+    def get_as_dict(self):
+        """
+        Return a dictionary representation of a port agent packet
+        """
+        return {
+            'type': self.__type,
+            'length': self.__length,
+            'checksum': self.__checksum,
+            'raw': self.__data
+        }
+
     def is_valid(self):
         return self.__isValid
                     
@@ -143,12 +197,13 @@ class PortAgentClient(object):
     asynchronously via a callback from this client's listener thread.
     """
     
-    def __init__(self, host, port, delim=None):
+    def __init__(self, host, port, cmd_port, delim=None):
         """
         Logger client constructor.
         """
         self.host = host
         self.port = port
+        self.cmd_port = cmd_port
         self.sock = None
         self.listener_thread = None
         self.stop_event = None
@@ -205,17 +260,48 @@ class PortAgentClient(object):
         """
         paPacket.verify_checksum()
         self.user_callback(paPacket)
-        
-    def send(self, data):
+
+    def send_break(self):
+        """
+        Command the port agent to send a break
+        """
+        self._command_port_agent('break')
+
+    def _command_port_agent(self, cmd):
+        """
+        Command the port agent.  We connect to the command port, send the command
+        and then disconnect.  Connection is not persistent
+        @raise InstrumentConnectionException if cmd_port is missing.  We don't
+                        currently do this on init  where is should happen because
+                        some instruments wont set the  command port quite yet.
+        """
+        try:
+            if(not self.cmd_port):
+                raise InstrumentConnectionException("Missing port agent command port config")
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((self.host, self.cmd_port))
+            log.info('PortAgentClient.init_comms(): connected to port agent at %s:%i.'
+                     % (self.host, self.cmd_port))
+            self.send(cmd, sock)
+            sock.close()
+        except Exception as e:
+            log.error("send_break(): Exception occurred.", exc_info=True)
+            raise InstrumentConnectionException('Failed to connect to port agent command port at %s:%i (%s).'
+                                                % (self.host, self.cmd_port, e))
+
+
+    def send(self, data, sock=None):
         """
         Send data to the port agent.
         """
-        
-        if self.sock:
+        if(not sock):
+            sock = self.sock
+
+        if sock:
             tries = 0
             while len(data) > 0:
                 try:
-                    sent = self.sock.send(data)
+                    sent = sock.send(data)
                     gone = data[:sent]
                     data = data[sent:]
                 except socket.error as e:
