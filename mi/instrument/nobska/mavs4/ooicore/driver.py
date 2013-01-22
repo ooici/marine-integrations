@@ -81,6 +81,7 @@ class InstrumentPrompts(BaseEnum):
     VELOCITY_FORMAT = 'Set acoustic axis velocity format (HDS) [S] ?'
     QUERY           = 'Enable Query Mode (Yes/No) ['
     FREQUENCY       = 'Enter Measurement Frequency [Hz] (0.01 to 50.0) ?'
+    MEAS_PER_SAMPLE = 'Enter number of measurements per sample (1 to 10000) ?'
     
 class InstrumentCmds(BaseEnum):
     CONTROL_C       = '\x03'   # CTRL-C (end of text)
@@ -103,6 +104,8 @@ class InstrumentCmds(BaseEnum):
     ENTER_QUERY     = 'enter_query'
     SET_FREQUENCY   = '4'
     ENTER_FREQUENCY = 'enter_frequency'
+    SET_MEAS_PER_SAMPLE   = '5'
+    ENTER_MEAS_PER_SAMPLE = 'enter_measurements_per_sample'
 
 class ProtocolStates(BaseEnum):
     """
@@ -157,8 +160,8 @@ class InstrumentParameters(DriverParameter):
     LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES = 'log/display_acoustic_axis_velocities'
     QUERY_MODE                    = 'query_mode'
     FREQUENCY                     = 'frequency'
-    """
     MEASUREMENTS_PER_SAMPLE       = 'measurements_per_sample'
+    """
     SAMPLE_PERIOD                 = 'sample_period'
     SAMPLES_PER_BURST             = 'samples_per_burst'
     BURST_INTERVAL                = 'bursts_interval'
@@ -175,6 +178,7 @@ class DeployMenuParameters(BaseEnum):
     LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES = InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES
     QUERY_MODE = InstrumentParameters.QUERY_MODE
     FREQUENCY = InstrumentParameters.FREQUENCY
+    MEASUREMENTS_PER_SAMPLE = InstrumentParameters.MEASUREMENTS_PER_SAMPLE
 
 class SubMenues(BaseEnum):
     ROOT        = 'root_menu'
@@ -1127,13 +1131,17 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_FREQUENCY)
 
-        """
         self._param_dict.add(InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
-                             '', 
-                             lambda line : int(line),
+                             r'.*5\| Measurements/Sample\s+(\d+)\s+\[M/S\].*', 
+                             lambda match : int(match.group(1)),
                              self._int_to_string,
-                             value=0)
+                             value=0,
+                             menu_path_read=SubMenues.ROOT,
+                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_write=SubMenues.DEPLOY,
+                             submenu_write=InstrumentCmds.SET_MEAS_PER_SAMPLE)
 
+        """
         self._param_dict.add(InstrumentParameters.SAMPLE_PERIOD,
                              '', 
                              lambda line : int(line),
@@ -1156,6 +1164,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the
         # navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ENTER_MEAS_PER_SAMPLE, self._build_enter_measurements_per_sample_command)
+        self._add_build_handler(InstrumentCmds.SET_MEAS_PER_SAMPLE, self._build_set_measurements_per_sample_command)
         self._add_build_handler(InstrumentCmds.ENTER_FREQUENCY, self._build_enter_frequency_command)
         self._add_build_handler(InstrumentCmds.SET_FREQUENCY, self._build_set_frequency_command)
         self._add_build_handler(InstrumentCmds.ENTER_QUERY, self._build_enter_query_command)
@@ -1180,6 +1190,33 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
         self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
         
+    def _build_enter_measurements_per_sample_command(self, **kwargs):
+        """
+        Build handler for measurements per sample enter command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device (set to None to indicate there isn't one) 
+        """
+        value = kwargs.get('value', None)
+        if value == None:
+            raise InstrumentParameterException('enter measurements per sample command requires a value.')
+        cmd = self._param_dict.format(InstrumentParameters.MEASUREMENTS_PER_SAMPLE, value)
+        log.debug("_build_enter_measurements_per_sample_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.DEPLOY_MENU, None)            
+
+    def _build_set_measurements_per_sample_command(self, **kwargs):
+        """
+        Build handler for measurements per sample set command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        cmd = InstrumentCmds.SET_MEAS_PER_SAMPLE
+        log.debug("_build_set_measurements_per_sample_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.MEAS_PER_SAMPLE, InstrumentCmds.ENTER_MEAS_PER_SAMPLE)
+
     def _build_enter_frequency_command(self, **kwargs):
         """
         Build handler for frequency enter command 

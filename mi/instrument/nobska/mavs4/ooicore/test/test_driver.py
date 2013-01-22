@@ -88,7 +88,7 @@ parameter_types = {
     InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : str,
     InstrumentParameters.QUERY_MODE : str,
     InstrumentParameters.FREQUENCY : float,
-
+    InstrumentParameters.MEASUREMENTS_PER_SAMPLE : int,
 }
 
 parameter_list = [
@@ -103,8 +103,8 @@ parameter_list = [
     InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES,
     InstrumentParameters.QUERY_MODE,
     InstrumentParameters.FREQUENCY,
-    """
     InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
+    """
     InstrumentParameters.SAMPLE_PERIOD,
     InstrumentParameters.SAMPLES_PER_BURST,
     InstrumentParameters.BURST_INTERVAL,
@@ -313,7 +313,8 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
                   InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES]
         """
         #params = [InstrumentParameters.QUERY_MODE]
-        params = [InstrumentParameters.FREQUENCY]
+        #params = [InstrumentParameters.FREQUENCY]
+        params = [InstrumentParameters.MEASUREMENTS_PER_SAMPLE]
         reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertParamDictionariesEqual(reply, parameter_types)
         for (name, value) in reply.iteritems():
@@ -333,7 +334,8 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
                       InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'SI'}
         """
         #new_params = {InstrumentParameters.QUERY_MODE : 'n'}
-        new_params = {InstrumentParameters.FREQUENCY : 3.3}
+        #new_params = {InstrumentParameters.FREQUENCY : 3.3}
+        new_params = {InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 2}
         # Set parameters and verify.
         reply = self.driver_client.cmd_dvr('set_resource', new_params)
         reply = self.driver_client.cmd_dvr('get_resource', params)
