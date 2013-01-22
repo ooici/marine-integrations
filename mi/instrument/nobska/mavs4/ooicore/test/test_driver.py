@@ -87,11 +87,8 @@ parameter_types = {
     InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : str,
     InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : str,
     InstrumentParameters.QUERY_MODE : str,
-    InstrumentParameters.MEASUREMENT_FREQUENCY : float,
-    InstrumentParameters.MEASUREMENTS_PER_SAMPLE : int,
-    InstrumentParameters.SAMPLE_PERIOD : int,
-    InstrumentParameters.SAMPLES_PER_BURST : int,
-    InstrumentParameters.BURST_INTERVAL : int,
+    InstrumentParameters.FREQUENCY : float,
+
 }
 
 parameter_list = [
@@ -105,11 +102,13 @@ parameter_list = [
     InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
     InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES,
     InstrumentParameters.QUERY_MODE,
-    InstrumentParameters.MEASUREMENT_FREQUENCY,
+    InstrumentParameters.FREQUENCY,
+    """
     InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
     InstrumentParameters.SAMPLE_PERIOD,
     InstrumentParameters.SAMPLES_PER_BURST,
     InstrumentParameters.BURST_INTERVAL,
+    """
 ]
     
 ## Initialize the test configuration
@@ -313,7 +312,8 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
                   InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
                   InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES]
         """
-        params = [InstrumentParameters.QUERY_MODE]
+        #params = [InstrumentParameters.QUERY_MODE]
+        params = [InstrumentParameters.FREQUENCY]
         reply = self.driver_client.cmd_dvr('get_resource', params)
         self.assertParamDictionariesEqual(reply, parameter_types)
         for (name, value) in reply.iteritems():
@@ -332,13 +332,11 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
                       InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : 'y',
                       InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'SI'}
         """
-        new_params = {InstrumentParameters.QUERY_MODE : 'n'}
+        #new_params = {InstrumentParameters.QUERY_MODE : 'n'}
+        new_params = {InstrumentParameters.FREQUENCY : 3.3}
         # Set parameters and verify.
         reply = self.driver_client.cmd_dvr('set_resource', new_params)
         reply = self.driver_client.cmd_dvr('get_resource', params)
-        #log.debug('set=%s, got=%s' %(new_params[InstrumentParameters.SYS_CLOCK], reply[InstrumentParameters.SYS_CLOCK]))
-        #log.debug('set=%s, got=%s' %(new_params[InstrumentParameters.NOTE3], reply[InstrumentParameters.NOTE3]))
-        #log.debug('set=%s, got=%s' %(new_params[InstrumentParameters.VELOCITY_FRAME], reply[InstrumentParameters.VELOCITY_FRAME]))
         for (name, value) in reply.iteritems():
             log.debug('name=%s, set=%s, got=%s' %(name, new_params[name], value))
         self.assertParamVals(reply, new_params)

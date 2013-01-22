@@ -80,6 +80,7 @@ class InstrumentPrompts(BaseEnum):
     LOG_DISPLAY     = 'with each sample (Yes/No) [Y] ?'
     VELOCITY_FORMAT = 'Set acoustic axis velocity format (HDS) [S] ?'
     QUERY           = 'Enable Query Mode (Yes/No) ['
+    FREQUENCY       = 'Enter Measurement Frequency [Hz] (0.01 to 50.0) ?'
     
 class InstrumentCmds(BaseEnum):
     CONTROL_C       = '\x03'   # CTRL-C (end of text)
@@ -100,6 +101,8 @@ class InstrumentCmds(BaseEnum):
     ENTER_ACOUSTIC_AXIS_VELOCITY_FORMAT = 'enter_log_display_acoustic_axis_velocity_format'
     SET_QUERY       = 'Q'
     ENTER_QUERY     = 'enter_query'
+    SET_FREQUENCY   = '4'
+    ENTER_FREQUENCY = 'enter_frequency'
 
 class ProtocolStates(BaseEnum):
     """
@@ -153,11 +156,13 @@ class InstrumentParameters(DriverParameter):
     LOG_DISPLAY_FRACTIONAL_SECOND = 'log/display_fractional_second'
     LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES = 'log/display_acoustic_axis_velocities'
     QUERY_MODE                    = 'query_mode'
-    MEASUREMENT_FREQUENCY         = 'measurement_frequency'
+    FREQUENCY                     = 'frequency'
+    """
     MEASUREMENTS_PER_SAMPLE       = 'measurements_per_sample'
     SAMPLE_PERIOD                 = 'sample_period'
     SAMPLES_PER_BURST             = 'samples_per_burst'
     BURST_INTERVAL                = 'bursts_interval'
+    """
     
 class DeployMenuParameters(BaseEnum):
     NOTE1                         = InstrumentParameters.NOTE1
@@ -169,6 +174,7 @@ class DeployMenuParameters(BaseEnum):
     LOG_DISPLAY_FRACTIONAL_SECOND = InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND
     LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES = InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES
     QUERY_MODE = InstrumentParameters.QUERY_MODE
+    FREQUENCY = InstrumentParameters.FREQUENCY
 
 class SubMenues(BaseEnum):
     ROOT        = 'root_menu'
@@ -1111,12 +1117,17 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_QUERY)
 
-        self._param_dict.add(InstrumentParameters.MEASUREMENT_FREQUENCY,
-                             '', 
-                             lambda line : float(line),
+        self._param_dict.add(InstrumentParameters.FREQUENCY,
+                             r'.*4\| Measurement Frequency\s+(\d+.\d+)\s+\[Hz\].*', 
+                             lambda match : float(match.group(1)),
                              self._float_to_string,
-                             value=0.0)
+                             value=0.0,
+                             menu_path_read=SubMenues.ROOT,
+                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_write=SubMenues.DEPLOY,
+                             submenu_write=InstrumentCmds.SET_FREQUENCY)
 
+        """
         self._param_dict.add(InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
                              '', 
                              lambda line : int(line),
@@ -1140,10 +1151,13 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda line : int(line),
                              self._int_to_string,
                              value=0)
+        """
 
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the
         # navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ENTER_FREQUENCY, self._build_enter_frequency_command)
+        self._add_build_handler(InstrumentCmds.SET_FREQUENCY, self._build_set_frequency_command)
         self._add_build_handler(InstrumentCmds.ENTER_QUERY, self._build_enter_query_command)
         self._add_build_handler(InstrumentCmds.SET_QUERY, self._build_set_query_command)
         self._add_build_handler(InstrumentCmds.ENTER_ACOUSTIC_AXIS_VELOCITY_FORMAT, self._build_enter_log_display_acoustic_axis_velocity_format_command)
@@ -1166,13 +1180,40 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
         self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
         
+    def _build_enter_frequency_command(self, **kwargs):
+        """
+        Build handler for frequency enter command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device (set to None to indicate there isn't one) 
+        """
+        value = kwargs.get('value', None)
+        if value == None:
+            raise InstrumentParameterException('enter frequency command requires a value.')
+        cmd = self._param_dict.format(InstrumentParameters.FREQUENCY, value)
+        log.debug("_build_enter_frequency_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.DEPLOY_MENU, None)            
+
+    def _build_set_frequency_command(self, **kwargs):
+        """
+        Build handler for frequency set command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        cmd = InstrumentCmds.SET_FREQUENCY
+        log.debug("_build_set_frequency_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.FREQUENCY, InstrumentCmds.ENTER_FREQUENCY)
+
     def _build_enter_query_command(self, **kwargs):
         """
         Build handler for query enter command 
         @ retval list with:
             The command to be sent to the device
             The response expected from the device
-            The next command to be sent to device 
+            The next command to be sent to device (set to None to indicate there isn't one) 
         """
         value = kwargs.get('value', None)
         if value == None:
@@ -1199,7 +1240,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @ retval list with:
             The command to be sent to the device
             The response expected from the device
-            The next command to be sent to device 
+            The next command to be sent to device (set to None to indicate there isn't one) 
         """
         cmd = "%s" %(self._param_dict.get(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES)[0])
         log.debug("_build_enter_log_display_acoustic_axis_velocity_format_command: cmd=%s" %cmd)
@@ -1211,7 +1252,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @ retval list with:
             The command to be sent to the device
             The response expected from the device
-            The next command to be sent to device 
+            The next command to be sent to device (set to None to indicate there isn't one for the 'n' cmd) 
         """
         cmd = self._param_dict.get(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES)
         log.debug("_build_enter_log_display_acoustic_axis_velocities_command: cmd=%s" %cmd)
@@ -1352,10 +1393,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The response expected from the device
             The next command to be sent to device
         """
-        val = kwargs.get('value', None)
-        if val == None:
+        value = kwargs.get('value', None)
+        if value == None:
             raise InstrumentParameterException('set time command requires a value.')
-        cmd = self._param_dict.format(InstrumentParameters.SYS_CLOCK, val)
+        cmd = self._param_dict.format(InstrumentParameters.SYS_CLOCK, value)
         log.debug("_build_enter_time_command: cmd=%s" %cmd)
         return (cmd, InstrumentPrompts.SET_TIME, InstrumentCmds.ANSWER_YES)
 
@@ -1472,20 +1513,14 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         
         deploy_menu_prameters_parsed = False
         
-        params_to_get = [InstrumentParameters.SYS_CLOCK,
-                         InstrumentParameters.NOTE1,
-                         InstrumentParameters.NOTE2,
-                         InstrumentParameters.NOTE3,
-                         InstrumentParameters.MONITOR,
-                         InstrumentParameters.LOG_DISPLAY_TIME,
-                         InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
-                         InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES]
-
-        for key in params_to_get:
+        for key in InstrumentParameters.list():
+            if key == InstrumentParameters.ALL:
+                continue
             dest_submenu = self._param_dict.get_menu_path_read(key)
             command = self._param_dict.get_submenu_read(key)
 
             if key in DeployMenuParameters.list():
+                # only screen scrape the deploy menu once for efficiency
                 if deploy_menu_prameters_parsed == True:
                     continue
                 else:
