@@ -335,7 +335,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         """
         #new_params = {InstrumentParameters.QUERY_MODE : 'n'}
         #new_params = {InstrumentParameters.FREQUENCY : 3.3}
-        new_params = {InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 2}
+        new_params = {InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 3}
         # Set parameters and verify.
         reply = self.driver_client.cmd_dvr('set_resource', new_params)
         reply = self.driver_client.cmd_dvr('get_resource', params)

@@ -84,28 +84,30 @@ class InstrumentPrompts(BaseEnum):
     MEAS_PER_SAMPLE = 'Enter number of measurements per sample (1 to 10000) ?'
     
 class InstrumentCmds(BaseEnum):
-    CONTROL_C       = '\x03'   # CTRL-C (end of text)
-    DEPLOY_GO       = '\a'     # CTRL-G (bell)
-    SET_TIME        = '1'
-    ENTER_TIME      = 'enter_time'
-    ANSWER_YES      = 'y'
-    DEPLOY_MENU     = '6'
-    SET_NOTE        = 'set_note'
-    ENTER_NOTE      = 'enter_note'
-    SET_VEL_FRAME   = 'F'
-    ENTER_VEL_FRAME = 'enter_velocity_frame'
-    SET_MONITOR     = 'M'
-    ENTER_MONITOR   = 'enter_monitor'
-    ENTER_LOG_DISPLAY_TIME = 'enter_log_display_time'
-    ENTER_LOG_DISPLAY_FRACTIONAL_SECOND = 'enter_log_display_fractional_second'
+    CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
+    DEPLOY_GO                                  = '\a'     # CTRL-G (bell)
+    SET_TIME                                   = '1'
+    ENTER_TIME                                 = 'enter_time'
+    ANSWER_YES                                 = 'y'
+    DEPLOY_MENU                                = '6'
+    SET_NOTE                                   = 'set_note'
+    ENTER_NOTE                                 = 'enter_note'
+    SET_VEL_FRAME                              = 'F'
+    ENTER_VEL_FRAME                            = 'enter_velocity_frame'
+    SET_MONITOR                                = 'M'
+    ENTER_MONITOR                              = 'enter_monitor'
+    ENTER_LOG_DISPLAY_TIME                     = 'enter_log_display_time'
+    ENTER_LOG_DISPLAY_FRACTIONAL_SECOND        = 'enter_log_display_fractional_second'
     ENTER_LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES = 'enter_log_display_acoustic_axis_velocities'
-    ENTER_ACOUSTIC_AXIS_VELOCITY_FORMAT = 'enter_log_display_acoustic_axis_velocity_format'
-    SET_QUERY       = 'Q'
-    ENTER_QUERY     = 'enter_query'
-    SET_FREQUENCY   = '4'
-    ENTER_FREQUENCY = 'enter_frequency'
-    SET_MEAS_PER_SAMPLE   = '5'
-    ENTER_MEAS_PER_SAMPLE = 'enter_measurements_per_sample'
+    ENTER_ACOUSTIC_AXIS_VELOCITY_FORMAT        = 'enter_log_display_acoustic_axis_velocity_format'
+    SET_QUERY                                  = 'Q'
+    ENTER_QUERY                                = 'enter_query'
+    SET_FREQUENCY                              = '4'
+    ENTER_FREQUENCY                            = 'enter_frequency'
+    SET_MEAS_PER_SAMPLE                        = '5'
+    ENTER_MEAS_PER_SAMPLE                      = 'enter_measurements_per_sample'
+    SET_SAMPLE_PERIOD                          = '6'
+    ENTER_SAMPLE_PERIOD                        = 'enter_sample_period'
 
 class ProtocolStates(BaseEnum):
     """
@@ -149,36 +151,37 @@ class InstrumentParameters(DriverParameter):
     """
     Device parameters for MAVS-4.
     """
-    SYS_CLOCK                     = 'sys_clock'
-    NOTE1                         = 'note1'
-    NOTE2                         = 'note2'
-    NOTE3                         = 'note3'
-    VELOCITY_FRAME                = 'velocity_frame'
-    MONITOR                       = 'monitor'
-    LOG_DISPLAY_TIME              = 'log/display_time'
-    LOG_DISPLAY_FRACTIONAL_SECOND = 'log/display_fractional_second'
+    SYS_CLOCK                            = 'sys_clock'
+    NOTE1                                = 'note1'
+    NOTE2                                = 'note2'
+    NOTE3                                = 'note3'
+    VELOCITY_FRAME                       = 'velocity_frame'
+    MONITOR                              = 'monitor'
+    LOG_DISPLAY_TIME                     = 'log/display_time'
+    LOG_DISPLAY_FRACTIONAL_SECOND        = 'log/display_fractional_second'
     LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES = 'log/display_acoustic_axis_velocities'
-    QUERY_MODE                    = 'query_mode'
-    FREQUENCY                     = 'frequency'
-    MEASUREMENTS_PER_SAMPLE       = 'measurements_per_sample'
+    QUERY_MODE                           = 'query_mode'
+    FREQUENCY                            = 'frequency'
+    MEASUREMENTS_PER_SAMPLE              = 'measurements_per_sample'
     """
-    SAMPLE_PERIOD                 = 'sample_period'
+    SAMPLE_PERIOD                        = 'sample_period'
     SAMPLES_PER_BURST             = 'samples_per_burst'
     BURST_INTERVAL                = 'bursts_interval'
     """
     
 class DeployMenuParameters(BaseEnum):
-    NOTE1                         = InstrumentParameters.NOTE1
-    NOTE2                         = InstrumentParameters.NOTE2
-    NOTE3                         = InstrumentParameters.NOTE3
-    VELOCITY_FRAME                = InstrumentParameters.VELOCITY_FRAME
-    MONITOR                       = InstrumentParameters.MONITOR
-    LOG_DISPLAY_TIME              = InstrumentParameters.LOG_DISPLAY_TIME
-    LOG_DISPLAY_FRACTIONAL_SECOND = InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND
+    NOTE1                                = InstrumentParameters.NOTE1
+    NOTE2                                = InstrumentParameters.NOTE2
+    NOTE3                                = InstrumentParameters.NOTE3
+    VELOCITY_FRAME                       = InstrumentParameters.VELOCITY_FRAME
+    MONITOR                              = InstrumentParameters.MONITOR
+    LOG_DISPLAY_TIME                     = InstrumentParameters.LOG_DISPLAY_TIME
+    LOG_DISPLAY_FRACTIONAL_SECOND        = InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND
     LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES = InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES
-    QUERY_MODE = InstrumentParameters.QUERY_MODE
-    FREQUENCY = InstrumentParameters.FREQUENCY
-    MEASUREMENTS_PER_SAMPLE = InstrumentParameters.MEASUREMENTS_PER_SAMPLE
+    QUERY_MODE                           = InstrumentParameters.QUERY_MODE
+    FREQUENCY                            = InstrumentParameters.FREQUENCY
+    MEASUREMENTS_PER_SAMPLE              = InstrumentParameters.MEASUREMENTS_PER_SAMPLE
+    #SAMPLE_PERIOD                        = InstrumentParameters.SAMPLE_PERIOD
 
 class SubMenues(BaseEnum):
     ROOT        = 'root_menu'
@@ -370,6 +373,23 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     The protocol is a very simple command/response protocol with a few show
     commands and a few set commands.
     """
+    
+    # Lookup dictionary which contains the response and next command for a given instrument command.
+    # The value None for the next command means there is no next command.
+    # Commands that decide the command or these values dynamically have there own build handlers and are not in this table.
+    Command_Response = {InstrumentCmds.DEPLOY_MENU           : [InstrumentPrompts.DEPLOY_MENU, None],
+                        InstrumentCmds.SET_TIME              : [InstrumentPrompts.SET_TIME, None],
+                        InstrumentCmds.ENTER_TIME            : [InstrumentPrompts.SET_TIME, InstrumentCmds.ANSWER_YES],
+                        InstrumentCmds.ANSWER_YES            : [InstrumentPrompts.SET_TIME, None],
+                        InstrumentCmds.ENTER_NOTE            : [InstrumentPrompts.DEPLOY_MENU, None],
+                        InstrumentCmds.SET_MONITOR           : [InstrumentPrompts.MONITOR, InstrumentCmds.ENTER_MONITOR],
+                        InstrumentCmds.SET_QUERY             : [InstrumentPrompts.QUERY, InstrumentCmds.ENTER_QUERY],
+                        InstrumentCmds.ENTER_QUERY           : [InstrumentPrompts.DEPLOY_MENU, None],
+                        InstrumentCmds.SET_FREQUENCY         : [InstrumentPrompts.FREQUENCY, InstrumentCmds.ENTER_FREQUENCY],
+                        InstrumentCmds.ENTER_FREQUENCY       : [InstrumentPrompts.DEPLOY_MENU, None],                        
+                        InstrumentCmds.SET_MEAS_PER_SAMPLE   : [InstrumentPrompts.MEAS_PER_SAMPLE, InstrumentCmds.ENTER_MEAS_PER_SAMPLE],
+                        InstrumentCmds.ENTER_MEAS_PER_SAMPLE : [InstrumentPrompts.DEPLOY_MENU, None],                        
+                        }
     
     def __init__(self, prompts, newline, driver_event):
         """
@@ -1143,10 +1163,14 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         """
         self._param_dict.add(InstrumentParameters.SAMPLE_PERIOD,
-                             '', 
-                             lambda line : int(line),
-                             self._int_to_string,
-                             value=0)
+                             r'.*6\| Sample Period\s+(\d+.\d+)\s+\[sec\].*', 
+                             lambda match : float(match.group(1)),
+                             self._float_to_string,
+                             value=0.0,
+                             menu_path_read=SubMenues.ROOT,
+                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_write=SubMenues.DEPLOY,
+                             submenu_write=InstrumentCmds.SET_SAMPLE_PERIOD)
 
         self._param_dict.add(InstrumentParameters.SAMPLES_PER_BURST,
                              '', 
@@ -1164,112 +1188,33 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the
         # navigate_and_execute sequence.        
-        self._add_build_handler(InstrumentCmds.ENTER_MEAS_PER_SAMPLE, self._build_enter_measurements_per_sample_command)
-        self._add_build_handler(InstrumentCmds.SET_MEAS_PER_SAMPLE, self._build_set_measurements_per_sample_command)
-        self._add_build_handler(InstrumentCmds.ENTER_FREQUENCY, self._build_enter_frequency_command)
-        self._add_build_handler(InstrumentCmds.SET_FREQUENCY, self._build_set_frequency_command)
-        self._add_build_handler(InstrumentCmds.ENTER_QUERY, self._build_enter_query_command)
-        self._add_build_handler(InstrumentCmds.SET_QUERY, self._build_set_query_command)
+        #self._add_build_handler(InstrumentCmds.ENTER_SAMPLE_PERIOD, self._build_enter_sample_period_command)
+        #self._add_build_handler(InstrumentCmds.SET_SAMPLE_PERIOD, self._build_set_sample_period_command)
+        self._add_build_handler(InstrumentCmds.ENTER_MEAS_PER_SAMPLE, self._build_simple_enter_command)
+        self._add_build_handler(InstrumentCmds.SET_MEAS_PER_SAMPLE, self._build_simple_set_command)
+        self._add_build_handler(InstrumentCmds.ENTER_FREQUENCY, self._build_simple_enter_command)
+        self._add_build_handler(InstrumentCmds.SET_FREQUENCY, self._build_simple_set_command)
+        self._add_build_handler(InstrumentCmds.ENTER_QUERY, self._build_simple_enter_command)
+        self._add_build_handler(InstrumentCmds.SET_QUERY, self._build_simple_set_command)
         self._add_build_handler(InstrumentCmds.ENTER_ACOUSTIC_AXIS_VELOCITY_FORMAT, self._build_enter_log_display_acoustic_axis_velocity_format_command)
         self._add_build_handler(InstrumentCmds.ENTER_LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES, self._build_enter_log_display_acoustic_axis_velocities_command)
         self._add_build_handler(InstrumentCmds.ENTER_LOG_DISPLAY_FRACTIONAL_SECOND, self._build_enter_log_display_fractional_second_command)
         self._add_build_handler(InstrumentCmds.ENTER_LOG_DISPLAY_TIME, self._build_enter_log_display_time_command)
         self._add_build_handler(InstrumentCmds.ENTER_MONITOR, self._build_enter_monitor_command)
-        self._add_build_handler(InstrumentCmds.SET_MONITOR, self._build_set_monitor_command)
+        self._add_build_handler(InstrumentCmds.SET_MONITOR, self._build_simple_set_command)
         self._add_build_handler(InstrumentCmds.ENTER_VEL_FRAME, self._build_enter_velocity_frame_command)
-        self._add_build_handler(InstrumentCmds.SET_VEL_FRAME, self._build_set_velocity_frame_command)
-        self._add_build_handler(InstrumentCmds.ENTER_NOTE, self._build_enter_note_command)
+        self._add_build_handler(InstrumentCmds.SET_VEL_FRAME, self._build_simple_set_command)
+        self._add_build_handler(InstrumentCmds.ENTER_NOTE, self._build_simple_enter_command)
         self._add_build_handler(InstrumentCmds.SET_NOTE, self._build_set_note_command)
-        self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_deploy_menu_command)
-        self._add_build_handler(InstrumentCmds.ENTER_TIME, self._build_enter_time_command)
-        self._add_build_handler(InstrumentCmds.SET_TIME, self._build_set_time_command)
-        self._add_build_handler(InstrumentCmds.ANSWER_YES, self._build_answer_yes_command)
+        self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_simple_set_command)
+        self._add_build_handler(InstrumentCmds.ENTER_TIME, self._build_simple_enter_command)
+        self._add_build_handler(InstrumentCmds.SET_TIME, self._build_simple_set_command)
+        self._add_build_handler(InstrumentCmds.ANSWER_YES, self._build_simple_set_command)
         #self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_deploy_go_command)
         
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
         self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
-        
-    def _build_enter_measurements_per_sample_command(self, **kwargs):
-        """
-        Build handler for measurements per sample enter command 
-        @ retval list with:
-            The command to be sent to the device
-            The response expected from the device
-            The next command to be sent to device (set to None to indicate there isn't one) 
-        """
-        value = kwargs.get('value', None)
-        if value == None:
-            raise InstrumentParameterException('enter measurements per sample command requires a value.')
-        cmd = self._param_dict.format(InstrumentParameters.MEASUREMENTS_PER_SAMPLE, value)
-        log.debug("_build_enter_measurements_per_sample_command: cmd=%s" %cmd)
-        return (cmd, InstrumentPrompts.DEPLOY_MENU, None)            
-
-    def _build_set_measurements_per_sample_command(self, **kwargs):
-        """
-        Build handler for measurements per sample set command 
-        @ retval list with:
-            The command to be sent to the device
-            The response expected from the device
-            The next command to be sent to device 
-        """
-        cmd = InstrumentCmds.SET_MEAS_PER_SAMPLE
-        log.debug("_build_set_measurements_per_sample_command: cmd=%s" %cmd)
-        return (cmd, InstrumentPrompts.MEAS_PER_SAMPLE, InstrumentCmds.ENTER_MEAS_PER_SAMPLE)
-
-    def _build_enter_frequency_command(self, **kwargs):
-        """
-        Build handler for frequency enter command 
-        @ retval list with:
-            The command to be sent to the device
-            The response expected from the device
-            The next command to be sent to device (set to None to indicate there isn't one) 
-        """
-        value = kwargs.get('value', None)
-        if value == None:
-            raise InstrumentParameterException('enter frequency command requires a value.')
-        cmd = self._param_dict.format(InstrumentParameters.FREQUENCY, value)
-        log.debug("_build_enter_frequency_command: cmd=%s" %cmd)
-        return (cmd, InstrumentPrompts.DEPLOY_MENU, None)            
-
-    def _build_set_frequency_command(self, **kwargs):
-        """
-        Build handler for frequency set command 
-        @ retval list with:
-            The command to be sent to the device
-            The response expected from the device
-            The next command to be sent to device 
-        """
-        cmd = InstrumentCmds.SET_FREQUENCY
-        log.debug("_build_set_frequency_command: cmd=%s" %cmd)
-        return (cmd, InstrumentPrompts.FREQUENCY, InstrumentCmds.ENTER_FREQUENCY)
-
-    def _build_enter_query_command(self, **kwargs):
-        """
-        Build handler for query enter command 
-        @ retval list with:
-            The command to be sent to the device
-            The response expected from the device
-            The next command to be sent to device (set to None to indicate there isn't one) 
-        """
-        value = kwargs.get('value', None)
-        if value == None:
-            raise InstrumentParameterException('enter query command requires a value.')
-        cmd = value
-        log.debug("_build_enter_query_command: cmd=%s" %cmd)
-        return (cmd, InstrumentPrompts.DEPLOY_MENU, None)            
-
-    def _build_set_query_command(self, **kwargs):
-        """
-        Build handler for query set command 
-        @ retval list with:
-            The command to be sent to the device
-            The response expected from the device
-            The next command to be sent to device 
-        """
-        cmd = InstrumentCmds.SET_QUERY
-        log.debug("_build_set_query_command: cmd=%s" %cmd)
-        return (cmd, InstrumentPrompts.QUERY, InstrumentCmds.ENTER_QUERY)
 
     def _build_enter_log_display_acoustic_axis_velocity_format_command(self, **kwargs):
         """
@@ -1329,26 +1274,17 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The response expected from the device
             The next command to be sent to device 
         """
+        name = kwargs.get('name', None)
+        if name == None:
+            raise InstrumentParameterException('enter monitor command requires a name.')
         value = kwargs.get('value', None)
         if value == None:
             raise InstrumentParameterException('enter monitor command requires a value.')
-        cmd = value
+        cmd = self._param_dict.format(name, value)
         log.debug("_build_enter_monitor_command: cmd=%s" %cmd)
         if value == 'n':
             return (cmd, InstrumentPrompts.DEPLOY_MENU, None)            
         return (cmd, InstrumentPrompts.LOG_DISPLAY, InstrumentCmds.ENTER_LOG_DISPLAY_TIME)
-
-    def _build_set_monitor_command(self, **kwargs):
-        """
-        Build handler for monitor set command 
-        @ retval list with:
-            The command to be sent to the device
-            The response expected from the device
-            The next command to be sent to device 
-        """
-        cmd = InstrumentCmds.SET_MONITOR
-        log.debug("_build_set_monitor_command: cmd=%s" %cmd)
-        return (cmd, InstrumentPrompts.MONITOR, InstrumentCmds.ENTER_MONITOR)
 
     def _build_enter_velocity_frame_command(self, **kwargs):
         """
@@ -1358,40 +1294,16 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The response expected from the device
             The next command to be sent to device (set to None to indicate there isn't one)
         """
+        name = kwargs.get('name', None)
+        if name == None:
+            raise InstrumentParameterException('enter velocity frame command requires a name.')
         value = kwargs.get('value', None)
         if value == None:
             raise InstrumentParameterException('enter velocity frame command requires a value.')
-        cmd = str(value)
+        cmd = self._param_dict.format(name, value)
         log.debug("_build_enter_velocity_frame_command: cmd=%s" %cmd)
         if value == 1:
             return (cmd, InstrumentPrompts.DISPLAY_FORMAT, None)            
-        return (cmd, InstrumentPrompts.DEPLOY_MENU, None)
-
-    def _build_set_velocity_frame_command(self, **kwargs):
-        """
-        Build handler for velocity frame set command 
-        @ retval list with:
-            The command to be sent to the device
-            The response expected from the device
-            The next command to be sent to device 
-        """
-        cmd = InstrumentCmds.SET_VEL_FRAME
-        log.debug("_build_set_velocity_frame_command: cmd=%s" %cmd)
-        return (cmd, InstrumentPrompts.SELECTION, InstrumentCmds.ENTER_VEL_FRAME)
-
-    def _build_enter_note_command(self, **kwargs):
-        """
-        Build handler for note enter command 
-        @ retval list with:
-            The command to be sent to the device
-            The response expected from the device
-            The next command to be sent to device (set to None to indicate there isn't one)
-        """
-        value = kwargs.get('value', None)
-        if value == None:
-            raise InstrumentParameterException('enter note command requires a value.')
-        cmd = value
-        log.debug("_build_enter_note_command: cmd=%s" %cmd)
         return (cmd, InstrumentPrompts.DEPLOY_MENU, None)
 
     def _build_set_note_command(self, **kwargs):
@@ -1409,57 +1321,46 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         log.debug("_build_set_note_command: cmd=%s" %cmd)
         return (cmd, InstrumentPrompts.NOTE_INPUT, InstrumentCmds.ENTER_NOTE)
 
-    def _build_deploy_menu_command(self, **kwargs):
+    def _build_simple_enter_command(self, **kwargs):
         """
-        Build handler for entering deploy menu command 
-        @ retval list with:
-            The command to be sent to the device
-            The response expected from the device
-            The next command to be sent to device (set to None to indicate there isn't one)
-        """
-        cmd = InstrumentCmds.DEPLOY_MENU
-        log.debug("_build_deploy_menu_command: cmd=%s" %cmd)
-        return (cmd, InstrumentPrompts.DEPLOY_MENU, None)
-
-    def _build_enter_time_command(self, **kwargs):
-        """
-        Build handler for time set command 
+        Build handler for simple enter command 
         String cmd constructed by param dict formatting function.
         @ retval list with:
             The command to be sent to the device
             The response expected from the device
             The next command to be sent to device
         """
+        cmd_name = kwargs.get('command', None)
+        if cmd_name == None:
+            raise InstrumentParameterException('simple enter command requires a command.')
+        name = kwargs.get('name', None)
+        if name == None:
+            raise InstrumentParameterException('simple enter command requires a name.')
         value = kwargs.get('value', None)
         if value == None:
-            raise InstrumentParameterException('set time command requires a value.')
-        cmd = self._param_dict.format(InstrumentParameters.SYS_CLOCK, value)
-        log.debug("_build_enter_time_command: cmd=%s" %cmd)
-        return (cmd, InstrumentPrompts.SET_TIME, InstrumentCmds.ANSWER_YES)
+            raise InstrumentParameterException('simple enter command requires a value.')
+        cmd = self._param_dict.format(name, value)
+        response = self.Command_Response[cmd_name][0]
+        next_cmd = self.Command_Response[cmd_name][1]
+        log.debug("_build_simple_enter_command: cmd=%s" %cmd)
+        return (cmd, response, next_cmd)
 
-    def _build_set_time_command(self, **kwargs):
+    def _build_simple_set_command(self, **kwargs):
         """
-        Build handler for time set command 
+        Build handler for simple set command 
         @ retval list with:
             The command to be sent to the device
             The response expected from the device
-            The next command to be sent to device (set to None to indicate there isn't one)
+            The next command to be sent to device
         """
-        cmd = InstrumentCmds.SET_TIME
-        log.debug("_build_set_time_command: cmd=%s" %cmd)
-        return (cmd, InstrumentPrompts.SET_TIME, None)
-
-    def _build_answer_yes_command(self, **kwargs):
-        """
-        Build handler for answer yes command 
-        @ retval list with:
-            The command to be sent to the device
-            The response expected from the device
-            The next command to be sent to device (set to None to indicate there isn't one)
-        """
-        cmd = InstrumentCmds.ANSWER_YES
-        log.debug("_build_answer_yes_command: cmd=%s" %cmd)
-        return (cmd, InstrumentPrompts.SET_TIME, None)
+        cmd_name = kwargs.get('command', None)
+        if cmd_name == None:
+            raise InstrumentParameterException('simple set command requires a command.')
+        cmd = cmd_name
+        response = self.Command_Response[cmd_name][0]
+        next_cmd = self.Command_Response[cmd_name][1]
+        log.debug("_build_simple_set_command: cmd=%s" %cmd)
+        return (cmd, response, next_cmd)
 
     def _parse_time_response(self, response, prompt, **kwargs):
         """
