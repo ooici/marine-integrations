@@ -89,26 +89,25 @@ parameter_types = {
     InstrumentParameters.QUERY_MODE : str,
     InstrumentParameters.FREQUENCY : float,
     InstrumentParameters.MEASUREMENTS_PER_SAMPLE : int,
+    InstrumentParameters.SAMPLE_PERIOD : float,
 }
 
 parameter_list = [
-    InstrumentParameters.SYS_CLOCK,
-    InstrumentParameters.NOTE1,
-    InstrumentParameters.NOTE2,
-    InstrumentParameters.NOTE3,
-    InstrumentParameters.VELOCITY_FRAME,
-    InstrumentParameters.MONITOR,
-    InstrumentParameters.LOG_DISPLAY_TIME,
-    InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
-    InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES,
-    InstrumentParameters.QUERY_MODE,
-    InstrumentParameters.FREQUENCY,
-    InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
-    """
+    #InstrumentParameters.SYS_CLOCK,
+    #InstrumentParameters.NOTE1,
+    #InstrumentParameters.NOTE2,
+    #InstrumentParameters.NOTE3,
+    #InstrumentParameters.VELOCITY_FRAME,
+    #InstrumentParameters.MONITOR,
+    #InstrumentParameters.LOG_DISPLAY_TIME,
+    #InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
+    #InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES,
+    #InstrumentParameters.QUERY_MODE,
+    #InstrumentParameters.FREQUENCY,
+    #InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
     InstrumentParameters.SAMPLE_PERIOD,
-    InstrumentParameters.SAMPLES_PER_BURST,
-    InstrumentParameters.BURST_INTERVAL,
-    """
+    #InstrumentParameters.SAMPLES_PER_BURST,
+    #InstrumentParameters.BURST_INTERVAL,
 ]
     
 ## Initialize the test configuration
@@ -302,20 +301,20 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         orig_config = reply
         """
         
-        # Grab a subset of parameters.
-        #params = [InstrumentParameters.SYS_CLOCK]
-        #params = [InstrumentParameters.NOTE3]
-        #params = [InstrumentParameters.VELOCITY_FRAME]
-        """
-        params = [InstrumentParameters.MONITOR,
-                  InstrumentParameters.LOG_DISPLAY_TIME,
-                  InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
-                  InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES]
-        """
-        #params = [InstrumentParameters.QUERY_MODE]
-        #params = [InstrumentParameters.FREQUENCY]
-        params = [InstrumentParameters.MEASUREMENTS_PER_SAMPLE]
-        reply = self.driver_client.cmd_dvr('get_resource', params)
+        # parameter values to test.
+        paramter_values = {InstrumentParameters.SYS_CLOCK : '03/29/2002 11:11:42',
+                           InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                           InstrumentParameters.VELOCITY_FRAME : 4,
+                           InstrumentParameters.MONITOR : 'n',
+                           InstrumentParameters.LOG_DISPLAY_TIME : 'y',
+                           InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : 'y',
+                           InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'SI',
+                           InstrumentParameters.QUERY_MODE : 'n',
+                           InstrumentParameters.FREQUENCY : 3.3,
+                           InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 3,
+                           InstrumentParameters.SAMPLE_PERIOD : 2.5}
+
+        reply = self.driver_client.cmd_dvr('get_resource', parameter_list)
         self.assertParamDictionariesEqual(reply, parameter_types)
         for (name, value) in reply.iteritems():
             log.debug('parameter %s=%s' %(name, value))        
@@ -323,25 +322,16 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         # Remember the original subset.
         orig_params = reply
         
-        # Construct new parameters to set.
-        #new_params = {InstrumentParameters.SYS_CLOCK : '03/29/2002 11:11:42'}
-        #new_params = {InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())}
-        #new_params = {InstrumentParameters.VELOCITY_FRAME : 4}
-        """
-        new_params = {InstrumentParameters.MONITOR : 'n',
-                      InstrumentParameters.LOG_DISPLAY_TIME : 'y',
-                      InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : 'y',
-                      InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'SI'}
-        """
-        #new_params = {InstrumentParameters.QUERY_MODE : 'n'}
-        #new_params = {InstrumentParameters.FREQUENCY : 3.3}
-        new_params = {InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 3}
+        new_parameter_values = {}
+        for parameter in parameter_list:
+            new_parameter_values[parameter] = paramter_values[parameter]
+               
         # Set parameters and verify.
-        reply = self.driver_client.cmd_dvr('set_resource', new_params)
-        reply = self.driver_client.cmd_dvr('get_resource', params)
+        reply = self.driver_client.cmd_dvr('set_resource', new_parameter_values)
+        reply = self.driver_client.cmd_dvr('get_resource', parameter_list)
         for (name, value) in reply.iteritems():
-            log.debug('name=%s, set=%s, got=%s' %(name, new_params[name], value))
-        self.assertParamVals(reply, new_params)
+            log.debug('name=%s, set=%s, got=%s' %(name, new_parameter_values[name], value))
+        self.assertParamVals(reply, new_parameter_values)
         
         """
         # Restore original parameters and verify.

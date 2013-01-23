@@ -82,6 +82,7 @@ class InstrumentPrompts(BaseEnum):
     QUERY           = 'Enable Query Mode (Yes/No) ['
     FREQUENCY       = 'Enter Measurement Frequency [Hz] (0.01 to 50.0) ?'
     MEAS_PER_SAMPLE = 'Enter number of measurements per sample (1 to 10000) ?'
+    SAMPLE_PERIOD   = 'Enter Sample Period [sec] (0.02 to   10000) ?'
     
 class InstrumentCmds(BaseEnum):
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
@@ -106,7 +107,7 @@ class InstrumentCmds(BaseEnum):
     ENTER_FREQUENCY                            = 'enter_frequency'
     SET_MEAS_PER_SAMPLE                        = '5'
     ENTER_MEAS_PER_SAMPLE                      = 'enter_measurements_per_sample'
-    SET_SAMPLE_PERIOD                          = '6'
+    SET_SAMPLE_PERIOD                          = ' 6'                         # make different from DEPLOY_MENU with leading space
     ENTER_SAMPLE_PERIOD                        = 'enter_sample_period'
 
 class ProtocolStates(BaseEnum):
@@ -163,8 +164,8 @@ class InstrumentParameters(DriverParameter):
     QUERY_MODE                           = 'query_mode'
     FREQUENCY                            = 'frequency'
     MEASUREMENTS_PER_SAMPLE              = 'measurements_per_sample'
-    """
     SAMPLE_PERIOD                        = 'sample_period'
+    """
     SAMPLES_PER_BURST             = 'samples_per_burst'
     BURST_INTERVAL                = 'bursts_interval'
     """
@@ -181,7 +182,7 @@ class DeployMenuParameters(BaseEnum):
     QUERY_MODE                           = InstrumentParameters.QUERY_MODE
     FREQUENCY                            = InstrumentParameters.FREQUENCY
     MEASUREMENTS_PER_SAMPLE              = InstrumentParameters.MEASUREMENTS_PER_SAMPLE
-    #SAMPLE_PERIOD                        = InstrumentParameters.SAMPLE_PERIOD
+    SAMPLE_PERIOD                        = InstrumentParameters.SAMPLE_PERIOD
 
 class SubMenues(BaseEnum):
     ROOT        = 'root_menu'
@@ -389,6 +390,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                         InstrumentCmds.ENTER_FREQUENCY       : [InstrumentPrompts.DEPLOY_MENU, None],                        
                         InstrumentCmds.SET_MEAS_PER_SAMPLE   : [InstrumentPrompts.MEAS_PER_SAMPLE, InstrumentCmds.ENTER_MEAS_PER_SAMPLE],
                         InstrumentCmds.ENTER_MEAS_PER_SAMPLE : [InstrumentPrompts.DEPLOY_MENU, None],                        
+                        InstrumentCmds.SET_SAMPLE_PERIOD     : [InstrumentPrompts.SAMPLE_PERIOD, InstrumentCmds.ENTER_SAMPLE_PERIOD],
+                        InstrumentCmds.ENTER_SAMPLE_PERIOD   : [InstrumentPrompts.DEPLOY_MENU, None],                        
                         }
     
     def __init__(self, prompts, newline, driver_event):
@@ -1161,7 +1164,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_MEAS_PER_SAMPLE)
 
-        """
         self._param_dict.add(InstrumentParameters.SAMPLE_PERIOD,
                              r'.*6\| Sample Period\s+(\d+.\d+)\s+\[sec\].*', 
                              lambda match : float(match.group(1)),
@@ -1172,6 +1174,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_SAMPLE_PERIOD)
 
+        """
         self._param_dict.add(InstrumentParameters.SAMPLES_PER_BURST,
                              '', 
                              lambda line : int(line),
@@ -1188,8 +1191,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the
         # navigate_and_execute sequence.        
-        #self._add_build_handler(InstrumentCmds.ENTER_SAMPLE_PERIOD, self._build_enter_sample_period_command)
-        #self._add_build_handler(InstrumentCmds.SET_SAMPLE_PERIOD, self._build_set_sample_period_command)
+        self._add_build_handler(InstrumentCmds.ENTER_SAMPLE_PERIOD, self._build_simple_enter_command)
+        self._add_build_handler(InstrumentCmds.SET_SAMPLE_PERIOD, self._build_simple_set_command)
         self._add_build_handler(InstrumentCmds.ENTER_MEAS_PER_SAMPLE, self._build_simple_enter_command)
         self._add_build_handler(InstrumentCmds.SET_MEAS_PER_SAMPLE, self._build_simple_set_command)
         self._add_build_handler(InstrumentCmds.ENTER_FREQUENCY, self._build_simple_enter_command)
