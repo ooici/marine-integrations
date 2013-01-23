@@ -90,7 +90,11 @@ parameter_types = {
     InstrumentParameters.FREQUENCY : float,
     InstrumentParameters.MEASUREMENTS_PER_SAMPLE : int,
     InstrumentParameters.SAMPLE_PERIOD : float,
-    InstrumentParameters.SAMPLES_PER_BURST : int
+    InstrumentParameters.SAMPLES_PER_BURST : int,
+    InstrumentParameters.BURST_INTERVAL_DAYS : int,
+    InstrumentParameters.BURST_INTERVAL_HOURS : int,
+    InstrumentParameters.BURST_INTERVAL_MINUTES : int,
+    InstrumentParameters.BURST_INTERVAL_SECONDS : int,
 }
 
 parameter_list = [
@@ -107,8 +111,12 @@ parameter_list = [
     #InstrumentParameters.FREQUENCY,
     #InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
     #InstrumentParameters.SAMPLE_PERIOD,
-    InstrumentParameters.SAMPLES_PER_BURST,
+    #InstrumentParameters.SAMPLES_PER_BURST,
     #InstrumentParameters.BURST_INTERVAL,
+    InstrumentParameters.BURST_INTERVAL_DAYS,
+    InstrumentParameters.BURST_INTERVAL_HOURS,
+    InstrumentParameters.BURST_INTERVAL_MINUTES,
+    InstrumentParameters.BURST_INTERVAL_SECONDS,
 ]
     
 ## Initialize the test configuration
@@ -306,15 +314,20 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         paramter_values = {InstrumentParameters.SYS_CLOCK : '03/29/2002 11:11:42',
                            InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
                            InstrumentParameters.VELOCITY_FRAME : 4,
-                           InstrumentParameters.MONITOR : 'n',
-                           InstrumentParameters.LOG_DISPLAY_TIME : 'y',
-                           InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : 'y',
-                           InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'SI',
+                           InstrumentParameters.MONITOR : 'y',
+                           InstrumentParameters.LOG_DISPLAY_TIME : 'n',
+                           InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : 'n',
+                           InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'n',
                            InstrumentParameters.QUERY_MODE : 'n',
                            InstrumentParameters.FREQUENCY : 3.3,
                            InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 3,
                            InstrumentParameters.SAMPLE_PERIOD : 2.5,
-                           InstrumentParameters.SAMPLES_PER_BURST : 4}
+                           InstrumentParameters.SAMPLES_PER_BURST : 2,
+                           InstrumentParameters.BURST_INTERVAL_DAYS : 1,
+                           InstrumentParameters.BURST_INTERVAL_HOURS : 2,
+                           InstrumentParameters.BURST_INTERVAL_MINUTES : 3,
+                           InstrumentParameters.BURST_INTERVAL_SECONDS : 4,
+                           }
 
         reply = self.driver_client.cmd_dvr('get_resource', parameter_list)
         self.assertParamDictionariesEqual(reply, parameter_types)
