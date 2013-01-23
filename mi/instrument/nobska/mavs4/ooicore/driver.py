@@ -61,30 +61,31 @@ class InstrumentPrompts(BaseEnum):
     MAVS-4 prompts.
     The main menu prompt has 2 bells and the sub menu prompts have one; the PicoDOS prompt has none.
     """
-    MAIN_MENU       = '\a\b ? \a\b'
-    SUB_MENU        = '\a\b'
-    PICO_DOS        = 'Enter command >> '
-    SLEEPING        = 'Sleeping . . .'
-    SLEEP_WAKEUP    = 'Enter <CTRL>-<C> now to wake up?'
-    DEPLOY_WAKEUP   = '>>> <CTRL>-<C> to terminate deployment <<<'
-    SET_DONE        = 'New parameters accepted.'
-    SET_FAILED      = 'Invalid entry'
-    SET_TIME        = '] ? \a\b'
-    GET_TIME        = 'Enter correct time ['
-    CHANGE_TIME     = 'Change time & date (Yes/No) [N] ?\a\b'
-    NOTE_INPUT      = '> '
-    DEPLOY_MENU     = 'G| Go (<CTRL>-<G> skips checks)\r\n\r\n'
-    SELECTION       = 'Selection  ?'
-    DISPLAY_FORMAT  = 'Set display format (HDS) [S] ?'
-    MONITOR         = 'Enable Data Monitor (Yes/No) ['
-    LOG_DISPLAY     = 'with each sample (Yes/No) [Y] ?'
-    VELOCITY_FORMAT = 'Set acoustic axis velocity format (HDS) [S] ?'
-    QUERY           = 'Enable Query Mode (Yes/No) ['
-    FREQUENCY       = 'Enter Measurement Frequency [Hz] (0.01 to 50.0) ?'
-    MEAS_PER_SAMPLE = 'Enter number of measurements per sample (1 to 10000) ?'
-    SAMPLE_PERIOD   = 'Enter Sample Period [sec] (0.02 to   10000) ?'
+    MAIN_MENU         = '\a\b ? \a\b'
+    SUB_MENU          = '\a\b'
+    PICO_DOS          = 'Enter command >> '
+    SLEEPING          = 'Sleeping . . .'
+    SLEEP_WAKEUP      = 'Enter <CTRL>-<C> now to wake up?'
+    DEPLOY_WAKEUP     = '>>> <CTRL>-<C> to terminate deployment <<<'
+    SET_DONE          = 'New parameters accepted.'
+    SET_FAILED        = 'Invalid entry'
+    SET_TIME          = '] ? \a\b'
+    GET_TIME          = 'Enter correct time ['
+    CHANGE_TIME       = 'Change time & date (Yes/No) [N] ?\a\b'
+    NOTE_INPUT        = '> '
+    DEPLOY_MENU       = 'G| Go (<CTRL>-<G> skips checks)\r\n\r\n'
+    SELECTION         = 'Selection  ?'
+    DISPLAY_FORMAT    = 'Set display format (HDS) [S] ?'
+    MONITOR           = 'Enable Data Monitor (Yes/No) ['
+    LOG_DISPLAY       = 'with each sample (Yes/No) [Y] ?'
+    VELOCITY_FORMAT   = 'Set acoustic axis velocity format (HDS) [S] ?'
+    QUERY             = 'Enable Query Mode (Yes/No) ['
+    FREQUENCY         = 'Enter Measurement Frequency [Hz] (0.01 to 50.0) ?'
+    MEAS_PER_SAMPLE   = 'Enter number of measurements per sample (1 to 10000) ?'
+    SAMPLE_PERIOD     = 'Enter Sample Period [sec] (0.02 to   10000) ?'
+    SAMPLES_PER_BURST = 'Enter number of samples per burst (1 to 100000) ?'
     
-class InstrumentCmds(BaseEnum):
+class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dictionaries to work correctly
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
     DEPLOY_GO                                  = '\a'     # CTRL-G (bell)
     SET_TIME                                   = '1'
@@ -109,6 +110,8 @@ class InstrumentCmds(BaseEnum):
     ENTER_MEAS_PER_SAMPLE                      = 'enter_measurements_per_sample'
     SET_SAMPLE_PERIOD                          = ' 6'                         # make different from DEPLOY_MENU with leading space
     ENTER_SAMPLE_PERIOD                        = 'enter_sample_period'
+    SET_SAMPLES_PER_BURST                      = '7'
+    ENTER_SAMPLES_PER_BURST                    = 'enter_samples_per_burst'
 
 class ProtocolStates(BaseEnum):
     """
@@ -165,8 +168,8 @@ class InstrumentParameters(DriverParameter):
     FREQUENCY                            = 'frequency'
     MEASUREMENTS_PER_SAMPLE              = 'measurements_per_sample'
     SAMPLE_PERIOD                        = 'sample_period'
+    SAMPLES_PER_BURST                    = 'samples_per_burst'
     """
-    SAMPLES_PER_BURST             = 'samples_per_burst'
     BURST_INTERVAL                = 'bursts_interval'
     """
     
@@ -183,6 +186,7 @@ class DeployMenuParameters(BaseEnum):
     FREQUENCY                            = InstrumentParameters.FREQUENCY
     MEASUREMENTS_PER_SAMPLE              = InstrumentParameters.MEASUREMENTS_PER_SAMPLE
     SAMPLE_PERIOD                        = InstrumentParameters.SAMPLE_PERIOD
+    SAMPLES_PER_BURST                    = InstrumentParameters.SAMPLES_PER_BURST
 
 class SubMenues(BaseEnum):
     ROOT        = 'root_menu'
@@ -378,20 +382,22 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     # Lookup dictionary which contains the response and next command for a given instrument command.
     # The value None for the next command means there is no next command.
     # Commands that decide the command or these values dynamically have there own build handlers and are not in this table.
-    Command_Response = {InstrumentCmds.DEPLOY_MENU           : [InstrumentPrompts.DEPLOY_MENU, None],
-                        InstrumentCmds.SET_TIME              : [InstrumentPrompts.SET_TIME, None],
-                        InstrumentCmds.ENTER_TIME            : [InstrumentPrompts.SET_TIME, InstrumentCmds.ANSWER_YES],
-                        InstrumentCmds.ANSWER_YES            : [InstrumentPrompts.SET_TIME, None],
-                        InstrumentCmds.ENTER_NOTE            : [InstrumentPrompts.DEPLOY_MENU, None],
-                        InstrumentCmds.SET_MONITOR           : [InstrumentPrompts.MONITOR, InstrumentCmds.ENTER_MONITOR],
-                        InstrumentCmds.SET_QUERY             : [InstrumentPrompts.QUERY, InstrumentCmds.ENTER_QUERY],
-                        InstrumentCmds.ENTER_QUERY           : [InstrumentPrompts.DEPLOY_MENU, None],
-                        InstrumentCmds.SET_FREQUENCY         : [InstrumentPrompts.FREQUENCY, InstrumentCmds.ENTER_FREQUENCY],
-                        InstrumentCmds.ENTER_FREQUENCY       : [InstrumentPrompts.DEPLOY_MENU, None],                        
-                        InstrumentCmds.SET_MEAS_PER_SAMPLE   : [InstrumentPrompts.MEAS_PER_SAMPLE, InstrumentCmds.ENTER_MEAS_PER_SAMPLE],
-                        InstrumentCmds.ENTER_MEAS_PER_SAMPLE : [InstrumentPrompts.DEPLOY_MENU, None],                        
-                        InstrumentCmds.SET_SAMPLE_PERIOD     : [InstrumentPrompts.SAMPLE_PERIOD, InstrumentCmds.ENTER_SAMPLE_PERIOD],
-                        InstrumentCmds.ENTER_SAMPLE_PERIOD   : [InstrumentPrompts.DEPLOY_MENU, None],                        
+    Command_Response = {InstrumentCmds.DEPLOY_MENU             : [InstrumentPrompts.DEPLOY_MENU, None],
+                        InstrumentCmds.SET_TIME                : [InstrumentPrompts.SET_TIME, None],
+                        InstrumentCmds.ENTER_TIME              : [InstrumentPrompts.SET_TIME, InstrumentCmds.ANSWER_YES],
+                        InstrumentCmds.ANSWER_YES              : [InstrumentPrompts.SET_TIME, None],
+                        InstrumentCmds.ENTER_NOTE              : [InstrumentPrompts.DEPLOY_MENU, None],
+                        InstrumentCmds.SET_MONITOR             : [InstrumentPrompts.MONITOR, InstrumentCmds.ENTER_MONITOR],
+                        InstrumentCmds.SET_QUERY               : [InstrumentPrompts.QUERY, InstrumentCmds.ENTER_QUERY],
+                        InstrumentCmds.ENTER_QUERY             : [InstrumentPrompts.DEPLOY_MENU, None],
+                        InstrumentCmds.SET_FREQUENCY           : [InstrumentPrompts.FREQUENCY, InstrumentCmds.ENTER_FREQUENCY],
+                        InstrumentCmds.ENTER_FREQUENCY         : [InstrumentPrompts.DEPLOY_MENU, None],                        
+                        InstrumentCmds.SET_MEAS_PER_SAMPLE     : [InstrumentPrompts.MEAS_PER_SAMPLE, InstrumentCmds.ENTER_MEAS_PER_SAMPLE],
+                        InstrumentCmds.ENTER_MEAS_PER_SAMPLE   : [InstrumentPrompts.DEPLOY_MENU, None],                        
+                        InstrumentCmds.SET_SAMPLE_PERIOD       : [InstrumentPrompts.SAMPLE_PERIOD, InstrumentCmds.ENTER_SAMPLE_PERIOD],
+                        InstrumentCmds.ENTER_SAMPLE_PERIOD     : [InstrumentPrompts.DEPLOY_MENU, None],                        
+                        InstrumentCmds.SET_SAMPLES_PER_BURST   : [InstrumentPrompts.SAMPLES_PER_BURST, InstrumentCmds.ENTER_SAMPLES_PER_BURST],
+                        InstrumentCmds.ENTER_SAMPLES_PER_BURST : [InstrumentPrompts.DEPLOY_MENU, None],                        
                         }
     
     def __init__(self, prompts, newline, driver_event):
@@ -1174,13 +1180,17 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_SAMPLE_PERIOD)
 
-        """
         self._param_dict.add(InstrumentParameters.SAMPLES_PER_BURST,
-                             '', 
-                             lambda line : int(line),
+                             r'.*7\| Samples/Burst\s+(\d+)\s+\[S/B\].*', 
+                             lambda match : int(match.group(1)),
                              self._int_to_string,
-                             value=0)
+                             value=0,
+                             menu_path_read=SubMenues.ROOT,
+                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_write=SubMenues.DEPLOY,
+                             submenu_write=InstrumentCmds.SET_SAMPLES_PER_BURST)
 
+        """
         self._param_dict.add(InstrumentParameters.BURST_INTERVAL,
                              '', 
                              lambda line : int(line),
@@ -1191,6 +1201,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the
         # navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ENTER_SAMPLES_PER_BURST, self._build_simple_enter_command)
+        self._add_build_handler(InstrumentCmds.SET_SAMPLES_PER_BURST, self._build_simple_set_command)
         self._add_build_handler(InstrumentCmds.ENTER_SAMPLE_PERIOD, self._build_simple_enter_command)
         self._add_build_handler(InstrumentCmds.SET_SAMPLE_PERIOD, self._build_simple_set_command)
         self._add_build_handler(InstrumentCmds.ENTER_MEAS_PER_SAMPLE, self._build_simple_enter_command)

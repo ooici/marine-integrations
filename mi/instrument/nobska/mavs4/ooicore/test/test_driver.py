@@ -90,6 +90,7 @@ parameter_types = {
     InstrumentParameters.FREQUENCY : float,
     InstrumentParameters.MEASUREMENTS_PER_SAMPLE : int,
     InstrumentParameters.SAMPLE_PERIOD : float,
+    InstrumentParameters.SAMPLES_PER_BURST : int
 }
 
 parameter_list = [
@@ -105,8 +106,8 @@ parameter_list = [
     #InstrumentParameters.QUERY_MODE,
     #InstrumentParameters.FREQUENCY,
     #InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
-    InstrumentParameters.SAMPLE_PERIOD,
-    #InstrumentParameters.SAMPLES_PER_BURST,
+    #InstrumentParameters.SAMPLE_PERIOD,
+    InstrumentParameters.SAMPLES_PER_BURST,
     #InstrumentParameters.BURST_INTERVAL,
 ]
     
@@ -312,7 +313,8 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
                            InstrumentParameters.QUERY_MODE : 'n',
                            InstrumentParameters.FREQUENCY : 3.3,
                            InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 3,
-                           InstrumentParameters.SAMPLE_PERIOD : 2.5}
+                           InstrumentParameters.SAMPLE_PERIOD : 2.5,
+                           InstrumentParameters.SAMPLES_PER_BURST : 4}
 
         reply = self.driver_client.cmd_dvr('get_resource', parameter_list)
         self.assertParamDictionariesEqual(reply, parameter_types)
