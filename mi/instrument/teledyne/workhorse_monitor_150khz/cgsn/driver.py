@@ -52,8 +52,38 @@ NUM_BYTES_IN_ENSEMBLE_INDEX = 4
 NUM_DATA_TYPES_INDEX = 10
 DATA_TYPE_LOC_INDEX_BASE = 12
 
-ENSEMBLE_REGEX = r'7F7F*'
+ENSEMBLE_REGEX = r'7F7F'
 ENSEMBLE_REGEX_MATCHER = re.compile(ENSEMBLE_REGEX)
+
+CALIBRATION_DATA_REGEX = r'ACTIVE FLUXGATE CALIBRATION MATRICES(.*?\n)*?>'
+CALIBRATION_DATA_REGEX_MATCHER = re.compile(CALIBRATION_DATA_REGEX)
+
+PS0_REGEX = r'Instrument S(.*?\n)*?>'
+PS0_REGEX_MATCHER = re.compile(PS0_REGEX)
+
+PS3_REGEX = r'Beam Width:(.*?\n)*?>'
+PS3_REGEX_MATCHER = re.compile(PS3_REGEX)
+
+FD_REGEX = r'Total Unique Faults(.*?\n)*?>'
+FD_REGEX_MATCHER = re.compile(FD_REGEX)
+
+PT200_REGEX = r'Ambient(.*?\n)*?>'
+PT200_REGEX_MATCHER = re.compile(PT200_REGEX)
+
+BREAK_SUCCESS_REGEX = r'BREAK Wakeup A(.*?\n)*?>'
+BREAK_SUCCESS_REGEX_MATCHER = re.compile(BREAK_SUCCESS_REGEX)
+
+BREAK_ALARM_REGEX = r'ALARM Wakeup A(.*?\n)*?>'
+BREAK_ALARM_REGEX_MATCHER = re.compile(BREAK_ALARM_REGEX)
+
+POWERING_DOWN_REGEX = r'Powering Down'
+POWERING_DOWN_REGEX_MATCHER = re.compile(POWERING_DOWN_REGEX)
+
+ERR_REGEX = r'ERR(.*?\n)*?>'
+ERR_REGEX_MATCHER = re.compile(ERR_REGEX)
+
+
+
 
 ENSEMBLE_HEADER_ID = '7F7F'
 FIXED_LEADER_ID = '0000'
@@ -74,6 +104,11 @@ num_bytes_in_ensemble = 0 #value from header data; used to determine size of ens
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
     ENSEMBLE_PARSED = 'ensemble_parsed'
+    CALIBRATION_PARSED = 'calibration_parsed'
+    PS0_PARSED = 'ps0_parsed'
+    PS3_PARSED = 'ps3_parsed'
+    FD_PARSED = 'fd_parsed'
+    PT200_PARSED = 'pt200_parsed'
 
 class InstrumentCmds(BaseEnum):
     """
@@ -302,6 +337,91 @@ adcpt_cache_dict = {
 ###############################################################################
 # Data Particles
 ###############################################################################
+class ADCPT_PS0DataParticleKey(BaseEnum):
+    PS0_DATA = "ps0_data"
+    
+class ADCPT_PS0DataParticle(DataParticle):
+    _data_particle_type = DataParticleType.PS0_PARSED
+
+    def _build_parsed_values(self):
+        result = []
+        data_stream = self.raw_data
+        m = re.search(ps0_regex,data_stream)
+        if m is not None:
+            value = m.group()[:-1]
+        else:
+            value = None
+        result = [{DataParticleKey.VALUE_ID: ADCPT_PS0DataParticleKey.PS0_DATA,
+                   DataParticleKey.VALUE: value}]
+
+class ADCPT_PS3DataParticleKey(BaseEnum):
+    PS3_DATA = "ps3_data"
+    
+class ADCPT_PS3DataParticle(DataParticle):
+    _data_particle_type = DataParticleType.PS3_PARSED
+
+    def _build_parsed_values(self):
+        result = []
+        data_stream = self.raw_data
+        m = re.search(ps3_regex,data_stream)
+        if m is not None:
+            value = m.group()[:-1]
+        else:
+            value = None
+        result = [{DataParticleKey.VALUE_ID: ADCPT_PS3DataParticleKey.PS3_DATA,
+                   DataParticleKey.VALUE: value}]
+
+class ADCPT_FDDataParticleKey(BaseEnum):
+    FD_DATA = "fd_data"
+    
+class ADCPT_FDDataParticle(DataParticle):
+    _data_particle_type = DataParticleType.FD_PARSED
+
+    def _build_parsed_values(self):
+        result = []
+        data_stream = self.raw_data
+        m = re.search(fd_regex,data_stream)
+        if m is not None:
+            value = m.group()[:-1]
+        else:
+            value = None
+        result = [{DataParticleKey.VALUE_ID: ADCPT_FDDataParticleKey.FD_DATA,
+                   DataParticleKey.VALUE: value}]
+
+class ADCPT_PT200DataParticleKey(BaseEnum):
+    PT200_DATA = "pt200_data"
+    
+class ADCPT_PT200DataParticle(DataParticle):
+    _data_particle_type = DataParticleType.PT200_PARSED
+
+    def _build_parsed_values(self):
+        result = []
+        data_stream = self.raw_data
+        m = re.search(pt200_regex,data_stream)
+        if m is not None:
+            value = m.group()[:-1]
+        else:
+            value = None
+        result = [{DataParticleKey.VALUE_ID: ADCPT_PT200DataParticleKey.FD_DATA,
+                   DataParticleKey.VALUE: value}]
+
+class ADCPT_CalibrationDataParticleKey(BaseEnum):
+    CALIBRATION_DATA = "calibration_data"
+    
+class ADCPT_CalibrationDataParticle(DataParticle):
+    _data_particle_type = DataParticleType.ENSEMBLE_PARSED
+
+    def _build_parsed_values(self):
+        result = []
+        data_stream = self.raw_data
+        m = re.search(calibration_regex,data_stream)
+        if m is not None:
+            value = m.group()[:-1]
+        else:
+            value = None
+        result = [{DataParticleKey.VALUE_ID: ADCPT_CalibrationDataParticleKey.CALIBRATION_DATA,
+                   DataParticleKey.VALUE: value}]
+
 class ADCPT_EnsembleDataParticleKey(BaseEnum):
     NUM_BYTES_IN_ENSEMBLE = "Ensemble bytes"
     NUM_DATA_TYPES = "NumTypes"
@@ -977,18 +1097,8 @@ class ADCPT_EnsembleDataParticle(DataParticle):
                    DataParticleKey.VALUE: self.parse_data_record(data_stream,id_offset)}])
             else:
                 log.error("Data type record ID %s not recognized in build_parsed_values" % id_value)
-#        log.debug("parsed ensemble result: %s" % result)
-#        printf('\n*** the parsed ensemble ****')
-#        printf(dumps(result, indent = 4))
-#        log.info( dumps(result, indent=4))
         log.debug("after parsing ensemble, adcpt_cache_dict is %s" % adcpt_cache_dict)        
         return result  
-        """
-            # not yet implemented; IOS? no need for bottom data? test ensemble does not use this one.
-            elif id_value == BOTTOM_TRACK_ID:
-                parse_bottom_track_record(data_stream,id_offset)
-        """
-
 
 ###############################################################################
 # Driver
@@ -1207,7 +1317,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Returns value of a 2-byte word in an ascii-hex string into a decimal integer
         """
         return int(str[index+2:index+4]+str[index:index+2],16)
-    
+           
     @staticmethod
     def sieve_function(raw_data):
         """
@@ -1215,27 +1325,52 @@ class Protocol(CommandResponseInstrumentProtocol):
         Chunker sieve method to help the chunker identify chunks.
         @returns a list of chunks identified, if any. The chunks are all the same type.
         """
-       
-        #        log.debug("on entry to sieve_function raw_data is %s" % raw_data)_driver_event(DriverAsyncEvent.STATE_CHANGE)
-        start_pos = 0   #starting index in a string for search
+#        print "sieve_function: raw_data is ",raw_data
+
+        sieve_matchers = [ENSEMBLE_REGEX_MATCHER,
+                          CALIBRATION_DATA_REGEX_MATCHER,
+                          PS0_REGEX_MATCHER,
+                          PS3_REGEX_MATCHER,
+                          FD_REGEX_MATCHER,
+                          PT200_REGEX_MATCHER,
+                          BREAK_SUCCESS_REGEX,
+                          BREAK_ALARM_REGEX,
+                          POWERING_DOWN_REGEX,
+                          ERR_REGEX ]
+
         return_list = []
-        numIDs = raw_data.count(ENSEMBLE_HEADER_ID)    #see how many ensembles to look for
-        while numIDs > 0:
-            pos = raw_data.find(ENSEMBLE_HEADER_ID,start_pos)
-            strip = raw_data[pos:]
-            expected_length = 0
-            if len(strip) > ENSEMBLE_LENGTH_LOC+WORD_SIZE:  #make sure you have long-enough string to get the ensemble size
-                ensemble_length_bytes = int(strip[ENSEMBLE_LENGTH_LOC+2:ENSEMBLE_LENGTH_LOC+4] + 
-                                            strip[ENSEMBLE_LENGTH_LOC:ENSEMBLE_LENGTH_LOC+2],16)
-                ensemble_length_chars = BYTE_SIZE*ensemble_length_bytes+WORD_SIZE  #size in header didn't include size of checksum word
-                if len(strip) >= ensemble_length_chars:
-                    log.debug("sieve_function got enough data")
-                    return_list.append((pos,pos+ensemble_length_chars))
-                    start_pos += pos+ensemble_length_chars
-                else:
-                    log.debug("sieve_function didn't get enough data")
-            numIDs -= 1
-        return  return_list
+        for matcher in sieve_matchers:
+            if matcher == ENSEMBLE_REGEX_MATCHER:
+                start_pos = 0   #starting index in a string for search
+                numIDs = raw_data.count(ENSEMBLE_HEADER_ID)    #see how many ensembles to look for
+                while numIDs > 0:
+                    pos = raw_data.find(ENSEMBLE_HEADER_ID,start_pos)
+                    strip = raw_data[pos:]
+                    expected_length = 0
+                    if len(strip) > ENSEMBLE_LENGTH_LOC+WORD_SIZE:  #make sure you have long-enough string to get the ensemble size
+                        ensemble_length_bytes = int(strip[ENSEMBLE_LENGTH_LOC+2:ENSEMBLE_LENGTH_LOC+4] + 
+                                                    strip[ENSEMBLE_LENGTH_LOC:ENSEMBLE_LENGTH_LOC+2],16)
+                        ensemble_length_chars = BYTE_SIZE*ensemble_length_bytes+WORD_SIZE  #size in header didn't include size of checksum word
+                        if len(strip) >= ensemble_length_chars:
+                            log.debug("sieve_function got enough data")
+                            return_list.append((pos,pos+ensemble_length_chars))
+                            start_pos += pos+ensemble_length_chars
+                        else:
+                            log.debug("sieve_function didn't get enough data")
+                    numIDs -= 1
+            elif matcher == BREAK_SUCCESS_REGEX:
+                pass
+            elif matcher == BREAK_ALARM_REGEX:
+                pass
+            elif matcher == POWERING_DOWN_REGEX:
+                pass
+            elif matcher == ERR_REGEX:
+                pass
+            else:   
+                for match in matcher.finditer(raw_data):
+                    return_list.append((match.start(), match.end()))
+                
+        return return_list
 
     def _build_param_dict(self):
         """

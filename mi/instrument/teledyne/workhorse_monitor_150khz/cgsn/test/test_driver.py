@@ -59,6 +59,16 @@ from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import Protocol
 from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import Prompt
 from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ADCPT_EnsembleDataParticleKey
 from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ADCPT_EnsembleDataParticle
+from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ADCPT_CalibrationDataParticleKey
+from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ADCPT_CalibrationDataParticle
+from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ADCPT_PS0DataParticleKey
+from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ADCPT_PS0DataParticle
+from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ADCPT_PS3DataParticleKey
+from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ADCPT_PS3DataParticle
+from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ADCPT_FDDataParticleKey
+from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ADCPT_FDDataParticle
+from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ADCPT_PT200DataParticleKey
+from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import ADCPT_PT200DataParticle
 from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import NEWLINE
 from mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver import adcpt_cache_dict
 
@@ -92,6 +102,200 @@ C00000C0C00000C0B00000E0C00000D0C00000D0C00000D0C00000C0C00000D0C00000C000000000
 00006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400\
 FA604091"
 
+break_success_str = NEWLINE + "[BREAK Wakeup A]" + NEWLINE +\
+"WorkHorse Broadband ADCP Version 50.40" + NEWLINE +\
+"Teledyne RD Instruments (c) 1996-2010" + NEWLINE +\
+"All Rights Reserved." + NEWLINE +\
+">"
+
+break_alarm_str = NEWLINE + "[ALARM Wakeup A]" + NEWLINE +\
+"WorkHorse Broadband ADCP Version 50.40" + NEWLINE +\
+"Teledyne RD Instruments (c) 1996-2010" + NEWLINE +\
+"All Rights Reserved." + NEWLINE +\
+">"
+
+CALIBRATION_RAW_DATA = \
+"ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM" + NEWLINE +\
+"               Calibration date and time: 9/22/2012  11:53:32" + NEWLINE +\
+"                             S inverse" + NEWLINE +\
+"          ?                                                  " + NEWLINE +\
+"     Bx   ?   4.1275e-01  4.2168e-01 -2.0631e-02 -2.8440e-05 ?" + NEWLINE +\
+"     By   ?  -4.9163e-03  4.7625e-06 -2.7393e-03 -5.6853e-01 ?" + NEWLINE +\
+"     Bz   ?   2.1975e-01 -2.0662e-01 -3.0120e-01  2.7459e-03 ?" + NEWLINE +\
+"     Err  ?   4.8227e-01 -4.4007e-01  6.5367e-01 -7.3235e-03 ?" + NEWLINE +\
+"          ?                                                  ?" + NEWLINE +\
+"                             Coil Offset" + NEWLINE +\
+"                         ?                " + NEWLINE +\
+"                         ?   3.3914e+04   ?" + NEWLINE +\
+"                         ?   3.3331e+04   ?" + NEWLINE +\
+"                         ?   3.4030e+04   ?" + NEWLINE +\
+"                         ?   3.4328e+04   ?" + NEWLINE +\
+"                         ?                ?" + NEWLINE +\
+"                             Electrical Null" + NEWLINE +\
+"                              ?       " + NEWLINE +\
+"                              ? 33989 ?" + NEWLINE +\
+"                              ?       ?" + NEWLINE +\
+"                    TILT CALIBRATION MATRICES in NVRAM" + NEWLINE +\
+"                Calibration date and time: 9/22/2012  11:50:48" + NEWLINE +\
+"              Average Temperature During Calibration was   25.7 ?C" + NEWLINE + NEWLINE +\
+"                   Up                              Down" + NEWLINE + NEWLINE +\
+"        ?                           ?" + NEWLINE +\
+" Roll   ?  -1.7305e-07  -2.9588e-05 ?     ?   3.0294e-07   3.1274e-05 ?" + NEWLINE +\
+" Pitch  ?  -2.9052e-05  -5.6057e-07 ?     ?  -3.1059e-05  -5.2326e-07 ?" + NEWLINE +\
+"        ?                           ?     ?                           ?" + NEWLINE + NEWLINE +\
+"        ?                           ?     ?                           ?" + NEWLINE +\
+" Offset ?   3.2805e+04   3.2384e+04 ?     ?   3.3287e+04   3.1595e+04 ?" + NEWLINE +\
+"        ?                           ?     ?                           ?" + NEWLINE + NEWLINE +\
+"                             ?        " + NEWLINE +\
+"                      Null   ? 33272 ?" + NEWLINE +\
+"                             ?       ?" + NEWLINE + ">"
+
+PS0_RAW_DATA = \
+"Instrument S/N:  18593" + NEWLINE +\
+"       Frequency:  153600 HZ" + NEWLINE +\
+"   Configuration:  4 BEAM, JANUS" + NEWLINE +\
+"     Match Layer:  10" + NEWLINE +\
+"      Beam Angle:  20 DEGREES" + NEWLINE +\
+"    Beam Pattern:  CONVEX" + NEWLINE +\
+"     Orientation:  UP  " + NEWLINE +\
+"       Sensor(s):  HEADING  TILT 1  TILT 2  DEPTH  TEMPERATURE  PRESSURE" + NEWLINE +\
+"Pressure Sens Coefficients:" + NEWLINE +\
+"              c3 = +1.629386E-10" + NEWLINE +\
+"              c2 = -1.886023E-06" + NEWLINE +\
+"              c1 = +1.364779E+00" + NEWLINE +\
+"          Offset = -2.457906E+01" + NEWLINE + NEWLINE +\
+"Temp Sens Offset:  -0.17 degrees C" + NEWLINE + NEWLINE +\
+"    CPU Firmware:  50.40 [0]" + NEWLINE +\
+"   Boot Code Ver:  Required:  1.16   Actual:  1.16" + NEWLINE +\
+"    DEMOD #1 Ver:  ad48, Type:  1f" + NEWLINE +\
+"    DEMOD #2 Ver:  ad48, Type:  1f" + NEWLINE +\
+"    PWRTIMG  Ver:  85d3, Type:   6" + NEWLINE + NEWLINE +\
+"Board Serial Number Data:" + NEWLINE +\
+"   98  00 00 06 FF 13 A0  09 HPI727-3007-00A" + NEWLINE +\
+"   28  00 00 06 FE D0 FC  09 CPU727-2011-00E" + NEWLINE +\
+"   0C  00 00 06 FF 13 BA  09 HPA727-3009-02B" + NEWLINE +\
+"   E7  00 00 06 B2 C6 7D  09 REC727-1004-05A" + NEWLINE +\
+"   70  00 00 06 F5 AF 73  09 DSP727-2001-05H" + NEWLINE +\
+"   F0  00 00 06 F5 B2 EB  09 TUN727-1005-05A" + NEWLINE +\
+">"
+
+PS3_RAW_DATA = \
+"Beam Width:   3.7 degrees" + NEWLINE + NEWLINE +\
+"Beam     Elevation     Azimuth" + NEWLINE +\
+"  1         -69.81      269.92" + NEWLINE +\
+"  2         -70.00       89.92" + NEWLINE +\
+"  3         -69.82        0.07" + NEWLINE +\
+"  4         -69.89      180.08" + NEWLINE + NEWLINE +\
+"Beam Directional Matrix (Down):" + NEWLINE +\
+"  0.3453    0.0005    0.9385    0.2421  " + NEWLINE +\
+" -0.3421   -0.0005    0.9397    0.2444  " + NEWLINE +\
+" -0.0005   -0.3451    0.9386   -0.2429  " + NEWLINE +\
+"  0.0005    0.3438    0.9390   -0.2438  " + NEWLINE + NEWLINE +\
+"  Instrument Transformation Matrix (Down):    Q14:" + NEWLINE +\
+"  1.4587   -1.4508   -0.0010   -0.0051       23899  -23770     -16     -83  " + NEWLINE +\
+" -0.0008    0.0033   -1.4532    1.4500         -13      54  -23809   23757  " + NEWLINE +\
+"  0.2650    0.2676    0.2657    0.2667        4342    4384    4353    4370  " + NEWLINE +\
+"  1.0225    1.0323   -1.0257   -1.0297       16752   16913  -16805  -16871  " + NEWLINE +\
+"Beam Angle Corrections Are Loaded." + NEWLINE + ">"
+
+FD_RAW_DATA = \
+"Total Unique Faults   =     2" + NEWLINE +\
+"Overflow Count        =     0" + NEWLINE +\
+"Time of first fault:    12/11/29,19:40:37.32" + NEWLINE +\
+"Time of last fault:     12/12/12,20:31:37.14" + NEWLINE + NEWLINE +\
+"Fault Log:" + NEWLINE +\
+"Entry #  0 Code=0a08h  Count=    2  Delta=112625967 Time=12/12/12,20:31:36.99" + NEWLINE +\
+" Parameter = 00000000h" + NEWLINE +\
+"  Tilt axis X over range." + NEWLINE +\
+"Entry #  1 Code=0a09h  Count=    2  Delta=112625966 Time=12/12/12,20:31:37.14" + NEWLINE +\
+" Parameter = 00000000h" + NEWLINE +\
+"  Tilt axis Y over range." + NEWLINE +\
+"End of fault log." + NEWLINE + NEWLINE +\
+"Fault Log Dump:  addr=007EADC8" + NEWLINE +\
+"a5 01 00 02 00 00 00 00 20 13 28 25 0b 1d 0c 06" + NEWLINE +\
+"0e 14 1f 25 0c 0c 0c 05 01 f2 0a 08 00 00 00 02" + NEWLINE +\
+"63 14 1f 24 0c 0c 0c 05 06 b6 89 2f 00 00 00 00" + NEWLINE +\
+"02 6c 0a 09 00 00 00 02 0e 14 1f 25 0c 0c 0c 05" + NEWLINE +\
+"06 b6 89 2e 00 00 00 00 02 18 00 00 00 00 00 00" + NEWLINE +\
+"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+"00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+"00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00" + NEWLINE +\
+"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+"00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+"00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00" + NEWLINE +\
+"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+"00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+"00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00" + NEWLINE +\
+"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+"00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+"00 00 00 00 00 00 00 00 00 01 " + NEWLINE + NEWLINE +\
+">"
+
+PT200_RAW_DATA = \
+"Ambient  Temperature =    24.27 Degrees C" + NEWLINE +\
+"  Attitude Temperature =    26.70 Degrees C" + NEWLINE +\
+"  Internal Moisture    = 8C1Eh" + NEWLINE + NEWLINE +\
+"Correlation Magnitude: Narrow Bandwidth" + NEWLINE + NEWLINE +\
+"               Lag  Bm1  Bm2  Bm3  Bm4" + NEWLINE +\
+"                 0  255  255  255  255" + NEWLINE +\
+"                 1  140  160  177  149" + NEWLINE +\
+"                 2   41   62   94   50" + NEWLINE +\
+"                 3   20   15   43    5" + NEWLINE +\
+"                 4   12    3   19    4" + NEWLINE +\
+"                 5    2    3    8    2" + NEWLINE +\
+"                 6    3    1    3    3" + NEWLINE +\
+"                 7    5    2    1    3" + NEWLINE + NEWLINE +\
+"  High Gain RSSI:    66   65   72   65" + NEWLINE +\
+"   Low Gain RSSI:    11    8   12    9" + NEWLINE + NEWLINE +\
+"  SIN Duty Cycle:    48   49   48   49" + NEWLINE +\
+"  COS Duty Cycle:    47   48   50   48" + NEWLINE + NEWLINE +\
+"Receive Test Results = $00000000 ... PASS" + NEWLINE + NEWLINE +\
+"IXMT    =      0.8 Amps rms  [Data=46h]" + NEWLINE +\
+"VXMT    =     43.2 Volts rms [Data=49h]" + NEWLINE +\
+"   Z    =     53.9 Ohms" + NEWLINE +\
+"Transmit Test Results = $0 ... PASS" + NEWLINE + NEWLINE +\
+"    0    0    0    0" + NEWLINE +\
+"    0    0    0    0" + NEWLINE +\
+"    0    0    0    0" + NEWLINE +\
+"   12   12   12   12" + NEWLINE +\
+"  255  255  255  255" + NEWLINE +\
+"    0    0    0    0" + NEWLINE +\
+"   12   12   12   12" + NEWLINE +\
+"  255  255  255  255" + NEWLINE +\
+"    0    0    0    0" + NEWLINE +\
+"    0    0    0    0" + NEWLINE +\
+"   12   12   12   12" + NEWLINE +\
+"  255  255  255  255" + NEWLINE +\
+"Electronics Test Results = $00000000" + NEWLINE +\
+"Receive Bandwidth:" + NEWLINE +\
+"    Sample      bw    bw    bw    bw    bw" + NEWLINE +\
+"      rate  expect   Bm1   Bm2   Bm3   Bm4" + NEWLINE +\
+"        38      12    14    12    10    14 Khz" + NEWLINE +\
+"   results          PASS  PASS  PASS  PASS" + NEWLINE +\
+"RSSI Time Constant:" + NEWLINE + NEWLINE +\
+"RSSI Filter Strobe 1 =   38400 Hz" + NEWLINE +\
+"  time   Bm1   Bm2   Bm3   Bm4" + NEWLINE +\
+"  msec  cnts  cnts  cnts  cnts" + NEWLINE +\
+"     1     5     7     5     7" + NEWLINE +\
+"     2    10    13    10    12" + NEWLINE +\
+"     3    15    18    15    17" + NEWLINE +\
+"     4    18    22    18    22" + NEWLINE +\
+"     5    21    26    22    25" + NEWLINE +\
+"     6    24    29    25    28" + NEWLINE +\
+"     7    26    31    27    30" + NEWLINE +\
+"     8    28    32    29    32" + NEWLINE +\
+"     9    29    34    30    34" + NEWLINE +\
+"    10    31    35    32    35" + NEWLINE +\
+"   nom    38    42    40    42" + NEWLINE +\
+"result    PASS  PASS  PASS  PASS" + NEWLINE +\
+">"
+
+powering_down_str = NEWLINE +\
+"Powering Down"
+
+self_deploy_str = NEWLINE +\
+"System will self-deploy in 1 minute unless valid command entered!"
+ 
 ###
 #   Driver parameters for the tests
 ###
@@ -284,6 +488,194 @@ class ADCPTMixin(DriverTestMixin):
             [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0]]}
         }
 
+    _calibration_data_parameters = {
+        ADCPT_CalibrationDataParticleKey.CALIBRATION_DATA: {'type': str, 'value':
+            "ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM" + NEWLINE +\
+            "               Calibration date and time: 9/22/2012  11:53:32" + NEWLINE +\
+            "                             S inverse" + NEWLINE +\
+            "          ?                                                  " + NEWLINE +\
+            "     Bx   ?   4.1275e-01  4.2168e-01 -2.0631e-02 -2.8440e-05 ?" + NEWLINE +\
+            "     By   ?  -4.9163e-03  4.7625e-06 -2.7393e-03 -5.6853e-01 ?" + NEWLINE +\
+            "     Bz   ?   2.1975e-01 -2.0662e-01 -3.0120e-01  2.7459e-03 ?" + NEWLINE +\
+            "     Err  ?   4.8227e-01 -4.4007e-01  6.5367e-01 -7.3235e-03 ?" + NEWLINE +\
+            "          ?                                                  ?" + NEWLINE +\
+            "                             Coil Offset" + NEWLINE +\
+            "                         ?                " + NEWLINE +\
+            "                         ?   3.3914e+04   ?" + NEWLINE +\
+            "                         ?   3.3331e+04   ?" + NEWLINE +\
+            "                         ?   3.4030e+04   ?" + NEWLINE +\
+            "                         ?   3.4328e+04   ?" + NEWLINE +\
+            "                         ?                ?" + NEWLINE +\
+            "                             Electrical Null" + NEWLINE +\
+            "                              ?       " + NEWLINE +\
+            "                              ? 33989 ?" + NEWLINE +\
+            "                              ?       ?" + NEWLINE +\
+            "                    TILT CALIBRATION MATRICES in NVRAM" + NEWLINE +\
+            "                Calibration date and time: 9/22/2012  11:50:48" + NEWLINE +\
+            "              Average Temperature During Calibration was   25.7 ?C" + NEWLINE + NEWLINE +\
+            "                   Up                              Down" + NEWLINE + NEWLINE +\
+            "        ?                           ?" + NEWLINE +\
+            " Roll   ?  -1.7305e-07  -2.9588e-05 ?     ?   3.0294e-07   3.1274e-05 ?" + NEWLINE +\
+            " Pitch  ?  -2.9052e-05  -5.6057e-07 ?     ?  -3.1059e-05  -5.2326e-07 ?" + NEWLINE +\
+            "        ?                           ?     ?                           ?" + NEWLINE + NEWLINE +\
+            "        ?                           ?     ?                           ?" + NEWLINE +\
+            " Offset ?   3.2805e+04   3.2384e+04 ?     ?   3.3287e+04   3.1595e+04 ?" + NEWLINE +\
+            "        ?                           ?     ?                           ?" + NEWLINE + NEWLINE +\
+            "                             ?        " + NEWLINE +\
+            "                      Null   ? 33272 ?" + NEWLINE +\
+            "                             ?       ?" + NEWLINE +\
+            ">" }      
+        }
+
+
+    _ps0_parameters = {
+        ADCPT_PS0DataParticleKey.PS0_DATA: {'type': str, 'value':
+            "Instrument S/N:  18593" + NEWLINE +\
+            "       Frequency:  153600 HZ" + NEWLINE +\
+            "   Configuration:  4 BEAM, JANUS" + NEWLINE +\
+            "     Match Layer:  10" + NEWLINE +\
+            "      Beam Angle:  20 DEGREES" + NEWLINE +\
+            "    Beam Pattern:  CONVEX" + NEWLINE +\
+            "     Orientation:  UP  " + NEWLINE +\
+            "       Sensor(s):  HEADING  TILT 1  TILT 2  DEPTH  TEMPERATURE  PRESSURE" + NEWLINE +\
+            "Pressure Sens Coefficients:" + NEWLINE +\
+            "              c3 = +1.629386E-10" + NEWLINE +\
+            "              c2 = -1.886023E-06" + NEWLINE +\
+            "              c1 = +1.364779E+00" + NEWLINE +\
+            "          Offset = -2.457906E+01" + NEWLINE + NEWLINE +\
+            "Temp Sens Offset:  -0.17 degrees C" + NEWLINE + NEWLINE +\
+            "    CPU Firmware:  50.40 [0]" + NEWLINE +\
+            "   Boot Code Ver:  Required:  1.16   Actual:  1.16" + NEWLINE +\
+            "    DEMOD #1 Ver:  ad48, Type:  1f" + NEWLINE +\
+            "    DEMOD #2 Ver:  ad48, Type:  1f" + NEWLINE +\
+            "    PWRTIMG  Ver:  85d3, Type:   6" + NEWLINE + NEWLINE +\
+            "Board Serial Number Data:" + NEWLINE +\
+            "   98  00 00 06 FF 13 A0  09 HPI727-3007-00A" + NEWLINE +\
+            "   28  00 00 06 FE D0 FC  09 CPU727-2011-00E" + NEWLINE +\
+            "   0C  00 00 06 FF 13 BA  09 HPA727-3009-02B" + NEWLINE +\
+            "   E7  00 00 06 B2 C6 7D  09 REC727-1004-05A" + NEWLINE +\
+            "   70  00 00 06 F5 AF 73  09 DSP727-2001-05H" + NEWLINE +\
+            "   F0  00 00 06 F5 B2 EB  09 TUN727-1005-05A" + NEWLINE +\
+            ">" }
+        }
+
+    _ps3_parameters = {
+        ADCPT_PS3DataParticleKey.PS3_DATA: {'type': str, 'value':
+            "Beam Width:   3.7 degrees" + NEWLINE + NEWLINE +\
+            "Beam     Elevation     Azimuth" + NEWLINE +\
+            "  1         -69.81      269.92" + NEWLINE +\
+            "  2         -70.00       89.92" + NEWLINE +\
+            "  3         -69.82        0.07" + NEWLINE +\
+            "  4         -69.89      180.08" + NEWLINE + NEWLINE +\
+            "Beam Directional Matrix (Down):" + NEWLINE +\
+            "  0.3453    0.0005    0.9385    0.2421  " + NEWLINE +\
+            " -0.3421   -0.0005    0.9397    0.2444  " + NEWLINE +\
+            " -0.0005   -0.3451    0.9386   -0.2429  " + NEWLINE +\
+            "  0.0005    0.3438    0.9390   -0.2438  " + NEWLINE + NEWLINE +\
+            "  Instrument Transformation Matrix (Down):    Q14:" + NEWLINE +\
+            "  1.4587   -1.4508   -0.0010   -0.0051       23899  -23770     -16     -83  " + NEWLINE +\
+            " -0.0008    0.0033   -1.4532    1.4500         -13      54  -23809   23757  " + NEWLINE +\
+            "  0.2650    0.2676    0.2657    0.2667        4342    4384    4353    4370  " + NEWLINE +\
+            "  1.0225    1.0323   -1.0257   -1.0297       16752   16913  -16805  -16871  " + NEWLINE +\
+            "Beam Angle Corrections Are Loaded." + NEWLINE + ">"  }
+    }       
+        
+    _fd_parameters = {
+        ADCPT_FDDataParticleKey.FD_DATA: {'type': str, 'value':
+            "Total Unique Faults   =     2" + NEWLINE +\
+            "Overflow Count        =     0" + NEWLINE +\
+            "Time of first fault:    12/11/29,19:40:37.32" + NEWLINE +\
+            "Time of last fault:     12/12/12,20:31:37.14" + NEWLINE + NEWLINE +\
+            "Fault Log:" + NEWLINE +\
+            "Entry #  0 Code=0a08h  Count=    2  Delta=112625967 Time=12/12/12,20:31:36.99" + NEWLINE +\
+            " Parameter = 00000000h" + NEWLINE +\
+            "  Tilt axis X over range." + NEWLINE +\
+            "Entry #  1 Code=0a09h  Count=    2  Delta=112625966 Time=12/12/12,20:31:37.14" + NEWLINE +\
+            " Parameter = 00000000h" + NEWLINE +\
+            "  Tilt axis Y over range." + NEWLINE +\
+            "End of fault log." + NEWLINE + NEWLINE +\
+            "Fault Log Dump:  addr=007EADC8" + NEWLINE +\
+            "a5 01 00 02 00 00 00 00 20 13 28 25 0b 1d 0c 06" + NEWLINE +\
+            "0e 14 1f 25 0c 0c 0c 05 01 f2 0a 08 00 00 00 02" + NEWLINE +\
+            "63 14 1f 24 0c 0c 0c 05 06 b6 89 2f 00 00 00 00" + NEWLINE +\
+            "02 6c 0a 09 00 00 00 02 0e 14 1f 25 0c 0c 0c 05" + NEWLINE +\
+            "06 b6 89 2e 00 00 00 00 02 18 00 00 00 00 00 00" + NEWLINE +\
+            "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+            "00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+            "00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00" + NEWLINE +\
+            "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+            "00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+            "00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00" + NEWLINE +\
+            "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+            "00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+            "00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00" + NEWLINE +\
+            "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+            "00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
+            "00 00 00 00 00 00 00 00 00 01 " + NEWLINE + NEWLINE +\
+            ">"  }
+        }
+
+    _pt200_parameters = {
+        ADCPT_PT200DataParticleKey.PT200_DATA: {'type': str, 'value':
+            "Ambient  Temperature =    24.27 Degrees C" + NEWLINE +\
+            "  Attitude Temperature =    26.70 Degrees C" + NEWLINE +\
+            "  Internal Moisture    = 8C1Eh" + NEWLINE + NEWLINE +\
+            "Correlation Magnitude: Narrow Bandwidth" + NEWLINE + NEWLINE +\
+            "               Lag  Bm1  Bm2  Bm3  Bm4" + NEWLINE +\
+            "                 0  255  255  255  255" + NEWLINE +\
+            "                 1  140  160  177  149" + NEWLINE +\
+            "                 2   41   62   94   50" + NEWLINE +\
+            "                 3   20   15   43    5" + NEWLINE +\
+            "                 4   12    3   19    4" + NEWLINE +\
+            "                 5    2    3    8    2" + NEWLINE +\
+            "                 6    3    1    3    3" + NEWLINE +\
+            "                 7    5    2    1    3" + NEWLINE + NEWLINE +\
+            "  High Gain RSSI:    66   65   72   65" + NEWLINE +\
+            "   Low Gain RSSI:    11    8   12    9" + NEWLINE + NEWLINE +\
+            "  SIN Duty Cycle:    48   49   48   49" + NEWLINE +\
+            "  COS Duty Cycle:    47   48   50   48" + NEWLINE + NEWLINE +\
+            "Receive Test Results = $00000000 ... PASS" + NEWLINE + NEWLINE +\
+            "IXMT    =      0.8 Amps rms  [Data=46h]" + NEWLINE +\
+            "VXMT    =     43.2 Volts rms [Data=49h]" + NEWLINE +\
+            "   Z    =     53.9 Ohms" + NEWLINE +\
+            "Transmit Test Results = $0 ... PASS" + NEWLINE + NEWLINE +\
+            "    0    0    0    0" + NEWLINE +\
+            "    0    0    0    0" + NEWLINE +\
+            "    0    0    0    0" + NEWLINE +\
+            "   12   12   12   12" + NEWLINE +\
+            "  255  255  255  255" + NEWLINE +\
+            "    0    0    0    0" + NEWLINE +\
+            "   12   12   12   12" + NEWLINE +\
+            "  255  255  255  255" + NEWLINE +\
+            "    0    0    0    0" + NEWLINE +\
+            "    0    0    0    0" + NEWLINE +\
+            "   12   12   12   12" + NEWLINE +\
+            "  255  255  255  255" + NEWLINE +\
+            "Electronics Test Results = $00000000" + NEWLINE +\
+            "Receive Bandwidth:" + NEWLINE +\
+            "    Sample      bw    bw    bw    bw    bw" + NEWLINE +\
+            "      rate  expect   Bm1   Bm2   Bm3   Bm4" + NEWLINE +\
+            "        38      12    14    12    10    14 Khz" + NEWLINE +\
+            "   results          PASS  PASS  PASS  PASS" + NEWLINE +\
+            "RSSI Time Constant:" + NEWLINE + NEWLINE +\
+            "RSSI Filter Strobe 1 =   38400 Hz" + NEWLINE +\
+            "  time   Bm1   Bm2   Bm3   Bm4" + NEWLINE +\
+            "  msec  cnts  cnts  cnts  cnts" + NEWLINE +\
+            "     1     5     7     5     7" + NEWLINE +\
+            "     2    10    13    10    12" + NEWLINE +\
+            "     3    15    18    15    17" + NEWLINE +\
+            "     4    18    22    18    22" + NEWLINE +\
+            "     5    21    26    22    25" + NEWLINE +\
+            "     6    24    29    25    28" + NEWLINE +\
+            "     7    26    31    27    30" + NEWLINE +\
+            "     8    28    32    29    32" + NEWLINE +\
+            "     9    29    34    30    34" + NEWLINE +\
+            "    10    31    35    32    35" + NEWLINE +\
+            "   nom    38    42    40    42" + NEWLINE +\
+            "result    PASS  PASS  PASS  PASS" + NEWLINE +\
+            ">"  }
+        }
+
 # Driver Parameter Methods
     ###
     def assert_driver_parameters(self, current_parameters, verify_values = False):
@@ -304,18 +696,73 @@ class ADCPTMixin(DriverTestMixin):
         '''
         if (isinstance(data_particle, ADCPT_EnsembleDataParticle)):
             self.assert_particle_header_sample(data_particle)
+        elif (isinstance(data_particle, ADCPT_CalibrationDataParticle)):
+            self.assert_particle_calibration_data(data_particle)
+        elif (isinstance(data_particle, ADCPT_PS0DataParticle)):
+            self.assert_particle_ps0_data(data_particle)
+        elif (isinstance(data_particle, ADCPT_PS3DataParticle)):
+            self.assert_particle_ps3_data(data_particle)
+        elif (isinstance(data_particle, ADCPT_FDDataParticle)):
+            self.assert_particle_fd_data(data_particle)
+        elif (isinstance(data_particle, ADCPT_PT200DataParticle)):
+            self.assert_particle_py200_data(data_particle)
         else:
             log.error("Unknown Particle Detected: %s" % data_particle)
             self.assertFalse(True)
 
     def assert_particle_header_sample(self, data_particle, verify_values = False):
         '''
-        Verify a take sample data particle
-        @param data_particle: SBE26plusTideSampleDataParticle data particle
+        Verify an adcpt ensemble data particle
+        @param data_particle: ADCPT_EnsembleDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
         self.assert_data_particle_header(data_particle, DataParticleType.ENSEMBLE_PARSED)
         self.assert_data_particle_parameters(data_particle, self._header_sample_parameters, verify_values)
+
+    def assert_particle_calibration_data(self, data_particle, verify_values = False):
+        '''
+        Verify an adcpt calibration data particle
+        @param data_particle: ADCPT_CalibrationDataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.CALIBRATION_PARSED)
+        self.assert_data_particle_parameters(data_particle, self._calibration_data_parameters, verify_values)
+
+    def assert_particle_ps0_data(self, data_particle, verify_values = False):
+        '''
+        Verify an adcpt ps0 data particle
+        @param data_particle: ADCPT_PS0DataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.PS0_PARSED)
+        self.assert_data_particle_parameters(data_particle, self._ps0_parameters, verify_values)
+
+    def assert_particle_ps3_data(self, data_particle, verify_values = False):
+        '''
+        Verify an adcpt ps3 data particle
+        @param data_particle: ADCPT_PS3DataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.PS3_PARSED)
+        self.assert_data_particle_parameters(data_particle, self._ps3_parameters, verify_values)
+
+    def assert_particle_fd_data(self, data_particle, verify_values = False):
+        '''
+        Verify an adcpt fd data particle
+        @param data_particle: ADCPT_FDDataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.FD_PARSED)
+        self.assert_data_particle_parameters(data_particle, self._fd_parameters, verify_values)
+
+    def assert_particle_pt200_data(self, data_particle, verify_values = False):
+        '''
+        Verify an adcpt pt200 data particle
+        @param data_particle: ADCPT_PT200DataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.PT200_PARSED)
+        self.assert_data_particle_parameters(data_particle, self._pt200_parameters, verify_values)
 
 
 ###############################################################################
@@ -351,6 +798,31 @@ class DriverUnitTest(InstrumentDriverUnitTestCase,ADCPTMixin):
         self.assert_chunker_sample_with_noise(chunker, SAMPLE_RAW_DATA)
         self.assert_chunker_fragmented_sample(chunker, SAMPLE_RAW_DATA)
         self.assert_chunker_combined_sample(chunker, SAMPLE_RAW_DATA)
+
+        self.assert_chunker_sample(chunker, CALIBRATION_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, CALIBRATION_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, CALIBRATION_RAW_DATA)
+        self.assert_chunker_combined_sample(chunker, CALIBRATION_RAW_DATA)
+ 
+        self.assert_chunker_sample(chunker, PS0_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, PS0_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, PS0_RAW_DATA)
+        self.assert_chunker_combined_sample(chunker, PS0_RAW_DATA)
+
+        self.assert_chunker_sample(chunker, PS3_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, PS3_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, PS3_RAW_DATA)
+        self.assert_chunker_combined_sample(chunker, PS3_RAW_DATA)
+
+        self.assert_chunker_sample(chunker, FD_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, FD_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, FD_RAW_DATA)
+        self.assert_chunker_combined_sample(chunker, FD_RAW_DATA)
+
+        self.assert_chunker_sample(chunker, PT200_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, PT200_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, PT200_RAW_DATA)
+        self.assert_chunker_combined_sample(chunker, PT200_RAW_DATA)
 
     def test_got_data(self):
         """
@@ -470,12 +942,14 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, ADCPTMixin):
         """
         self.assert_initialize_driver()
 
+        """
         set_time = get_timestamp_delayed("%d %b %Y %H:%M:%S")
         # One second later
         expected_time = get_timestamp_delayed("%d %b %Y %H:%M:%S")
         print "timestamp: ",expected_time
 #        self.assert_set(Parameter.DS_DEVICE_DATE_TIME, set_time, no_get=True)
 #        self.assert_get(Parameter.DS_DEVICE_DATE_TIME, expected_time.upper())
+        """
 
         ###
         # Instrument Parameteres
@@ -490,23 +964,13 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, ADCPTMixin):
         ###
         # Read only parameters
         ###
-        self.assert_set_readonly(Parameter.BLANK_AFTER_TRANSMIT)
         self.assert_set_readonly(Parameter.MODE1_BANDWIDTH_CONTROL)
+        self.assert_set_readonly(Parameter.BLANK_AFTER_TRANSMIT)
+        self.assert_set_readonly(Parameter.DATA_OUT)
+        self.assert_set_readonly(Parameter.INSTRUMENT_ID)
+        self.assert_set_readonly(Parameter.WATER_PROFILING_MODE)
 
 #  these are cut and paste from sbe26plus. Not used but keep for reference.
-
-    def test_set_sampling(self):
-        """
-        @brief Test device setsampling.
-        
-        setsampling functionality now handled via set. Below test converted to use set.
-        This tests assumes Conductivity is set to false as described in the IOS, we verify
-        this, but don't set it because this is a startup parameter.
-        """
-        self.assert_initialize_driver()
-        self.assert_get(Parameter.CONDUCTIVITY, False)
-
-        self.assert_set_sampling_no_txwavestats()
 
     def check_state(self, expected_state):
         state = self.driver_client.cmd_dvr('get_resource_state')
@@ -537,301 +1001,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, ADCPTMixin):
         # Test that the driver protocol is in state command.
         self.check_state(ProtocolState.COMMAND)
 
-    def assert_set_sampling_no_txwavestats(self):
-        """
-        Test setting parameters, including bad parameter tests, for all parameters in the set
-        sampling when txwavestats is set to false.
-        
-        Parameter set:
-        * Tide interval (integer minutes)
-        - Range 17 - 720
-        * Tide measurement duration (seconds)
-        - Range: 10 - 1020 sec
-        * Measure wave burst after every N tide samples
-        - Range 1 - 10,000
-        * Number of wave samples per burst
-        - Range 4 - 60,000
-        * wave sample duration
-        - Range [0.25, 0.5, 0.75, 1.0]
-        * use start time - Not set, driver hard codes to false
-        - Range [y, n]
-        * use stop time - Not set, driver hard codes to false
-        - Range [y, n]
-        * TXWAVESTATS (real-time wave statistics)
-        - Set to False for this test
-        """
-        log.debug("setsampling Test 1 - TXWAVESTATS = N, small subset of possible parameters.")
-        sampling_params = {
-            Parameter.TIDE_INTERVAL: 18,
-            Parameter.TIDE_MEASUREMENT_DURATION: 60,
-            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: 6000,
-            Parameter.WAVE_SAMPLES_PER_BURST: 1000,
-            
-            # todo: The get command doesn't work for this paramter since it is
-            # set to a derived parameter.
-            # Parameter.WAVE_SAMPLES_SCANS_PER_SECOND: 4,
-            Parameter.TXWAVESTATS: False,
-        }
-
-        # First tests to verify we can set all parameters properly
-        self.assert_set_bulk(sampling_params)
-
-        # Tide interval parameter. Check edges, out of range and invalid data
-        # * Tide interval (integer minutes)
-        # - Range 17 - 720
-        #sampling_params[Parameter.TIDE_INTERVAL] = 17
-        #self.assert_set_bulk(sampling_params)
-        #sampling_params[Parameter.TIDE_INTERVAL] = 720
-        #self.assert_set_bulk(sampling_params)
-        #sampling_params[Parameter.TIDE_INTERVAL] = 16
-        #self.assert_set_bulk_exception(sampling_params)
-        #sampling_params[Parameter.TIDE_INTERVAL] = 721
-        #self.assert_set_bulk_exception(sampling_params)
-        #sampling_params[Parameter.TIDE_INTERVAL] = "foo"
-        #self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 17
-
-        # Tide measurement duration. Check edges, out of range and invalid data
-        # * Tide measurement duration (seconds)
-        # - Range: 10 - 1020 sec
-        #sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10
-        #self.assert_set_bulk(sampling_params)
-        #sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1020
-        #self.assert_set_bulk(sampling_params)
-        #sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 9
-        #self.assert_set_bulk_exception(sampling_params)
-        #sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1021
-        #self.assert_set_bulk_exception(sampling_params)
-        #sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = "foo"
-        #self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 60
-
-        # Tide samples between wave bursts. Check edges, out of range and invalid data
-        # * Measure wave burst after every N tide samples
-        # - Range 1 - 10,000
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 1
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10000
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 0
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10001
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 1
-
-        # Wave samples per burst. Check edges, out of range and invalid data
-        # * Number of wave samples per burst
-        # - Range 4 - 60,000
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43200
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 9
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43201
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
-
-        # Wave samples per burst. Check edges, out of range and invalid data
-        # * wave sample duration
-        # - Range [0.25, 0.5, 0.75, 1.0]
-        # TODO: Enable these tests once the set/get is fixed for this param
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 4
-        # self.assert_set_bulk(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 3
-        # self.assert_set_bulk(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 2
-        # self.assert_set_bulk(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1
-        # self.assert_set_bulk(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 0
-        # self.assert_set_bulk_exception(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = -1
-        # self.assert_set_bulk_exception(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 5
-        # self.assert_set_bulk_exception(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = "foo"
-        # self.assert_set_bulk_exception(sampling_params)
-        
-    def placeholder(self):
-        log.debug("TEST 2 - TXWAVESTATS = N, full set of possible parameters")
-        ###
-        # Test 2: TXWAVESTATS = Y
-        # Set:
-        # * Tide interval (integer minutes)
-        # - Range 1 - 720
-        # * Tide measurement duration (seconds)
-        # - Range: 10 - 43200 sec
-        # * Measure wave burst after every N tide samples
-        # - Range 1 - 10,000
-        # * Number of wave samples per burst
-        # - Range 4 - 60,000
-        # * wave sample duration
-        # - Range [0.25, 0.5, 0.75, 1.0]
-        # - USE WAVE_SAMPLES_SCANS_PER_SECOND instead
-        # where WAVE_SAMPLES_SCANS_PER_SECOND = 1 / wave_sample_duration
-        # * use start time
-        # - Range [y, n]
-        # * use stop time
-        # - Range [y, n]
-        # * TXWAVESTATS (real-time wave statistics)
-        # - Range [y, n]
-        # OPTIONAL DEPENDING ON TXWAVESTATS
-        # * Show progress messages
-        # - Range [y, n]
-        # * Number of wave samples per burst to use for wave
-        # statistics
-        # - Range > 512, power of 2...
-        # * Use measured temperature and conductivity for
-        # density calculation
-        # - Range [y,n]
-        # * Average water temperature above the pressure sensor
-        # - Degrees C
-        # * Height of pressure sensor from bottom
-        # - Distance Meters
-        # * Number of spectral estimates for each frequency
-        # band
-        # - You may have used Plan Deployment to determine
-        # desired value
-        # * Minimum allowable attenuation
-        # * Minimum period (seconds) to use in auto-spectrum
-        # Minimum of the two following
-        # - frequency where (measured pressure / pressure at
-        # surface) < (minimum allowable attenuation / wave
-        # sample duration).
-        # - (1 / minimum period). Frequencies > fmax are not
-        # processed.
-        # * Maximum period (seconds) to use in auto-spectrum
-        # - ( 1 / maximum period). Frequencies < fmin are
-        # not processed.
-        # * Hanning window cutoff
-        # - Hanning window suppresses spectral leakage that
-        # occurs when time series to be Fourier transformed
-        # contains periodic signal that does not correspond
-        # to one of exact frequencies of FFT.
-        ###
-        sampling_params = {
-            Parameter.TIDE_INTERVAL : 9,
-            Parameter.TIDE_MEASUREMENT_DURATION : 540,
-            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : 1,
-            Parameter.WAVE_SAMPLES_PER_BURST : 1024,
-            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND : float(4.0),
-            Parameter.USE_START_TIME : False,
-            Parameter.USE_STOP_TIME : False,
-            Parameter.TXWAVESTATS : False,
-        }
-        #self.assert_set_bulk(sampling_params)
-
-        sampling_params = {
-            Parameter.TIDE_INTERVAL : 18, #1,
-            Parameter.TIDE_MEASUREMENT_DURATION : 1080,
-            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : 1,
-            Parameter.WAVE_SAMPLES_PER_BURST : 1024,
-            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND : float(1.0),
-            Parameter.USE_START_TIME : False,
-            Parameter.USE_STOP_TIME : False,
-            Parameter.TXWAVESTATS : True,
-            Parameter.SHOW_PROGRESS_MESSAGES : True,
-            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS : 512,
-            Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC : True,
-            Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: 10.0,
-            Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND : 1,
-            Parameter.MIN_ALLOWABLE_ATTENUATION : 1.0,
-            Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : 1.0,
-            Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM : 1.0,
-            Parameter.HANNING_WINDOW_CUTOFF : 1.0
-        }
-        #self.assert_set_bulk(sampling_params)
-
-        """
-Test 3: These 2 prompts appears only if you enter N for using measured T and C for density calculation
-Average water temperature above the pressure sensor (Deg C) = 15.0, new value =
-Average salinity above the pressure sensor (PSU) = 35.0, new value =
-
-"""
-        sampling_params = {
-            Parameter.TIDE_INTERVAL : 18, #4,
-            Parameter.TIDE_MEASUREMENT_DURATION : 1080, #40,
-            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : 1,
-            Parameter.WAVE_SAMPLES_PER_BURST : 1024,
-            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND : float(1.0),
-            Parameter.USE_START_TIME : False,
-            Parameter.USE_STOP_TIME : False,
-            Parameter.TXWAVESTATS : True,
-            Parameter.SHOW_PROGRESS_MESSAGES : True,
-            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS : 512,
-            Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC : False,
-            Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR : float(15.0),
-            Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR : float(37.6),
-            Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: 10.0,
-            Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND : 1,
-            Parameter.MIN_ALLOWABLE_ATTENUATION : 1.0,
-            Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM : 1.0,
-            Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM : 1.0,
-            Parameter.HANNING_WINDOW_CUTOFF : 1.0
-        }
-        #self.assert_set_bulk(sampling_params)
-
-        """
-
-Test 1B: TXWAVESTATS = N, NEGATIVE TESTING
-Set:
-* Tide interval (integer minutes)
-- Range 1 - 720 (SEND OUT OF RANGE HIGH)
-* Tide measurement duration (seconds)
-- Range: 10 - 43200 sec (SEND OUT OF RANGE LOW)
-* Measure wave burst after every N tide samples
-- Range 1 - 10,000 (SEND OUT OF RANGE HIGH)
-* Number of wave samples per burst
-- Range 4 - 60,000 (SEND OUT OF RANGE LOW)
-* wave sample duration
-- Range [0.25, 0.5, 0.75, 1.0] (SEND OUT OF RANGE HIGH)
-- USE WAVE_SAMPLES_SCANS_PER_SECOND instead
-where WAVE_SAMPLES_SCANS_PER_SECOND = 1 / wave_sample_duration
-* use start time
-- Range [y, n]
-* use stop time
-- Range [y, n]
-* TXWAVESTATS (real-time wave statistics)
-"""
-        sampling_params = {
-            Parameter.TIDE_INTERVAL : 800,
-            Parameter.TIDE_MEASUREMENT_DURATION : 1,
-            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS : 20000,
-            Parameter.WAVE_SAMPLES_PER_BURST : 1,
-            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND : float(2.0),
-            Parameter.USE_START_TIME : False,
-            Parameter.USE_STOP_TIME : False,
-            Parameter.TXWAVESTATS : False,
-        }
-
-        #try:
-        # #reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SETSAMPLING, sampling_params)
-        # reply = self.driver_client.cmd_dvr('set_resource', sampling_params)
-        #except InstrumentParameterException:
-        # exception = True
-        #self.assertTrue(exception)
-
-    def test_take_sample(self):
-        """
-@brief execute the take_sample (ts) command and verify that a line with at
-least 3 floats is returned, indicating a acceptable sample.
-"""
-        self.assert_initialize_driver()
-
-        # take a sample.
-        sample = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
-        log.debug("sample = " + repr(sample[1]))
-        TS_REGEX = r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)'
-        TS_REGEX_MATCHER = re.compile(TS_REGEX)
-        matches = TS_REGEX_MATCHER.match(sample[1])
-
-        log.debug("COUNT = " + str(len(matches.groups())))
-        self.assertEqual(3, len(matches.groups()))
 
     def test_init_logging(self):
         """
@@ -846,12 +1015,12 @@ least 3 floats is returned, indicating a acceptable sample.
 
     def test_quit_session(self):
         """
-@brief Test quit session command.
-quit session causes the instrument to enter a timedout state where it uses less power.
-
-this test wakes it up after placing it in the timedout (quit session) state, then
-verifies it can obtain paramaters to assert the instrument is working.
-"""
+        @brief Test quit session command.
+        quit session causes the instrument to enter a timedout state where it uses less power.
+        
+        this test wakes it up after placing it in the timedout (quit session) state, then
+        verifies it can obtain paramaters to assert the instrument is working.
+        """
         self.assert_initialize_driver()
 
         # Note quit session just sleeps the device, so its safe to remain in COMMAND mode.
