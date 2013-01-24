@@ -393,6 +393,15 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     commands and a few set commands.
     """
     
+    monitor_sub_parameters = (InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES, 
+                              InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND, 
+                              InstrumentParameters.LOG_DISPLAY_TIME)
+    
+    burst_interval_parameters = (InstrumentParameters.BURST_INTERVAL_DAYS,
+                                 InstrumentParameters.BURST_INTERVAL_HOURS,
+                                 InstrumentParameters.BURST_INTERVAL_MINUTES,
+                                 InstrumentParameters.BURST_INTERVAL_SECONDS)
+    
     # Lookup dictionary which contains the response, the next command, and the parameter name for a given instrument command.
     # The value None for the next command means there is no next command.
     # Commands that decide the command or these values dynamically have there own build handlers and are not in this table.
@@ -817,6 +826,43 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         Exit command state.
         """
         pass
+    
+    def _set_parameter_sub_parameters(self, params_to_set):
+        
+        # handle monitor sub-parameters as a block to reduce I/O with instrument
+        parameters_dict = dict([(x, params_to_set[x]) for x in self.monitor_sub_parameters if x in params_to_set])
+        if parameters_dict:
+            # set the parameter values so they can be gotten in the command builders
+            for (key, value) in parameters_dict.iteritems():
+                self._param_dict.set(key, value)
+            if params_to_set.get(InstrumentParameters.MONITOR, 'n') != 'y':
+                # if there isn't a set for enabling the monitor parameter then force a set so sub-parameters will be set
+                dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.MONITOR)
+                command = self._param_dict.get_submenu_write(InstrumentParameters.MONITOR)
+                self._navigate_and_execute(command, name=key, value='y', dest_submenu=dest_submenu, timeout=5)
+                # check to see if the monitor parameter needs to be reset from the 'enabled' value
+                monitor = self._param_dict.get(InstrumentParameters.MONITOR)
+                if monitor != 'y':
+                    dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.MONITOR)
+                    command = self._param_dict.get_submenu_write(InstrumentParameters.MONITOR)
+                    self._navigate_and_execute(command, name=key, value=monitor, dest_submenu=dest_submenu, timeout=5)
+            # remove the sub-parameters from the params_to_set dictionary
+            for parameter in parameters_dict:
+                del params_to_set[parameter]
+        
+        # handle burst interval parameters as a block to reduce I/O with instrument
+        parameters_dict = dict([(x, params_to_set[x]) for x in self.burst_interval_parameters if x in params_to_set])
+        if parameters_dict:
+            # set the parameter values so they can be gotten in the command builders
+            for (key, value) in parameters_dict.iteritems():
+                self._param_dict.set(key, value)
+            dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.BURST_INTERVAL_DAYS)
+            command = self._param_dict.get_submenu_write(InstrumentParameters.BURST_INTERVAL_DAYS)
+            self._navigate_and_execute(command, name=key, dest_submenu=dest_submenu, timeout=5)
+            # remove the sub-parameters from the params_to_set dictionary
+            for parameter in parameters_dict:
+                del params_to_set[parameter]
+
 
     def _handler_command_set(self, *args, **kwargs):
         """
@@ -841,29 +887,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             if not isinstance(params_to_set, dict):
                 raise InstrumentParameterException('Set parameters not a dict.')
         
-        # handle monitor sub-parameters as a block to reduce I/O with instrument
-        monitor_parameters = (InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES, 
-                              InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND, 
-                              InstrumentParameters.LOG_DISPLAY_TIME)
-        monitor_parameters_dict = dict([(x, params_to_set[x]) for x in monitor_parameters if x in params_to_set])
-        if monitor_parameters_dict:
-            # set the parameter values so they can be gotten in the command builders
-            for (key, value) in monitor_parameters_dict.iteritems():
-                self._param_dict.set(key, value)
-            if params_to_set.get(InstrumentParameters.MONITOR, 'n') != 'y':
-                # if there isn't a set for enabling the monitor parameter then force a set so sub-parameters will be set
-                dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.MONITOR)
-                command = self._param_dict.get_submenu_write(InstrumentParameters.MONITOR)
-                self._navigate_and_execute(command, name=key, value='y', dest_submenu=dest_submenu, timeout=5)
-                # check to see if the monitor parameter needs to be reset from the 'enabled' value
-                monitor = self._param_dict.get(InstrumentParameters.MONITOR)
-                if monitor != 'y':
-                    dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.MONITOR)
-                    command = self._param_dict.get_submenu_write(InstrumentParameters.MONITOR)
-                    self._navigate_and_execute(command, name=key, value=monitor, dest_submenu=dest_submenu, timeout=5)
-            # remove the sub-parameters from the params_to_set dictionary
-            for parameter in monitor_parameters_dict:
-                del params_to_set[parameter]
+        self._set_parameter_sub_parameters(params_to_set)
                 
         for (key, val) in params_to_set.iteritems():
             dest_submenu = self._param_dict.get_menu_path_write(key)
@@ -1277,7 +1301,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_SECONDS, self._build_simple_sub_parameter_enter_command)
         self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_MINUTES, self._build_simple_sub_parameter_enter_command)
         self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_HOURS, self._build_simple_sub_parameter_enter_command)
-        self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_DAYS, self._build_simple_enter_command)
+        self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_DAYS, self._build_simple_sub_parameter_enter_command)
         self._add_build_handler(InstrumentCmds.SET_BURST_INTERVAL_DAYS, self._build_simple_set_command)
         self._add_build_handler(InstrumentCmds.ENTER_SAMPLES_PER_BURST, self._build_simple_enter_command)
         self._add_build_handler(InstrumentCmds.SET_SAMPLES_PER_BURST, self._build_simple_set_command)
@@ -1350,7 +1374,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         parameter_name = self.Command_Response[cmd_name][2]
         if parameter_name == None:
             raise InstrumentParameterException('simple sub parameter enter command requires a parameter name.')
-        cmd = self._param_dict.get(parameter_name)
+        cmd = self._param_dict.format_parameter(parameter_name)
         response = self.Command_Response[cmd_name][0]
         next_cmd = self.Command_Response[cmd_name][1]
         log.debug("_build_simple_sub_parameter_enter_command: cmd=%s" %cmd)
