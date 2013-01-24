@@ -234,10 +234,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         pass 
 
     
-    def test_instrument_wakeup(self):
-        """
-        @brief Test for instrument wakeup, expects instrument to be in 'command' state
-        """
+    def get_command_mode(self):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
@@ -261,35 +258,21 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.COMMAND)
+
+
+
+    def test_instrument_wakeup(self):
+        """
+        @brief Test for instrument wakeup, expects instrument to be in 'command' state
+        """
+        self.get_command_mode()
                 
                
     def test_get_set(self):
         """
         Test device parameter access.
         """
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms and in disconnected state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Connect to instrument and transition to unknown.
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolStates.UNKNOWN)
-
-        # discover instrument state and transition to command.
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolStates.COMMAND)
+        self.get_command_mode()
 
         # get the list of device parameters
         reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
@@ -374,46 +357,25 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
 
     def test_instrumment_autosample(self):
         """
-        @brief Test for instrument wakeup, expects instrument to be in 'command' state
+        @brief Test for instrument autosample, puts instrument in 'command' state first
         """
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms and in disconnected state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Connect to instrument and transition to unknown.
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolStates.UNKNOWN)
-
-        # discover instrument state and transition to command.
-        reply = self.driver_client.cmd_dvr('discover')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolStates.COMMAND)
+        self.get_command_mode()
                 
         # start auto-sample.
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvents.START_AUTOSAMPLE)
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
 
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_current_state')
+        # Test the driver is in autosample mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.AUTOSAMPLE)
                 
+        """
         # stop auto-sample.
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvents.STOP_AUTOSAMPLE)
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.COMMAND)
-                
+        """        
 
     ###
     #    Add driver specific integration tests

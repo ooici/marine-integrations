@@ -88,6 +88,7 @@ class InstrumentPrompts(BaseEnum):
     BURST_INTERVAL_HOURS   = 'Hours    (  0 to    23) ?'
     BURST_INTERVAL_MINUTES = 'Minutes  (  0 to    59) ?'
     BURST_INTERVAL_SECONDS = 'Seconds  (  0 to    59) ?'
+    BEGIN_MEASUREMENT      = 'Beginning measurement cycle now.'
     
 class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dictionaries to work correctly
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
@@ -461,6 +462,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              InstrumentParameters.BURST_INTERVAL_MINUTES],                        
                         InstrumentCmds.ENTER_BURST_INTERVAL_SECONDS : 
                             [InstrumentPrompts.DEPLOY_MENU, None, InstrumentParameters.BURST_INTERVAL_SECONDS],                        
+                        InstrumentCmds.DEPLOY_GO : 
+                            [InstrumentPrompts.BEGIN_MEASUREMENT, None, None],                        
                         }
     
     def __init__(self, prompts, newline, driver_event):
@@ -913,7 +916,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._navigate_and_execute(InstrumentCmds.DEPLOY_GO, 
                                    dest_submenu=SubMenues.DEPLOY, 
                                    timeout=20, 
-                                   expected_prompt=InstrumentPrompts.DEPLOY,
+                                   expected_prompt=InstrumentPrompts.BEGIN_MEASUREMENT,
                                    *args, **kwargs)
                 
         next_state = ProtocolStates.AUTOSAMPLE        
@@ -1302,37 +1305,37 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_MINUTES, self._build_simple_sub_parameter_enter_command)
         self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_HOURS, self._build_simple_sub_parameter_enter_command)
         self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_DAYS, self._build_simple_sub_parameter_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_BURST_INTERVAL_DAYS, self._build_simple_set_command)
+        self._add_build_handler(InstrumentCmds.SET_BURST_INTERVAL_DAYS, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_SAMPLES_PER_BURST, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_SAMPLES_PER_BURST, self._build_simple_set_command)
+        self._add_build_handler(InstrumentCmds.SET_SAMPLES_PER_BURST, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_SAMPLE_PERIOD, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_SAMPLE_PERIOD, self._build_simple_set_command)
+        self._add_build_handler(InstrumentCmds.SET_SAMPLE_PERIOD, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_MEAS_PER_SAMPLE, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_MEAS_PER_SAMPLE, self._build_simple_set_command)
+        self._add_build_handler(InstrumentCmds.SET_MEAS_PER_SAMPLE, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_FREQUENCY, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_FREQUENCY, self._build_simple_set_command)
+        self._add_build_handler(InstrumentCmds.SET_FREQUENCY, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_QUERY, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_QUERY, self._build_simple_set_command)
+        self._add_build_handler(InstrumentCmds.SET_QUERY, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_ACOUSTIC_AXIS_VELOCITY_FORMAT, self._build_enter_log_display_acoustic_axis_velocity_format_command)
         self._add_build_handler(InstrumentCmds.ENTER_LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES, self._build_enter_log_display_acoustic_axis_velocities_command)
         self._add_build_handler(InstrumentCmds.ENTER_LOG_DISPLAY_FRACTIONAL_SECOND, self._build_simple_sub_parameter_enter_command)
         self._add_build_handler(InstrumentCmds.ENTER_LOG_DISPLAY_TIME, self._build_simple_sub_parameter_enter_command)
         self._add_build_handler(InstrumentCmds.ENTER_MONITOR, self._build_enter_monitor_command)
-        self._add_build_handler(InstrumentCmds.SET_MONITOR, self._build_simple_set_command)
+        self._add_build_handler(InstrumentCmds.SET_MONITOR, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_VEL_FRAME, self._build_enter_velocity_frame_command)
-        self._add_build_handler(InstrumentCmds.SET_VEL_FRAME, self._build_simple_set_command)
+        self._add_build_handler(InstrumentCmds.SET_VEL_FRAME, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_NOTE, self._build_simple_enter_command)
         self._add_build_handler(InstrumentCmds.SET_NOTE, self._build_set_note_command)
-        self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_simple_set_command)
+        self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_TIME, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_TIME, self._build_simple_set_command)
-        self._add_build_handler(InstrumentCmds.ANSWER_YES, self._build_simple_set_command)
-        #self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_deploy_go_command)
+        self._add_build_handler(InstrumentCmds.SET_TIME, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.ANSWER_YES, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_simple_command)
         
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
         self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
-
+    
     def _build_enter_log_display_acoustic_axis_velocity_format_command(self, **kwargs):
         """
         Build handler for log display acoustic axis velocity format enter command 
@@ -1459,7 +1462,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         log.debug("_build_simple_enter_command: cmd=%s" %cmd)
         return (cmd, response, next_cmd)
 
-    def _build_simple_set_command(self, **kwargs):
+    def _build_simple_command(self, **kwargs):
         """
         Build handler for simple set command 
         @ retval list with:
@@ -1469,11 +1472,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         """
         cmd_name = kwargs.get('command', None)
         if cmd_name == None:
-            raise InstrumentParameterException('simple set command requires a command.')
+            raise InstrumentParameterException('simple command requires a command.')
         cmd = cmd_name
         response = self.Command_Response[cmd_name][0]
         next_cmd = self.Command_Response[cmd_name][1]
-        log.debug("_build_simple_set_command: cmd=%s" %cmd)
+        log.debug("_build_simple_command: cmd=%s" %cmd)
         return (cmd, response, next_cmd)
 
     def _parse_time_response(self, response, prompt, **kwargs):
