@@ -260,3 +260,11 @@ bar=200, baz=300
         result = pdv.update("1205")
         self.assertEqual(pdv.value, 4)
         self.assertEqual(result, True)
+        
+    def test_set_init_value(self):
+        result = self.param_dict.get("foo")
+        self.assertEqual(result, None)        
+        self.param_dict.set_init_value("foo", 42)
+        result = self.param_dict.get_init_value("foo")
+        self.assertEqual(result, 42)
+        

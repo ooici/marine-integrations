@@ -244,10 +244,10 @@ class InstrumentProtocol(object):
             raise InstrumentParameterException("Invalid init config format")
 
         self._startup_config = config
-
         param_config = config.get(DriverConfigKey.PARAMETERS)
         if(param_config):
             for name in param_config.keys():
+                log.debug("Setting init value for %s to %s", name, param_config[name])
                 self._param_dict.set_init_value(name, param_config[name])
     
     def get_startup_config(self):
