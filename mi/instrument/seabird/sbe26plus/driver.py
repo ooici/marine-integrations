@@ -65,8 +65,9 @@ DS_REGEX_MATCHER = re.compile(DS_REGEX, re.DOTALL)
 #    Driver Constant Definitions
 ###
 
-class ScheduledTrigger(BaseEnum):
+class ScheduledJob(BaseEnum):
     ACQUIRE_STATUS = 'acquire_status'
+    CALIBRATION_COEFFICIENTS = 'calibration_coefficients'
     CLOCK_SYNC = 'clock_sync'
 
 class DataParticleType(BaseEnum):
@@ -1210,9 +1211,9 @@ class Protocol(SeaBirdProtocol):
 
         self._chunker = StringChunker(Protocol.sieve_function)
 
-        self._add_scheduler_event(ScheduledTrigger.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
-        self._add_scheduler_event(ScheduledTrigger.CLOCK_SYNC, ProtocolEvent.CLOCK_SYNC)
-
+        self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
+        self._add_scheduler_event(ScheduledJob.CALIBRATION_COEFFICIENTS, ProtocolEvent.ACQUIRE_CONFIGURATION)
+        self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.CLOCK_SYNC)
 
     @staticmethod
     def sieve_function(raw_data):
