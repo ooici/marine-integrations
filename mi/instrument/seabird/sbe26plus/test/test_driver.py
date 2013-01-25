@@ -612,12 +612,11 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
 
         #1: TXWAVESTATS = N
         # WORKS
-        # self.assert_set_sampling_no_txwavestats()
+        #self.assert_set_sampling_no_txwavestats()
         #2: TXWAVESTATS = Y, USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC=N
         self.assert_set_sampling_txwavestats_dont_use_conductivity()  # issue with preload of USE_MEASURED_TEMP_FOR_DENSITY_CALC instead of USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC
         #3: TXWAVESTATS = Y, USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC=Y
         #self.assert_set_sampling_txwavestats_use_conductivity()
-        pass
 
 
 
@@ -714,29 +713,30 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = -1
         self.assert_set_bulk_exception(sampling_params)
 
+        #    * wave scans per second
+        #        - Range [4, 2, 1.33, 1]
         sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 4
         self.assert_set_bulk(sampling_params)
-        # Wave samples per burst.  Check edges, out of range and invalid data
-        #    * wave sample duration
-        #        - Range [0.25, 0.5, 0.75, 1.0]
-        # TODO: Enable these tests once the set/get is fixed for this param
-        #sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 4
-        #self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 2.0
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1.33
+        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1.0
+        self.assert_set_bulk_exception(sampling_params)
 
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 3
-        # self.assert_set_bulk(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 2
-        # self.assert_set_bulk(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1
-        # self.assert_set_bulk(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 0
-        # self.assert_set_bulk_exception(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = -1
-        # self.assert_set_bulk_exception(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 5
-        # self.assert_set_bulk_exception(sampling_params)
-        # sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = "foo"
-        # self.assert_set_bulk_exception(sampling_params)
+        # test bad values
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 3
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 0
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = -1
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 5
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = "foo"
+        self.assert_set_bulk_exception(sampling_params)
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 4
+        self.assert_set_bulk_exception(sampling_params)
 
     def set_baseline_txwavestats_use_conductivity(self):
         sampling_params = {
@@ -872,11 +872,8 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         sampling_params = self.set_baseline_txwavestats_use_conductivity()
 
         
-        # Wave samples per burst.  Check edges, out of range and invalid data
-        #    * wave sample duration=
-        #        - Range [0.25, 0.5, 0.75, 1.0]
-        
-        
+        #    * wave scans per second
+        #        - Range [4, 2, 1.33, 1]
         sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 2.0
         self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1.33

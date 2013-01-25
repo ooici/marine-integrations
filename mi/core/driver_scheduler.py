@@ -285,8 +285,8 @@ class DriverScheduler(object):
         callback = config.get(DriverSchedulerConfigKey.CALLBACK)
         if(callback == None):
             raise SchedulerException("callback definition missing")
-        #if(not inspect.ismethod(callback)):
-        #    raise SchedulerException("callback incorrect type: '%s'" % type(callback))
+        if(not callable(callback)):
+            raise SchedulerException("callback incorrect type: '%s'" % type(callback))
 
         return callback
 
