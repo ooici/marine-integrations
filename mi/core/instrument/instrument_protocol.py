@@ -15,6 +15,7 @@ __license__ = 'Apache 2.0'
 
 import time
 import json
+from functools import partial
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -160,6 +161,23 @@ class InstrumentProtocol(object):
 
         self._scheduler_callback[name] = callback
         self._add_scheduler_job(name)
+
+    def _add_scheduler_event(self, name, event):
+        """
+        Create a scheduler, but instead of passing a callback we pass in
+        an event to raise.  A callback function is dynamically created
+        to do this.
+        @param name the name of the job
+        @param event: event to raise when the scheduler is triggered
+        @raise KeyError if we try to add a job twice
+        """
+        # Create a callback for the scheduler to raise an event
+        def event_callback(self, event):
+            self._driver_event(event, None)
+
+        # Dynamically create the method and add it
+        method = partial(event_callback, self, event)
+        self._add_scheduler(name, method)
 
     def _add_scheduler_job(self, name):
         """
