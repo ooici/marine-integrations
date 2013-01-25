@@ -502,7 +502,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
 
             if(param_config):
                 self._protocol.set_init_params(param_config)
-
+                
         self._startup_config = config
     
     def apply_startup_params(self):

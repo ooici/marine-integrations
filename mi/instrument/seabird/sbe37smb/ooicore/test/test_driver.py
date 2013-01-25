@@ -49,6 +49,7 @@ from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolEvent
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Capability
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
+from mi.core.instrument.instrument_driver import DriverConfigKey
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
@@ -392,7 +393,7 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
-        startup_config = {SBE37Parameter.SAMPLENUM:13}
+        startup_config = {DriverConfigKey.PARAMETERS:{SBE37Parameter.SAMPLENUM:13}}
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('connect', startup_config)
 
@@ -973,8 +974,8 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         """
         # Startup params are SAMPLENUM, INTERVAL, SYNCWAIT
         # INTERVAL has a default value of 1
-        startup_config = {SBE37Parameter.SAMPLENUM:2,
-                          SBE37Parameter.NAVG:2}
+        startup_config = {DriverConfigKey.PARAMETERS:{SBE37Parameter.SAMPLENUM:2,
+                                                      SBE37Parameter.NAVG:2}}
 
         # SBE37 doesnt have a startup routine, so we wont test default params
         # as part of the configure routine, mainly testing some InstrumentDriver
