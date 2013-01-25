@@ -15,7 +15,7 @@ __license__ = 'Apache 2.0'
 import time
 import re
 import datetime
-import copy
+import ntplib
 
 from mi.core.common import BaseEnum
 from mi.core.time import get_timestamp_delayed
@@ -42,21 +42,21 @@ from mi.core.instrument.data_particle import DataParticle, DataParticleKey, Data
 from mi.core.log import get_logger
 log = get_logger()
 
-SAMPLE_DATA_PATTERN = (r'(\d+\s+\d+\s+\d+)' +   # date
-                       '\s+(\d+\s+\d+\s+\d+)' + # time
-                       '.(\d+)' +               # fractional second
-                       '\s+(\w+)' +             # vector A
-                       '\s+(\w+)' +             # vector B
-                       '\s+(\w+)' +             # vector C
-                       '\s+(\w+)' +             # vector D
-                       '\s+(-*\d+.\d+)' +       # east
-                       '\s+(-*\d+.\d+)' +       # north
-                       '\s+(-*\d+.\d+)' +       # west
-                       '\s+(-*\d+.\d+)' +       # temperature
-                       '\s+(-*\d+.\d+)' +       # MX
-                       '\s+(-*\d+.\d+)' +       # MY
-                       '\s+(-*\d+.\d+)' +       # pitch
-                       '\s+(-*\d+.\d+)')        # roll
+SAMPLE_DATA_PATTERN = (r'(\d+\s+\d+\s+\d+)' +    # date
+                       '\s+(\d+\s+\d+\s+\d+)' +  # time
+                       '\.(\d+)' +               # fractional second
+                       '\s+(\w+)' +              # vector A
+                       '\s+(\w+)' +              # vector B
+                       '\s+(\w+)' +              # vector C
+                       '\s+(\w+)' +              # vector D
+                       '\s+(-*\d+\.\d+)' +       # east
+                       '\s+(-*\d+\.\d+)' +       # north
+                       '\s+(-*\d+\.\d+)' +       # west
+                       '\s+(-*\d+\.\d+)' +       # temperature
+                       '\s+(-*\d+\.\d+)' +       # MX
+                       '\s+(-*\d+\.\d+)' +       # MY
+                       '\s+(-*\d+\.\d+)' +       # pitch
+                       '\s+(-*\d+\.\d+)')        # roll
 
 SAMPLE_DATA_REGEX = re.compile(SAMPLE_DATA_PATTERN)
 
@@ -409,9 +409,8 @@ class mavs4InstrumentDriver(SingleConnectionInstrumentDriver):
 ###############################################################################
 
 class Mavs4SampleDataParticleKey(BaseEnum):
-    DATE = 'date'
-    TIME = 'time'
-    FRACTIONAL_SECOND = 'fractional_second'
+    TIMESTAMP                = "timestamp"
+    FRACTIONAL_SECOND        = 'fractional_second'
     ACOUSTIC_AXIS_VELOCITY_A = 'acoustic_axis_velocity_a'
     ACOUSTIC_AXIS_VELOCITY_B = 'acoustic_axis_velocity_b'
     ACOUSTIC_AXIS_VELOCITY_C = 'acoustic_axis_velocity_c'
@@ -442,57 +441,30 @@ class Mavs4SampleDataParticle(DataParticle):
         if not match:
             raise SampleException("Mavs4SampleDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
         
-        date = ord(match.group(1))
-        time = ord(match.group(2))
-        fractional_second = ord(match.group(3))
-        acoustic_axis_velocity_a = ord(match.group(4))
-        acoustic_axis_velocity_b = ord(match.group(5))
-        acoustic_axis_velocity_c = ord(match.group(6))
-        acoustic_axis_velocity_d = ord(match.group(7))
-        velocity_frame_east = match.group(8)
-        velocity_frame_north = match.group(9)
-        velocity_frame_west = match.group(10)
-        temperature = ord(match.group(11))
-        compass_mx = ord(match.group(12))
-        compass_my = ord(match.group(13))
-        pitch = ord(match.group(14))
-        roll = ord(match.group(15))
-        
-        if None == date:
-            raise SampleException("No date value parsed")
-        if None == time:
-            raise SampleException("No time value parsed")
-        if None == fractional_second:
-            raise SampleException("No fractional_second value parsed")
-        if None == acoustic_axis_velocity_a:
-            raise SampleException("No acoustic_axis_velocity_a value parsed")
-        if None == acoustic_axis_velocity_b:
-            raise SampleException("No acoustic_axis_velocity_b value parsed")
-        if None == acoustic_axis_velocity_c:
-            raise SampleException("No acoustic_axis_velocity_c value parsed")
-        if None == acoustic_axis_velocity_d:
-            raise SampleException("No acoustic_axis_velocity_d value parsed")
-        if None == velocity_frame_east:
-            raise SampleException("No velocity_frame_east value parsed")
-        if None == velocity_frame_north:
-            raise SampleException("No velocity_frame_north value parsed")
-        if None == velocity_frame_west:
-            raise SampleException("No velocity_frame_west value parsed")
-        if None == temperature:
-            raise SampleException("No temperature value parsed")
-        if None == compass_mx:
-            raise SampleException("No compass_mx value parsed")
-        if None == compass_my:
-            raise SampleException("No compass_my value parsed")
-        if None == pitch:
-            raise SampleException("No pitch value parsed")
-        if None == roll:
-            raise SampleException("No roll value parsed")
-        
-        result = [{DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.DATE,
-                   DataParticleKey.VALUE: date},
-                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.TIME,
-                   DataParticleKey.VALUE: time},
+        #log.debug('_build_parsed_values: match=%s' %match.group(0))
+                
+        try:
+            datetime = match.group(1) + ' ' + match.group(2)
+            timestamp = time.strptime(datetime, "%d %m %Y %H %M %S")
+            ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
+            acoustic_axis_velocity_a = int(match.group(4), 16)
+            acoustic_axis_velocity_b = int(match.group(5), 16)
+            acoustic_axis_velocity_c = int(match.group(6), 16)
+            acoustic_axis_velocity_d = int(match.group(7), 16)
+            fractional_second = int(match.group(3))
+            velocity_frame_east = float(match.group(8))
+            velocity_frame_north = float(match.group(9))
+            velocity_frame_west = float(match.group(10))
+            temperature = float(match.group(11))
+            compass_mx = float(match.group(12))
+            compass_my = float(match.group(13))
+            pitch = float(match.group(14))
+            roll = float(match.group(15))
+        except (ValueError, TypeError, IndexError) as ex:
+            raise SampleException("Error (%s) while decoding parameters in data: [%s]" %(ex, self.raw_data))
+                     
+        result = [{DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.TIMESTAMP,
+                   DataParticleKey.VALUE: ntp_timestamp},
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.FRACTIONAL_SECOND,
                    DataParticleKey.VALUE: fractional_second},
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_A,
@@ -502,7 +474,7 @@ class Mavs4SampleDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_C,
                    DataParticleKey.VALUE: acoustic_axis_velocity_c},
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_D,
-                   DataParticleKey.VALUE: acoustic_axis_velocity_c},
+                   DataParticleKey.VALUE: acoustic_axis_velocity_d},
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.VELOCITY_FRAME_EAST,
                    DataParticleKey.VALUE: velocity_frame_east},
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.VELOCITY_FRAME_NORTH,
@@ -680,6 +652,14 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     ########################################################################
     # overridden superclass methods
     ########################################################################
+
+    def _got_chunk(self, structure):
+        """
+        The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
+        with the appropriate particle objects and REGEXes. 
+        """
+        log.debug("_got_chunk: detected structure = <%s>", structure)
+        self._extract_sample(Mavs4SampleDataParticle, SAMPLE_DATA_REGEX, structure)
 
     def _get_response(self, timeout=10, expected_prompt=None):
         """
@@ -1128,7 +1108,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         # Issue stop command and switch to command if successful.
         got_root_prompt = False
-        for i in range(10):
+        for i in range(2):
             try:
                 self._go_to_root_menu()
                 got_root_prompt = True

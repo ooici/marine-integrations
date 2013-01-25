@@ -33,6 +33,7 @@ import socket
 # Standard lib imports
 import time
 import unittest
+import ntplib
 
 # 3rd party imports
 from nose.plugins.attrib import attr
@@ -196,6 +197,11 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         return 'mavs4InstrumentDriver'    
     
 
+    def check_state(self, expected_state):
+        self.protocol_state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(self.protocol_state, expected_state)
+        return 
+        
     def assertParamDictionariesEqual(self, pd1, pd2, all_params=False):
         """
         Verify all device parameters exist and are correct type.
@@ -234,7 +240,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         pass 
 
     
-    def get_command_mode(self):
+    def put_driver_in_command_mode(self):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
@@ -255,9 +261,15 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         # discover instrument state and transition to command.
         reply = self.driver_client.cmd_dvr('discover_state')
 
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolStates.COMMAND)
+        try:
+            # Test that the driver protocol is in state command.
+            self.check_state(ProtocolStates.COMMAND)
+        except:
+            self.assertEqual(self.protocol_state, ProtocolStates.AUTOSAMPLE)
+            # Put the driver in command mode
+            self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+            # Test that the driver protocol is in state command.
+            self.check_state(ProtocolStates.COMMAND)
 
 
 
@@ -265,14 +277,14 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' state
         """
-        self.get_command_mode()
+        self.put_driver_in_command_mode()
                 
                
     def test_get_set(self):
         """
         Test device parameter access.
         """
-        self.get_command_mode()
+        self.put_driver_in_command_mode()
 
         # get the list of device parameters
         reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
@@ -359,7 +371,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         """
         @brief Test for instrument autosample, puts instrument in 'command' state first
         """
-        self.get_command_mode()
+        self.put_driver_in_command_mode()
                 
         # start auto-sample.
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
@@ -375,6 +387,38 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.COMMAND)
 
+    def test_instrument_start_stop_autosample(self):
+        """
+        @brief Test for putting instrument in 'auto-sample' state
+        """
+        self.put_driver_in_command_mode()
+
+        # command the instrument to auto-sample mode.
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
+
+        self.check_state(ProtocolStates.AUTOSAMPLE)
+           
+        # wait for some samples to be generated
+        log.debug('test_instrument_start_stop_autosample: waiting 5 seconds for samples')
+        gevent.sleep(5)
+
+        # Verify we received at least 2 samples.
+        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
+        log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
+        for sample in sample_events:
+            if sample['value'].find(DataParticleType.PARSED) != -1:
+                log.debug('parsed sample=%s\n' %sample)
+                sample_dict = eval(sample['value'])
+                values = sample_dict['values']
+                ntp_timestamp = [item for item in values if item["value_id"] == "timestamp"][0]['value']
+                float_timestamp = ntplib.ntp_to_system_time(ntp_timestamp)
+                log.debug('dt=%s' %time.ctime(float_timestamp))
+        self.assertTrue(len(sample_events) >= 2)
+
+        # stop autosample and return to command mode
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+                
+        self.check_state(ProtocolStates.COMMAND)
     ###
     #    Add driver specific integration tests
     ###
