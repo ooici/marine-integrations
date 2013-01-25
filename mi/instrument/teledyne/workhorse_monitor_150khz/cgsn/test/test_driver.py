@@ -297,7 +297,7 @@ self_deploy_str = NEWLINE +\
 "System will self-deploy in 1 minute unless valid command entered!"
  
 ###
-#   Driver parameters for the tests
+#   Driver parameters for tests
 ###
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.teledyne.workhorse_monitor_150khz.cgsn.driver ',
