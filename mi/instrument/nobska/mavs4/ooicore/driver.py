@@ -30,6 +30,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.exceptions import InstrumentTimeoutException, \
                                InstrumentParameterException, \
                                InstrumentProtocolException, \
+                               SampleException, \
                                InstrumentStateException
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
@@ -41,9 +42,27 @@ from mi.core.instrument.data_particle import DataParticle, DataParticleKey, Data
 from mi.core.log import get_logger
 log = get_logger()
 
+SAMPLE_DATA_PATTERN = (r'(\d+\s+\d+\s+\d+)' +   # date
+                       '\s+(\d+\s+\d+\s+\d+)' + # time
+                       '.(\d+)' +               # fractional second
+                       '\s+(\w+)' +             # vector A
+                       '\s+(\w+)' +             # vector B
+                       '\s+(\w+)' +             # vector C
+                       '\s+(\w+)' +             # vector D
+                       '\s+(-*\d+.\d+)' +       # east
+                       '\s+(-*\d+.\d+)' +       # north
+                       '\s+(-*\d+.\d+)' +       # west
+                       '\s+(-*\d+.\d+)' +       # temperature
+                       '\s+(-*\d+.\d+)' +       # MX
+                       '\s+(-*\d+.\d+)' +       # MY
+                       '\s+(-*\d+.\d+)' +       # pitch
+                       '\s+(-*\d+.\d+)')        # roll
+
+SAMPLE_DATA_REGEX = re.compile(SAMPLE_DATA_PATTERN)
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
+    PARSED = 'parsed'
 
 COMMAND = 'command'
 RESPONSE = 'response'
@@ -385,6 +404,125 @@ class mavs4InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         self._protocol = mavs4InstrumentProtocol(InstrumentPrompts, INSTRUMENT_NEWLINE, self._driver_event)
         
+###############################################################################
+# Data particles
+###############################################################################
+
+class Mavs4SampleDataParticleKey(BaseEnum):
+    DATE = 'date'
+    TIME = 'time'
+    FRACTIONAL_SECOND = 'fractional_second'
+    ACOUSTIC_AXIS_VELOCITY_A = 'acoustic_axis_velocity_a'
+    ACOUSTIC_AXIS_VELOCITY_B = 'acoustic_axis_velocity_b'
+    ACOUSTIC_AXIS_VELOCITY_C = 'acoustic_axis_velocity_c'
+    ACOUSTIC_AXIS_VELOCITY_D = 'acoustic_axis_velocity_d'
+    VELOCITY_FRAME_EAST      = 'velocity_frame_east'
+    VELOCITY_FRAME_NORTH     = 'velocity_frame_north'
+    VELOCITY_FRAME_WEST      = 'velocity_frame_west'
+    TEMPERATURE              = 'temperature'
+    COMPASS_MX               = 'compass_mx'
+    COMPASS_MY               = 'compass_my'
+    PITCH                    = 'pitch'
+    ROLL                     = 'roll'
+                
+class Mavs4SampleDataParticle(DataParticle):
+    """
+    Routine for parsing sample data into a data particle structure for the MAVS-4 sensor. 
+    """
+    _data_particle_type = DataParticleType.PARSED
+
+    def _build_parsed_values(self):
+        """
+        Take something in the data sample format and parse it into
+        values with appropriate tags.
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = SAMPLE_DATA_REGEX.match(self.raw_data)
+        
+        if not match:
+            raise SampleException("Mavs4SampleDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
+        
+        date = ord(match.group(1))
+        time = ord(match.group(2))
+        fractional_second = ord(match.group(3))
+        acoustic_axis_velocity_a = ord(match.group(4))
+        acoustic_axis_velocity_b = ord(match.group(5))
+        acoustic_axis_velocity_c = ord(match.group(6))
+        acoustic_axis_velocity_d = ord(match.group(7))
+        velocity_frame_east = match.group(8)
+        velocity_frame_north = match.group(9)
+        velocity_frame_west = match.group(10)
+        temperature = ord(match.group(11))
+        compass_mx = ord(match.group(12))
+        compass_my = ord(match.group(13))
+        pitch = ord(match.group(14))
+        roll = ord(match.group(15))
+        
+        if None == date:
+            raise SampleException("No date value parsed")
+        if None == time:
+            raise SampleException("No time value parsed")
+        if None == fractional_second:
+            raise SampleException("No fractional_second value parsed")
+        if None == acoustic_axis_velocity_a:
+            raise SampleException("No acoustic_axis_velocity_a value parsed")
+        if None == acoustic_axis_velocity_b:
+            raise SampleException("No acoustic_axis_velocity_b value parsed")
+        if None == acoustic_axis_velocity_c:
+            raise SampleException("No acoustic_axis_velocity_c value parsed")
+        if None == acoustic_axis_velocity_d:
+            raise SampleException("No acoustic_axis_velocity_d value parsed")
+        if None == velocity_frame_east:
+            raise SampleException("No velocity_frame_east value parsed")
+        if None == velocity_frame_north:
+            raise SampleException("No velocity_frame_north value parsed")
+        if None == velocity_frame_west:
+            raise SampleException("No velocity_frame_west value parsed")
+        if None == temperature:
+            raise SampleException("No temperature value parsed")
+        if None == compass_mx:
+            raise SampleException("No compass_mx value parsed")
+        if None == compass_my:
+            raise SampleException("No compass_my value parsed")
+        if None == pitch:
+            raise SampleException("No pitch value parsed")
+        if None == roll:
+            raise SampleException("No roll value parsed")
+        
+        result = [{DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.DATE,
+                   DataParticleKey.VALUE: date},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.TIME,
+                   DataParticleKey.VALUE: time},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.FRACTIONAL_SECOND,
+                   DataParticleKey.VALUE: fractional_second},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_A,
+                   DataParticleKey.VALUE: acoustic_axis_velocity_a},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_B,
+                   DataParticleKey.VALUE: acoustic_axis_velocity_b},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_C,
+                   DataParticleKey.VALUE: acoustic_axis_velocity_c},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_D,
+                   DataParticleKey.VALUE: acoustic_axis_velocity_c},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.VELOCITY_FRAME_EAST,
+                   DataParticleKey.VALUE: velocity_frame_east},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.VELOCITY_FRAME_NORTH,
+                   DataParticleKey.VALUE: velocity_frame_north},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.VELOCITY_FRAME_WEST,
+                   DataParticleKey.VALUE: velocity_frame_west},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.TEMPERATURE,
+                   DataParticleKey.VALUE: temperature},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.COMPASS_MX,
+                   DataParticleKey.VALUE: compass_mx},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.COMPASS_MY,
+                   DataParticleKey.VALUE: compass_my},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.PITCH,
+                   DataParticleKey.VALUE: pitch},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.ROLL,
+                   DataParticleKey.VALUE: roll}]
+ 
+        log.debug('Mavs4SampleDataParticle: particle=%s' %result)
+        return result
+    
 ###
 #   Protocol for mavs4
 ###
@@ -524,22 +662,12 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
     @staticmethod
     def chunker_sieve_function(raw_data):
-        """ The method that detects data sample structures from instrument
-        """
+        # The method that detects data sample structures from instrument
+ 
         return_list = []
         
-        """
-        for structure_sync, structure_len in sample_structures:
-            start = raw_data.find(structure_sync)
-            if start != -1:    # found a sync pattern
-                if start+structure_len <= len(raw_data):    # only check the CRC if all of the structure has arrived
-                    calculated_checksum = BinaryProtocolParameterDict.calculate_checksum(raw_data[start:start+structure_len], structure_len)
-                    #log.debug('chunker_sieve_function: calculated checksum = %s' % calculated_checksum)
-                    sent_checksum = BinaryProtocolParameterDict.convert_word_to_int(raw_data[start+structure_len-2:start+structure_len])
-                    if sent_checksum == calculated_checksum:
-                        return_list.append((start, start+structure_len))        
-                        #log.debug("chunker_sieve_function: found %s", raw_data[start:start+structure_len].encode('hex'))
-        """
+        for match in SAMPLE_DATA_REGEX.finditer(raw_data):
+            return_list.append((match.start(), match.end()))
                 
         return return_list
     

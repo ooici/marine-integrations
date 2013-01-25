@@ -368,14 +368,12 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.AUTOSAMPLE)
                 
-        """
         # stop auto-sample.
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.COMMAND)
-        """        
 
     ###
     #    Add driver specific integration tests
