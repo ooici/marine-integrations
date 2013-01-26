@@ -479,7 +479,7 @@ class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
         also be defined in the protocol FSM.
         """
         capabilities = {
-            ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER', 'DRIVER_FORCE_STATE'],
+            ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
             ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_SAMPLE',
                                     'DRIVER_EVENT_ACQUIRE_STATUS',
                                     'DRIVER_EVENT_CLOCK_SYNC',
@@ -488,12 +488,13 @@ class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_START_DIRECT',
                                     'PROTOCOL_EVENT_ACQUIRE_CONFIGURATION',
-                                    'PROTOCOL_EVENT_INIT_LOGGING',
                                     'PROTOCOL_EVENT_QUIT_SESSION',
-                                    'PROTOCOL_EVENT_SEND_LAST_SAMPLE',
-                                    'PROTOCOL_EVENT_SEND_LAST_SAMPLE_SLEEP',
                                     'PROTOCOL_EVENT_SETSAMPLING'],
-            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET', 'DRIVER_EVENT_STOP_AUTOSAMPLE'],
+            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
+                                       'DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                       'PROTOCOL_EVENT_SEND_LAST_SAMPLE',
+                                       'PROTOCOL_EVENT_ACQUIRE_CONFIGURATION',
+                                       'DRIVER_EVENT_ACQUIRE_STATUS'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
 
@@ -1166,84 +1167,55 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
     def setUp(self):
         SeaBirdQualificationTest.setUp(self)
 
-    def check_state(self, desired_state):
-        current_state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(current_state, desired_state)
-
-    ###
-    #    Add instrument specific qualification tests
-    ###
-
     def test_autosample(self):
         """
-        @brief Test instrument driver execute interface to start and stop streaming
-        mode.
+        Verify that we can enter streaming and that all particles are produced
+        properly.
+
+        Because we have to test for three different data particles we can't use
+        the common assert_sample_autosample method
         """
-
-        self.data_subscribers.start_data_subscribers()
-        self.addCleanup(self.data_subscribers.stop_data_subscribers)
-
-
         self.assert_enter_command_mode()
 
-        params = {
-            Parameter.TIDE_INTERVAL : 1,
-            Parameter.TXWAVESTATS : False,
-            Parameter.USER_INFO : "KILROY WAZ HERE"
-        }
+        # TODO, set parameters to output data quickly and enough to create all data particles
 
-        self.instrument_agent_client.set_resource(params)
+        self.assert_start_autosample()
 
-        #self.data_subscribers.no_samples = 3
+        self.assert_sample_async(self.assert_particle_tide_sample, DataParticleType.TIDE_PARSED, timeout=90)
 
-        # Begin streaming.
-        cmd = AgentCommand(command=ProtocolEvent.START_AUTOSAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd)
+        # TODO, Enable these once parameters are set correctly to output these streams
+        self.assert_sample_async(self.assert_particle_wave_burst, DataParticleType.WAVE_BURST, timeout=10)
+        self.assert_sample_async(self.assert_particle_statistics, DataParticleType.STATISTICS, timeout=10)
 
-        self.data_subscribers.clear_sample_queue(DataParticleValue.PARSED)
-
-        # wait for 3 samples, then test them!
-        samples = self.data_subscribers.get_samples('parsed', 30) # 6 minutes
-        self.assertSampleDataParticle(samples.pop())
-        self.assertSampleDataParticle(samples.pop())
-        self.assertSampleDataParticle(samples.pop())
-
-        # Halt streaming.
-        cmd = AgentCommand(command=ProtocolEvent.STOP_AUTOSAMPLE)
-        # could be in a tide sample cycle... long timeout
-        retval = self.instrument_agent_client.execute_resource(cmd0)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+        self.assert_stop_autosample()
 
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        Test that we can connect to the instrument via direct access.  Also
+        verify that direct access parameters are reset on exit.
         """
         self.assert_enter_command_mode()
-        params = [Parameter.EXTERNAL_TEMPERATURE_SENSOR]
-        check_new_params = self.instrument_agent_client.get_resource(params)
-        self.assertTrue(check_new_params[Parameter.EXTERNAL_TEMPERATURE_SENSOR])
+        self.assert_set_parameter(Parameter.TXREALTIME, True)
 
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet(timeout=600)
         self.assertTrue(self.tcp_client)
-        self.tcp_client.send_data(Parameter.EXTERNAL_TEMPERATURE_SENSOR + "=N\r\n")
+        self.tcp_client.send_data("TxTide=N\r\n")
         self.tcp_client.expect("S>")
 
         self.assert_direct_access_stop_telnet()
 
         # verify the setting got restored.
         self.assert_enter_command_mode()
-        params = [Parameter.EXTERNAL_TEMPERATURE_SENSOR]
-        check_new_params = self.instrument_agent_client.get_resource(params)
-        self.assertTrue(check_new_params[Parameter.EXTERNAL_TEMPERATURE_SENSOR])
+        self.assert_get_parameter(Parameter.TXREALTIME, True)
+
+    def test_poll(self):
+        '''
+        Verify that we can poll for a sample
+        '''
+
+        #self.assert_sample_polled(self.assertSampleDataParticle,
+        #                          DataParticleValue.PARSED)
 
     def test_get_capabilities(self):
         """

@@ -1766,6 +1766,30 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.doCleanups()
 
+    def assert_sample_async(self, sampleDataAssert, sampleQueue,
+                                  timeout=GO_ACTIVE_TIMEOUT, sample_count=1):
+        """
+        Watch the data queue for sample data.
+
+        This command is only useful for testing one stream produced in
+        streaming mode at a time.  If your driver has multiple streams
+        then you will need to call this method more than once or use a
+        different test.
+        """
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        self.data_subscribers.clear_sample_queue(sampleQueue)
+
+        samples = self.data_subscribers.get_samples(sampleQueue, sample_count, timeout = timeout)
+        self.assertGreaterEqual(len(samples), sample_count)
+
+        for s in samples:
+            log.debug("SAMPLE: %s" % s)
+            sampleDataAssert(s)
+
+        self.doCleanups()
+
     def assert_reset(self):
         '''
         Exist active state
@@ -1880,18 +1904,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                 cmd = AgentCommand(command=ResourceAgentEvent.RUN)
                 retval = self.instrument_agent_client.execute_agent(cmd)
                 
-            #res_state = self.instrument_agent_client.get_resource_state()
-            #self.assertEqual(res_state, DriverProtocolState.COMMAND)
-
-            #state = self.instrument_agent_client.get_agent_state()
-            #print("sent run; IA state = %s" %str(state))
-            #self.assertEqual(state, ResourceAgentState.COMMAND)
-    
-            #cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-            #retval = self.instrument_agent_client.execute_agent(cmd)
-            #state = self.instrument_agent_client.get_agent_state()
-            #print("sent run; IA state = %s" %str(state))
-
         state = self.instrument_agent_client.get_agent_state()
         log.info("Sent RUN; IA state = %s", state)
         self.assertEqual(state, ResourceAgentState.COMMAND)
@@ -1899,7 +1911,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, DriverProtocolState.COMMAND)
 
-    #@unittest.skip("TEMP SKIP PROBLEMATIC QUAL TESTS.")
     def assert_direct_access_start_telnet(self, timeout=600):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
