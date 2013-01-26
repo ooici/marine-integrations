@@ -686,17 +686,13 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = "foo"
         self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 6000
-
-        # Test a good value
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 1000
-        self.assert_set_bulk(sampling_params)
-        
-        # set to known good
-        sampling_params = self.set_baseline_no_txwavestats()
         
         # Wave samples per burst.  Check edges, out of range and invalid data
         #   * Number of wave samples per burst
         #       - Range 4 - 60,000 *MUST BE MULTIPLE OF 4*
+        # Test a good value
+        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 1000
+        self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
         self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43200   # If we set this this high
@@ -727,7 +723,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1.33
         self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1.0
-        self.assert_set_bulk_exception(sampling_params)
+        self.assert_set_bulk(sampling_params)
 
         # test bad values
         sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 3
