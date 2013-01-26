@@ -11,6 +11,7 @@ from pyon.core.bootstrap import CFG
 
 import re
 import os
+import time
 import unittest
 import socket
 from sets import Set
@@ -59,6 +60,7 @@ from mi.idk.exceptions import TestNoCommConfig
 
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import InstrumentStateException
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
@@ -586,13 +588,43 @@ class InstrumentDriverTestCase(MiIntTestCase):
         """
         log.debug("InstrumentDriverTestCase tearDown")
 
-        
+
     def clear_events(self):
         """
         @brief Clear the event list.
         """
         self.events = []
-        
+
+    def get_events(self, type=None):
+        """
+        return a list of events received.  If a type is passed then the list
+        will only contain events of that type.
+        @param type: type of event we are looking for
+        """
+        if(type == None):
+            return self.events
+        else:
+            return [evt for evt in self.events if evt['type']==type]
+
+    def get_sample_events(self, type=None):
+        """
+        Get a list of sample events, potentially of a passed in type
+        @param type: what type of data particle are we looking for
+        @return: list of data sample events
+        """
+        samples = self.get_events(DriverAsyncEvent.SAMPLE)
+        if(type == None):
+            return samples
+        else:
+            result = []
+            for evt in samples:
+                value = evt.get('value')
+                particle = json.loads(value)
+                if(particle and particle.get('stream_name') == type):
+                    result.append(evt)
+
+            return result
+
     def event_received(self, evt):
         """
         @brief Simple callback to catch events from the driver for verification.
@@ -1150,7 +1182,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         InstrumentDriverTestCase.tearDown(self)
 
-    ###
+    ###/
     #   Common assert methods
     ###
     def assert_current_state(self, target_state):
@@ -1287,6 +1319,116 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             with self.assertRaises(exception_class):
                 reply = self.driver_client.cmd_dvr('set_resource', {param: value})
 
+    def assert_driver_command(self, command, expected=None, regex=None, value_function=None, state=None, delay=0):
+        """
+        Verify that we can run a command and that the reply matches if we have
+        passed on in.  If we couldn't execute a command we assume an exception
+        will be thrown.
+        @param command: driver command to execute
+        @param expected: expected reply from the command
+        @param regex: regex to match reply
+        """
+        # Execute the command
+        reply = self.driver_client.cmd_dvr('execute_resource', command)
+        log.debug("Execute driver command: %s" % command)
+        log.debug("Reply type: %s" % type(reply))
+
+        if(delay):
+            log.debug("sleeping for a bit: %d" % delay)
+            time.sleep(delay)
+
+        # Get the value to check in the reply
+        if(reply != None):
+            if(value_function == None):
+                self.assertIsInstance(reply, tuple)
+                value = reply[1]
+            else:
+                value = value_function(reply)
+
+        if(expected != None):
+            log.debug("command reply: %s" % value)
+            self.assertIsNotNone(value)
+            self.assertEqual(value, expected)
+
+        if(regex != None):
+            log.debug("command reply: %s" % value)
+            self.assertIsNotNone(value)
+            self.assertRegexpMatches(value, regex)
+
+        if(state != None):
+            self.assert_current_state(state)
+
+    def assert_driver_command_exception(self, command, error_regex=None, exception_class=InstrumentStateException):
+        """
+        Verify a driver command throws an exception
+        then verify with individual gets.
+        @param command: driver command to execute
+        @param error_regex: error message pattern to match
+        @param exception_class: class of the exception raised
+        """
+        if(error_regex):
+            with self.assertRaisesRegexp(exception_class, error_regex):
+                self.driver_client.cmd_dvr(command)
+        else:
+            with self.assertRaises(exception_class):
+                self.driver_client.cmd_dvr(command)
+
+    def assert_particle_generation(self, command, particle_type, particle_callback, delay=1):
+        """
+        Verify we can generate a particle via a command.
+        @param command: command used to generate the particle
+        @param particle_type: particle type we are looking for
+        @param particle_callback: callback used to validate the particle
+        """
+        self.clear_events()
+
+        self.assert_driver_command(command, delay=delay)
+
+        samples = self.get_sample_events(particle_type)
+        self.assertGreaterEqual(len(samples), 1)
+
+        sample = samples.pop()
+        self.assertIsNotNone(sample)
+
+        value = sample.get('value')
+        self.assertIsNotNone(value)
+
+        particle = json.loads(value)
+        self.assertIsNotNone(particle)
+
+        particle_callback(particle)
+
+    def assert_async_particle_generation(self, particle_type, particle_callback, timeout=10):
+        """
+        Watch the event queue for a published data particles.
+        @param particle_type: particle type we are looking for
+        @param particle_callback: callback used to validate the particle
+        @param timeout: how long should we wait for a particle
+        """
+        self.clear_events()
+        end_time = time.time() + timeout
+        samples = []
+
+        while(len(samples) == 0):
+            samples = self.get_sample_events(particle_type)
+            log.debug("Found %d samples" % len(samples))
+            if(len(samples) > 1):
+                sample = samples.pop()
+                self.assertIsNotNone(sample)
+
+                value = sample.get('value')
+                self.assertIsNotNone(value)
+
+                particle = json.loads(value)
+                self.assertIsNotNone(particle)
+
+                # So we have found one particle and verified it.  We are done here!
+                particle_callback(particle)
+                return
+
+            self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
+            time.sleep(.3)
+
 
     ###
     #   Common Integration Tests
@@ -1337,6 +1479,16 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             exception_str = 'Oh no, something bad happened!'
             reply = self.driver_client.cmd_dvr('test_exceptions', exception_str)
 
+    def test_disconnect(self):
+        """
+        Test that we can disconnect from a driver
+        """
+        self.assert_initialize_driver()
+
+        reply = self.driver_client.cmd_dvr('disconnect')
+        self.assertEqual(reply, None)
+
+        self.assert_current_state(DriverConnectionState.DISCONNECTED)
 
 
 class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):

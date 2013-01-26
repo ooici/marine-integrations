@@ -93,10 +93,8 @@ class InstrumentCmds(BaseEnum):
     SET = 'set'
     GET = 'get'
     TAKE_SAMPLE = 'ts'
-    INIT_LOGGING = 'initlogging'
 
     SEND_LAST_SAMPLE = "sl"
-    SEND_LAST_SAMPLE_SLEEP = "slo"
 
 class ProtocolState(BaseEnum):
     """
@@ -125,16 +123,13 @@ class ProtocolEvent(BaseEnum):
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS         # DS
     ACQUIRE_CONFIGURATION = "PROTOCOL_EVENT_ACQUIRE_CONFIGURATION" # DC
     SEND_LAST_SAMPLE = "PROTOCOL_EVENT_SEND_LAST_SAMPLE" # SL
-    SEND_LAST_SAMPLE_SLEEP = "PROTOCOL_EVENT_SEND_LAST_SAMPLE_SLEEP" # SLO
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    FORCE_STATE = DriverEvent.FORCE_STATE
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     PING_DRIVER = DriverEvent.PING_DRIVER
 
     SETSAMPLING = 'PROTOCOL_EVENT_SETSAMPLING'
     QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
-    INIT_LOGGING = 'PROTOCOL_EVENT_INIT_LOGGING'
 
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
 
@@ -142,38 +137,13 @@ class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    # TS ?
     ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-
-    # DS ONLY
     ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
-
-    # DC
     ACQUIRE_CONFIGURATION = ProtocolEvent.ACQUIRE_CONFIGURATION
-    # SL
     SEND_LAST_SAMPLE = ProtocolEvent.SEND_LAST_SAMPLE
-    # SLO
-    SEND_LAST_SAMPLE_SLEEP = ProtocolEvent.SEND_LAST_SAMPLE_SLEEP
-
-    '''
-    start
-    logging will start in 10 seconds
-    sl
-    SBE 26plus
-    S>sl
-    sl
-    p = -99.0000, t = -99.0000
-    S>slo
-    slo
-    p = -99.0000, t = -99.0000
-    '''
-
-
-    # QS
     QUIT_SESSION = ProtocolEvent.QUIT_SESSION
-    # SETSAMPLING
     SETSAMPLING = ProtocolEvent.SETSAMPLING
 
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
@@ -1141,7 +1111,6 @@ class Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER,                  self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT,                   self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER,               self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.FORCE_STATE,            self._handler_unknown_force_state)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER,                  self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT,                   self._handler_command_exit)
@@ -1151,20 +1120,18 @@ class Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SETSAMPLING,            self._handler_command_setsampling)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC,             self._handler_command_clock_sync)
-
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_aquire_status)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION,  self._handler_command_aquire_configuration)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SEND_LAST_SAMPLE,       self._handler_command_send_last_sample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SEND_LAST_SAMPLE_SLEEP, self._handler_command_send_last_sample_sleep)
-
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION,  self._handler_command_acquire_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION,           self._handler_command_quit_session)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.INIT_LOGGING,           self._handler_command_init_logging)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_CONFIGURATION,  self._handler_command_acquire_configuration)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,     self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SEND_LAST_SAMPLE,       self._handler_command_send_last_sample)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,             self._handler_direct_access_exit)
@@ -1181,27 +1148,19 @@ class Protocol(SeaBirdProtocol):
         self._add_build_handler(InstrumentCmds.QUIT_SESSION,                self._build_simple_command)
         self._add_build_handler(InstrumentCmds.DISPLAY_CALIBRATION,         self._build_simple_command)
         self._add_build_handler(InstrumentCmds.SEND_LAST_SAMPLE,            self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.SEND_LAST_SAMPLE_SLEEP,      self._build_simple_command)
 
         self._add_build_handler(InstrumentCmds.START_LOGGING,               self._build_simple_command)
         self._add_build_handler(InstrumentCmds.STOP_LOGGING,                self._build_simple_command)
         self._add_build_handler(InstrumentCmds.SET,                         self._build_set_command)
         self._add_build_handler(InstrumentCmds.TAKE_SAMPLE,                 self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.INIT_LOGGING,                self._build_simple_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.SETSAMPLING,              self._parse_setsampling_response)
         self._add_response_handler(InstrumentCmds.DISPLAY_STATUS,           self._parse_ds_response)
         self._add_response_handler(InstrumentCmds.DISPLAY_CALIBRATION,      self._parse_dc_response)
-
-
         self._add_response_handler(InstrumentCmds.SEND_LAST_SAMPLE,         self._parse_sl_response)
-        self._add_response_handler(InstrumentCmds.SEND_LAST_SAMPLE_SLEEP,   self._parse_slo_response)
-
-
         self._add_response_handler(InstrumentCmds.SET,                      self._parse_set_response)
         self._add_response_handler(InstrumentCmds.TAKE_SAMPLE,              self._parse_ts_response)
-        self._add_response_handler(InstrumentCmds.INIT_LOGGING,             self._parse_init_logging_response)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -1307,24 +1266,6 @@ class Protocol(SeaBirdProtocol):
 
         return (next_state, result)
 
-    def _handler_unknown_force_state(self, *args, **kwargs):
-        """
-        Force driver into a given state for the purposes of unit testring
-        @param state=desired_state Required desired state to transition to.
-        @raises InstrumentParameterException if no st'ate parameter.
-        """
-        log.debug("************* " + repr(kwargs))
-        log.debug("************* in _handler_unknown_force_state()" + str(kwargs.get('state', None)))
-
-        state = kwargs.get('state', None)  # via kwargs
-        if state is None:
-            raise InstrumentParameterException('Missing state parameter.')
-
-        next_state = state
-        result = state
-
-        return (next_state, result)
-
     def _handler_unknown_exit(self, *args, **kwargs):
         """
         Exit unknown state.
@@ -1370,7 +1311,7 @@ class Protocol(SeaBirdProtocol):
 
         return (next_state, (next_agent_state, result))
 
-    def _handler_command_aquire_status(self, *args, **kwargs):
+    def _handler_command_acquire_status(self, *args, **kwargs):
         """
         @param args:
         @param kwargs:
@@ -1383,7 +1324,7 @@ class Protocol(SeaBirdProtocol):
 
         return (next_state, (next_agent_state, result))
 
-    def _handler_command_aquire_configuration(self, *args, **kwargs):
+    def _handler_command_acquire_configuration(self, *args, **kwargs):
         """
         @param args:
         @param kwargs:
@@ -1406,19 +1347,6 @@ class Protocol(SeaBirdProtocol):
         next_agent_state = None
         kwargs['timeout'] = 30
         result = self._do_cmd_resp(InstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
-
-        return (next_state, (next_agent_state, result))
-
-    def _handler_command_send_last_sample_sleep(self, *args, **kwargs):
-        """
-        @param args:
-        @param kwargs:
-        @return:
-        """
-        next_state = None
-        next_agent_state = None
-        kwargs['timeout'] = 30
-        result = self._do_cmd_resp(InstrumentCmds.SEND_LAST_SAMPLE_SLEEP, *args, **kwargs)
 
         return (next_state, (next_agent_state, result))
 
@@ -1837,36 +1765,6 @@ class Protocol(SeaBirdProtocol):
                 set_params[key] = value
 
         return(set_params, ss_params)
-
-    ###############################
-    # Init Logging
-    ###############################
-
-    def _handler_command_init_logging(self, *args, **kwargs):
-
-        log.debug("in _handler_command_init_logging")
-
-        next_state = None
-        result = None
-
-        kwargs['expected_prompt'] = "S>"
-        log.debug("WANT " + repr(kwargs['expected_prompt']))
-        result = self._do_cmd_resp(InstrumentCmds.INIT_LOGGING, *args, **kwargs)
-
-        return (next_state, result)
-
-    def _parse_init_logging_response(self, response, prompt):
-        """
-        Parse handler for init_logging command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if set command misunderstood.
-        """
-
-        if prompt != Prompt.COMMAND:
-            raise InstrumentProtocolException('Initlogging command not recognized: %s' % response)
-
-        return True
 
     ########################################################################
     # Quit Session.
@@ -2548,19 +2446,6 @@ class Protocol(SeaBirdProtocol):
 
         log.debug("_parse_sl_response RETURNING RESULT=" + str(result))
         return result
-
-
-    def _parse_slo_response(self, response, prompt):
-        """
-        Response handler for dc command
-        """
-
-        result = response
-
-        log.debug("_parse_slo_response RETURNING RESULT=" + str(result))
-        return result
-
-
 
     def _parse_ts_response(self, response, prompt):
         """
