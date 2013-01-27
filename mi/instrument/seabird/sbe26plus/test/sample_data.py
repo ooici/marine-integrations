@@ -1,10 +1,7 @@
-
-
-
 from mi.instrument.seabird.sbe26plus.ooicore.driver import NEWLINE
 
-
-SAMPLE_TIDE_DATA = "tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404" + NEWLINE
+SAMPLE_TIDE_DATA = "tide: start time = 05 Oct 2012 01:10:54, p = -159.7139, pt = -8382.61, t = 34.6843" + NEWLINE
+SAMPLE_TIDE_DATA_POLLED = " -159.7139 -8382.61  34.6843" + NEWLINE
 
 SAMPLE_DEVICE_STATUS =\
 "SBE 26plus V 6.1e  SN 1329    05 Oct 2012  17:19:27" + NEWLINE +\

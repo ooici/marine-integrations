@@ -43,7 +43,7 @@ NEWLINE = '\r\n'
 # default timeout.
 TIMEOUT = 60 # setsampling takes longer than 10 on bad internet days.
 
-TIDE_REGEX = r'(tide: start time = +\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+, p = +[\-\d\.]+, pt = +[\-\d\.]+, t = +[\-\d\.]+.*?\r\n)'
+TIDE_REGEX =  r'tide: start time = +(\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+), p = +([\-\d\.]+), pt = +([\-\d\.]+), t = +([\-\d\.]+)\r\n'
 TIDE_REGEX_MATCHER = re.compile(TIDE_REGEX)
 
 WAVE_REGEX = r'(wave: start time =.*?wave: end burst\r\n)'
@@ -52,7 +52,7 @@ WAVE_REGEX_MATCHER = re.compile(WAVE_REGEX, re.DOTALL)
 STATS_REGEX = r'(deMeanTrend.*?H1/100 = [\d\.e+]+\r\n)'
 STATS_REGEX_MATCHER = re.compile(STATS_REGEX, re.DOTALL)
 
-TS_REGEX = r' +([\-\d\.]+) +([\-\d\.]+) +([\-\d\.]+)'
+TS_REGEX = r'( +)([\-\d\.]+) +([\-\d\.]+) +([\-\d\.]+)\r\n'
 TS_REGEX_MATCHER = re.compile(TS_REGEX)
 
 DC_REGEX = r'(Pressure coefficients.+?)CSLOPE = [\d+e\.].+?\r\n'
@@ -229,8 +229,6 @@ class SBE26plusTideSampleDataParticleKey(BaseEnum):
     PRESSURE = "absolute_pressure"  # p = calculated and stored pressure (psia).
     PRESSURE_TEMP = "pressure_temp" # pt = calculated pressure temperature (not stored) (C).
     TEMPERATURE = "temperature"     # t = calculated and stored temperature (C).
-    CONDUCTIVITY = "conductivity"   # c = calculated and stored conductivity (S/m)
-    SALINITY = "salinity"           # s = calculated salinity (not stored) (psu).
 
 class SBE26plusTideSampleDataParticle(DataParticle):
     """
@@ -247,29 +245,30 @@ class SBE26plusTideSampleDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
         log.debug("in SBE26plusTideSampleDataParticle._build_parsed_values")
-        pat1 = r'tide: start time = +(\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+), p = +([\-\d\.]+), pt = +([\-\d\.]+), t = +([\-\d\.]+), c = +([\-\d\.]+), s = +([\-\d\.]+)\r\n'
-        regex1 = re.compile(pat1)
-        pat2 = r'tide: start time = +(\d+ [A-Za-z]{3} \d{4} \d+:\d+:\d+), p = +([\-\d\.]+), pt = +([\-\d\.]+), t = +([\-\d\.]+)\r\n'
-        regex2 = re.compile(pat2)
 
-        match = regex1.match(self.raw_data)
-        if not match:
-            match = regex2.match(self.raw_data)
-            if not match:
-                raise SampleException("No regex match of parsed sample data: [%s]" % self.raw_data)
+        match1 = TIDE_REGEX_MATCHER.match(self.raw_data)  ## Tide sample from streaming
+        match2 = TS_REGEX_MATCHER.match(self.raw_data)  ## Tide sample from TS command
+
+        if not (match1 or match2):
+            raise SampleException("No regex match of parsed sample data: [%s]" % self.raw_data)
+
+        if(match1):
+            match = match1
+        else:
+            match = match2
 
         # initialize
         timestamp = None
         pressure = None
         pressure_temp = None
         temperature = None
-        conductivity = None
-        salinity = None
 
         try:
-            text_timestamp = match.group(1)
-            py_timestamp = time.strptime(text_timestamp, "%d %b %Y %H:%M:%S")
-            timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
+            # Only streaming outputs a timestamp
+            if(match1):
+                text_timestamp = match.group(1)
+                py_timestamp = time.strptime(text_timestamp, "%d %b %Y %H:%M:%S")
+                timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
 
             pressure = float(match.group(2))
             pressure_temp = float(match.group(3))
@@ -278,13 +277,6 @@ class SBE26plusTideSampleDataParticle(DataParticle):
             raise SampleException("ValueError while decoding floats in data: [%s]" %
                                   self.raw_data)
 
-        try:
-            conductivity = float(match.group(5))
-            salinity = float(match.group(6))
-        except IndexError:
-            #These are optional. Quietly ignore if they dont occur.
-            pass
-
         result = [{DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: timestamp},
                   {DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.PRESSURE,
@@ -292,11 +284,7 @@ class SBE26plusTideSampleDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.PRESSURE_TEMP,
                    DataParticleKey.VALUE: pressure_temp},
                   {DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.TEMPERATURE,
-                   DataParticleKey.VALUE: temperature},
-                  {DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.CONDUCTIVITY,
-                   DataParticleKey.VALUE: conductivity},
-                  {DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.SALINITY,
-                   DataParticleKey.VALUE: salinity}]
+                   DataParticleKey.VALUE: temperature}]
 
         return result
 
@@ -1180,7 +1168,8 @@ class Protocol(SeaBirdProtocol):
         Chunker sieve method to help the chunker identify chunks.
         @returns a list of chunks identified, if any.  The chunks are all the same type.
         """
-        sieve_matchers = [TIDE_REGEX_MATCHER,
+        sieve_matchers = [TS_REGEX_MATCHER,
+                          TIDE_REGEX_MATCHER,
                           WAVE_REGEX_MATCHER,
                           STATS_REGEX_MATCHER,
                           DS_REGEX_MATCHER,
@@ -1910,7 +1899,6 @@ class Protocol(SeaBirdProtocol):
     def _handler_command_start_direct(self, *args, **kwargs):
         """
         """
-
         next_state = None
         result = None
 
@@ -1923,9 +1911,6 @@ class Protocol(SeaBirdProtocol):
         """
         Enter direct access state.
         """
-
-
-
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -2470,6 +2455,7 @@ class Protocol(SeaBirdProtocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
+        if(self._extract_sample(SBE26plusTideSampleDataParticle, TS_REGEX_MATCHER, chunk)): return
         if(self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk)): return
         if(self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk)): return
         if(self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk)): return
