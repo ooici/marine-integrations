@@ -11,8 +11,8 @@ __author__ = 'Edward Hunter'
 __license__ = 'Apache 2.0'
 
 import re
-import logging
 from mi.core.common import BaseEnum
+from mi.core.exceptions import InstrumentParameterException
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -25,6 +25,53 @@ class ParameterDictVal(object):
     """
     A parameter dictionary value.
     """
+    def __init__(self, name, f_format, value=None,
+                 visibility=ParameterDictVisibility.READ_WRITE,
+                 menu_path_read=None,
+                 submenu_read=None,
+                 menu_path_write=None,
+                 submenu_write=None,
+                 multi_match=False,
+                 direct_access=False,
+                 startup_param=False,
+                 default_value=None,
+                 init_value=None):
+        """
+        Parameter value constructor.
+        @param name The parameter name.
+        @param f_format The function that formats the parameter value for a set command.
+        @param visibility The ParameterDictVisibility value that indicates what
+        the access to this parameter is
+        @param menu_path The path of menu options required to get to the parameter
+        value display when presented in a menu-based instrument
+        @param value The parameter value (initializes to None).
+        """
+        self.name = name
+        self.f_format = f_format
+        self.value = value
+        self.menu_path_read = menu_path_read
+        self.submenu_read = submenu_read
+        self.menu_path_write = menu_path_write
+        self.submenu_write = submenu_write
+        self.visibility = visibility
+        self.multi_match = multi_match
+        self.direct_access = direct_access
+        self.startup_param = startup_param
+        self.default_value = default_value
+        self.init_value = init_value
+
+    def update(self, input):
+        """
+        Attempt to udpate a parameter value. By default, this assumes the input
+        will be new new value. In subclasses, this must be updated to handle
+        a real string of data appropriately.
+        @param input A string that is the parameter value.
+        @retval True if an update was successful, False otherwise.
+        """
+        self.value = input
+        return True
+    
+class RegexParamDictVal(ParameterDictVal):
     def __init__(self, name, pattern, f_getval, f_format, value=None,
                  visibility=ParameterDictVisibility.READ_WRITE,
                  menu_path_read=None,
@@ -48,22 +95,23 @@ class ParameterDictVal(object):
         value display when presented in a menu-based instrument
         @param value The parameter value (initializes to None).
         """
-        self.name = name
+        ParameterDictVal.__init__(self,
+                                  name,
+                                  f_format,
+                                  value=value,
+                                  visibility=visibility,
+                                  menu_path_read=menu_path_read,
+                                  submenu_read=submenu_read,
+                                  menu_path_write=menu_path_write,
+                                  multi_match=multi_match,
+                                  direct_access=direct_access,
+                                  startup_param=startup_param,
+                                  default_value=default_value,
+                                  init_value=init_value)
+
         self.pattern = pattern
         self.regex = re.compile(pattern)
         self.f_getval = f_getval
-        self.f_format = f_format
-        self.value = value
-        self.menu_path_read = menu_path_read
-        self.submenu_read = submenu_read
-        self.menu_path_write = menu_path_write
-        self.submenu_write = submenu_write
-        self.visibility = visibility
-        self.multi_match = multi_match
-        self.direct_access = direct_access
-        self.startup_param = startup_param
-        self.default_value = default_value
-        self.init_value = init_value
 
     def update(self, input):
         """
@@ -72,7 +120,10 @@ class ParameterDictVal(object):
         @param input A string possibly containing the parameter value.
         @retval True if an update was successful, False otherwise.
         """
-        match = self.regex.search(input)
+        if not (isinstance(input, str)):
+            match = self.regex.search(str(input))
+        else:
+            match = self.regex.search(input)
         if match:
             self.value = self.f_getval(match)
             log.trace('self.value = ' + str(self.value))
@@ -81,7 +132,69 @@ class ParameterDictVal(object):
             return True
         else:
             return False
+        
+class FunctionParamDictVal(ParameterDictVal):
+    def __init__(self, name, f_getval, f_format, value=None,
+                 visibility=ParameterDictVisibility.READ_WRITE,
+                 menu_path_read=None,
+                 submenu_read=None,
+                 menu_path_write=None,
+                 submenu_write=None,
+                 multi_match=False,
+                 direct_access=False,
+                 startup_param=False,
+                 default_value=None,
+                 init_value=None):
+        """
+        Parameter value constructor.
+        @param name The parameter name.
+        @param f_getval The fuction that extracts the value from a regex match.
+        If no value is found for extraction, this function should return
+        something false.
+        @param f_format The function that formats the parameter value for a set command.
+        @param visibility The ParameterDictVisibility value that indicates what
+        the access to this parameter is
+        @param menu_path The path of menu options required to get to the parameter
+        value display when presented in a menu-based instrument
+        @param value The parameter value (initializes to None).
+        """
+        ParameterDictVal.__init__(self,
+                                  name,
+                                  f_format,
+                                  value=value,
+                                  visibility=visibility,
+                                  menu_path_read=menu_path_read,
+                                  submenu_read=submenu_read,
+                                  menu_path_write=menu_path_write,
+                                  multi_match=multi_match,
+                                  direct_access=direct_access,
+                                  startup_param=startup_param,
+                                  default_value=default_value,
+                                  init_value=init_value)
 
+        self.f_getval = f_getval
+
+    def update(self, input):
+        """
+        Attempt to udpate a parameter value. The input string is run through
+        the filtering function to obtain a value.
+        @param input A string possibly containing the parameter value in some
+        format.
+        @retval True if a change was made to the value, false if the value is
+        the same as it was before. Since the result of the supplied function
+        could be anything (boolean included), there isnt any way to tell the
+        success or failure of the match...all update methods run. The result
+        is a change flag.
+        """
+        orig_value = self.value
+        result = self.f_getval(input)
+        if result != orig_value:
+            self.value = result
+            log.trace('self.value = ' + str(self.value))
+            log.trace('Updated parameter %s=%s', self.name, str(self.value))
+            return True
+        else:
+            return False
 
 class ProtocolParameterDict(object):
     """
@@ -101,7 +214,7 @@ class ProtocolParameterDict(object):
             multi_match=False, direct_access=False, startup_param=False,
             default_value=None, init_value=None):
         """
-        Add a parameter object to the dictionary.
+        Add a parameter object to the dictionary using a regex for extraction.
         @param name The parameter name.
         @param pattern The regex that matches the parameter in line output.
         @param f_getval The fuction that extracts the value from a regex match.
@@ -120,7 +233,7 @@ class ProtocolParameterDict(object):
         initialization or re-initialization
         @param value The parameter value (initializes to None).        
         """
-        val = ParameterDictVal(name, pattern, f_getval, f_format,
+        val = RegexParamDictVal(name, pattern, f_getval, f_format,
                                value=value,
                                visibility=visibility,
                                menu_path_read=menu_path_read,
@@ -133,6 +246,20 @@ class ProtocolParameterDict(object):
                                default_value=default_value,
                                init_value=init_value)
         self._param_dict[name] = val
+
+    def add_paramdictval(self, pdv):
+        """
+        Add a ParameterDictVal object to the dictionary. The value can be
+        any object that is an instance of the ParameterDictVal class or
+        subclasses. This is the preferred method for adding these entries as
+        they allow the user to choose the type of param dict val to be used
+        and make testing more straightforward.
+        @param pdv The ParameterDictVal to use
+        """
+        if not (isinstance(pdv, ParameterDictVal)):
+            raise InstrumentParameterException(
+                "Invalid ParameterDictVal added! Attempting to add: %s" % pdv)
+        self._param_dict[pdv.name] = pdv
         
     def get(self, name):
         """

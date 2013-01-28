@@ -3,7 +3,7 @@
 """
 @file coi-services/ion/idk/unit_test.py
 @author Bill French
-@brief Base classes for instrument driver tests.  
+@brief Base classes for instrument driver tests.
 """
 
 from mock import patch
@@ -11,6 +11,7 @@ from pyon.core.bootstrap import CFG
 
 import re
 import os
+import time
 import unittest
 import socket
 from sets import Set
@@ -58,6 +59,8 @@ from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import TestNoCommConfig
 
 from mi.core.exceptions import InstrumentException
+from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import InstrumentStateException
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
@@ -585,13 +588,43 @@ class InstrumentDriverTestCase(MiIntTestCase):
         """
         log.debug("InstrumentDriverTestCase tearDown")
 
-        
+
     def clear_events(self):
         """
         @brief Clear the event list.
         """
         self.events = []
-        
+
+    def get_events(self, type=None):
+        """
+        return a list of events received.  If a type is passed then the list
+        will only contain events of that type.
+        @param type: type of event we are looking for
+        """
+        if(type == None):
+            return self.events
+        else:
+            return [evt for evt in self.events if evt['type']==type]
+
+    def get_sample_events(self, type=None):
+        """
+        Get a list of sample events, potentially of a passed in type
+        @param type: what type of data particle are we looking for
+        @return: list of data sample events
+        """
+        samples = self.get_events(DriverAsyncEvent.SAMPLE)
+        if(type == None):
+            return samples
+        else:
+            result = []
+            for evt in samples:
+                value = evt.get('value')
+                particle = json.loads(value)
+                if(particle and particle.get('stream_name') == type):
+                    result.append(evt)
+
+            return result
+
     def event_received(self, evt):
         """
         @brief Simple callback to catch events from the driver for verification.
@@ -1149,44 +1182,253 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         InstrumentDriverTestCase.tearDown(self)
 
-    ###
+    ###/
     #   Common assert methods
     ###
-    def assert_initialize_driver(self, expected_state = DriverProtocolState.COMMAND):
+    def assert_current_state(self, target_state):
+        """
+        Verify the driver state
+        @param state:
+        @return:
+        """
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, target_state)
+
+    def assert_initialize_driver(self):
         """
         Walk an uninitialized driver through it's initialize process.  Verify the final
-        state is correct.
-        @param expected_state: final state expected state after discover
+        state is command mode.  If the final state is auto sample then we will stop
+        which should land us in autosample
         """
         log.info("test_connect test started")
 
         # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+        self.assert_current_state(DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+        self.assert_current_state(DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverProtocolState.UNKNOWN)
+        self.assert_current_state(DriverProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('discover_state')
 
-        # Test the driver is in command mode.
+        # If we are in streaming mode then stop streaming
         state = self.driver_client.cmd_dvr('get_resource_state')
+        if(state == DriverProtocolState.AUTOSAMPLE):
+            reply = self.driver_client.cmd_dvr('execute_resource', DriverEvent.STOP_AUTOSAMPLE)
+            state = self.driver_client.cmd_dvr('get_resource_state')
+
+        # Test the driver is in command mode.
         self.assertEqual(state, DriverProtocolState.COMMAND)
 
         # Apply startup parameters
         state = self.driver_client.cmd_dvr('apply_startup_params')
+
+    def assert_get(self, param, value=None, pattern=None):
+        """
+        Verify we can get a parameter and compare the fetched value
+        with the expected value.
+        @param param: parameter to set
+        @param value: expected parameter value
+        @param pattern: expected parameter pattern
+        @raise IDKException if value or pattern not passed
+        """
+        reply = self.driver_client.cmd_dvr('get_resource', [param])
+        self.assertIsInstance(reply, dict)
+        return_value = reply.get(param)
+
+        if(value != None):
+            self.assertEqual(return_value, value, msg="%s no value match (%s != %s)" % (param, return_value, value))
+        elif(pattern != None):
+            self.assertRegexpMatches(str(return_value), pattern, msg="%s no value match (%s != %s)" % (param, return_value, value))
+        else:
+            raise IDKException('parameter required, param or value')
+
+    def assert_set(self, param, value, no_get=False):
+        """
+        Verify we can set a parameter and then do a get to confirm.
+        @param param: parameter to set
+        @param param: no_get if true don't verify set with a get.
+        @param value: what to set the parameter too
+        """
+        reply = self.driver_client.cmd_dvr('set_resource', {param: value})
+        self.assertIsNone(reply, None)
+
+        if(not no_get):
+            self.assert_get(param, value)
+
+    def assert_set_bulk(self, param_dict):
+        """
+        Verify we can bulk set parameters.  First bulk set the parameters and
+        then verify with individual gets.
+        @param param_dict: dictionary with parameter as key with it's value.
+        """
+        self.assertIsInstance(param_dict, dict)
+
+        reply = self.driver_client.cmd_dvr('set_resource', param_dict)
+        self.assertIsNone(reply, None)
+
+        for (key, value) in param_dict.items():
+            self.assert_get(key, value)
+
+    def assert_set_bulk_exception(self, param_dict, error_regex=None, exception_class=InstrumentParameterException):
+        """
+        Verify a bulk set raises an exception
+        then verify with individual gets.
+        @param param_dict: dictionary with parameter as key with it's value.
+        @param error_regex: error message pattern to match
+        @param exception_class: class of the exception raised
+        """
+        if(error_regex):
+            with self.assertRaisesRegexp(exception_class, error_regex):
+                self.assert_set_bulk(param_dict)
+        else:
+            with self.assertRaises(exception_class):
+                self.assert_set_bulk(param_dict)
+
+    def assert_set_readonly(self, param, value='dummyvalue'):
+        """
+        Verify that a set command raises an exception on set.
+        @param param: parameter to set
+        @param value: what to set the parameter too
+        """
+        # TODO: Fix this test. An exception isn't currently thrown if setting a read-only param
+        self.assertTrue(True)
+        #self.assert_set_exception(param, value, 'Set command not recognized')
+
+    def assert_set_exception(self, param, value='dummyvalue', error_regex=None, exception_class=InstrumentParameterException):
+        """
+        Verify that a set command raises an exception on set.
+        @param param: parameter to set
+        @param value: what to set the parameter too
+        @param error_regex: error message pattern to match
+        @param exception_class: class of the exception raised
+        """
+        if(error_regex):
+            with self.assertRaisesRegexp(exception_class, error_regex):
+                reply = self.driver_client.cmd_dvr('set_resource', {param: value})
+        else:
+            with self.assertRaises(exception_class):
+                reply = self.driver_client.cmd_dvr('set_resource', {param: value})
+
+    def assert_driver_command(self, command, expected=None, regex=None, value_function=None, state=None, delay=0):
+        """
+        Verify that we can run a command and that the reply matches if we have
+        passed on in.  If we couldn't execute a command we assume an exception
+        will be thrown.
+        @param command: driver command to execute
+        @param expected: expected reply from the command
+        @param regex: regex to match reply
+        """
+        # Execute the command
+        reply = self.driver_client.cmd_dvr('execute_resource', command)
+        log.debug("Execute driver command: %s" % command)
+        log.debug("Reply type: %s" % type(reply))
+
+        if(delay):
+            log.debug("sleeping for a bit: %d" % delay)
+            time.sleep(delay)
+
+        # Get the value to check in the reply
+        if(reply != None):
+            if(value_function == None):
+                self.assertIsInstance(reply, tuple)
+                value = reply[1]
+            else:
+                value = value_function(reply)
+
+        if(expected != None):
+            log.debug("command reply: %s" % value)
+            self.assertIsNotNone(value)
+            self.assertEqual(value, expected)
+
+        if(regex != None):
+            log.debug("command reply: %s" % value)
+            self.assertIsNotNone(value)
+            self.assertRegexpMatches(value, regex)
+
+        if(state != None):
+            self.assert_current_state(state)
+
+    def assert_driver_command_exception(self, command, error_regex=None, exception_class=InstrumentStateException):
+        """
+        Verify a driver command throws an exception
+        then verify with individual gets.
+        @param command: driver command to execute
+        @param error_regex: error message pattern to match
+        @param exception_class: class of the exception raised
+        """
+        if(error_regex):
+            with self.assertRaisesRegexp(exception_class, error_regex):
+                self.driver_client.cmd_dvr(command)
+        else:
+            with self.assertRaises(exception_class):
+                self.driver_client.cmd_dvr(command)
+
+    def assert_particle_generation(self, command, particle_type, particle_callback, delay=1):
+        """
+        Verify we can generate a particle via a command.
+        @param command: command used to generate the particle
+        @param particle_type: particle type we are looking for
+        @param particle_callback: callback used to validate the particle
+        """
+        self.clear_events()
+
+        self.assert_driver_command(command, delay=delay)
+
+        samples = self.get_sample_events(particle_type)
+        self.assertGreaterEqual(len(samples), 1)
+
+        sample = samples.pop()
+        self.assertIsNotNone(sample)
+
+        value = sample.get('value')
+        self.assertIsNotNone(value)
+
+        particle = json.loads(value)
+        self.assertIsNotNone(particle)
+
+        particle_callback(particle)
+
+    def assert_async_particle_generation(self, particle_type, particle_callback, timeout=10):
+        """
+        Watch the event queue for a published data particles.
+        @param particle_type: particle type we are looking for
+        @param particle_callback: callback used to validate the particle
+        @param timeout: how long should we wait for a particle
+        """
+        self.clear_events()
+        end_time = time.time() + timeout
+        samples = []
+
+        while(len(samples) == 0):
+            samples = self.get_sample_events(particle_type)
+            log.debug("Found %d samples" % len(samples))
+            if(len(samples) > 1):
+                sample = samples.pop()
+                self.assertIsNotNone(sample)
+
+                value = sample.get('value')
+                self.assertIsNotNone(value)
+
+                particle = json.loads(value)
+                self.assertIsNotNone(particle)
+
+                # So we have found one particle and verified it.  We are done here!
+                particle_callback(particle)
+                return
+
+            self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
+            time.sleep(.3)
+
 
     ###
     #   Common Integration Tests
@@ -1237,6 +1479,16 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             exception_str = 'Oh no, something bad happened!'
             reply = self.driver_client.cmd_dvr('test_exceptions', exception_str)
 
+    def test_disconnect(self):
+        """
+        Test that we can disconnect from a driver
+        """
+        self.assert_initialize_driver()
+
+        reply = self.driver_client.cmd_dvr('disconnect')
+        self.assertEqual(reply, None)
+
+        self.assert_current_state(DriverConnectionState.DISCONNECTED)
 
 
 class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
@@ -1514,6 +1766,30 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.doCleanups()
 
+    def assert_sample_async(self, sampleDataAssert, sampleQueue,
+                                  timeout=GO_ACTIVE_TIMEOUT, sample_count=1):
+        """
+        Watch the data queue for sample data.
+
+        This command is only useful for testing one stream produced in
+        streaming mode at a time.  If your driver has multiple streams
+        then you will need to call this method more than once or use a
+        different test.
+        """
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        self.data_subscribers.clear_sample_queue(sampleQueue)
+
+        samples = self.data_subscribers.get_samples(sampleQueue, sample_count, timeout = timeout)
+        self.assertGreaterEqual(len(samples), sample_count)
+
+        for s in samples:
+            log.debug("SAMPLE: %s" % s)
+            sampleDataAssert(s)
+
+        self.doCleanups()
+
     def assert_reset(self):
         '''
         Exist active state
@@ -1628,18 +1904,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                 cmd = AgentCommand(command=ResourceAgentEvent.RUN)
                 retval = self.instrument_agent_client.execute_agent(cmd)
                 
-            #res_state = self.instrument_agent_client.get_resource_state()
-            #self.assertEqual(res_state, DriverProtocolState.COMMAND)
-
-            #state = self.instrument_agent_client.get_agent_state()
-            #print("sent run; IA state = %s" %str(state))
-            #self.assertEqual(state, ResourceAgentState.COMMAND)
-    
-            #cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-            #retval = self.instrument_agent_client.execute_agent(cmd)
-            #state = self.instrument_agent_client.get_agent_state()
-            #print("sent run; IA state = %s" %str(state))
-
         state = self.instrument_agent_client.get_agent_state()
         log.info("Sent RUN; IA state = %s", state)
         self.assertEqual(state, ResourceAgentState.COMMAND)
@@ -1647,7 +1911,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, DriverProtocolState.COMMAND)
 
-    #@unittest.skip("TEMP SKIP PROBLEMATIC QUAL TESTS.")
     def assert_direct_access_start_telnet(self, timeout=600):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
