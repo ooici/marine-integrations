@@ -38,7 +38,6 @@ from mock import Mock
 from mock import patch
 from pyon.core.bootstrap import CFG
 
-from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
@@ -66,7 +65,7 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
-from mi.instrument.seabird.sbe16plus_v2.driver import PACKET_CONFIG
+from mi.instrument.seabird.sbe16plus_v2.driver import DataParticleType
 from mi.instrument.seabird.sbe16plus_v2.driver import NEWLINE
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16DataParticle
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16StatusParticle
@@ -87,20 +86,6 @@ from pyon.core.exception import Conflict
 
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
-
-# Driver module and class.
-DVR_MOD = 'mi.instrument.seabird.sbe16plus_v2.driver'
-DVR_CLS = 'InstrumentDriver'
-
-## Initialize the test parameters
-InstrumentDriverTestCase.initialize(
-    driver_module = DVR_MOD,
-    driver_class = DVR_CLS,
-    instrument_agent_resource_id = '123xyz',
-    instrument_agent_name = 'Agent007',
-    instrument_agent_packet_config = PACKET_CONFIG,
-    instrument_agent_stream_definition = ctd_stream_definition(stream_id=None)
-)
 
 # Driver and port agent configuration
 
@@ -233,14 +218,16 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
             """
             particle_dict = json.loads(sample_value)
             stream_type = particle_dict['stream_name']
-            if stream_type == 'raw':
+            if stream_type == DataParticleType.RAW:
                 self.raw_stream_received += 1
-            elif stream_type == 'parsed':
+            elif stream_type == DataParticleType.CTD_PARSED:
+                self.parsed_stream_received += 1
+            elif stream_type == DataParticleType.DEVICE_STATUS:
                 self.parsed_stream_received += 1
 
     def test_status_line(self):
         particle = SBE16StatusParticle(VALID_DS_RESPONSE, port_timestamp = 3558720820.531179)
-        parsed = particle.generate_parsed()
+        parsed = particle.generate()
 
     def test_got_data(self):
         """
@@ -297,7 +284,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
   
         test_driver._protocol.got_data(paPacket)
 
-        self.assertTrue(self.raw_stream_received is 0)
+        self.assertTrue(self.raw_stream_received is 1)
         self.assertTrue(self.parsed_stream_received is 0)
         
         test_sample = VALID_DS_RESPONSE
@@ -308,7 +295,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
   
         test_driver._protocol.got_data(paPacket)
 
-        self.assertTrue(self.raw_stream_received is 1)
+        self.assertTrue(self.raw_stream_received is 2)
         self.assertTrue(self.parsed_stream_received is 1)
         
         test_sample = VALID_DS_RESPONSE
@@ -319,7 +306,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
   
         test_driver._protocol.got_data(paPacket)
 
-        self.assertTrue(self.raw_stream_received is 2)
+        self.assertTrue(self.raw_stream_received is 3)
         self.assertTrue(self.parsed_stream_received is 2)
         
                 
@@ -588,7 +575,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
   
         test_driver._protocol.got_data(paPacket)
         
-        self.assertTrue(self.raw_stream_received is 0)
+        self.assertTrue(self.raw_stream_received is 1)
         self.assertTrue(self.parsed_stream_received is 0)
 
 
@@ -650,7 +637,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
   
         test_driver._protocol.got_data(paPacket)
         
-        self.assertTrue(self.raw_stream_received is 0)
+        self.assertTrue(self.raw_stream_received is 1)
         self.assertTrue(self.parsed_stream_received is 0)
         
         """
@@ -665,7 +652,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
   
         test_driver._protocol.got_data(paPacket)
         
-        self.assertTrue(self.raw_stream_received is 1)
+        self.assertTrue(self.raw_stream_received is 2)
         self.assertTrue(self.parsed_stream_received is 1)
         
         """
@@ -680,7 +667,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
   
         test_driver._protocol.got_data(paPacket)
         
-        self.assertTrue(self.raw_stream_received is 2)
+        self.assertTrue(self.raw_stream_received is 3)
         self.assertTrue(self.parsed_stream_received is 2)
         
 
@@ -743,7 +730,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
   
         test_driver._protocol.got_data(paPacket)
         
-        self.assertTrue(self.raw_stream_received is 0)
+        self.assertTrue(self.raw_stream_received is 1)
         self.assertTrue(self.parsed_stream_received is 0)
         
         test_sample = VALID_SAMPLE_FRAG_02
@@ -754,7 +741,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
   
         test_driver._protocol.got_data(paPacket)
         
-        self.assertTrue(self.raw_stream_received is 1)
+        self.assertTrue(self.raw_stream_received is 2)
         self.assertTrue(self.parsed_stream_received is 1)
         
     """

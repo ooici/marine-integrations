@@ -22,7 +22,7 @@ from nose.plugins.attrib import attr
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEUnitTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEIntTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEQualTestCase
-from mi.instrument.seabird.sbe16plus_v2.ooicore.driver import PACKET_CONFIG
+from mi.instrument.seabird.sbe16plus_v2.driver import DataParticleType
 from prototype.sci_data.stream_defs import ctd_stream_definition
 from mi.idk.unit_test import InstrumentDriverTestCase
 

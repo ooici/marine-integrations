@@ -25,7 +25,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import ResourceAgentEvent
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
@@ -44,6 +44,13 @@ log = get_logger()
 ###############################################################################
 # Static enumerations for this class
 ###############################################################################
+
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW
+    CTD_PARSED = 'ctd_parsed'
+    DEVICE_STATUS = 'device_status_parsed'
+    DEVICE_CALIBRATION = 'device_calibration_parsed'
+    STATISTICS = 'statistics_parsed'
 
 class Command(BaseEnum):
         DS  = 'ds'
@@ -165,18 +172,6 @@ STATUS_PATTERN += r'output salinity = ([ a-zA-Z]+) *, output sound velocity = ([
 STATUS_PATTERN += r'serial sync mode *([ a-zA-Z]+) *'  
 STATUS_REGEX = re.compile(STATUS_PATTERN)
 
-# Packet config for SBE37 data granules.
-STREAM_NAME_PARSED = DataParticleValue.PARSED
-STREAM_NAME_RAW = DataParticleValue.RAW
-#PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
-
-# TODO: Where are the param dict definitions kept and related to driver versions?
-PACKET_CONFIG = {
-    STREAM_NAME_PARSED : 'ctd_parsed_param_dict',
-    STREAM_NAME_RAW : 'ctd_raw_param_dict'
-}
-
-
 ###############################################################################
 # Seabird Electronics 16plus V2 MicroCAT Driver.
 ###############################################################################
@@ -227,6 +222,8 @@ class SBE16DataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.CTD_PARSED
+
     def _build_parsed_values(self):
         """
         Take something in the autosample/TS format and split it into
@@ -302,6 +299,8 @@ class SBE16StatusParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    _data_particle_type = DataParticleType.DEVICE_STATUS
+
     def _build_parsed_values(self):
         """
         Take something in the autosample/TS format and split it into
@@ -1181,6 +1180,9 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
                     self._extract_sample(SBE16DataParticle, SAMPLE_REGEX, chunk)
                     self._extract_sample(SBE16StatusParticle, STATUS_REGEX, chunk)
                     chunk = self._chunker.get_next_data()
+
+            self.publish_raw(paPacket)
+
 
     def _got_chunk(self, chunk):
         """

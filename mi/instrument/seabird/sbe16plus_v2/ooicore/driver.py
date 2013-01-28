@@ -11,7 +11,6 @@ __license__ = 'Apache 2.0'
 import mi.instrument.seabird.sbe16plus_v2.driver
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 
-from mi.instrument.seabird.sbe16plus_v2.driver import PACKET_CONFIG
 from mi.instrument.seabird.sbe16plus_v2.driver import DataParticle
 from mi.instrument.seabird.sbe16plus_v2.driver import InstrumentDriver
 from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolState
