@@ -80,34 +80,38 @@ class InstrumentPrompts(BaseEnum):
     MAVS-4 prompts.
     The main menu prompt has 2 bells and the sub menu prompts have one; the PicoDOS prompt has none.
     """
-    MAIN_MENU             = '\a\b ? \a\b'
-    SUB_MENU               = '\a\b'
-    PICO_DOS               = 'Enter command >> '
-    SLEEPING               = 'Sleeping . . .'
-    SLEEP_WAKEUP           = 'Enter <CTRL>-<C> now to wake up?'
-    DEPLOY_WAKEUP          = '>>> <CTRL>-<C> to terminate deployment <<<'
-    SET_DONE               = 'New parameters accepted.'
-    SET_FAILED             = 'Invalid entry'
-    SET_TIME               = '] ? \a\b'
-    GET_TIME               = 'Enter correct time ['
-    CHANGE_TIME            = 'Change time & date (Yes/No) [N] ?\a\b'
-    NOTE_INPUT             = '> '
-    DEPLOY_MENU            = 'G| Go (<CTRL>-<G> skips checks)\r\n\r\n'
-    SELECTION              = 'Selection  ?'
-    DISPLAY_FORMAT         = 'Set display format (HDS) [S] ?'
-    MONITOR                = 'Enable Data Monitor (Yes/No) ['
-    LOG_DISPLAY            = 'with each sample (Yes/No) [Y] ?'
-    VELOCITY_FORMAT        = 'Set acoustic axis velocity format (HDS) [S] ?'
-    QUERY                  = 'Enable Query Mode (Yes/No) ['
-    FREQUENCY              = 'Enter Measurement Frequency [Hz] (0.01 to 50.0) ?'
-    MEAS_PER_SAMPLE        = 'Enter number of measurements per sample (1 to 10000) ?'
-    SAMPLE_PERIOD          = 'Enter Sample Period [sec] (0.02 to   10000) ?'
-    SAMPLES_PER_BURST      = 'Enter number of samples per burst (1 to 100000) ?'
-    BURST_INTERVAL_DAYS    = 'Days     (  0 to   366) ?'
-    BURST_INTERVAL_HOURS   = 'Hours    (  0 to    23) ?'
-    BURST_INTERVAL_MINUTES = 'Minutes  (  0 to    59) ?'
-    BURST_INTERVAL_SECONDS = 'Seconds  (  0 to    59) ?'
-    BEGIN_MEASUREMENT      = 'Beginning measurement cycle now.'
+    MAIN_MENU                     = '\a\b ? \a\b'
+    SUB_MENU                      = '\a\b'
+    PICO_DOS                      = 'Enter command >> '
+    SLEEPING                      = 'Sleeping . . .'
+    SLEEP_WAKEUP                  = 'Enter <CTRL>-<C> now to wake up?'
+    DEPLOY_WAKEUP                 = '>>> <CTRL>-<C> to terminate deployment <<<'
+    SET_DONE                      = 'New parameters accepted.'
+    SET_FAILED                    = 'Invalid entry'
+    SET_TIME                      = '] ? \a\b'
+    GET_TIME                      = 'Enter correct time ['
+    CHANGE_TIME                   = 'Change time & date (Yes/No) [N] ?\a\b'
+    NOTE_INPUT                    = '> '
+    DEPLOY_MENU                   = 'G| Go (<CTRL>-<G> skips checks)\r\n\r\n'
+    SELECTION                     = 'Selection  ?'
+    DISPLAY_FORMAT                = 'Set display format (HDS) [S] ?'
+    MONITOR                       = 'Enable Data Monitor (Yes/No) ['
+    LOG_DISPLAY                   = 'with each sample (Yes/No) [Y] ?'
+    VELOCITY_FORMAT               = 'Set acoustic axis velocity format (HDS) [S] ?'
+    QUERY                         = 'Enable Query Mode (Yes/No) ['
+    FREQUENCY                     = 'Enter Measurement Frequency [Hz] (0.01 to 50.0) ?'
+    MEAS_PER_SAMPLE               = 'Enter number of measurements per sample (1 to 10000) ?'
+    SAMPLE_PERIOD                 = 'Enter Sample Period [sec] (0.02 to   10000) ?'
+    SAMPLES_PER_BURST             = 'Enter number of samples per burst (1 to 100000) ?'
+    BURST_INTERVAL_DAYS           = 'Days     (  0 to   366) ?'
+    BURST_INTERVAL_HOURS          = 'Hours    (  0 to    23) ?'
+    BURST_INTERVAL_MINUTES        = 'Minutes  (  0 to    59) ?'
+    BURST_INTERVAL_SECONDS        = 'Seconds  (  0 to    59) ?'
+    BEGIN_MEASUREMENT             = 'Beginning measurement cycle now.'
+    SYSTEM_CONFIGURATION_MENU     = '<X> Save Changes and Exit'
+    SYSTEM_CONFIGURATION_PASSWORD = 'Password:'
+    SI_CONVERSION_YES_NO          = 'Use default conversion coefficient (Yes/No) [N] ?'
+    SI_CONVERSION                 = 'Enter binary to SI velocity conversion (0.0010000 to 0.0200000) ?'
     
 class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dictionaries to work correctly
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
@@ -115,6 +119,7 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     SET_TIME                                   = '1'
     ENTER_TIME                                 = 'enter_time'
     ANSWER_YES                                 = 'y'
+    ANSWER_NO                                  = 'n'
     DEPLOY_MENU                                = '6'
     SET_NOTE                                   = 'set_note'
     ENTER_NOTE                                 = 'enter_note'
@@ -141,6 +146,12 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     ENTER_BURST_INTERVAL_HOURS                 = 'enter_burst_interval_hours'
     ENTER_BURST_INTERVAL_MINUTES               = 'enter_burst_interval_minutes'
     ENTER_BURST_INTERVAL_SECONDS               = 'enter_burst_interval_seconds'
+    SYSTEM_CONFIGURATION_MENU                  = 's'
+    SYSTEM_CONFIGURATION_PASSWORD              = 'whipr'
+    SYSTEM_CONFIGURATION_EXIT                  = 'x'
+    SET_SI_CONVERSION                          = 'C\nn'
+    ENTER_SI_CONVERSION                        = 'enter_si_conversion'
+    
 
 class ProtocolStates(BaseEnum):
     """
@@ -184,7 +195,10 @@ class InstrumentParameters(DriverParameter):
     """
     Device parameters for MAVS-4.
     """
+    # main menu parameters
     SYS_CLOCK                            = 'sys_clock'
+    
+    # deploy menu parameters
     NOTE1                                = 'note1'
     NOTE2                                = 'note2'
     NOTE3                                = 'note3'
@@ -202,6 +216,9 @@ class InstrumentParameters(DriverParameter):
     BURST_INTERVAL_HOURS                 = 'burst_interval_hours'
     BURST_INTERVAL_MINUTES               = 'burst_interval_minutes'
     BURST_INTERVAL_SECONDS               = 'burst_interval_seconds'
+    
+    # system configuration menu parameters
+    SI_CONVERSION                        = 'si_conversion'
     
 class DeployMenuParameters(BaseEnum):
     NOTE1                                = InstrumentParameters.NOTE1
@@ -221,18 +238,22 @@ class DeployMenuParameters(BaseEnum):
     BURST_INTERVAL_HOURS                 = InstrumentParameters.BURST_INTERVAL_HOURS
     BURST_INTERVAL_MINUTES               = InstrumentParameters.BURST_INTERVAL_MINUTES
     BURST_INTERVAL_SECONDS               = InstrumentParameters.BURST_INTERVAL_SECONDS
+    
+class SystemConfigurationMenuParameters(BaseEnum):
+    SI_CONVERSION = InstrumentParameters.SI_CONVERSION
 
 class SubMenues(BaseEnum):
-    ROOT        = 'root_menu'
-    SET_TIME    = 'set_time'
-    FLASH_CARD  = 'flash_card'
-    CALIBRATION = 'calibration'
-    SLEEP       = 'sleep'
-    BENCH_TESTS = 'bench_tests'
-    DEPLOY      = 'deploy'
-    OFFLOAD     = 'offload'
-    PICO_DOS    = 'pico_dos'
-    DUMMY       = 'dummy'
+    ROOT          = 'root_menu'
+    SET_TIME      = 'set_time'
+    FLASH_CARD    = 'flash_card'
+    CALIBRATION   = 'calibration'
+    SLEEP         = 'sleep'
+    BENCH_TESTS   = 'bench_tests'
+    DEPLOY        = 'deploy'
+    OFFLOAD       = 'offload'
+    CONFIGURATION = 'configuration'
+    PICO_DOS      = 'pico_dos'
+    DUMMY         = 'dummy'
 
 class MultilineParameterDictVal(ParameterDictVal):
     
@@ -516,9 +537,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     # Lookup dictionary which contains the response, the next command, and the parameter name for a given instrument command.
     # The value None for the next command means there is no next command.
     # Commands that decide the command or these values dynamically have there own build handlers and are not in this table.
-    Command_Response = {InstrumentCmds.DEPLOY_MENU : 
-                            [InstrumentPrompts.DEPLOY_MENU, None, None],
-                        InstrumentCmds.SET_TIME : 
+    Command_Response = {InstrumentCmds.SET_TIME : 
                             [InstrumentPrompts.SET_TIME, None, None],
                         InstrumentCmds.ENTER_TIME : 
                             [InstrumentPrompts.SET_TIME, InstrumentCmds.ANSWER_YES, None],
@@ -574,6 +593,12 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                             [InstrumentPrompts.DEPLOY_MENU, None, InstrumentParameters.BURST_INTERVAL_SECONDS],                        
                         InstrumentCmds.DEPLOY_GO : 
                             [InstrumentPrompts.BEGIN_MEASUREMENT, None, None],                        
+                        InstrumentCmds.SET_SI_CONVERSION : 
+                            [InstrumentPrompts.SI_CONVERSION, InstrumentCmds.ENTER_SI_CONVERSION, None],                        
+                        InstrumentCmds.ENTER_SI_CONVERSION : 
+                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
+                        InstrumentCmds.SYSTEM_CONFIGURATION_EXIT : 
+                            [InstrumentPrompts.MAIN_MENU, None, None],                        
                         }
     
     def __init__(self, prompts, newline, driver_event):
@@ -588,9 +613,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         
         # create MenuTree object
         menu = MenuInstrumentProtocol.MenuTree({
-            SubMenues.ROOT       : [],
-            SubMenues.SET_TIME   : [Directions(InstrumentCmds.SET_TIME, InstrumentPrompts.SET_TIME)],
-            SubMenues.DEPLOY     : [Directions(InstrumentCmds.DEPLOY_MENU, InstrumentPrompts.DEPLOY_MENU, 20)]
+            SubMenues.ROOT          : [],
+            SubMenues.SET_TIME      : [Directions(InstrumentCmds.SET_TIME, InstrumentPrompts.SET_TIME)],
+            SubMenues.DEPLOY        : [Directions(InstrumentCmds.DEPLOY_MENU, InstrumentPrompts.DEPLOY_MENU, 20)],
+            SubMenues.CONFIGURATION : [Directions(InstrumentCmds.SYSTEM_CONFIGURATION_MENU, InstrumentPrompts.SYSTEM_CONFIGURATION_PASSWORD),
+                                       Directions(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU)]
             })
         
         MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event)
@@ -1407,8 +1434,20 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              self._int_to_string,
                              value=0)
 
+        self._param_dict.add(InstrumentParameters.SI_CONVERSION,
+                             r'.*<C> Binary to SI Conversion\s+(\d+.\d+)\s+.*', 
+                             lambda match : float(match.group(1)),
+                             self._float_to_string,
+                             value=0.0028033,
+                             menu_path_read=SubMenues.CONFIGURATION,
+                             submenu_read=None,
+                             menu_path_write=SubMenues.CONFIGURATION,
+                             submenu_write=InstrumentCmds.SET_SI_CONVERSION)
+
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ENTER_SI_CONVERSION, self._build_simple_enter_command)
+        self._add_build_handler(InstrumentCmds.SET_SI_CONVERSION, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_SECONDS, self._build_simple_sub_parameter_enter_command)
         self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_MINUTES, self._build_simple_sub_parameter_enter_command)
         self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_HOURS, self._build_simple_sub_parameter_enter_command)
@@ -1434,15 +1473,20 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.SET_VEL_FRAME, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_NOTE, self._build_simple_enter_command)
         self._add_build_handler(InstrumentCmds.SET_NOTE, self._build_set_note_command)
-        self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_TIME, self._build_simple_enter_command)
         self._add_build_handler(InstrumentCmds.SET_TIME, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SYSTEM_CONFIGURATION_MENU, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ANSWER_YES, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.ANSWER_NO, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_simple_command)
         
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
         self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
+        self._add_response_handler(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, self._parse_system_configuration_menu_response)
     
     def _build_enter_log_display_acoustic_axis_velocity_format_command(self, **kwargs):
         """
@@ -1582,8 +1626,12 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if cmd_name == None:
             raise InstrumentParameterException('simple command requires a command.')
         cmd = cmd_name
-        response = self.Command_Response[cmd_name][0]
-        next_cmd = self.Command_Response[cmd_name][1]
+        if cmd_name in self.Command_Response:
+            response = self.Command_Response[cmd_name][0]
+            next_cmd = self.Command_Response[cmd_name][1]
+        else:
+            response = None
+            next_cmd = None
         log.debug("_build_simple_command: cmd=%s" %cmd)
         return (cmd, response, next_cmd)
 
@@ -1606,7 +1654,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
               
     def _parse_deploy_menu_response(self, response, prompt, **kwargs):
         """
-        Parse handler for deploy command.
+        Parse handler for deploy menu command.
         @param response command response string.
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if upload command misunderstood.
@@ -1623,6 +1671,27 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             #log.debug('_parse_deploy_menu_response: name=%s, response=%s' %(parameter, response))
             if not self._param_dict.update(parameter, response):
                 log.debug('_parse_deploy_menu_response: Failed to parse %s' %parameter)
+        return None
+              
+    def _parse_system_configuration_menu_response(self, response, prompt, **kwargs):
+        """
+        Parse handler for system configuration menu command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if upload command misunderstood.
+        @ retval The next command to be sent to device (set to None to indicate there isn't one)
+        """
+        if not InstrumentPrompts.SYSTEM_CONFIGURATION_MENU in response:
+            raise InstrumentProtocolException('system configuration menu command not recognized by instrument: %s.' %response)
+        
+        name = kwargs.get('name', None)
+        if name != None:
+            # only get the parameter values if called from _update_params()
+            return None
+        for parameter in SystemConfigurationMenuParameters.list():
+            #log.debug('_parse_system_configuration_menu_response: name=%s, response=%s' %(parameter, response))
+            if not self._param_dict.update(parameter, response):
+                log.debug('_parse_system_configuration_menu_response: Failed to parse %s' %parameter)
         return None
               
     def  _get_prompt(self, timeout=8, delay=4):
@@ -1675,9 +1744,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         old_config = self._param_dict.get_config()
         
         deploy_menu_prameters_parsed = False
+        system_configuration_menu_prameters_parsed = False
         
         for key in InstrumentParameters.list():
             if key == InstrumentParameters.ALL:
+                # this is not the name of any parameter
                 continue
             dest_submenu = self._param_dict.get_menu_path_read(key)
             command = self._param_dict.get_submenu_read(key)
@@ -1689,6 +1760,15 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 else:
                     deploy_menu_prameters_parsed = True
                     # set name to ALL so _parse_deploy_menu_response() knows to get all values
+                    key = InstrumentParameters.ALL
+
+            elif key in SystemConfigurationMenuParameters.list():
+                # only screen scrape the system configuration menu once for efficiency
+                if system_configuration_menu_prameters_parsed == True:
+                    continue
+                else:
+                    system_configuration_menu_prameters_parsed = True
+                    # set name to ALL so _parse_system_configuration_menu_response() knows to get all values
                     key = InstrumentParameters.ALL
                                                         
             self._navigate_and_execute(command, name=key, dest_submenu=dest_submenu, timeout=10)
