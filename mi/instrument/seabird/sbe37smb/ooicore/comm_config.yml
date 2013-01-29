@@ -1,6 +1,6 @@
 comm:
-  command_port: 4003
-  data_port: 4002
+  command_port: 14003
+  data_port: 14002
   device_addr: sbe37-simulator.oceanobservatories.org
   device_port: 4001
   method: ethernet
