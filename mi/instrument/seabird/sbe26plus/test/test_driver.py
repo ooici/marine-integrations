@@ -20,6 +20,7 @@ USAGE:
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
+import unittest
 from gevent import monkey; monkey.patch_all()
 import time
 from mock import Mock
@@ -38,7 +39,6 @@ from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
 
 from mi.instrument.seabird.sbe26plus.test.sample_data import *
 
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 from mi.instrument.seabird.sbe26plus.driver import ScheduledJob
 from mi.instrument.seabird.sbe26plus.driver import DataParticleType
 from mi.instrument.seabird.sbe26plus.driver import InstrumentDriver
@@ -61,16 +61,7 @@ from mi.instrument.seabird.sbe26plus.driver import SBE26plusStatisticsDataPartic
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceCalibrationDataParticleKey
 from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceStatusDataParticleKey
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.data_particle import DataParticleValue
-from mi.core.instrument.instrument_driver import DriverParameter, DriverConnectionState, DriverAsyncEvent
-from mi.core.instrument.instrument_protocol import DriverProtocolState
-from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
-from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException
-
-from pyon.core.exception import Conflict
-from interface.objects import AgentCommand
-from pyon.agent.agent import ResourceAgentState
+from mi.core.exceptions import InstrumentCommandException
 from pyon.agent.agent import ResourceAgentEvent
 
 # Globals
@@ -209,14 +200,14 @@ class SeaBird26PlusMixin(DriverTestMixin):
         SBE26plusDeviceCalibrationDataParticleKey.TA1: {TYPE: float, VALUE: 2.558000e-04 },
         SBE26plusDeviceCalibrationDataParticleKey.TA2: {TYPE: float, VALUE: -2.073449e-06 },
         SBE26plusDeviceCalibrationDataParticleKey.TA3: {TYPE: float, VALUE: 1.640089e-07 },
-        SBE26plusDeviceCalibrationDataParticleKey.CCALDATE: {TYPE: list, VALUE: [28, 3, 2012] },
-        SBE26plusDeviceCalibrationDataParticleKey.CG: {TYPE: float, VALUE: -1.025348e+01 },
-        SBE26plusDeviceCalibrationDataParticleKey.CH: {TYPE: float, VALUE: 1.557569e+00 },
-        SBE26plusDeviceCalibrationDataParticleKey.CI: {TYPE: float, VALUE: -1.737200e-03 },
-        SBE26plusDeviceCalibrationDataParticleKey.CJ: {TYPE: float, VALUE: 2.268000e-04 },
-        SBE26plusDeviceCalibrationDataParticleKey.CTCOR: {TYPE: float, VALUE: 3.250000e-06 },
-        SBE26plusDeviceCalibrationDataParticleKey.CPCOR: {TYPE: float, VALUE: -9.570000e-08 },
-        SBE26plusDeviceCalibrationDataParticleKey.CSLOPE: {TYPE: float, VALUE: 1.000000e+00 }
+        SBE26plusDeviceCalibrationDataParticleKey.CCALDATE: {TYPE: list, VALUE: [28, 3, 2012], REQUIRED: False },
+        SBE26plusDeviceCalibrationDataParticleKey.CG: {TYPE: float, VALUE: -1.025348e+01, REQUIRED: False },
+        SBE26plusDeviceCalibrationDataParticleKey.CH: {TYPE: float, VALUE: 1.557569e+00, REQUIRED: False },
+        SBE26plusDeviceCalibrationDataParticleKey.CI: {TYPE: float, VALUE: -1.737200e-03, REQUIRED: False },
+        SBE26plusDeviceCalibrationDataParticleKey.CJ: {TYPE: float, VALUE: 2.268000e-04, REQUIRED: False },
+        SBE26plusDeviceCalibrationDataParticleKey.CTCOR: {TYPE: float, VALUE: 3.250000e-06, REQUIRED: False },
+        SBE26plusDeviceCalibrationDataParticleKey.CPCOR: {TYPE: float, VALUE: -9.570000e-08, REQUIRED: False },
+        SBE26plusDeviceCalibrationDataParticleKey.CSLOPE: {TYPE: float, VALUE: 1.000000e+00, REQUIRED: False }
     }
 
     _status_sample_parameters = {
@@ -822,17 +813,13 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         
         # Tide interval parameter.  Check edges, out of range and invalid data
         #    * Tide interval (integer minutes)
-        #        - Range 17 - 720
-        sampling_params[Parameter.TIDE_INTERVAL] = 17
+        #        - Range 3 - 720
+        sampling_params[Parameter.TIDE_INTERVAL] = 3
         self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.TIDE_INTERVAL] = 720
-        self.assert_set_bulk(sampling_params) #was bombing here timeout
-
-        # TODO, according to the documentation above 16 should fail, but it
-        # looks like it is passing the set test.  The real lower limit needs
-        # to be tested and the documentation needs to be updated.
-        sampling_params[Parameter.TIDE_INTERVAL] = 16
         self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = 2
+        self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.TIDE_INTERVAL] = 721
         self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.TIDE_INTERVAL] = "foo"
@@ -1099,8 +1086,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, regex=r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)')
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'SBE 26plus')
         self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
-        ## TODO. Fix this. The reply is None for this call, but it should be the result of DC
-        #self.assert_driver_command(ProtocolEvent.ACQUIRE_CONFIGURATION, regex=r'Pressure coefficients')
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_CONFIGURATION, regex=r'Pressure coefficients')
         self.assert_driver_command_exception(ProtocolEvent.SEND_LAST_SAMPLE, exception_class=InstrumentCommandException)
         self.assert_driver_command(ProtocolEvent.QUIT_SESSION)
 
@@ -1114,8 +1100,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_driver_command_exception(ProtocolEvent.ACQUIRE_SAMPLE, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(ProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'SBE 26plus')
-        ## TODO. Fix this. The reply is None for this call, but it should be the result of DC
-        #self.assert_driver_command(ProtocolEvent.ACQUIRE_CONFIGURATION, regex=r'Pressure coefficients')
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_CONFIGURATION, regex=r'Pressure coefficients')
         self.assert_driver_command(ProtocolEvent.SEND_LAST_SAMPLE, regex=r'p = +([\-\d.]+), t = +([\-\d.]+)')
         self.assert_driver_command_exception(ProtocolEvent.QUIT_SESSION, exception_class=InstrumentCommandException)
 
@@ -1132,9 +1117,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
 
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.TIDE_PARSED, self.assert_particle_tide_sample)
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_device_status)
-
-        #TODO, Particles not being generated
-        #self.assert_particle_generation(ProtocolEvent.ACQUIRE_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_device_calibration)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_device_calibration)
 
     def test_autosample_particle_generation(self):
         """
@@ -1142,16 +1125,27 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         """
         self.assert_initialize_driver()
 
-        # TODO, set parameters so that wave burst and statistics are streamed.  Anything we can do to increase output speed?
+        params = {
+            Parameter.TIDE_INTERVAL: 3,
+            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS: 512,
+            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: 2,
+            Parameter.TXWAVEBURST: True,
+            Parameter.TXWAVESTATS: True
+        }
+        self.assert_set_bulk(params)
 
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
 
         self.assert_async_particle_generation(DataParticleType.TIDE_PARSED, self.assert_particle_tide_sample, timeout=120)
+        self.assert_async_particle_generation(DataParticleType.WAVE_BURST, self.assert_particle_wave_burst, timeout=300)
+        self.assert_async_particle_generation(DataParticleType.STATISTICS, self.assert_particle_statistics, timeout=300)
 
-        # TODO, update settings so these don't fail
-        #self.assert_async_particle_generation(DataParticleType.WAVE_BURST, self.assert_particle_wave_burst, timeout=10)
-        #self.assert_async_particle_generation(DataParticleType.STATISTICS, self.assert_particle_statistics, timeout=10)
-
+    def test_startup_params(self):
+        """
+        Verify that startup parameters are applied correctly. Generally this
+        happens in the driver discovery method.
+        """
+        # TODO, add startup tests
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -1173,20 +1167,24 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         """
         self.assert_enter_command_mode()
 
-        # TODO, set parameters to output data quickly and enough to create all data particles
+        params = {
+            Parameter.TIDE_INTERVAL: 3,
+            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS: 512,
+            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: 2,
+            Parameter.TXWAVEBURST: True,
+            Parameter.TXWAVESTATS: True
+        }
+        self.instrument_agent_client.set_resource(params)
 
         self.assert_start_autosample()
 
-        self.assert_sample_async(self.assert_particle_tide_sample, DataParticleType.TIDE_PARSED, timeout=90)
-
-        # TODO, Enable these once parameters are set correctly to output these streams
-        #self.assert_sample_async(self.assert_particle_wave_burst, DataParticleType.WAVE_BURST, timeout=10)
-        #self.assert_sample_async(self.assert_particle_statistics, DataParticleType.STATISTICS, timeout=10)
+        self.assert_sample_async(self.assert_particle_tide_sample, DataParticleType.TIDE_PARSED, timeout=120, sample_count=1)
+        self.assert_sample_async(self.assert_particle_wave_burst, DataParticleType.WAVE_BURST, timeout=300, sample_count=1)
+        self.assert_sample_async(self.assert_particle_statistics, DataParticleType.STATISTICS, timeout=300, sample_count=1)
 
         # Verify we can generate status and config particles while streaming
-        # TODO, These commands wont fire when in streaming
-        #self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_device_status, DataParticleType.DEVICE_STATUS)
-        #self.assert_particle_polled(ProtocolEvent.ACQUIRE_CONFIGURATION, self.assert_particle_device_calibration, DataParticleType.DEVICE_CALIBRATION)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_device_status, DataParticleType.DEVICE_STATUS)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_CONFIGURATION, self.assert_particle_device_calibration, DataParticleType.DEVICE_CALIBRATION)
 
         self.assert_stop_autosample()
 
@@ -1195,16 +1193,11 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         Verify that we can poll for a sample.  Take sample for this instrument
         Also poll for other engineering data streams.
         '''
-        #self.assert_sample_polled(self.assert_particle_tide_sample, DataParticleType.TIDE_PARSED)
         self.assert_enter_command_mode()
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_tide_sample, DataParticleType.TIDE_PARSED)
-
-        #TODO, Not getting a prompt after the TS command. Failing when we run these commands back to back.
-        #self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_device_status, DataParticleType.DEVICE_STATUS)
-
-        #TODO, Particles not being generated
-        #self.assert_particle_polled(ProtocolEvent.ACQUIRE_CONFIGURATION, self.assert_particle_device_calibration, DataParticleType.DEVICE_CALIBRATION)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_device_status, DataParticleType.DEVICE_STATUS, sample_count=1)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_CONFIGURATION, self.assert_particle_device_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1)
 
     def test_direct_access_telnet_mode(self):
         """
@@ -1286,48 +1279,17 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
 
-        #TODO, resent not implemented.  How to we revert to uninitialized?
-        #self.assert_reset()
-        #self.assert_capabilities(capabilities)
-
-    def test_execute_set_time_parameter(self):
+    def assert_clock_sync(self):
         """
-        @brief Set the clock to a bogus date/time, then verify that after
-        a discover opoeration it reverts to the system time.
+        verify that the date is set correctly on the instrument
         """
-
-        self.assert_enter_command_mode()
-
-        params = {
-            Parameter.DS_DEVICE_DATE_TIME : "01 Jan 2001 01:01:01",
-        }
-
-        self.instrument_agent_client.set_resource(params)
-
-        params = [
-            Parameter.DS_DEVICE_DATE_TIME,
-        ]
-        check_new_params = self.instrument_agent_client.get_resource(params)
-        log.debug("TESTING TIME = " + repr(check_new_params))
-
-        # assert that we altered the time.
-        self.assertTrue('01 JAN 2001  01:' in check_new_params[Parameter.DS_DEVICE_DATE_TIME])
-
-        # now put it back to normal
-
-        params = {
-            Parameter.DS_DEVICE_DATE_TIME : time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
-        }
-
-        self.instrument_agent_client.set_resource(params)
-
-        params = [
-            Parameter.DS_DEVICE_DATE_TIME,
-        ]
-        check_new_params = self.instrument_agent_client.get_resource(params)
+        self.assert_execute_resource(ProtocolEvent.ACQUIRE_STATUS)
 
         # Now verify that at least the date matches
-        lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+        params = [Parameter.DS_DEVICE_DATE_TIME]
+        check_new_params = self.instrument_agent_client.get_resource(params)
+        lt = time.strftime("%d %b %Y  %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+        log.debug("TIME: %s && %s" % (lt, check_new_params[Parameter.DS_DEVICE_DATE_TIME]))
         self.assertTrue(lt[:12].upper() in check_new_params[Parameter.DS_DEVICE_DATE_TIME].upper())
 
     def test_execute_clock_sync(self):
@@ -1336,16 +1298,55 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         """
         self.assert_enter_command_mode()
 
+        # wait for a bit so the event can be triggered
+        time.sleep(3)
+
         # Set the clock to something in the past
-        # TODO, If we set this parameter first the driver gets stuck on DS
-        #self.assert_set_parameter(Parameter.DS_DEVICE_DATE_TIME, "01 Jan 2001 01:01:01")
+        self.assert_set_parameter(Parameter.DS_DEVICE_DATE_TIME, "01 Jan 2001 01:01:01", verify=False)
 
-        self.assert_agent_command(ProtocolEvent.CLOCK_SYNC)
+        self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
+        self.assert_clock_sync()
 
-        # Now verify that at least the date matches
-        params = [Parameter.DS_DEVICE_DATE_TIME]
-        check_new_params = self.instrument_agent_client.get_resource(params)
-        lt = time.strftime("%d %b %Y  %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+    @unittest.skip('needs base class update')
+    def test_scheduled_clock_sync(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        self.assert_enter_command_mode()
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync)
 
-        self.assertTrue(lt[:12].upper() in check_new_params[Parameter.DS_DEVICE_DATE_TIME].upper())
+    def assert_acquire_status(self):
+        """
+        Verify a status particle was generated
+        """
+        self.assert_sample_async(self.assert_particle_device_status, DataParticleType.DEVICE_STATUS, timeout=30, sample_count=1)
 
+    @unittest.skip('needs base class update')
+    def test_scheduled_device_status(self):
+        """
+        Verify the device status command can be triggered and run in both command
+        and streaming mode.
+        """
+        self.assert_enter_command_mode()
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status)
+
+    def assert_calibration_coefficients(self):
+        """
+        Verify a calibration particle was generated
+        """
+        self.assert_sample_async(self.assert_particle_device_calibration, DataParticleType.DEVICE_CALIBRATION, timeout=30, sample_count=1)
+
+    @unittest.skip('needs base class update')
+    def test_scheduled_device_configuration(self):
+        """
+        Verify the device configuration command can be triggered and run in both command
+        and streaming mode.
+        """
+        self.assert_enter_command_mode()
+        self.assert_scheduled_event(ScheduledJob.CALIBRATION_COEFFICIENTS, self.assert_calibration_coefficients)
+
+    def test_start_params(self):
+        """
+        Verify that startup parameters are applied when the instrument driver is started
+        """
+        # TODO, add tests!

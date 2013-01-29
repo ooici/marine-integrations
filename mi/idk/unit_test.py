@@ -13,7 +13,7 @@ import re
 import os
 import time
 import unittest
-import socket
+import datetime
 from sets import Set
 
 # Set testing to false because the capability container tries to clear out
@@ -29,7 +29,6 @@ from mi.core.log import get_logger ; log = get_logger()
 import gevent
 import json
 from mock import Mock
-import unittest
 from mi.core.unit_test import MiIntTestCase
 from mi.core.unit_test import MiUnitTest
 from mi.core.instrument.instrument_driver import InstrumentDriver
@@ -68,16 +67,16 @@ from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
-from mi.core.instrument.data_particle import RawDataParticle
 from mi.core.instrument.data_particle import RawDataParticleKey
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.tcp_client import TcpClient
 from mi.core.common import BaseEnum
+from mi.core.driver_scheduler import DriverSchedulerConfigKey
+from mi.core.driver_scheduler import TriggerType
 
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-from ion.agents.instrument.common import InstErrorCode
 from ion.agents.port.port_agent_process import PortAgentProcess
 
 from pyon.core.exception import Conflict
@@ -551,7 +550,14 @@ class DriverTestMixin(MiUnitTest):
                 self.assertIsNotNone(param_value, msg="%s required field None" % param_name)
 
             if(param_value):
-                self.assertIsInstance(param_value, param_type)
+                # It looks like one of the interfaces between services converts unicode to string
+                # and vice versa.  So if the type is string it can be promoted to unicode so it
+                # is still valid.
+                if(param_type == unicode and isinstance(param_value, str)):
+                    # we want type unicode, but it is a string instance.  All good
+                    pass
+                else:
+                    self.assertIsInstance(param_value, param_type)
 
 
 
@@ -1178,6 +1184,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         log.debug("InstrumentDriverIntegrationTestCase setUp")
         self.init_driver_process_client()
+        self.clear_events()
 
     def tearDown(self):
         """
@@ -1236,7 +1243,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         self.assertEqual(state, DriverProtocolState.COMMAND)
 
         # Apply startup parameters
-        state = self.driver_client.cmd_dvr('apply_startup_params')
+        #state = self.driver_client.cmd_dvr('apply_startup_params')
 
     def assert_get(self, param, value=None, pattern=None):
         """
@@ -1386,8 +1393,6 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         @param particle_type: particle type we are looking for
         @param particle_callback: callback used to validate the particle
         """
-        self.clear_events()
-
         self.assert_driver_command(command, delay=delay)
 
         samples = self.get_sample_events(particle_type)
@@ -1411,7 +1416,6 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         @param particle_callback: callback used to validate the particle
         @param timeout: how long should we wait for a particle
         """
-        self.clear_events()
         end_time = time.time() + timeout
         samples = []
 
@@ -1519,6 +1523,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.init_instrument_agent_client()
 
         self.event_subscribers.events_received = []
+        self.data_subscribers.start_data_subscribers()
 
         log.debug("********* setUp complete.  Begin Testing *********")
 
@@ -1528,10 +1533,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         log.debug("InstrumentDriverQualificationTestCase tearDown")
 
-        self.assert_reset()
-
         self.instrument_agent_manager.stop_container()
         self.event_subscribers.stop()
+        self.data_subscribers.stop_data_subscribers()
         InstrumentDriverTestCase.tearDown(self)
 
     def init_instrument_agent_client(self):
@@ -1586,6 +1590,15 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         cmd = AgentCommand(command=command, kwargs=args)
         retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
+
+    def assert_execute_resource(self, command, args=None, timeout=None):
+        """
+        Verify an agent command throws an exception
+        @param command: driver command to execute
+        @param args: kwargs to pass to the agent command object
+        """
+        cmd = AgentCommand(command=command, kwargs=args)
+        retval = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
     def assert_agent_command_exception(self, command, error_regex=None, exception_class=InstrumentStateException, timeout=None):
         """
@@ -1725,7 +1738,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         self.assert_enter_command_mode()
         self.assert_particle_polled(DriverEvent.ACQUIRE_SAMPLE, sample_data_assert, sample_queue, timeout, 3)
-        self.assert_reset()
 
     def assert_particle_polled(self, command, data_particle_assert, sample_queue, timeout=10, sample_count=1):
         """
@@ -1736,11 +1748,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         @param timeout: max time to wait for samples
         @param sample_count: how many times to call the command
         """
-        # Set up all data subscriptions.  Stream names are defined
-        # in the test config singleton
-        self.data_subscribers.start_data_subscribers()
-        self.addCleanup(self.data_subscribers.stop_data_subscribers)
-
         # make sure there aren't any junk samples in the parsed
         # data queue.
         log.debug("Acqire Sample")
@@ -1760,10 +1767,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         for sample in samples:
             data_particle_assert(sample)
 
-        self.doCleanups()
-
-    def assert_sample_autosample(self, sampleDataAssert, sampleQueue,
-                                 timeout=GO_ACTIVE_TIMEOUT):
+    def assert_sample_autosample(self, sample_data_assert, sample_queue,
+                                 timeout=GO_ACTIVE_TIMEOUT, sample_count=3):
         """
         Test instrument driver execute interface to start and stop streaming
         mode.
@@ -1778,33 +1783,21 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.assert_enter_command_mode()
 
-        self.data_subscribers.clear_sample_queue(sampleQueue)
+        self.data_subscribers.clear_sample_queue(sample_queue)
 
         # Begin streaming.
         self.assert_start_autosample()
 
         # Assert we got 3 samples.
-        samples = self.data_subscribers.get_samples(sampleQueue, 3, timeout = timeout)
-        self.assertGreaterEqual(len(samples), 3)
+        samples = self.data_subscribers.get_samples(sample_queue, sample_count, timeout = timeout)
+        self.assertGreaterEqual(len(sample_count))
 
-        s = samples.pop()
-        log.debug("SAMPLE: %s" % s)
-        sampleDataAssert(s)
-
-        s = samples.pop()
-        log.debug("SAMPLE: %s" % s)
-        sampleDataAssert(s)
-
-        s = samples.pop()
-        log.debug("SAMPLE: %s" % s)
-        sampleDataAssert(s)
+        for sample in samples:
+            log.debug("SAMPLE: %s" % sample)
+            sample_data_assert(sample)
 
         # Halt streaming.
         self.assert_stop_autosample()
-
-        self.assert_reset()
-
-        self.doCleanups()
 
     def assert_sample_async(self, sampleDataAssert, sampleQueue,
                                   timeout=GO_ACTIVE_TIMEOUT, sample_count=1):
@@ -1828,8 +1821,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             log.debug("SAMPLE: %s" % s)
             sampleDataAssert(s)
 
-        self.doCleanups()
-
     def assert_reset(self):
         '''
         Exist active state
@@ -1849,7 +1840,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.assertEqual(result[name], value)
 
-    def assert_set_parameter(self, name, value):
+    def assert_set_parameter(self, name, value, verify=True):
         '''
         verify that parameters are set correctly.  Assumes we are in command mode.
         '''
@@ -1858,10 +1849,11 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.instrument_agent_client.set_resource(setParams,
                                                   timeout=SET_TIMEOUT)
-        result = self.instrument_agent_client.get_resource(getParams,
-                                                           timeout=GET_TIMEOUT)
 
-        self.assertEqual(result[name], value)
+        if(verify):
+            result = self.instrument_agent_client.get_resource(getParams,
+                                                               timeout=GET_TIMEOUT)
+            self.assertEqual(result[name], value)
 
     def assert_read_only_parameter(self, name, value):
         '''
@@ -2003,6 +1995,42 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, result_state)
 
+    def assert_scheduled_event(self, job_name, assert_callback, delay=5):
+        """
+        Verify that a scheduled event can be triggered and use the
+        assert callback to verify that it worked.
+        @param job_name: name of the job to schedule
+        @param assert_callback: verification callback
+        @param delay: time to wait before the event is triggered in seconds
+        """
+        # Build a scheduled job for 'delay' seconds from now
+        dt = datetime.datetime.now() + datetime.timedelta(0,delay)
+        datestr = dt.strftime("%m/%d/%y %H:%M:%S")
+
+        scheduler_config = {
+            DriverStartupConfigKey.SCHEDULER: {
+                job_name: {
+                    DriverSchedulerConfigKey.TRIGGER: {
+                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.ABSOLUTE,
+                        DriverSchedulerConfigKey.DATE: datestr
+                    }
+                }
+            }
+        }
+
+        # Currently the only way to setup schedulers is via the startup config
+        # mechanism.  We may need to expose scheduler specific capability in the
+        # future, but this should work in the intrum.
+        self.assert_execute_resource('set_init_params', scheduler_config)
+        self.assert_enter_command_mode()
+
+        # This call shouldn't be required right?  Should happen automatically as
+        # we transition to command mode?
+        #self.assert_agent_command('apply_startup_params')
+
+        # Apply startup config should add the new scheduled job. The delay should
+        # be long enough for apply_startup_params to run.
+
     def test_instrument_agent_common_state_model_lifecycle(self,  timeout=GO_ACTIVE_TIMEOUT):
         """
         @brief Test agent state transitions.
@@ -2121,9 +2149,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assert_agent_state(ResourceAgentState.COMMAND)
 
         # Reset
-        # TODO, reenable this once PRESF implements reset
-        #self.assert_agent_command(ResourceAgentEvent.RESET)
-        #self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
+        self.assert_agent_command(ResourceAgentEvent.RESET)
+        self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
 
     def test_instrument_agent_to_instrument_driver_connectivity(self, timeout=GO_ACTIVE_TIMEOUT):
         """

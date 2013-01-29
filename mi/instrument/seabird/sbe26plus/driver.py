@@ -29,7 +29,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
@@ -55,7 +55,7 @@ STATS_REGEX_MATCHER = re.compile(STATS_REGEX, re.DOTALL)
 TS_REGEX = r'( +)([\-\d\.]+) +([\-\d\.]+) +([\-\d\.]+)\r\n'
 TS_REGEX_MATCHER = re.compile(TS_REGEX)
 
-DC_REGEX = r'(Pressure coefficients.+?)CSLOPE = [\d+e\.].+?\r\n'
+DC_REGEX = r'(Pressure coefficients.+?)TA3 = [\d+e\.].+?\r\n'
 DC_REGEX_MATCHER = re.compile(DC_REGEX, re.DOTALL)
 
 DS_REGEX = r'(SBE 26plus V.+?)logging = [\w, ].+?\r\n'
@@ -127,10 +127,8 @@ class ProtocolEvent(BaseEnum):
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     PING_DRIVER = DriverEvent.PING_DRIVER
-
     SETSAMPLING = 'PROTOCOL_EVENT_SETSAMPLING'
     QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
-
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
 
 class Capability(BaseEnum):
@@ -145,7 +143,6 @@ class Capability(BaseEnum):
     SEND_LAST_SAMPLE = ProtocolEvent.SEND_LAST_SAMPLE
     QUIT_SESSION = ProtocolEvent.QUIT_SESSION
     SETSAMPLING = ProtocolEvent.SETSAMPLING
-
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
 
 class Parameter(DriverParameter):
@@ -173,9 +170,7 @@ class Parameter(DriverParameter):
     TIDE_MEASUREMENT_DURATION = 'TIDE_MEASUREMENT_DURATION' # int,
     TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS = 'TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS' # int,
     WAVE_SAMPLES_PER_BURST = 'WAVE_SAMPLES_PER_BURST' # float,
-
     WAVE_SAMPLES_SCANS_PER_SECOND = 'WAVE_SAMPLES_SCANS_PER_SECOND' # 4.0 = 0.25
-
     USE_START_TIME = 'USE_START_TIME' # bool,
     USE_STOP_TIME = 'USE_STOP_TIME' # bool,
     TXWAVESTATS = 'TXWAVESTATS' # bool,
@@ -190,12 +185,7 @@ class Parameter(DriverParameter):
     TXREALTIME = 'TxTide' # bool,
     TXWAVEBURST = 'TxWave' # bool,
     NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS' # int,
-    
-    
-    
     USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC' # bool,
-    
-    
     AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR = 'AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR'
     AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR = 'AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR'
     PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM = 'PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM' # float,
@@ -315,7 +305,7 @@ class SBE26plusWaveBurstDataParticle(DataParticle):
         ptfreq_pat = r'wave: ptfreq = ([\d\.]+)'
         ptfreq_matcher = re.compile(ptfreq_pat)
 
-        ptraw_pat = r' +([\d\.]+)'
+        ptraw_pat = r' *(-?\d+\.\d+)'
         ptraw_matcher = re.compile(ptraw_pat)
 
         # initialize
@@ -796,12 +786,7 @@ class SBE26plusDeviceStatusDataParticleKey(BaseEnum):
     TXREALTIME = 'tx_tide_samples' # bool,
     TXWAVEBURST = 'tx_wave_bursts' # bool,
     NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS = 'num_wave_samples_per_burst_for_wave_statistics' # int,
-    
-
-
     USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC = 'use_measured_temp_and_cond_for_density_calc' # bool,
-    
-    
     PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM = 'pressure_sensor_height_from_bottom' # float,
     SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND = 'num_spectral_estimates_for_each_frequency_band' # int,
     MIN_ALLOWABLE_ATTENUATION = 'min_allowable_attenuation' # float,
@@ -1259,7 +1244,6 @@ class Protocol(SeaBirdProtocol):
         """
         Exit unknown state.
         """
-
         pass
 
     ########################################################################
@@ -1370,7 +1354,7 @@ class Protocol(SeaBirdProtocol):
         set_cmd = '%s=%s' % (Parameter.DS_DEVICE_DATE_TIME, str_val) + NEWLINE
 
         self._do_cmd_direct(set_cmd)
-        (prompt, response) = self._get_response() #timeout=30)
+        (prompt, response) = self._get_response()
 
         if response != set_cmd + Prompt.COMMAND:
             raise InstrumentProtocolException("_handler_clock_sync - response != set_cmd")
@@ -1675,20 +1659,18 @@ class Protocol(SeaBirdProtocol):
                     self._connection.send(self._float_to_string(self._sampling_args[Parameter.HANNING_WINDOW_CUTOFF]) + NEWLINE)
                 else:
                     self._connection.send(NEWLINE)
-                """
-                the remaining prompts apply to real-time wave statistics
-                    show progress messages (y/n) = n, new value = y
-                    number of wave samples per burst to use for wave statistics = 512, new value = 555
-                    use measured temperature and conductivity for density calculation (y/n) = y, new value =
-                    height of pressure sensor from bottom (meters) = 600.0, new value = 55
-                    number of spectral estimates for each frequency band = 5, new value =
-                    minimum allowable attenuation = 0.0025, new value =
-                    minimum period (seconds) to use in auto-spectrum = 0.0e+00, new value =
-                    maximum period (seconds) to use in auto-spectrum = 1.0e+06, new value =
-                    hanning window cutoff = 0.10, new value =
-                resetting number of wave samples per burst to 512
-                resetting number of samples to use for wave statistics to 512
-                """
+                # the remaining prompts apply to real-time wave statistics
+                #     show progress messages (y/n) = n, new value = y
+                #     number of wave samples per burst to use for wave statistics = 512, new value = 555
+                #     use measured temperature and conductivity for density calculation (y/n) = y, new value =
+                #     height of pressure sensor from bottom (meters) = 600.0, new value = 55
+                #     number of spectral estimates for each frequency band = 5, new value =
+                #     minimum allowable attenuation = 0.0025, new value =
+                #     minimum period (seconds) to use in auto-spectrum = 0.0e+00, new value =
+                #     maximum period (seconds) to use in auto-spectrum = 1.0e+06, new value =
+                #     hanning window cutoff = 0.10, new value =
+                # resetting number of wave samples per burst to 512
+                # resetting number of samples to use for wave statistics to 512
             else:
 
                 raise InstrumentProtocolException('HOW DID I GET HERE! %s' % str(response) + str(prompt))
