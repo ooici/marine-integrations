@@ -102,7 +102,8 @@ PARAMS = {
     Parameter.INTERVAL : int,
     Parameter.TXREALTIME : bool,
     Parameter.DATE_TIME : str,
-    Parameter.LOGGING : bool
+    Parameter.LOGGING : bool,
+    Parameter.ECHO : bool
     # DHE this doesn't show up in the status unless the
     # SYNCMODE is enabled.  Need to change the test to
     # test for SYNCMODE and if true test for SYNCWAIT

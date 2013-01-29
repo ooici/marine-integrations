@@ -127,6 +127,8 @@ class Parameter(DriverParameter):
     TXREALTIME = 'TXREALTIME'
     DATE_TIME = "DateTime"
     LOGGING = "logging"
+    ECHO = "echo"
+    #PUMP_MODE = "pump_mode"
     
 # Device prompts.
 class Prompt(BaseEnum):
@@ -1223,11 +1225,27 @@ class SBE16Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.TXREALTIME,
                              r'transmit real-time = (yes|no)',
                              lambda match : True if match.group(1)=='yes' else False,
-                             self._true_false_to_string)
+                             self._true_false_to_string,
+                             startup_param = True,
+                             direct_access = True)
         self._param_dict.add(Parameter.DATE_TIME,
                              r'SBE 16plus V ([\w.]+) +SERIAL NO. (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)', 
                              lambda match : string.upper(match.group(3)),
-                             self._string_to_numeric_date_time_string)
+                             self._string_to_numeric_date_time_string,
+                             startup_param = True,
+                             direct_access = True)
+        self._param_dict.add(Parameter.ECHO,
+                             r'echo characters = (yes|no)',
+                             lambda match : True if match.group(1)=='yes' else False,
+                             self._true_false_to_string,
+                             startup_param = True,
+                             direct_access = True)
+#        self._param_dict.add(Parameter.PUMP_MODE,
+#                             r'pump = run pump during sample',
+#                             lambda match : True if match.group(1)=='yes' else False,
+#                             self._true_false_to_string,
+#                             startup_param = True,
+#                             direct_access = True)
         self._param_dict.add(Parameter.LOGGING,
                              r'status = (not )?logging',
                              lambda match : False if (match.group(1)) else True,
