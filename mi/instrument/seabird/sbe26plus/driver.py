@@ -23,6 +23,7 @@ from mi.instrument.seabird.driver import SeaBirdProtocol
 
 from mi.core.common import BaseEnum
 from mi.core.time import get_timestamp_delayed
+from mi.core.util import dict_equal
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -1222,12 +1223,11 @@ class Protocol(SeaBirdProtocol):
         # Set the state to change.
         # Raise if the prompt returned does not match command or autosample.
 
+        # Store the current values from the param dict, then refresh the values
+        # to determine if we were out of sync.
         self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS,timeout=timeout)
         self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION,timeout=timeout)
         pd = self._param_dict.get_config()
-        
-        
-        
 
         if pd[Parameter.LOGGING] == True:
             next_state = ProtocolState.AUTOSAMPLE

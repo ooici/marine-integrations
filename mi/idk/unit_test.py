@@ -1242,9 +1242,6 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         # Test the driver is in command mode.
         self.assertEqual(state, DriverProtocolState.COMMAND)
 
-        # Apply startup parameters
-        #state = self.driver_client.cmd_dvr('apply_startup_params')
-
     def assert_get(self, param, value=None, pattern=None):
         """
         Verify we can get a parameter and compare the fetched value

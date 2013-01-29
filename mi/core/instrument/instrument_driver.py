@@ -521,7 +521,8 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         
         if not isinstance(config, dict):
             raise InstrumentParameterException("Incompatible initialization parameters")
-        
+
+        log.debug("**** Apply Startup Params ****")
         self.set_resource(config)
         
     def get_cached_config(self):

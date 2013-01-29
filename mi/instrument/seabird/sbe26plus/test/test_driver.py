@@ -1140,12 +1140,46 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_async_particle_generation(DataParticleType.WAVE_BURST, self.assert_particle_wave_burst, timeout=300)
         self.assert_async_particle_generation(DataParticleType.STATISTICS, self.assert_particle_statistics, timeout=300)
 
-    def test_startup_params(self):
+    def test_startup_params_first_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
-        happens in the driver discovery method.
+        happens in the driver discovery method.  We have two identical versions
+        of this test so it is run twice.  First time to check and CHANGE, then
+        the second time to check again.
+
+        since nose orders the tests by ascii value this should run first.
         """
-        # TODO, add startup tests
+        self.assert_initialize_driver()
+
+        self.assert_get(Parameter.TXWAVESTATS, False)
+        self.assert_get(Parameter.TXREALTIME, True)
+        self.assert_get(Parameter.TXWAVEBURST, False)
+
+        # Now change them so they are caught and see if they are caught
+        # on the second pass.
+        self.assert_set(Parameter.TXWAVESTATS, True)
+        self.assert_set(Parameter.TXREALTIME, False)
+        self.assert_set(Parameter.TXWAVEBURST, True)
+
+    def test_startup_params_second_pass(self):
+        """
+        Verify that startup parameters are applied correctly. Generally this
+        happens in the driver discovery method.  We have two identical versions
+        of this test so it is run twice.  First time to check and CHANGE, then
+        the second time to check again.
+
+        since nose orders the tests by ascii value this should run second.
+        """
+        self.assert_initialize_driver()
+
+        self.assert_get(Parameter.TXWAVESTATS, False)
+        self.assert_get(Parameter.TXREALTIME, True)
+        self.assert_get(Parameter.TXWAVEBURST, False)
+
+        # Change these values anyway just in case it ran first.
+        self.assert_set(Parameter.TXWAVESTATS, True)
+        self.assert_set(Parameter.TXREALTIME, False)
+        self.assert_set(Parameter.TXWAVEBURST, True)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -1345,8 +1379,42 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         self.assert_enter_command_mode()
         self.assert_scheduled_event(ScheduledJob.CALIBRATION_COEFFICIENTS, self.assert_calibration_coefficients)
 
-    def test_start_params(self):
+    def test_startup_params_first_pass(self):
         """
-        Verify that startup parameters are applied when the instrument driver is started
+        Verify that startup parameters are applied correctly. Generally this
+        happens in the driver discovery method.  We have two identical versions
+        of this test so it is run twice.  First time to check and CHANGE, then
+        the second time to check again.
+
+        since nose orders the tests by ascii value this should run second.
         """
-        # TODO, add tests!
+        self.assert_enter_command_mode()
+
+        self.assert_get_parameter(Parameter.TXWAVESTATS, False)
+        self.assert_get_parameter(Parameter.TXREALTIME, True)
+        self.assert_get_parameter(Parameter.TXWAVEBURST, False)
+
+        # Change these values anyway just in case it ran first.
+        self.assert_set_parameter(Parameter.TXWAVESTATS, True)
+        self.assetert_set_parameter(Parameter.TXREALTIME, False)
+        self.assetert_set_parameter(Parameter.TXWAVEBURST, True)
+
+    def test_startup_params_second_pass(self):
+        """
+        Verify that startup parameters are applied correctly. Generally this
+        happens in the driver discovery method.  We have two identical versions
+        of this test so it is run twice.  First time to check and CHANGE, then
+        the second time to check again.
+
+        since nose orders the tests by ascii value this should run second.
+        """
+        self.assert_enter_command_mode()
+
+        self.assert_get_parameter(Parameter.TXWAVESTATS, False)
+        self.assert_get_parameter(Parameter.TXREALTIME, True)
+        self.assert_get_parameter(Parameter.TXWAVEBURST, False)
+
+        # Change these values anyway just in case it ran first.
+        self.assert_set_parameter(Parameter.TXWAVESTATS, True)
+        self.assetert_set_parameter(Parameter.TXREALTIME, False)
+        self.assetert_set_parameter(Parameter.TXWAVEBURST, True)

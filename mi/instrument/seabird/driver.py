@@ -16,6 +16,9 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 
+from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverEvent
+
 NEWLINE = '\r\n'
 
 # default timeout.
@@ -36,7 +39,16 @@ class SeaBirdInstrumentDriver(SingleConnectionInstrumentDriver):
         """
         #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,
+            DriverEvent.DISCOVER,
+            self._handler_connected_discover)
 
+    def _handler_connected_discover(self, event, *args, **kwargs):
+        # Redefine discover handler so that we can apply startup params
+        # when we discover. Gotta get into command mode first though.
+        result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
+        self.apply_startup_params()
+        return result
 
 
 ###############################################################################
