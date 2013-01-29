@@ -110,8 +110,8 @@ class InstrumentPrompts(BaseEnum):
     BEGIN_MEASUREMENT             = 'Beginning measurement cycle now.'
     SYSTEM_CONFIGURATION_MENU     = '<X> Save Changes and Exit'
     SYSTEM_CONFIGURATION_PASSWORD = 'Password:'
-    SI_CONVERSION_YES_NO          = 'Use default conversion coefficient (Yes/No) [N] ?'
     SI_CONVERSION                 = 'Enter binary to SI velocity conversion (0.0010000 to 0.0200000) ?'
+    WARM_UP_INTERVAL              = '[F]ast or [S]low sensor warm up interval [F] ?'
     
 class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dictionaries to work correctly
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
@@ -151,6 +151,8 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     SYSTEM_CONFIGURATION_EXIT                  = 'x'
     SET_SI_CONVERSION                          = 'C\nn'
     ENTER_SI_CONVERSION                        = 'enter_si_conversion'
+    SET_WARM_UP_INTERVAL                       = 'W'
+    ENTER_WARM_UP_INTERVAL                     = 'enter_warm_up_interval'
     
 
 class ProtocolStates(BaseEnum):
@@ -219,6 +221,7 @@ class InstrumentParameters(DriverParameter):
     
     # system configuration menu parameters
     SI_CONVERSION                        = 'si_conversion'
+    WARM_UP_INTERVAL                     = 'warm_up_interval'
     
 class DeployMenuParameters(BaseEnum):
     NOTE1                                = InstrumentParameters.NOTE1
@@ -241,6 +244,7 @@ class DeployMenuParameters(BaseEnum):
     
 class SystemConfigurationMenuParameters(BaseEnum):
     SI_CONVERSION = InstrumentParameters.SI_CONVERSION
+    WARM_UP_INTERVAL = InstrumentParameters.WARM_UP_INTERVAL
 
 class SubMenues(BaseEnum):
     ROOT          = 'root_menu'
@@ -599,6 +603,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                             [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
                         InstrumentCmds.SYSTEM_CONFIGURATION_EXIT : 
                             [InstrumentPrompts.MAIN_MENU, None, None],                        
+                        InstrumentCmds.SET_WARM_UP_INTERVAL : 
+                            [InstrumentPrompts.WARM_UP_INTERVAL, InstrumentCmds.ENTER_WARM_UP_INTERVAL, None],                        
                         }
     
     def __init__(self, prompts, newline, driver_event):
@@ -611,7 +617,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # create short alias for Directions class
         Directions = MenuInstrumentProtocol.MenuTree.Directions
         
-        # create MenuTree object
+        # create MenuTree object for navigating to sub-menus
         menu = MenuInstrumentProtocol.MenuTree({
             SubMenues.ROOT          : [],
             SubMenues.SET_TIME      : [Directions(InstrumentCmds.SET_TIME, InstrumentPrompts.SET_TIME)],
@@ -1444,8 +1450,20 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=SubMenues.CONFIGURATION,
                              submenu_write=InstrumentCmds.SET_SI_CONVERSION)
 
+        self._param_dict.add(InstrumentParameters.WARM_UP_INTERVAL,
+                             r'.*<W> Warm up interval\s+(\w+)\s+.*', 
+                             lambda match : match.group(1),
+                             lambda string : string,
+                             value='',
+                             menu_path_read=SubMenues.CONFIGURATION,
+                             submenu_read=None,
+                             menu_path_write=SubMenues.CONFIGURATION,
+                             submenu_write=InstrumentCmds.SET_WARM_UP_INTERVAL)
+
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ENTER_WARM_UP_INTERVAL, self._build_enter_warm_up_interval_command)
+        self._add_build_handler(InstrumentCmds.SET_WARM_UP_INTERVAL, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_SI_CONVERSION, self._build_simple_enter_command)
         self._add_build_handler(InstrumentCmds.SET_SI_CONVERSION, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_SECONDS, self._build_simple_sub_parameter_enter_command)
@@ -1488,6 +1506,24 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
         self._add_response_handler(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, self._parse_system_configuration_menu_response)
     
+    def _build_enter_warm_up_interval_command(self, **kwargs):
+        """
+        Build handler for warm up interval enter command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        name = kwargs.get('name', None)
+        if name == None:
+            raise InstrumentParameterException('simple enter command requires a name.')
+        value = kwargs.get('value', None)
+        if value == None:
+            raise InstrumentParameterException('simple enter command requires a value.')
+        cmd = "%s" %(self._param_dict.format(name, value)[0])
+        log.debug("_build_enter_warm_up_interval_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
+
     def _build_enter_log_display_acoustic_axis_velocity_format_command(self, **kwargs):
         """
         Build handler for log display acoustic axis velocity format enter command 
