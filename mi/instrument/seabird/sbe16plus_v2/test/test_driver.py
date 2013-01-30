@@ -1306,8 +1306,8 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
         
         # Confirm that 6 samples (2 types, raw and parsed, for each poll) arrived as published events.
-        gevent.sleep(1)
-        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
+        gevent.sleep(1) 
+        sample_events = [evt for evt in self.events if evt['type'] == DriverAsyncEvent.SAMPLE]
         self.assertEqual(len(sample_events), 10)
 
         # Disconnect from the port agent.
