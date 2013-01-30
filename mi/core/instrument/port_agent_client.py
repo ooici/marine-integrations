@@ -12,6 +12,7 @@ __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 import socket
+import errno
 import threading
 import time
 import datetime
@@ -207,6 +208,7 @@ class PortAgentClient(object):
         self.listener_thread = None
         self.stop_event = None
         self.delim = delim
+        self.send_attempts = 15
         
     def init_comms(self, callback=None):
         """
@@ -296,13 +298,27 @@ class PortAgentClient(object):
             sock = self.sock
 
         if sock:
+            tries = 0
             while len(data) > 0:
                 try:
                     sent = sock.send(data)
                     gone = data[:sent]
                     data = data[sent:]
-                except socket.error:
-                    time.sleep(.1)
+                except socket.error as e:
+                    if e.errno == errno.EWOULDBLOCK:
+                        tries = tries + 1
+                        if tries > self.send_attempts:
+                            error_string = 'Send attempts (%d) exceeded while sending to %s:%i'  % (tries, self.host, self.port)
+                            log.error(error_string)
+                            raise InstrumentConnectionException(error_string) 
+                        else:
+                            error_string = 'Socket error while sending to (%s:%i): %r; tries = %d'  % (self.host, self.port, e, tries)
+                            log.error(error_string)
+                            time.sleep(.1)
+                    else:
+                        error_string = 'Socket error while sending to (%s:%i): %r'  % (self.host, self.port, e)
+                        log.error(error_string)
+                        raise InstrumentConnectionException(error_string)
 
                 
 class Listener(threading.Thread):
@@ -392,9 +408,20 @@ class Listener(threading.Thread):
                     else:
                         log.error('No callback registered')
 
-            except socket.error:
-                time.sleep(.1)
-        log.info('Logger client done listening.')
+            except socket.error as e:
+                if e.errno == errno.EWOULDBLOCK:
+                    time.sleep(.1)
+                else:
+                    error_string = 'Socket error while receiving from port agent: %r'  % (e)
+                    log.error(error_string)
+                    """
+                    Need to define a callback in the instrument_driver base class to call here: 
+                    that callback will then throw an exception.
+                    """
+                    self._done = True
+
+
+        log.info('Port_agent_client thread done listening.')
 
     def parse_packet(self, packet):
         log.debug('Logger client parse_packet')
