@@ -38,6 +38,7 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVal
 from mi.core.common import InstErrorCode
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
+from pyon.agent.agent import ResourceAgentState
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -937,11 +938,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             # might be in 'deployed' mode with monitor off or 
             # maybe not connected to an instrument at all
             next_state = ProtocolStates.AUTOSAMPLE
-            result = ProtocolStates.AUTOSAMPLE
+            result = ResourceAgentState.STREAMING
         else:
             # got one of the prompts, so device is in command mode           
             next_state = ProtocolStates.COMMAND
-            result = ProtocolStates.COMMAND
+            result = ResourceAgentState.IDLE
             
         return (next_state, result)
 
@@ -1061,8 +1062,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                                    *args, **kwargs)
                 
         next_state = ProtocolStates.AUTOSAMPLE        
+        next_agent_state = ResourceAgentState.STREAMING
         
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_test(self, *args, **kwargs):
         """
@@ -1083,8 +1085,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         result = None
 
         next_state = ProtocolStates.DIRECT_ACCESS
+        next_agent_state = ResourceAgentState.DIRECT_ACCESS
         
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_clock_sync(self, *args, **kwargs):
         """
@@ -1153,8 +1156,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             raise InstrumentTimeoutException()
         
         next_state = ProtocolStates.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
         
     ########################################################################
     # Direct access handlers.
@@ -1194,8 +1198,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         result = None
 
         next_state = ProtocolStates.COMMAND
-            
-        return (next_state, result)
+        next_agent_state = ResourceAgentState.COMMAND
+
+        return (next_state, (next_agent_state, result))
 
 
     ########################################################################

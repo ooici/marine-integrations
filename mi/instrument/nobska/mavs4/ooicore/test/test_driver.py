@@ -414,8 +414,9 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         for sample in sample_events:
             if sample['value'].find(DataParticleType.PARSED) != -1:
                 log.debug('parsed sample=%s\n' %sample)
-                sample_dict = eval(sample['value'])
-                values = sample_dict['values']
+                sample_dict = eval(sample['value'])     # turn string into dictionary
+                values = sample_dict['values']          # get particle dictionary
+                # pull timestamp out of particle
                 ntp_timestamp = [item for item in values if item["value_id"] == "timestamp"][0]['value']
                 float_timestamp = ntplib.ntp_to_system_time(ntp_timestamp)
                 log.debug('dt=%s' %time.ctime(float_timestamp))
