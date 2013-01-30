@@ -228,8 +228,6 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
     @todo Check for valid state transitions and handle requests appropriately
     possibly using better exceptions from the fsm.on_event() method
     """
-    
-    
     def __init__(self, callback=None):
         CommandResponseInstrumentProtocol.__init__(self, Prompt, EOLN, callback)
         

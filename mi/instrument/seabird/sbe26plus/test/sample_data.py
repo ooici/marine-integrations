@@ -1,10 +1,7 @@
-
-
-
 from mi.instrument.seabird.sbe26plus.ooicore.driver import NEWLINE
 
-
-SAMPLE_TIDE_DATA = "tide: start time = 05 Oct 2012 01:10:54, p = 14.5385, pt = 24.228, t = 23.8404" + NEWLINE
+SAMPLE_TIDE_DATA = "tide: start time = 05 Oct 2012 01:10:54, p = -159.7139, pt = -8382.61, t = 34.6843" + NEWLINE
+SAMPLE_TIDE_DATA_POLLED = " -159.7139 -8382.61  34.6843" + NEWLINE
 
 SAMPLE_DEVICE_STATUS =\
 "SBE 26plus V 6.1e  SN 1329    05 Oct 2012  17:19:27" + NEWLINE +\
@@ -69,20 +66,12 @@ SAMPLE_DEVICE_CALIBRATION =\
 "    TA0 = 1.200000e-04" + NEWLINE +\
 "    TA1 = 2.558000e-04" + NEWLINE +\
 "    TA2 = -2.073449e-06" + NEWLINE +\
-"    TA3 = 1.640089e-07" + NEWLINE +\
-"Conductivity coefficients:  28-mar-12" + NEWLINE +\
-"    CG = -1.025348e+01" + NEWLINE +\
-"    CH = 1.557569e+00" + NEWLINE +\
-"    CI = -1.737200e-03" + NEWLINE +\
-"    CJ = 2.268000e-04" + NEWLINE +\
-"    CTCOR = 3.250000e-06" + NEWLINE +\
-"    CPCOR = -9.570000e-08" + NEWLINE +\
-"    CSLOPE = 1.000000e+00" + NEWLINE
+"    TA3 = 1.640089e-07" + NEWLINE
 
 SAMPLE_WAVE_BURST =\
 "wave: start time = 05 Oct 2012 01:10:54" + NEWLINE +\
 "wave: ptfreq = 171791.359" + NEWLINE +\
-"  14.5102" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
+"-157.6064" + NEWLINE + " 114.5064" + NEWLINE + " -14.5165" + NEWLINE + "  -4.5064" + NEWLINE +\
 "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
 "  14.5165" + NEWLINE + "  14.5064" + NEWLINE + "  14.5165" + NEWLINE + "  14.5064" + NEWLINE +\
 "  14.5165" + NEWLINE + "  14.5134" + NEWLINE + "  14.5078" + NEWLINE + "  14.5134" + NEWLINE +\
