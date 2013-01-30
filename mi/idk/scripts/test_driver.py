@@ -20,13 +20,13 @@ def run():
     opts = parseArgs()
 
     if( opts.buildbot_unit ):
-        return run_buildbot_unit(opts)
+        return not run_buildbot_unit(opts)
 
     if( opts.buildbot_int ):
-        return run_buildbot_int(opts)
+        return not run_buildbot_int(opts)
 
     if( opts.buildbot_qual ):
-        return run_buildbot_qual(opts)
+        return not run_buildbot_qual(opts)
 
     if( opts.buildbot ):
         devices = read_buildbot_config()
@@ -44,7 +44,7 @@ def run():
                 ret = False
             if False == app.run_qualification():
                 ret = False
-        return ret
+        return not ret
 
     else:
         app = NoseTest(Metadata(), testname=opts.testname)
