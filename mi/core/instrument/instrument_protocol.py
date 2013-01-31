@@ -159,6 +159,7 @@ class InstrumentProtocol(object):
         if(self._scheduler_callback.get(name)):
             raise KeyError("duplicate scheduler exists for '%s'" % name)
 
+        log.debug("Add scheduler callback: %s" % name)
         self._scheduler_callback[name] = callback
         self._add_scheduler_job(name)
 
@@ -173,7 +174,8 @@ class InstrumentProtocol(object):
         """
         # Create a callback for the scheduler to raise an event
         def event_callback(self, event):
-            self._driver_event(event, None)
+            log.info("driver job triggered, raise event: %s" % event)
+            self._protocol_fsm.on_event(event)
 
         # Dynamically create the method and add it
         method = partial(event_callback, self, event)
@@ -199,6 +201,7 @@ class InstrumentProtocol(object):
             raise KeyError("scheduler job already configured '%s'" % name)
 
         scheduler_config = self._get_scheduler_config()
+        log.debug("Scheduler config: %s" % scheduler_config)
 
         # No config?  Nothing to do then.
         if(scheduler_config == None):
@@ -241,10 +244,12 @@ class InstrumentProtocol(object):
         Activate all configured schedulers added using _add_scheduler.
         Timers start when the job is activated.
         """
-        if(self._scheduler == None):
-            self._scheduler = DriverScheduler()
-            for name in self._scheduler_callback.keys():
-                self._add_scheduler_job(name)
+        log.debug("Scheduler config: %s" % self._get_scheduler_config())
+        log.debug("Scheduler callbacks: %s" % self._scheduler_callback)
+        self._scheduler = DriverScheduler()
+        for name in self._scheduler_callback.keys():
+            log.debug("Add job for callback: %s" % name)
+            self._add_scheduler_job(name)
 
     #############################################################
     # Configuration logic

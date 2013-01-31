@@ -476,6 +476,13 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
     #############################################################
     # Configuration logic
     #############################################################
+    def get_init_params(self):
+        """
+        get the driver initialization parameters
+        @return driver configuration dictionary
+        """
+        return self._startup_config
+
     def set_init_params(self, config):
         """
         Set the initialization parameters down in the protocol and store the
@@ -502,6 +509,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
 
             if(param_config):
                 self._protocol.set_init_params(param_config)
+                self._protocol.initialize_scheduler()
                 
         self._startup_config = config
     

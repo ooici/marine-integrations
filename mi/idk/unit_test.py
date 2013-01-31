@@ -1249,7 +1249,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         @param param: parameter to set
         @param value: expected parameter value
         @param pattern: expected parameter pattern
-        @raise IDKException if value or pattern not passed
+        @return value of the parameter
         """
         reply = self.driver_client.cmd_dvr('get_resource', [param])
         self.assertIsInstance(reply, dict)
@@ -1259,8 +1259,8 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             self.assertEqual(return_value, value, msg="%s no value match (%s != %s)" % (param, return_value, value))
         elif(pattern != None):
             self.assertRegexpMatches(str(return_value), pattern, msg="%s no value match (%s != %s)" % (param, return_value, value))
-        else:
-            raise IDKException('parameter required, param or value')
+
+        return return_value
 
     def assert_set(self, param, value, no_get=False):
         """
@@ -1436,6 +1436,61 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
             time.sleep(.3)
 
+    def assert_scheduled_event(self, job_name, assert_callback, autosample_command=None, delay=5):
+        """
+        Verify that a scheduled event can be triggered and use the
+        assert callback to verify that it worked. If an auto sample command
+        is passed then put the driver in streaming mode.  When transitioning
+        to streaming you may need to increase the delay.
+        @param job_name: name of the job to schedule
+        @param assert_callback: verification callback
+        @param autosample_command: command to put us in autosample mode
+        @param delay: time to wait before the event is triggered in seconds
+        """
+        # Build a scheduled job for 'delay' seconds from now
+        dt = datetime.datetime.now() + datetime.timedelta(0,delay)
+
+        scheduler_config = {
+            DriverSchedulerConfigKey.TRIGGER: {
+                DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.ABSOLUTE,
+                DriverSchedulerConfigKey.DATE: "%s" % dt
+            }
+        }
+
+        # get the current driver configuration
+        config = self.driver_client.cmd_dvr('get_init_params')
+
+        # Add the scheduled job
+        if(not config):
+            config = {}
+        if(not config.get(DriverStartupConfigKey.SCHEDULER)):
+            config[DriverStartupConfigKey.SCHEDULER] = {}
+
+        config[DriverStartupConfigKey.SCHEDULER][job_name] = scheduler_config
+
+        # Currently the only way to setup schedulers is via the startup config
+        # mechanism.  We may need to expose scheduler specific capability in the
+        # future, but this should work in the intrum.
+        self.driver_client.cmd_dvr('set_init_params', config)
+        log.debug("SET CONFIG, set_init_params: %s" % config)
+
+        # Walk the driver to command mode.
+        self.assert_initialize_driver()
+
+        # We explicitly call apply startup params because we don't know if the
+        # driver does it for us.  It should, but it is tested in another test.
+        self.driver_client.cmd_dvr('apply_startup_params')
+
+        # Transition to autosample if command supplied
+        if(autosample_command):
+            self.assert_driver_command(autosample_command)
+
+        # Ensure we have at least 3 seconds before the event should fire
+        safe_time = datetime.datetime.now() + datetime.timedelta(0,3)
+        self.assertGreaterEqual(dt, safe_time, msg="Trigger time already in the past. Increase your delay")
+
+        # Now verify that the job is triggered and it does what we think it should
+        assert_callback()
 
     ###
     #   Common Integration Tests
@@ -1991,42 +2046,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, result_state)
-
-    def assert_scheduled_event(self, job_name, assert_callback, delay=5):
-        """
-        Verify that a scheduled event can be triggered and use the
-        assert callback to verify that it worked.
-        @param job_name: name of the job to schedule
-        @param assert_callback: verification callback
-        @param delay: time to wait before the event is triggered in seconds
-        """
-        # Build a scheduled job for 'delay' seconds from now
-        dt = datetime.datetime.now() + datetime.timedelta(0,delay)
-        datestr = dt.strftime("%m/%d/%y %H:%M:%S")
-
-        scheduler_config = {
-            DriverStartupConfigKey.SCHEDULER: {
-                job_name: {
-                    DriverSchedulerConfigKey.TRIGGER: {
-                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.ABSOLUTE,
-                        DriverSchedulerConfigKey.DATE: datestr
-                    }
-                }
-            }
-        }
-
-        # Currently the only way to setup schedulers is via the startup config
-        # mechanism.  We may need to expose scheduler specific capability in the
-        # future, but this should work in the intrum.
-        self.assert_execute_resource('set_init_params', scheduler_config)
-        self.assert_enter_command_mode()
-
-        # This call shouldn't be required right?  Should happen automatically as
-        # we transition to command mode?
-        #self.assert_agent_command('apply_startup_params')
-
-        # Apply startup config should add the new scheduled job. The delay should
-        # be long enough for apply_startup_params to run.
 
     def test_instrument_agent_common_state_model_lifecycle(self,  timeout=GO_ACTIVE_TIMEOUT):
         """

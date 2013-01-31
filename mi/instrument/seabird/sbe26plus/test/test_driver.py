@@ -477,11 +477,13 @@ class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
                                     'DRIVER_EVENT_START_DIRECT',
                                     'PROTOCOL_EVENT_ACQUIRE_CONFIGURATION',
                                     'PROTOCOL_EVENT_QUIT_SESSION',
+                                    'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
                                     'PROTOCOL_EVENT_SETSAMPLING'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
                                        'DRIVER_EVENT_STOP_AUTOSAMPLE',
                                        'PROTOCOL_EVENT_SEND_LAST_SAMPLE',
                                        'PROTOCOL_EVENT_ACQUIRE_CONFIGURATION',
+                                       'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
                                        'DRIVER_EVENT_ACQUIRE_STATUS'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
@@ -505,7 +507,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
     ###
     #    Add instrument specific integration tests
     ###
-
     def test_parameters(self):
         """
         Test driver parameters and verify their type.  Startup parameters also verify the parameter
@@ -516,7 +517,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         self.assert_driver_parameters(reply, True)
 
-    # PASSES
     def test_set(self):
         """
         Test all set commands. Verify all exception cases.
@@ -563,6 +563,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_set_readonly(Parameter.SHOW_PROGRESS_MESSAGES)
         self.assert_set_readonly(Parameter.STATUS)
         self.assert_set_readonly(Parameter.LOGGING)
+
     def test_set_sampling(self):
         """
         @brief Test device setsampling.
@@ -1086,6 +1087,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, regex=r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)')
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'SBE 26plus')
         self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
+        self.assert_driver_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_CONFIGURATION, regex=r'Pressure coefficients')
         self.assert_driver_command_exception(ProtocolEvent.SEND_LAST_SAMPLE, exception_class=InstrumentCommandException)
         self.assert_driver_command(ProtocolEvent.QUIT_SESSION)
@@ -1096,6 +1098,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         # Put us in streaming
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
 
+        self.assert_driver_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
         self.assert_driver_command_exception(ProtocolEvent.START_AUTOSAMPLE, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(ProtocolEvent.ACQUIRE_SAMPLE, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(ProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
@@ -1140,6 +1143,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_async_particle_generation(DataParticleType.WAVE_BURST, self.assert_particle_wave_burst, timeout=300)
         self.assert_async_particle_generation(DataParticleType.STATISTICS, self.assert_particle_statistics, timeout=300)
 
+    @unittest.skip("Need to identify a startup parameter pattern")
     def test_startup_params_first_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -1161,6 +1165,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_set(Parameter.TXREALTIME, False)
         self.assert_set(Parameter.TXWAVEBURST, True)
 
+    @unittest.skip("Need to identify a startup parameter pattern")
     def test_startup_params_second_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -1180,6 +1185,80 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_set(Parameter.TXWAVESTATS, True)
         self.assert_set(Parameter.TXREALTIME, False)
         self.assert_set(Parameter.TXWAVEBURST, True)
+
+    ###
+    #   Test scheduled events
+    ###
+    def assert_calibration_coefficients(self):
+        """
+        Verify a calibration particle was generated
+        """
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.DEVICE_CALIBRATION, self.assert_particle_device_calibration, timeout=10)
+
+    def test_scheduled_device_configuration_command(self):
+        """
+        Verify the device configuration command can be triggered and run in command
+        """
+        self.assert_scheduled_event(ScheduledJob.CALIBRATION_COEFFICIENTS, self.assert_calibration_coefficients, delay=45)
+        self.assert_current_state(ProtocolState.COMMAND)
+
+    def test_scheduled_device_configuration_autosample(self):
+        """
+        Verify the device configuration command can be triggered and run in autosample
+        """
+        self.assert_scheduled_event(ScheduledJob.CALIBRATION_COEFFICIENTS, self.assert_calibration_coefficients,
+            autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=60)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+
+    def assert_acquire_status(self):
+        """
+        Verify a status particle was generated
+        """
+        self.clear_events()
+        self.assert_sample_async(self.assert_particle_device_status, DataParticleType.DEVICE_STATUS, timeout=10, sample_count=1)
+
+    def test_scheduled_device_configuration_command(self):
+        """
+        Verify the device configuration command can be triggered and run in command
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_particle_device_status, delay=45)
+        self.assert_current_state(ProtocolState.COMMAND)
+
+    def test_scheduled_device_configuration_autosample(self):
+        """
+        Verify the device configuration command can be triggered and run in autosample
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_particle_device_status,
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=45)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+
+    def assert_clock_sync(self):
+        """
+        Verify the clock is set to at least the current date
+        """
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        dt = self.assert_get(Parameter.DS_DEVICE_DATE_TIME)
+        lt = time.strftime("%d %b %Y  %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+        self.assertTrue(lt[:12].upper() in dt.upper())
+
+    def test_scheduled_clock_sync_command(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=45)
+        self.assert_current_state(ProtocolState.COMMAND)
+
+    def test_scheduled_clock_sync_autosample(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync,
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=60)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -1313,10 +1392,19 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
 
-    def assert_clock_sync(self):
+    def test_execute_clock_sync(self):
         """
-        verify that the date is set correctly on the instrument
+        Verify we can syncronize the instrument internal clock
         """
+        self.assert_enter_command_mode()
+
+        # wait for a bit so the event can be triggered
+        time.sleep(1)
+
+        # Set the clock to something in the past
+        self.assert_set_parameter(Parameter.DS_DEVICE_DATE_TIME, "01 Jan 2001 01:01:01", verify=False)
+
+        self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
         self.assert_execute_resource(ProtocolEvent.ACQUIRE_STATUS)
 
         # Now verify that at least the date matches
@@ -1326,59 +1414,7 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         log.debug("TIME: %s && %s" % (lt, check_new_params[Parameter.DS_DEVICE_DATE_TIME]))
         self.assertTrue(lt[:12].upper() in check_new_params[Parameter.DS_DEVICE_DATE_TIME].upper())
 
-    def test_execute_clock_sync(self):
-        """
-        Verify we can syncronize the instrument internal clock
-        """
-        self.assert_enter_command_mode()
-
-        # wait for a bit so the event can be triggered
-        time.sleep(3)
-
-        # Set the clock to something in the past
-        self.assert_set_parameter(Parameter.DS_DEVICE_DATE_TIME, "01 Jan 2001 01:01:01", verify=False)
-
-        self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
-        self.assert_clock_sync()
-
-    @unittest.skip('needs base class update')
-    def test_scheduled_clock_sync(self):
-        """
-        Verify the scheduled clock sync is triggered and functions as expected
-        """
-        self.assert_enter_command_mode()
-        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync)
-
-    def assert_acquire_status(self):
-        """
-        Verify a status particle was generated
-        """
-        self.assert_sample_async(self.assert_particle_device_status, DataParticleType.DEVICE_STATUS, timeout=30, sample_count=1)
-
-    @unittest.skip('needs base class update')
-    def test_scheduled_device_status(self):
-        """
-        Verify the device status command can be triggered and run in both command
-        and streaming mode.
-        """
-        self.assert_enter_command_mode()
-        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status)
-
-    def assert_calibration_coefficients(self):
-        """
-        Verify a calibration particle was generated
-        """
-        self.assert_sample_async(self.assert_particle_device_calibration, DataParticleType.DEVICE_CALIBRATION, timeout=30, sample_count=1)
-
-    @unittest.skip('needs base class update')
-    def test_scheduled_device_configuration(self):
-        """
-        Verify the device configuration command can be triggered and run in both command
-        and streaming mode.
-        """
-        self.assert_enter_command_mode()
-        self.assert_scheduled_event(ScheduledJob.CALIBRATION_COEFFICIENTS, self.assert_calibration_coefficients)
-
+    @unittest.skip("Need to identify a startup parameter pattern")
     def test_startup_params_first_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -1399,6 +1435,7 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         self.assetert_set_parameter(Parameter.TXREALTIME, False)
         self.assetert_set_parameter(Parameter.TXWAVEBURST, True)
 
+    @unittest.skip("Need to identify a startup parameter pattern")
     def test_startup_params_second_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this

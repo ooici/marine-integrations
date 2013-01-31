@@ -132,6 +132,9 @@ class ProtocolEvent(BaseEnum):
     QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
 
+    # Different event because we don't want to expose this as a capability
+    SCHEDULED_CLOCK_SYNC = 'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'
+
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
@@ -1094,18 +1097,20 @@ class Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SETSAMPLING,            self._handler_command_setsampling)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC,             self._handler_command_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC,   self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION,  self._handler_command_acquire_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION,           self._handler_command_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
 
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_autosample_test_get)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_acquire_status)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_CONFIGURATION,  self._handler_command_acquire_configuration)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,     self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SEND_LAST_SAMPLE,       self._handler_command_send_last_sample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,                   self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                    self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                     self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,          self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_CONFIGURATION,   self._handler_command_acquire_configuration)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,         self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SEND_LAST_SAMPLE,        self._handler_command_send_last_sample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_CLOCK_SYNC,    self._handler_autosample_clock_sync)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,             self._handler_direct_access_exit)
@@ -1146,7 +1151,7 @@ class Protocol(SeaBirdProtocol):
 
         self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
         self._add_scheduler_event(ScheduledJob.CALIBRATION_COEFFICIENTS, ProtocolEvent.ACQUIRE_CONFIGURATION)
-        self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.CLOCK_SYNC)
+        self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
     @staticmethod
     def sieve_function(raw_data):
@@ -1220,19 +1225,12 @@ class Protocol(SeaBirdProtocol):
             prompt = self._wakeup(timeout=timeout, delay=delay)
             prompt = self._wakeup(timeout)
 
-        # Set the state to change.
-        # Raise if the prompt returned does not match command or autosample.
+        logging = self._is_logging(timeout=timeout)
 
-        # Store the current values from the param dict, then refresh the values
-        # to determine if we were out of sync.
-        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS,timeout=timeout)
-        self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION,timeout=timeout)
-        pd = self._param_dict.get_config()
-
-        if pd[Parameter.LOGGING] == True:
+        if logging == True:
             next_state = ProtocolState.AUTOSAMPLE
             result = ResourceAgentState.STREAMING
-        elif pd[Parameter.LOGGING] == False:
+        elif logging == False:
             next_state = ProtocolState.COMMAND
             result = ResourceAgentState.IDLE
         else:
@@ -1329,11 +1327,49 @@ class Protocol(SeaBirdProtocol):
         """
         pass
 
+    def _handler_autosample_clock_sync(self, *args, **kwargs):
+        """
+        execute a clock sync on the leading edge of a second change from
+        autosample mode.  For this command we have to move the instrument
+        into command mode, do the clock sync, then switch back.  If an
+        exception is thrown we will try to get ourselves back into
+        streaming and then raise that exception.
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+        error = None
+
+        try:
+            # Switch to command mode,
+            self._stop_logging()
+
+            # Sync the clock
+            timeout = kwargs.get('timeout', TIMEOUT)
+            self._sync_clock(Parameter.DS_DEVICE_DATE_TIME, Prompt.COMMAND, timeout)
+
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            error = e
+
+        finally:
+            # Switch back to streaming
+            self._start_logging()
+
+        if(error):
+            raise error
+
+        return (next_state, (next_agent_state, result))
+
     def _handler_command_clock_sync(self, *args, **kwargs):
         """
         execute a clock sync on the leading edge of a second change
-        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
-        None) if successful.
+        @retval (next_state, result) tuple, (None, (None, )) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
@@ -1343,24 +1379,7 @@ class Protocol(SeaBirdProtocol):
         result = None
 
         timeout = kwargs.get('timeout', TIMEOUT)
-        delay = 1
-        prompt = self._wakeup(timeout=timeout, delay=delay)
-
-        # lets clear out any past data so it doesnt confuse the command
-        self._linebuf = ''
-        self._promptbuf = ''
-
-        str_val = self._param_dict.format(Parameter.DS_DEVICE_DATE_TIME, get_timestamp_delayed("%d %b %Y %H:%M:%S"))
-        set_cmd = '%s=%s' % (Parameter.DS_DEVICE_DATE_TIME, str_val) + NEWLINE
-
-        self._do_cmd_direct(set_cmd)
-        (prompt, response) = self._get_response()
-
-        if response != set_cmd + Prompt.COMMAND:
-            raise InstrumentProtocolException("_handler_clock_sync - response != set_cmd")
-
-        if prompt != Prompt.COMMAND:
-            raise InstrumentProtocolException("_handler_clock_sync - prompt != Prompt.COMMAND")
+        self._sync_clock(Parameter.DS_DEVICE_DATE_TIME, Prompt.COMMAND, timeout)
 
         return (next_state, (next_agent_state, result))
 
@@ -1782,16 +1801,12 @@ class Protocol(SeaBirdProtocol):
         """
         kwargs['expected_prompt'] = Prompt.COMMAND
         kwargs['timeout'] = 30
-        log.info("SYNCING TIME WITH SENSOR")
-        #self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME, time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))), **kwargs)
-        self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME, get_timestamp_delayed("%d %b %Y %H:%M:%S"), **kwargs)
 
         next_state = None
         result = None
 
-
         # Issue start command and switch to autosample if successful.
-        self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, *args, **kwargs)
+        self._start_logging()
 
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -1848,11 +1863,7 @@ class Protocol(SeaBirdProtocol):
         timeout = kwargs.get('timeout', TIMEOUT)
         self._wakeup_until(timeout, Prompt.AUTOSAMPLE)
 
-        # Issue the stop command.
-        self._do_cmd_resp(InstrumentCmds.STOP_LOGGING, *args, **kwargs)
-
-        # Prompt device until command prompt is seen.
-        self._wakeup_until(timeout, Prompt.COMMAND)
+        self._stop_logging(timeout)
 
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
@@ -1935,6 +1946,55 @@ class Protocol(SeaBirdProtocol):
     ########################################################################
     # Private helpers.
     ########################################################################
+
+    def _is_logging(self, timeout=TIMEOUT):
+        """
+        Poll the instrument to see if we are in logging mode.  Return True
+        if we are, False if not, or None if we couldn't tell.
+        @param: timeout - Command timeout
+        @return: True - instrument logging, False - not logging,
+                 None - unknown logging state
+        """
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS,timeout=timeout)
+        pd = self._param_dict.get_config()
+
+        return pd.get(Parameter.LOGGING)
+
+    def _start_logging(self, timeout=TIMEOUT):
+        """
+        Command the instrument to start logging
+        @param timeout: how long to wait for a prompt
+        @return: True if successful
+        @raise: InstrumentProtocolException if failed to start logging
+        """
+        self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, timeout=timeout)
+        time.sleep(1)
+
+        # Prompt device until command prompt is seen.
+        self._wakeup_until(timeout, Prompt.COMMAND)
+
+        if not self._is_logging(timeout):
+            raise InstrumentProtocolException("failed to start logging")
+        return True
+
+    def _stop_logging(self, timeout=TIMEOUT):
+        """
+        Command the instrument to stop logging
+        @param timeout: how long to wait for a prompt
+        @return: True if successful
+        @raise: InstrumentTimeoutException if prompt isn't seen
+        @raise: InstrumentProtocolException failed to stop logging
+        """
+        # Issue the stop command.
+        self._do_cmd_resp(InstrumentCmds.STOP_LOGGING)
+
+        # Prompt device until command prompt is seen.
+        self._wakeup_until(timeout, Prompt.COMMAND)
+
+        if self._is_logging(timeout):
+            raise InstrumentProtocolException("failed to stop logging")
+
+        return True
 
     def _send_wakeup(self):
         """
