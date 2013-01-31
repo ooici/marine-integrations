@@ -98,6 +98,7 @@ parameter_types = {
     InstrumentParameters.BURST_INTERVAL_SECONDS : int,
     InstrumentParameters.SI_CONVERSION : float,
     InstrumentParameters.WARM_UP_INTERVAL : str,
+    InstrumentParameters.THREE_AXIS_COMPASS : str,
 }
 
 parameter_list = [
@@ -120,7 +121,8 @@ parameter_list = [
     #InstrumentParameters.BURST_INTERVAL_MINUTES,
     #InstrumentParameters.BURST_INTERVAL_SECONDS,
     #InstrumentParameters.SI_CONVERSION,
-    InstrumentParameters.WARM_UP_INTERVAL
+    #InstrumentParameters.WARM_UP_INTERVAL,
+    InstrumentParameters.THREE_AXIS_COMPASS
 ]
     
 ## Initialize the test configuration
@@ -326,7 +328,8 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
                            InstrumentParameters.BURST_INTERVAL_MINUTES : 3,
                            InstrumentParameters.BURST_INTERVAL_SECONDS : 4,
                            InstrumentParameters.SI_CONVERSION : .00231,
-                           InstrumentParameters.WARM_UP_INTERVAL : 'Fast'
+                           InstrumentParameters.WARM_UP_INTERVAL : 'Fast',
+                           InstrumentParameters.THREE_AXIS_COMPASS : 'y'
                            }
 
         reply = self.driver_client.cmd_dvr('get_resource', parameter_list)

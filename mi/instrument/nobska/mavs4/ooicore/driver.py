@@ -113,6 +113,7 @@ class InstrumentPrompts(BaseEnum):
     SYSTEM_CONFIGURATION_PASSWORD = 'Password:'
     SI_CONVERSION                 = 'Enter binary to SI velocity conversion (0.0010000 to 0.0200000) ?'
     WARM_UP_INTERVAL              = '[F]ast or [S]low sensor warm up interval [F] ?'
+    THREE_AXIS_COMPASS            = '3-Axis compass enabled (Yes/No) ['
     
 class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dictionaries to work correctly
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
@@ -154,6 +155,8 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     ENTER_SI_CONVERSION                        = 'enter_si_conversion'
     SET_WARM_UP_INTERVAL                       = 'W'
     ENTER_WARM_UP_INTERVAL                     = 'enter_warm_up_interval'
+    SET_THREE_AXIS_COMPASS                     = ' 1'                          # make different from SET_TIME with leading space
+    ENTER_THREE_AXIS_COMPASS                   = 'enter_3_axis_compass'
     
 
 class ProtocolStates(BaseEnum):
@@ -223,6 +226,7 @@ class InstrumentParameters(DriverParameter):
     # system configuration menu parameters
     SI_CONVERSION                        = 'si_conversion'
     WARM_UP_INTERVAL                     = 'warm_up_interval'
+    THREE_AXIS_COMPASS                   = '3_axis_compass'
     
 class DeployMenuParameters(BaseEnum):
     NOTE1                                = InstrumentParameters.NOTE1
@@ -244,8 +248,9 @@ class DeployMenuParameters(BaseEnum):
     BURST_INTERVAL_SECONDS               = InstrumentParameters.BURST_INTERVAL_SECONDS
     
 class SystemConfigurationMenuParameters(BaseEnum):
-    SI_CONVERSION = InstrumentParameters.SI_CONVERSION
-    WARM_UP_INTERVAL = InstrumentParameters.WARM_UP_INTERVAL
+    SI_CONVERSION      = InstrumentParameters.SI_CONVERSION
+    WARM_UP_INTERVAL   = InstrumentParameters.WARM_UP_INTERVAL
+    THREE_AXIS_COMPASS = InstrumentParameters.THREE_AXIS_COMPASS
 
 class SubMenues(BaseEnum):
     ROOT          = 'root_menu'
@@ -606,6 +611,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                             [InstrumentPrompts.MAIN_MENU, None, None],                        
                         InstrumentCmds.SET_WARM_UP_INTERVAL : 
                             [InstrumentPrompts.WARM_UP_INTERVAL, InstrumentCmds.ENTER_WARM_UP_INTERVAL, None],                        
+                        InstrumentCmds.SET_THREE_AXIS_COMPASS : 
+                            [InstrumentPrompts.THREE_AXIS_COMPASS, InstrumentCmds.ENTER_THREE_AXIS_COMPASS, None],                        
+                        InstrumentCmds.ENTER_THREE_AXIS_COMPASS : 
+                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
                         }
     
     def __init__(self, prompts, newline, driver_event):
@@ -762,7 +771,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             command = directions.get_command()
             response = directions.get_response()
             timeout = directions.get_timeout()
-            self._do_cmd_resp(command, expected_prompt = response, timeout = timeout)
+            kwargs.pop('timeout', None)
+            self._do_cmd_resp(command, expected_prompt = response, timeout = timeout, **kwargs)
 
         command = cmd
         while command != None:
@@ -1304,8 +1314,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : match.group(1),
                              lambda string : string,
                              value='',
-                             menu_path_read=SubMenues.ROOT,
-                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_read=SubMenues.DEPLOY,
+                             submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_NOTE)
 
@@ -1314,8 +1324,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : match.group(1),
                              lambda string : string,
                              value='',
-                             menu_path_read=SubMenues.ROOT,
-                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_read=SubMenues.DEPLOY,
+                             submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_NOTE)
 
@@ -1324,8 +1334,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : match.group(1),
                              lambda string : string,
                              value='',
-                             menu_path_read=SubMenues.ROOT,
-                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_read=SubMenues.DEPLOY,
+                             submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_NOTE)
 
@@ -1334,8 +1344,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : self._parse_velocity_frame(match.group(1)),
                              lambda string : string,
                              value='',
-                             menu_path_read=SubMenues.ROOT,
-                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_read=SubMenues.DEPLOY,
+                             submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_MONITOR)
 
@@ -1344,8 +1354,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : self._parse_enable_disable(match.group(1)),
                              lambda string : string,
                              value='',
-                             menu_path_read=SubMenues.ROOT,
-                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_read=SubMenues.DEPLOY,
+                             submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_MONITOR)
 
@@ -1372,8 +1382,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : self._parse_enable_disable(match.group(1)),
                              lambda string : string,
                              value='',
-                             menu_path_read=SubMenues.ROOT,
-                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_read=SubMenues.DEPLOY,
+                             submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_QUERY)
 
@@ -1382,8 +1392,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : float(match.group(1)),
                              self._float_to_string,
                              value=0.0,
-                             menu_path_read=SubMenues.ROOT,
-                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_read=SubMenues.DEPLOY,
+                             submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_FREQUENCY)
 
@@ -1392,8 +1402,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : int(match.group(1)),
                              self._int_to_string,
                              value=0,
-                             menu_path_read=SubMenues.ROOT,
-                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_read=SubMenues.DEPLOY,
+                             submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_MEAS_PER_SAMPLE)
 
@@ -1402,8 +1412,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : float(match.group(1)),
                              self._float_to_string,
                              value=0.0,
-                             menu_path_read=SubMenues.ROOT,
-                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_read=SubMenues.DEPLOY,
+                             submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_SAMPLE_PERIOD)
 
@@ -1412,8 +1422,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : int(match.group(1)),
                              self._int_to_string,
                              value=0,
-                             menu_path_read=SubMenues.ROOT,
-                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_read=SubMenues.DEPLOY,
+                             submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_SAMPLES_PER_BURST)
 
@@ -1422,8 +1432,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : int(match.group(1)),
                              self._int_to_string,
                              value=0,
-                             menu_path_read=SubMenues.ROOT,
-                             submenu_read=InstrumentCmds.DEPLOY_MENU,
+                             menu_path_read=SubMenues.DEPLOY,
+                             submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
                              submenu_write=InstrumentCmds.SET_BURST_INTERVAL_DAYS)
 
@@ -1465,8 +1475,20 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=SubMenues.CONFIGURATION,
                              submenu_write=InstrumentCmds.SET_WARM_UP_INTERVAL)
 
+        self._param_dict.add(InstrumentParameters.THREE_AXIS_COMPASS,
+                             r'.*<1> 3-Axis Compass\s+(\w+)\s+.*', 
+                             lambda match : self._parse_enable_disable(match.group(1)),
+                             lambda string : string,
+                             value='',
+                             menu_path_read=SubMenues.CONFIGURATION,
+                             submenu_read=None,
+                             menu_path_write=SubMenues.CONFIGURATION,
+                             submenu_write=InstrumentCmds.SET_THREE_AXIS_COMPASS)
+
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ENTER_THREE_AXIS_COMPASS, self._build_simple_enter_command)
+        self._add_build_handler(InstrumentCmds.SET_THREE_AXIS_COMPASS, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_WARM_UP_INTERVAL, self._build_enter_warm_up_interval_command)
         self._add_build_handler(InstrumentCmds.SET_WARM_UP_INTERVAL, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_SI_CONVERSION, self._build_simple_enter_command)
@@ -1726,7 +1748,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             raise InstrumentProtocolException('system configuration menu command not recognized by instrument: %s.' %response)
         
         name = kwargs.get('name', None)
-        if name != None:
+        if name != InstrumentParameters.ALL:
             # only get the parameter values if called from _update_params()
             return None
         for parameter in SystemConfigurationMenuParameters.list():
