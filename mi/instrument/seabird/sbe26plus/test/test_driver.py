@@ -526,7 +526,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         # The clock in this instrument is a little odd.  It looks like if you wait until the edge of a second
         # to set it, it immediately ticks after the set, making it off by 1.  For now we will accept this
         # behavior, but we need to check this behavior on all SBE instruments.
-        # @todo Revisit clock sync across SBE instruments
         set_time = get_timestamp_delayed("%d %b %Y  %H:%M:%S")
         # One second later
         expected_time = get_timestamp_delayed("%d %b %Y  %H:%M:%S")
@@ -564,6 +563,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_set_readonly(Parameter.STATUS)
         self.assert_set_readonly(Parameter.LOGGING)
 
+    @unittest.skip("damn long test")
     def test_set_sampling(self):
         """
         @brief Test device setsampling.
@@ -1217,20 +1217,20 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         Verify a status particle was generated
         """
         self.clear_events()
-        self.assert_sample_async(self.assert_particle_device_status, DataParticleType.DEVICE_STATUS, timeout=10, sample_count=1)
+        self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_device_status, timeout=10)
 
-    def test_scheduled_device_configuration_command(self):
+    def test_scheduled_device_status_command(self):
         """
-        Verify the device configuration command can be triggered and run in command
+        Verify the device status command can be triggered and run in command
         """
-        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_particle_device_status, delay=45)
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status, delay=45)
         self.assert_current_state(ProtocolState.COMMAND)
 
-    def test_scheduled_device_configuration_autosample(self):
+    def test_scheduled_device_status_autosample(self):
         """
-        Verify the device configuration command can be triggered and run in autosample
+        Verify the device status command can be triggered and run in autosample
         """
-        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_particle_device_status,
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status,
                                     autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=45)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
