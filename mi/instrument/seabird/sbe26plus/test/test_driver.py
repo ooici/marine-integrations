@@ -1194,7 +1194,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         Verify a calibration particle was generated
         """
         self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.DEVICE_CALIBRATION, self.assert_particle_device_calibration, timeout=10)
+        self.assert_async_particle_generation(DataParticleType.DEVICE_CALIBRATION, self.assert_particle_device_calibration, timeout=30)
 
     def test_scheduled_device_configuration_command(self):
         """
@@ -1217,7 +1217,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         Verify a status particle was generated
         """
         self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_device_status, timeout=10)
+        self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_device_status, timeout=30)
 
     def test_scheduled_device_status_command(self):
         """
@@ -1231,7 +1231,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         Verify the device status command can be triggered and run in autosample
         """
         self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=45)
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=60)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
