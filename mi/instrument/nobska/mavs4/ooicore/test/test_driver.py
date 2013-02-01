@@ -103,6 +103,7 @@ parameter_types = {
     InstrumentParameters.WARM_UP_INTERVAL : str,
     InstrumentParameters.THREE_AXIS_COMPASS : str,
     InstrumentParameters.THERMISTOR : str,
+    InstrumentParameters.PRESSURE : str,
 }
 
 parameter_list = [
@@ -127,7 +128,8 @@ parameter_list = [
     #InstrumentParameters.SI_CONVERSION,
     #InstrumentParameters.WARM_UP_INTERVAL,
     #InstrumentParameters.THREE_AXIS_COMPASS
-    InstrumentParameters.THERMISTOR
+    #InstrumentParameters.THERMISTOR
+    InstrumentParameters.PRESSURE
 ]
     
 ## Initialize the test configuration
@@ -349,7 +351,8 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
                            InstrumentParameters.SI_CONVERSION : .00231,
                            InstrumentParameters.WARM_UP_INTERVAL : 'Fast',
                            InstrumentParameters.THREE_AXIS_COMPASS : 'y',
-                           InstrumentParameters.THERMISTOR : 'y'
+                           InstrumentParameters.THERMISTOR : 'y',
+                           InstrumentParameters.PRESSURE : 'n',
                            }
 
         reply = self.driver_client.cmd_dvr('get_resource', parameter_list)

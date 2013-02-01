@@ -116,6 +116,7 @@ class InstrumentPrompts(BaseEnum):
     THREE_AXIS_COMPASS            = '3-Axis compass enabled (Yes/No) ['
     THERMISTOR                    = 'Thermistor enabled (Yes/No) ['
     THERMISTOR_OFFSET             = 'Set thermistor offset to 0.0 (default) (Yes/No) [N] ?'
+    PRESSURE                      = 'Pressure enabled (Yes/No) ['
     
 class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dictionaries to work correctly
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
@@ -160,6 +161,8 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     SET_THERMISTOR                             = '3'                          
     ENTER_THERMISTOR                           = 'enter_thermistor'
     ANSWER_THERMISTOR_NO                       = 'n'
+    SET_PRESSURE                               = '4'                          
+    ENTER_PRESSURE                             = 'enter_pressure'
     
 
 class ProtocolStates(BaseEnum):
@@ -231,6 +234,7 @@ class InstrumentParameters(DriverParameter):
     WARM_UP_INTERVAL                     = 'warm_up_interval'
     THREE_AXIS_COMPASS                   = '3_axis_compass'
     THERMISTOR                           = 'thermistor'
+    PRESSURE                             = 'pressure'
     
 class DeployMenuParameters(BaseEnum):
     NOTE1                                = InstrumentParameters.NOTE1
@@ -256,6 +260,7 @@ class SystemConfigurationMenuParameters(BaseEnum):
     WARM_UP_INTERVAL   = InstrumentParameters.WARM_UP_INTERVAL
     THREE_AXIS_COMPASS = InstrumentParameters.THREE_AXIS_COMPASS
     THERMISTOR         = InstrumentParameters.THERMISTOR
+    PRESSURE           = InstrumentParameters.PRESSURE
 
 class SubMenues(BaseEnum):
     ROOT          = 'root_menu'
@@ -621,6 +626,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                         InstrumentCmds.SET_THERMISTOR : 
                             [InstrumentPrompts.THERMISTOR, InstrumentCmds.ENTER_THERMISTOR, None],                        
                         InstrumentCmds.ANSWER_THERMISTOR_NO : 
+                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
+                        InstrumentCmds.SET_PRESSURE : 
+                            [InstrumentPrompts.PRESSURE, InstrumentCmds.ENTER_PRESSURE, None],                        
+                        InstrumentCmds.ENTER_PRESSURE : 
                             [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
                         }
     
@@ -1502,8 +1511,21 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=SubMenues.CONFIGURATION,
                              submenu_write=InstrumentCmds.SET_THERMISTOR)
 
+        self._param_dict.add(InstrumentParameters.PRESSURE,
+                             r'.*<4> Pressure\s+(\w+)\s+.*', 
+                             lambda match : self._parse_enable_disable(match.group(1)),
+                             lambda string : string,
+                             value='',                     # this parameter can only be set to 'n' (meaning disabled)
+                                                           # support for setting it to 'y' has not been implemented
+                             menu_path_read=SubMenues.CONFIGURATION,
+                             submenu_read=None,
+                             menu_path_write=SubMenues.CONFIGURATION,
+                             submenu_write=InstrumentCmds.SET_PRESSURE)
+
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ENTER_PRESSURE, self._build_simple_enter_command)
+        self._add_build_handler(InstrumentCmds.SET_PRESSURE, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ANSWER_THERMISTOR_NO, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_THERMISTOR, self._build_enter_thermistor_command)
         self._add_build_handler(InstrumentCmds.SET_THERMISTOR, self._build_simple_command)
