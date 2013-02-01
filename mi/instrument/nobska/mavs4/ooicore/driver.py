@@ -117,6 +117,7 @@ class InstrumentPrompts(BaseEnum):
     THERMISTOR                    = 'Thermistor enabled (Yes/No) ['
     THERMISTOR_OFFSET             = 'Set thermistor offset to 0.0 (default) (Yes/No) [N] ?'
     PRESSURE                      = 'Pressure enabled (Yes/No) ['
+    AUXILIARY                     = 'Auxiliary * enabled (Yes/No) ['
     
 class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dictionaries to work correctly
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
@@ -163,6 +164,8 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     ANSWER_THERMISTOR_NO                       = 'n'
     SET_PRESSURE                               = '4'                          
     ENTER_PRESSURE                             = 'enter_pressure'
+    SET_AUXILIARY                              = 'set_auxiliary'                          
+    ENTER_AUXILIARY                            = 'enter_auxiliary'
     
 
 class ProtocolStates(BaseEnum):
@@ -235,6 +238,9 @@ class InstrumentParameters(DriverParameter):
     THREE_AXIS_COMPASS                   = '3_axis_compass'
     THERMISTOR                           = 'thermistor'
     PRESSURE                             = 'pressure'
+    AUXILIARY_1                          = 'auxiliary_1'
+    AUXILIARY_2                          = 'auxiliary_2'
+    AUXILIARY_3                          = 'auxiliary_3'
     
 class DeployMenuParameters(BaseEnum):
     NOTE1                                = InstrumentParameters.NOTE1
@@ -261,6 +267,9 @@ class SystemConfigurationMenuParameters(BaseEnum):
     THREE_AXIS_COMPASS = InstrumentParameters.THREE_AXIS_COMPASS
     THERMISTOR         = InstrumentParameters.THERMISTOR
     PRESSURE           = InstrumentParameters.PRESSURE
+    AUXILIARY_1        = InstrumentParameters.AUXILIARY_1
+    AUXILIARY_2        = InstrumentParameters.AUXILIARY_2
+    AUXILIARY_3        = InstrumentParameters.AUXILIARY_3
 
 class SubMenues(BaseEnum):
     ROOT          = 'root_menu'
@@ -1522,8 +1531,43 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=SubMenues.CONFIGURATION,
                              submenu_write=InstrumentCmds.SET_PRESSURE)
 
+        self._param_dict.add(InstrumentParameters.AUXILIARY_1,
+                             r'.*<5> Auxiliary 1\s+(\w+)\s+.*', 
+                             lambda match : self._parse_enable_disable(match.group(1)),
+                             lambda string : string,
+                             value='',                     # this parameter can only be set to 'n' (meaning disabled)
+                                                           # support for setting it to 'y' has not been implemented
+                             menu_path_read=SubMenues.CONFIGURATION,
+                             submenu_read=None,
+                             menu_path_write=SubMenues.CONFIGURATION,
+                             submenu_write=InstrumentCmds.SET_AUXILIARY)
+
+        self._param_dict.add(InstrumentParameters.AUXILIARY_2,
+                             r'.*<6> Auxiliary 2\s+(\w+)\s+.*', 
+                             lambda match : self._parse_enable_disable(match.group(1)),
+                             lambda string : string,
+                             value='',                     # this parameter can only be set to 'n' (meaning disabled)
+                                                           # support for setting it to 'y' has not been implemented
+                             menu_path_read=SubMenues.CONFIGURATION,
+                             submenu_read=None,
+                             menu_path_write=SubMenues.CONFIGURATION,
+                             submenu_write=InstrumentCmds.SET_AUXILIARY)
+
+        self._param_dict.add(InstrumentParameters.AUXILIARY_3,
+                             r'.*<7> Auxiliary 3\s+(\w+)\s+.*', 
+                             lambda match : self._parse_enable_disable(match.group(1)),
+                             lambda string : string,
+                             value='',                     # this parameter can only be set to 'n' (meaning disabled)
+                                                           # support for setting it to 'y' has not been implemented
+                             menu_path_read=SubMenues.CONFIGURATION,
+                             submenu_read=None,
+                             menu_path_write=SubMenues.CONFIGURATION,
+                             submenu_write=InstrumentCmds.SET_AUXILIARY)
+
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ENTER_AUXILIARY, self._build_enter_auxiliary_command)
+        self._add_build_handler(InstrumentCmds.SET_AUXILIARY, self._build_set_auxiliary_command)
         self._add_build_handler(InstrumentCmds.ENTER_PRESSURE, self._build_simple_enter_command)
         self._add_build_handler(InstrumentCmds.SET_PRESSURE, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ANSWER_THERMISTOR_NO, self._build_simple_command)
@@ -1573,6 +1617,39 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
         self._add_response_handler(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, self._parse_system_configuration_menu_response)
     
+    def _build_enter_auxiliary_command(self, **kwargs):
+        """
+        Build handler for auxiliary enter command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        name = kwargs.get('name', None)
+        if name == None:
+            raise InstrumentParameterException('auxiliary enter command requires a name.')
+        # THIS PARAMETER ONLY SUPPORTS THE 'n' VALUE IN THIS IMPLEMENTATION
+        # THE 'y' VALUE WOULD REQUIRE MORE DIALOG WITH INSTRUMENT
+        cmd = "%s" %(self._param_dict.format(name, 'n'))
+        log.debug("_build_enter_auxiliary_command: cmd=%s" %cmd)
+        return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
+
+    def _build_set_auxiliary_command(self, **kwargs):
+        """
+        Build handler for auxiliary set command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        name = kwargs.get('name', None)
+        if name == None:
+            raise InstrumentParameterException('set auxiliary command requires a name.')
+        cmd = "%s" %(int(name[-1]) + 4)
+        response = InstrumentPrompts.AUXILIARY.replace("*", name[-1])
+        log.debug("_build_set_auxiliary_command: cmd=%s" %cmd)
+        return (cmd, response, InstrumentCmds.ENTER_AUXILIARY)
+
     def _build_enter_thermistor_command(self, **kwargs):
         """
         Build handler for thermistor enter command 
