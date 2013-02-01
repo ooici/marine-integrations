@@ -22,6 +22,7 @@ from mock import Mock
 
 from mi.core.exceptions import TestModeException
 from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import NotImplementedException
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverParameter
@@ -152,6 +153,15 @@ class TestUnitInstrumentDriver(MiUnitTestCase):
         running_config = self.driver.get_cached_config()
         self.assertEquals(running_config["foo"], 10)
         self.assertEquals(running_config["bar"], 15)        
+        
+    def test_apply_startup_params(self):
+        """
+        Test to see that calling a driver's apply_startup_params successfully
+        gets down into the base protocol class's apply_startup_params() stub
+        that throws an exception
+        """
+        self.assertRaises(NotImplementedException,
+                          self.driver.apply_startup_params)
         
     def test_startup_params(self):
         """

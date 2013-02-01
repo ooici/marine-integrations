@@ -255,6 +255,24 @@ class InstrumentProtocol(object):
     # Configuration logic
     #############################################################
     
+    def apply_startup_params(self):
+        """
+        Apply the startup values previously stored in the protocol to
+        the running config of the live instrument. The startup values are the
+        values that are (1) marked as startup parameters and are (2) the "best"
+        value to use at startup. Preference is given to the previously-set init
+        value, then the default value, then the currently used value.
+        
+        This default method assumes a dict of parameter name and value for
+        the configuration.
+        
+        This is the base stub for applying startup parameters at the protocol layer.
+        
+        @raise InstrumentParameterException If the config cannot be applied
+        @raise NotImplementedException In the base class it isnt implemented
+        """
+        raise NotImplementedException("Base class does not implement apply_startup_params()")
+        
     def set_init_params(self, config):
         """
         Set the initialization parameters to the given values in the protocol
@@ -267,6 +285,7 @@ class InstrumentProtocol(object):
             raise InstrumentParameterException("Invalid init config format")
 
         self._startup_config = config
+        
         param_config = config.get(DriverConfigKey.PARAMETERS)
         if(param_config):
             for name in param_config.keys():

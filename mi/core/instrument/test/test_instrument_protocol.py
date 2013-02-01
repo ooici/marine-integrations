@@ -28,6 +28,7 @@ from mi.core.driver_scheduler import TriggerType
 from mi.core.unit_test import MiUnitTestCase
 import unittest
 from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import NotImplementedException
 from mi.core.common import BaseEnum
 
 Directions = MenuInstrumentProtocol.MenuTree.Directions
@@ -199,6 +200,14 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         self.assertEquals(result["foo"], 1111) # init param
         self.assertEquals(result["bar"], 0)   # default param
         self.assertEquals(result["qux"], 6666) # set param
+
+    def test_apply_startup_params(self):
+        """
+        Test that the apply startup parameters method exists and throws
+        a "not implemented" exception for the base class
+        """
+        self.assertRaises(NotImplementedException,
+                          self.protocol.apply_startup_params)
 
     def test_scheduler(self):
         """

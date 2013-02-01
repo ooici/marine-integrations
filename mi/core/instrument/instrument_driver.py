@@ -520,18 +520,20 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         values that are (1) marked as startup parameters and are (2) the "best"
         value to use at startup. Preference is given to the previously-set init
         value, then the default value, then the currently used value.
-        
-        This default method assumes a dict of parameter name and value for
-        the configuration.
-        @raise InstrumentParameterException If the config cannot be applied
-        """
-        config = self._protocol.get_startup_config()
-        
-        if not isinstance(config, dict):
-            raise InstrumentParameterException("Incompatible initialization parameters")
 
-        log.debug("**** Apply Startup Params ****")
-        self.set_resource(config)
+        This default implementation simply pushes the logic down into the protocol
+        for processing should the action be better accomplished down there.
+        
+        The driver writer can decide to overload this method in the derived
+        driver class and apply startup parameters in the driver (likely calling
+        some get and set methods for the resource). If the driver does not
+        implement an apply_startup_params() method in the driver, this method
+        will call into the protocol. Deriving protocol classes are expected to
+        implement an apply_startup_params() method lest they get the exception
+        from the base InstrumentProtocol implementation.
+        """
+        log.debug("Base driver applying startup params...")
+        self._protocol.apply_startup_params()
         
     def get_cached_config(self):
         """
