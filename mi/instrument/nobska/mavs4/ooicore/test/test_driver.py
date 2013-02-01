@@ -34,6 +34,7 @@ import socket
 import time
 import unittest
 import ntplib
+import datetime
 
 # 3rd party imports
 from nose.plugins.attrib import attr
@@ -76,6 +77,8 @@ WILL_ECHO_CMD = '\xff\xfd\x03\xff\xfb\x03\xff\xfb\x01'
 # 'do echo' command sequence to be sent back from telnet client
 DO_ECHO_CMD   = '\xff\xfb\x03\xff\xfd\x03\xff\xfd\x01'
 
+TIME_TO_SET = '03/29/2002 11:11:42'
+
 # Used to validate param config retrieved from driver.
 parameter_types = {
     InstrumentParameters.SYS_CLOCK : str,
@@ -99,6 +102,7 @@ parameter_types = {
     InstrumentParameters.SI_CONVERSION : float,
     InstrumentParameters.WARM_UP_INTERVAL : str,
     InstrumentParameters.THREE_AXIS_COMPASS : str,
+    InstrumentParameters.THERMISTOR : str,
 }
 
 parameter_list = [
@@ -122,7 +126,8 @@ parameter_list = [
     #InstrumentParameters.BURST_INTERVAL_SECONDS,
     #InstrumentParameters.SI_CONVERSION,
     #InstrumentParameters.WARM_UP_INTERVAL,
-    InstrumentParameters.THREE_AXIS_COMPASS
+    #InstrumentParameters.THREE_AXIS_COMPASS
+    InstrumentParameters.THERMISTOR
 ]
     
 ## Initialize the test configuration
@@ -232,8 +237,22 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         self.assertEqual(set(params.keys()), set(correct_params.keys()),
                          '%s != %s' %(params.keys(), correct_params.keys()))
         for (key, val) in params.iteritems():
-            self.assertEqual(val, correct_params[key],
-                             '%s: %s != %s' %(key, val, correct_params[key]))
+            if key == InstrumentParameters.SYS_CLOCK:
+                # verify that the dates match 
+                local_time_str = TIME_TO_SET
+                #print("lts=%s, val=%s" %(local_time_str, val))
+                self.assertTrue(local_time_str[:12].upper() in val.upper())
+                
+                # verify that the times match closely
+                lt_sec = int(local_time_str[-2:])
+                it_sec = int(val[-2:])
+                #print("lts=%d, its=%d" %(lt_sec, it_sec))
+                if abs(lt_sec - it_sec) > 15:
+                    self.fail("time delta too large after clock sync")      
+
+            else:
+                self.assertEqual(val, correct_params[key],
+                                 '%s: %s != %s' %(key, val, correct_params[key]))
 
     def assertParamList(self, pl):
         """
@@ -311,7 +330,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
         """
         
         # parameter values to test.
-        paramter_values = {InstrumentParameters.SYS_CLOCK : '03/29/2002 11:11:42',
+        paramter_values = {InstrumentParameters.SYS_CLOCK : TIME_TO_SET,
                            InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
                            InstrumentParameters.VELOCITY_FRAME : 4,
                            InstrumentParameters.MONITOR : 'y',
@@ -329,7 +348,8 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
                            InstrumentParameters.BURST_INTERVAL_SECONDS : 4,
                            InstrumentParameters.SI_CONVERSION : .00231,
                            InstrumentParameters.WARM_UP_INTERVAL : 'Fast',
-                           InstrumentParameters.THREE_AXIS_COMPASS : 'y'
+                           InstrumentParameters.THREE_AXIS_COMPASS : 'y',
+                           InstrumentParameters.THERMISTOR : 'y'
                            }
 
         reply = self.driver_client.cmd_dvr('get_resource', parameter_list)

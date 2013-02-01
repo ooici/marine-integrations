@@ -114,14 +114,14 @@ class InstrumentPrompts(BaseEnum):
     SI_CONVERSION                 = 'Enter binary to SI velocity conversion (0.0010000 to 0.0200000) ?'
     WARM_UP_INTERVAL              = '[F]ast or [S]low sensor warm up interval [F] ?'
     THREE_AXIS_COMPASS            = '3-Axis compass enabled (Yes/No) ['
+    THERMISTOR                    = 'Thermistor enabled (Yes/No) ['
+    THERMISTOR_OFFSET             = 'Set thermistor offset to 0.0 (default) (Yes/No) [N] ?'
     
 class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dictionaries to work correctly
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
     DEPLOY_GO                                  = '\a'     # CTRL-G (bell)
     SET_TIME                                   = '1'
     ENTER_TIME                                 = 'enter_time'
-    ANSWER_YES                                 = 'y'
-    ANSWER_NO                                  = 'n'
     DEPLOY_MENU                                = '6'
     SET_NOTE                                   = 'set_note'
     ENTER_NOTE                                 = 'enter_note'
@@ -157,6 +157,9 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     ENTER_WARM_UP_INTERVAL                     = 'enter_warm_up_interval'
     SET_THREE_AXIS_COMPASS                     = ' 1'                          # make different from SET_TIME with leading space
     ENTER_THREE_AXIS_COMPASS                   = 'enter_3_axis_compass'
+    SET_THERMISTOR                             = '3'                          
+    ENTER_THERMISTOR                           = 'enter_thermistor'
+    ANSWER_THERMISTOR_NO                       = 'n'
     
 
 class ProtocolStates(BaseEnum):
@@ -227,6 +230,7 @@ class InstrumentParameters(DriverParameter):
     SI_CONVERSION                        = 'si_conversion'
     WARM_UP_INTERVAL                     = 'warm_up_interval'
     THREE_AXIS_COMPASS                   = '3_axis_compass'
+    THERMISTOR                           = 'thermistor'
     
 class DeployMenuParameters(BaseEnum):
     NOTE1                                = InstrumentParameters.NOTE1
@@ -251,6 +255,7 @@ class SystemConfigurationMenuParameters(BaseEnum):
     SI_CONVERSION      = InstrumentParameters.SI_CONVERSION
     WARM_UP_INTERVAL   = InstrumentParameters.WARM_UP_INTERVAL
     THREE_AXIS_COMPASS = InstrumentParameters.THREE_AXIS_COMPASS
+    THERMISTOR         = InstrumentParameters.THERMISTOR
 
 class SubMenues(BaseEnum):
     ROOT          = 'root_menu'
@@ -550,8 +555,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     Command_Response = {InstrumentCmds.SET_TIME : 
                             [InstrumentPrompts.SET_TIME, None, None],
                         InstrumentCmds.ENTER_TIME : 
-                            [InstrumentPrompts.SET_TIME, InstrumentCmds.ANSWER_YES, None],
-                        InstrumentCmds.ANSWER_YES : 
                             [InstrumentPrompts.SET_TIME, None, None],
                         InstrumentCmds.ENTER_NOTE : 
                             [InstrumentPrompts.DEPLOY_MENU, None, None],
@@ -614,6 +617,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                         InstrumentCmds.SET_THREE_AXIS_COMPASS : 
                             [InstrumentPrompts.THREE_AXIS_COMPASS, InstrumentCmds.ENTER_THREE_AXIS_COMPASS, None],                        
                         InstrumentCmds.ENTER_THREE_AXIS_COMPASS : 
+                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
+                        InstrumentCmds.SET_THERMISTOR : 
+                            [InstrumentPrompts.THERMISTOR, InstrumentCmds.ENTER_THERMISTOR, None],                        
+                        InstrumentCmds.ANSWER_THERMISTOR_NO : 
                             [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
                         }
     
@@ -1485,8 +1492,21 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=SubMenues.CONFIGURATION,
                              submenu_write=InstrumentCmds.SET_THREE_AXIS_COMPASS)
 
+        self._param_dict.add(InstrumentParameters.THERMISTOR,
+                             r'.*<3> Thermistor\s+(\w+)\s+.*', 
+                             lambda match : self._parse_enable_disable(match.group(1)),
+                             lambda string : string,
+                             value='',
+                             menu_path_read=SubMenues.CONFIGURATION,
+                             submenu_read=None,
+                             menu_path_write=SubMenues.CONFIGURATION,
+                             submenu_write=InstrumentCmds.SET_THERMISTOR)
+
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ANSWER_THERMISTOR_NO, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.ENTER_THERMISTOR, self._build_enter_thermistor_command)
+        self._add_build_handler(InstrumentCmds.SET_THERMISTOR, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_THREE_AXIS_COMPASS, self._build_simple_enter_command)
         self._add_build_handler(InstrumentCmds.SET_THREE_AXIS_COMPASS, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_WARM_UP_INTERVAL, self._build_enter_warm_up_interval_command)
@@ -1524,8 +1544,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.SYSTEM_CONFIGURATION_MENU, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ANSWER_YES, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ANSWER_NO, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_simple_command)
         
         # Add response handlers for device commands.
@@ -1533,6 +1551,27 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
         self._add_response_handler(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, self._parse_system_configuration_menu_response)
     
+    def _build_enter_thermistor_command(self, **kwargs):
+        """
+        Build handler for thermistor enter command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        name = kwargs.get('name', None)
+        if name == None:
+            raise InstrumentParameterException('thermistor enter command requires a name.')
+        value = kwargs.get('value', None)
+        if value == None:
+            raise InstrumentParameterException('thermistor enter command requires a value.')
+        cmd = "%s" %(self._param_dict.format(name, value)[0])
+        log.debug("_build_enter_thermistor_command: cmd=%s" %cmd)
+        if cmd == InstrumentCmds.ANSWER_THERMISTOR_NO:
+            return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
+        else:
+            return (cmd, InstrumentPrompts.THERMISTOR_OFFSET, InstrumentCmds.ANSWER_THERMISTOR_NO)
+
     def _build_enter_warm_up_interval_command(self, **kwargs):
         """
         Build handler for warm up interval enter command 
@@ -1543,10 +1582,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         """
         name = kwargs.get('name', None)
         if name == None:
-            raise InstrumentParameterException('simple enter command requires a name.')
+            raise InstrumentParameterException('warm up interval enter command requires a name.')
         value = kwargs.get('value', None)
         if value == None:
-            raise InstrumentParameterException('simple enter command requires a value.')
+            raise InstrumentParameterException('warm up interval enter command requires a value.')
         cmd = "%s" %(self._param_dict.format(name, value)[0])
         log.debug("_build_enter_warm_up_interval_command: cmd=%s" %cmd)
         return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
