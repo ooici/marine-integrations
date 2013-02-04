@@ -107,6 +107,7 @@ parameter_types = {
     InstrumentParameters.AUXILIARY_1 : str,
     InstrumentParameters.AUXILIARY_2 : str,
     InstrumentParameters.AUXILIARY_3 : str,
+    InstrumentParameters.SENSOR_ORIENTATION : str,
 }
 
 parameter_list = [
@@ -135,7 +136,8 @@ parameter_list = [
     #InstrumentParameters.PRESSURE,
     #InstrumentParameters.AUXILIARY_1,
     #InstrumentParameters.AUXILIARY_2,
-    InstrumentParameters.AUXILIARY_3,
+    #InstrumentParameters.AUXILIARY_3,
+    InstrumentParameters.SENSOR_ORIENTATION,
 ]
     
 ## Initialize the test configuration
@@ -362,6 +364,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
                            InstrumentParameters.AUXILIARY_1 : 'n',
                            InstrumentParameters.AUXILIARY_2 : 'n',
                            InstrumentParameters.AUXILIARY_3 : 'n',
+                           InstrumentParameters.SENSOR_ORIENTATION : '2'
                            }
 
         reply = self.driver_client.cmd_dvr('get_resource', parameter_list)

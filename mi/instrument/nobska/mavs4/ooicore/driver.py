@@ -118,6 +118,7 @@ class InstrumentPrompts(BaseEnum):
     THERMISTOR_OFFSET             = 'Set thermistor offset to 0.0 (default) (Yes/No) [N] ?'
     PRESSURE                      = 'Pressure enabled (Yes/No) ['
     AUXILIARY                     = 'Auxiliary * enabled (Yes/No) ['
+    SENSOR_ORIENTATION            = '<7> Horizontal/Bent Up'
     
 class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dictionaries to work correctly
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
@@ -166,6 +167,8 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     ENTER_PRESSURE                             = 'enter_pressure'
     SET_AUXILIARY                              = 'set_auxiliary'                          
     ENTER_AUXILIARY                            = 'enter_auxiliary'
+    SET_SENSOR_ORIENTATION                     = 'o'                          
+    ENTER_SENSOR_ORIENTATION                   = 'enter_sensor_orientation'
     
 
 class ProtocolStates(BaseEnum):
@@ -241,6 +244,7 @@ class InstrumentParameters(DriverParameter):
     AUXILIARY_1                          = 'auxiliary_1'
     AUXILIARY_2                          = 'auxiliary_2'
     AUXILIARY_3                          = 'auxiliary_3'
+    SENSOR_ORIENTATION                   = 'sensor_orientation'
     
 class DeployMenuParameters(BaseEnum):
     NOTE1                                = InstrumentParameters.NOTE1
@@ -270,6 +274,7 @@ class SystemConfigurationMenuParameters(BaseEnum):
     AUXILIARY_1        = InstrumentParameters.AUXILIARY_1
     AUXILIARY_2        = InstrumentParameters.AUXILIARY_2
     AUXILIARY_3        = InstrumentParameters.AUXILIARY_3
+    SENSOR_ORIENTATION = InstrumentParameters.SENSOR_ORIENTATION
 
 class SubMenues(BaseEnum):
     ROOT          = 'root_menu'
@@ -639,6 +644,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                         InstrumentCmds.SET_PRESSURE : 
                             [InstrumentPrompts.PRESSURE, InstrumentCmds.ENTER_PRESSURE, None],                        
                         InstrumentCmds.ENTER_PRESSURE : 
+                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
+                        InstrumentCmds.SET_SENSOR_ORIENTATION : 
+                            [InstrumentPrompts.SENSOR_ORIENTATION, InstrumentCmds.ENTER_SENSOR_ORIENTATION, None],                        
+                        InstrumentCmds.ENTER_SENSOR_ORIENTATION : 
                             [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
                         }
     
@@ -1283,6 +1292,25 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     # Private helpers.
     ########################################################################
         
+    def _parse_sensor_orientation(self, sensor_orientation):
+        #log.debug('_parse_sensor_orientation: vf=%s (%s)' %(sensor_orientation, sensor_orientation.encode('hex')))
+        if 'Vertical/Down' in sensor_orientation:
+            return '1'
+        if 'Vertical/Up' in sensor_orientation:
+            return '2'
+        if 'Horizontal/Straight' in sensor_orientation:
+            return '3'
+        if 'Horizontal/Bent Left' in sensor_orientation:
+            return '4'
+        if 'Horizontal/Bent Right' in sensor_orientation:
+            return '5'
+        if 'Horizontal/Bent Down' in sensor_orientation:
+            return '6'
+        if 'Horizontal/Bent Up' in sensor_orientation:
+            return '7'
+        else:
+            return ''
+    
     def _parse_velocity_frame(self, velocity_frame):
         #log.debug('_parse_velocity_frame: vf=%s (%s)' %(velocity_frame, velocity_frame.encode('hex')))
         if 'No Velocity Frame' in velocity_frame:
@@ -1564,8 +1592,20 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=SubMenues.CONFIGURATION,
                              submenu_write=InstrumentCmds.SET_AUXILIARY)
 
+        self._param_dict.add(InstrumentParameters.SENSOR_ORIENTATION,
+                             r'.*<O> Sensor Orientation\s+(.*)\n.*', 
+                             lambda match : self._parse_sensor_orientation(match.group(1)),
+                             lambda string : string,
+                             value='',
+                             menu_path_read=SubMenues.CONFIGURATION,
+                             submenu_read=None,
+                             menu_path_write=SubMenues.CONFIGURATION,
+                             submenu_write=InstrumentCmds.SET_SENSOR_ORIENTATION)
+
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.ENTER_SENSOR_ORIENTATION, self._build_simple_enter_command)
+        self._add_build_handler(InstrumentCmds.SET_SENSOR_ORIENTATION, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_AUXILIARY, self._build_enter_auxiliary_command)
         self._add_build_handler(InstrumentCmds.SET_AUXILIARY, self._build_set_auxiliary_command)
         self._add_build_handler(InstrumentCmds.ENTER_PRESSURE, self._build_simple_enter_command)
