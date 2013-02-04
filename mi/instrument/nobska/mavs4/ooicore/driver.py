@@ -245,6 +245,7 @@ class InstrumentParameters(DriverParameter):
     AUXILIARY_2                          = 'auxiliary_2'
     AUXILIARY_3                          = 'auxiliary_3'
     SENSOR_ORIENTATION                   = 'sensor_orientation'
+    SERIAL_NUMBER                        = 'serial_number'
     
 class DeployMenuParameters(BaseEnum):
     NOTE1                                = InstrumentParameters.NOTE1
@@ -275,6 +276,7 @@ class SystemConfigurationMenuParameters(BaseEnum):
     AUXILIARY_2        = InstrumentParameters.AUXILIARY_2
     AUXILIARY_3        = InstrumentParameters.AUXILIARY_3
     SENSOR_ORIENTATION = InstrumentParameters.SENSOR_ORIENTATION
+    SERIAL_NUMBER      = InstrumentParameters.SERIAL_NUMBER
 
 class SubMenues(BaseEnum):
     ROOT          = 'root_menu'
@@ -1601,6 +1603,16 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
                              submenu_write=InstrumentCmds.SET_SENSOR_ORIENTATION)
+
+        self._param_dict.add(InstrumentParameters.SERIAL_NUMBER,
+                             r'.*<S> Serial Number\s+(\w+)\s+.*', 
+                             lambda match : match.group(1),
+                             lambda string : string,
+                             value='',
+                             menu_path_read=SubMenues.CONFIGURATION,
+                             submenu_read=None,
+                             menu_path_write=None,
+                             submenu_write=None)
 
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the navigate_and_execute sequence.        

@@ -108,6 +108,7 @@ parameter_types = {
     InstrumentParameters.AUXILIARY_2 : str,
     InstrumentParameters.AUXILIARY_3 : str,
     InstrumentParameters.SENSOR_ORIENTATION : str,
+    InstrumentParameters.SERIAL_NUMBER : str,
 }
 
 parameter_list = [
