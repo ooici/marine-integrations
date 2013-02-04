@@ -1,4 +1,4 @@
-"""
+{ TYPE: str, READONLY: True},"""
 @package mi.instrument.seabird.sbe54tps.ooicore.test.test_driver
 @file /Users/unwin/OOI/Workspace/code/marine-integrations/mi/instrument/seabird/sbe54tps/ooicore/driver.py
 @author Roger Unwin
@@ -33,6 +33,7 @@ import ntplib
 from mi.core.log import get_logger ; log = get_logger()
 
 # MI imports.
+from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
@@ -66,6 +67,7 @@ from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsSampleDataPart
 from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsHardwareDataParticle, SBE54tpsHardwareDataParticleKey
 from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsConfigurationDataParticle, SBE54tpsConfigurationDataParticleKey
 from mi.instrument.seabird.sbe54tps.ooicore.driver import SBE54tpsSampleRefOscDataParticle, SBE54tpsSampleRefOscDataParticleKey
+from mi.instrument.seabird.sbe54tps.ooicore.driver import DataParticleType
 
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from prototype.sci_data.stream_defs import ctd_stream_definition
@@ -108,6 +110,271 @@ InstrumentDriverTestCase.initialize(
 # Globals
 raw_stream_received = False
 parsed_stream_received = False
+
+
+
+
+
+class SeaBird54tpsMixin(DriverTestMixin):
+    '''
+    Mixin class used for storing data particle constance and common data assertion methods.
+    '''
+    ###
+    #  Parameter and Type Definitions
+    ###
+    _driver_parameters = {
+        # Parameters defined in the IOS
+        
+        # Common fields in all commands
+        Parameter.DEVICE_TYPE: {TYPE: int, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.SERIAL_NUMBER: {TYPE: int, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        
+        # StatusData
+        Parameter.TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        Parameter.EVENT_COUNT: {TYPE: int, READONLY: True},
+        Parameter.MAIN_SUPPLY_VOLTAGE: {TYPE: float, READONLY: True},
+        Parameter.NUMBER_OF_SAMPLES : {TYPE: int, READONLY: True},
+        Parameter.BYTES_USED : {TYPE: int, READONLY: True},
+        Parameter.BYTES_FREE : {TYPE: int, READONLY: True},
+        
+        # ConfigurationData
+        Parameter.ACQ_OSC_CAL_DATE : {TYPE: string, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.FRA0 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.FRA1 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.FRA2 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.FRA3 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PRESSURE_SERIAL_NUM : {TYPE: string, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PRESSURE_CAL_DATE : {TYPE: string, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PU0 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PY1 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PY2 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PY3 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PC1 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PC2 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PC3 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PD1 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PD2 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PT1 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PT2 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PT3 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PT4 : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PRESSURE_OFFSET : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.PRESSURE_RANGE : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.BATTERY_TYPE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: 1},
+        Parameter.BAUD_RATE : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.ENABLE_ALERTS : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: 1},
+        Parameter.UPLOAD_TYPE : {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: True, VALUE: 0},
+        Parameter.SAMPLE_PERIOD : {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: True, VALUE: 15},
+
+        # Event Counter
+        Parameter.NUMBER_EVENTS : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.MAX_STACK : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.POWER_ON_RESET : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.POWER_FAIL_RESET : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.SERIAL_BYTE_ERROR : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.COMMAND_BUFFER_OVERFLOW : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.SERIAL_RECEIVE_OVERFLOW : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.LOW_BATTERY : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.SIGNAL_ERROR : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.ERROR_10 : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.ERROR_12 : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        
+        # Hardware Data
+        Parameter.MANUFACTURER : { TYPE: str, READONLY: True},
+        Parameter.FIRMWARE_VERSION : { TYPE: str, READONLY: True},
+        Parameter.FIRMWARE_DATE : { TYPE: date, READONLY: True},
+        Parameter.HARDWARE_VERSION : { TYPE: str, READONLY: True},
+        Parameter.PCB_SERIAL_NUMBER : { TYPE: str, READONLY: True},
+        Parameter.PCB_TYPE : { TYPE: str, READONLY: True},
+        Parameter.MANUFACTUR_DATE : { TYPE: date, READONLY: True},
+    }
+    
+    _prest_engineering_parameters = {
+        SBE54tpsEngineeringDataParticleKey.MAIN_SUPPLY_VOLTAGE: {TYPE: float, VALUE: 23.3 },
+    }
+    
+    _prest_real_time_parameters = {
+        SBE54tpsSampleDataParticleKey.SAMPLE_NUMBER: {TYPE: int, VALUE: 5947, REQUIRED: True },
+        SBE54tpsSampleDataParticleKey.SAMPLE_TYPE: {TYPE: str, VALUE: 'Pressure', REQUIRED: True },
+        SBE54tpsSampleDataParticleKey.INST_TIME: {TYPE: str, VALUE: '2012-11-07T12:21:25', REQUIRED: True },
+        SBE54tpsSampleDataParticleKey.PRESSURE: {TYPE: float, VALUE: 13.9669, REQUIRED: True },
+        SBE54tpsSampleDataParticleKey.PRESSURE_TEMP: {TYPE: float, VALUE: 18.9047, REQUIRED: True },
+        
+    }
+
+    _prest_reference_oscillator_parameters = {
+        SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT: {TYPE: int, VALUE: 125000, REQUIRED: True  },
+        SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_MAX: {TYPE: int, VALUE: 150000, REQUIRED: True  },
+        SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_ICD: {TYPE: int, VALUE: 125000, REQUIRED: True  },
+        SBE54tpsSampleRefOscDataParticleKey.SAMPLE_NUMBER: {TYPE: int, VALUE: 1244, REQUIRED: True  },
+        SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TYPE: {TYPE: str, VALUE: 'RefOsc', REQUIRED: True  },
+        SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TIMESTAMP: {TYPE: float, VALUE: 3558413454.0, REQUIRED: True  },
+        SBE54tpsSampleRefOscDataParticleKey.REF_OSC_FREQ: {TYPE: float, VALUE: 5999995.955, REQUIRED: True  },
+        SBE54tpsSampleRefOscDataParticleKey.REF_ERROR_PPM: {TYPE: float, VALUE: 0.090, REQUIRED: True  },
+        SBE54tpsSampleRefOscDataParticleKey.PCB_TEMP_RAW: {TYPE: int, VALUE: 18413, REQUIRED: True  },
+    }
+
+    _prest_configuration_data_parameters = {
+        SBE54tpsConfigurationDataParticleKey.DEVICE_TYPE: {TYPE: str, VALUE: 'SBE54' , REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 05400012, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE: {TYPE: float, VALUE: 3558413454.0, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.FRA0: {TYPE: float, VALUE: 5.999926E+06, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.FRA1: {TYPE: float, VALUE: 5.792290E-03, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.FRA2: {TYPE: float, VALUE: -1.195664E-07, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.FRA3: {TYPE: float, VALUE: 7.018589E-13, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PRESSURE_SERIAL_NUM: {TYPE: float, VALUE: 121451, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE: {TYPE: float, VALUE: 3558413454.0, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PU0: {TYPE: float, VALUE: 5.820407E+00, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PY1: {TYPE: float, VALUE: -3.845374E+03, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PY2: {TYPE: float, VALUE: -1.078882E+04, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PY3: {TYPE: float, VALUE: 0.000000E+00, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PC1: {TYPE: float, VALUE: -2.700543E+04, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PC2: {TYPE: float, VALUE: -1.738438E+03, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PC3: {TYPE: float, VALUE: 7.629962E+04, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PD1: {TYPE: float, VALUE: 3.739600E-02, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PD2: {TYPE: float, VALUE: 0.000000E+00, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PT1: {TYPE: float, VALUE: 3.027306E+01, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PT2: {TYPE: float, VALUE: 2.231025E-01, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PT3: {TYPE: float, VALUE: 5.398972E+01, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PT4: {TYPE: float, VALUE: 1.455506E+02, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PRESSURE_OFFSET: {TYPE: float, VALUE: 0.000000E+00, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.PRESSURE_RANGE: {TYPE: float, VALUE: 6.000000E+03, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.BATTERY_TYPE: {TYPE: int, VALUE: 0, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.BAUD_RATE: {TYPE: int, VALUE: 9600, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.ENABLE_ALERTS: {TYPE: bool, VALUE: False, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.UPLOAD_TYPE: {TYPE: int, VALUE: 0, REQUIRED: True },
+        SBE54tpsConfigurationDataParticleKey.SAMPLE_PERIOD: {TYPE: int, VALUE: 15, REQUIRED: True }
+    }
+
+    _prest_device_status_parameters = {
+        SBE54tpsStatusDataParticleKey.DEVICE_TYPE: {TYPE: str, VALUE: 'SBE54', REQUIRED: True },
+        SBE54tpsStatusDataParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 05400012, REQUIRED: True },
+        SBE54tpsStatusDataParticleKey.TIME: {TYPE: str, VALUE: '2012-11-06T10:55:44', REQUIRED: True },
+        SBE54tpsStatusDataParticleKey.EVENT_COUNT: {TYPE: int, VALUE: 573 },
+        SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE: {TYPE: float, VALUE:  23.3, REQUIRED: True },
+        SBE54tpsStatusDataParticleKey.NUMBER_OF_SAMPLES: {TYPE: int, VALUE: 22618, REQUIRED: True },
+        SBE54tpsStatusDataParticleKey.BYTES_USED: {TYPE: int, VALUE: 341504, REQUIRED: True },
+        SBE54tpsStatusDataParticleKey.BYTES_FREE: {TYPE: int, VALUE: 133876224, REQUIRED: True },
+    }
+
+    _prest_event_counter_parameters = {
+        SBE54tpsEventCounterDataParticleKey.NUMBER_EVENTS: {TYPE: int, VALUE: 573 },
+        SBE54tpsEventCounterDataParticleKey.MAX_STACK: {TYPE: int, VALUE: 354 },
+        SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE: {TYPE: str, VALUE: 'SBE54' },
+        SBE54tpsEventCounterDataParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: '05400012' },
+        SBE54tpsEventCounterDataParticleKey.POWER_ON_RESET: {TYPE: int, VALUE: 25 },
+        SBE54tpsEventCounterDataParticleKey.POWER_FAIL_RESET: {TYPE: int, VALUE: 25 },
+        SBE54tpsEventCounterDataParticleKey.SERIAL_BYTE_ERROR: {TYPE: int, VALUE: 9 },
+        SBE54tpsEventCounterDataParticleKey.COMMAND_BUFFER_OVERFLOW: {TYPE: int, VALUE: 1 },
+        SBE54tpsEventCounterDataParticleKey.SERIAL_RECEIVE_OVERFLOW: {TYPE: int, VALUE: 255 },
+        SBE54tpsEventCounterDataParticleKey.LOW_BATTERY: {TYPE: int, VALUE: 255 },
+        SBE54tpsEventCounterDataParticleKey.SIGNAL_ERROR: {TYPE: int, VALUE: 1 },
+        SBE54tpsEventCounterDataParticleKey.ERROR_10: {TYPE: int, VALUE: 1 },
+        SBE54tpsEventCounterDataParticleKey.ERROR_12: {TYPE: int, VALUE: 1 },
+    }
+
+    _prest_hardware_data_parameters = {
+        SBE54tpsHardwareDataParticleKey.DEVICE_TYPE: {TYPE: str, VALUE: 'SBE54', REQUIRED: True },
+        SBE54tpsHardwareDataParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 05400012, REQUIRED: True },
+        SBE54tpsHardwareDataParticleKey.MANUFACTURER: {TYPE: str, VALUE: 'Sea-Bird Electronics, Inc', REQUIRED: True },
+        SBE54tpsHardwareDataParticleKey.FIRMWARE_VERSION: {TYPE: str, VALUE: 'SBE54 V1.3-6MHZ', REQUIRED: True },
+        SBE54tpsHardwareDataParticleKey.FIRMWARE_DATE: {TYPE: float, VALUE: 3558413454.0, REQUIRED: True },
+        SBE54tpsHardwareDataParticleKey.HARDWARE_VERSION: {TYPE: str, VALUE: '41477A.1', REQUIRED: True },
+        SBE54tpsHardwareDataParticleKey.PCB_SERIAL_NUMBER: {TYPE: str, VALUE: 'NOT SET', REQUIRED: True },
+        SBE54tpsHardwareDataParticleKey.PCB_TYPE: {TYPE: str, VALUE: '1', REQUIRED: True },
+        SBE54tpsHardwareDataParticleKey.MANUFACTUR_DATE: {TYPE: float, VALUE: 3558413454.0, REQUIRED: True },
+    }
+
+
+    ###
+    #   Driver Parameter Methods
+    ###
+    def assert_driver_parameters(self, current_parameters, verify_values = False):
+        """
+        Verify that all driver parameters are correct and potentially verify values.
+        @param current_parameters: driver parameters read from the driver instance
+        @param verify_values: should we verify values against definition?
+        """
+        self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
+
+
+
+
+"""
+    ###
+    #   Data Particle Parameters Methods
+    ###
+    def assert_sample_data_particle(self, data_particle):
+        '''
+        Verify a particle is a know particle to this driver and verify the particle is
+        correct
+        @param data_particle: Data particle of unkown type produced by the driver
+        '''
+        if (isinstance(data_particle, SBE26plusTideSampleDataParticle)):
+            self.assert_particle_tide_sample(data_particle)
+        elif (isinstance(data_particle, SBE26plusWaveBurstDataParticle)):
+            self.assert_particle_wave_burst(data_particle)
+        elif (isinstance(data_particle, SBE26plusStatisticsDataParticle)):
+            self.assert_particle_statistics(data_particle)
+        elif (isinstance(data_particle, SBE26plusDeviceCalibrationDataParticle)):
+            self.assert_particle_device_calibration(data_particle)
+        elif (isinstance(data_particle, SBE26plusDeviceStatusDataParticle)):
+            self.assert_particle_device_status(data_particle)
+        else:
+            log.error("Unknown Particle Detected: %s" % data_particle)
+            self.assertFalse(True)
+
+    def assert_particle_tide_sample(self, data_particle, verify_values = False):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusTideSampleDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.TIDE_PARSED)
+        self.assert_data_particle_parameters(data_particle, self._tide_sample_parameters, verify_values)
+
+
+    def assert_particle_wave_burst(self, data_particle, verify_values = False):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusWaveBurstDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.WAVE_BURST)
+        self.assert_data_particle_parameters(data_particle, self._wave_sample_parameters, verify_values)
+
+    def assert_particle_statistics(self, data_particle, verify_values = False):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusStatisticsDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.STATISTICS)
+        self.assert_data_particle_parameters(data_particle, self._statistics_sample_parameters, verify_values)
+
+    def assert_particle_device_calibration(self, data_particle, verify_values = False):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusDeviceCalibrationDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CALIBRATION)
+        self.assert_data_particle_parameters(data_particle, self._calibration_sample_parameters, verify_values)
+
+    def assert_particle_device_status(self, data_particle, verify_values = False):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusDeviceStatusDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_STATUS)
+        self.assert_data_particle_parameters(data_particle, self._status_sample_parameters, verify_values)
+
+"""
+
+
+
+
 
 #################################### RULES ####################################
 #                                                                             #
@@ -1301,9 +1568,11 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # COMMAND
         (res_cmds, res_params) = self.driver_client.cmd_dvr('get_resource_capabilities')
+        log.debug("res_cmds = " + str(res_cmds));
         for state in ['DRIVER_EVENT_ACQUIRE_STATUS',
                       'DRIVER_EVENT_START_AUTOSAMPLE', 'DRIVER_EVENT_CLOCK_SYNC']:
             self.assertTrue(state in res_cmds)
+        log.debug("res_cmds = " + str(res_cmds));
         self.assertEqual(len(res_cmds), 3)
 
         # Verify all paramaters are present in res_params
@@ -1528,6 +1797,26 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 # Device specific qualification tests are for                                 #
 # testing device specific capabilities                                        #
 ###############################################################################
+
+    def assert_particle_device_status(self, data_particle, verify_values = False):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusDeviceStatusDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.PREST_DEVICE_STATUS)
+        self.assert_data_particle_parameters(data_particle, self._status_sample_parameters, verify_values)
+
+    def test_polled_particle_generation(self):
+        """
+        Test that we can generate particles with commands
+        """
+        self.assert_initialize_driver()
+
+        #self.assert_particle_generation(ProtocolEvent.SAMPLE_REFERENCE_OSCILLATOR, DataParticleType.PREST_REAL_TIME, self.assert_particle_tide_sample)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.PREST_DEVICE_STATUS, self.assert_particle_device_status)
+        #self.assert_particle_generation(ProtocolEvent.ACQUIRE_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_device_calibration)
+
 @attr('QUAL', group='mi')
 class QualFromIDK(InstrumentDriverQualificationTestCase):
     def setUp(self):
