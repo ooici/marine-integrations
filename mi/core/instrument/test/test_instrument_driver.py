@@ -186,16 +186,19 @@ class TestUnitInstrumentDriver(MiUnitTestCase):
         
         # pretend to go through the motions of a startup sequence
         self.driver.set_init_params({'foo':100, "bar": 150, "baz": 200})
-        self.driver.apply_startup_params()
+
+        # Now a virtual method in the protocol that asserts when not implemented
+        # behavior proven in derived protocol classes
+        #self.driver.apply_startup_params()
 
         # check the values on the other end
-        running_config = self.driver._protocol.get_cached_config()
+        #running_config = self.driver._protocol.get_cached_config()
         
         # confirm that the default values were set back appropriately.
-        self.assertTrue(self.driver._protocol._param_dict.get("foo"), 100)
-        self.assertTrue(self.driver._protocol._param_dict.get("bar"), 150)
-        self.assertTrue(self.driver._protocol._param_dict.get("baz"), 2000)
-        self.assertTrue(self.driver._protocol._param_dict.get("bat"), 40)
+        #self.assertTrue(self.driver._protocol._param_dict.get("foo"), 100)
+        #self.assertTrue(self.driver._protocol._param_dict.get("bar"), 150)
+        #self.assertTrue(self.driver._protocol._param_dict.get("baz"), 2000)
+        #self.assertTrue(self.driver._protocol._param_dict.get("bat"), 40)
 
     ##### Integration tests for startup config in the SBE37 integration suite
 
