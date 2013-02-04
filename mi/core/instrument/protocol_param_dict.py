@@ -268,7 +268,41 @@ class ProtocolParameterDict(object):
         @raises KeyError if the name is invalid.
         """
         return self._param_dict[name].value
-        
+
+    def get_config_value(self, name):
+        """
+        Get a parameter's startup configuration value based on a search
+        priority.
+        1. User initialization value
+        2. Driver default value
+        3. Current value if set via update method
+        4. None if no value could be determined
+        @param name Name of the value to be retrieved.
+        @return A startup configuration value if one could be found
+                otherwise None
+        @raises KeyError if the name is invalid.
+        """
+        result = self.get_init_value(name)
+        if result != None:
+            log.trace("Got init value for %s: %s", name, result)
+            return result
+
+        result = self.get_default_value(name)
+        if result != None:
+            log.trace("Got default value for %s: %s", name, result)
+            return result
+
+        # Currently we don't have a way to determine if a value was
+        # set explicitly or via some data handler. The updated flag
+        # doesn't work because the update method is called in both
+        # instances
+        # result = self.get(name)
+        #if result != None and self._param_dict[name].updated == True:
+        #    log.trace("Got current value for %s: %s", name, result)
+        #    return result
+
+        return None
+
     def get_init_value(self, name):
         """
         Get a parameter's init value from the dictionary.
@@ -444,7 +478,16 @@ class ProtocolParameterDict(object):
                 return_val.append(key)
         
         return return_val
-        
+
+    def is_startup_param(self, name):
+        """
+        Return true if a parameter name references a startup parameter
+        @param name: name of a parameter
+        @return: True if the parameter is flagged as a startup param
+        @raise: KeyError if parameter doesn't exist
+        """
+        return self._param_dict[name].startup_param == True
+
     def get_startup_list(self):
         """
         Return a list of parameter names that are tagged as startup parameters
@@ -453,7 +496,7 @@ class ProtocolParameterDict(object):
         """
         return_val = []
         for key in self._param_dict.keys():
-            if self._param_dict[key].startup_param == True:
+            if self.is_startup_param(key):
                 return_val.append(key)
         
         return return_val

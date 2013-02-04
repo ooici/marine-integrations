@@ -140,8 +140,13 @@ SAMPLE_samplerefosc = "S>samplerefosc" + NEWLINE +\
                       "<SetTimeoutICD>125000</SetTimeoutICD>" + NEWLINE +\
                       "<!--Ref osc warmup next 120 seconds-->" + NEWLINE +\
                       "<!--Warmup complete, starting measurement at 0.1Hz-->" + NEWLINE +\
-                      "<Sample Num='336160' Type='Pressure'>" + NEWLINE +\
-                      "<Time>2012-11-19T10:21:22</Time>" + NEWLINE +\
-                      "<PressurePSI>13.6135</PressurePSI>" + NEWLINE +\
-                      "<PTemp>18.7733</PTemp>" + NEWLINE +\
+                      "<Sample Num='1244' Type='RefOsc'>" + NEWLINE +\
+                      "<Time>2013-01-30T15:36:53</Time>" + NEWLINE +\
+                      "<RefOscFreq>5999995.955</RefOscFreq>" + NEWLINE +\
+                      "<PCBTempRaw>18413</PCBTempRaw>" + NEWLINE +\
+                      "<RefErrorPPM>0.090</RefErrorPPM>" + NEWLINE +\
                       "</Sample>" + NEWLINE
+                      
+                      
+                      
+  

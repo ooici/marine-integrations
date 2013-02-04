@@ -159,6 +159,7 @@ class InstrumentProtocol(object):
         if(self._scheduler_callback.get(name)):
             raise KeyError("duplicate scheduler exists for '%s'" % name)
 
+        log.debug("Add scheduler callback: %s" % name)
         self._scheduler_callback[name] = callback
         self._add_scheduler_job(name)
 
@@ -173,7 +174,8 @@ class InstrumentProtocol(object):
         """
         # Create a callback for the scheduler to raise an event
         def event_callback(self, event):
-            self._driver_event(event, None)
+            log.info("driver job triggered, raise event: %s" % event)
+            self._protocol_fsm.on_event(event)
 
         # Dynamically create the method and add it
         method = partial(event_callback, self, event)
@@ -199,6 +201,7 @@ class InstrumentProtocol(object):
             raise KeyError("scheduler job already configured '%s'" % name)
 
         scheduler_config = self._get_scheduler_config()
+        log.debug("Scheduler config: %s" % scheduler_config)
 
         # No config?  Nothing to do then.
         if(scheduler_config == None):
@@ -241,15 +244,35 @@ class InstrumentProtocol(object):
         Activate all configured schedulers added using _add_scheduler.
         Timers start when the job is activated.
         """
-        if(self._scheduler == None):
-            self._scheduler = DriverScheduler()
-            for name in self._scheduler_callback.keys():
-                self._add_scheduler_job(name)
+        log.debug("Scheduler config: %s" % self._get_scheduler_config())
+        log.debug("Scheduler callbacks: %s" % self._scheduler_callback)
+        self._scheduler = DriverScheduler()
+        for name in self._scheduler_callback.keys():
+            log.debug("Add job for callback: %s" % name)
+            self._add_scheduler_job(name)
 
     #############################################################
     # Configuration logic
     #############################################################
     
+    def apply_startup_params(self):
+        """
+        Apply the startup values previously stored in the protocol to
+        the running config of the live instrument. The startup values are the
+        values that are (1) marked as startup parameters and are (2) the "best"
+        value to use at startup. Preference is given to the previously-set init
+        value, then the default value, then the currently used value.
+        
+        This default method assumes a dict of parameter name and value for
+        the configuration.
+        
+        This is the base stub for applying startup parameters at the protocol layer.
+        
+        @raise InstrumentParameterException If the config cannot be applied
+        @raise NotImplementedException In the base class it isnt implemented
+        """
+        raise NotImplementedException("Base class does not implement apply_startup_params()")
+        
     def set_init_params(self, config):
         """
         Set the initialization parameters to the given values in the protocol
@@ -262,6 +285,7 @@ class InstrumentProtocol(object):
             raise InstrumentParameterException("Invalid init config format")
 
         self._startup_config = config
+        
         param_config = config.get(DriverConfigKey.PARAMETERS)
         if(param_config):
             for name in param_config.keys():
@@ -277,26 +301,22 @@ class InstrumentProtocol(object):
         @retval The dict of parameter_name/values (override this method if it
             is more involved for a specific instrument) that should be set at
             a higher level.
+
+        @raise InstrumentProtocolException if a startup parameter doesn't
+               have a init or default value
         """
         return_dict = {}
-        start_list = self._param_dict.get_startup_list()
+        start_list = self._param_dict.get_keys()
         log.trace("Startup list: %s", start_list)
         assert isinstance(start_list, list)
         
         for param in start_list:
-            result = self._param_dict.get_init_value(param)
-            if result != None:
-                log.trace("Got init value for %s: %s", param, result)
+            result = self._param_dict.get_config_value(param)
+            if(result != None):
                 return_dict[param] = result
-            else:
-                result = self._param_dict.get_default_value(param)
-                if result != None:
-                    log.trace("Got default value for %s: %s", param, result)
-                    return_dict[param] = result
-                else:
-                    log.trace("Got current value for %s: %s", param, result)
-                    return_dict[param] = self._param_dict.get(param)
-        
+            elif(self._param_dict.is_startup_param(param)):
+                raise InstrumentProtocolException("Required startup value not specified: %s" % param)
+
         return return_dict
         
     def get_direct_access_params(self):

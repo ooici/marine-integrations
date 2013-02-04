@@ -378,6 +378,7 @@ class ooicoreInstrumentDriver(SingleConnectionInstrumentDriver):
         if not isinstance(config, dict):
             raise InstrumentParameterException("Incompatible initialization parameters")
         
+        log.trace("BARS driver applying config: %s", config)
         self._protocol.set_readonly_values()
         self.set_resource(config)
 

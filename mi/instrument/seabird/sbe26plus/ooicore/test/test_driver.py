@@ -45,15 +45,9 @@ InstrumentDriverTestCase.initialize(
             Parameter.TXWAVEBURST: False,
         },
         DriverStartupConfigKey.SCHEDULER: {
-            ScheduledJob.ACQUIRE_STATUS: {
-                DriverSchedulerConfigKey.TRIGGER: {}
-            },
-            ScheduledJob.CALIBRATION_COEFFICIENTS: {
-                DriverSchedulerConfigKey.TRIGGER: {}
-            },
-           ScheduledJob.CLOCK_SYNC: {
-               DriverSchedulerConfigKey.TRIGGER: {}
-           }
+            ScheduledJob.ACQUIRE_STATUS: {},
+            ScheduledJob.CALIBRATION_COEFFICIENTS: {},
+            ScheduledJob.CLOCK_SYNC: {}
         }
     }
 )

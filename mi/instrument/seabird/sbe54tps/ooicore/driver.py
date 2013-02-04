@@ -36,7 +36,7 @@ from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
 
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from pyon.agent.agent import ResourceAgentState
 # newline.
@@ -63,6 +63,9 @@ SAMPLE_DATA_REGEX_MATCHER = re.compile(SAMPLE_DATA_REGEX, re.DOTALL)
 SAMPLE_REF_OSC_REGEX = r"<SetTimeout>.*?</Sample>"
 SAMPLE_REF_OSC_MATCHER = re.compile(SAMPLE_REF_OSC_REGEX, re.DOTALL)
 
+ENGINEERING_DATA_REGEX = "<MainSupplyVoltage>([.\d]+)</MainSupplyVoltage>"
+ENGINEERING_DATA_MATCHER = re.compile(SAMPLE_REF_OSC_REGEX, re.DOTALL)
+
 
 # Packet config
 STREAM_NAME_PARSED = 'parsed'
@@ -75,7 +78,16 @@ PACKET_CONFIG = {
 }
 
 
-
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW
+    PREST_REAL_TIME = 'prest_real_time' #
+    PREST_REFERENCE_OSCILLATOR = 'prest_reference_oscillator' #
+    PREST_ENGINEERING_PARAMETERS = 'prest_engineering_parameters'
+    PREST_CONFIGURATION_DATA = 'prest_configuration_data' # 
+    PREST_DEVICE_STATUS = 'prest_device_status' # 
+    PREST_EVENT_COUNTER = 'prest_event_counter' #
+    PREST_HARDWARE_DATA = 'prest_hardware_data' #
+    
 # Device specific parameters.
 class InstrumentCmds(BaseEnum):
     """
@@ -207,8 +219,6 @@ class InstrumentCmds(BaseEnum):
     # SetPT4=F                  F= pressure sensor T4.
     # SET_PRESSURE_SENSOR_T4 = "SetPT4"                                     # DO NOT IMPLEMENT
 
-
-
 class ProtocolState(BaseEnum):
     """
     Protocol states
@@ -250,7 +260,7 @@ class ProtocolEvent(BaseEnum):
 
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-
+    
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
@@ -363,7 +373,61 @@ class Prompt(BaseEnum):
 
 ######################################### PARTICLES #############################
 
+class SBE54tpsEngineeringDataParticleKey(BaseEnum):
+    MAIN_SUPPLY_VOLTAGE = "main_supply_voltage"
 
+class SBE54tpsEngineeringDataParticle(BaseEnum):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    _data_particle_type = DataParticleType.PREST_ENGINEERING_PARAMETERS
+    
+    LINE4 = r"<MainSupplyVoltage>([.\d]+)</MainSupplyVoltage>"
+    def _build_parsed_values(self):
+        """
+        Take something in the StatusData format and split it into
+        values with appropriate tags
+
+        @throws SampleException If there is a problem with sample creation
+        """
+        # Initialize
+
+        single_var_matches  = {
+            SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE: None
+        }
+
+        multi_var_matchers  = {
+            re.compile(self.LINE4): [
+                SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE
+            ]
+        }
+
+        for line in self.raw_data.split(NEWLINE):
+            for (matcher, keys) in multi_var_matchers.iteritems():
+                match = matcher.match(line)
+                if match:
+                    index = 0
+                    for key in keys:
+                        index = index + 1
+                        val = match.group(index)
+                        
+                        #float
+                        if key in [
+                            SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE
+                        ]:
+                            single_var_matches[key] = float(val)
+
+                        else:
+                            raise SampleException("Unknown variable type in SBE54tpsStatusDataParticle._build_parsed_values")
+
+        result = []
+        for (key, value) in single_var_matches.iteritems():
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: value})
+
+        return result
+    
 class SBE54tpsStatusDataParticleKey(BaseEnum):
     DEVICE_TYPE = "device_type"
     SERIAL_NUMBER = "serial_number"
@@ -379,6 +443,8 @@ class SBE54tpsStatusDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+
+    _data_particle_type = DataParticleType.PREST_DEVICE_STATUS
 
     LINE1 = r"<StatusData DeviceType='([^']+)' SerialNumber='(\d+)'>"
     LINE2 = r"<DateTime>([^<]+)</DateTime>"
@@ -526,6 +592,9 @@ class SBE54tpsConfigurationDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    
+    _data_particle_type = DataParticleType.PREST_CONFIGURATION_DATA
+    
     LINE1 = r"<ConfigurationData DeviceType='([^']+)' SerialNumber='(\d+)'>"
     LINE2 = r"<AcqOscCalDate>([0-9\-]+)</AcqOscCalDate>"
     LINE3 = r"<FRA0>([0-9E+-.]+)</FRA0>"
@@ -711,7 +780,7 @@ class SBE54tpsConfigurationDataParticle(DataParticle):
                             single_var_matches[key] = int(val)
 
 
-                        # int
+                        # bool
                         elif key in [
                             SBE54tpsConfigurationDataParticleKey.ENABLE_ALERTS
                         ]:
@@ -784,6 +853,8 @@ class SBE54tpsEventCounterDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+
+    _data_particle_type = DataParticleType.PREST_EVENT_COUNTER
 
     LINE1 = r"EventSummary numEvents='(\d+)' maxStack='(\d+)'/>"
     LINE2 = r"<EventList DeviceType='([^']+)' SerialNumber='(\d+)'>"
@@ -919,6 +990,8 @@ class SBE54tpsHardwareDataParticle(DataParticle):
     the building of values, and the rest should come along for free.
     """
 
+    _data_particle_type = DataParticleType.PREST_HARDWARE_DATA
+    
     LINE1 = r"<HardwareData DeviceType='([^']+)' SerialNumber='(\d+)'>"
     LINE2 = r"<Manufacturer>([^<]+)</Manufacturer>"
     LINE3 = r"<FirmwareVersion>([^<]+)</FirmwareVersion>"
@@ -1036,7 +1109,8 @@ class SBE54tpsSampleDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
-
+    _data_particle_type = DataParticleType.PREST_REAL_TIME
+    
     def _build_parsed_values(self):
         """
         Take something in the StatusData format and split it into
@@ -1137,6 +1211,9 @@ class SBE54tpsSampleRefOscDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
+    
+    _data_particle_type = DataParticleType.PREST_REFERENCE_OSCILLATOR
+    
     def _build_parsed_values(self):
         """
         Take something in the StatusData format and split it into
@@ -1400,7 +1477,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                           EVENT_COUNTER_DATA_REGEX_MATCHER,
                           HARDWARE_DATA_REGEX_MATCHER,
                           SAMPLE_DATA_REGEX_MATCHER,
-                          SAMPLE_REF_OSC_MATCHER]
+                          ENGINEERING_DATA_MATCHER
+                         ]
 
 
 
@@ -2500,8 +2578,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = self._extract_sample(SBE54tpsSampleRefOscDataParticle, SAMPLE_REF_OSC_MATCHER, chunk)
 
         result = self._extract_sample(SBE54tpsSampleDataParticle, SAMPLE_DATA_REGEX_MATCHER, chunk)
-        log.debug("%%% IN _got_chunk result = " + repr(result))
-
+        
+        result = self._extract_sample(SBE54tpsEngineeringDataParticle, ENGINEERING_DATA_MATCHER, chunk)
+        
         """
         # @TODO need to enable this and wire the event, but not tonight.
         if result:
