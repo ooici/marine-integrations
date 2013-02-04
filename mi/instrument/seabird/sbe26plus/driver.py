@@ -1403,36 +1403,47 @@ class Protocol(SeaBirdProtocol):
         # Raise if no parameter provided, or not a dict.
         try:
             params = args[0]
-
-
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
-
         if not isinstance(params, dict):
-
             raise InstrumentParameterException('Set parameters not a dict.')
 
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
-            (set_params, ss_params) = self._split_params(**params)
-
-            if set_params != {}:
-                for (key, val) in set_params.iteritems():
-                    log.debug("KEY = " + str(key) + " VALUE = " + str(val))
-                    result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
-
-            if ss_params != {}:
-                # ONLY do next if a param for it is present
-                kwargs['expected_prompt'] = ", new value = "
-                self._do_cmd_resp(InstrumentCmds.SETSAMPLING, ss_params, **kwargs)
-            else:
-                # if there were no ss_params, then update the params here,
-                # if there were ss_params, then setsampling will handle the updating.
-                self._update_params()
+            self._set_params(params)
 
         return (next_state, result)
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        # Retrieve required parameter.
+        # Raise if no parameter provided, or not a dict.
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        (set_params, ss_params) = self._split_params(**params)
+        log.debug("SetSampling Params: %s" % ss_params)
+        log.debug("General Set Params: %s" % set_params)
+
+        if set_params != {}:
+            for (key, val) in set_params.iteritems():
+                log.debug("KEY = " + str(key) + " VALUE = " + str(val))
+                result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
+
+        if ss_params != {}:
+            # ONLY do next if a param for it is present
+            kwargs['expected_prompt'] = ", new value = "
+            self._do_cmd_resp(InstrumentCmds.SETSAMPLING, ss_params, **kwargs)
+        else:
+            # if there were no ss_params, then update the params here,
+            # if there were ss_params, then setsampling will handle the updating.
+            self._update_params()
 
     def _build_set_command(self, cmd, param, val):
         """
@@ -1944,6 +1955,99 @@ class Protocol(SeaBirdProtocol):
         pass
 
     ########################################################################
+    # Startup parameter handlers
+    ########################################################################
+    def apply_startup_params(self):
+        """
+        Apply all startup parameters.  First we check the instrument to see
+        if we need to set the parameters.  If they are they are set
+        correctly then we don't do anything.
+
+        If we need to set parameters then we might need to transition to
+        command first.  Then we will transition back when complete.
+
+        @todo: This feels odd.  It feels like some of this logic should
+               be handled by the state machine.  It's a pattern that we
+               may want to review.  I say this because this command
+               needs to be run from autosample or command mode.
+        @raise: InstrumentProtocolException if not in command or streaming
+        """
+        # Let's give it a try in unknown state
+        log.debug("CURRENT STATE: %s" % self.get_current_state())
+        if (self.get_current_state() != ProtocolState.COMMAND and
+            self.get_current_state() != ProtocolState.AUTOSAMPLE):
+            raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
+
+        logging = self._is_logging()
+
+        # If we are in streaming mode and our configuration on the
+        # instrument matches what we think it should be then we
+        # don't need to do anything.
+        if(not self._instrument_config_dirty()):
+            return True
+
+        error = None
+
+        try:
+            if(logging):
+                # Switch to command mode,
+                self._stop_logging()
+
+            self._apply_params()
+
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            error = e
+
+        finally:
+            # Switch back to streaming
+            if(logging):
+                self._start_logging()
+
+        if(error):
+            raise error
+
+    def _apply_params(self):
+        """
+        apply startup parameters to the instrument.
+        @raise: InstrumentProtocolException if in wrong mode.
+        """
+        log.debug("Applying Startup Parameters")
+        if (self.get_current_state() != ProtocolState.COMMAND):
+            raise InstrumentProtocolException("Not in command state. unable to apply parameters")
+
+        config = self.get_startup_config()
+        self._set_params(config)
+
+    def _instrument_config_dirty(self):
+        """
+        Read the startup config and compare that to what the instrument
+        is configured too.  If they differ then return True
+        @return: True if the startup config doesn't match the instrument
+        @raise: InstrumentParameterException
+        """
+        # Refresh the param dict cache
+
+        # Let's assume we have already run this command recently
+        #self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS)
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION)
+
+        startup_params = self._param_dict.get_startup_list()
+        log.debug("Startup Parameters: %s" % startup_params)
+
+        for param in startup_params:
+            if not Parameter.has(param):
+                raise InstrumentParameterException()
+
+            if (self._param_dict.get(param) != self._param_dict.get_init_value(param)):
+                log.debug("DIRTY: %s %s != %s" % (param, self._param_dict.get(param), self._param_dict.get_init_value(param)))
+                return True
+
+        log.debug("Clean instrument config")
+        return False
+
+    ########################################################################
     # Private helpers.
     ########################################################################
 
@@ -1967,6 +2071,9 @@ class Protocol(SeaBirdProtocol):
         @return: True if successful
         @raise: InstrumentProtocolException if failed to start logging
         """
+        if(self._is_logging()):
+            return True
+
         self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, timeout=timeout)
         time.sleep(1)
 
@@ -2326,7 +2433,8 @@ class Protocol(SeaBirdProtocol):
         self._param_dict.add(Parameter.TXWAVESTATS,
             ds_line_23,
             lambda match : False if (match.group(1)=='NO') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+        )
 
         self._param_dict.add(Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS,
             ds_line_24,

@@ -42,9 +42,9 @@ class SeaBirdInstrumentDriver(SingleConnectionInstrumentDriver):
         """
         #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-#        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,
-#            DriverEvent.DISCOVER,
-#            self._handler_connected_discover)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,
+            DriverEvent.DISCOVER,
+            self._handler_connected_discover)
 
     def _handler_connected_discover(self, event, *args, **kwargs):
         # Redefine discover handler so that we can apply startup params

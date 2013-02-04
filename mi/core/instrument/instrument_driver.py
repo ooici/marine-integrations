@@ -142,8 +142,7 @@ class DriverEvent(BaseEnum):
     FORCE_STATE = 'DRIVER_FORCE_STATE'
     CLOCK_SYNC = 'DRIVER_EVENT_CLOCK_SYNC'
     ACQUIRE_STATUS = 'DRIVER_EVENT_ACQUIRE_STATUS'
-    
-    
+
 class DriverAsyncEvent(BaseEnum):
     """
     Asynchronous driver event types.

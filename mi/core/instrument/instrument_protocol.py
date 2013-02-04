@@ -301,26 +301,22 @@ class InstrumentProtocol(object):
         @retval The dict of parameter_name/values (override this method if it
             is more involved for a specific instrument) that should be set at
             a higher level.
+
+        @raise InstrumentProtocolException if a startup parameter doesn't
+               have a init or default value
         """
         return_dict = {}
-        start_list = self._param_dict.get_startup_list()
+        start_list = self._param_dict.get_keys()
         log.trace("Startup list: %s", start_list)
         assert isinstance(start_list, list)
         
         for param in start_list:
-            result = self._param_dict.get_init_value(param)
-            if result != None:
-                log.trace("Got init value for %s: %s", param, result)
+            result = self._param_dict.get_config_value(param)
+            if(result != None):
                 return_dict[param] = result
-            else:
-                result = self._param_dict.get_default_value(param)
-                if result != None:
-                    log.trace("Got default value for %s: %s", param, result)
-                    return_dict[param] = result
-                else:
-                    log.trace("Got current value for %s: %s", param, result)
-                    return_dict[param] = self._param_dict.get(param)
-        
+            elif(self._param_dict.is_startup_param(param)):
+                raise InstrumentProtocolException("Required startup value not specified: %s" % param)
+
         return return_dict
         
     def get_direct_access_params(self):

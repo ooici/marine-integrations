@@ -608,7 +608,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
 
     def set_baseline_no_txwavestats(self):
         sampling_params = {
-            Parameter.CONDUCTIVITY: False,
             Parameter.TIDE_INTERVAL: 18,
             Parameter.TIDE_MEASUREMENT_DURATION: 60,
             Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: 6000,
@@ -732,7 +731,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
            
     def set_baseline_txwavestats_dont_use_conductivity(self):
         sampling_params = {
-            Parameter.CONDUCTIVITY: False,
             Parameter.TIDE_INTERVAL: 18,
             Parameter.TIDE_MEASUREMENT_DURATION: 60,
             Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: 8,
@@ -1143,7 +1141,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_async_particle_generation(DataParticleType.WAVE_BURST, self.assert_particle_wave_burst, timeout=300)
         self.assert_async_particle_generation(DataParticleType.STATISTICS, self.assert_particle_statistics, timeout=300)
 
-    @unittest.skip("Need to identify a startup parameter pattern")
     def test_startup_params_first_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -1165,7 +1162,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_set(Parameter.TXREALTIME, False)
         self.assert_set(Parameter.TXWAVEBURST, True)
 
-    @unittest.skip("Need to identify a startup parameter pattern")
     def test_startup_params_second_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
