@@ -124,6 +124,8 @@ class InstrumentPrompts(BaseEnum):
     VELOCITY_OFFSETS_SET          = 'Current path offsets:'
     COMPASS_OFFSETS               = 'Compass Offsets:'
     COMPASS_OFFSETS_SET           = 'Current compass offsets:'
+    COMPASS_SCALE_FACTORS         = 'Compass Scale Factors:'
+    COMPASS_SCALE_FACTORS_SET     = 'Current compass scale factors:'
     
 class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dictionaries to work correctly
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
@@ -179,6 +181,8 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     VELOCITY_OFFSETS_SET                       = 'S'                           # intentionally upper case to differentiate it from other commands                
     COMPASS_OFFSETS                            = 'C'                       
     COMPASS_OFFSETS_SET                        = ' S'                          # make different from VELOCITY_OFFSETS_SET with leading space                
+    COMPASS_SCALE_FACTORS                      = ' F'                          # make different from SET_VEL_FRAME with leading space
+    COMPASS_SCALE_FACTORS_SET                  = '  S'                         # make different from COMPASS_OFFSETS_SET with 2 leading spaces                
     
 
 class ProtocolStates(BaseEnum):
@@ -265,6 +269,9 @@ class InstrumentParameters(DriverParameter):
     COMPASS_OFFSET_0                     = 'comapss_offset_0'
     COMPASS_OFFSET_1                     = 'comapss_offset_1'
     COMPASS_OFFSET_2                     = 'comapss_offset_2'
+    COMPASS_SCALE_FACTORS_0              = 'comapss_scale factors_0'
+    COMPASS_SCALE_FACTORS_1              = 'comapss_scale factors_1'
+    COMPASS_SCALE_FACTORS_2              = 'comapss_scale factors_2'
     
 class DeployMenuParameters(BaseEnum):
     NOTE1                                = InstrumentParameters.NOTE1
@@ -307,6 +314,11 @@ class CompassOffsetParameters(BaseEnum):
     COMPASS_OFFSET_0 = InstrumentParameters.COMPASS_OFFSET_0
     COMPASS_OFFSET_1 = InstrumentParameters.COMPASS_OFFSET_1
     COMPASS_OFFSET_2 = InstrumentParameters.COMPASS_OFFSET_2
+
+class CompassScaleFactorsParameters(BaseEnum):
+    COMPASS_SCALE_FACTORS_0 = InstrumentParameters.COMPASS_SCALE_FACTORS_0
+    COMPASS_SCALE_FACTORS_1 = InstrumentParameters.COMPASS_SCALE_FACTORS_1
+    COMPASS_SCALE_FACTORS_2 = InstrumentParameters.COMPASS_SCALE_FACTORS_2
 
 class SubMenues(BaseEnum):
     ROOT          = 'root_menu'
@@ -689,6 +701,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                             [InstrumentPrompts.COMPASS_OFFSETS, InstrumentCmds.COMPASS_OFFSETS_SET, None],                        
                         InstrumentCmds.COMPASS_OFFSETS_SET: 
                             [InstrumentPrompts.COMPASS_OFFSETS_SET, None, None],                        
+                        InstrumentCmds.COMPASS_SCALE_FACTORS : 
+                            [InstrumentPrompts.COMPASS_SCALE_FACTORS, InstrumentCmds.COMPASS_SCALE_FACTORS_SET, None],                        
+                        InstrumentCmds.COMPASS_SCALE_FACTORS_SET: 
+                            [InstrumentPrompts.COMPASS_SCALE_FACTORS_SET, None, None],                        
                         }
     
     def __init__(self, prompts, newline, driver_event):
@@ -1723,8 +1739,40 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=None,
                              submenu_write=None)
 
+        self._param_dict.add(InstrumentParameters.COMPASS_SCALE_FACTORS_0,
+                             r'.*Current compass scale factors:\s+(\d+.\d+)\s+.*', 
+                             lambda match : float(match.group(1)),
+                             self._float_to_string,
+                             value='',
+                             menu_path_read=SubMenues.CALIBRATION,
+                             submenu_read=InstrumentCmds.COMPASS_SCALE_FACTORS,
+                             menu_path_write=None,
+                             submenu_write=None)
+
+        self._param_dict.add(InstrumentParameters.COMPASS_SCALE_FACTORS_1,
+                             r'.*Current compass scale factors:\s+\d+.\d+\s+(\d+.\d+)\s+.*', 
+                             lambda match : float(match.group(1)),
+                             self._float_to_string,
+                             value='',
+                             menu_path_read=SubMenues.CALIBRATION,
+                             submenu_read=InstrumentCmds.COMPASS_SCALE_FACTORS,
+                             menu_path_write=None,
+                             submenu_write=None)
+
+        self._param_dict.add(InstrumentParameters.COMPASS_SCALE_FACTORS_2,
+                             r'.*Current compass scale factors:\s+\d+.\d+\s+\d+.\d+\s+(\d+.\d+)\s+.*', 
+                             lambda match : float(match.group(1)),
+                             self._float_to_string,
+                             value='',
+                             menu_path_read=SubMenues.CALIBRATION,
+                             submenu_read=InstrumentCmds.COMPASS_SCALE_FACTORS,
+                             menu_path_write=None,
+                             submenu_write=None)
+
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.COMPASS_SCALE_FACTORS, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.COMPASS_SCALE_FACTORS_SET, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.COMPASS_OFFSETS, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.COMPASS_OFFSETS_SET, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.VELOCITY_OFFSETS, self._build_simple_command)
@@ -1784,6 +1832,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, self._parse_system_configuration_menu_response)
         self._add_response_handler(InstrumentCmds.VELOCITY_OFFSETS_SET, self._parse_velocity_offset_set_response)
         self._add_response_handler(InstrumentCmds.COMPASS_OFFSETS_SET, self._parse_compass_offset_set_response)
+        self._add_response_handler(InstrumentCmds.COMPASS_SCALE_FACTORS_SET, self._parse_compass_scale_factors_set_response)
     
     def _build_enter_auxiliary_command(self, **kwargs):
         """
@@ -2109,6 +2158,29 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._go_to_root_menu()
         return None
               
+    def _parse_compass_scale_factors_set_response(self, response, prompt, **kwargs):
+        """
+        Parse handler for compass scale factors set command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if upload command misunderstood.
+        @ retval The next command to be sent to device (set to None to indicate there isn't one)
+        """
+        if not InstrumentPrompts.COMPASS_SCALE_FACTORS_SET in response:
+            raise InstrumentProtocolException('compass scale factors set command not recognized by instrument: %s.' %response)
+        
+        name = kwargs.get('name', None)
+        if name != InstrumentParameters.ALL:
+            # only get the parameter values if called from _update_params()
+            return None
+        for parameter in CompassScaleFactorsParameters.list():
+            #log.debug('_parse_compass_scale_factors_set_response: name=%s, response=%s' %(parameter, response))
+            if not self._param_dict.update(parameter, response):
+                log.debug('_parse_compass_scale_factors_set_response: Failed to parse %s' %parameter)
+        # don't leave instrument in calibration menu because it doesn't wakeup from sleeping correctly
+        self._go_to_root_menu()
+        return None
+              
     def  _get_prompt(self, timeout=8, delay=4):
         """
         _wakeup is replaced by this method for this instrument to search for 
@@ -2162,6 +2234,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         system_configuration_menu_prameters_parsed = False
         velocity_offset_set_prameters_parsed = False
         compass_offset_set_prameters_parsed = False
+        compass_scale_factors_set_prameters_parsed = False
         
         for key in InstrumentParameters.list():
             if key == InstrumentParameters.ALL:
@@ -2204,6 +2277,15 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 else:
                     compass_offset_set_prameters_parsed = True
                     # set name to ALL so _parse_compass_offset_set_response() knows to get all values
+                    key = InstrumentParameters.ALL
+                                                        
+            elif key in CompassScaleFactorsParameters.list():
+                # only screen scrape the compass scale factors set response once for efficiency
+                if compass_scale_factors_set_prameters_parsed == True:
+                    continue
+                else:
+                    compass_scale_factors_set_prameters_parsed = True
+                    # set name to ALL so _parse_compass_scale_factors_set_response() knows to get all values
                     key = InstrumentParameters.ALL
                                                         
             self._navigate_and_execute(command, name=key, dest_submenu=dest_submenu, timeout=10)
