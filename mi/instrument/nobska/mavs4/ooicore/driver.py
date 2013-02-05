@@ -122,6 +122,8 @@ class InstrumentPrompts(BaseEnum):
     CALIBRATION_MENU              = '<X> Save Constants and Exit'
     VELOCITY_OFFSETS              = 'Velocity Offsets:'
     VELOCITY_OFFSETS_SET          = 'Current path offsets:'
+    COMPASS_OFFSETS               = 'Compass Offsets:'
+    COMPASS_OFFSETS_SET           = 'Current compass offsets:'
     
 class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dictionaries to work correctly
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
@@ -175,6 +177,8 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     CALIBRATION_MENU                           = '3'  
     VELOCITY_OFFSETS                           = 'V'                       
     VELOCITY_OFFSETS_SET                       = 'S'                           # intentionally upper case to differentiate it from other commands                
+    COMPASS_OFFSETS                            = 'C'                       
+    COMPASS_OFFSETS_SET                        = ' S'                          # make different from VELOCITY_OFFSETS_SET with leading space                
     
 
 class ProtocolStates(BaseEnum):
@@ -258,6 +262,9 @@ class InstrumentParameters(DriverParameter):
     VELOCITY_OFFSET_PATH_B               = 'velocity_offset_path_b'
     VELOCITY_OFFSET_PATH_C               = 'velocity_offset_path_c'
     VELOCITY_OFFSET_PATH_D               = 'velocity_offset_path_d'
+    COMPASS_OFFSET_0                     = 'comapss_offset_0'
+    COMPASS_OFFSET_1                     = 'comapss_offset_1'
+    COMPASS_OFFSET_2                     = 'comapss_offset_2'
     
 class DeployMenuParameters(BaseEnum):
     NOTE1                                = InstrumentParameters.NOTE1
@@ -295,6 +302,11 @@ class VelocityOffsetParameters(BaseEnum):
     VELOCITY_OFFSET_PATH_B = InstrumentParameters.VELOCITY_OFFSET_PATH_B
     VELOCITY_OFFSET_PATH_C = InstrumentParameters.VELOCITY_OFFSET_PATH_C
     VELOCITY_OFFSET_PATH_D = InstrumentParameters.VELOCITY_OFFSET_PATH_D
+
+class CompassOffsetParameters(BaseEnum):
+    COMPASS_OFFSET_0 = InstrumentParameters.COMPASS_OFFSET_0
+    COMPASS_OFFSET_1 = InstrumentParameters.COMPASS_OFFSET_1
+    COMPASS_OFFSET_2 = InstrumentParameters.COMPASS_OFFSET_2
 
 class SubMenues(BaseEnum):
     ROOT          = 'root_menu'
@@ -673,6 +685,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                             [InstrumentPrompts.VELOCITY_OFFSETS, InstrumentCmds.VELOCITY_OFFSETS_SET, None],                        
                         InstrumentCmds.VELOCITY_OFFSETS_SET: 
                             [InstrumentPrompts.VELOCITY_OFFSETS_SET, None, None],                        
+                        InstrumentCmds.COMPASS_OFFSETS : 
+                            [InstrumentPrompts.COMPASS_OFFSETS, InstrumentCmds.COMPASS_OFFSETS_SET, None],                        
+                        InstrumentCmds.COMPASS_OFFSETS_SET: 
+                            [InstrumentPrompts.COMPASS_OFFSETS_SET, None, None],                        
                         }
     
     def __init__(self, prompts, newline, driver_event):
@@ -1677,8 +1693,40 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=None,
                              submenu_write=None)
 
+        self._param_dict.add(InstrumentParameters.COMPASS_OFFSET_0,
+                             r'.*Current compass offsets:\s+([-+]?\d+)\s+.*', 
+                             lambda match : int(match.group(1)),
+                             self._int_to_string,
+                             value='',
+                             menu_path_read=SubMenues.CALIBRATION,
+                             submenu_read=InstrumentCmds.COMPASS_OFFSETS,
+                             menu_path_write=None,
+                             submenu_write=None)
+
+        self._param_dict.add(InstrumentParameters.COMPASS_OFFSET_1,
+                             r'.*Current compass offsets:\s+[-+]?\d+\s+([-+]?\d+)\s+.*', 
+                             lambda match : int(match.group(1)),
+                             self._int_to_string,
+                             value='',
+                             menu_path_read=SubMenues.CALIBRATION,
+                             submenu_read=InstrumentCmds.COMPASS_OFFSETS,
+                             menu_path_write=None,
+                             submenu_write=None)
+
+        self._param_dict.add(InstrumentParameters.COMPASS_OFFSET_2,
+                             r'.*Current compass offsets:\s+[-+]?\d+\s+[-+]?\d+\s+([-+]?\d+)\s+.*', 
+                             lambda match : int(match.group(1)),
+                             self._int_to_string,
+                             value='',
+                             menu_path_read=SubMenues.CALIBRATION,
+                             submenu_read=InstrumentCmds.COMPASS_OFFSETS,
+                             menu_path_write=None,
+                             submenu_write=None)
+
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.COMPASS_OFFSETS, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.COMPASS_OFFSETS_SET, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.VELOCITY_OFFSETS, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.VELOCITY_OFFSETS_SET, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_SENSOR_ORIENTATION, self._build_simple_enter_command)
@@ -1735,6 +1783,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
         self._add_response_handler(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, self._parse_system_configuration_menu_response)
         self._add_response_handler(InstrumentCmds.VELOCITY_OFFSETS_SET, self._parse_velocity_offset_set_response)
+        self._add_response_handler(InstrumentCmds.COMPASS_OFFSETS_SET, self._parse_compass_offset_set_response)
     
     def _build_enter_auxiliary_command(self, **kwargs):
         """
@@ -2037,6 +2086,29 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._go_to_root_menu()
         return None
               
+    def _parse_compass_offset_set_response(self, response, prompt, **kwargs):
+        """
+        Parse handler for compass offset set command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if upload command misunderstood.
+        @ retval The next command to be sent to device (set to None to indicate there isn't one)
+        """
+        if not InstrumentPrompts.COMPASS_OFFSETS_SET in response:
+            raise InstrumentProtocolException('compass offset set command not recognized by instrument: %s.' %response)
+        
+        name = kwargs.get('name', None)
+        if name != InstrumentParameters.ALL:
+            # only get the parameter values if called from _update_params()
+            return None
+        for parameter in CompassOffsetParameters.list():
+            #log.debug('_parse_compass_offset_set_response: name=%s, response=%s' %(parameter, response))
+            if not self._param_dict.update(parameter, response):
+                log.debug('_parse_compass_offset_set_response: Failed to parse %s' %parameter)
+        # don't leave instrument in calibration menu because it doesn't wakeup from sleeping correctly
+        self._go_to_root_menu()
+        return None
+              
     def  _get_prompt(self, timeout=8, delay=4):
         """
         _wakeup is replaced by this method for this instrument to search for 
@@ -2089,6 +2161,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         deploy_menu_prameters_parsed = False
         system_configuration_menu_prameters_parsed = False
         velocity_offset_set_prameters_parsed = False
+        compass_offset_set_prameters_parsed = False
         
         for key in InstrumentParameters.list():
             if key == InstrumentParameters.ALL:
@@ -2122,6 +2195,15 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 else:
                     velocity_offset_set_prameters_parsed = True
                     # set name to ALL so _parse_velocity_offset_set_response() knows to get all values
+                    key = InstrumentParameters.ALL
+
+            elif key in CompassOffsetParameters.list():
+                # only screen scrape the compass offset set response once for efficiency
+                if compass_offset_set_prameters_parsed == True:
+                    continue
+                else:
+                    compass_offset_set_prameters_parsed = True
+                    # set name to ALL so _parse_compass_offset_set_response() knows to get all values
                     key = InstrumentParameters.ALL
                                                         
             self._navigate_and_execute(command, name=key, dest_submenu=dest_submenu, timeout=10)
