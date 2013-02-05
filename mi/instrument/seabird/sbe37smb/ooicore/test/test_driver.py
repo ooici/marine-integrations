@@ -1242,6 +1242,24 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         self.assertEquals(result[SBE37Parameter.INTERVAL], 1) # default param
         self.assertEquals(result[SBE37Parameter.SYNCWAIT], 10) # manual param
         
+        
+        
+        
+        
+    def test_polled_particle_generation(self):
+        """
+        Test that we can generate particles with commands
+        """
+        self.assert_initialize_driver()
+
+        self.assert_particle_generation(SBE37ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.PARSED, self.assert_particle_sample)
+        self.assert_particle_generation(SBE37ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_device_status)
+        self.assert_particle_generation(SBE37ProtocolEvent.ACQUIRE_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_device_calibration)
+
+
+
+
+
 #self._dvr_proc = self.driver_process
 #self._pagent = self.port_agent
 #self._dvr_client = self.driver_client
@@ -1967,7 +1985,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
     @unittest.skip("PROBLEM WITH command=ResourceAgentEvent.GO_ACTIVE")
-    def test_poll(self):
+    def oldtest_poll(self):
         """
         Test observatory polling function.
         """
@@ -2025,6 +2043,19 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
         self.doCleanups()
+
+    def test_poll(self):
+        '''
+        Verify that we can poll for a sample.  Take sample for this instrument
+        Also poll for other engineering data streams.
+        '''
+        self.assert_enter_command_mode()
+
+
+        self.assert_particle_polled(SBE37ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sample, DataParticleType.PARSED)
+        self.assert_particle_polled(SBE37ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_device_status, DataParticleType.DEVICE_STATUS)
+        self.assert_particle_polled(SBE37ProtocolEvent.ACQUIRE_CONFIGURATION, self.assert_particle_device_calibration, DataParticleType.DEVICE_CALIBRATION)
+
 
     def test_instrument_driver_vs_invalid_commands(self):
         """

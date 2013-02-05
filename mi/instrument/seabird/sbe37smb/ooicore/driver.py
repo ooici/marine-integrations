@@ -50,6 +50,25 @@ class DataParticleType(BaseEnum):
     DEVICE_CALIBRATION = 'device_calibration_parsed'
     DEVICE_STATUS = 'device_status_parsed'
     
+class InstrumentCmds(BaseEnum):
+    """
+    Device specific commands
+    Represents the commands the driver implements and the string that must be sent to the instrument to
+    execute the command.
+    """ 
+    DISPLAY_CALIBRATION = 'dc'
+    DISPLAY_STATUS = 'ds'
+    
+    TAKE_SAMPLE = 'ts'
+    START_LOGGING = 'startnow'
+    STOP_LOGGING = 'stop'
+    SET = 'set'
+    
+    #'tc'
+    #'tt'
+    #'tp'
+    
+    
 class SBE37ProtocolState(BaseEnum):
     """
     Protocol states for SBE37. Cherry picked from DriverProtocolState
@@ -80,15 +99,19 @@ class SBE37ProtocolEvent(BaseEnum):
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
-
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS                     # DS
+    ACQUIRE_CONFIGURATION = "PROTOCOL_EVENT_ACQUIRE_CONFIGURATION"  # DC
+    
 class SBE37Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    TEST = DriverEvent.TEST
+    ACQUIRE_SAMPLE = SBE37ProtocolEvent.ACQUIRE_SAMPLE
+    START_AUTOSAMPLE = SBE37ProtocolEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = SBE37ProtocolEvent.STOP_AUTOSAMPLE
+    TEST = SBE37ProtocolEvent.TEST
+    ACQUIRE_STATUS  = SBE37ProtocolEvent.ACQUIRE_STATUS
+    ACQUIRE_CONFIGURATION = SBE37ProtocolEvent.ACQUIRE_CONFIGURATION
     
 
 # Device specific parameters.
@@ -667,6 +690,12 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.TEST, self._handler_command_test)
         self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        
+        
+        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.ACQUIRE_CONFIGURATION,  self._handler_command_acquire_configuration)
+        
+        
         self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.GET, self._handler_command_autosample_test_get)
@@ -685,21 +714,28 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._build_param_dict()
 
         # Add build handlers for device commands.
-        self._add_build_handler('ds', self._build_simple_command)
-        self._add_build_handler('dc', self._build_simple_command)
-        self._add_build_handler('ts', self._build_simple_command)
-        self._add_build_handler('startnow', self._build_simple_command)
-        self._add_build_handler('stop', self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DISPLAY_STATUS, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DISPLAY_CALIBRATION, self._build_simple_command)
+        
+        InstrumentCmds.TAKE_SAMPLE
+        InstrumentCmds.SET
+        InstrumentCmds.START_LOGGING
+        InstrumentCmds.STOP_LOGGING
+
+ 
+        self._add_build_handler(InstrumentCmds.TAKE_SAMPLE, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.START_LOGGING, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.STOP_LOGGING, self._build_simple_command)
         self._add_build_handler('tc', self._build_simple_command)
         self._add_build_handler('tt', self._build_simple_command)
         self._add_build_handler('tp', self._build_simple_command)
-        self._add_build_handler('set', self._build_set_command)
+        self._add_build_handler(InstrumentCmds.SET, self._build_set_command)
 
         # Add response handlers for device commands.
-        self._add_response_handler('ds', self._parse_dsdc_response)
-        self._add_response_handler('dc', self._parse_dsdc_response)
-        self._add_response_handler('ts', self._parse_ts_response)
-        self._add_response_handler('set', self._parse_set_response)
+        self._add_response_handler(InstrumentCmds.DISPLAY_STATUS, self._parse_dsdc_response)
+        self._add_response_handler(InstrumentCmds.DISPLAY_CALIBRATION, self._parse_dsdc_response)
+        self._add_response_handler(InstrumentCmds.TAKE_SAMPLE, self._parse_ts_response)
+        self._add_response_handler(InstrumentCmds.SET, self._parse_set_response)
         self._add_response_handler('tc', self._parse_test_response)
         self._add_response_handler('tt', self._parse_test_response)
         self._add_response_handler('tp', self._parse_test_response)
@@ -850,7 +886,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         else:
 
             for (key, val) in params.iteritems():
-                result = self._do_cmd_resp('set', key, val, **kwargs)
+                result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
             self._update_params()
 
         return (next_state, result)
@@ -867,7 +903,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        result = self._do_cmd_resp('ts', *args, **kwargs)
+        result = self._do_cmd_resp(InstrumentCmds.TAKE_SAMPLE, *args, **kwargs)
 
         return (next_state, (next_agent_state, result))
 
@@ -885,10 +921,10 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         # Assure the device is transmitting.
         if not self._param_dict.get(SBE37Parameter.TXREALTIME):
-            self._do_cmd_resp('set', SBE37Parameter.TXREALTIME, True, **kwargs)
+            self._do_cmd_resp(InstrumentCmds.SET, SBE37Parameter.TXREALTIME, True, **kwargs)
 
         # Issue start command and switch to autosample if successful.
-        self._do_cmd_no_resp('startnow', *args, **kwargs)
+        self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, *args, **kwargs)
 
         next_state = SBE37ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -962,7 +998,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                 raise
 
         # Issue the stop command.
-        self._do_cmd_resp('stop', *args, **kwargs)
+        self._do_cmd_resp(InstrumentCmds.STOP_LOGGING, *args, **kwargs)
 
         # Prompt device until command prompt is seen.
         self._wakeup_until(timeout, SBE37Prompt.COMMAND)
@@ -1127,6 +1163,34 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+
+    def _handler_command_acquire_status(self, *args, **kwargs):
+        """
+        @param args:
+        @param kwargs:
+        @return:
+        """
+        next_state = None
+        next_agent_state = None
+        kwargs['timeout'] = 30
+        result = self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_acquire_configuration(self, *args, **kwargs):
+        """
+        @param args:
+        @param kwargs:
+        @return:
+        """
+        next_state = None
+        next_agent_state = None
+        kwargs['timeout'] = 30
+        result = self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
+
     ########################################################################
     # Private helpers.
     ########################################################################
@@ -1150,8 +1214,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         # Issue display commands and parse results.
         timeout = kwargs.get('timeout', SBE37_TIMEOUT)
-        self._do_cmd_resp('ds',timeout=timeout)
-        self._do_cmd_resp('dc',timeout=timeout)
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS,timeout=timeout)
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION,timeout=timeout)
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
