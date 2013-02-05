@@ -46,6 +46,7 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
+from mi.instrument.seabird.sbe37smb.ooicore.test.sample_data import *
 
 from mi.instrument.seabird.sbe37smb.ooicore.driver import DataParticleType
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
@@ -58,6 +59,7 @@ from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceCalibration
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceCalibrationParticleKey
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceStatusParticle
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceStatusParticleKey
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Driver
 
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
@@ -240,18 +242,18 @@ class SBEMixin(DriverTestMixin):
     }
 
     _sample_parameters = {
-        SBE37DataParticleKey.TEMP: {TYPE: float, VALUE: 98.8748, REQUIRED: False },
-        SBE37DataParticleKey.CONDUCTIVITY: {TYPE: float, VALUE: 88.35447, REQUIRED: False },
-        SBE37DataParticleKey.DEPTH: {TYPE: float, VALUE: 908.742, REQUIRED: False }
+        SBE37DataParticleKey.TEMP: {TYPE: float, VALUE: 55.9044, REQUIRED: False },
+        SBE37DataParticleKey.CONDUCTIVITY: {TYPE: float, VALUE: 41.40609, REQUIRED: False },
+        SBE37DataParticleKey.DEPTH: {TYPE: float, VALUE: 572.170, REQUIRED: False }
     }
     
     _device_calibration_parameters = {
-        SBE37DeviceCalibrationParticleKey.TCALDATE:  {TYPE: tuple, VALUE: (4, 2, 2013), REQUIRED: False }, 
+        SBE37DeviceCalibrationParticleKey.TCALDATE:  {TYPE: list, VALUE: [8, 11, 2005], REQUIRED: False }, 
         SBE37DeviceCalibrationParticleKey.TA0: {TYPE: float, VALUE: -2.572242e-04, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.TA1: {TYPE: float, VALUE: 3.138936e-04, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.TA2: {TYPE: float, VALUE: -9.717158e-06, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.TA3:  {TYPE: float, VALUE: 2.138735e-07, REQUIRED: False },
-        SBE37DeviceCalibrationParticleKey.CCALDATE: {TYPE: tuple, VALUE: (4, 2, 2013), REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.CCALDATE: {TYPE: list, VALUE: [8, 11, 2005], REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.G: {TYPE: float, VALUE: -9.870930e-01, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.H: {TYPE: float, VALUE: 1.417895e-01, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.I: {TYPE: float, VALUE: 1.334915e-04, REQUIRED: False },
@@ -259,8 +261,8 @@ class SBEMixin(DriverTestMixin):
         SBE37DeviceCalibrationParticleKey.CPCOR: {TYPE: float, VALUE: 9.570000e-08, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.CTCOR: {TYPE: float, VALUE: 3.250000e-06, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.WBOTC: {TYPE: float, VALUE: 1.202400e-05, REQUIRED: False },
-        SBE37DeviceCalibrationParticleKey.PCALDATE: {TYPE: tuple, VALUE: (4, 2, 2013), REQUIRED: False },
-        SBE37DeviceCalibrationParticleKey.PRANGE: {TYPE: float, VALUE: 10746.5835124, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PCALDATE: {TYPE: list, VALUE: [12, 8, 2005], REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PRANGE: {TYPE: float, VALUE: 10847.1964958, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.PSN: {TYPE: int, VALUE: 4955, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.PA0: {TYPE: float, VALUE: 5.916199e+00, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.PA1: {TYPE: float, VALUE: 4.851819e-01, REQUIRED: False },
@@ -272,7 +274,7 @@ class SBEMixin(DriverTestMixin):
         SBE37DeviceCalibrationParticleKey.PTCSB1: {TYPE: float, VALUE: -9.000000e-04, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.PTCSB2: {TYPE: float, VALUE: 0.000000e+00, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.POFFSET: {TYPE: float, VALUE: 0.000000e+00, REQUIRED: False },
-        SBE37DeviceCalibrationParticleKey.RTC: {TYPE: tuple, VALUE: (4, 2, 2013), REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.RTC: {TYPE: list, VALUE: [8, 11, 2005], REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.RTCA0: {TYPE: float, VALUE: 9.999862e-01, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.RTCA1: {TYPE: float, VALUE: 1.686132e-06, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.RTCA2: {TYPE: float, VALUE: -3.022745e-08, REQUIRED: False },
@@ -280,10 +282,10 @@ class SBEMixin(DriverTestMixin):
     
     _device_status_parameters = {
         SBE37DeviceStatusParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 2165, REQUIRED: False },
-        SBE37DeviceStatusParticleKey.DATE_TIME: {TYPE: float, VALUE: 3558413454.0, REQUIRED: False },        
+        SBE37DeviceStatusParticleKey.DATE_TIME: {TYPE: float, VALUE: 3569109103.0, REQUIRED: False },        
         SBE37DeviceStatusParticleKey.LOGGING: {TYPE: bool, VALUE: False, REQUIRED: False },
         SBE37DeviceStatusParticleKey.SAMPLE_INTERVAL: {TYPE: int, VALUE: 20208, REQUIRED: False },
-        SBE37DeviceStatusParticleKey.SAMPLE_NUMBER: {TYPE: int, VALUE: 1, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.SAMPLE_NUMBER: {TYPE: int, VALUE: 0, REQUIRED: False },
         SBE37DeviceStatusParticleKey.MEMORY_FREE: {TYPE: int, VALUE: 200000, REQUIRED: False },
         SBE37DeviceStatusParticleKey.TX_REALTIME: {TYPE: bool, VALUE: True, REQUIRED: False },
         SBE37DeviceStatusParticleKey.OUTPUT_SALINITY: {TYPE: bool, VALUE: False, REQUIRED: False },
@@ -439,6 +441,23 @@ class SBEUnitTestCase(SeaBirdUnitTest, SBEMixin):
         with self.assertRaises(SampleException):
             particle.generate()
 
+    def test_got_data(self):
+        """
+        Verify sample data passed through the got data method produces the correct data particles
+        """
+        # Create and initialize the instrument driver with a mock port agent
+        driver = SBE37Driver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        self.assert_raw_particle_published(driver, True)
+
+        # Start validating data particles
+        self.assert_particle_published(driver, SAMPLE, self.assert_particle_sample, True)
+      
+        self.assert_particle_published(driver, SAMPLE_DC, self.assert_particle_device_calibration, True)
+        self.assert_particle_published(driver, SAMPLE_DS, self.assert_particle_device_status, True)
+
+      
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
