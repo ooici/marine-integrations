@@ -198,6 +198,19 @@ class SBE37Driver(SingleConnectionInstrumentDriver):
         """
         self._protocol = SBE37Protocol(SBE37Prompt, SBE37_NEWLINE, self._driver_event)
 
+    def apply_startup_params(self):
+        """
+        Overload the default behavior which is to pass the buck to the protocol.
+        Alternatively we could retrofit the protocol to better handle the apply
+        startup params feature which would be preferred in production drivers.
+        @raise InstrumentParameterException If the config cannot be applied
+        """
+        config = self._protocol.get_startup_config()
+
+        if not isinstance(config, dict):
+            raise InstrumentParameterException("Incompatible initialization parameters")
+
+        self.set_resource(config)
 
 
 
@@ -1323,8 +1336,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(SBE37Parameter.SAMPLENUM,
                              r'samplenumber = (\d+), free = \d+',
                              lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             startup_param=True)
+                             self._int_to_string)
         self._param_dict.add(SBE37Parameter.INTERVAL,
                              r'sample interval = (\d+) seconds',
                              lambda match : int(match.group(1)),
@@ -1346,8 +1358,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(SBE37Parameter.SYNCWAIT,
                              r'wait time after serial sync sampling = (\d+) seconds',
                              lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             startup_param=True)
+                             self._int_to_string)
         self._param_dict.add(SBE37Parameter.TCALDATE,
                              r'temperature: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),

@@ -22,8 +22,6 @@ from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
 from mi.instrument.seabird.driver import SeaBirdProtocol
 
 from mi.core.common import BaseEnum
-from mi.core.time import get_timestamp_delayed
-from mi.core.util import dict_equal
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -1031,7 +1029,7 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
 # Driver
 ###############################################################################
 
-class InstrumentDriver(SeaBirdInstrumentDriver):
+class SBE26PlusInstrumentDriver(SeaBirdInstrumentDriver):
     """
     InstrumentDriver subclass
     Subclasses SingleConnectionInstrumentDriver with connection state
