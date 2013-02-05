@@ -248,7 +248,7 @@ class SBE37DataParticle(DataParticle):
 ## BEFORE ADDITION
 ##
 
-
+      
 class SBE37DeviceCalibrationParticleKey(BaseEnum):  
     TCALDATE = 'calibration_date_temperature'
     TA0 = 'sbe37_coeff_ta0'
@@ -282,7 +282,7 @@ class SBE37DeviceCalibrationParticleKey(BaseEnum):
     RTCA2 = 'sbe37_coeff_rtca2'
 
  
-class SBE37DeviceCalibrationDataParticle(DataParticle):
+class SBE37DeviceCalibrationParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
@@ -319,7 +319,7 @@ class SBE37DeviceCalibrationDataParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-        log.debug("in SBE37DeviceCalibrationDataParticle._build_parsed_values")
+        log.debug("in SBE37DeviceCalibrationParticle._build_parsed_values")
         single_var_matchers  = {
             SBE37DeviceCalibrationParticleKey.TCALDATE:  (
                 re.compile(r'temperature:\s+(\d+-[a-zA-Z]+-\d+)'),
@@ -461,7 +461,7 @@ class SBE37DeviceCalibrationDataParticle(DataParticle):
 
         return result
 
-class SBE37DeviceStatusDataParticleKey(BaseEnum):
+class SBE37DeviceStatusParticleKey(BaseEnum):
     # DS
     SERIAL_NUMBER = "sbe37_serial_number"
     DATE_TIME = "sbe37_date_time"
@@ -481,12 +481,12 @@ class SBE37DeviceStatusDataParticleKey(BaseEnum):
     TEMPERATURE = "sbe37_temperature"
 #    LOW_BATTERY_WARNING = "sbe37_low_battery_warning"
     
-class SBE37DeviceStatusDataParticleKey(DataParticle):
+class SBE37DeviceStatusParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
-    _data_particle_type = DEVICE_STATUS
+    _data_particle_type = DataParticleType.DEVICE_STATUS
     
     
 
@@ -519,75 +519,75 @@ class SBE37DeviceStatusDataParticleKey(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-        log.debug("in SBE37DeviceCalibrationDataParticle._build_parsed_values")
+        log.debug("in SBE37DeviceStatusParticle._build_parsed_values")
         
         single_var_matchers  = {
-            SBE37DeviceStatusDataParticleKey.SERIAL_NUMBER:  (
+            SBE37DeviceStatusParticleKey.SERIAL_NUMBER:  (
                 re.compile(r'SBE37-SMP V 2.6 SERIAL NO. (\d+)   (\d\d [a-zA-Z]+ \d\d\d\d\s+[ \d]+:\d\d:\d\d)'),
                 lambda match : int(match.group(1))
                 ),
-            SBE37DeviceStatusDataParticleKey.DATE_TIME:  (
+            SBE37DeviceStatusParticleKey.DATE_TIME:  (
                 re.compile(r'SBE37-SMP V 2.6 SERIAL NO. (\d+)   (\d\d [a-zA-Z]+ \d\d\d\d\s+[ \d]+:\d\d:\d\d)'),
                 lambda match : float(self._string_to_ntp_date_time(match.group(2), "%d %b %Y %H:%M:%S"))
                 ),                
-            SBE37DeviceStatusDataParticleKey.LOGGING:  (
+            SBE37DeviceStatusParticleKey.LOGGING:  (
                 re.compile(r'(logging data)'),
                 lambda match : True if (match.group(1)=='logging data') else False,
                 ),
-            SBE37DeviceStatusDataParticleKey.SAMPLE_INTERVAL:  (
+            SBE37DeviceStatusParticleKey.SAMPLE_INTERVAL:  (
                 re.compile(r'sample interval = (\d+) seconds'),
                 lambda match : int(match.group(1))
                 ),          
-            SBE37DeviceStatusDataParticleKey.SAMPLE_NUMBER:  (
+            SBE37DeviceStatusParticleKey.SAMPLE_NUMBER:  (
                 re.compile(r'samplenumber = (\d+), free = (\d+)'),
                 lambda match : int(match.group(1))
                 ),
-            SBE37DeviceStatusDataParticleKey.MEMORY_FREE:  (
+            SBE37DeviceStatusParticleKey.MEMORY_FREE:  (
                 re.compile(r'samplenumber = (\d+), free = (\d+)'),
                 lambda match : int(match.group(2))
                 ),            
-            SBE37DeviceStatusDataParticleKey.TX_REALTIME:  (
+            SBE37DeviceStatusParticleKey.TX_REALTIME:  (
                 re.compile(r'do not transmit real-time data'),
                 lambda match : False if (match.group(1)=='do not transmit real-time data') else True,
                 ),  
-            SBE37DeviceStatusDataParticleKey.OUTPUT_SALINITY:  (
+            SBE37DeviceStatusParticleKey.OUTPUT_SALINITY:  (
                 re.compile(r'do not output salinity with each sample'),
                 lambda match : False if (match.group(1)=='do not output salinity with each sample') else True,
                 ),             
-            SBE37DeviceStatusDataParticleKey.OUTPUT_SOUND_VELOCITY:  (
+            SBE37DeviceStatusParticleKey.OUTPUT_SOUND_VELOCITY:  (
                 re.compile(r'do not output sound velocity with each sample'),
                 lambda match : False if (match.group(1)=='do not output sound velocity with each sample') else True,
                 ),             
-            SBE37DeviceStatusDataParticleKey.STORE_TIME:  (
+            SBE37DeviceStatusParticleKey.STORE_TIME:  (
                 re.compile(r'do not store time with each sample'),
                 lambda match : False if (match.group(1)=='do not store time with each sample') else True,
                 ),       
-            SBE37DeviceStatusDataParticleKey.NUMBER_OF_SAMPLES_TO_AVERAGE:  (
+            SBE37DeviceStatusParticleKey.NUMBER_OF_SAMPLES_TO_AVERAGE:  (
                 re.compile(r'number of samples to average = (\d+)'),
                 lambda match : int(match.group(1))
                 ),         
-            SBE37DeviceStatusDataParticleKey.REFERENCE_PRESSURE:  (
+            SBE37DeviceStatusParticleKey.REFERENCE_PRESSURE:  (
                 re.compile(r'reference pressure = ([\d\.]+) db'),
                 lambda match : float(match.group(1))
                 ),         
-            SBE37DeviceStatusDataParticleKey.SERIAL_SYNC_MODE:  (
+            SBE37DeviceStatusParticleKey.SERIAL_SYNC_MODE:  (
                 re.compile(r'serial sync mode disabled'),
                 lambda match : False if (match.group(1)=='serial sync mode disabled') else True,
                 ),
-            SBE37DeviceStatusDataParticleKey.SERIAL_SYNC_WAIT:  (
+            SBE37DeviceStatusParticleKey.SERIAL_SYNC_WAIT:  (
                 re.compile(r'wait time after serial sync sampling = (\d+) seconds'),
                 lambda match : int(match.group(1))
                 ),     
-            SBE37DeviceStatusDataParticleKey.INTERNAL_PUMP:  (
+            SBE37DeviceStatusParticleKey.INTERNAL_PUMP:  (
                 re.compile(r'internal pump is installed'),
                 lambda match : True if (match.group(1)=='internal pump is installed') else False,
                 ),
-            SBE37plusDeviceStatusDataParticleKey.TEMPERATURE:  (
+            SBE37DeviceStatusParticleKey.TEMPERATURE:  (
                 re.compile(r'temperature = ([\d\.\-]+) deg C'),
                 lambda match : float(match.group(1))
                 ),
   # Move to engineering?
-  #          SBE37plusDeviceStatusDataParticleKey.LOW_BATTERY_WARNING:  (
+  #          SBE37DeviceStatusParticleKey.LOW_BATTERY_WARNING:  (
   #              re.compile(r'WARNING: LOW BATTERY VOLTAGE!!'),
   #              lambda match : True if (match.group(1)=='WARNING: LOW BATTERY VOLTAGE!!') else False,
   #              )
@@ -1295,9 +1295,9 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
          
         result = self._extract_sample(SBE37DataParticle, SAMPLE_REGEX, chunk)
         
-        result = self._extract_sample(SBE37plusDeviceStatusDataParticleKey, STATUS_DATA_REGEX_MATCHER, chunk)
+        result = self._extract_sample(SBE37DeviceStatusParticleKey, STATUS_DATA_REGEX_MATCHER, chunk)
         
-        result = self._extract_sample(SBE37DeviceCalibrationDataParticle, CALIBRATION_DATA_REGEX_MATCHER, chunk)
+        result = self._extract_sample(SBE37DeviceCalibrationParticle, CALIBRATION_DATA_REGEX_MATCHER, chunk)
 
         
     def _build_param_dict(self):

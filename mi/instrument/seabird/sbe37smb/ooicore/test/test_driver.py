@@ -38,6 +38,7 @@ from mi.instrument.seabird.test.test_driver import SeaBirdUnitTest
 from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
 from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
 
+
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
@@ -55,18 +56,22 @@ from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DataParticle
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DataParticleKey
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceCalibrationParticle
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceCalibrationParticleKey
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceStatusDataParticle
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceStatusDataParticleKey
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceStatusParticle
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceStatusParticleKey
 
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from mi.core.instrument.instrument_driver import DriverConfigKey
 
 from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
+from mi.idk.unit_test import ParameterTestConfigKey
+from mi.idk.unit_test import AgentCapabilityType
+
+from mi.instrument.seabird.test.test_driver import SeaBirdUnitTest
+from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
+from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
+
 from mi.core.tcp_client import TcpClient
 
 # MI logger
@@ -106,7 +111,18 @@ from pyon.core.exception import Conflict
 from interface.objects import CapabilityType
 from interface.objects import AgentCapability
 
+###
+#   Driver parameters for the tests
+###
 
+# Create some short names for the parameter test config
+TYPE = ParameterTestConfigKey.TYPE
+READONLY = ParameterTestConfigKey.READONLY
+STARTUP = ParameterTestConfigKey.STARTUP
+DA = ParameterTestConfigKey.DIRECT_ACCESS
+VALUE = ParameterTestConfigKey.VALUE
+REQUIRED = ParameterTestConfigKey.REQUIRED
+DEFAULT = ParameterTestConfigKey.DEFAULT
 
 # Make tests verbose and provide stdout
 # bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_process
@@ -230,12 +246,12 @@ class SBEMixin(DriverTestMixin):
     }
     
     _device_calibration_parameters = {
-        SBE37DeviceCalibrationParticleKey.TCALDATE:  {TYPE: date, VALUE: time.struct_time(tm_year=2013, tm_mon=2, tm_mday=4, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=0, tm_yday=35, tm_isdst=-1), REQUIRED: False }, 
+        SBE37DeviceCalibrationParticleKey.TCALDATE:  {TYPE: tuple, VALUE: (4, 2, 2013), REQUIRED: False }, 
         SBE37DeviceCalibrationParticleKey.TA0: {TYPE: float, VALUE: -2.572242e-04, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.TA1: {TYPE: float, VALUE: 3.138936e-04, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.TA2: {TYPE: float, VALUE: -9.717158e-06, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.TA3:  {TYPE: float, VALUE: 2.138735e-07, REQUIRED: False },
-        SBE37DeviceCalibrationParticleKey.CCALDATE: {TYPE: date, VALUE: time.struct_time(tm_year=2013, tm_mon=2, tm_mday=4, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=0, tm_yday=35, tm_isdst=-1), REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.CCALDATE: {TYPE: tuple, VALUE: (4, 2, 2013), REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.G: {TYPE: float, VALUE: -9.870930e-01, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.H: {TYPE: float, VALUE: 1.417895e-01, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.I: {TYPE: float, VALUE: 1.334915e-04, REQUIRED: False },
@@ -243,7 +259,7 @@ class SBEMixin(DriverTestMixin):
         SBE37DeviceCalibrationParticleKey.CPCOR: {TYPE: float, VALUE: 9.570000e-08, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.CTCOR: {TYPE: float, VALUE: 3.250000e-06, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.WBOTC: {TYPE: float, VALUE: 1.202400e-05, REQUIRED: False },
-        SBE37DeviceCalibrationParticleKey.PCALDATE: {TYPE: date, VALUE: time.struct_time(tm_year=2013, tm_mon=2, tm_mday=4, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=0, tm_yday=35, tm_isdst=-1), REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PCALDATE: {TYPE: tuple, VALUE: (4, 2, 2013), REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.PRANGE: {TYPE: float, VALUE: 10746.5835124, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.PSN: {TYPE: int, VALUE: 4955, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.PA0: {TYPE: float, VALUE: 5.916199e+00, REQUIRED: False },
@@ -256,29 +272,29 @@ class SBEMixin(DriverTestMixin):
         SBE37DeviceCalibrationParticleKey.PTCSB1: {TYPE: float, VALUE: -9.000000e-04, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.PTCSB2: {TYPE: float, VALUE: 0.000000e+00, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.POFFSET: {TYPE: float, VALUE: 0.000000e+00, REQUIRED: False },
-        SBE37DeviceCalibrationParticleKey.RTC: {TYPE: date, VALUE: time.struct_time(tm_year=2013, tm_mon=2, tm_mday=4, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=0, tm_yday=35, tm_isdst=-1), REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.RTC: {TYPE: tuple, VALUE: (4, 2, 2013), REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.RTCA0: {TYPE: float, VALUE: 9.999862e-01, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.RTCA1: {TYPE: float, VALUE: 1.686132e-06, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.RTCA2: {TYPE: float, VALUE: -3.022745e-08, REQUIRED: False },
     }
     
     _device_status_parameters = {
-        SBE37DeviceStatusDataParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 2165, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.DATE_TIME: {TYPE: float, VALUE: 3558413454.0, REQUIRED: False },        
-        SBE37DeviceStatusDataParticleKey.LOGGING: {TYPE: bool, VALUE: False, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.SAMPLE_INTERVAL: {TYPE: int, VALUE: 20208, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.SAMPLE_NUMBER: {TYPE: int, VALUE: 1, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.MEMORY_FREE: {TYPE: int, VALUE: 200000, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.TX_REALTIME: {TYPE: bool, VALUE: True, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.OUTPUT_SALINITY: {TYPE: bool, VALUE: False, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.OUTPUT_SOUND_VELOCITY: {TYPE: bool, VALUE: False, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.STORE_TIME: {TYPE: bool, VALUE: False, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.NUMBER_OF_SAMPLES_TO_AVERAGE: {TYPE: int, VALUE: 0, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.REFERENCE_PRESSURE: {TYPE: float, VALUE: 0.0, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.SERIAL_SYNC_MODE: {TYPE: bool, VALUE: False, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.SERIAL_SYNC_WAIT: {TYPE: int, VALUE: 0, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.INTERNAL_PUMP: {TYPE: bool, VALUE: True, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.TEMPERATURE: {TYPE: float, VALUE: 7.54, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 2165, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.DATE_TIME: {TYPE: float, VALUE: 3558413454.0, REQUIRED: False },        
+        SBE37DeviceStatusParticleKey.LOGGING: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.SAMPLE_INTERVAL: {TYPE: int, VALUE: 20208, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.SAMPLE_NUMBER: {TYPE: int, VALUE: 1, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.MEMORY_FREE: {TYPE: int, VALUE: 200000, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.TX_REALTIME: {TYPE: bool, VALUE: True, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.OUTPUT_SALINITY: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.OUTPUT_SOUND_VELOCITY: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.STORE_TIME: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.NUMBER_OF_SAMPLES_TO_AVERAGE: {TYPE: int, VALUE: 0, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.REFERENCE_PRESSURE: {TYPE: float, VALUE: 0.0, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.SERIAL_SYNC_MODE: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.SERIAL_SYNC_WAIT: {TYPE: int, VALUE: 0, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.INTERNAL_PUMP: {TYPE: bool, VALUE: True, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.TEMPERATURE: {TYPE: float, VALUE: 7.54, REQUIRED: False },
     }
     
     
@@ -308,7 +324,7 @@ class SBEMixin(DriverTestMixin):
             self.assert_particle_sample(data_particle)
         elif (isinstance(data_particle, SBE37DeviceCalibrationParticle)):
             self.assert_particle_device_calibration(data_particle)
-        elif (isinstance(data_particle, SBE37DeviceStatusDataParticle)):
+        elif (isinstance(data_particle, SBE37DeviceStatusParticleKey)):
             self.assert_particle_device_status(data_particle)
         else:
             log.error("Unknown Particle Detected: %s" % data_particle)
