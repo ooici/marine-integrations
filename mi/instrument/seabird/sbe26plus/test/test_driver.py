@@ -39,9 +39,9 @@ from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
 
 from mi.instrument.seabird.sbe26plus.test.sample_data import *
 
+from mi.instrument.seabird.sbe26plus.driver import SBE26PlusInstrumentDriver
 from mi.instrument.seabird.sbe26plus.driver import ScheduledJob
 from mi.instrument.seabird.sbe26plus.driver import DataParticleType
-from mi.instrument.seabird.sbe26plus.driver import InstrumentDriver
 from mi.instrument.seabird.sbe26plus.driver import ProtocolState
 from mi.instrument.seabird.sbe26plus.driver import Parameter
 from mi.instrument.seabird.sbe26plus.driver import ProtocolEvent
@@ -63,10 +63,6 @@ from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceStatusDataPart
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentCommandException
 from pyon.agent.agent import ResourceAgentEvent
-
-# Globals
-raw_stream_received = False
-parsed_stream_received = False
 
 ###
 #   Driver parameters for the tests
@@ -410,7 +406,7 @@ class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
         Verify sample data passed through the got data method produces the correct data particles
         """
         # Create and initialize the instrument driver with a mock port agent
-        driver = InstrumentDriver(self._got_data_event_callback)
+        driver = SBE26PlusInstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
         self.assert_raw_particle_published(driver, True)
@@ -446,7 +442,7 @@ class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
         """
         Verify the set of parameters known by the driver
         """
-        driver = InstrumentDriver(self._got_data_event_callback)
+        driver = SBE26PlusInstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, ProtocolState.COMMAND)
 
         expected_parameters = sorted(self._driver_parameters.keys())
@@ -488,7 +484,7 @@ class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
 
-        driver = InstrumentDriver(self._got_data_event_callback)
+        driver = SBE26PlusInstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
 
