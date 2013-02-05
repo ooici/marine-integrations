@@ -34,6 +34,10 @@ from prototype.sci_data.stream_defs import ctd_stream_definition
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 
+from mi.instrument.seabird.test.test_driver import SeaBirdUnitTest
+from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
+from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
+
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
@@ -41,12 +45,19 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DataParticle
+
 from mi.instrument.seabird.sbe37smb.ooicore.driver import DataParticleType
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolEvent
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Capability
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DataParticle
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DataParticleKey
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceCalibrationParticle
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceCalibrationParticleKey
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceStatusDataParticle
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceStatusDataParticleKey
+
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from mi.core.instrument.instrument_driver import DriverConfigKey
@@ -55,6 +66,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import DriverTestMixin
 from mi.core.tcp_client import TcpClient
 
 # MI logger
@@ -93,6 +105,8 @@ from pyon.core.exception import Conflict
 
 from interface.objects import CapabilityType
 from interface.objects import AgentCapability
+
+
 
 # Make tests verbose and provide stdout
 # bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_process
@@ -158,9 +172,186 @@ PARAMS = {
     SBE37Parameter.RTCA2 : float
 }
 
+
+
+class SBEMixin(DriverTestMixin):
+    '''
+    Mixin class used for storing data particle constance and common data assertion methods.
+    '''
+    ###
+    #  Parameter and Type Definitions
+    ###
+    _driver_parameters = {
+        # DS parameters
+        SBE37Parameter.OUTPUTSAL: {TYPE: bool, READONLY: False, DA: False, STARTUP: False, DEFAULT: False},
+        SBE37Parameter.OUTPUTSV: {TYPE: bool, READONLY: False, DA: False, STARTUP: False, DEFAULT: False},
+        SBE37Parameter.NAVG : {TYPE: int, READONLY: False, DA: True, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.SAMPLENUM : {TYPE: int, READONLY: False, DA: False, STARTUP: True, REQUIRED: False, VALUE: False},
+        SBE37Parameter.INTERVAL : {TYPE: int, READONLY: False, DA: False, STARTUP: True, REQUIRED: False, VALUE: 1},
+        SBE37Parameter.STORETIME : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, DEFAULT: False},
+        SBE37Parameter.TXREALTIME : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, DEFAULT: False},
+        SBE37Parameter.SYNCMODE : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, DEFAULT: False},
+        SBE37Parameter.SYNCWAIT : {TYPE: int, READONLY: False, DA: False, STARTUP: True, REQUIRED: False}, # may need a default , VALUE: 1
+        # DC parameters
+        SBE37Parameter.TCALDATE : {TYPE: tuple, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.TA0 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.TA1 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.TA2 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.TA3 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.CCALDATE : {TYPE: tuple, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.CG : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.CH : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.CI : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.CJ : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.WBOTC : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.CTCOR : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.CPCOR : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.PCALDATE : {TYPE: tuple, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.PA0 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.PA1 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.PA2 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.PTCA0 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.PTCA1 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.PTCA2 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.PTCB0 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.PTCB1 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.PTCB2 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.POFFSET : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.RCALDATE : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.RTCA0 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.RTCA1 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        SBE37Parameter.RTCA2 : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},          
+    }
+
+    _sample_parameters = {
+        SBE37DataParticleKey.TEMP: {TYPE: float, VALUE: 98.8748, REQUIRED: False },
+        SBE37DataParticleKey.CONDUCTIVITY: {TYPE: float, VALUE: 88.35447, REQUIRED: False },
+        SBE37DataParticleKey.DEPTH: {TYPE: float, VALUE: 908.742, REQUIRED: False }
+    }
+    
+    _device_calibration_parameters = {
+        SBE37DeviceCalibrationParticleKey.TCALDATE:  {TYPE: date, VALUE: time.struct_time(tm_year=2013, tm_mon=2, tm_mday=4, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=0, tm_yday=35, tm_isdst=-1), REQUIRED: False }, 
+        SBE37DeviceCalibrationParticleKey.TA0: {TYPE: float, VALUE: -2.572242e-04, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.TA1: {TYPE: float, VALUE: 3.138936e-04, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.TA2: {TYPE: float, VALUE: -9.717158e-06, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.TA3:  {TYPE: float, VALUE: 2.138735e-07, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.CCALDATE: {TYPE: date, VALUE: time.struct_time(tm_year=2013, tm_mon=2, tm_mday=4, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=0, tm_yday=35, tm_isdst=-1), REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.G: {TYPE: float, VALUE: -9.870930e-01, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.H: {TYPE: float, VALUE: 1.417895e-01, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.I: {TYPE: float, VALUE: 1.334915e-04, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.J: {TYPE: float, VALUE: 3.339261e-05, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.CPCOR: {TYPE: float, VALUE: 9.570000e-08, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.CTCOR: {TYPE: float, VALUE: 3.250000e-06, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.WBOTC: {TYPE: float, VALUE: 1.202400e-05, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PCALDATE: {TYPE: date, VALUE: time.struct_time(tm_year=2013, tm_mon=2, tm_mday=4, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=0, tm_yday=35, tm_isdst=-1), REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PRANGE: {TYPE: float, VALUE: 10746.5835124, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PSN: {TYPE: int, VALUE: 4955, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PA0: {TYPE: float, VALUE: 5.916199e+00, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PA1: {TYPE: float, VALUE: 4.851819e-01, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PA2: {TYPE: float, VALUE: 4.596432e-07, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PTCA0: {TYPE: float, VALUE: 2.762492e+02, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PTCA1: {TYPE: float, VALUE: 6.603433e-01, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PTCA2: {TYPE: float, VALUE: 5.756490e-03, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PTCSB0: {TYPE: float, VALUE: 2.461450e+01, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PTCSB1: {TYPE: float, VALUE: -9.000000e-04, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PTCSB2: {TYPE: float, VALUE: 0.000000e+00, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.POFFSET: {TYPE: float, VALUE: 0.000000e+00, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.RTC: {TYPE: date, VALUE: time.struct_time(tm_year=2013, tm_mon=2, tm_mday=4, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=0, tm_yday=35, tm_isdst=-1), REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.RTCA0: {TYPE: float, VALUE: 9.999862e-01, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.RTCA1: {TYPE: float, VALUE: 1.686132e-06, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.RTCA2: {TYPE: float, VALUE: -3.022745e-08, REQUIRED: False },
+    }
+    
+    _device_status_parameters = {
+        SBE37DeviceStatusDataParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 2165, REQUIRED: False },
+        SBE37DeviceStatusDataParticleKey.DATE_TIME: {TYPE: float, VALUE: 3558413454.0, REQUIRED: False },        
+        SBE37DeviceStatusDataParticleKey.LOGGING: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusDataParticleKey.SAMPLE_INTERVAL: {TYPE: int, VALUE: 20208, REQUIRED: False },
+        SBE37DeviceStatusDataParticleKey.SAMPLE_NUMBER: {TYPE: int, VALUE: 1, REQUIRED: False },
+        SBE37DeviceStatusDataParticleKey.MEMORY_FREE: {TYPE: int, VALUE: 200000, REQUIRED: False },
+        SBE37DeviceStatusDataParticleKey.TX_REALTIME: {TYPE: bool, VALUE: True, REQUIRED: False },
+        SBE37DeviceStatusDataParticleKey.OUTPUT_SALINITY: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusDataParticleKey.OUTPUT_SOUND_VELOCITY: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusDataParticleKey.STORE_TIME: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusDataParticleKey.NUMBER_OF_SAMPLES_TO_AVERAGE: {TYPE: int, VALUE: 0, REQUIRED: False },
+        SBE37DeviceStatusDataParticleKey.REFERENCE_PRESSURE: {TYPE: float, VALUE: 0.0, REQUIRED: False },
+        SBE37DeviceStatusDataParticleKey.SERIAL_SYNC_MODE: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusDataParticleKey.SERIAL_SYNC_WAIT: {TYPE: int, VALUE: 0, REQUIRED: False },
+        SBE37DeviceStatusDataParticleKey.INTERNAL_PUMP: {TYPE: bool, VALUE: True, REQUIRED: False },
+        SBE37DeviceStatusDataParticleKey.TEMPERATURE: {TYPE: float, VALUE: 7.54, REQUIRED: False },
+    }
+    
+    
+    
+
+    ###
+    #   Driver Parameter Methods
+    ###
+    def assert_driver_parameters(self, current_parameters, verify_values = False):
+        '''
+        Verify that all driver parameters are correct and potentially verify values.
+        @param current_parameters: driver parameters read from the driver instance
+        @param verify_values: should we verify values against definition?
+        '''
+        self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
+
+    ###
+    #   Data Particle Parameters Methods
+    ###
+    def assert_sample_data_particle(self, data_particle):
+        '''
+        Verify a particle is a know particle to this driver and verify the particle is
+        correct
+        @param data_particle: Data particle of unkown type produced by the driver
+        '''
+        if (isinstance(data_particle, SBE37DataParticle)):
+            self.assert_particle_sample(data_particle)
+        elif (isinstance(data_particle, SBE37DeviceCalibrationParticle)):
+            self.assert_particle_device_calibration(data_particle)
+        elif (isinstance(data_particle, SBE37DeviceStatusDataParticle)):
+            self.assert_particle_device_status(data_particle)
+        else:
+            log.error("Unknown Particle Detected: %s" % data_particle)
+            self.assertFalse(True)
+
+    def assert_particle_sample(self, data_particle, verify_values = False):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusTideSampleDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.PARSED)
+        self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
+
+    def assert_particle_device_calibration(self, data_particle, verify_values = False):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusDeviceCalibrationDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CALIBRATION)
+        self.assert_data_particle_parameters(data_particle, self._device_calibration_parameters, verify_values)
+
+    def assert_particle_device_status(self, data_particle, verify_values = False):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusDeviceStatusDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_STATUS)
+        self.assert_data_particle_parameters(data_particle, self._device_status_parameters, verify_values)
+
+
+
 @attr('UNIT', group='mi')
-class SBEUnitTestCase(InstrumentDriverUnitTestCase):
-    """Unit Test Container"""
+class SBEUnitTestCase(SeaBirdUnitTest, SBEMixin):
+    """
+    Unit Test Container
+    """
+    
+    def setUp(self):
+        SeaBirdUnitTest.setUp(self)
+        
     TEST_OVERLAY_CONFIG = [SBE37Parameter.SAMPLENUM, SBE37Parameter.INTERVAL]
 
     TEST_BASELINE_CONFIG = {
@@ -242,11 +433,14 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
 ###############################################################################
 
 @attr('INT', group='mi')
-class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
+class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
     """
     Integration tests for the sbe37 driver. This class tests and shows
     use patterns for the sbe37 driver as a zmq driver process.
     """    
+    def setUp(self):
+        SeaBirdIntegrationTest.setUp(self)
+
 
     def assertSampleDict(self, val):
         """
@@ -1027,13 +1221,15 @@ class SBEIntTestCase(InstrumentDriverIntegrationTestCase):
 ###############################################################################
 
 @attr('QUAL', group='mi')
-class SBEQualificationTestCase(InstrumentDriverQualificationTestCase):
+class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
     """Qualification Test Container"""
 
     # Qualification tests live in the base class.  This class is extended
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.
     
+    def setUp(self):
+        SeaBirdQualificationTest.setUp(self)
 
     @unittest.skip("da currently broken for this instrument")
     def test_direct_access_telnet_mode(self):

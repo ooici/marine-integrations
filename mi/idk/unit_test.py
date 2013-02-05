@@ -991,7 +991,6 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         else:
             self.assert_force_state(driver, initial_protocol_state)
 
-
     def assert_initialize_driver(self, driver, initial_protocol_state = DriverProtocolState.AUTOSAMPLE):
         """
         Initialize an instrument driver with a mock port agent.  This will allow us to test the
@@ -1195,7 +1194,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         InstrumentDriverTestCase.tearDown(self)
 
-    ###/
+    ###
     #   Common assert methods
     ###
     def assert_current_state(self, target_state):
@@ -1207,7 +1206,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, target_state)
 
-    def assert_initialize_driver(self):
+    def assert_initialize_driver(self, final_state=DriverProtocolState.COMMAND):
         """
         Walk an uninitialized driver through it's initialize process.  Verify the final
         state is command mode.  If the final state is auto sample then we will stop
@@ -1235,12 +1234,19 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         # If we are in streaming mode then stop streaming
         state = self.driver_client.cmd_dvr('get_resource_state')
-        if(state == DriverProtocolState.AUTOSAMPLE):
+        if(state == DriverProtocolState.AUTOSAMPLE and final_state != DriverProtocolState.AUTOSAMPLE):
             reply = self.driver_client.cmd_dvr('execute_resource', DriverEvent.STOP_AUTOSAMPLE)
             state = self.driver_client.cmd_dvr('get_resource_state')
 
-        # Test the driver is in command mode.
-        self.assertEqual(state, DriverProtocolState.COMMAND)
+        if(state == DriverProtocolState.COMMAND and final_state != DriverProtocolState.COMMAND):
+            reply = self.driver_client.cmd_dvr('execute_resource', DriverEvent.START_AUTOSAMPLE)
+            state = self.driver_client.cmd_dvr('get_resource_state')
+
+        # Test the driver is in the correct mode
+        if(final_state == DriverProtocolState.AUTOSAMPLE):
+            self.assertEqual(state, DriverProtocolState.AUTOSAMPLE)
+        else:
+            self.assertEqual(state, DriverProtocolState.COMMAND)
 
     def assert_get(self, param, value=None, pattern=None):
         """
