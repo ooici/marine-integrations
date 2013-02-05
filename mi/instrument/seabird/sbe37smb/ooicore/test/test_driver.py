@@ -732,64 +732,6 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)        
     
-    def test_poll(self):
-        """
-        Test sample polling commands and events.
-        """
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        reply = self.driver_client.cmd_dvr('connect')
-                
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
-                
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE37ProtocolState.COMMAND)
-
-        # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
-        self.assertSampleDict(reply[1])
-        
-        # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
-        self.assertSampleDict(reply[1])
-
-        # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
-        self.assertSampleDict(reply[1])
-        
-        # Confirm that 3 samples arrived as published events.
-        gevent.sleep(1)
-        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-        # @TODO Set this properly (3) when only one set of events are sent
-        self.assertEqual(len(sample_events), 6)
-
-        # Disconnect from the port agent.
-        reply = self.driver_client.cmd_dvr('disconnect')
-        
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-        
-        # Deconfigure the driver.
-        reply = self.driver_client.cmd_dvr('initialize')
-        
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
     def test_autosample(self):
         """
         Test autosample mode.
@@ -1001,7 +943,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
 
         # Poll for a sample and confirm result.
         reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
-        self.assertSampleDict(reply[1])
+        self.assert_particle_sample(reply[1])
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
