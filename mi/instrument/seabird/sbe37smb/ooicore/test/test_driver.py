@@ -732,36 +732,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)        
     
-    def test_poll(self):
-        """
-        Test sample polling commands and events.
-        """
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        reply = self.driver_client.cmd_dvr('connect')
-                
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
-                
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE37ProtocolState.COMMAND)
-
-        # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
-        self.assertSampleDict(reply[1])
-        
         # Poll for a sample and confirm result.
         reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
         self.assertSampleDict(reply[1])
@@ -1278,9 +1249,28 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
     # Qualification tests live in the base class.  This class is extended
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.
-    
     def setUp(self):
         SeaBirdQualificationTest.setUp(self)
+
+    def check_for_reused_values(self, obj):
+        """
+        @author Roger Unwin
+        @brief  verifies that no two definitions resolve to the same value.
+        @returns True if no reused values
+        """
+        match = 0
+        outer_match = 0
+        for i in [v for v in dir(obj) if not callable(getattr(obj,v))]:
+            if i.startswith('_') == False:
+                outer_match = outer_match + 1
+                for j in [x for x in dir(obj) if not callable(getattr(obj,x))]:
+                    if i.startswith('_') == False:
+                        if getattr(obj, i) == getattr(obj, j):
+                            match = match + 1
+                            log.debug(str(i) + " == " + j + " (Looking for reused values)")
+
+        # If this assert fails, then two of the enumerations have an identical value...
+        return match == outer_match
 
     @unittest.skip("da currently broken for this instrument")
     def test_direct_access_telnet_mode(self):
@@ -1525,10 +1515,12 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         agt_pars_all = ['example']
 
         res_cmds_all =[
+            SBE37ProtocolEvent.ACQUIRE_STATUS,
             SBE37ProtocolEvent.TEST,
             SBE37ProtocolEvent.ACQUIRE_SAMPLE,
             SBE37ProtocolEvent.START_AUTOSAMPLE,
-            SBE37ProtocolEvent.STOP_AUTOSAMPLE
+            SBE37ProtocolEvent.STOP_AUTOSAMPLE,
+            SBE37ProtocolEvent.ACQUIRE_CONFIGURATION,
         ]
 
         res_pars_all = PARAMS.keys()
@@ -1687,9 +1679,11 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         ]
 
         res_cmds_command = [
+            SBE37ProtocolEvent.ACQUIRE_STATUS,
             SBE37ProtocolEvent.TEST,
             SBE37ProtocolEvent.ACQUIRE_SAMPLE,
-            SBE37ProtocolEvent.START_AUTOSAMPLE
+            SBE37ProtocolEvent.START_AUTOSAMPLE,
+            SBE37ProtocolEvent.ACQUIRE_CONFIGURATION
         ]
 
         self.assertItemsEqual(agt_cmds, agt_cmds_command)
