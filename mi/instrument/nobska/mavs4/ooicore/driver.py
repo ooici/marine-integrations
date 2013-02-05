@@ -119,6 +119,9 @@ class InstrumentPrompts(BaseEnum):
     PRESSURE                      = 'Pressure enabled (Yes/No) ['
     AUXILIARY                     = 'Auxiliary * enabled (Yes/No) ['
     SENSOR_ORIENTATION            = '<7> Horizontal/Bent Up'
+    CALIBRATION_MENU              = '<X> Save Constants and Exit'
+    VELOCITY_OFFSETS              = 'Velocity Offsets:'
+    VELOCITY_OFFSETS_SET          = 'Current path offsets:'
     
 class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dictionaries to work correctly
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
@@ -151,7 +154,7 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     ENTER_BURST_INTERVAL_HOURS                 = 'enter_burst_interval_hours'
     ENTER_BURST_INTERVAL_MINUTES               = 'enter_burst_interval_minutes'
     ENTER_BURST_INTERVAL_SECONDS               = 'enter_burst_interval_seconds'
-    SYSTEM_CONFIGURATION_MENU                  = 's'
+    SYSTEM_CONFIGURATION_MENU                  = 's'                          # intentionally lower case to differentiate it from other commands
     SYSTEM_CONFIGURATION_PASSWORD              = 'whipr'
     SYSTEM_CONFIGURATION_EXIT                  = 'x'
     SET_SI_CONVERSION                          = 'C\nn'
@@ -160,7 +163,7 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     ENTER_WARM_UP_INTERVAL                     = 'enter_warm_up_interval'
     SET_THREE_AXIS_COMPASS                     = ' 1'                          # make different from SET_TIME with leading space
     ENTER_THREE_AXIS_COMPASS                   = 'enter_3_axis_compass'
-    SET_THERMISTOR                             = '3'                          
+    SET_THERMISTOR                             = ' 3'                          # make different from CALIBRATION_MENU with leading space                 
     ENTER_THERMISTOR                           = 'enter_thermistor'
     ANSWER_THERMISTOR_NO                       = 'n'
     SET_PRESSURE                               = '4'                          
@@ -169,6 +172,9 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     ENTER_AUXILIARY                            = 'enter_auxiliary'
     SET_SENSOR_ORIENTATION                     = 'o'                          
     ENTER_SENSOR_ORIENTATION                   = 'enter_sensor_orientation'
+    CALIBRATION_MENU                           = '3'  
+    VELOCITY_OFFSETS                           = 'V'                       
+    VELOCITY_OFFSETS_SET                       = 'S'                           # intentionally upper case to differentiate it from other commands                
     
 
 class ProtocolStates(BaseEnum):
@@ -247,6 +253,12 @@ class InstrumentParameters(DriverParameter):
     SENSOR_ORIENTATION                   = 'sensor_orientation'
     SERIAL_NUMBER                        = 'serial_number'
     
+    # calibration menu parameters
+    VELOCITY_OFFSET_PATH_A               = 'velocity_offset_path_a'
+    VELOCITY_OFFSET_PATH_B               = 'velocity_offset_path_b'
+    VELOCITY_OFFSET_PATH_C               = 'velocity_offset_path_c'
+    VELOCITY_OFFSET_PATH_D               = 'velocity_offset_path_d'
+    
 class DeployMenuParameters(BaseEnum):
     NOTE1                                = InstrumentParameters.NOTE1
     NOTE2                                = InstrumentParameters.NOTE2
@@ -278,6 +290,12 @@ class SystemConfigurationMenuParameters(BaseEnum):
     SENSOR_ORIENTATION = InstrumentParameters.SENSOR_ORIENTATION
     SERIAL_NUMBER      = InstrumentParameters.SERIAL_NUMBER
 
+class VelocityOffsetParameters(BaseEnum):
+    VELOCITY_OFFSET_PATH_A = InstrumentParameters.VELOCITY_OFFSET_PATH_A
+    VELOCITY_OFFSET_PATH_B = InstrumentParameters.VELOCITY_OFFSET_PATH_B
+    VELOCITY_OFFSET_PATH_C = InstrumentParameters.VELOCITY_OFFSET_PATH_C
+    VELOCITY_OFFSET_PATH_D = InstrumentParameters.VELOCITY_OFFSET_PATH_D
+
 class SubMenues(BaseEnum):
     ROOT          = 'root_menu'
     SET_TIME      = 'set_time'
@@ -290,7 +308,7 @@ class SubMenues(BaseEnum):
     CONFIGURATION = 'configuration'
     PICO_DOS      = 'pico_dos'
     DUMMY         = 'dummy'
-
+    
 class MultilineParameterDictVal(ParameterDictVal):
     
     def __init__(self, name, pattern, f_getval, f_format, value=None,
@@ -651,6 +669,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                             [InstrumentPrompts.SENSOR_ORIENTATION, InstrumentCmds.ENTER_SENSOR_ORIENTATION, None],                        
                         InstrumentCmds.ENTER_SENSOR_ORIENTATION : 
                             [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
+                        InstrumentCmds.VELOCITY_OFFSETS : 
+                            [InstrumentPrompts.VELOCITY_OFFSETS, InstrumentCmds.VELOCITY_OFFSETS_SET, None],                        
+                        InstrumentCmds.VELOCITY_OFFSETS_SET: 
+                            [InstrumentPrompts.VELOCITY_OFFSETS_SET, None, None],                        
                         }
     
     def __init__(self, prompts, newline, driver_event):
@@ -669,7 +691,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             SubMenues.SET_TIME      : [Directions(InstrumentCmds.SET_TIME, InstrumentPrompts.SET_TIME)],
             SubMenues.DEPLOY        : [Directions(InstrumentCmds.DEPLOY_MENU, InstrumentPrompts.DEPLOY_MENU, 20)],
             SubMenues.CONFIGURATION : [Directions(InstrumentCmds.SYSTEM_CONFIGURATION_MENU, InstrumentPrompts.SYSTEM_CONFIGURATION_PASSWORD),
-                                       Directions(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU)]
+                                       Directions(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU)],
+            SubMenues.CALIBRATION   : [Directions(InstrumentCmds.CALIBRATION_MENU, InstrumentPrompts.CALIBRATION_MENU)],
             })
         
         MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event)
@@ -1614,8 +1637,50 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=None,
                              submenu_write=None)
 
+        self._param_dict.add(InstrumentParameters.VELOCITY_OFFSET_PATH_A,
+                             r'.*Current path offsets:\s+(\w+)\s+.*', 
+                             lambda match : int(match.group(1), 16),
+                             self._int_to_string,
+                             value='',
+                             menu_path_read=SubMenues.CALIBRATION,
+                             submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
+                             menu_path_write=None,
+                             submenu_write=None)
+
+        self._param_dict.add(InstrumentParameters.VELOCITY_OFFSET_PATH_B,
+                             r'.*Current path offsets:\s+\w+\s+(\w+)\s+.*', 
+                             lambda match : int(match.group(1), 16),
+                             self._int_to_string,
+                             value='',
+                             menu_path_read=SubMenues.CALIBRATION,
+                             submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
+                             menu_path_write=None,
+                             submenu_write=None)
+
+        self._param_dict.add(InstrumentParameters.VELOCITY_OFFSET_PATH_C,
+                             r'.*Current path offsets:\s+\w+\s+\w+\s+(\w+)\s+.*', 
+                             lambda match : int(match.group(1), 16),
+                             self._int_to_string,
+                             value='',
+                             menu_path_read=SubMenues.CALIBRATION,
+                             submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
+                             menu_path_write=None,
+                             submenu_write=None)
+
+        self._param_dict.add(InstrumentParameters.VELOCITY_OFFSET_PATH_D,
+                             r'.*Current path offsets:\s+\w+\s+\w+\s+\w+\s+(\w+)\s+.*', 
+                             lambda match : int(match.group(1), 16),
+                             self._int_to_string,
+                             value='',
+                             menu_path_read=SubMenues.CALIBRATION,
+                             submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
+                             menu_path_write=None,
+                             submenu_write=None)
+
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the navigate_and_execute sequence.        
+        self._add_build_handler(InstrumentCmds.VELOCITY_OFFSETS, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.VELOCITY_OFFSETS_SET, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_SENSOR_ORIENTATION, self._build_simple_enter_command)
         self._add_build_handler(InstrumentCmds.SET_SENSOR_ORIENTATION, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_AUXILIARY, self._build_enter_auxiliary_command)
@@ -1662,12 +1727,14 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.SYSTEM_CONFIGURATION_MENU, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.CALIBRATION_MENU, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_simple_command)
         
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
         self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
         self._add_response_handler(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, self._parse_system_configuration_menu_response)
+        self._add_response_handler(InstrumentCmds.VELOCITY_OFFSETS_SET, self._parse_velocity_offset_set_response)
     
     def _build_enter_auxiliary_command(self, **kwargs):
         """
@@ -1947,6 +2014,29 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 log.debug('_parse_system_configuration_menu_response: Failed to parse %s' %parameter)
         return None
               
+    def _parse_velocity_offset_set_response(self, response, prompt, **kwargs):
+        """
+        Parse handler for velocity offset set command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if upload command misunderstood.
+        @ retval The next command to be sent to device (set to None to indicate there isn't one)
+        """
+        if not InstrumentPrompts.VELOCITY_OFFSETS_SET in response:
+            raise InstrumentProtocolException('velocity offset set command not recognized by instrument: %s.' %response)
+        
+        name = kwargs.get('name', None)
+        if name != InstrumentParameters.ALL:
+            # only get the parameter values if called from _update_params()
+            return None
+        for parameter in VelocityOffsetParameters.list():
+            #log.debug('_parse_velocity_offset_set_response: name=%s, response=%s' %(parameter, response))
+            if not self._param_dict.update(parameter, response):
+                log.debug('_parse_velocity_offset_set_response: Failed to parse %s' %parameter)
+        # don't leave instrument in calibration menu because it doesn't wakeup from sleeping correctly
+        self._go_to_root_menu()
+        return None
+              
     def  _get_prompt(self, timeout=8, delay=4):
         """
         _wakeup is replaced by this method for this instrument to search for 
@@ -1998,6 +2088,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         
         deploy_menu_prameters_parsed = False
         system_configuration_menu_prameters_parsed = False
+        velocity_offset_set_prameters_parsed = False
         
         for key in InstrumentParameters.list():
             if key == InstrumentParameters.ALL:
@@ -2022,6 +2113,15 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 else:
                     system_configuration_menu_prameters_parsed = True
                     # set name to ALL so _parse_system_configuration_menu_response() knows to get all values
+                    key = InstrumentParameters.ALL
+
+            elif key in VelocityOffsetParameters.list():
+                # only screen scrape the velocity offset set response once for efficiency
+                if velocity_offset_set_prameters_parsed == True:
+                    continue
+                else:
+                    velocity_offset_set_prameters_parsed = True
+                    # set name to ALL so _parse_velocity_offset_set_response() knows to get all values
                     key = InstrumentParameters.ALL
                                                         
             self._navigate_and_execute(command, name=key, dest_submenu=dest_submenu, timeout=10)
