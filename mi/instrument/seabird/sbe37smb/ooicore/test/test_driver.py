@@ -1198,7 +1198,6 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.SYNCWAIT:3})     
         self.driver_client.cmd_dvr("apply_startup_params") # result now matches instrument
         result = self.driver_client.cmd_dvr("get_resource", DriverParameter.ALL)
-        self.assertNotEquals(result[SBE37Parameter.NAVG], 2) # not a startup param
         self.assertEquals(result[SBE37Parameter.SAMPLENUM], 2) # init param
         self.assertEquals(result[SBE37Parameter.INTERVAL], 1) # default param
         self.assertEquals(result[SBE37Parameter.SYNCWAIT], 3) # manual param
@@ -1220,7 +1219,6 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         # confirm re-apply
         self.driver_client.cmd_dvr("apply_startup_params")
         result = self.driver_client.cmd_dvr("get_resource", DriverParameter.ALL)
-        self.assertEquals(result[SBE37Parameter.NAVG], 10) # not a startup param
         self.assertEquals(result[SBE37Parameter.SAMPLENUM], 2) # init param
         self.assertEquals(result[SBE37Parameter.INTERVAL], 1) # default param
         self.assertEquals(result[SBE37Parameter.SYNCWAIT], 10) # manual param
