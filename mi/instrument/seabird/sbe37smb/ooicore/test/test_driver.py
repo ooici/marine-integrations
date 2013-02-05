@@ -38,6 +38,7 @@ from mi.instrument.seabird.test.test_driver import SeaBirdUnitTest
 from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
 from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
 
+
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
@@ -45,6 +46,7 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
+from mi.instrument.seabird.sbe37smb.ooicore.test.sample_data import *
 
 from mi.instrument.seabird.sbe37smb.ooicore.driver import DataParticleType
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
@@ -55,18 +57,23 @@ from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DataParticle
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DataParticleKey
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceCalibrationParticle
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceCalibrationParticleKey
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceStatusDataParticle
-from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceStatusDataParticleKey
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceStatusParticle
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DeviceStatusParticleKey
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Driver
 
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from mi.core.instrument.instrument_driver import DriverConfigKey
 
 from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
+from mi.idk.unit_test import ParameterTestConfigKey
+from mi.idk.unit_test import AgentCapabilityType
+
+from mi.instrument.seabird.test.test_driver import SeaBirdUnitTest
+from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
+from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
+
 from mi.core.tcp_client import TcpClient
 
 # MI logger
@@ -106,7 +113,18 @@ from pyon.core.exception import Conflict
 from interface.objects import CapabilityType
 from interface.objects import AgentCapability
 
+###
+#   Driver parameters for the tests
+###
 
+# Create some short names for the parameter test config
+TYPE = ParameterTestConfigKey.TYPE
+READONLY = ParameterTestConfigKey.READONLY
+STARTUP = ParameterTestConfigKey.STARTUP
+DA = ParameterTestConfigKey.DIRECT_ACCESS
+VALUE = ParameterTestConfigKey.VALUE
+REQUIRED = ParameterTestConfigKey.REQUIRED
+DEFAULT = ParameterTestConfigKey.DEFAULT
 
 # Make tests verbose and provide stdout
 # bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_process
@@ -224,18 +242,18 @@ class SBEMixin(DriverTestMixin):
     }
 
     _sample_parameters = {
-        SBE37DataParticleKey.TEMP: {TYPE: float, VALUE: 98.8748, REQUIRED: False },
-        SBE37DataParticleKey.CONDUCTIVITY: {TYPE: float, VALUE: 88.35447, REQUIRED: False },
-        SBE37DataParticleKey.DEPTH: {TYPE: float, VALUE: 908.742, REQUIRED: False }
+        SBE37DataParticleKey.TEMP: {TYPE: float, VALUE: 55.9044, REQUIRED: False },
+        SBE37DataParticleKey.CONDUCTIVITY: {TYPE: float, VALUE: 41.40609, REQUIRED: False },
+        SBE37DataParticleKey.DEPTH: {TYPE: float, VALUE: 572.170, REQUIRED: False }
     }
     
     _device_calibration_parameters = {
-        SBE37DeviceCalibrationParticleKey.TCALDATE:  {TYPE: date, VALUE: time.struct_time(tm_year=2013, tm_mon=2, tm_mday=4, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=0, tm_yday=35, tm_isdst=-1), REQUIRED: False }, 
+        SBE37DeviceCalibrationParticleKey.TCALDATE:  {TYPE: list, VALUE: [8, 11, 2005], REQUIRED: False }, 
         SBE37DeviceCalibrationParticleKey.TA0: {TYPE: float, VALUE: -2.572242e-04, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.TA1: {TYPE: float, VALUE: 3.138936e-04, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.TA2: {TYPE: float, VALUE: -9.717158e-06, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.TA3:  {TYPE: float, VALUE: 2.138735e-07, REQUIRED: False },
-        SBE37DeviceCalibrationParticleKey.CCALDATE: {TYPE: date, VALUE: time.struct_time(tm_year=2013, tm_mon=2, tm_mday=4, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=0, tm_yday=35, tm_isdst=-1), REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.CCALDATE: {TYPE: list, VALUE: [8, 11, 2005], REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.G: {TYPE: float, VALUE: -9.870930e-01, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.H: {TYPE: float, VALUE: 1.417895e-01, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.I: {TYPE: float, VALUE: 1.334915e-04, REQUIRED: False },
@@ -243,8 +261,8 @@ class SBEMixin(DriverTestMixin):
         SBE37DeviceCalibrationParticleKey.CPCOR: {TYPE: float, VALUE: 9.570000e-08, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.CTCOR: {TYPE: float, VALUE: 3.250000e-06, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.WBOTC: {TYPE: float, VALUE: 1.202400e-05, REQUIRED: False },
-        SBE37DeviceCalibrationParticleKey.PCALDATE: {TYPE: date, VALUE: time.struct_time(tm_year=2013, tm_mon=2, tm_mday=4, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=0, tm_yday=35, tm_isdst=-1), REQUIRED: False },
-        SBE37DeviceCalibrationParticleKey.PRANGE: {TYPE: float, VALUE: 10746.5835124, REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PCALDATE: {TYPE: list, VALUE: [12, 8, 2005], REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.PRANGE: {TYPE: float, VALUE: 10847.1964958, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.PSN: {TYPE: int, VALUE: 4955, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.PA0: {TYPE: float, VALUE: 5.916199e+00, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.PA1: {TYPE: float, VALUE: 4.851819e-01, REQUIRED: False },
@@ -256,29 +274,29 @@ class SBEMixin(DriverTestMixin):
         SBE37DeviceCalibrationParticleKey.PTCSB1: {TYPE: float, VALUE: -9.000000e-04, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.PTCSB2: {TYPE: float, VALUE: 0.000000e+00, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.POFFSET: {TYPE: float, VALUE: 0.000000e+00, REQUIRED: False },
-        SBE37DeviceCalibrationParticleKey.RTC: {TYPE: date, VALUE: time.struct_time(tm_year=2013, tm_mon=2, tm_mday=4, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=0, tm_yday=35, tm_isdst=-1), REQUIRED: False },
+        SBE37DeviceCalibrationParticleKey.RTC: {TYPE: list, VALUE: [8, 11, 2005], REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.RTCA0: {TYPE: float, VALUE: 9.999862e-01, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.RTCA1: {TYPE: float, VALUE: 1.686132e-06, REQUIRED: False },
         SBE37DeviceCalibrationParticleKey.RTCA2: {TYPE: float, VALUE: -3.022745e-08, REQUIRED: False },
     }
     
     _device_status_parameters = {
-        SBE37DeviceStatusDataParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 2165, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.DATE_TIME: {TYPE: float, VALUE: 3558413454.0, REQUIRED: False },        
-        SBE37DeviceStatusDataParticleKey.LOGGING: {TYPE: bool, VALUE: False, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.SAMPLE_INTERVAL: {TYPE: int, VALUE: 20208, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.SAMPLE_NUMBER: {TYPE: int, VALUE: 1, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.MEMORY_FREE: {TYPE: int, VALUE: 200000, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.TX_REALTIME: {TYPE: bool, VALUE: True, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.OUTPUT_SALINITY: {TYPE: bool, VALUE: False, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.OUTPUT_SOUND_VELOCITY: {TYPE: bool, VALUE: False, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.STORE_TIME: {TYPE: bool, VALUE: False, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.NUMBER_OF_SAMPLES_TO_AVERAGE: {TYPE: int, VALUE: 0, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.REFERENCE_PRESSURE: {TYPE: float, VALUE: 0.0, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.SERIAL_SYNC_MODE: {TYPE: bool, VALUE: False, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.SERIAL_SYNC_WAIT: {TYPE: int, VALUE: 0, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.INTERNAL_PUMP: {TYPE: bool, VALUE: True, REQUIRED: False },
-        SBE37DeviceStatusDataParticleKey.TEMPERATURE: {TYPE: float, VALUE: 7.54, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 2165, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.DATE_TIME: {TYPE: float, VALUE: 3569109103.0, REQUIRED: False },        
+        SBE37DeviceStatusParticleKey.LOGGING: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.SAMPLE_INTERVAL: {TYPE: int, VALUE: 20208, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.SAMPLE_NUMBER: {TYPE: int, VALUE: 0, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.MEMORY_FREE: {TYPE: int, VALUE: 200000, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.TX_REALTIME: {TYPE: bool, VALUE: True, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.OUTPUT_SALINITY: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.OUTPUT_SOUND_VELOCITY: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.STORE_TIME: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.NUMBER_OF_SAMPLES_TO_AVERAGE: {TYPE: int, VALUE: 0, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.REFERENCE_PRESSURE: {TYPE: float, VALUE: 0.0, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.SERIAL_SYNC_MODE: {TYPE: bool, VALUE: False, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.SERIAL_SYNC_WAIT: {TYPE: int, VALUE: 0, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.INTERNAL_PUMP: {TYPE: bool, VALUE: True, REQUIRED: False },
+        SBE37DeviceStatusParticleKey.TEMPERATURE: {TYPE: float, VALUE: 7.54, REQUIRED: False },
     }
     
     
@@ -308,7 +326,7 @@ class SBEMixin(DriverTestMixin):
             self.assert_particle_sample(data_particle)
         elif (isinstance(data_particle, SBE37DeviceCalibrationParticle)):
             self.assert_particle_device_calibration(data_particle)
-        elif (isinstance(data_particle, SBE37DeviceStatusDataParticle)):
+        elif (isinstance(data_particle, SBE37DeviceStatusParticleKey)):
             self.assert_particle_device_status(data_particle)
         else:
             log.error("Unknown Particle Detected: %s" % data_particle)
@@ -423,6 +441,23 @@ class SBEUnitTestCase(SeaBirdUnitTest, SBEMixin):
         with self.assertRaises(SampleException):
             particle.generate()
 
+    def test_got_data(self):
+        """
+        Verify sample data passed through the got data method produces the correct data particles
+        """
+        # Create and initialize the instrument driver with a mock port agent
+        driver = SBE37Driver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        self.assert_raw_particle_published(driver, True)
+
+        # Start validating data particles
+        self.assert_particle_published(driver, SAMPLE, self.assert_particle_sample, True)
+      
+        self.assert_particle_published(driver, SAMPLE_DC, self.assert_particle_device_calibration, True)
+        self.assert_particle_published(driver, SAMPLE_DS, self.assert_particle_device_status, True)
+
+      
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -697,64 +732,6 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)        
     
-    def test_poll(self):
-        """
-        Test sample polling commands and events.
-        """
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        reply = self.driver_client.cmd_dvr('connect')
-                
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
-                
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE37ProtocolState.COMMAND)
-
-        # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
-        self.assertSampleDict(reply[1])
-        
-        # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
-        self.assertSampleDict(reply[1])
-
-        # Poll for a sample and confirm result.
-        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
-        self.assertSampleDict(reply[1])
-        
-        # Confirm that 3 samples arrived as published events.
-        gevent.sleep(1)
-        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-        # @TODO Set this properly (3) when only one set of events are sent
-        self.assertEqual(len(sample_events), 6)
-
-        # Disconnect from the port agent.
-        reply = self.driver_client.cmd_dvr('disconnect')
-        
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-        
-        # Deconfigure the driver.
-        reply = self.driver_client.cmd_dvr('initialize')
-        
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
     def test_autosample(self):
         """
         Test autosample mode.
@@ -966,7 +943,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
 
         # Poll for a sample and confirm result.
         reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
-        self.assertSampleDict(reply[1])
+        self.assert_particle_sample(reply[1])
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
@@ -1182,7 +1159,6 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.SYNCWAIT:3})     
         self.driver_client.cmd_dvr("apply_startup_params") # result now matches instrument
         result = self.driver_client.cmd_dvr("get_resource", DriverParameter.ALL)
-        self.assertNotEquals(result[SBE37Parameter.NAVG], 2) # not a startup param
         self.assertEquals(result[SBE37Parameter.SAMPLENUM], 2) # init param
         self.assertEquals(result[SBE37Parameter.INTERVAL], 1) # default param
         self.assertEquals(result[SBE37Parameter.SYNCWAIT], 3) # manual param
@@ -1204,11 +1180,28 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         # confirm re-apply
         self.driver_client.cmd_dvr("apply_startup_params")
         result = self.driver_client.cmd_dvr("get_resource", DriverParameter.ALL)
-        self.assertEquals(result[SBE37Parameter.NAVG], 10) # not a startup param
         self.assertEquals(result[SBE37Parameter.SAMPLENUM], 2) # init param
         self.assertEquals(result[SBE37Parameter.INTERVAL], 1) # default param
         self.assertEquals(result[SBE37Parameter.SYNCWAIT], 10) # manual param
         
+        
+        
+        
+        
+    def test_polled_particle_generation(self):
+        """
+        Test that we can generate particles with commands
+        """
+        self.assert_initialize_driver()
+
+        self.assert_particle_generation(SBE37ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.PARSED, self.assert_particle_sample)
+        self.assert_particle_generation(SBE37ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_device_status)
+        self.assert_particle_generation(SBE37ProtocolEvent.ACQUIRE_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_device_calibration)
+
+
+
+
+
 #self._dvr_proc = self.driver_process
 #self._pagent = self.port_agent
 #self._dvr_client = self.driver_client
@@ -1227,9 +1220,28 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
     # Qualification tests live in the base class.  This class is extended
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.
-    
     def setUp(self):
         SeaBirdQualificationTest.setUp(self)
+
+    def check_for_reused_values(self, obj):
+        """
+        @author Roger Unwin
+        @brief  verifies that no two definitions resolve to the same value.
+        @returns True if no reused values
+        """
+        match = 0
+        outer_match = 0
+        for i in [v for v in dir(obj) if not callable(getattr(obj,v))]:
+            if i.startswith('_') == False:
+                outer_match = outer_match + 1
+                for j in [x for x in dir(obj) if not callable(getattr(obj,x))]:
+                    if i.startswith('_') == False:
+                        if getattr(obj, i) == getattr(obj, j):
+                            match = match + 1
+                            log.debug(str(i) + " == " + j + " (Looking for reused values)")
+
+        # If this assert fails, then two of the enumerations have an identical value...
+        return match == outer_match
 
     @unittest.skip("da currently broken for this instrument")
     def test_direct_access_telnet_mode(self):
@@ -1474,10 +1486,12 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         agt_pars_all = ['example']
 
         res_cmds_all =[
+            SBE37ProtocolEvent.ACQUIRE_STATUS,
             SBE37ProtocolEvent.TEST,
             SBE37ProtocolEvent.ACQUIRE_SAMPLE,
             SBE37ProtocolEvent.START_AUTOSAMPLE,
-            SBE37ProtocolEvent.STOP_AUTOSAMPLE
+            SBE37ProtocolEvent.STOP_AUTOSAMPLE,
+            SBE37ProtocolEvent.ACQUIRE_CONFIGURATION,
         ]
 
         res_pars_all = PARAMS.keys()
@@ -1636,9 +1650,11 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         ]
 
         res_cmds_command = [
+            SBE37ProtocolEvent.ACQUIRE_STATUS,
             SBE37ProtocolEvent.TEST,
             SBE37ProtocolEvent.ACQUIRE_SAMPLE,
-            SBE37ProtocolEvent.START_AUTOSAMPLE
+            SBE37ProtocolEvent.START_AUTOSAMPLE,
+            SBE37ProtocolEvent.ACQUIRE_CONFIGURATION
         ]
 
         self.assertItemsEqual(agt_cmds, agt_cmds_command)
@@ -1934,7 +1950,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
     @unittest.skip("PROBLEM WITH command=ResourceAgentEvent.GO_ACTIVE")
-    def test_poll(self):
+    def oldtest_poll(self):
         """
         Test observatory polling function.
         """
@@ -1992,6 +2008,19 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
         self.doCleanups()
+
+    def test_poll(self):
+        '''
+        Verify that we can poll for a sample.  Take sample for this instrument
+        Also poll for other engineering data streams.
+        '''
+        self.assert_enter_command_mode()
+
+
+        self.assert_particle_polled(SBE37ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sample, DataParticleType.PARSED)
+        self.assert_particle_polled(SBE37ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_device_status, DataParticleType.DEVICE_STATUS)
+        self.assert_particle_polled(SBE37ProtocolEvent.ACQUIRE_CONFIGURATION, self.assert_particle_device_calibration, DataParticleType.DEVICE_CALIBRATION)
+
 
     def test_instrument_driver_vs_invalid_commands(self):
         """
