@@ -17,6 +17,7 @@ import re
 import datetime
 from threading import Timer
 import string
+import ntplib
 import json
 
 from mi.core.common import BaseEnum
@@ -40,10 +41,34 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.log import get_logger
 log = get_logger()
 
+
+
+
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
     PARSED = 'parsed'
-
+    DEVICE_CALIBRATION = 'device_calibration_parsed'
+    DEVICE_STATUS = 'device_status_parsed'
+    
+class InstrumentCmds(BaseEnum):
+    """
+    Device specific commands
+    Represents the commands the driver implements and the string that must be sent to the instrument to
+    execute the command.
+    """ 
+    DISPLAY_CALIBRATION = 'dc'
+    DISPLAY_STATUS = 'ds'
+    
+    TAKE_SAMPLE = 'ts'
+    START_LOGGING = 'startnow'
+    STOP_LOGGING = 'stop'
+    SET = 'set'
+    
+    #'tc'
+    #'tt'
+    #'tp'
+    
+    
 class SBE37ProtocolState(BaseEnum):
     """
     Protocol states for SBE37. Cherry picked from DriverProtocolState
@@ -74,15 +99,19 @@ class SBE37ProtocolEvent(BaseEnum):
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
-
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS                     # DS
+    ACQUIRE_CONFIGURATION = "PROTOCOL_EVENT_ACQUIRE_CONFIGURATION"  # DC
+    
 class SBE37Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    TEST = DriverEvent.TEST
+    ACQUIRE_SAMPLE = SBE37ProtocolEvent.ACQUIRE_SAMPLE
+    START_AUTOSAMPLE = SBE37ProtocolEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = SBE37ProtocolEvent.STOP_AUTOSAMPLE
+    TEST = SBE37ProtocolEvent.TEST
+    ACQUIRE_STATUS  = SBE37ProtocolEvent.ACQUIRE_STATUS
+    ACQUIRE_CONFIGURATION = SBE37ProtocolEvent.ACQUIRE_CONFIGURATION
     
 
 # Device specific parameters.
@@ -138,7 +167,7 @@ class SBE37Prompt(BaseEnum):
     AUTOSAMPLE = 'S>\r\n'
 
 # SBE37 newline.
-SBE37_NEWLINE = '\r\n'
+NEWLINE = '\r\n'
 
 # SBE37 default timeout.
 SBE37_TIMEOUT = 10
@@ -151,8 +180,16 @@ SAMPLE_PATTERN = r'#? *(-?\d+\.\d+), *(-?\d+\.\d+), *(-?\d+\.\d+)'
 SAMPLE_PATTERN += r'(, *(-?\d+\.\d+))?(, *(-?\d+\.\d+))?'
 SAMPLE_PATTERN += r'(, *(\d+) +([a-zA-Z]+) +(\d+), *(\d+):(\d+):(\d+))?'
 SAMPLE_PATTERN += r'(, *(\d+)-(\d+)-(\d+), *(\d+):(\d+):(\d+))?'
-SAMPLE_REGEX = re.compile(SAMPLE_PATTERN)
-        
+SAMPLE_PATTERN_MATCHER = re.compile(SAMPLE_PATTERN)
+ 
+#STATUS_DATA_REGEX = r"(SBE37-SMP V [\d\.]+ SERIAL NO.*? deg C)"          
+STATUS_DATA_REGEX = r"(SBE37-SMP.*? deg C.*)"
+STATUS_DATA_REGEX_MATCHER = re.compile(STATUS_DATA_REGEX, re.DOTALL)
+#CALIBRATION_DATA_REGEX = r"(SBE37-SM V [\d\.]+.*?RTCA2 = -?[\d\.e\-\+]+)"
+CALIBRATION_DATA_REGEX = r"(SBE37-SM.*?RTCA2 = -?[\d\.e\-\+]+)"
+CALIBRATION_DATA_REGEX_MATCHER = re.compile(CALIBRATION_DATA_REGEX, re.DOTALL)
+
+  
 ###############################################################################
 # Seabird Electronics 37-SMP MicroCAT Driver.
 ###############################################################################
@@ -184,7 +221,23 @@ class SBE37Driver(SingleConnectionInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = SBE37Protocol(SBE37Prompt, SBE37_NEWLINE, self._driver_event)
+        self._protocol = SBE37Protocol(SBE37Prompt, NEWLINE, self._driver_event)
+
+    def apply_startup_params(self):
+        """
+        Overload the default behavior which is to pass the buck to the protocol.
+        Alternatively we could retrofit the protocol to better handle the apply
+        startup params feature which would be preferred in production drivers.
+        @raise InstrumentParameterException If the config cannot be applied
+        """
+        config = self._protocol.get_startup_config()
+
+        if not isinstance(config, dict):
+            raise InstrumentParameterException("Incompatible initialization parameters")
+
+        self.set_resource(config)
+
+
 
 class SBE37DataParticleKey(BaseEnum):
     TEMP = "temp"
@@ -205,7 +258,7 @@ class SBE37DataParticle(DataParticle):
         
         @throws SampleException If there is a problem with sample creation
         """
-        match = SAMPLE_REGEX.match(self.raw_data)
+        match = SAMPLE_PATTERN_MATCHER.match(self.raw_data)
         
         if not match:
             raise SampleException("No regex match of parsed sample data: [%s]" %
@@ -228,6 +281,379 @@ class SBE37DataParticle(DataParticle):
                     DataParticleKey.VALUE: depth}]
         
         return result
+
+##
+## BEFORE ADDITION
+##
+
+      
+class SBE37DeviceCalibrationParticleKey(BaseEnum):  
+    TCALDATE = 'calibration_date_temperature'
+    TA0 = 'sbe37_coeff_ta0'
+    TA1 = 'sbe37_coeff_ta1'
+    TA2 = 'sbe37_coeff_ta2'
+    TA3 = 'sbe37_coeff_ta3'
+    CCALDATE = 'calibration_date_conductivity'
+    G = 'sbe37_coeff_g'
+    H = 'sbe37_coeff_h'
+    I = 'sbe37_coeff_i'
+    J = 'sbe37_coeff_j'
+    CPCOR = 'sbe37_coeff_cpcor'
+    CTCOR = 'sbe37_coeff_ctcor'
+    WBOTC = 'sbe37_coeff_wbotc'
+    PCALDATE = 'calibration_date_pressure'
+    PSN = 'sbe37_coeff_serial_number'
+    PRANGE = 'sbe37_coeff_pressure_range'
+    PA0 = 'sbe37_coeff_pa0'
+    PA1 = 'sbe37_coeff_pa1'
+    PA2 = 'sbe37_coeff_pa2'
+    PTCA0 = 'sbe37_coeff_ptca0'
+    PTCA1 = 'sbe37_coeff_ptca1'
+    PTCA2 = 'sbe37_coeff_ptca2'
+    PTCSB0 = 'sbe37_coeff_ptcsb0'
+    PTCSB1 = 'sbe37_coeff_ptcsb1'
+    PTCSB2 = 'sbe37_coeff_ptcsb2'
+    POFFSET = 'sbe37_coeff_poffset'
+    RTC = 'sbe37_coeff_rtc'
+    RTCA0 = 'sbe37_coeff_rtca0'
+    RTCA1 = 'sbe37_coeff_rtca1'
+    RTCA2 = 'sbe37_coeff_rtca2'
+
+ 
+class SBE37DeviceCalibrationParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    _data_particle_type = DataParticleType.DEVICE_CALIBRATION
+
+    @staticmethod
+    def _string_to_date(datestr, fmt):
+        """
+        Extract a date tuple from an sbe37 date string.
+        @param str a string containing date information in sbe37 format.
+        @retval a date tuple.
+        @throws InstrumentParameterException if datestr cannot be formatted to
+        a date.
+        """
+
+        if not isinstance(datestr, str):
+            raise InstrumentParameterException('Value %s is not a string.' % str(datestr))
+        try:
+            date_time = time.strptime(datestr, fmt)
+            date = (date_time[2],date_time[1],date_time[0])
+
+        except ValueError:
+            raise InstrumentParameterException('Value %s could not be formatted to a date.' % str(datestr))
+
+        return date
+
+
+
+    def _build_parsed_values(self):
+        """
+        Take something in the dc format and split it into
+        values with appropriate tags
+
+        @throws SampleException If there is a problem with sample creation
+        """
+        log.debug("in SBE37DeviceCalibrationParticle._build_parsed_values")
+        single_var_matchers  = {
+            SBE37DeviceCalibrationParticleKey.TCALDATE:  (
+                re.compile(r'temperature:\s+(\d+-[a-zA-Z]+-\d+)'),
+                lambda match : self._string_to_date(match.group(1), '%d-%b-%y')
+                ),
+            SBE37DeviceCalibrationParticleKey.TA0:  (
+                re.compile(r'\s+TA0 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.TA1:  (
+                re.compile(r'\s+TA1 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.TA2:  (
+                re.compile(r'\s+TA2 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.TA3:  (
+                re.compile(r'\s+TA3 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.CCALDATE:  (
+                re.compile(r'conductivity:\s+(\d+-[a-zA-Z]+-\d+)'),
+                lambda match : self._string_to_date(match.group(1), '%d-%b-%y')
+                ),     
+            SBE37DeviceCalibrationParticleKey.G:  (
+                re.compile(r'\s+G = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.H:  (
+                re.compile(r'\s+H = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.I:  (
+                re.compile(r'\s+I = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.J:  (
+                re.compile(r'\s+J = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.CPCOR:  (
+                re.compile(r'\s+CPCOR = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.CTCOR:  (
+                re.compile(r'\s+CTCOR = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.WBOTC:  (
+                re.compile(r'\s+WBOTC = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.PCALDATE:  (
+                re.compile(r'pressure S/N (\d+), range = ([\d\.]+) psia:\s+(\d+-[a-zA-Z]+-\d+)'),
+                lambda match : self._string_to_date(match.group(3), '%d-%b-%y')
+                ),
+            SBE37DeviceCalibrationParticleKey.PRANGE:  (
+                re.compile(r'pressure S/N (\d+), range = ([\d\.]+) psia:\s+(\d+-[a-zA-Z]+-\d+)'),
+                lambda match : float(match.group(2))
+                ),
+            SBE37DeviceCalibrationParticleKey.PSN:  (
+                re.compile(r'pressure S/N (\d+), range = ([\d\.]+) psia:\s+(\d+-[a-zA-Z]+-\d+)'),
+                lambda match : int(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.PA0:  (
+                re.compile(r'\s+PA0 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.PA1:  (
+                re.compile(r'\s+PA1 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.PA2:  (
+                re.compile(r'\s+PA2 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.PTCA0:  (
+                re.compile(r'\s+PTCA0 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.PTCA1:  (
+                re.compile(r'\s+PTCA1 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.PTCA2:  (
+                re.compile(r'\s+PTCA2 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.PTCSB0:  (
+                re.compile(r'\s+PTCSB0 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),   
+            SBE37DeviceCalibrationParticleKey.PTCSB1:  (
+                re.compile(r'\s+PTCSB1 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.PTCSB2:  (
+                re.compile(r'\s+PTCSB2 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.POFFSET:  (
+                re.compile(r'\s+POFFSET = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.RTC:  (
+                re.compile(r'rtc:\s+(\d+-[a-zA-Z]+-\d+)'),
+                lambda match : self._string_to_date(match.group(1), '%d-%b-%y')
+                ),
+            SBE37DeviceCalibrationParticleKey.RTCA0:  (
+                re.compile(r'\s+RTCA0 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.RTCA1:  (
+                re.compile(r'\s+RTCA1 = (-?[\d\.e\-\+]+)'),
+                lambda match : float(match.group(1))
+                ),
+            SBE37DeviceCalibrationParticleKey.RTCA2:  (
+                re.compile(r'\s+RTCA2 = (-?[\d\.e\-\+]+)'   ),
+                lambda match : float(match.group(1))
+                )
+        }
+
+
+        result = [] # Final storage for particle
+        vals = {}   # intermediate storage for particle values so they can be set to null first.
+
+        for (key, (matcher, l_func)) in single_var_matchers.iteritems():
+            vals[key] = None
+
+        for line in self.raw_data.split(NEWLINE):
+            for (key, (matcher, l_func)) in single_var_matchers.iteritems():
+                match = matcher.match(line)
+                if match:
+                    vals[key] = l_func(match)
+
+        for (key, val) in vals.iteritems():
+            result.append({DataParticleKey.VALUE_ID: key, DataParticleKey.VALUE: val})
+
+        return result
+
+class SBE37DeviceStatusParticleKey(BaseEnum):
+    # DS
+    SERIAL_NUMBER = "sbe37_serial_number"
+    DATE_TIME = "sbe37_date_time"
+    LOGGING = "sbe37_logging" 
+    SAMPLE_INTERVAL = "sbe37_sample_interval" 
+    SAMPLE_NUMBER = "sbe37_sample_number"
+    MEMORY_FREE = "sbe37_memory_free"
+    TX_REALTIME = "sbe37_tx_realtime"
+    OUTPUT_SALINITY = "sbe37_output_salinity"
+    OUTPUT_SOUND_VELOCITY = "sbe37_output_sound_velocity"
+    STORE_TIME = "sbe37_store_time"
+    NUMBER_OF_SAMPLES_TO_AVERAGE = "sbe37_number_of_samples_to_average"
+    REFERENCE_PRESSURE = "sbe37_reference_pressure"
+    SERIAL_SYNC_MODE = "sbe37_serial_sync_mode"
+    SERIAL_SYNC_WAIT = "sbe37_serial_sync_wait"
+    INTERNAL_PUMP = "sbe37_internal_pump_installed"
+    TEMPERATURE = "sbe37_temperature"
+#    LOW_BATTERY_WARNING = "sbe37_low_battery_warning"
+    
+class SBE37DeviceStatusParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    _data_particle_type = DataParticleType.DEVICE_STATUS
+    
+    
+
+    @staticmethod
+    def _string_to_ntp_date_time(datestr, fmt):
+        """
+        Extract a date tuple from an sbe37 date string.
+        @param str a string containing date information in sbe37 format.
+        @retval a date tuple.
+        @throws InstrumentParameterException if datestr cannot be formatted to
+        a date.
+        """
+
+        if not isinstance(datestr, str):
+            raise InstrumentParameterException('Value %s is not a string.' % str(datestr))
+        try:
+            date_time = time.strptime(datestr, fmt)
+            timestamp = ntplib.system_to_ntp_time(time.mktime(date_time))
+
+        except ValueError:
+            raise InstrumentParameterException('Value %s could not be formatted to a date.' % str(datestr))
+
+        return timestamp
+
+
+    def _build_parsed_values(self):
+        """
+        Take something in the dc format and split it into
+        values with appropriate tags
+
+        @throws SampleException If there is a problem with sample creation
+        """
+        log.debug("in SBE37DeviceStatusParticle._build_parsed_values")
+        
+        single_var_matchers  = {
+            SBE37DeviceStatusParticleKey.SERIAL_NUMBER:  (
+                re.compile(r'SBE37-SMP V 2.6 SERIAL NO. (\d+)   (\d\d [a-zA-Z]+ \d\d\d\d\s+[ \d]+:\d\d:\d\d)'),
+                lambda match : int(match.group(1))
+                ),
+            SBE37DeviceStatusParticleKey.DATE_TIME:  (
+                re.compile(r'SBE37-SMP V 2.6 SERIAL NO. (\d+)   (\d\d [a-zA-Z]+ \d\d\d\d\s+[ \d]+:\d\d:\d\d)'),
+                lambda match : float(self._string_to_ntp_date_time(match.group(2), "%d %b %Y %H:%M:%S"))
+                ),                
+            SBE37DeviceStatusParticleKey.LOGGING:  (
+                re.compile(r'(logging data)'),
+                lambda match : True if (match) else False,
+                ),
+            SBE37DeviceStatusParticleKey.SAMPLE_INTERVAL:  (
+                re.compile(r'sample interval = (\d+) seconds'),
+                lambda match : int(match.group(1))
+                ),          
+            SBE37DeviceStatusParticleKey.SAMPLE_NUMBER:  (
+                re.compile(r'samplenumber = (\d+), free = (\d+)'),
+                lambda match : int(match.group(1))
+                ),
+            SBE37DeviceStatusParticleKey.MEMORY_FREE:  (
+                re.compile(r'samplenumber = (\d+), free = (\d+)'),
+                lambda match : int(match.group(2))
+                ),            
+            SBE37DeviceStatusParticleKey.TX_REALTIME:  (
+                re.compile(r'do not transmit real-time data'),
+                lambda match : False if (match) else True,
+                ),  
+            SBE37DeviceStatusParticleKey.OUTPUT_SALINITY:  (
+                re.compile(r'do not output salinity with each sample'),
+                lambda match : False if (match) else True,
+                ),             
+            SBE37DeviceStatusParticleKey.OUTPUT_SOUND_VELOCITY:  (
+                re.compile(r'do not output sound velocity with each sample'),
+                lambda match : False if (match) else True,
+                ),             
+            SBE37DeviceStatusParticleKey.STORE_TIME:  (
+                re.compile(r'do not store time with each sample'),
+                lambda match : False if (match) else True,
+                ),       
+            SBE37DeviceStatusParticleKey.NUMBER_OF_SAMPLES_TO_AVERAGE:  (
+                re.compile(r'number of samples to average = (\d+)'),
+                lambda match : int(match.group(1))
+                ),         
+            SBE37DeviceStatusParticleKey.REFERENCE_PRESSURE:  (
+                re.compile(r'reference pressure = ([\d\.]+) db'),
+                lambda match : float(match.group(1))
+                ),         
+            SBE37DeviceStatusParticleKey.SERIAL_SYNC_MODE:  (
+                re.compile(r'serial sync mode disabled'),
+                lambda match : False if (match) else True,
+                ),
+            SBE37DeviceStatusParticleKey.SERIAL_SYNC_WAIT:  (
+                re.compile(r'wait time after serial sync sampling = (\d+) seconds'),
+                lambda match : int(match.group(1))
+                ),     
+            SBE37DeviceStatusParticleKey.INTERNAL_PUMP:  (
+                re.compile(r'internal pump is installed'),
+                lambda match : True if (match) else False,
+                ),
+            SBE37DeviceStatusParticleKey.TEMPERATURE:  (
+                re.compile(r'temperature = ([\d\.\-]+) deg C'),
+                lambda match : float(match.group(1))
+                ),
+  # Move to engineering?
+  #          SBE37DeviceStatusParticleKey.LOW_BATTERY_WARNING:  (
+  #              re.compile(r'WARNING: LOW BATTERY VOLTAGE!!'),
+  #              lambda match : True if (match.group(1)=='WARNING: LOW BATTERY VOLTAGE!!') else False,
+  #              )
+        }
+
+
+        result = [] # Final storage for particle
+        vals = {}   # intermediate storage for particle values so they can be set to null first.
+
+        for (key, (matcher, l_func)) in single_var_matchers.iteritems():
+            vals[key] = None
+
+        for line in self.raw_data.split(NEWLINE):
+            for (key, (matcher, l_func)) in single_var_matchers.iteritems():
+                match = matcher.match(line)
+                if match:
+                    vals[key] = l_func(match)
+
+        for (key, val) in vals.iteritems():
+            result.append({DataParticleKey.VALUE_ID: key, DataParticleKey.VALUE: val})
+
+        return result
+    
+
+
+##
+## AFTER ADDITION
+##
 
 ###############################################################################
 # Seabird Electronics 37-SMP MicroCAT protocol.
@@ -264,6 +690,12 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.TEST, self._handler_command_test)
         self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        
+        
+        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.ACQUIRE_CONFIGURATION,  self._handler_command_acquire_configuration)
+        
+        
         self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.GET, self._handler_command_autosample_test_get)
@@ -282,21 +714,28 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._build_param_dict()
 
         # Add build handlers for device commands.
-        self._add_build_handler('ds', self._build_simple_command)
-        self._add_build_handler('dc', self._build_simple_command)
-        self._add_build_handler('ts', self._build_simple_command)
-        self._add_build_handler('startnow', self._build_simple_command)
-        self._add_build_handler('stop', self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DISPLAY_STATUS, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DISPLAY_CALIBRATION, self._build_simple_command)
+        
+        InstrumentCmds.TAKE_SAMPLE
+        InstrumentCmds.SET
+        InstrumentCmds.START_LOGGING
+        InstrumentCmds.STOP_LOGGING
+
+ 
+        self._add_build_handler(InstrumentCmds.TAKE_SAMPLE, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.START_LOGGING, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.STOP_LOGGING, self._build_simple_command)
         self._add_build_handler('tc', self._build_simple_command)
         self._add_build_handler('tt', self._build_simple_command)
         self._add_build_handler('tp', self._build_simple_command)
-        self._add_build_handler('set', self._build_set_command)
+        self._add_build_handler(InstrumentCmds.SET, self._build_set_command)
 
         # Add response handlers for device commands.
-        self._add_response_handler('ds', self._parse_dsdc_response)
-        self._add_response_handler('dc', self._parse_dsdc_response)
-        self._add_response_handler('ts', self._parse_ts_response)
-        self._add_response_handler('set', self._parse_set_response)
+        self._add_response_handler(InstrumentCmds.DISPLAY_STATUS, self._parse_dsdc_response)
+        self._add_response_handler(InstrumentCmds.DISPLAY_CALIBRATION, self._parse_dsdc_response)
+        self._add_response_handler(InstrumentCmds.TAKE_SAMPLE, self._parse_ts_response)
+        self._add_response_handler(InstrumentCmds.SET, self._parse_set_response)
         self._add_response_handler('tc', self._parse_test_response)
         self._add_response_handler('tt', self._parse_test_response)
         self._add_response_handler('tp', self._parse_test_response)
@@ -315,22 +754,21 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
     @staticmethod
     def sieve_function(raw_data):
-        """ The method that splits samples
         """
-        patterns = []
-        matchers = []
-        return_list = []
-        
-        patterns.append((SAMPLE_PATTERN)) 
-        
-        for pattern in patterns:
-            matchers.append(re.compile(pattern))
+        Chunker sieve method to help the chunker identify chunks.
+        @returns a list of chunks identified, if any.  The chunks are all the same type.
+        """
+        sieve_matchers = [SAMPLE_PATTERN_MATCHER,
+                          STATUS_DATA_REGEX_MATCHER,
+                          CALIBRATION_DATA_REGEX_MATCHER]
 
-        for matcher in matchers:
+        return_list = []
+
+        for matcher in sieve_matchers:
             for match in matcher.finditer(raw_data):
                 return_list.append((match.start(), match.end()))
+
         return return_list
-        
     def _filter_capabilities(self, events):
         """
         """ 
@@ -448,7 +886,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         else:
 
             for (key, val) in params.iteritems():
-                result = self._do_cmd_resp('set', key, val, **kwargs)
+                result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
             self._update_params()
 
         return (next_state, result)
@@ -465,7 +903,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        result = self._do_cmd_resp('ts', *args, **kwargs)
+        result = self._do_cmd_resp(InstrumentCmds.TAKE_SAMPLE, *args, **kwargs)
 
         return (next_state, (next_agent_state, result))
 
@@ -483,10 +921,10 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         # Assure the device is transmitting.
         if not self._param_dict.get(SBE37Parameter.TXREALTIME):
-            self._do_cmd_resp('set', SBE37Parameter.TXREALTIME, True, **kwargs)
+            self._do_cmd_resp(InstrumentCmds.SET, SBE37Parameter.TXREALTIME, True, **kwargs)
 
         # Issue start command and switch to autosample if successful.
-        self._do_cmd_no_resp('startnow', *args, **kwargs)
+        self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, *args, **kwargs)
 
         next_state = SBE37ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -560,7 +998,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                 raise
 
         # Issue the stop command.
-        self._do_cmd_resp('stop', *args, **kwargs)
+        self._do_cmd_resp(InstrumentCmds.STOP_LOGGING, *args, **kwargs)
 
         # Prompt device until command prompt is seen.
         self._wakeup_until(timeout, SBE37Prompt.COMMAND)
@@ -725,6 +1163,34 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+
+    def _handler_command_acquire_status(self, *args, **kwargs):
+        """
+        @param args:
+        @param kwargs:
+        @return:
+        """
+        next_state = None
+        next_agent_state = None
+        kwargs['timeout'] = 30
+        result = self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_acquire_configuration(self, *args, **kwargs):
+        """
+        @param args:
+        @param kwargs:
+        @return:
+        """
+        next_state = None
+        next_agent_state = None
+        kwargs['timeout'] = 30
+        result = self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
+
     ########################################################################
     # Private helpers.
     ########################################################################
@@ -733,7 +1199,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         """
         Send a newline to attempt to wake the SBE37 device.
         """
-        self._connection.send(SBE37_NEWLINE)
+        self._connection.send(NEWLINE)
 
     def _update_params(self, *args, **kwargs):
         """
@@ -748,8 +1214,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         # Issue display commands and parse results.
         timeout = kwargs.get('timeout', SBE37_TIMEOUT)
-        self._do_cmd_resp('ds',timeout=timeout)
-        self._do_cmd_resp('dc',timeout=timeout)
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS,timeout=timeout)
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION,timeout=timeout)
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
@@ -763,7 +1229,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         @param cmd the simple sbe37 command to format.
         @retval The command to be sent to the device.
         """
-        return cmd+SBE37_NEWLINE
+        return cmd+NEWLINE
 
     def _build_set_command(self, cmd, param, val):
         """
@@ -778,7 +1244,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         try:
             str_val = self._param_dict.format(param, val)
             set_cmd = '%s=%s' % (param, str_val)
-            set_cmd = set_cmd + SBE37_NEWLINE
+            set_cmd = set_cmd + NEWLINE
 
         except KeyError:
             raise InstrumentParameterException('Unknown driver parameter %s' % param)
@@ -805,7 +1271,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         if prompt.strip() != SBE37Prompt.COMMAND:
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
-        for line in response.split(SBE37_NEWLINE):
+        for line in response.split(NEWLINE):
             self._param_dict.update(line)
 
     def _parse_ts_response(self, response, prompt):
@@ -822,8 +1288,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException('ts command not recognized: %s', response)
         
         sample = None
-        for line in response.split(SBE37_NEWLINE):
-            sample = self._extract_sample(SBE37DataParticle, SAMPLE_REGEX, line, True)
+        for line in response.split(NEWLINE):
+            sample = self._extract_sample(SBE37DataParticle, SAMPLE_PATTERN_MATCHER, line, True)
             if sample:
                 break
         
@@ -888,11 +1354,11 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
             # If in streaming mode, process the buffer for samples to publish.
             cur_state = self.get_current_state()
             if cur_state == SBE37ProtocolState.AUTOSAMPLE:
-                if SBE37_NEWLINE in self._linebuf:
-                    lines = self._linebuf.split(SBE37_NEWLINE)
+                if NEWLINE in self._linebuf:
+                    lines = self._linebuf.split(NEWLINE)
                     self._linebuf = lines[-1]
                     for line in lines:
-                        self._extract_sample(SBE37DataParticle, SAMPLE_REGEX,
+                        self._extract_sample(SBE37DataParticle, SAMPLE_PATTERN_MATCHER,
                                              line)
 
     def _got_chunk(self, chunk):
@@ -900,8 +1366,17 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes. 
         """
-        if self.get_current_state() == SBE37ProtocolState.AUTOSAMPLE:
-            self._extract_sample(SBE37DataParticle, SAMPLE_REGEX, chunk)
+        # need to verify it works correctly.
+        #if self.get_current_state() == SBE37ProtocolState.AUTOSAMPLE:
+        #    self._extract_sample(SBE37DataParticle, SAMPLE_PATTERN_MATCHER, chunk)
+        
+      
+        result = self._extract_sample(SBE37DataParticle, SAMPLE_PATTERN_MATCHER, chunk)
+        
+        result = self._extract_sample(SBE37DeviceStatusParticle, STATUS_DATA_REGEX_MATCHER, chunk)
+      
+        result = self._extract_sample(SBE37DeviceCalibrationParticle, CALIBRATION_DATA_REGEX_MATCHER, chunk)
+     
         
     def _build_param_dict(self):
         """
@@ -926,8 +1401,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(SBE37Parameter.SAMPLENUM,
                              r'samplenumber = (\d+), free = \d+',
                              lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             startup_param=True)
+                             self._int_to_string)
         self._param_dict.add(SBE37Parameter.INTERVAL,
                              r'sample interval = (\d+) seconds',
                              lambda match : int(match.group(1)),
@@ -949,8 +1423,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(SBE37Parameter.SYNCWAIT,
                              r'wait time after serial sync sampling = (\d+) seconds',
                              lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             startup_param=True)
+                             self._int_to_string)
         self._param_dict.add(SBE37Parameter.TCALDATE,
                              r'temperature: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),

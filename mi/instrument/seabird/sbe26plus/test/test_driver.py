@@ -39,9 +39,9 @@ from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
 
 from mi.instrument.seabird.sbe26plus.test.sample_data import *
 
+from mi.instrument.seabird.sbe26plus.driver import SBE26PlusInstrumentDriver
 from mi.instrument.seabird.sbe26plus.driver import ScheduledJob
 from mi.instrument.seabird.sbe26plus.driver import DataParticleType
-from mi.instrument.seabird.sbe26plus.driver import InstrumentDriver
 from mi.instrument.seabird.sbe26plus.driver import ProtocolState
 from mi.instrument.seabird.sbe26plus.driver import Parameter
 from mi.instrument.seabird.sbe26plus.driver import ProtocolEvent
@@ -63,10 +63,6 @@ from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceStatusDataPart
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentCommandException
 from pyon.agent.agent import ResourceAgentEvent
-
-# Globals
-raw_stream_received = False
-parsed_stream_received = False
 
 ###
 #   Driver parameters for the tests
@@ -410,7 +406,7 @@ class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
         Verify sample data passed through the got data method produces the correct data particles
         """
         # Create and initialize the instrument driver with a mock port agent
-        driver = InstrumentDriver(self._got_data_event_callback)
+        driver = SBE26PlusInstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
         self.assert_raw_particle_published(driver, True)
@@ -446,7 +442,7 @@ class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
         """
         Verify the set of parameters known by the driver
         """
-        driver = InstrumentDriver(self._got_data_event_callback)
+        driver = SBE26PlusInstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, ProtocolState.COMMAND)
 
         expected_parameters = sorted(self._driver_parameters.keys())
@@ -488,7 +484,7 @@ class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
 
-        driver = InstrumentDriver(self._got_data_event_callback)
+        driver = SBE26PlusInstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
 
@@ -627,13 +623,13 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
 
         # Tide interval parameter.  Check edges, out of range and invalid data
         #    * Tide interval (integer minutes)
-        #        - Range 17 - 720
+        #        - Range 7 - 720
         sampling_params[Parameter.TIDE_INTERVAL] = 17
         self.assert_set_bulk(sampling_params)
         sampling_params[Parameter.TIDE_INTERVAL] = 720
         self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 16
-        self.assert_set_bulk(sampling_params)
+        sampling_params[Parameter.TIDE_INTERVAL] = 7
+        self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.TIDE_INTERVAL] = 721
         self.assert_set_bulk_exception(sampling_params)
         sampling_params[Parameter.TIDE_INTERVAL] = "foo"
@@ -1128,10 +1124,22 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
 
         params = {
             Parameter.TIDE_INTERVAL: 3,
-            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS: 512,
+            Parameter.TIDE_MEASUREMENT_DURATION: 60,
+            Parameter.WAVE_SAMPLES_PER_BURST: 512,
             Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: 2,
             Parameter.TXWAVEBURST: True,
-            Parameter.TXWAVESTATS: True
+            Parameter.TXWAVESTATS: True,
+            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND: 4.0,
+            Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC: False,
+            Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR: 15.0,
+            Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR: 35.0,
+            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS: 512,
+            Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: 10.0,
+            Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND: 1,
+            Parameter.MIN_ALLOWABLE_ATTENUATION: 0.0025,
+            Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM: 0.0,
+            Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM: 1.00e+06,
+            Parameter.HANNING_WINDOW_CUTOFF: 0.1
         }
         self.assert_set_bulk(params)
 
@@ -1181,6 +1189,26 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_set(Parameter.TXWAVESTATS, True)
         self.assert_set(Parameter.TXREALTIME, False)
         self.assert_set(Parameter.TXWAVEBURST, True)
+
+    def test_apply_startup_params(self):
+        """
+        This test verifies that we can set the startup params
+        from autosample mode.  It only verifies one parameter
+        change because all parameters are tested above.
+        """
+        # Apply autosample happens for free when the driver fires up
+        self.assert_initialize_driver()
+
+        # Change something
+        self.assert_set(Parameter.TXWAVEBURST, True)
+
+        # Now try to apply params in Streaming
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE)
+        self.driver_client.cmd_dvr('apply_startup_params')
+
+        # All done.  Verify the startup parameter has been reset
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND)
+        self.assert_get(Parameter.TXWAVEBURST, False)
 
     ###
     #   Test scheduled events
@@ -1255,6 +1283,8 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
                                     autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=60)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

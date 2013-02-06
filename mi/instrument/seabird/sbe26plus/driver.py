@@ -22,8 +22,6 @@ from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
 from mi.instrument.seabird.driver import SeaBirdProtocol
 
 from mi.core.common import BaseEnum
-from mi.core.time import get_timestamp_delayed
-from mi.core.util import dict_equal
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -1031,7 +1029,7 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
 # Driver
 ###############################################################################
 
-class InstrumentDriver(SeaBirdInstrumentDriver):
+class SBE26PlusInstrumentDriver(SeaBirdInstrumentDriver):
     """
     InstrumentDriver subclass
     Subclasses SingleConnectionInstrumentDriver with connection state
@@ -2013,10 +2011,6 @@ class Protocol(SeaBirdProtocol):
         apply startup parameters to the instrument.
         @raise: InstrumentProtocolException if in wrong mode.
         """
-        log.debug("Applying Startup Parameters")
-        if (self.get_current_state() != ProtocolState.COMMAND):
-            raise InstrumentProtocolException("Not in command state. unable to apply parameters")
-
         config = self.get_startup_config()
         self._set_params(config)
 
@@ -2040,8 +2034,8 @@ class Protocol(SeaBirdProtocol):
             if not Parameter.has(param):
                 raise InstrumentParameterException()
 
-            if (self._param_dict.get(param) != self._param_dict.get_init_value(param)):
-                log.debug("DIRTY: %s %s != %s" % (param, self._param_dict.get(param), self._param_dict.get_init_value(param)))
+            if (self._param_dict.get(param) != self._param_dict.get_config_value(param)):
+                log.debug("DIRTY: %s %s != %s" % (param, self._param_dict.get(param), self._param_dict.get_config_value(param)))
                 return True
 
         log.debug("Clean instrument config")
@@ -2061,6 +2055,7 @@ class Protocol(SeaBirdProtocol):
         """
         self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS,timeout=timeout)
         pd = self._param_dict.get_config()
+        log.debug("Logging? %s" % pd.get(Parameter.LOGGING))
 
         return pd.get(Parameter.LOGGING)
 
@@ -2071,6 +2066,7 @@ class Protocol(SeaBirdProtocol):
         @return: True if successful
         @raise: InstrumentProtocolException if failed to start logging
         """
+        log.debug("Start Logging!")
         if(self._is_logging()):
             return True
 
@@ -2092,8 +2088,10 @@ class Protocol(SeaBirdProtocol):
         @raise: InstrumentTimeoutException if prompt isn't seen
         @raise: InstrumentProtocolException failed to stop logging
         """
+        log.debug("Stop Logging!")
         # Issue the stop command.
         self._do_cmd_resp(InstrumentCmds.STOP_LOGGING)
+        time.sleep(1)
 
         # Prompt device until command prompt is seen.
         self._wakeup_until(timeout, Prompt.COMMAND)
