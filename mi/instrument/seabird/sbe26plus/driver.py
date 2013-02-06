@@ -71,11 +71,11 @@ class ScheduledJob(BaseEnum):
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    TIDE_PARSED = 'tide_parsed'
-    WAVE_BURST = 'wave_burst_parsed'
-    DEVICE_STATUS = 'device_status_parsed'
-    DEVICE_CALIBRATION = 'device_calibration_parsed'
-    STATISTICS = 'statistics_parsed'
+    TIDE_PARSED = 'presf_tide_measurement'
+    WAVE_BURST = 'presf_wave_burst'
+    DEVICE_STATUS = 'presf_operating_status'
+    DEVICE_CALIBRATION = 'presf_calibration_coefficients'
+    STATISTICS = 'presf_wave_statistics'
 
 class InstrumentCmds(BaseEnum):
     """
@@ -257,6 +257,7 @@ class SBE26plusTideSampleDataParticle(DataParticle):
 
         try:
             # Only streaming outputs a timestamp
+            text_timestamp = None
             if(match1):
                 text_timestamp = match.group(1)
                 py_timestamp = time.strptime(text_timestamp, "%d %b %Y %H:%M:%S")
@@ -270,7 +271,7 @@ class SBE26plusTideSampleDataParticle(DataParticle):
                                   self.raw_data)
 
         result = [{DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.TIMESTAMP,
-                   DataParticleKey.VALUE: timestamp},
+                   DataParticleKey.VALUE: text_timestamp},
                   {DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.PRESSURE,
                    DataParticleKey.VALUE: pressure},
                   {DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.PRESSURE_TEMP,
@@ -360,7 +361,7 @@ class SBE26plusWaveBurstDataParticle(DataParticle):
                 raise SampleException("No regex match of parsed sample data: ROW: [%s]" % line)
 
         result = [{DataParticleKey.VALUE_ID: SBE26plusWaveBurstDataParticleKey.TIMESTAMP,
-                   DataParticleKey.VALUE: timestamp},
+                   DataParticleKey.VALUE: text_timestamp},
                   {DataParticleKey.VALUE_ID: SBE26plusWaveBurstDataParticleKey.PTFREQ,
                    DataParticleKey.VALUE: ptfreq},
                   {DataParticleKey.VALUE_ID: SBE26plusWaveBurstDataParticleKey.PTRAW,
