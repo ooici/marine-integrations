@@ -50,6 +50,22 @@ SYSTEM_EPOCH = datetime.date(*time.gmtime(0)[0:3])
 NTP_EPOCH = datetime.date(1900, 1, 1)
 NTP_DELTA = (SYSTEM_EPOCH - NTP_EPOCH).days * 24 * 3600
 
+"""
+Port Agent Packet Types
+"""
+DATA_FROM_INSTRUMENT = 1
+DATA_FROM_DRIVER = 2
+PORT_AGENT_COMMAND = 3
+PORT_AGENT_STATUS = 4
+PORT_AGENT_FAULT = 5
+INSTRUMENT_COMMAND = 6
+HEARTBEAT = 7
+
+HEARTBEAT_TIMEOUT = 5               # Secconds  
+MAX_HEARTBEAT_INTERVAL = 20         # Max, for range checking parameter
+MAX_ALLOWED_MISSED_HEARTBEATS = 5   # Max number we can miss 
+MAX_SEND_ATTEMPTS = 15              # Max number of times we can get EAGAIN
+
 class PortAgentPacket():
     """
     An object that encapsulates the details packets that are sent to and
@@ -97,7 +113,9 @@ class PortAgentPacket():
             self.__port_agent_timestamp = time.time() + NTP_DELTA
 
 
-            variable_tuple = (0xa3, 0x9d, 0x7a, self.__type, self.__length + HEADER_SIZE, 0x0000, self.__port_agent_timestamp)
+            variable_tuple = (0xa3, 0x9d, 0x7a, self.__type, 
+                              self.__length + HEADER_SIZE, 0x0000, 
+                              self.__port_agent_timestamp)
 
             # B = unsigned char size 1 bytes
             # H = unsigned short size 2 bytes
@@ -208,14 +226,13 @@ class PortAgentClient(object):
         self.listener_thread = None
         self.stop_event = None
         self.delim = delim
-        self.send_attempts = 15
+        self.send_attempts = MAX_SEND_ATTEMPTS
+        self.heartbeat = HEARTBEAT_TIMEOUT
         
     def init_comms(self, callback=None):
         """
         Initialize client comms with the logger process and start a
         listener thread.
-        DHE: I'm going to need to establish two connections here: one 
-        for the data connection and one for the command connection.
         """
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -225,14 +242,15 @@ class PortAgentClient(object):
             self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             self.sock.setblocking(0)
             self.user_callback = callback        
-            self.listener_thread = Listener(self.sock, self.delim, self.callback)
+            self.listener_thread = Listener(self.sock, self.delim, self.heartbeat, self.callback)
             self.listener_thread.start()
             log.info('PortAgentClient.init_comms(): connected to port agent at %s:%i.'
                            % (self.host, self.port))        
-        except:
-            log.error("init_comms(): Exception occurred.", exc_info=True)
-            raise InstrumentConnectionException('Failed to connect to port agent at %s:%i.' 
-                                                % (self.host, self.port))
+        except Exception as e:
+            log.error("init_comms(): Exception initializing comms for %s:%i: %r" 
+                      % (self.host, self.cmd_port, e), exc_info=True)
+            raise InstrumentConnectionException('Failed to connect to port agent data port at %s:%i (%s).'
+                                                % (self.host, self.cmd_port, e))
         
     def stop_comms(self):
         """
@@ -290,11 +308,11 @@ class PortAgentClient(object):
                                                 % (self.host, self.cmd_port, e))
 
 
-    def send(self, data, sock=None):
+    def send(self, data, sock = None):
         """
         Send data to the port agent.
         """
-        if(not sock):
+        if (not sock):
             sock = self.sock
 
         if sock:
@@ -327,7 +345,8 @@ class Listener(threading.Thread):
     the port agent process. 
     """
     
-    def __init__(self, sock, delim, callback=None):
+    def __init__(self, sock, delim, heartbeat = None, callback_parsed = None,
+                 callback_raw = None, callback_error = None):
         """
         Listener thread constructor.
         @param sock The socket to listen on.
@@ -340,21 +359,119 @@ class Listener(threading.Thread):
         self._done = False
         self.linebuf = ''
         self.delim = delim
+        self.heartbeat = 0
+        self.heartbeat_timer = None
+        self.heartbeat_missed_count = MAX_ALLOWED_MISSED_HEARTBEATS
+        """
+        Make sure the heartbeat is reasonable, then initialize the class 
+        member heartbeat
+        """
+        if heartbeat > 0 and heartbeat < MAX_HEARTBEAT_INTERVAL: 
+            self.heartbeat = heartbeat;
         
-        if callback:
-            def fn_callback(paPacket):
-                callback(paPacket)            
-            self.callback = fn_callback
-        else:
-            self.callback = None
+        def fn_callback_parsed(paPacket):
+            if callback_parsed:
+                callback_parsed(paPacket)
+            else:
+                log.error("No callback_parsed function has been registered")            
 
+        def fn_callback_raw(paPacket):
+            if callback_raw:
+                callback_raw(paPacket)
+            else:
+                log.error("No callback_raw function has been registered")            
+                            
+        def fn_callback_error():
+            """
+            Error callback; try our own recovery first; if this gets called
+            again, we call the callback_error
+            """
+            log.error("Connection error")
+            
+            if callback_error:
+                callback_error()
+            else:
+                log.error("No callback_raw function has been registered")            
+
+        """
+        Now that the callbacks have have been defined, assign them
+        """                
+        self.callback_parsed = fn_callback_parsed
+        self.callback_raw = fn_callback_raw
+        self.callback_error = fn_callback_error
+
+    def heartbeat_timeout(self):
+        log.error('heartbeat timeout')
+        self.heartbeat_missed_count = self.heartbeat_missed_count - 1
+    
+        """
+        Take corrective action here.
+        """
+        if self.heartbeat_missed_count <= 0:
+            log.error('Maximum allowable Port Agent heartbeats missed!')
+            self.callback_error()
+        else:
+            """
+            Note: the threading timer here is only run once.  The cancel
+            only applies if the function has yet run.  You can't reset
+            it and start it again, you have to instantiate an new one.
+            I don't like this; we need to implement a tread timer that 
+            stays up and can be reset and started many times.
+            """
+            self.heartbeat_timer = threading.Timer(self.heartbeat, 
+                                                   self.heartbeat_timeout)
+            self.heartbeat_timer.start()
+            
+        
     def done(self):
         """
         Signal to the listener thread to end its processing loop and
         conclude.
         """
         self._done = True
+
+    def handle_packet(self, paPacket):
+        packet_type = paPacket.get_header_type()
         
+        if packet_type == DATA_FROM_INSTRUMENT:
+            # call the raw_callback
+            # call the parse_callback
+            self.callback_raw(paPacket)
+            self.callback_parsed(paPacket)
+        elif packet_type == DATA_FROM_DRIVER:
+            # call the raw_callback and parse_callback
+            pass
+        elif packet_type == PORT_AGENT_COMMAND:
+            # call the raw_callback and parse_callback
+            pass
+        elif packet_type == PORT_AGENT_STATUS:
+            # call the raw_callback and parse_callback
+            pass
+        elif packet_type == PORT_AGENT_FAULT:
+            # call the raw_callback and parse_callback
+            pass
+        elif packet_type == INSTRUMENT_COMMAND:
+            # call the raw_callback and parse_callback
+            pass
+        elif packet_type == HEARTBEAT:
+            """
+            Got a heartbeat; reset the timer and re-init 
+            heartbeat_missed_count.
+            Note: the threading timer here is only run once.  The cancel
+            only applies if the function has yet run.  You can't reset
+            it and start it again, you have to instantiate an new one.
+            I don't like this; we need to implement a tread timer that 
+            stays up and can be reset and started many times.
+            """
+            if self.heartbeat_timer:
+                self.heartbeat_timer.cancel()
+                self.heartbeat_timer = threading.Timer(self.heartbeat, 
+                                                    self.heartbeat_timeout)
+                self.heartbeat_timer.start()
+                
+            self.heartbeat_missed_count = MAX_ALLOWED_MISSED_HEARTBEATS
+            
+                
     def run(self):
         """
         Listener thread processing loop. Block on receive from port agent.
@@ -371,6 +488,10 @@ class Listener(threading.Thread):
         I'm considering it an error.
         """
         log.info('Logger client listener started.')
+        if self.heartbeat:
+            self.heartbeat_timer = threading.Timer(self.heartbeat, 
+                                                   self.heartbeat_timeout)
+            self.heartbeat_timer.start()
         while not self._done:
             try:
                 received_header = False
@@ -403,10 +524,7 @@ class Listener(threading.Thread):
                     """
                     Should have complete port agent packet.
                     """
-                    if self.callback:
-                        self.callback(paPacket)
-                    else:
-                        log.error('No callback registered')
+                    self.handle_packet(paPacket)
 
             except socket.error as e:
                 if e.errno == errno.EWOULDBLOCK:
