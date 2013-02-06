@@ -28,6 +28,9 @@ from mi.core.log import get_logger ; log = get_logger()
 
 import gevent
 import json
+import ntplib
+import time
+
 from mock import Mock
 from mi.core.unit_test import MiIntTestCase
 from mi.core.unit_test import MiUnitTest
@@ -38,8 +41,6 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from ion.agents.port.port_agent_process import PortAgentProcessType
 from interface.objects import AgentCapability
 from interface.objects import CapabilityType
-
-from mi.core.log import get_logger ; log = get_logger()
 
 from ion.agents.instrument.driver_process import DriverProcess, DriverProcessType
 
@@ -281,19 +282,33 @@ class DriverTestMixin(MiUnitTest):
         return result
 
 
-    def assert_data_particle_header(self, data_particle, stream_name):
+    def assert_data_particle_header(self, data_particle, stream_name, require_instrument_timestamp=False):
         """
         Verify a data particle header is formatted properly
         @param data_particle: version 1 data particle
+        @param stream_name: version 1 data particle
+        @param require_instrument_timestamp: should we verify the instrument timestamp exists
         """
-        sample_dict = self.convert_data_particle_to_dict(data_particle)
+        sample_dict = self.convert_data_particle_to_dict(data_particle, )
 
         self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME], stream_name)
         self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID], DataParticleValue.JSON_DATA)
         self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
-        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES], list))
-        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+        self.assertIsInstance(sample_dict[DataParticleKey.VALUES], list)
+
         self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+        self.assertIsNotNone(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP))
+        self.assertIsInstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float)
+
+        # It is highly unlikely that we should have a particle without a port agent timestamp,
+        # at least that's the current assumption.
+        self.assertIsNotNone(sample_dict.get(DataParticleKey.PORT_TIMESTAMP))
+        self.assertIsInstance(sample_dict.get(DataParticleKey.PORT_TIMESTAMP), float)
+
+        if(require_instrument_timestamp):
+            self.assertIsNotNone(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP))
+            self.assertIsInstance(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP), float)
 
     def assert_data_particle_parameters(self, data_particle, param_dict, verify_values = False):
         """
@@ -1068,11 +1083,13 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         @param particle_assert_method: assert method to validate the data particle.
         @param verify_values: Should we validate values?
         """
+        ts = ntplib.system_to_ntp_time(time.time())
 
         log.debug("Sample to publish: %s" % sample_data)
         # Create and populate the port agent packet.
         port_agent_packet = PortAgentPacket()
         port_agent_packet.attach_data(sample_data)
+        port_agent_packet.attach_timestamp(ts)
         port_agent_packet.pack_header()
 
         self.clear_data_particle_queue()

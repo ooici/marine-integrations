@@ -86,7 +86,7 @@ class InstrumentProtocol(object):
         log.error("base got_data.  Who called me?")
         pass
 
-    def _extract_sample(self, particle_class, regex, line, publish=True):
+    def _extract_sample(self, particle_class, regex, line, timestamp, publish=True):
         """
         Extract sample from a response line if present and publish
         parsed particle
@@ -96,6 +96,7 @@ class InstrumentProtocol(object):
             behavior from this routine
         @param regex The regular expression that matches a data sample
         @param line string to match for sample.
+        @param timestamp port agent timestamp to include with the particle
         @param publish boolean to publish samples (default True). If True,
                two different events are published: one to notify raw data and
                the other to notify parsed data.
@@ -105,13 +106,10 @@ class InstrumentProtocol(object):
         @todo Figure out how the agent wants the results for a single poll
             and return them that way from here
         """
-
         sample = None
         if regex.match(line):
         
-            particle = particle_class(line,
-                preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
-
+            particle = particle_class(line, port_timestamp=timestamp)
             parsed_sample = particle.generate()
 
             if publish and self._driver_event:
@@ -125,13 +123,11 @@ class InstrumentProtocol(object):
         """
         Return current state of the protocol FSM.
         """
-
         return self._protocol_fsm.get_current_state()
 
     def get_resource_capabilities(self, current_state=True):
         """
         """
-
         res_cmds = self._protocol_fsm.get_events(current_state)
         res_cmds = self._filter_capabilities(res_cmds)        
         res_params = self._param_dict.get_keys()
@@ -141,7 +137,6 @@ class InstrumentProtocol(object):
     def _filter_capabilities(self, events):
         """
         """
-
         return events
 
     ########################################################################
@@ -688,6 +683,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
 
         data_length = port_agent_packet.get_data_size()
         data = port_agent_packet.get_data()
+        timestamp = port_agent_packet.get_timestamp()
 
         log.trace("Got Data: %s" % data)
 
@@ -697,11 +693,14 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
 
             self.add_to_buffer(data)
 
+            #self._chunker.add_chunk(data, timestamp)
             self._chunker.add_chunk(data)
 
+            #(chunk, timestamp) = self._chunker.get_next_data()
             chunk = self._chunker.get_next_data()
             while(chunk):
-                self._got_chunk(chunk)
+                self._got_chunk(chunk, timestamp)
+                #(chunk, timestamp) = self._chunker.get_next_data()
                 chunk = self._chunker.get_next_data()
 
             self.publish_raw(port_agent_packet)
@@ -712,7 +711,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @param: port_agent_packet port agent packet containing raw
         """
         particle = RawDataParticle(port_agent_packet.get_as_dict(),
-                       preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
+                                   port_timestamp=port_agent_packet.get_timestamp())
 
         if self._driver_event:
             self._driver_event(DriverAsyncEvent.SAMPLE, particle.generate())
