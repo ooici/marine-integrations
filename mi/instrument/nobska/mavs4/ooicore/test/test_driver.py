@@ -56,11 +56,15 @@ from mi.instrument.nobska.mavs4.ooicore.driver import mavs4InstrumentDriver
 from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolStates
 from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolEvent
 from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentParameters
+from mi.instrument.nobska.mavs4.ooicore.driver import Mavs4StatusDataParticleKey
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import DriverTestMixin
+from mi.idk.unit_test import ParameterTestConfigKey
+
 from mi.core.tcp_client import TcpClient
 
 # MI logger
@@ -78,6 +82,15 @@ WILL_ECHO_CMD = '\xff\xfd\x03\xff\xfb\x03\xff\xfb\x01'
 DO_ECHO_CMD   = '\xff\xfb\x03\xff\xfd\x03\xff\xfd\x01'
 
 TIME_TO_SET = '03/29/2002 11:11:42'
+
+# Create some short names for the parameter test config
+TYPE = ParameterTestConfigKey.TYPE
+READONLY = ParameterTestConfigKey.READONLY
+STARTUP = ParameterTestConfigKey.STARTUP
+DA = ParameterTestConfigKey.DIRECT_ACCESS
+VALUE = ParameterTestConfigKey.VALUE
+REQUIRED = ParameterTestConfigKey.REQUIRED
+DEFAULT = ParameterTestConfigKey.DEFAULT
 
 # Used to validate param config retrieved from driver.
 parameter_types = {
@@ -151,6 +164,42 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config = DataParticleType()
 )
 
+class Mavs4Mixin(DriverTestMixin):
+    '''
+    Mixin class used for storing data particle constants and common data assertion methods.
+    '''
+    
+    _status_sample_parameters = {
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_A: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_B: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_C: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_D: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.COMPASS_OFFSET_0: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.COMPASS_OFFSET_1: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.COMPASS_OFFSET_2: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.COMPASS_SCALE_FACTORS_0: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.COMPASS_SCALE_FACTORS_1: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.COMPASS_SCALE_FACTORS_2: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.TILT_PITCH_OFFSET: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.TILT_ROLL_OFFSET: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.SAMPLE_PERIOD: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.SAMPLES_PER_BURST: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.BURST_INTERVAL_DAYS: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.BURST_INTERVAL_HOURS: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.BURST_INTERVAL_MINUTES: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.BURST_INTERVAL_SECONDS: {TYPE: unicode, VALUE: u'' },
+        Mavs4StatusDataParticleKey.SI_CONVERSION: {TYPE: unicode, VALUE: u'' },
+    }
+        
+    def assert_particle_status(self, data_particle, verify_values = False):
+        '''
+        Verify a status data particle
+        @param data_particle:  status data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.STATUS)
+        self.assert_data_particle_parameters(data_particle, self._status_sample_parameters, verify_values)
+
 
 #################################### RULES ####################################
 #                                                                             #
@@ -207,7 +256,7 @@ class Testmavs4_UNIT(InstrumentDriverTestCase):
 ###############################################################################
 
 @attr('INT', group='mi')
-class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
+class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
     """Integration Test Container"""
     
     @staticmethod
@@ -306,7 +355,6 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
             self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
             # Test that the driver protocol is in state command.
             self.check_state(ProtocolStates.COMMAND)
-
 
 
     def test_instrument_wakeup(self):
@@ -468,6 +516,16 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase):
     ###
     #    Add driver specific integration tests
     ###
+
+    
+    def test_polled_particle_generation(self):
+        """
+        Test that we can generate particles with commands
+        """
+        self.assert_initialize_driver()
+
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.STATUS, self.assert_particle_status, delay=20)
+        
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

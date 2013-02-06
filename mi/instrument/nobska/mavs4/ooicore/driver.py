@@ -64,6 +64,7 @@ SAMPLE_DATA_REGEX = re.compile(SAMPLE_DATA_PATTERN)
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
     PARSED = 'parsed'
+    STATUS = 'status'
 
 COMMAND = 'command'
 RESPONSE = 'response'
@@ -215,6 +216,7 @@ class ProtocolEvent(BaseEnum):
     START_DIRECT     = DriverEvent.START_DIRECT
     STOP_DIRECT      = DriverEvent.STOP_DIRECT
     CLOCK_SYNC       = DriverEvent.CLOCK_SYNC
+    ACQUIRE_STATUS   = DriverEvent.ACQUIRE_STATUS         
 
 class Capability(BaseEnum):
     """
@@ -273,9 +275,9 @@ class InstrumentParameters(DriverParameter):
     COMPASS_OFFSET_0                     = 'comapss_offset_0'
     COMPASS_OFFSET_1                     = 'comapss_offset_1'
     COMPASS_OFFSET_2                     = 'comapss_offset_2'
-    COMPASS_SCALE_FACTORS_0              = 'comapss_scale factors_0'
-    COMPASS_SCALE_FACTORS_1              = 'comapss_scale factors_1'
-    COMPASS_SCALE_FACTORS_2              = 'comapss_scale factors_2'
+    COMPASS_SCALE_FACTORS_0              = 'comapss_scale_factors_0'
+    COMPASS_SCALE_FACTORS_1              = 'comapss_scale_factors_1'
+    COMPASS_SCALE_FACTORS_2              = 'comapss_scale_factors_2'
     TILT_PITCH_OFFSET                    = 'tilt_pitch_offset'
     TILT_ROLL_OFFSET                     = 'tilt_roll_offset'
     
@@ -535,7 +537,7 @@ class Mavs4SampleDataParticleKey(BaseEnum):
                 
 class Mavs4SampleDataParticle(DataParticle):
     """
-    Routine for parsing sample data into a data particle structure for the MAVS-4 sensor. 
+    Class for parsing sample data into a data particle structure for the MAVS-4 sensor. 
     """
     _data_particle_type = DataParticleType.PARSED
 
@@ -602,6 +604,53 @@ class Mavs4SampleDataParticle(DataParticle):
                    DataParticleKey.VALUE: roll}]
  
         log.debug('Mavs4SampleDataParticle: particle=%s' %result)
+        return result
+    
+class Mavs4StatusDataParticleKey(BaseEnum):
+    VELOCITY_OFFSET_PATH_A  = InstrumentParameters.VELOCITY_OFFSET_PATH_A
+    VELOCITY_OFFSET_PATH_B  = InstrumentParameters.VELOCITY_OFFSET_PATH_B
+    VELOCITY_OFFSET_PATH_C  = InstrumentParameters.VELOCITY_OFFSET_PATH_C
+    VELOCITY_OFFSET_PATH_D  = InstrumentParameters.VELOCITY_OFFSET_PATH_D
+    COMPASS_OFFSET_0        = InstrumentParameters.COMPASS_OFFSET_0
+    COMPASS_OFFSET_1        = InstrumentParameters.COMPASS_OFFSET_1
+    COMPASS_OFFSET_2        = InstrumentParameters.COMPASS_OFFSET_2
+    COMPASS_SCALE_FACTORS_0 = InstrumentParameters.COMPASS_SCALE_FACTORS_0
+    COMPASS_SCALE_FACTORS_1 = InstrumentParameters.COMPASS_SCALE_FACTORS_1
+    COMPASS_SCALE_FACTORS_2 = InstrumentParameters.COMPASS_SCALE_FACTORS_2
+    TILT_PITCH_OFFSET       = InstrumentParameters.TILT_PITCH_OFFSET
+    TILT_ROLL_OFFSET        = InstrumentParameters.TILT_ROLL_OFFSET
+    SAMPLE_PERIOD           = InstrumentParameters.SAMPLE_PERIOD
+    SAMPLES_PER_BURST       = InstrumentParameters.SAMPLES_PER_BURST
+    BURST_INTERVAL_DAYS     = InstrumentParameters.BURST_INTERVAL_DAYS
+    BURST_INTERVAL_HOURS    = InstrumentParameters.BURST_INTERVAL_HOURS
+    BURST_INTERVAL_MINUTES  = InstrumentParameters.BURST_INTERVAL_MINUTES
+    BURST_INTERVAL_SECONDS  = InstrumentParameters.BURST_INTERVAL_SECONDS
+    SI_CONVERSION           = InstrumentParameters.SI_CONVERSION
+                
+class Mavs4StatusDataParticle(DataParticle):
+    """
+    Class for constructing status data into a status particle structure for the MAVS-4 sensor. 
+    The raw_data variable in the DataParticle base class needs to be initialized to a reference to 
+    a dictionary that contains the status parameters.
+    """
+    _data_particle_type = DataParticleType.STATUS
+
+    def _build_parsed_values(self):
+        """
+        Build the status particle from a dictionary of parameters adding the appropriate tags.
+        NOTE: raw_data references a dictionary with the status parameters, not a line of input
+        @throws SampleException If there is a problem with particle creation
+        """
+                
+        if not isinstance(self.raw_data, dict):
+            raise SampleException("Error: raw_data is not a dictionary")
+                     
+        result = []
+        for key, value in self.raw_data.items():
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: value})
+             
+        log.debug('Mavs4StatusDataParticle: particle=%s' %result)
         return result
     
 ###
@@ -756,9 +805,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.GET, self._handler_get)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
@@ -1158,6 +1208,42 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             
         return (next_state, result)
 
+    def _handler_command_get(self, *args, **kwargs):
+        """
+        Get device parameters from the parameter dict.
+        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
+        @throws InstrumentParameterException if missing or invalid parameter.
+        """
+        next_state = None
+        result = None
+
+        # Retrieve the required parameter, raise if not present.
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
+
+        # If all params requested, retrieve config.
+        if params == DriverParameter.ALL:
+            result = self._param_dict.get_config()
+
+        # If not all params, confirm a list or tuple of params to retrieve.
+        # Raise if not a list or tuple.
+        # Retireve each key in the list, raise if any are invalid.
+        else:
+            if not isinstance(params, (list, tuple)):
+                raise InstrumentParameterException('Get argument not a list or tuple.')
+            result = {}
+            for key in params:
+                try:
+                    val = self._param_dict.get(key)
+                    result[key] = val
+
+                except KeyError:
+                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
+
+        return (next_state, result)
+
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Switch into autosample mode.
@@ -1226,7 +1312,35 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+    def _handler_command_acquire_status(self, *args, **kwargs):
+        """
+        Get device status
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        if not self._driver_event:
+            return
+        
+        # update parameters so param_dict values used for status are latest and greatest.
+        self._update_params()
+
+        # build a dictionary of the parameters that are to be returned in the status data particle
+        status_params = {}
+        for name in Mavs4StatusDataParticleKey.list():
+            status_params[name] = self._param_dict.format_parameter(name)
+            
+        # Create status data particle, but pass in a reference to the dictionary just created as first parameter instead of the 'line'.
+        # The status data particle class will use the 'raw_data' variable as a reference to a dictionary object to get
+        # access to parameter values (see the Mavs4StatusDataParticle class).
+        particle = Mavs4StatusDataParticle(status_params, preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
+        status = particle.generate()
+
+        self._driver_event(DriverAsyncEvent.SAMPLE, status)
     
+        return (next_state, (next_agent_state, result))
+
     ########################################################################
     # Autosample handlers.
     ########################################################################
@@ -1316,48 +1430,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_agent_state = ResourceAgentState.COMMAND
 
         return (next_state, (next_agent_state, result))
-
-
-    ########################################################################
-    # Common handlers.
-    ########################################################################
-
-    def _handler_get(self, *args, **kwargs):
-        """
-        Get device parameters from the parameter dict.
-        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
-        @throws InstrumentParameterException if missing or invalid parameter.
-        """
-        next_state = None
-        result = None
-
-        # Retrieve the required parameter, raise if not present.
-        try:
-            params = args[0]
-
-        except IndexError:
-            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
-
-        # If all params requested, retrieve config.
-        if params == DriverParameter.ALL:
-            result = self._param_dict.get_config()
-
-        # If not all params, confirm a list or tuple of params to retrieve.
-        # Raise if not a list or tuple.
-        # Retireve each key in the list, raise if any are invalid.
-        else:
-            if not isinstance(params, (list, tuple)):
-                raise InstrumentParameterException('Get argument not a list or tuple.')
-            result = {}
-            for key in params:
-                try:
-                    val = self._param_dict.get(key)
-                    result[key] = val
-
-                except KeyError:
-                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
-
-        return (next_state, result)
 
     ########################################################################
     # Private helpers.
