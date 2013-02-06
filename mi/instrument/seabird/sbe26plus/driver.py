@@ -22,7 +22,6 @@ from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
 from mi.instrument.seabird.driver import SeaBirdProtocol
 
 from mi.core.common import BaseEnum
-from mi.core.time import get_timestamp_delayed
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -130,6 +129,9 @@ class ProtocolEvent(BaseEnum):
     SETSAMPLING = 'PROTOCOL_EVENT_SETSAMPLING'
     QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
+
+    # Different event because we don't want to expose this as a capability
+    SCHEDULED_CLOCK_SYNC = 'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'
 
 class Capability(BaseEnum):
     """
@@ -1027,7 +1029,7 @@ class SBE26plusDeviceStatusDataParticle(DataParticle):
 # Driver
 ###############################################################################
 
-class InstrumentDriver(SeaBirdInstrumentDriver):
+class SBE26PlusInstrumentDriver(SeaBirdInstrumentDriver):
     """
     InstrumentDriver subclass
     Subclasses SingleConnectionInstrumentDriver with connection state
@@ -1093,18 +1095,20 @@ class Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SETSAMPLING,            self._handler_command_setsampling)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC,             self._handler_command_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC,   self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION,  self._handler_command_acquire_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION,           self._handler_command_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
 
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_autosample_test_get)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_acquire_status)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_CONFIGURATION,  self._handler_command_acquire_configuration)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,     self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SEND_LAST_SAMPLE,       self._handler_command_send_last_sample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,                   self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                    self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                     self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,          self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_CONFIGURATION,   self._handler_command_acquire_configuration)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,         self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SEND_LAST_SAMPLE,        self._handler_command_send_last_sample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_CLOCK_SYNC,    self._handler_autosample_clock_sync)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,             self._handler_direct_access_exit)
@@ -1145,7 +1149,7 @@ class Protocol(SeaBirdProtocol):
 
         self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
         self._add_scheduler_event(ScheduledJob.CALIBRATION_COEFFICIENTS, ProtocolEvent.ACQUIRE_CONFIGURATION)
-        self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.CLOCK_SYNC)
+        self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
     @staticmethod
     def sieve_function(raw_data):
@@ -1219,20 +1223,12 @@ class Protocol(SeaBirdProtocol):
             prompt = self._wakeup(timeout=timeout, delay=delay)
             prompt = self._wakeup(timeout)
 
-        # Set the state to change.
-        # Raise if the prompt returned does not match command or autosample.
+        logging = self._is_logging(timeout=timeout)
 
-        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS,timeout=timeout)
-        self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION,timeout=timeout)
-        pd = self._param_dict.get_config()
-        
-        
-        
-
-        if pd[Parameter.LOGGING] == True:
+        if logging == True:
             next_state = ProtocolState.AUTOSAMPLE
             result = ResourceAgentState.STREAMING
-        elif pd[Parameter.LOGGING] == False:
+        elif logging == False:
             next_state = ProtocolState.COMMAND
             result = ResourceAgentState.IDLE
         else:
@@ -1329,11 +1325,49 @@ class Protocol(SeaBirdProtocol):
         """
         pass
 
+    def _handler_autosample_clock_sync(self, *args, **kwargs):
+        """
+        execute a clock sync on the leading edge of a second change from
+        autosample mode.  For this command we have to move the instrument
+        into command mode, do the clock sync, then switch back.  If an
+        exception is thrown we will try to get ourselves back into
+        streaming and then raise that exception.
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+        error = None
+
+        try:
+            # Switch to command mode,
+            self._stop_logging()
+
+            # Sync the clock
+            timeout = kwargs.get('timeout', TIMEOUT)
+            self._sync_clock(Parameter.DS_DEVICE_DATE_TIME, Prompt.COMMAND, timeout)
+
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            error = e
+
+        finally:
+            # Switch back to streaming
+            self._start_logging()
+
+        if(error):
+            raise error
+
+        return (next_state, (next_agent_state, result))
+
     def _handler_command_clock_sync(self, *args, **kwargs):
         """
         execute a clock sync on the leading edge of a second change
-        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
-        None) if successful.
+        @retval (next_state, result) tuple, (None, (None, )) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
@@ -1343,24 +1377,7 @@ class Protocol(SeaBirdProtocol):
         result = None
 
         timeout = kwargs.get('timeout', TIMEOUT)
-        delay = 1
-        prompt = self._wakeup(timeout=timeout, delay=delay)
-
-        # lets clear out any past data so it doesnt confuse the command
-        self._linebuf = ''
-        self._promptbuf = ''
-
-        str_val = self._param_dict.format(Parameter.DS_DEVICE_DATE_TIME, get_timestamp_delayed("%d %b %Y %H:%M:%S"))
-        set_cmd = '%s=%s' % (Parameter.DS_DEVICE_DATE_TIME, str_val) + NEWLINE
-
-        self._do_cmd_direct(set_cmd)
-        (prompt, response) = self._get_response()
-
-        if response != set_cmd + Prompt.COMMAND:
-            raise InstrumentProtocolException("_handler_clock_sync - response != set_cmd")
-
-        if prompt != Prompt.COMMAND:
-            raise InstrumentProtocolException("_handler_clock_sync - prompt != Prompt.COMMAND")
+        self._sync_clock(Parameter.DS_DEVICE_DATE_TIME, Prompt.COMMAND, timeout)
 
         return (next_state, (next_agent_state, result))
 
@@ -1384,36 +1401,47 @@ class Protocol(SeaBirdProtocol):
         # Raise if no parameter provided, or not a dict.
         try:
             params = args[0]
-
-
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
-
         if not isinstance(params, dict):
-
             raise InstrumentParameterException('Set parameters not a dict.')
 
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
-            (set_params, ss_params) = self._split_params(**params)
-
-            if set_params != {}:
-                for (key, val) in set_params.iteritems():
-                    log.debug("KEY = " + str(key) + " VALUE = " + str(val))
-                    result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
-
-            if ss_params != {}:
-                # ONLY do next if a param for it is present
-                kwargs['expected_prompt'] = ", new value = "
-                self._do_cmd_resp(InstrumentCmds.SETSAMPLING, ss_params, **kwargs)
-            else:
-                # if there were no ss_params, then update the params here,
-                # if there were ss_params, then setsampling will handle the updating.
-                self._update_params()
+            self._set_params(params)
 
         return (next_state, result)
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        # Retrieve required parameter.
+        # Raise if no parameter provided, or not a dict.
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        (set_params, ss_params) = self._split_params(**params)
+        log.debug("SetSampling Params: %s" % ss_params)
+        log.debug("General Set Params: %s" % set_params)
+
+        if set_params != {}:
+            for (key, val) in set_params.iteritems():
+                log.debug("KEY = " + str(key) + " VALUE = " + str(val))
+                result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
+
+        if ss_params != {}:
+            # ONLY do next if a param for it is present
+            kwargs['expected_prompt'] = ", new value = "
+            self._do_cmd_resp(InstrumentCmds.SETSAMPLING, ss_params, **kwargs)
+        else:
+            # if there were no ss_params, then update the params here,
+            # if there were ss_params, then setsampling will handle the updating.
+            self._update_params()
 
     def _build_set_command(self, cmd, param, val):
         """
@@ -1782,16 +1810,12 @@ class Protocol(SeaBirdProtocol):
         """
         kwargs['expected_prompt'] = Prompt.COMMAND
         kwargs['timeout'] = 30
-        log.info("SYNCING TIME WITH SENSOR")
-        #self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME, time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime()))), **kwargs)
-        self._do_cmd_resp(InstrumentCmds.SET, Parameter.DS_DEVICE_DATE_TIME, get_timestamp_delayed("%d %b %Y %H:%M:%S"), **kwargs)
 
         next_state = None
         result = None
 
-
         # Issue start command and switch to autosample if successful.
-        self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, *args, **kwargs)
+        self._start_logging()
 
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -1848,11 +1872,7 @@ class Protocol(SeaBirdProtocol):
         timeout = kwargs.get('timeout', TIMEOUT)
         self._wakeup_until(timeout, Prompt.AUTOSAMPLE)
 
-        # Issue the stop command.
-        self._do_cmd_resp(InstrumentCmds.STOP_LOGGING, *args, **kwargs)
-
-        # Prompt device until command prompt is seen.
-        self._wakeup_until(timeout, Prompt.COMMAND)
+        self._stop_logging(timeout)
 
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
@@ -1933,8 +1953,153 @@ class Protocol(SeaBirdProtocol):
         pass
 
     ########################################################################
+    # Startup parameter handlers
+    ########################################################################
+    def apply_startup_params(self):
+        """
+        Apply all startup parameters.  First we check the instrument to see
+        if we need to set the parameters.  If they are they are set
+        correctly then we don't do anything.
+
+        If we need to set parameters then we might need to transition to
+        command first.  Then we will transition back when complete.
+
+        @todo: This feels odd.  It feels like some of this logic should
+               be handled by the state machine.  It's a pattern that we
+               may want to review.  I say this because this command
+               needs to be run from autosample or command mode.
+        @raise: InstrumentProtocolException if not in command or streaming
+        """
+        # Let's give it a try in unknown state
+        log.debug("CURRENT STATE: %s" % self.get_current_state())
+        if (self.get_current_state() != ProtocolState.COMMAND and
+            self.get_current_state() != ProtocolState.AUTOSAMPLE):
+            raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
+
+        logging = self._is_logging()
+
+        # If we are in streaming mode and our configuration on the
+        # instrument matches what we think it should be then we
+        # don't need to do anything.
+        if(not self._instrument_config_dirty()):
+            return True
+
+        error = None
+
+        try:
+            if(logging):
+                # Switch to command mode,
+                self._stop_logging()
+
+            self._apply_params()
+
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            error = e
+
+        finally:
+            # Switch back to streaming
+            if(logging):
+                self._start_logging()
+
+        if(error):
+            raise error
+
+    def _apply_params(self):
+        """
+        apply startup parameters to the instrument.
+        @raise: InstrumentProtocolException if in wrong mode.
+        """
+        config = self.get_startup_config()
+        self._set_params(config)
+
+    def _instrument_config_dirty(self):
+        """
+        Read the startup config and compare that to what the instrument
+        is configured too.  If they differ then return True
+        @return: True if the startup config doesn't match the instrument
+        @raise: InstrumentParameterException
+        """
+        # Refresh the param dict cache
+
+        # Let's assume we have already run this command recently
+        #self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS)
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION)
+
+        startup_params = self._param_dict.get_startup_list()
+        log.debug("Startup Parameters: %s" % startup_params)
+
+        for param in startup_params:
+            if not Parameter.has(param):
+                raise InstrumentParameterException()
+
+            if (self._param_dict.get(param) != self._param_dict.get_config_value(param)):
+                log.debug("DIRTY: %s %s != %s" % (param, self._param_dict.get(param), self._param_dict.get_config_value(param)))
+                return True
+
+        log.debug("Clean instrument config")
+        return False
+
+    ########################################################################
     # Private helpers.
     ########################################################################
+
+    def _is_logging(self, timeout=TIMEOUT):
+        """
+        Poll the instrument to see if we are in logging mode.  Return True
+        if we are, False if not, or None if we couldn't tell.
+        @param: timeout - Command timeout
+        @return: True - instrument logging, False - not logging,
+                 None - unknown logging state
+        """
+        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS,timeout=timeout)
+        pd = self._param_dict.get_config()
+        log.debug("Logging? %s" % pd.get(Parameter.LOGGING))
+
+        return pd.get(Parameter.LOGGING)
+
+    def _start_logging(self, timeout=TIMEOUT):
+        """
+        Command the instrument to start logging
+        @param timeout: how long to wait for a prompt
+        @return: True if successful
+        @raise: InstrumentProtocolException if failed to start logging
+        """
+        log.debug("Start Logging!")
+        if(self._is_logging()):
+            return True
+
+        self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, timeout=timeout)
+        time.sleep(1)
+
+        # Prompt device until command prompt is seen.
+        self._wakeup_until(timeout, Prompt.COMMAND)
+
+        if not self._is_logging(timeout):
+            raise InstrumentProtocolException("failed to start logging")
+        return True
+
+    def _stop_logging(self, timeout=TIMEOUT):
+        """
+        Command the instrument to stop logging
+        @param timeout: how long to wait for a prompt
+        @return: True if successful
+        @raise: InstrumentTimeoutException if prompt isn't seen
+        @raise: InstrumentProtocolException failed to stop logging
+        """
+        log.debug("Stop Logging!")
+        # Issue the stop command.
+        self._do_cmd_resp(InstrumentCmds.STOP_LOGGING)
+        time.sleep(1)
+
+        # Prompt device until command prompt is seen.
+        self._wakeup_until(timeout, Prompt.COMMAND)
+
+        if self._is_logging(timeout):
+            raise InstrumentProtocolException("failed to stop logging")
+
+        return True
 
     def _send_wakeup(self):
         """
@@ -2266,7 +2431,8 @@ class Protocol(SeaBirdProtocol):
         self._param_dict.add(Parameter.TXWAVESTATS,
             ds_line_23,
             lambda match : False if (match.group(1)=='NO') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+        )
 
         self._param_dict.add(Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS,
             ds_line_24,

@@ -14,14 +14,23 @@ from mi.idk.nose_test import BuildBotConfig
 
 BUILDBOT_DRIVER_FILE = "config/buildbot.yml"
 
+
 def run():
 
     opts = parseArgs()
 
+    if( opts.buildbot_unit ):
+        return not run_buildbot_unit(opts)
+
+    if( opts.buildbot_int ):
+        return not run_buildbot_int(opts)
+
+    if( opts.buildbot_qual ):
+        return not run_buildbot_qual(opts)
 
     if( opts.buildbot ):
         devices = read_buildbot_config()
-
+        ret = True
         for (key, config) in devices:
             make = config.get(BuildBotConfig.MAKE)
             model = config.get(BuildBotConfig.MODEL)
@@ -29,9 +38,14 @@ def run():
             metadata = Metadata(make, model, flavor)
             app = NoseTest(metadata, testname=opts.testname)
             app.report_header()
-            app.run_unit()
-            app.run_integration()
-            app.run_qualification()
+            if False == app.run_unit():
+                ret = False
+            if False == app.run_integration():
+                ret = False
+            if False == app.run_qualification():
+                ret = False
+        return not ret
+
     else:
         app = NoseTest(Metadata(), testname=opts.testname)
         if( opts.unit ):
@@ -46,6 +60,51 @@ def run():
         else:
             app.run()
 
+def run_buildbot_unit(opts):
+    devices = read_buildbot_config()
+    ret = True
+    for (key, config) in devices:
+        make = config.get(BuildBotConfig.MAKE)
+        model = config.get(BuildBotConfig.MODEL)
+        flavor =config.get(BuildBotConfig.FLAVOR)
+        metadata = Metadata(make, model, flavor)
+        app = NoseTest(metadata, testname=opts.testname)
+        app.report_header()
+
+        if False == app.run_unit():
+            ret = False
+    return ret
+
+def run_buildbot_int(opts):
+    devices = read_buildbot_config()
+    ret = True
+    for (key, config) in devices:
+        make = config.get(BuildBotConfig.MAKE)
+        model = config.get(BuildBotConfig.MODEL)
+        flavor =config.get(BuildBotConfig.FLAVOR)
+        metadata = Metadata(make, model, flavor)
+        app = NoseTest(metadata, testname=opts.testname)
+        app.report_header()
+
+        if False == app.run_integration():
+            ret = False
+    return ret
+
+def run_buildbot_qual(opts):
+    devices = read_buildbot_config()
+    ret = True
+    for (key, config) in devices:
+        make = config.get(BuildBotConfig.MAKE)
+        model = config.get(BuildBotConfig.MODEL)
+        flavor =config.get(BuildBotConfig.FLAVOR)
+        metadata = Metadata(make, model, flavor)
+        app = NoseTest(metadata, testname=opts.testname)
+        app.report_header()
+
+        if False == app.run_qualification():
+            ret = False
+    return ret
+
 def parseArgs():
     parser = argparse.ArgumentParser(description="IDK Start Driver")
     parser.add_argument("-u", dest='unit', action="store_true",
@@ -54,6 +113,14 @@ def parseArgs():
                         help="only run integration tests" )
     parser.add_argument("-q", dest='qualification', action="store_true",
         help="only run qualification tests" )
+    
+    parser.add_argument("-bu", dest='buildbot_unit', action="store_true",
+        help="run unit tests for drivers listed in %s" % BUILDBOT_DRIVER_FILE)
+    parser.add_argument("-bi", dest='buildbot_int', action="store_true",
+        help="run int tests for drivers listed in %s" % BUILDBOT_DRIVER_FILE)
+    parser.add_argument("-bq", dest='buildbot_qual', action="store_true",
+        help="run qual tests for drivers listed in %s" % BUILDBOT_DRIVER_FILE)
+
     parser.add_argument("-b", dest='buildbot', action="store_true",
         help="run all tests for drivers listed in %s" % BUILDBOT_DRIVER_FILE)
     parser.add_argument("-t", dest='testname',
