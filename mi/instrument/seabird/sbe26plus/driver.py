@@ -14,7 +14,6 @@ __license__ = 'Apache 2.0'
 import re
 import time
 import string
-import ntplib
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -261,8 +260,7 @@ class SBE26plusTideSampleDataParticle(DataParticle):
             if(match1):
                 text_timestamp = match.group(1)
                 py_timestamp = time.strptime(text_timestamp, "%d %b %Y %H:%M:%S")
-                timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
-                self.set_internal_timestamp(timestamp)
+                self.set_internal_timestamp(unix_time=time.mktime(py_timestamp))
 
             pressure = float(match.group(2))
             pressure_temp = float(match.group(3))
@@ -331,8 +329,7 @@ class SBE26plusWaveBurstDataParticle(DataParticle):
                 try:
                     text_timestamp = match.group(1)
                     py_timestamp = time.strptime(text_timestamp, "%d %b %Y %H:%M:%S")
-                    timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
-                    self.set_internal_timestamp(timestamp)
+                    self.set_internal_timestamp(unix_time=time.mktime(py_timestamp))
                 except ValueError:
                     raise SampleException("ValueError while decoding floats in data: [%s]" %
                                       self.raw_data)

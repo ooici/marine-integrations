@@ -693,15 +693,12 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
 
             self.add_to_buffer(data)
 
-            #self._chunker.add_chunk(data, timestamp)
-            self._chunker.add_chunk(data)
+            self._chunker.add_chunk(data, timestamp)
 
-            #(chunk, timestamp) = self._chunker.get_next_data()
-            chunk = self._chunker.get_next_data()
+            (timestamp, chunk) = self._chunker.get_next_data()
             while(chunk):
                 self._got_chunk(chunk, timestamp)
-                #(chunk, timestamp) = self._chunker.get_next_data()
-                chunk = self._chunker.get_next_data()
+                (timestamp, chunk) = self._chunker.get_next_data()
 
             self.publish_raw(port_agent_packet)
 

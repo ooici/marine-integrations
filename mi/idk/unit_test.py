@@ -12,6 +12,7 @@ from pyon.core.bootstrap import CFG
 import re
 import os
 import time
+import ntplib
 import unittest
 import datetime
 from sets import Set
@@ -616,6 +617,17 @@ class InstrumentDriverTestCase(MiIntTestCase):
         """
         log.debug("InstrumentDriverTestCase tearDown")
 
+    def get_ntp_timestamp(self, unix_time=None):
+        """
+        Get an ntp timestamp using the passed in unix_time
+        or the current time if not passed
+        @param unix_time: unix timestamp to create
+        @return: ntp timestamp
+        """
+        if(unix_time == None):
+            unix_time = time.time()
+
+        return ntplib.system_to_ntp_time(time.time())
 
     def clear_events(self):
         """
@@ -843,13 +855,14 @@ class InstrumentDriverTestCase(MiIntTestCase):
         @param chunker: Chunker to use to do the parsing
         @param sample: raw sample
         '''
-        chunker.add_chunk(sample)
-        result = chunker.get_next_data()
+        ts = self.get_ntp_timestamp()
+        chunker.add_chunk(sample, ts)
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample)
+        self.assertEqual(ts, timestamp)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
-
 
     def assert_chunker_fragmented_sample(self, chunker, sample, fragment_size = 1):
         '''
@@ -861,18 +874,22 @@ class InstrumentDriverTestCase(MiIntTestCase):
         '''
         sample_length = len(sample)
         self.assertGreater(fragment_size, 0)
+        timestamps = []
 
         i = 0
         while(i < sample_length):
+            ts = self.get_ntp_timestamp()
+            timestamps.append(ts)
             end = i + fragment_size
-            chunker.add_chunk(sample[i:end])
-            result = chunker.get_next_data()
+            chunker.add_chunk(sample[i:end], ts)
+            (timestamp, result) = chunker.get_next_data()
             if(result): break
             i += fragment_size
 
         self.assertEqual(result, sample)
+        self.assertEqual(timestamps[0], timestamp)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
 
     def assert_chunker_combined_sample(self, chunker, sample):
@@ -881,15 +898,18 @@ class InstrumentDriverTestCase(MiIntTestCase):
         @param chunker: Chunker to use to do the parsing
         @param sample: raw sample
         '''
-        chunker.add_chunk(sample + sample)
+        ts = self.get_ntp_timestamp()
+        chunker.add_chunk(sample + sample, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample)
+        self.assertEqual(timestamp, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample)
+        self.assertEqual(timestamp, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
 
     def assert_chunker_sample_with_noise(self, chunker, sample):
@@ -900,33 +920,37 @@ class InstrumentDriverTestCase(MiIntTestCase):
         @param sample: raw sample
         '''
         noise = "this is a bunch of noise to add to the sample\r\n"
+        ts = self.get_ntp_timestamp()
 
         # Try a sample with noise in the front
-        chunker.add_chunk(noise + sample)
+        chunker.add_chunk(noise + sample, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample)
+        self.assertEqual(timestamp, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
 
         # Now some noise in the back
-        chunker.add_chunk(sample + noise)
+        chunker.add_chunk(sample + noise, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample)
+        self.assertEqual(timestamp, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
 
         # There should still be some noise in the buffer, make sure
         # we can still take a sample.
-        chunker.add_chunk(sample + noise)
+        chunker.add_chunk(sample + noise, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample)
+        self.assertEqual(timestamp, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
 
 
