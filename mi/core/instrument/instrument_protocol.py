@@ -675,7 +675,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         self._connection.send(cmd)
  
     ########################################################################
-    # Incomming data callback.
+    # Incomming data (for parsing) callback.
     ########################################################################            
     def got_data(self, port_agent_packet):
         """
@@ -704,7 +704,15 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                 self._got_chunk(chunk)
                 chunk = self._chunker.get_next_data()
 
-            self.publish_raw(port_agent_packet)
+    ########################################################################
+    # Incomming raw data callback.
+    ########################################################################            
+    def got_raw(self, port_agent_packet):
+        """
+        Called by the port agent client when raw data is available, such as data 
+        sent by the driver to the instrument, the instrument responses,etc.
+        """
+        self.publish_raw(port_agent_packet)
 
     def publish_raw(self, port_agent_packet):
         """

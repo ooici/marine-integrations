@@ -61,7 +61,6 @@ PORT_AGENT_FAULT = 5
 INSTRUMENT_COMMAND = 6
 HEARTBEAT = 7
 
-HEARTBEAT_TIMEOUT = 5               # Secconds  
 MAX_HEARTBEAT_INTERVAL = 20         # Max, for range checking parameter
 MAX_ALLOWED_MISSED_HEARTBEATS = 5   # Max number we can miss 
 MAX_SEND_ATTEMPTS = 15              # Max number of times we can get EAGAIN
@@ -227,13 +226,22 @@ class PortAgentClient(object):
         self.stop_event = None
         self.delim = delim
         self.send_attempts = MAX_SEND_ATTEMPTS
-        self.heartbeat = HEARTBEAT_TIMEOUT
+        """
+        DHE: Defaulting to 0.  We need a way to synchronize what
+        the port agent uses and what the client is expecting.
+        """
         
-    def init_comms(self, callback=None):
+    def init_comms(self, user_callback_data = None, user_callback_raw = None, 
+                   user_callback_error = None, heartbeat = 0):
         """
         Initialize client comms with the logger process and start a
         listener thread.
         """
+        self.user_callback_data = user_callback_data        
+        self.user_callback_raw = user_callback_raw        
+        self.user_callback_error = user_callback_error
+        self.heartbeat = heartbeat        
+
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             # This can be thrown here.
@@ -241,16 +249,18 @@ class PortAgentClient(object):
             self.sock.connect((self.host, self.port))
             self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             self.sock.setblocking(0)
-            self.user_callback = callback        
-            self.listener_thread = Listener(self.sock, self.delim, self.heartbeat, self.callback)
+            self.listener_thread = Listener(self.sock, self.delim, 
+                                            self.heartbeat, self.callback_data,
+                                            self.callback_raw, self.callback_error)
             self.listener_thread.start()
             log.info('PortAgentClient.init_comms(): connected to port agent at %s:%i.'
                            % (self.host, self.port))        
         except Exception as e:
-            log.error("init_comms(): Exception initializing comms for %s:%i: %r" 
-                      % (self.host, self.cmd_port, e), exc_info=True)
-            raise InstrumentConnectionException('Failed to connect to port agent data port at %s:%i (%s).'
-                                                % (self.host, self.cmd_port, e))
+            errorString = "init_comms(): Exception initializing comms for " +  \
+                      str(self.host) + ": " + str(self.cmd_port) + ": " + repr(e)
+            log.error(errorString, exc_info=True)
+            self.callback_error(errorString)
+            raise InstrumentConnectionException(errorString) 
         
     def stop_comms(self):
         """
@@ -271,13 +281,38 @@ class PortAgentClient(object):
         """
         self.stop_comms()
 
-    def callback(self, paPacket):
+    def callback_data(self, paPacket):
         """
         A packet has been received from the port agent.  The packet is 
         contained in a packet object.  
         """
-        paPacket.verify_checksum()
-        self.user_callback(paPacket)
+        if (self.user_callback_data):
+            paPacket.verify_checksum()
+            self.user_callback_data(paPacket)
+        else:
+            log.error("No user_callback_data defined")
+
+    def callback_raw(self, paPacket):
+        """
+        A packet has been received from the port agent.  The packet is 
+        contained in a packet object.  
+        """
+        if (self.user_callback_data):
+            paPacket.verify_checksum()
+            self.user_callback_raw(paPacket)
+        else:
+            log.error("No user_callback_data defined")
+
+    def callback_error(self, errorString = "No error string passed."):
+        """
+        A catastrophic error has occurred; call back into the instrument driver.
+        Note: thinking we might need a callback_error for each context: instrument
+        driver (write) and listener (read), unless the callback is reentrant.  
+        """
+        if (self.user_callback_error):
+            self.user_callback_error(errorString)
+        else:
+            log.error("No user_callback_data defined")
 
     def send_break(self):
         """
@@ -345,7 +380,7 @@ class Listener(threading.Thread):
     the port agent process. 
     """
     
-    def __init__(self, sock, delim, heartbeat = None, callback_parsed = None,
+    def __init__(self, sock, delim, heartbeat = 0, callback_data = None,
                  callback_raw = None, callback_error = None):
         """
         Listener thread constructor.
@@ -369,11 +404,11 @@ class Listener(threading.Thread):
         if heartbeat > 0 and heartbeat < MAX_HEARTBEAT_INTERVAL: 
             self.heartbeat = heartbeat;
         
-        def fn_callback_parsed(paPacket):
-            if callback_parsed:
-                callback_parsed(paPacket)
+        def fn_callback_data(paPacket):
+            if callback_data:
+                callback_data(paPacket)
             else:
-                log.error("No callback_parsed function has been registered")            
+                log.error("No callback_data function has been registered")            
 
         def fn_callback_raw(paPacket):
             if callback_raw:
@@ -381,22 +416,22 @@ class Listener(threading.Thread):
             else:
                 log.error("No callback_raw function has been registered")            
                             
-        def fn_callback_error():
+        def fn_callback_error(errorString = "No error string passed."):
             """
             Error callback; try our own recovery first; if this gets called
             again, we call the callback_error
             """
-            log.error("Connection error")
+            log.error("Connection error: %s" % (errorString))
             
             if callback_error:
-                callback_error()
+                callback_error(errorString)
             else:
                 log.error("No callback_raw function has been registered")            
 
         """
         Now that the callbacks have have been defined, assign them
         """                
-        self.callback_parsed = fn_callback_parsed
+        self.callback_data = fn_callback_data
         self.callback_raw = fn_callback_raw
         self.callback_error = fn_callback_error
 
@@ -408,8 +443,9 @@ class Listener(threading.Thread):
         Take corrective action here.
         """
         if self.heartbeat_missed_count <= 0:
-            log.error('Maximum allowable Port Agent heartbeats missed!')
-            self.callback_error()
+            errorString = 'Maximum allowable Port Agent heartbeats (' + str(MAX_ALLOWED_MISSED_HEARTBEATS) + ') missed!'
+            log.error(errorString)
+            self.callback_error(errorString)
         else:
             """
             Note: the threading timer here is only run once.  The cancel
@@ -434,25 +470,18 @@ class Listener(threading.Thread):
         packet_type = paPacket.get_header_type()
         
         if packet_type == DATA_FROM_INSTRUMENT:
-            # call the raw_callback
-            # call the parse_callback
             self.callback_raw(paPacket)
-            self.callback_parsed(paPacket)
+            self.callback_data(paPacket)
         elif packet_type == DATA_FROM_DRIVER:
-            # call the raw_callback and parse_callback
-            pass
+            self.callback_raw(paPacket)
         elif packet_type == PORT_AGENT_COMMAND:
-            # call the raw_callback and parse_callback
-            pass
+            self.callback_raw(paPacket)
         elif packet_type == PORT_AGENT_STATUS:
-            # call the raw_callback and parse_callback
-            pass
+            self.callback_raw(paPacket)
         elif packet_type == PORT_AGENT_FAULT:
-            # call the raw_callback and parse_callback
-            pass
+            self.callback_raw(paPacket)
         elif packet_type == INSTRUMENT_COMMAND:
-            # call the raw_callback and parse_callback
-            pass
+            self.callback_raw(paPacket)
         elif packet_type == HEARTBEAT:
             """
             Got a heartbeat; reset the timer and re-init 
@@ -506,7 +535,14 @@ class Listener(threading.Thread):
                         data_size = paPacket.get_data_size()
                         bytes_left = data_size
                     elif len(header) == 0:
-                        log.error('Zero bytes received from port_agent socket')
+                        errorString = 'Zero bytes received from port_agent socket'
+                        log.error(errorString)
+                        self.callback_error(errorString)
+                        """
+                        DHE TODO: We might not want to just stop the whole thread here:
+                        maybe go wait on a semaphore until we're told to start 
+                        receiving again.  Exiting the thread might just work too though.
+                        """
                         self._done = True
                 
                 received_data = False
@@ -530,12 +566,9 @@ class Listener(threading.Thread):
                 if e.errno == errno.EWOULDBLOCK:
                     time.sleep(.1)
                 else:
-                    error_string = 'Socket error while receiving from port agent: %r'  % (e)
-                    log.error(error_string)
-                    """
-                    Need to define a callback in the instrument_driver base class to call here: 
-                    that callback will then throw an exception.
-                    """
+                    errorString = 'Socket error while receiving from port agent: %r'  % (e)
+                    log.error(errorString)
+                    self.callback_error(errorString)
                     self._done = True
 
 
