@@ -1,8 +1,8 @@
 driver_metadata:
-  author: roger
+  author: Roger Unwin
   driver_make: seabird
   driver_model: sbe26plus
   driver_name: ooicore
   email: roger.unwin
   release_notes: none.
-  version: 0.0.1
+  version: 0.0.2

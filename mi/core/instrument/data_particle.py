@@ -16,9 +16,10 @@ import copy
 import ntplib
 import base64
 import json
+import ntplib
 
 from mi.core.common import BaseEnum
-from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException
+from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException, InstrumentParameterException
 from mi.core.log import get_logger ; log = get_logger()
 
 class CommonDataParticleType(BaseEnum):
@@ -87,7 +88,25 @@ class DataParticle(object):
             DataParticleKey.QUALITY_FLAG: quality_flag
         }
         self.raw_data = raw_data
-    
+
+    def set_internal_timestamp(self, timestamp=None, unix_time=None):
+        """
+        Set the internal timestamp
+        @param timestamp: NTP timestamp to set
+        @param unit_time: Unix time as returned from time.time()
+        @raise InstrumentParameterException if timestamp or unix_time not supplied
+        """
+        if(timestamp == None and unix_time == None):
+            raise InstrumentParameterException("timestamp or unix_time required")
+
+        if(unix_time != None):
+            timestamp = ntplib.system_to_ntp_time(unix_time)
+
+        if(not self._check_timestamp(timestamp)):
+            raise InstrumentParameterException("invalid timestamp")
+
+        self.contents[DataParticleKey.INTERNAL_TIMESTAMP] = timestamp
+
     def set_value(self, id, value):
         """
         Set a content value, restricted as necessary
@@ -146,10 +165,11 @@ class DataParticle(object):
             raise SampleException("Preferred timestamp not in particle!")
         
         # build response structure
+        values = self._build_parsed_values()
         result = self._build_base_structure()
         result[DataParticleKey.STREAM_NAME] = self.data_particle_type()
-        result[DataParticleKey.VALUES] = self._build_parsed_values()
-        
+        result[DataParticleKey.VALUES] = values
+
         # JSONify response, sorting is nice for testing
         json_result = json.dumps(result, sort_keys=True)
         
