@@ -16,9 +16,10 @@ import copy
 import ntplib
 import base64
 import json
+import ntplib
 
 from mi.core.common import BaseEnum
-from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException
+from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException, InstrumentParameterException
 from mi.core.log import get_logger ; log = get_logger()
 
 class CommonDataParticleType(BaseEnum):
@@ -87,7 +88,26 @@ class DataParticle(object):
             DataParticleKey.QUALITY_FLAG: quality_flag
         }
         self.raw_data = raw_data
-    
+
+    def set_internal_timestamp(self, timestamp=None, unix_time=None):
+        """
+        Set the internal timestamp
+        @param timestamp: NTP timestamp to set
+        @param unit_time: Unix time as returned from time.time()
+        @raise InstrumentParameterException if timestamp or unix_time not supplied
+        """
+        if(timestamp == None and unix_time == None):
+            raise InstrumentParameterException("timestamp or unix_time required")
+
+        if(unix_time != None):
+            timestamp = ntplib.system_to_ntp_time(unix_time)
+
+        # Do we want this to happen here or in down stream processes?
+        #if(not self._check_timestamp(timestamp)):
+        #    raise InstrumentParameterException("invalid timestamp")
+
+        self.contents[DataParticleKey.INTERNAL_TIMESTAMP] = timestamp
+
     def set_value(self, id, value):
         """
         Set a content value, restricted as necessary
@@ -135,21 +155,23 @@ class DataParticle(object):
            and driver timestamp
         @throws InstrumentDriverException If there is a problem with the inputs
         """
-        for time in [DataParticleKey.INTERNAL_TIMESTAMP,
-                     DataParticleKey.DRIVER_TIMESTAMP,
-                     DataParticleKey.PORT_TIMESTAMP]:
-            if  not self._check_timestamp(self.contents[time]):
-                raise SampleException("Invalid port agent timestamp in raw packet")
+        # Do we wan't downstream processes to check this?
+        #for time in [DataParticleKey.INTERNAL_TIMESTAMP,
+        #             DataParticleKey.DRIVER_TIMESTAMP,
+        #             DataParticleKey.PORT_TIMESTAMP]:
+        #    if  not self._check_timestamp(self.contents[time]):
+        #        raise SampleException("Invalid port agent timestamp in raw packet")
 
         # verify preferred timestamp exists in the structure...
         if not self._check_preferred_timestamps():
             raise SampleException("Preferred timestamp not in particle!")
         
         # build response structure
+        values = self._build_parsed_values()
         result = self._build_base_structure()
         result[DataParticleKey.STREAM_NAME] = self.data_particle_type()
-        result[DataParticleKey.VALUES] = self._build_parsed_values()
-        
+        result[DataParticleKey.VALUES] = values
+
         # JSONify response, sorting is nice for testing
         json_result = json.dumps(result, sort_keys=True)
         
@@ -218,9 +240,12 @@ class DataParticle(object):
         if self.contents[DataParticleKey.PREFERRED_TIMESTAMP] == None:
             raise SampleException("Missing preferred timestamp, %s, in particle" %
                                   self.contents[DataParticleKey.PREFERRED_TIMESTAMP])
-        if self.contents[self.contents[DataParticleKey.PREFERRED_TIMESTAMP]] == None:
-            raise SampleException("Preferred timestamp, %s, is not defined" %
-                                  self.contents[DataParticleKey.PREFERRED_TIMESTAMP])
+
+        # This should be handled downstream.  Don't want to not publish data because
+        # the port agent stopped putting out timestamps
+        #if self.contents[self.contents[DataParticleKey.PREFERRED_TIMESTAMP]] == None:
+        #    raise SampleException("Preferred timestamp, %s, is not defined" %
+        #                          self.contents[DataParticleKey.PREFERRED_TIMESTAMP])
         
         return True
 
