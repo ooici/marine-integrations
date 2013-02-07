@@ -138,14 +138,14 @@ class SeaBird26PlusMixin(DriverTestMixin):
     }
 
     _tide_sample_parameters = {
-        SBE26plusTideSampleDataParticleKey.TIMESTAMP: {TYPE: float, VALUE: 3558413454.0, REQUIRED: False },
+        SBE26plusWaveBurstDataParticleKey.TIMESTAMP: {TYPE: unicode, VALUE: u'05 Oct 2012 01:10:54', REQUIRED: False },
         SBE26plusTideSampleDataParticleKey.PRESSURE: {TYPE: float, VALUE: -159.7139 },
         SBE26plusTideSampleDataParticleKey.PRESSURE_TEMP: {TYPE: float, VALUE: -8382.61 },
         SBE26plusTideSampleDataParticleKey.TEMPERATURE: {TYPE: float, VALUE: 34.6843 },
     }
 
     _wave_sample_parameters = {
-        SBE26plusWaveBurstDataParticleKey.TIMESTAMP: {TYPE: float, VALUE: 3558413454.0 },
+        SBE26plusWaveBurstDataParticleKey.TIMESTAMP: {TYPE: unicode, VALUE: u'05 Oct 2012 01:10:54' },
         SBE26plusWaveBurstDataParticleKey.PTFREQ: {TYPE: float, VALUE: 171791.359 },
         SBE26plusWaveBurstDataParticleKey.PTRAW: {TYPE: list }
     }
@@ -418,7 +418,6 @@ class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
         self.assert_particle_published(driver, SAMPLE_STATISTICS, self.assert_particle_statistics, True)
         self.assert_particle_published(driver, SAMPLE_DEVICE_CALIBRATION, self.assert_particle_device_calibration, True)
         self.assert_particle_published(driver, SAMPLE_DEVICE_STATUS, self.assert_particle_device_status, True)
-
 
     def test_protocol_filter_capabilities(self):
         """

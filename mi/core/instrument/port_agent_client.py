@@ -96,7 +96,6 @@ class PortAgentPacket():
             self.__length = len(self.__data)
             self.__port_agent_timestamp = time.time() + NTP_DELTA
 
-
             variable_tuple = (0xa3, 0x9d, 0x7a, self.__type, self.__length + HEADER_SIZE, 0x0000, self.__port_agent_timestamp)
 
             # B = unsigned char size 1 bytes
@@ -118,9 +117,12 @@ class PortAgentPacket():
             self.__header[OFFSET_P_CHECKSUM_HIGH] = self.__checksum & 0x00ff
             self.__header[OFFSET_P_CHECKSUM_LOW] = (self.__checksum & 0xff00) >> 8
 
-        
+
     def attach_data(self, data):
         self.__data = data
+
+    def attach_timestamp(self, timestamp):
+        self.__port_agent_timestamp = timestamp
 
     def calculate_checksum(self):
         checksum = 0

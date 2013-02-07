@@ -14,7 +14,6 @@ __license__ = 'Apache 2.0'
 import re
 import time
 import string
-import ntplib
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -71,11 +70,11 @@ class ScheduledJob(BaseEnum):
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    TIDE_PARSED = 'tide_parsed'
-    WAVE_BURST = 'wave_burst_parsed'
-    DEVICE_STATUS = 'device_status_parsed'
-    DEVICE_CALIBRATION = 'device_calibration_parsed'
-    STATISTICS = 'statistics_parsed'
+    TIDE_PARSED = 'presf_tide_measurement'
+    WAVE_BURST = 'presf_wave_burst'
+    DEVICE_STATUS = 'presf_operating_status'
+    DEVICE_CALIBRATION = 'presf_calibration_coefficients'
+    STATISTICS = 'presf_wave_statistics'
 
 class InstrumentCmds(BaseEnum):
     """
@@ -257,10 +256,11 @@ class SBE26plusTideSampleDataParticle(DataParticle):
 
         try:
             # Only streaming outputs a timestamp
+            text_timestamp = None
             if(match1):
                 text_timestamp = match.group(1)
                 py_timestamp = time.strptime(text_timestamp, "%d %b %Y %H:%M:%S")
-                timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
+                self.set_internal_timestamp(unix_time=time.mktime(py_timestamp))
 
             pressure = float(match.group(2))
             pressure_temp = float(match.group(3))
@@ -270,7 +270,7 @@ class SBE26plusTideSampleDataParticle(DataParticle):
                                   self.raw_data)
 
         result = [{DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.TIMESTAMP,
-                   DataParticleKey.VALUE: timestamp},
+                   DataParticleKey.VALUE: text_timestamp},
                   {DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.PRESSURE,
                    DataParticleKey.VALUE: pressure},
                   {DataParticleKey.VALUE_ID: SBE26plusTideSampleDataParticleKey.PRESSURE_TEMP,
@@ -329,7 +329,7 @@ class SBE26plusWaveBurstDataParticle(DataParticle):
                 try:
                     text_timestamp = match.group(1)
                     py_timestamp = time.strptime(text_timestamp, "%d %b %Y %H:%M:%S")
-                    timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
+                    self.set_internal_timestamp(unix_time=time.mktime(py_timestamp))
                 except ValueError:
                     raise SampleException("ValueError while decoding floats in data: [%s]" %
                                       self.raw_data)
@@ -360,7 +360,7 @@ class SBE26plusWaveBurstDataParticle(DataParticle):
                 raise SampleException("No regex match of parsed sample data: ROW: [%s]" % line)
 
         result = [{DataParticleKey.VALUE_ID: SBE26plusWaveBurstDataParticleKey.TIMESTAMP,
-                   DataParticleKey.VALUE: timestamp},
+                   DataParticleKey.VALUE: text_timestamp},
                   {DataParticleKey.VALUE_ID: SBE26plusWaveBurstDataParticleKey.PTFREQ,
                    DataParticleKey.VALUE: ptfreq},
                   {DataParticleKey.VALUE_ID: SBE26plusWaveBurstDataParticleKey.PTRAW,
@@ -2598,17 +2598,19 @@ class Protocol(SeaBirdProtocol):
         log.debug("_parse_ts_response RETURNING RESULT=" + str(result))
         return result
 
-    def _got_chunk(self, chunk):
+    def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
+        @param: chunk - byte sequence that we want to create a particle from
+        @param: timestamp - port agent timestamp to include in the chunk
         """
-        if(self._extract_sample(SBE26plusTideSampleDataParticle, TS_REGEX_MATCHER, chunk)): return
-        if(self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk)): return
-        if(self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk)): return
-        if(self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk)): return
-        if(self._extract_sample(SBE26plusDeviceCalibrationDataParticle, DC_REGEX_MATCHER, chunk)): return
-        if(self._extract_sample(SBE26plusDeviceStatusDataParticle, DS_REGEX_MATCHER, chunk)): return
+        if(self._extract_sample(SBE26plusTideSampleDataParticle, TS_REGEX_MATCHER, chunk, timestamp)): return
+        if(self._extract_sample(SBE26plusTideSampleDataParticle, TIDE_REGEX_MATCHER, chunk, timestamp)): return
+        if(self._extract_sample(SBE26plusWaveBurstDataParticle, WAVE_REGEX_MATCHER, chunk, timestamp)): return
+        if(self._extract_sample(SBE26plusStatisticsDataParticle, STATS_REGEX_MATCHER, chunk, timestamp)): return
+        if(self._extract_sample(SBE26plusDeviceCalibrationDataParticle, DC_REGEX_MATCHER, chunk, timestamp)): return
+        if(self._extract_sample(SBE26plusDeviceStatusDataParticle, DS_REGEX_MATCHER, chunk, timestamp)): return
 
     ########################################################################
     # Static helpers to format set commands.
