@@ -1361,7 +1361,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                         self._extract_sample(SBE37DataParticle, SAMPLE_PATTERN_MATCHER,
                                              line)
 
-    def _got_chunk(self, chunk):
+    def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes. 
@@ -1370,14 +1370,10 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         #if self.get_current_state() == SBE37ProtocolState.AUTOSAMPLE:
         #    self._extract_sample(SBE37DataParticle, SAMPLE_PATTERN_MATCHER, chunk)
         
-      
-        result = self._extract_sample(SBE37DataParticle, SAMPLE_PATTERN_MATCHER, chunk)
-        
-        result = self._extract_sample(SBE37DeviceStatusParticle, STATUS_DATA_REGEX_MATCHER, chunk)
-      
-        result = self._extract_sample(SBE37DeviceCalibrationParticle, CALIBRATION_DATA_REGEX_MATCHER, chunk)
+        result = self._extract_sample(SBE37DataParticle, SAMPLE_PATTERN_MATCHER, chunk, timestamp)
+        result = self._extract_sample(SBE37DeviceStatusParticle, STATUS_DATA_REGEX_MATCHER, chunk, timestamp)
+        result = self._extract_sample(SBE37DeviceCalibrationParticle, CALIBRATION_DATA_REGEX_MATCHER, chunk, timestamp)
      
-        
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with SBE37 parameters.

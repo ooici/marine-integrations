@@ -448,16 +448,12 @@ class SBEUnitTestCase(SeaBirdUnitTest, SBEMixin):
         # Create and initialize the instrument driver with a mock port agent
         driver = SBE37Driver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
-
         self.assert_raw_particle_published(driver, True)
 
         # Start validating data particles
         self.assert_particle_published(driver, SAMPLE, self.assert_particle_sample, True)
-      
         self.assert_particle_published(driver, SAMPLE_DC, self.assert_particle_device_calibration, True)
         self.assert_particle_published(driver, SAMPLE_DS, self.assert_particle_device_status, True)
-
-      
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #

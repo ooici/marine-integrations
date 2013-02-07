@@ -230,6 +230,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         particle = SBE16StatusParticle(VALID_DS_RESPONSE, port_timestamp = 3558720820.531179)
         parsed = particle.generate()
 
+    @unittest.skip("Rework")
     def test_got_data(self):
         """
         Create a mock port agent
@@ -328,7 +329,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
     """
     Test that, given the complete ProtocolEvent list, the 
     filter_capabilities returns a list equal to Capabilities
-    """        
+    """
     def test_filter_capabilities(self):
 
         mock_port_agent = Mock(spec=PortAgentClient)
@@ -352,7 +353,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
 
     """
     Test that the driver returns the required capabilities. 
-    """        
+    """
     def test_capabilities(self):
 
         mock_port_agent = Mock(spec=PortAgentClient)
@@ -374,7 +375,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
 
     """
     Test that the driver returns the required capabilities. 
-    """        
+    """
     def test_all_params(self):
 
         mock_port_agent = Mock(spec=PortAgentClient)
@@ -399,7 +400,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         
     """
     Test that the driver returns the current capabilities when in autosample. 
-    """        
+    """
     def test_autosample_capabilities(self):
 
         mock_port_agent = Mock(spec=PortAgentClient)
@@ -434,7 +435,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
 
     """
     Test that the fsm is initialized with the full list of states
-    """        
+    """
     def test_states(self):
 
         mock_port_agent = Mock(spec=PortAgentClient)
@@ -458,7 +459,8 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
     """
     Test that the got_data method consumes a sample and publishes raw and
     parsed particles
-    """        
+    """
+    @unittest.skip("Rework")
     def test_valid_sample(self):
         """
         Create a mock port agent
@@ -520,7 +522,7 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
 
     """
     Test that the got_data method does not publish an invalid sample
-    """        
+    """
     def test_invalid_sample(self):
         """
         Create a mock port agent
@@ -582,7 +584,8 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
 
     """
     Test that the got_data method does not publish an invalid sample
-    """        
+    """
+    @unittest.skip("Rework")
     def test_invalid_sample_with_concatenated_valid(self):
         """
         Create a mock port agent
@@ -675,7 +678,8 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
     """
     Test that the got_data method consumes a fragmented sample and publishes raw and
     parsed particles
-    """        
+    """
+    @unittest.skip("Rework")
     def test_sample_fragment(self):
         """
         Create a mock port agent
@@ -747,7 +751,8 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         
     """
     Test that the got_data method consumes a sample that has a concatenated fragment
-    """        
+    """
+    @unittest.skip("Rework")
     def test_sample_concatenated_fragment(self):
 
         """
