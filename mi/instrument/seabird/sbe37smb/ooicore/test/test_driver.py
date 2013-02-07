@@ -939,7 +939,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
 
         # Poll for a sample and confirm result.
         reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
-        self.assert_particle_sample(reply[1])
+        self.assertIsNotNone(reply)
 
         # Assert for a known command, invalid state.
         with self.assertRaises(InstrumentStateException):
@@ -1179,11 +1179,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         self.assertEquals(result[SBE37Parameter.SAMPLENUM], 2) # init param
         self.assertEquals(result[SBE37Parameter.INTERVAL], 1) # default param
         self.assertEquals(result[SBE37Parameter.SYNCWAIT], 10) # manual param
-        
-        
-        
-        
-        
+
     def test_polled_particle_generation(self):
         """
         Test that we can generate particles with commands
@@ -1193,10 +1189,6 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         self.assert_particle_generation(SBE37ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.PARSED, self.assert_particle_sample)
         self.assert_particle_generation(SBE37ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_device_status)
         self.assert_particle_generation(SBE37ProtocolEvent.ACQUIRE_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_device_calibration)
-
-
-
-
 
 #self._dvr_proc = self.driver_process
 #self._pagent = self.port_agent

@@ -102,8 +102,9 @@ class DataParticle(object):
         if(unix_time != None):
             timestamp = ntplib.system_to_ntp_time(unix_time)
 
-        if(not self._check_timestamp(timestamp)):
-            raise InstrumentParameterException("invalid timestamp")
+        # Do we want this to happen here or in down stream processes?
+        #if(not self._check_timestamp(timestamp)):
+        #    raise InstrumentParameterException("invalid timestamp")
 
         self.contents[DataParticleKey.INTERNAL_TIMESTAMP] = timestamp
 
@@ -154,11 +155,12 @@ class DataParticle(object):
            and driver timestamp
         @throws InstrumentDriverException If there is a problem with the inputs
         """
-        for time in [DataParticleKey.INTERNAL_TIMESTAMP,
-                     DataParticleKey.DRIVER_TIMESTAMP,
-                     DataParticleKey.PORT_TIMESTAMP]:
-            if  not self._check_timestamp(self.contents[time]):
-                raise SampleException("Invalid port agent timestamp in raw packet")
+        # Do we wan't downstream processes to check this?
+        #for time in [DataParticleKey.INTERNAL_TIMESTAMP,
+        #             DataParticleKey.DRIVER_TIMESTAMP,
+        #             DataParticleKey.PORT_TIMESTAMP]:
+        #    if  not self._check_timestamp(self.contents[time]):
+        #        raise SampleException("Invalid port agent timestamp in raw packet")
 
         # verify preferred timestamp exists in the structure...
         if not self._check_preferred_timestamps():
@@ -238,9 +240,12 @@ class DataParticle(object):
         if self.contents[DataParticleKey.PREFERRED_TIMESTAMP] == None:
             raise SampleException("Missing preferred timestamp, %s, in particle" %
                                   self.contents[DataParticleKey.PREFERRED_TIMESTAMP])
-        if self.contents[self.contents[DataParticleKey.PREFERRED_TIMESTAMP]] == None:
-            raise SampleException("Preferred timestamp, %s, is not defined" %
-                                  self.contents[DataParticleKey.PREFERRED_TIMESTAMP])
+
+        # This should be handled downstream.  Don't want to not publish data because
+        # the port agent stopped putting out timestamps
+        #if self.contents[self.contents[DataParticleKey.PREFERRED_TIMESTAMP]] == None:
+        #    raise SampleException("Preferred timestamp, %s, is not defined" %
+        #                          self.contents[DataParticleKey.PREFERRED_TIMESTAMP])
         
         return True
 

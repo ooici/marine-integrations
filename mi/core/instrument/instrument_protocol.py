@@ -686,6 +686,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         timestamp = port_agent_packet.get_timestamp()
 
         log.trace("Got Data: %s" % data)
+        log.debug("Add Port Agent Timestamp: %s" % timestamp)
 
         if data_length > 0:
             if self.get_current_state() == DriverProtocolState.DIRECT_ACCESS:

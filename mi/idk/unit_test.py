@@ -290,7 +290,8 @@ class DriverTestMixin(MiUnitTest):
         @param stream_name: version 1 data particle
         @param require_instrument_timestamp: should we verify the instrument timestamp exists
         """
-        sample_dict = self.convert_data_particle_to_dict(data_particle, )
+        sample_dict = self.convert_data_particle_to_dict(data_particle)
+        log.debug("SAMPLEDICT: %s" % sample_dict)
 
         self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME], stream_name)
         self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID], DataParticleValue.JSON_DATA)

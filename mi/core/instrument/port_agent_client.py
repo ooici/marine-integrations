@@ -44,7 +44,8 @@ SYNC_BYTE1_INDEX = 2
 TYPE_INDEX = 3
 LENGTH_INDEX = 4 # packet size (including header)
 CHECKSUM_INDEX = 5
-TIMESTAMP_INDEX = 6
+TIMESTAMP_UPPER_INDEX = 6
+TIMESTAMP_LOWER_INDEX = 6
 
 SYSTEM_EPOCH = datetime.date(*time.gmtime(0)[0:3])
 NTP_EPOCH = datetime.date(1900, 1, 1)
@@ -66,7 +67,6 @@ class PortAgentPacket():
         self.__recv_checksum  = None
         self.__checksum = None
 
-        
     def unpack_header(self, header):
         self.__header = header
         #@TODO may want to switch from big endian to network order '!' instead of '>' note network order is big endian.
@@ -74,13 +74,14 @@ class PortAgentPacket():
         # H = unsigned short size 2 bytes
         # L = unsigned long size 4 bytes
         # d = float size8 bytes
-        variable_tuple = struct.unpack_from('>BBBBHHd', header)
+        variable_tuple = struct.unpack_from('>BBBBHHII', header)
         # change offset to index.
         self.__type = variable_tuple[TYPE_INDEX]
         self.__length = int(variable_tuple[LENGTH_INDEX]) - HEADER_SIZE
         self.__recv_checksum  = int(variable_tuple[CHECKSUM_INDEX])
-        self.__port_agent_timestamp = variable_tuple[TIMESTAMP_INDEX]
-
+        upper = variable_tuple[TIMESTAMP_UPPER_INDEX]
+        lower = variable_tuple[TIMESTAMP_LOWER_INDEX]
+        self.__port_agent_timestamp = float("%s.%s" % (upper, lower))
 
     def pack_header(self):
         """

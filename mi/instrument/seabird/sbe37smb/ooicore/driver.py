@@ -1286,17 +1286,20 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         if prompt.strip() != SBE37Prompt.COMMAND:
             raise InstrumentProtocolException('ts command not recognized: %s', response)
-        
-        sample = None
-        for line in response.split(NEWLINE):
-            sample = self._extract_sample(SBE37DataParticle, SAMPLE_PATTERN_MATCHER, line, True)
-            if sample:
-                break
-        
-        if not sample:
-            raise SampleException('Response did not contain sample: %s' % repr(response))
 
-        return sample
+        # don't know why we are returning a particle here
+        #sample = None
+        #for line in response.split(NEWLINE):
+        #    sample = self._extract_sample(SBE37DataParticle, SAMPLE_PATTERN_MATCHER, line, None, False)
+        #    if sample:
+        #        break
+        #
+        #if not sample:
+        #    raise SampleException('Response did not contain sample: %s' % repr(response))
+        #
+        # return sample
+
+        return response
 
     def _parse_test_response(self, response, prompt):
         """
@@ -1322,44 +1325,6 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                 success = True
 
         return (success, response)
-
-    def now_in_instrument_protocol_got_data(self, paPacket):
-        """
-        Callback for receiving new data from the device.
-        """
-        paLength = paPacket.get_data_size()
-        paData = paPacket.get_data()
-
-        if self.get_current_state() == SBE37ProtocolState.DIRECT_ACCESS:
-            # direct access mode
-            if paLength > 0:
-                #mi_logger.debug("SBE37Protocol._got_data(): <" + data + ">")
-                # check for echoed commands from instrument (TODO: this should only be done for telnet?)
-                if len(self._sent_cmds) > 0:
-                    # there are sent commands that need to have there echoes filtered out
-                    oldest_sent_cmd = self._sent_cmds[0]
-                    if string.count(paData, oldest_sent_cmd) > 0:
-                        # found a command echo, so remove it from data and delete the command form list
-                        paData = string.replace(paData, oldest_sent_cmd, "", 1)
-                        self._sent_cmds.pop(0)
-                if len(paData) > 0 and self._driver_event:
-                    self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, paData)
-                    # TODO: what about logging this as an event?
-            return
-
-        if paLength > 0:
-            # Call the superclass to update line and prompt buffers.
-            self.add_to_buffer(paData)
-
-            # If in streaming mode, process the buffer for samples to publish.
-            cur_state = self.get_current_state()
-            if cur_state == SBE37ProtocolState.AUTOSAMPLE:
-                if NEWLINE in self._linebuf:
-                    lines = self._linebuf.split(NEWLINE)
-                    self._linebuf = lines[-1]
-                    for line in lines:
-                        self._extract_sample(SBE37DataParticle, SAMPLE_PATTERN_MATCHER,
-                                             line)
 
     def _got_chunk(self, chunk, timestamp):
         """
