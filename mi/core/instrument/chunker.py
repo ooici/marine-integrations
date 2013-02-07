@@ -11,7 +11,7 @@
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
-from ooi.logging import log
+from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.exceptions import SampleException
 
@@ -49,7 +49,7 @@ class Chunker(object):
         """ To be filled out by the subclass """
         self.buffer = None
         
-    def add_chunk(self, raw_data):
+    def add_chunk(self, raw_data, timestamp):
         """
         Adds a chunk of data to the end of the buffer, includes the new indices
         in the raw_chunk_list. This base class method handles strings and lists.
@@ -57,8 +57,11 @@ class Chunker(object):
         
         @param raw_data The bunch of raw data as a list (or something that can be
             treated as a list...like a string)
+        @param timestamp The time (in NTP4 float format) that the data was
+            collected at the port agent
         """
         assert isinstance(self.buffer, str) or isinstance(self.buffer, list)
+        assert isinstance(timestamp, float)
         # Append raw
         start_index = len(self.buffer)
         
@@ -73,39 +76,40 @@ class Chunker(object):
         else:
             self.buffer.append(raw_data)
             
-        self.raw_chunk_list.append((start_index, end_index))
+        self.raw_chunk_list.append((start_index, end_index, timestamp))
 
         # find data
-        result = self._generate_data_lists(start_index=last_data_index)
+        result = self._generate_data_lists(timestamp,
+                                           start_index=last_data_index)
         assert result != None
         
         # rebase onto existing buffer
-        for (s, e) in result['data_chunk_list']:
-            self.data_chunk_list.append((s, e))
+        for (s, e, t) in result['data_chunk_list']:
+            self.data_chunk_list.append((s, e, t))
         
             # remove first fragment part from non-data array if we completed a fragment
-            for (nds, nde) in self.nondata_chunk_list:
+            for (nds, nde, ndt) in self.nondata_chunk_list:
                 if (nds == s):
-                    self.nondata_chunk_list.remove((nds, nde))
+                    self.nondata_chunk_list.remove((nds, nde, ndt))
         
         # splice non-data blocks in, combining with
         # other blocks as needed
         if result['non_data_chunk_list'] != []:
             new_nondata_list = []
-            (first_new_s, first_new_e) = result['non_data_chunk_list'][0]
+            (first_new_s, first_new_e, first_new_t) = result['non_data_chunk_list'][0]
             
             if self.nondata_chunk_list == []:
                 self.nondata_chunk_list = result['non_data_chunk_list']
                 log.debug("Added chunk, data_chunk_list: %s, nondata_chunk_list: %s",
                       self.data_chunk_list, self.nondata_chunk_list)
                 return
-            for (s, e) in self.nondata_chunk_list:
+            for (s, e, t) in self.nondata_chunk_list:
                 if e >= first_new_s:
-                    new_nondata_list.append((s, first_new_e))
+                    new_nondata_list.append((s, first_new_e, t))
                     result['non_data_chunk_list'].pop(0) # already used it
                     break
                 if e < first_new_s:
-                    new_nondata_list.append((s, e))
+                    new_nondata_list.append((s, e, t))
             # all done, merging, so add the rest of what is left
             new_nondata_list.extend(result['non_data_chunk_list'])
             
@@ -113,11 +117,14 @@ class Chunker(object):
             log.debug("Added chunk, data_chunk_list: %s, nondata_chunk_list: %s",
                       self.data_chunk_list, self.nondata_chunk_list)
          
-    def _generate_data_lists(self, start_index=0):
+    def _generate_data_lists(self, timestamp, start_index=0):
         """
         From some starting place in the raw data buffer, go through and
         find the blocks of data and non-data in the list.
         
+        @param timestamp The timestamp to use if an empty non_cata_chunk list
+            is encountered. Essentially the timestamp to use for a fragment or
+            other non-data chunk that is being entered for the first time.
         @param start_index The beginning index to start generating lists from.
             Default is the beginning of the buffer
         @retval A dict with keys "data_chunk_list" and "non_data_chunk_list"
@@ -135,11 +142,15 @@ class Chunker(object):
 
         # rebase to buffer coordinates
         return_list['data_chunk_list'] = [(s+start_index, e+start_index) for (s, e) in result]
+        return_list['data_chunk_list'] = self.add_timestamps(return_list['data_chunk_list'])
+        # Look up the timestamps from the old list - could be made more efficient
         
         if result == []:
             return_list['non_data_chunk_list'].append((start_index,
-                                                       len(self.buffer)))
-        previous_end = start_index        
+                                                       len(self.buffer),
+                                                       timestamp))
+        previous_end = start_index
+        log.debug("*** result: %s", result)
         for (s, e) in result:
             # rebase to buffer as long as we are walking through
             s += start_index
@@ -151,8 +162,51 @@ class Chunker(object):
                 return_list['non_data_chunk_list'].append((previous_end, s))
                 previous_end = e
 
+        return_list['non_data_chunk_list'] = self.add_timestamps(return_list['non_data_chunk_list'])
         log.debug("Generated return list: %s", return_list)
         return return_list    
+    
+    def add_timestamps(self, start_end_list):
+        """
+        Add timestamps to a list of (start, end) tuples that are normalized to
+        coincide with the raw block list indices.
+        
+        @param start_end_list The list of (start, end) tuples such as:
+            [(15, 20), (35, 37)]
+        @retval The timestamps associated with these based on the values in
+            the raw block list. For example, if the raw block list is
+            [(0, 14, 123.456), (15, 20, 234.567), (21, 37, 345.784)], then the
+            result will be [(15, 20, 234.567), (35, 37, 345.784)]
+        """
+        result_list = []
+    
+        log.debug("*** Add_timestamp() starts with arg: %s, raw: %s",
+                  start_end_list, self.raw_chunk_list)
+                
+        for item in start_end_list:
+            # simple case if it already has a timestamp
+            if (len(item) == 3):
+                result_list.append(item)
+                break
+            elif (len(item) == 2):
+                (s, e) = (item[0], item[1])
+            else:
+                raise SampleException("Invalid pair encountered!")
+                
+            log.debug("*** Next item: (%s, %s)", s, e)
+            for (raw_s, raw_e, raw_t) in self.raw_chunk_list:
+                log.debug("*** raw_s: %s, raw_e: %s", raw_s, raw_e)
+                if (s >= raw_e):
+                    log.debug("*** continuing...")
+                    continue
+                    log.debug("*** continued...")
+                else:
+                    log.debug("*** appending (%s, %s, %s)", s, e, raw_t)
+                    result_list.append((s, e, raw_t))
+                    break
+                    
+        log.debug("*** returning result_list: %s", result_list)
+        return result_list
     
     @staticmethod
     def overlaps(data_list):
@@ -183,15 +237,17 @@ class Chunker(object):
         
         @param clean If set to false, do not clear the buffer when fetching the
             data, but simply return the data block and make no further changes.
-        @return A chunk of data
+        @return A tuple of (timestamp, data_chunk) where timestamp is in NTP4
+            float format and data chunk is a (start, end) tuple. If no data,
+            returns (None, None)
         """
         if self.data_chunk_list == []:
-            return None
+            return (None, None)
 
         if clean:    
-            (next_start, next_end) = self.data_chunk_list.pop(0)
+            (next_start, next_end, timestamp) = self.data_chunk_list.pop(0)
         else:
-            (next_start, next_end) = self.data_chunk_list[0]
+            (next_start, next_end, timestamp) = self.data_chunk_list[0]
         
         next_block = self.buffer[next_start:next_end]
 
@@ -204,16 +260,18 @@ class Chunker(object):
             self.nondata_chunk_list = self._clean_chunk_list(self.nondata_chunk_list,
                                                              next_end)
                 
-        return next_block
+        return (timestamp, next_block)
     
     def _clean_chunk_list(self, list, end_index):
         """
         Cleans up the given chunk list based on the start and end indexes of
         that are being removed. The idea is to keep the given list of indices
         in sync with other lists that are having elements removed from them.
-        For example, if the list looks like [(3, 5), (8, 12), (20, 25)]
+        For example, if the list looks like
+        [(3, 5, time), (8, 12, time), (20, 25, time)]
         and the end index is 10, the resulting list will be:
-        [(0, 2), (10, 15)] as items up to 10 have been removed (only [10:25] remain)
+        [(0, 2, time), (10, 15, time)]
+        as items up to 10 have been removed (only [10:25] remain)
         and popped off the front so they are now [0:2] and [10:15].
         
         @param list A list of (start, end) tuples of indices that needs to be
@@ -222,12 +280,12 @@ class Chunker(object):
         @retval The new list after it has been cleaned
         """
         return_list = []
-        for (s, e) in list:
+        for (s, e, time) in list:
             if s >= end_index:
-                return_list.append((s-end_index, e-end_index))
+                return_list.append((s-end_index, e-end_index, time))
             else:
                 if e > end_index:
-                    return_list.append((0,e-end_index))
+                    return_list.append((0,e-end_index, time))
         return return_list
     
     def _clean_data_list(self, index):
@@ -243,20 +301,20 @@ class Chunker(object):
         log.debug("Cleaning data chunk, data_chunk_list: %s, nondata_chunk_list: %s",
                   self.data_chunk_list, self.nondata_chunk_list)
 
-        for (s, e) in self.data_chunk_list:
+        for (s, e, t) in self.data_chunk_list:
             if (e <= index):
-                self.data_chunk_list.remove((s, e))
+                self.data_chunk_list.remove((s, e, t))
                 
             if (e > index):
-                self.data_chunk_list.remove((s, e))
+                self.data_chunk_list.remove((s, e, t))
                 # add remaining to non data
-                for (nds, nde) in self.nondata_chunk_list:
+                for (nds, nde, ndt) in self.nondata_chunk_list:
                     if (nde < s):
-                        new_nondata_list.append((nds, nde))
+                        new_nondata_list.append((nds, nde, ndt))
                     elif (nde == s):
-                        new_nondata_list.append((nds, e))
+                        new_nondata_list.append((nds, e, ndt))
                     elif (nde > s):
-                        new_nondata_list.append((nds, nde))
+                        new_nondata_list.append((nds, nde, ndt))
         
         self.nondata_chunk_list = new_nondata_list
     
@@ -278,15 +336,17 @@ class Chunker(object):
         this data.
         
         @param clean Remove the buffer contents before and including this data
-        @return A chunk of data, None if no data
+        @return A tuple of (timestamp, data_chunk) where timestamp is in NTP4
+            float format and data chunk is a (start, end) tuple,
+            (None, None) if no data
         """
         if self.nondata_chunk_list == []:
-            return None
+            return (None, None)
 
         if clean:    
-            (next_start, next_end) = self.nondata_chunk_list.pop(0)
+            (next_start, next_end, next_time) = self.nondata_chunk_list.pop(0)
         else:
-            (next_start, next_end) = self.nondata_chunk_list[0]
+            (next_start, next_end, next_time) = self.nondata_chunk_list[0]
         
         next_block = self.buffer[next_start:next_end]
 
@@ -299,7 +359,7 @@ class Chunker(object):
             self.nondata_chunk_list = self._clean_chunk_list(self.nondata_chunk_list,
                                                              next_end)
                         
-        return next_block
+        return (next_time, next_block)
     
     def get_next_raw(self, clean=True):
         """
@@ -308,15 +368,17 @@ class Chunker(object):
         this data.
 
         @param clean Remove the buffer contents before and including this data        
-        @return A chunk of data, None if empty list
+        @return A tuple of (timestamp, data_chunk) where timestamp is in NTP4
+            float format and data chunk is a (start, end) tuple,
+            (None, None) if empty list
         """
         if self.raw_chunk_list == []:
-            return None
+            return (None, None)
 
         if clean:    
-            (next_start, next_end) = self.raw_chunk_list.pop(0)
+            (next_start, next_end, next_time) = self.raw_chunk_list.pop(0)
         else:
-            (next_start, next_end) = self.raw_chunk_list[0]
+            (next_start, next_end, next_time) = self.raw_chunk_list[0]
         
         next_block = self.buffer[next_start:next_end]
 
@@ -328,7 +390,7 @@ class Chunker(object):
             self.nondata_chunk_list = self._clean_chunk_list(self.nondata_chunk_list,
                                                              next_end)
 
-        return next_block
+        return (next_time, next_block)
     
 class StringChunker(Chunker):
     """
