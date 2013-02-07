@@ -12,6 +12,7 @@ from pyon.core.bootstrap import CFG
 import re
 import os
 import time
+import ntplib
 import unittest
 import datetime
 from sets import Set
@@ -28,6 +29,9 @@ from mi.core.log import get_logger ; log = get_logger()
 
 import gevent
 import json
+import ntplib
+import time
+
 from mock import Mock
 from mi.core.unit_test import MiIntTestCase
 from mi.core.unit_test import MiUnitTest
@@ -38,8 +42,6 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from ion.agents.port.port_agent_process import PortAgentProcessType
 from interface.objects import AgentCapability
 from interface.objects import CapabilityType
-
-from mi.core.log import get_logger ; log = get_logger()
 
 from ion.agents.instrument.driver_process import DriverProcess, DriverProcessType
 
@@ -281,19 +283,34 @@ class DriverTestMixin(MiUnitTest):
         return result
 
 
-    def assert_data_particle_header(self, data_particle, stream_name):
+    def assert_data_particle_header(self, data_particle, stream_name, require_instrument_timestamp=False):
         """
         Verify a data particle header is formatted properly
         @param data_particle: version 1 data particle
+        @param stream_name: version 1 data particle
+        @param require_instrument_timestamp: should we verify the instrument timestamp exists
         """
         sample_dict = self.convert_data_particle_to_dict(data_particle)
+        log.debug("SAMPLEDICT: %s" % sample_dict)
 
         self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME], stream_name)
         self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID], DataParticleValue.JSON_DATA)
         self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
-        self.assertTrue(isinstance(sample_dict[DataParticleKey.VALUES], list))
-        self.assertTrue(isinstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float))
+        self.assertIsInstance(sample_dict[DataParticleKey.VALUES], list)
+
         self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+        self.assertIsNotNone(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP))
+        self.assertIsInstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float)
+
+        # It is highly unlikely that we should have a particle without a port agent timestamp,
+        # at least that's the current assumption.
+        self.assertIsNotNone(sample_dict.get(DataParticleKey.PORT_TIMESTAMP))
+        self.assertIsInstance(sample_dict.get(DataParticleKey.PORT_TIMESTAMP), float)
+
+        if(require_instrument_timestamp):
+            self.assertIsNotNone(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP))
+            self.assertIsInstance(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP), float)
 
     def assert_data_particle_parameters(self, data_particle, param_dict, verify_values = False):
         """
@@ -601,6 +618,17 @@ class InstrumentDriverTestCase(MiIntTestCase):
         """
         log.debug("InstrumentDriverTestCase tearDown")
 
+    def get_ntp_timestamp(self, unix_time=None):
+        """
+        Get an ntp timestamp using the passed in unix_time
+        or the current time if not passed
+        @param unix_time: unix timestamp to create
+        @return: ntp timestamp
+        """
+        if(unix_time == None):
+            unix_time = time.time()
+
+        return ntplib.system_to_ntp_time(time.time())
 
     def clear_events(self):
         """
@@ -828,13 +856,14 @@ class InstrumentDriverTestCase(MiIntTestCase):
         @param chunker: Chunker to use to do the parsing
         @param sample: raw sample
         '''
-        chunker.add_chunk(sample)
-        result = chunker.get_next_data()
+        ts = self.get_ntp_timestamp()
+        chunker.add_chunk(sample, ts)
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample)
+        self.assertEqual(ts, timestamp)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
-
 
     def assert_chunker_fragmented_sample(self, chunker, sample, fragment_size = 1):
         '''
@@ -846,18 +875,22 @@ class InstrumentDriverTestCase(MiIntTestCase):
         '''
         sample_length = len(sample)
         self.assertGreater(fragment_size, 0)
+        timestamps = []
 
         i = 0
         while(i < sample_length):
+            ts = self.get_ntp_timestamp()
+            timestamps.append(ts)
             end = i + fragment_size
-            chunker.add_chunk(sample[i:end])
-            result = chunker.get_next_data()
+            chunker.add_chunk(sample[i:end], ts)
+            (timestamp, result) = chunker.get_next_data()
             if(result): break
             i += fragment_size
 
         self.assertEqual(result, sample)
+        self.assertEqual(timestamps[0], timestamp)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
 
     def assert_chunker_combined_sample(self, chunker, sample):
@@ -866,15 +899,18 @@ class InstrumentDriverTestCase(MiIntTestCase):
         @param chunker: Chunker to use to do the parsing
         @param sample: raw sample
         '''
-        chunker.add_chunk(sample + sample)
+        ts = self.get_ntp_timestamp()
+        chunker.add_chunk(sample + sample, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample)
+        self.assertEqual(timestamp, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample)
+        self.assertEqual(timestamp, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
 
     def assert_chunker_sample_with_noise(self, chunker, sample):
@@ -885,33 +921,37 @@ class InstrumentDriverTestCase(MiIntTestCase):
         @param sample: raw sample
         '''
         noise = "this is a bunch of noise to add to the sample\r\n"
+        ts = self.get_ntp_timestamp()
 
         # Try a sample with noise in the front
-        chunker.add_chunk(noise + sample)
+        chunker.add_chunk(noise + sample, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample)
+        self.assertEqual(timestamp, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
 
         # Now some noise in the back
-        chunker.add_chunk(sample + noise)
+        chunker.add_chunk(sample + noise, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample)
+        self.assertEqual(timestamp, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
 
         # There should still be some noise in the buffer, make sure
         # we can still take a sample.
-        chunker.add_chunk(sample + noise)
+        chunker.add_chunk(sample + noise, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample)
+        self.assertEqual(timestamp, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
 
 
@@ -1068,11 +1108,13 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         @param particle_assert_method: assert method to validate the data particle.
         @param verify_values: Should we validate values?
         """
+        ts = ntplib.system_to_ntp_time(time.time())
 
         log.debug("Sample to publish: %s" % sample_data)
         # Create and populate the port agent packet.
         port_agent_packet = PortAgentPacket()
         port_agent_packet.attach_data(sample_data)
+        port_agent_packet.attach_timestamp(ts)
         port_agent_packet.pack_header()
 
         self.clear_data_particle_queue()

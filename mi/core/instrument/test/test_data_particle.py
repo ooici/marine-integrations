@@ -13,11 +13,13 @@ __license__ = 'Apache 2.0'
 
 import json
 import base64
+import time
+import ntplib
 from nose.plugins.attrib import attr
 from mi.core.unit_test import MiUnitTestCase
 
 from mi.core.log import get_logger ; log = get_logger()
-from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException
+from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException, InstrumentParameterException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 from mi.core.instrument.data_particle import RawDataParticle, CommonDataParticleType
 from mi.core.instrument.port_agent_client import PortAgentPacket
@@ -172,8 +174,33 @@ class TestUnitDataParticle(MiUnitTestCase):
             preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
             internal_timestamp=self.sample_internal_timestamp)
 
-        self.assertRaises(SampleException, test_particle.generate)
-    
+        # Not raising an exception here because it should be handled
+        # down stream
+        #self.assertRaises(SampleException, test_particle.generate)
+
+    def test_internal_timestamp(self):
+        """
+        Test the set_internal_timestamp call
+        """
+        test_particle = self.TestDataParticle(self.sample_raw_data,
+            preferred_timestamp=DataParticleKey.PORT_TIMESTAMP)
+
+        fetched_time = test_particle.get_value(DataParticleKey.INTERNAL_TIMESTAMP)
+        self.assertIsNone(fetched_time)
+
+        test_particle.set_internal_timestamp(self.sample_internal_timestamp)
+        fetched_time = test_particle.get_value(DataParticleKey.INTERNAL_TIMESTAMP)
+        self.assertEquals(self.sample_internal_timestamp, fetched_time)
+
+        now = time.time()
+        ntptime = ntplib.system_to_ntp_time(now)
+
+        test_particle.set_internal_timestamp(unix_time=now)
+        fetched_time = test_particle.get_value(DataParticleKey.INTERNAL_TIMESTAMP)
+        self.assertEquals(ntptime, fetched_time)
+
+        self.assertRaises(InstrumentParameterException, test_particle.set_internal_timestamp)
+
     def test_get_set_value(self):
         """
         Test setting values after creation

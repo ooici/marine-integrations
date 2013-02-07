@@ -12,6 +12,7 @@ __license__ = 'Apache 2.0'
 
 import logging
 import time
+import ntplib
 import datetime
 from mock import Mock
 from nose.plugins.attrib import attr
@@ -75,9 +76,11 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
 
     def test_extraction(self):
         sample_line = "SATPAR0229,10.01,2206748544,234\r\n"
+        ntptime = ntplib.system_to_ntp_time(time.time())
         result = self.protocol._extract_sample(SatlanticPARDataParticle,
                                                SAMPLE_REGEX,
                                                sample_line,
+                                               ntptime,
                                                publish=False)
 
         log.debug("R: %s" % result)

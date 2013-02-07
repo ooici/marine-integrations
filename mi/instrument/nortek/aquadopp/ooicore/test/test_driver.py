@@ -306,14 +306,18 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         @param chunker: Chunker to use to do the parsing
         @param sample: raw sample
         '''
+        timestamps = []
         for f in fragments:
-            chunker.add_chunk(f)
-            result = chunker.get_next_data()
+            ts = self.get_ntp_timestamp()
+            timestamps.append(ts)
+            chunker.add_chunk(f, ts)
+            (timestamp, result) = chunker.get_next_data()
             if (result): break
 
         self.assertEqual(result, sample)
+        self.assertEqual(timestamps[0], timestamp)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
 
     def assert_chunker_combined_sample(self, chunker, sample1, sample2, sample3):
@@ -322,18 +326,22 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         @param chunker: Chunker to use to do the parsing
         @param sample: raw sample
         '''
-        chunker.add_chunk(sample1 + sample2 + sample3)
+        ts = self.get_ntp_timestamp()
+        chunker.add_chunk(sample1 + sample2 + sample3, ts)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample1)
+        self.assertEqual(ts, timestamp)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample2)
+        self.assertEqual(ts, timestamp)
 
-        result = chunker.get_next_data()
+        (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, sample3)
+        self.assertEqual(ts, timestamp)
 
-        result = chunker.get_next_data()
+        (timestamp,result) = chunker.get_next_data()
         self.assertEqual(result, None)
         
     def test_instrumment_prompts_for_duplicates(self):
