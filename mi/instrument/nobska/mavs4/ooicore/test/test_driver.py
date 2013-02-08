@@ -39,11 +39,8 @@ import datetime
 # 3rd party imports
 from nose.plugins.attrib import attr
 
-from prototype.sci_data.stream_defs import ctd_stream_definition
-
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
-from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
@@ -64,6 +61,7 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
+from mi.idk.unit_test import DriverStartupConfigKey
 
 from mi.core.tcp_client import TcpClient
 
@@ -74,6 +72,22 @@ from interface.objects import AgentCommand
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+
+## Initialize the test configuration
+InstrumentDriverTestCase.initialize(
+    driver_module='mi.instrument.nobska.mavs4.ooicore.driver',
+    driver_class="mavs4InstrumentDriver",
+
+    instrument_agent_resource_id = 'nobska_mavs4_ooicore',
+    instrument_agent_name = 'nobska_mavs4_ooicore_agent',
+    instrument_agent_packet_config = DataParticleType(),
+    
+    driver_startup_config = {
+        DriverStartupConfigKey.PARAMETERS: {
+            InstrumentParameters.VELOCITY_FRAME: '3',
+        },
+    }
+)
 
 # 'will echo' command sequence to be sent from DA telnet server
 # see RFCs 854 & 857
@@ -91,84 +105,58 @@ DA = ParameterTestConfigKey.DIRECT_ACCESS
 VALUE = ParameterTestConfigKey.VALUE
 REQUIRED = ParameterTestConfigKey.REQUIRED
 DEFAULT = ParameterTestConfigKey.DEFAULT
-
-# Used to validate param config retrieved from driver.
-parameter_types = {
-    InstrumentParameters.SYS_CLOCK : str,
-    InstrumentParameters.NOTE1 : str,
-    InstrumentParameters.NOTE2 : str,
-    InstrumentParameters.NOTE3 : str,
-    InstrumentParameters.VELOCITY_FRAME : int,
-    InstrumentParameters.MONITOR : str,
-    InstrumentParameters.LOG_DISPLAY_TIME : str,
-    InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : str,
-    InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : str,
-    InstrumentParameters.QUERY_MODE : str,
-    InstrumentParameters.FREQUENCY : float,
-    InstrumentParameters.MEASUREMENTS_PER_SAMPLE : int,
-    InstrumentParameters.SAMPLE_PERIOD : float,
-    InstrumentParameters.SAMPLES_PER_BURST : int,
-    InstrumentParameters.BURST_INTERVAL_DAYS : int,
-    InstrumentParameters.BURST_INTERVAL_HOURS : int,
-    InstrumentParameters.BURST_INTERVAL_MINUTES : int,
-    InstrumentParameters.BURST_INTERVAL_SECONDS : int,
-    InstrumentParameters.SI_CONVERSION : float,
-    InstrumentParameters.WARM_UP_INTERVAL : str,
-    InstrumentParameters.THREE_AXIS_COMPASS : str,
-    InstrumentParameters.THERMISTOR : str,
-    InstrumentParameters.PRESSURE : str,
-    InstrumentParameters.AUXILIARY_1 : str,
-    InstrumentParameters.AUXILIARY_2 : str,
-    InstrumentParameters.AUXILIARY_3 : str,
-    InstrumentParameters.SENSOR_ORIENTATION : str,
-    InstrumentParameters.SERIAL_NUMBER : str,
-}
-
-parameter_list = [
-    #InstrumentParameters.SYS_CLOCK,
-    #InstrumentParameters.NOTE1,
-    #InstrumentParameters.NOTE2,
-    #InstrumentParameters.NOTE3,
-    #InstrumentParameters.VELOCITY_FRAME,
-    #InstrumentParameters.MONITOR,
-    #InstrumentParameters.LOG_DISPLAY_TIME,
-    #InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
-    #InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES,
-    #InstrumentParameters.QUERY_MODE,
-    #InstrumentParameters.FREQUENCY,
-    #InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
-    #InstrumentParameters.SAMPLE_PERIOD,
-    #InstrumentParameters.SAMPLES_PER_BURST,
-    #InstrumentParameters.BURST_INTERVAL_DAYS,
-    #InstrumentParameters.BURST_INTERVAL_HOURS,
-    #InstrumentParameters.BURST_INTERVAL_MINUTES,
-    #InstrumentParameters.BURST_INTERVAL_SECONDS,
-    #InstrumentParameters.SI_CONVERSION,
-    #InstrumentParameters.WARM_UP_INTERVAL,
-    #InstrumentParameters.THREE_AXIS_COMPASS,
-    #InstrumentParameters.THERMISTOR,
-    #InstrumentParameters.PRESSURE,
-    #InstrumentParameters.AUXILIARY_1,
-    #InstrumentParameters.AUXILIARY_2,
-    #InstrumentParameters.AUXILIARY_3,
-    InstrumentParameters.SENSOR_ORIENTATION,
-]
     
-## Initialize the test configuration
-InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.nobska.mavs4.ooicore.driver',
-    driver_class="mavs4InstrumentDriver",
-
-    instrument_agent_resource_id = 'nobska_mavs4_ooicore',
-    instrument_agent_name = 'nobska_mavs4_ooicore_agent',
-    instrument_agent_packet_config = DataParticleType()
-)
-
 class Mavs4Mixin(DriverTestMixin):
     '''
     Mixin class used for storing data particle constants and common data assertion methods.
     '''
     
+    ###
+    #  Parameter and Type Definitions
+    ###
+    _driver_parameters = {
+        InstrumentParameters.SYS_CLOCK : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.NOTE1 : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.NOTE2 : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.NOTE3 : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_FRAME : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '3', VALUE: '3'},
+        InstrumentParameters.MONITOR : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.LOG_DISPLAY_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.QUERY_MODE : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.FREQUENCY : {TYPE: float, READONLY: False, DA: False, STARTUP: False, DEFAULT: 1.0},
+        InstrumentParameters.MEASUREMENTS_PER_SAMPLE : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 1},
+        InstrumentParameters.SAMPLE_PERIOD : {TYPE: float, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.SAMPLES_PER_BURST : {TYPE: int, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.BURST_INTERVAL_DAYS : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
+        InstrumentParameters.BURST_INTERVAL_HOURS : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
+        InstrumentParameters.BURST_INTERVAL_MINUTES : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
+        InstrumentParameters.BURST_INTERVAL_SECONDS : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
+        InstrumentParameters.SI_CONVERSION : {TYPE: float, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.WARM_UP_INTERVAL : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'fast'},
+        InstrumentParameters.THREE_AXIS_COMPASS : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'y'},
+        InstrumentParameters.THERMISTOR : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'y'},
+        InstrumentParameters.PRESSURE : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'n'},
+        InstrumentParameters.AUXILIARY_1 : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'n'},
+        InstrumentParameters.AUXILIARY_2 : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'n'},
+        InstrumentParameters.AUXILIARY_3 : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'n'},
+        InstrumentParameters.SENSOR_ORIENTATION : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: '2'},
+        InstrumentParameters.SERIAL_NUMBER : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_A : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_B : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_C : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_D : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.COMPASS_OFFSET_0 : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.COMPASS_OFFSET_1 : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.COMPASS_OFFSET_2 : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.COMPASS_SCALE_FACTORS_0 : {TYPE: float, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.COMPASS_SCALE_FACTORS_1 : {TYPE: float, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.COMPASS_SCALE_FACTORS_2 : {TYPE: float, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.TILT_PITCH_OFFSET : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.TILT_ROLL_OFFSET : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+    }
+
     _status_sample_parameters = {
         Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_A: {TYPE: unicode, VALUE: u'' },
         Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_B: {TYPE: unicode, VALUE: u'' },
@@ -313,12 +301,6 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
             else:
                 self.assertEqual(val, correct_params[key],
                                  '%s: %s != %s' %(key, val, correct_params[key]))
-
-    def assertParamList(self, pl):
-        """
-        Verify all device parameters.
-        """
-        self.assertEqual(pl, TestInstrumentParameters.list())
     
     @unittest.skip("override & skip while in development")
     def test_driver_process(self):
@@ -364,29 +346,27 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         self.put_driver_in_command_mode()
                 
                
+    def test_parameters(self):
+        """
+        Test driver parameters and verify their type.  Startup parameters also verify the parameter
+        value.  This test confirms that parameters are being read/converted properly and that
+        the startup has been applied.
+        """
+        self.assert_initialize_driver()
+        reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
+        self.assert_parameters(reply, self._driver_parameters, True)
+
+
     def test_get_set(self):
         """
         Test device parameter access.
         """
         self.put_driver_in_command_mode()
 
-        # get the list of device parameters
         reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
-        #self.assertParamDictionariesEqual(reply, parameter_types, True)
 
-        """
-        # Get all device parameters. Confirm all expected keys are retrieved
-        # and have correct type.
-        reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
-        self.assertParamDict(reply, True)
-
-        log.debug("test_get_set: parameters:" )
-        for parameter in parameter_list:
-            log.debug("%s = %s" %(parameter, reply[parameter]))
-        
         # Remember original configuration.
         orig_config = reply
-        """
         
         # parameter values to test.
         paramter_values = {InstrumentParameters.SYS_CLOCK : TIME_TO_SET,
