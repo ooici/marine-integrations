@@ -31,6 +31,11 @@ class TestPortAgentClient(MiUnitTest):
         self.ipaddr = "67.58.49.194"
         self.port  = 4000
     
+    def resetTestVars(self):
+        self.rawCallbackCalled = False
+        self.dataCallbackCalled = False
+        self.errorCallbackCalled = False
+            
     def myGotData(self, paPacket):
         if paPacket.is_valid():
             validity = "valid"
@@ -38,6 +43,136 @@ class TestPortAgentClient(MiUnitTest):
             validity = "invalid"
             
         print "Got " + validity + " port agent packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
+        
+    def myGotData(self, paPacket):
+        if paPacket.is_valid():
+            validity = "valid"
+        else:
+            validity = "invalid"
+            
+        print "Got " + validity + " port agent data packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
+
+    def myGotRaw(self, paPacket):
+        if paPacket.is_valid():
+            validity = "valid"
+        else:
+            validity = "invalid"
+            
+        print "Got " + validity + " port agent raw packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
+
+    def myGotError(self, errorString = "No error string passed in."):
+        print "Got error: " +  errorString + "\r\n"
+                       
+    def test_handle_packet(self):
+
+        """
+        Test that a default PortAgentPacket creates a DATA_FROM_DRIVER packet,
+        and that the handle_packet method invokes the raw callback
+        """
+        paListener = Listener(None, None, 0, self.myGotData, self.myGotRaw, self.myGotError)
+        
+        test_data = "This is a great big test"
+        self.resetTestVars()
+        paPacket = PortAgentPacket()         
+        paPacket.attach_data(test_data)
+        paPacket.pack_header()
+        paPacket.verify_checksum()
+
+        paListener.handle_packet(paPacket)
+        
+        self.assertTrue(rawCallbackCalled)
+
+        """
+        Test DATA_FROM_INSTRUMENT; handle_packet should invoke data and raw
+        callbacks.
+        """
+        self.resetTestVars()
+        paPacket = PortAgentPacket(PortAgentPacket.DATA_FROM_INSTRUMENT)         
+        paPacket.attach_data(test_data)
+        paPacket.pack_header()
+        paPacket.verify_checksum()
+
+        paListener.handle_packet(paPacket)
+        
+        self.assertTrue(rawCallbackCalled)
+        self.assertTrue(dataCallbackCalled)
+        self.assertFalse(errorCallbackCalled)
+
+        """
+        Test PORT_AGENT_COMMAND; handle_packet should invoke raw callback.
+        """
+        self.resetTestVars()
+        paPacket = PortAgentPacket(PortAgentPacket.PORT_AGENT_COMMAND)         
+        paPacket.attach_data(test_data)
+        paPacket.pack_header()
+        paPacket.verify_checksum()
+
+        paListener.handle_packet(paPacket)
+        
+        self.assertTrue(rawCallbackCalled)
+        self.assertFalse(dataCallbackCalled)
+        self.assertFalse(errorCallbackCalled)
+        
+        """
+        Test PORT_AGENT_STATUS; handle_packet should invoke raw callback.
+        """
+        self.resetTestVars()
+        paPacket = PortAgentPacket(PortAgentPacket.PORT_AGENT_STATUS)         
+        paPacket.attach_data(test_data)
+        paPacket.pack_header()
+        paPacket.verify_checksum()
+
+        paListener.handle_packet(paPacket)
+        
+        self.assertTrue(rawCallbackCalled)
+        self.assertFalse(dataCallbackCalled)
+        self.assertFalse(errorCallbackCalled)
+        
+        """
+        Test PORT_AGENT_FAULT; handle_packet should invoke raw callback.
+        """
+        self.resetTestVars()
+        paPacket = PortAgentPacket(PortAgentPacket.PORT_AGENT_FAULT)         
+        paPacket.attach_data(test_data)
+        paPacket.pack_header()
+        paPacket.verify_checksum()
+
+        paListener.handle_packet(paPacket)
+        
+        self.assertTrue(rawCallbackCalled)
+        self.assertFalse(dataCallbackCalled)
+        self.assertFalse(errorCallbackCalled)
+        
+        """
+        Test INSTRUMENT_COMMAND; handle_packet should invoke raw callback.
+        """
+        self.resetTestVars()
+        paPacket = PortAgentPacket(PortAgentPacket.INSTRUMENT_COMMAND)         
+        paPacket.attach_data(test_data)
+        paPacket.pack_header()
+        paPacket.verify_checksum()
+
+        paListener.handle_packet(paPacket)
+        
+        self.assertTrue(rawCallbackCalled)
+        self.assertFalse(dataCallbackCalled)
+        self.assertFalse(errorCallbackCalled)
+        
+        """
+        Test HEARTBEAT; handle_packet should not invoke any callback.
+        """
+        self.resetTestVars()
+        paPacket = PortAgentPacket(PortAgentPacket.HEARTBEAT)         
+        paPacket.attach_data(test_data)
+        paPacket.pack_header()
+        paPacket.verify_checksum()
+
+        paListener.handle_packet(paPacket)
+        
+        self.assertFalse(rawCallbackCalled)
+        self.assertFalse(dataCallbackCalled)
+        self.assertFalse(errorCallbackCalled)
+        
         
     @unittest.skip('not finished yet')
     def test_port_agent_client_receive(self):
