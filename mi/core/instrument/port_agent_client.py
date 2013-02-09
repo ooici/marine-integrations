@@ -47,8 +47,6 @@ NTP_EPOCH = datetime.date(1900, 1, 1)
 NTP_DELTA = (SYSTEM_EPOCH - NTP_EPOCH).days * 24 * 3600
 
 
-MAX_HEARTBEAT_INTERVAL = 20         # Max, for range checking parameter
-MAX_ALLOWED_MISSED_HEARTBEATS = 5   # Max number we can miss 
 MAX_SEND_ATTEMPTS = 15              # Max number of times we can get EAGAIN
 
 class PortAgentPacket():
@@ -246,7 +244,8 @@ class PortAgentClient(object):
         """
         
     def init_comms(self, user_callback_data = None, user_callback_raw = None, 
-                   user_callback_error = None, heartbeat = 0):
+                   user_callback_error = None, heartbeat = 0, 
+                   max_missed_heartbeats = None):
         """
         Initialize client comms with the logger process and start a
         listener thread.
@@ -254,7 +253,8 @@ class PortAgentClient(object):
         self.user_callback_data = user_callback_data        
         self.user_callback_raw = user_callback_raw        
         self.user_callback_error = user_callback_error
-        self.heartbeat = heartbeat        
+        #self.heartbeat = heartbeat
+        #self.max_missed_heartbeats = max_missed_heartbeats        
 
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -264,7 +264,7 @@ class PortAgentClient(object):
             self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             self.sock.setblocking(0)
             self.listener_thread = Listener(self.sock, self.delim, 
-                                            self.heartbeat, self.callback_data,
+                                            heartbeat, max_missed_heartbeats, self.callback_data,
                                             self.callback_raw, self.callback_error)
             self.listener_thread.start()
             log.info('PortAgentClient.init_comms(): connected to port agent at %s:%i.'
@@ -389,13 +389,19 @@ class PortAgentClient(object):
 
                 
 class Listener(threading.Thread):
+
+    MAX_HEARTBEAT_INTERVAL = 20 # Max, for range checking parameter
+    MAX_MISSED_HEARTBEATS = 5   # Max number we can miss 
+
     """
     A listener thread to monitor the client socket data incoming from
     the port agent process. 
     """
     
-    def __init__(self, sock, delim = None, heartbeat = 0, callback_data = None,
-                 callback_raw = None, callback_error = None):
+    def __init__(self, sock, delim = None, heartbeat = 0, 
+                 max_missed_heartbeats = None, 
+                 callback_data = None, callback_raw = None, 
+                 callback_error = None):
         """
         Listener thread constructor.
         @param sock The socket to listen on.
@@ -410,13 +416,13 @@ class Listener(threading.Thread):
         self.delim = delim
         self.heartbeat = 0
         self.heartbeat_timer = None
-        self.heartbeat_missed_count = MAX_ALLOWED_MISSED_HEARTBEATS
-        """
-        Make sure the heartbeat is reasonable, then initialize the class 
-        member heartbeat
-        """
-        if heartbeat > 0 and heartbeat < MAX_HEARTBEAT_INTERVAL: 
-            self.heartbeat = heartbeat;
+        if (max_missed_heartbeats == None):
+            self.max_missed_heartbeats = self.MAX_MISSED_HEARTBEATS
+        else:
+            self.max_missed_heartbeats = max_missed_heartbeats
+        self.heartbeat_missed_count = self.max_missed_heartbeats
+        
+        self.set_heartbeat(heartbeat)
         
         def fn_callback_data(paPacket):
             if callback_data:
@@ -457,21 +463,38 @@ class Listener(threading.Thread):
         Take corrective action here.
         """
         if self.heartbeat_missed_count <= 0:
-            errorString = 'Maximum allowable Port Agent heartbeats (' + str(MAX_ALLOWED_MISSED_HEARTBEATS) + ') missed!'
+            errorString = 'Maximum allowable Port Agent heartbeats (' + str(self.max_missed_heartbeats) + ') missed!'
             log.error(errorString)
             self.callback_error(errorString)
         else:
-            """
-            Note: the threading timer here is only run once.  The cancel
-            only applies if the function has yet run.  You can't reset
-            it and start it again, you have to instantiate an new one.
-            I don't like this; we need to implement a tread timer that 
-            stays up and can be reset and started many times.
-            """
-            self.heartbeat_timer = threading.Timer(self.heartbeat, 
-                                                   self.heartbeat_timeout)
-            self.heartbeat_timer.start()
-            
+            self.start_heartbeat_timer()
+
+    def set_heartbeat(self, heartbeat):
+        """
+        Make sure the heartbeat is reasonable, then initialize the class 
+        member heartbeat
+        """
+        if heartbeat > 0 and heartbeat < self.MAX_HEARTBEAT_INTERVAL: 
+            self.heartbeat = heartbeat;
+            return True
+        else:
+            log.error('heartbeat out of range: %d' % (heartbeat))
+            return False
+        
+    def start_heartbeat_timer(self):
+        """
+        Note: the threading timer here is only run once.  The cancel
+        only applies if the function has yet run.  You can't reset
+        it and start it again, you have to instantiate a new one.
+        I don't like this; we need to implement a tread timer that 
+        stays up and can be reset and started many times.
+        """
+        if self.heartbeat_timer:
+            self.heartbeat_timer.cancel()
+
+        self.heartbeat_timer = threading.Timer(self.heartbeat, 
+                                            self.heartbeat_timeout)
+        self.heartbeat_timer.start()
         
     def done(self):
         """
@@ -500,19 +523,10 @@ class Listener(threading.Thread):
             """
             Got a heartbeat; reset the timer and re-init 
             heartbeat_missed_count.
-            Note: the threading timer here is only run once.  The cancel
-            only applies if the function has yet run.  You can't reset
-            it and start it again, you have to instantiate an new one.
-            I don't like this; we need to implement a tread timer that 
-            stays up and can be reset and started many times.
             """
-            if self.heartbeat_timer:
-                self.heartbeat_timer.cancel()
-                self.heartbeat_timer = threading.Timer(self.heartbeat, 
-                                                    self.heartbeat_timeout)
-                self.heartbeat_timer.start()
+            self.start_heartbeat_timer()
                 
-            self.heartbeat_missed_count = MAX_ALLOWED_MISSED_HEARTBEATS
+            self.heartbeat_missed_count = self.max_missed_heartbeats
             
                 
     def run(self):
@@ -532,9 +546,8 @@ class Listener(threading.Thread):
         """
         log.info('Logger client listener started.')
         if self.heartbeat:
-            self.heartbeat_timer = threading.Timer(self.heartbeat, 
-                                                   self.heartbeat_timeout)
-            self.heartbeat_timer.start()
+            self.start_heartbeat_timer()
+
         while not self._done:
             try:
                 received_header = False

@@ -10,6 +10,10 @@
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
+# Ensure the test class is monkey patched for gevent
+from gevent import monkey; monkey.patch_all()
+import gevent
+
 import logging
 import unittest
 from mi.core.unit_test import MiUnitTest
@@ -19,12 +23,12 @@ import datetime
 import array
 from nose.plugins.attrib import attr
 from mock import Mock
-from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacket
+from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacket, Listener
 
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
 
-@unittest.skip('BROKEN - Useful in past, likely in future, but not just now')
+#@unittest.skip('BROKEN - Useful in past, likely in future, but not just now')
 @attr('UNIT', group='mi')
 class TestPortAgentClient(MiUnitTest):
     def setUp(self):
@@ -37,14 +41,7 @@ class TestPortAgentClient(MiUnitTest):
         self.errorCallbackCalled = False
             
     def myGotData(self, paPacket):
-        if paPacket.is_valid():
-            validity = "valid"
-        else:
-            validity = "invalid"
-            
-        print "Got " + validity + " port agent packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
-        
-    def myGotData(self, paPacket):
+        self.dataCallbackCalled = True
         if paPacket.is_valid():
             validity = "valid"
         else:
@@ -53,6 +50,7 @@ class TestPortAgentClient(MiUnitTest):
         print "Got " + validity + " port agent data packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
 
     def myGotRaw(self, paPacket):
+        self.rawCallbackCalled = True
         if paPacket.is_valid():
             validity = "valid"
         else:
@@ -61,6 +59,7 @@ class TestPortAgentClient(MiUnitTest):
         print "Got " + validity + " port agent raw packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
 
     def myGotError(self, errorString = "No error string passed in."):
+        self.errorCallbackCalled = True
         print "Got error: " +  errorString + "\r\n"
                        
     def test_handle_packet(self):
@@ -69,7 +68,7 @@ class TestPortAgentClient(MiUnitTest):
         Test that a default PortAgentPacket creates a DATA_FROM_DRIVER packet,
         and that the handle_packet method invokes the raw callback
         """
-        paListener = Listener(None, None, 0, self.myGotData, self.myGotRaw, self.myGotError)
+        paListener = Listener(None, None, 0, 5, self.myGotData, self.myGotRaw, self.myGotError)
         
         test_data = "This is a great big test"
         self.resetTestVars()
@@ -80,7 +79,7 @@ class TestPortAgentClient(MiUnitTest):
 
         paListener.handle_packet(paPacket)
         
-        self.assertTrue(rawCallbackCalled)
+        self.assertTrue(self.rawCallbackCalled)
 
         """
         Test DATA_FROM_INSTRUMENT; handle_packet should invoke data and raw
@@ -94,9 +93,9 @@ class TestPortAgentClient(MiUnitTest):
 
         paListener.handle_packet(paPacket)
         
-        self.assertTrue(rawCallbackCalled)
-        self.assertTrue(dataCallbackCalled)
-        self.assertFalse(errorCallbackCalled)
+        self.assertTrue(self.rawCallbackCalled)
+        self.assertTrue(self.dataCallbackCalled)
+        self.assertFalse(self.errorCallbackCalled)
 
         """
         Test PORT_AGENT_COMMAND; handle_packet should invoke raw callback.
@@ -109,9 +108,9 @@ class TestPortAgentClient(MiUnitTest):
 
         paListener.handle_packet(paPacket)
         
-        self.assertTrue(rawCallbackCalled)
-        self.assertFalse(dataCallbackCalled)
-        self.assertFalse(errorCallbackCalled)
+        self.assertTrue(self.rawCallbackCalled)
+        self.assertFalse(self.dataCallbackCalled)
+        self.assertFalse(self.errorCallbackCalled)
         
         """
         Test PORT_AGENT_STATUS; handle_packet should invoke raw callback.
@@ -124,9 +123,9 @@ class TestPortAgentClient(MiUnitTest):
 
         paListener.handle_packet(paPacket)
         
-        self.assertTrue(rawCallbackCalled)
-        self.assertFalse(dataCallbackCalled)
-        self.assertFalse(errorCallbackCalled)
+        self.assertTrue(self.rawCallbackCalled)
+        self.assertFalse(self.dataCallbackCalled)
+        self.assertFalse(self.errorCallbackCalled)
         
         """
         Test PORT_AGENT_FAULT; handle_packet should invoke raw callback.
@@ -139,9 +138,9 @@ class TestPortAgentClient(MiUnitTest):
 
         paListener.handle_packet(paPacket)
         
-        self.assertTrue(rawCallbackCalled)
-        self.assertFalse(dataCallbackCalled)
-        self.assertFalse(errorCallbackCalled)
+        self.assertTrue(self.rawCallbackCalled)
+        self.assertFalse(self.dataCallbackCalled)
+        self.assertFalse(self.errorCallbackCalled)
         
         """
         Test INSTRUMENT_COMMAND; handle_packet should invoke raw callback.
@@ -154,9 +153,9 @@ class TestPortAgentClient(MiUnitTest):
 
         paListener.handle_packet(paPacket)
         
-        self.assertTrue(rawCallbackCalled)
-        self.assertFalse(dataCallbackCalled)
-        self.assertFalse(errorCallbackCalled)
+        self.assertTrue(self.rawCallbackCalled)
+        self.assertFalse(self.dataCallbackCalled)
+        self.assertFalse(self.errorCallbackCalled)
         
         """
         Test HEARTBEAT; handle_packet should not invoke any callback.
@@ -169,9 +168,31 @@ class TestPortAgentClient(MiUnitTest):
 
         paListener.handle_packet(paPacket)
         
-        self.assertFalse(rawCallbackCalled)
-        self.assertFalse(dataCallbackCalled)
-        self.assertFalse(errorCallbackCalled)
+        self.assertFalse(self.rawCallbackCalled)
+        self.assertFalse(self.dataCallbackCalled)
+        self.assertFalse(self.errorCallbackCalled)
+        
+    def test_heartbeat_timeout(self):
+        """
+        Initialize the Listener with a heartbeat value, then
+        start the heartbeat.  Wait long enough for the heartbeat
+        to timeout MAX_MISSED_HEARTBEATS times, and then assert
+        that the error_callback was called.
+        """
+        
+        self.resetTestVars()
+        test_heartbeat = 1
+        test_max_missed_heartbeats = 5
+        paListener = Listener(None, None, test_heartbeat, test_max_missed_heartbeats,
+                              self.myGotData, self.myGotRaw, self.myGotError)
+        
+        paListener.start_heartbeat_timer()
+        
+        gevent.sleep((test_max_missed_heartbeats * test_heartbeat) + 4)
+        
+        self.assertFalse(self.rawCallbackCalled)
+        self.assertFalse(self.dataCallbackCalled)
+        self.assertTrue(self.errorCallbackCalled)
         
         
     @unittest.skip('not finished yet')
