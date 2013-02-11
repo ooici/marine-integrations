@@ -1,5 +1,5 @@
 comm:
-  command_port: 9001 
+  command_port: 9001
   data_port: 9002
   device_baud: 9600
   device_data_bits: 8

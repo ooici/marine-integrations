@@ -33,11 +33,6 @@ from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 
-from distutils.log import warn as printf
-from json import dumps
-from pprint import pprint
-
-
 # newline.
 NEWLINE = '\n'
 
@@ -81,9 +76,6 @@ POWERING_DOWN_REGEX_MATCHER = re.compile(POWERING_DOWN_REGEX)
 
 ERR_REGEX = r'ERR(.*?\n)*?>'
 ERR_REGEX_MATCHER = re.compile(ERR_REGEX)
-
-
-
 
 ENSEMBLE_HEADER_ID = '7F7F'
 FIXED_LEADER_ID = '0000'
@@ -350,11 +342,13 @@ class ADCPT_PS0DataParticle(DataParticle):
         data_stream = self.raw_data
         m = re.search(PS0_REGEX,data_stream)
         if m is not None:
+            # don't put the '>' in the data particle
             value = m.group()[:-1]
         else:
             value = None
         result = [{DataParticleKey.VALUE_ID: ADCPT_PS0DataParticleKey.PS0_DATA,
                    DataParticleKey.VALUE: value}]
+        return result  
 
 class ADCPT_PS3DataParticleKey(BaseEnum):
     PS3_DATA = "ps3_data"
@@ -367,11 +361,13 @@ class ADCPT_PS3DataParticle(DataParticle):
         data_stream = self.raw_data
         m = re.search(PS3_REGEX,data_stream)
         if m is not None:
+            # don't put the '>' in the data particle
             value = m.group()[:-1]
         else:
             value = None
         result = [{DataParticleKey.VALUE_ID: ADCPT_PS3DataParticleKey.PS3_DATA,
                    DataParticleKey.VALUE: value}]
+        return result  
 
 class ADCPT_FDDataParticleKey(BaseEnum):
     FD_DATA = "fd_data"
@@ -384,11 +380,13 @@ class ADCPT_FDDataParticle(DataParticle):
         data_stream = self.raw_data
         m = re.search(FD_REGEX,data_stream)
         if m is not None:
+            # don't put the '>' in the data particle
             value = m.group()[:-1]
         else:
             value = None
         result = [{DataParticleKey.VALUE_ID: ADCPT_FDDataParticleKey.FD_DATA,
                    DataParticleKey.VALUE: value}]
+        return result  
 
 class ADCPT_PT200DataParticleKey(BaseEnum):
     PT200_DATA = "pt200_data"
@@ -401,11 +399,13 @@ class ADCPT_PT200DataParticle(DataParticle):
         data_stream = self.raw_data
         m = re.search(PT200_REGEX,data_stream)
         if m is not None:
+            # don't put the '>' in the data particle
             value = m.group()[:-1]
         else:
             value = None
-        result = [{DataParticleKey.VALUE_ID: ADCPT_PT200DataParticleKey.FD_DATA,
+        result = [{DataParticleKey.VALUE_ID: ADCPT_PT200DataParticleKey.PT200_DATA,
                    DataParticleKey.VALUE: value}]
+        return result  
 
 class ADCPT_CalibrationDataParticleKey(BaseEnum):
     CALIBRATION_DATA = "calibration_data"
@@ -416,13 +416,15 @@ class ADCPT_CalibrationDataParticle(DataParticle):
     def _build_parsed_values(self):
         result = []
         data_stream = self.raw_data
-        m = re.search(CALIBRATION_REGEX,data_stream)
+        m = re.search(CALIBRATION_DATA_REGEX,data_stream)
         if m is not None:
+            # don't put the '>' in the data particle
             value = m.group()[:-1]
         else:
             value = None
         result = [{DataParticleKey.VALUE_ID: ADCPT_CalibrationDataParticleKey.CALIBRATION_DATA,
                    DataParticleKey.VALUE: value}]
+        return result  
 
 class ADCPT_EnsembleDataParticleKey(BaseEnum):
     NUM_BYTES_IN_ENSEMBLE = "Ensemble bytes"
@@ -1329,7 +1331,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         Chunker sieve method to help the chunker identify chunks.
         @returns a list of chunks identified, if any. The chunks are all the same type.
         """
-#        print "sieve_function: raw_data is ",raw_data
 
         sieve_matchers = [ENSEMBLE_REGEX_MATCHER,
                           CALIBRATION_DATA_REGEX_MATCHER,
@@ -1362,6 +1363,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                         else:
                             log.debug("sieve_function didn't get enough data")
                     numIDs -= 1
+                
             elif matcher == BREAK_SUCCESS_REGEX:
                 ### This should not be done in the sieve. Steve F. suggets using command
                 ### responses where possible, and monitoring _linebuf() if no command is
@@ -1638,8 +1640,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
             
         local_dict = self._param_dict.get_config()
-#        log.debug("&&&&&&&&&&&&& _build_param_dict: _param_dict: %s" % local_dict)
-#        log.debug("^^^^^^^^^^^^^  at same time the adcpt_cache_dict is %s" % adcpt_cache_dict)
          
     def _update_params(self, *args, **kwargs):
         """
@@ -1647,7 +1647,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         to the adcpt; this causes the chunker to extract last data and put in adcpt_cache_dict.
         Then calling _build_param_dict() causes the new data to be updated in param dict.
         """
-#        print "!!!!!!!!!!!!!!!!!!!! Got to update_params"
         # Get old param dict config.
         old_config = self._param_dict.get_config()
 
@@ -1671,16 +1670,35 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _string_to_string(v):
         return v
 
-    def _got_chunk(self, chunk):
+    def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
-        if(self._extract_sample(ADCPT_EnsembleDataParticle, ENSEMBLE_REGEX_MATCHER, chunk)):
-            log.debug("_got_chunk = Passed good")
-        else:
-            log.debug("_got_chunk = Failed")
+        if(self._extract_sample(ADCPT_EnsembleDataParticle, ENSEMBLE_REGEX_MATCHER, chunk, timestamp)):
+            log.debug("successful extract_sample for ENSEMBLE")
+            return
 
+        if(self._extract_sample(ADCPT_CalibrationDataParticle, CALIBRATION_DATA_REGEX_MATCHER, chunk, timestamp)):
+            log.debug("successful extract_sample for CALIBRATION")
+            return
+
+        if(self._extract_sample(ADCPT_PS0DataParticle, PS0_REGEX_MATCHER, chunk, timestamp)):
+            log.debug("successful extract_sample for PS0")
+            return
+
+        if(self._extract_sample(ADCPT_PS3DataParticle, PS3_REGEX_MATCHER, chunk, timestamp)):
+            log.debug("successful extract_sample for PS3")
+            return
+
+        if(self._extract_sample(ADCPT_FDDataParticle, FD_REGEX_MATCHER, chunk, timestamp)):
+            log.debug("successful extract_sample for FD")
+            return
+
+        if(self._extract_sample(ADCPT_PT200DataParticle, PT200_REGEX_MATCHER, chunk, timestamp)):
+            log.debug("successful extract_sample for PT200")
+            return
+         
     def _filter_capabilities(self, events):
         """
         Return a list of currently available capabilities.
@@ -1925,7 +1943,6 @@ class Protocol(CommandResponseInstrumentProtocol):
             # generate an event for go-to-deployment
             # next_state = ProtocolState.AUTOSAMPLE
         """
-#$$$$$$$$$$$$$$$$$$$$$
         next_state = None
         result = None
         # Retrieve required parameter.
@@ -1952,7 +1969,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                 log.debug("**********************RESULT************* = " + str(result))
 
         return (next_state, result)
-#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
     def _handler_command_self_deploy(self, *args, **kwargs):
         log.debug("^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_self_deploy")

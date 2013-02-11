@@ -148,7 +148,8 @@ CALIBRATION_RAW_DATA = \
 "        ?                           ?     ?                           ?" + NEWLINE + NEWLINE +\
 "                             ?        " + NEWLINE +\
 "                      Null   ? 33272 ?" + NEWLINE +\
-"                             ?       ?" + NEWLINE + ">"
+"                             ?       ?" + NEWLINE +\
+">"
 
 PS0_RAW_DATA = \
 "Instrument S/N:  18593" + NEWLINE +\
@@ -317,6 +318,36 @@ VALUE = ParameterTestConfigKey.VALUE
 REQUIRED = ParameterTestConfigKey.REQUIRED
 DEFAULT = ParameterTestConfigKey.DEFAULT
 
+
+
+ #################################### RULES ####################################
+#                                                                             #
+# Common capabilities in the base class                                       #
+#                                                                             #
+# Instrument specific stuff in the derived class                              #
+#                                                                             #
+# Generator spits out either stubs or comments describing test this here,     #
+# test that there.                                                            #
+#                                                                             #
+# Qualification tests are driven through the instrument_agent                 #
+#                                                                             #
+###############################################################################
+
+###
+#   Driver constant definitions
+###
+
+###############################################################################
+#                           DATA PARTICLE TEST MIXIN                          #
+#     Defines a set of assert methods used for data particle verification     #
+#                                                                             #
+#  In python mixin classes are classes designed such that they wouldn't be    #
+#  able to stand on their own, but are inherited by other classes generally   #
+#  using multiple inheritance.                                                #
+#                                                                             #
+# This class defines a configuration structure for testing and common assert  #
+# methods for validating data particles.
+###############################################################################
 class ADCPTMixin(DriverTestMixin):
     '''
     Mixin class used for storing data particle constance and common data assertion methods.
@@ -489,7 +520,7 @@ class ADCPTMixin(DriverTestMixin):
         }
 
     _calibration_data_parameters = {
-        ADCPT_CalibrationDataParticleKey.CALIBRATION_DATA: {'type': str, 'value':
+        ADCPT_CalibrationDataParticleKey.CALIBRATION_DATA: {'type': unicode, 'value': 
             "ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM" + NEWLINE +\
             "               Calibration date and time: 9/22/2012  11:53:32" + NEWLINE +\
             "                             S inverse" + NEWLINE +\
@@ -523,13 +554,12 @@ class ADCPTMixin(DriverTestMixin):
             "        ?                           ?     ?                           ?" + NEWLINE + NEWLINE +\
             "                             ?        " + NEWLINE +\
             "                      Null   ? 33272 ?" + NEWLINE +\
-            "                             ?       ?" + NEWLINE +\
-            ">" }      
+            "                             ?       ?" + NEWLINE }      
         }
 
 
     _ps0_parameters = {
-        ADCPT_PS0DataParticleKey.PS0_DATA: {'type': str, 'value':
+        ADCPT_PS0DataParticleKey.PS0_DATA: {'type': unicode, 'value': 
             "Instrument S/N:  18593" + NEWLINE +\
             "       Frequency:  153600 HZ" + NEWLINE +\
             "   Configuration:  4 BEAM, JANUS" + NEWLINE +\
@@ -555,12 +585,11 @@ class ADCPTMixin(DriverTestMixin):
             "   0C  00 00 06 FF 13 BA  09 HPA727-3009-02B" + NEWLINE +\
             "   E7  00 00 06 B2 C6 7D  09 REC727-1004-05A" + NEWLINE +\
             "   70  00 00 06 F5 AF 73  09 DSP727-2001-05H" + NEWLINE +\
-            "   F0  00 00 06 F5 B2 EB  09 TUN727-1005-05A" + NEWLINE +\
-            ">" }
+            "   F0  00 00 06 F5 B2 EB  09 TUN727-1005-05A" + NEWLINE }
         }
 
     _ps3_parameters = {
-        ADCPT_PS3DataParticleKey.PS3_DATA: {'type': str, 'value':
+        ADCPT_PS3DataParticleKey.PS3_DATA: {'type': unicode, 'value': 
             "Beam Width:   3.7 degrees" + NEWLINE + NEWLINE +\
             "Beam     Elevation     Azimuth" + NEWLINE +\
             "  1         -69.81      269.92" + NEWLINE +\
@@ -577,11 +606,11 @@ class ADCPTMixin(DriverTestMixin):
             " -0.0008    0.0033   -1.4532    1.4500         -13      54  -23809   23757  " + NEWLINE +\
             "  0.2650    0.2676    0.2657    0.2667        4342    4384    4353    4370  " + NEWLINE +\
             "  1.0225    1.0323   -1.0257   -1.0297       16752   16913  -16805  -16871  " + NEWLINE +\
-            "Beam Angle Corrections Are Loaded." + NEWLINE + ">"  }
+            "Beam Angle Corrections Are Loaded." + NEWLINE  }
     }       
         
     _fd_parameters = {
-        ADCPT_FDDataParticleKey.FD_DATA: {'type': str, 'value':
+        ADCPT_FDDataParticleKey.FD_DATA: {'type': unicode, 'value': 
             "Total Unique Faults   =     2" + NEWLINE +\
             "Overflow Count        =     0" + NEWLINE +\
             "Time of first fault:    12/11/29,19:40:37.32" + NEWLINE +\
@@ -611,12 +640,11 @@ class ADCPTMixin(DriverTestMixin):
             "00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00" + NEWLINE +\
             "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
             "00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
-            "00 00 00 00 00 00 00 00 00 01 " + NEWLINE + NEWLINE +\
-            ">"  }
+            "00 00 00 00 00 00 00 00 00 01 " + NEWLINE + NEWLINE }
         }
 
     _pt200_parameters = {
-        ADCPT_PT200DataParticleKey.PT200_DATA: {'type': str, 'value':
+        ADCPT_PT200DataParticleKey.PT200_DATA: {'type': unicode, 'value': 
             "Ambient  Temperature =    24.27 Degrees C" + NEWLINE +\
             "  Attitude Temperature =    26.70 Degrees C" + NEWLINE +\
             "  Internal Moisture    = 8C1Eh" + NEWLINE + NEWLINE +\
@@ -672,8 +700,7 @@ class ADCPTMixin(DriverTestMixin):
             "     9    29    34    30    34" + NEWLINE +\
             "    10    31    35    32    35" + NEWLINE +\
             "   nom    38    42    40    42" + NEWLINE +\
-            "result    PASS  PASS  PASS  PASS" + NEWLINE +\
-            ">"  }
+            "result    PASS  PASS  PASS  PASS" + NEWLINE }
         }
 
 # Driver Parameter Methods
@@ -836,6 +863,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase,ADCPTMixin):
 
         # Start validating data particles
         self.assert_particle_published(driver, SAMPLE_RAW_DATA, self.assert_particle_header_sample, True)
+        self.assert_particle_published(driver, CALIBRATION_RAW_DATA, self.assert_particle_calibration_data, True)
+        self.assert_particle_published(driver, PS0_RAW_DATA, self.assert_particle_ps0_data, True)
+        self.assert_particle_published(driver, PS3_RAW_DATA, self.assert_particle_ps3_data, True)
+        self.assert_particle_published(driver, FD_RAW_DATA, self.assert_particle_fd_data, True)
+        self.assert_particle_published(driver, PT200_RAW_DATA, self.assert_particle_pt200_data, True)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -971,15 +1003,12 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, ADCPTMixin):
         self.assert_set_readonly(Parameter.WATER_PROFILING_MODE)
 
 #  these are cut and paste from sbe26plus. Not used but keep for reference.
-
+    """
     def check_state(self, expected_state):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, expected_state)
 
     def put_instrument_in_command_mode(self):
-        """Wrap the steps and asserts for going into command mode.
-           May be used in multiple test cases.
-        """
         # Test that the driver is in state unconfigured.
         self.check_state(DriverConnectionState.UNCONFIGURED)
 
@@ -1003,9 +1032,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, ADCPTMixin):
 
 
     def test_init_logging(self):
-        """
-@brief Test initialize logging command.
-"""
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.INIT_LOGGING)
         self.assertTrue(reply)
@@ -1014,13 +1040,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, ADCPTMixin):
         self.assert_get(Parameter.LOGGING, True)
 
     def test_quit_session(self):
-        """
-        @brief Test quit session command.
-        quit session causes the instrument to enter a timedout state where it uses less power.
-        
-        this test wakes it up after placing it in the timedout (quit session) state, then
-        verifies it can obtain paramaters to assert the instrument is working.
-        """
         self.assert_initialize_driver()
 
         # Note quit session just sleeps the device, so its safe to remain in COMMAND mode.
@@ -1036,9 +1055,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, ADCPTMixin):
         self.assert_get(Parameter.LOGGING, False)
 
     def test_get_resource_capabilities(self):
-        """
-        Test get resource capabilities.
-        """
         # Test the driver is in state unconfigured.
         self.assert_initialize_driver()
 
@@ -1128,9 +1144,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, ADCPTMixin):
         self.assertEqual(len(res_cmds), 4)
 
     def test_connect_configure_disconnect(self):
-        """
-        @brief connect and then disconnect, verify state
-        """
         self.assert_initialize_driver()
 
         reply = self.driver_client.cmd_dvr('disconnect')
@@ -1139,9 +1152,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, ADCPTMixin):
         self.assert_current_state(DriverConnectionState.DISCONNECTED)
 
     def test_bad_commands(self):
-        """
-        @brief test that bad commands are handled with grace and style.
-        """
         print ">>>>>>>>>>>>>>>>>>>>>>>>> got to test_bad_commands"
         # Test the driver is in state unconfigured.
         self.check_state(DriverConnectionState.UNCONFIGURED)
@@ -1205,10 +1215,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, ADCPTMixin):
         self.assertTrue(exception_happened)
 
     def test_poll(self):
-        """
-@brief Test sample polling commands and events.
-also tests execute_resource
-"""
         # Test the driver is in state unconfigured.
         self.put_instrument_in_command_mode()
 
@@ -1259,10 +1265,6 @@ also tests execute_resource
         self.check_state(DriverConnectionState.UNCONFIGURED)
 
     def test_connect(self):
-        """
-        Test configuring and connecting to the device through the port
-        agent. Discover device state.
-        """
         log.info("test_connect test started")
         self.put_instrument_in_command_mode()
 
@@ -1282,7 +1284,8 @@ also tests execute_resource
         self.put_instrument_in_command_mode()
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
         self.check_state(ProtocolState.COMMAND)
-
+    """
+    
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
