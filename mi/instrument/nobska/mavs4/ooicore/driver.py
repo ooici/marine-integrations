@@ -174,7 +174,7 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     SET_THERMISTOR                             = ' 3'                          # make different from CALIBRATION_MENU with leading space                 
     ENTER_THERMISTOR                           = 'enter_thermistor'
     ANSWER_THERMISTOR_NO                       = 'n'
-    SET_PRESSURE                               = '4'                          
+    SET_PRESSURE                               = ' 4'                          # make different from SET_FREQUENCY with leading space                         
     ENTER_PRESSURE                             = 'enter_pressure'
     SET_AUXILIARY                              = 'set_auxiliary'                          
     ENTER_AUXILIARY                            = 'enter_auxiliary'
@@ -1551,7 +1551,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.SYS_CLOCK,
                              r'.*\[(.*)\].*', 
                              lambda match : match.group(1),
-                             lambda string : string,
+                             lambda string : str(string),
                              menu_path_read=SubMenues.ROOT,
                              submenu_read=InstrumentCmds.SET_TIME,
                              menu_path_write=SubMenues.SET_TIME,
@@ -1560,7 +1560,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.NOTE1,
                              r'.*Notes 1\| (.*?)\r\n.*', 
                              lambda match : match.group(1),
-                             lambda string : string,
+                             lambda string : str(string),
                              menu_path_read=SubMenues.DEPLOY,
                              submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
@@ -1569,7 +1569,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.NOTE2,
                              r'.*2\| (.*?)\r\n.*', 
                              lambda match : match.group(1),
-                             lambda string : string,
+                             lambda string : str(string),
                              menu_path_read=SubMenues.DEPLOY,
                              submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
@@ -1578,7 +1578,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.NOTE3,
                              r'.*3\| (.*?)\r\n.*', 
                              lambda match : match.group(1),
-                             lambda string : string,
+                             lambda string : str(string),
                              menu_path_read=SubMenues.DEPLOY,
                              submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
@@ -1587,7 +1587,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.VELOCITY_FRAME,
                              r'.*Data  F\| Velocity Frame (.*?) TTag FSec Axes.*', 
                              lambda match : self._parse_velocity_frame(match.group(1)),
-                             lambda string : string,
+                             lambda string : str(string),
                              startup_param=True,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              value='3',
@@ -1599,7 +1599,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.MONITOR,
                              r'.*M\| Monitor\s+(\w+).*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : string,
+                             lambda string : str(string),
                              value='',
                              menu_path_read=SubMenues.DEPLOY,
                              submenu_read=None,
@@ -1609,25 +1609,25 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.LOG_DISPLAY_TIME,
                              r'.*M\| Monitor\s+\w+\s+(\w+).*', 
                              lambda match : self._parse_on_off(match.group(1)),
-                             lambda string : string,
+                             lambda string : str(string),
                              value='for_test')
 
         self._param_dict.add(InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
                              r'.*M\| Monitor\s+\w+\s+\w+\s+(\w+).*', 
                              lambda match : self._parse_on_off(match.group(1)),
-                             lambda string : string,
+                             lambda string : str(string),
                              value='')
 
         self._param_dict.add(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES,
                              r'.*M\| Monitor\s+\w+\s+\w+\s+\w+\s+(\w+).*', 
                              lambda match : self._parse_on_off(match.group(1)),
-                             lambda string : string,
+                             lambda string : str(string),
                              value='')
 
         self._param_dict.add(InstrumentParameters.QUERY_MODE,
                              r'.*Q\| Query Mode\s+(\w+).*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : string,
+                             lambda string : str(string),
                              value='',
                              menu_path_read=SubMenues.DEPLOY,
                              submenu_read=None,
@@ -1715,7 +1715,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.WARM_UP_INTERVAL,
                              r'.*<W> Warm up interval\s+(\w+)\s+.*', 
                              lambda match : match.group(1),
-                             lambda string : string,
+                             lambda string : str(string),
                              value='fast',
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
@@ -1725,7 +1725,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.THREE_AXIS_COMPASS,
                              r'.*<1> 3-Axis Compass\s+(\w+)\s+.*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : string,
+                             lambda string : str(string),
                              value='y',
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
@@ -1735,7 +1735,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.THERMISTOR,
                              r'.*<3> Thermistor\s+(\w+)\s+.*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : string,
+                             lambda string : str(string),
                              value='y',
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
@@ -1745,7 +1745,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.PRESSURE,
                              r'.*<4> Pressure\s+(\w+)\s+.*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : string,
+                             lambda string : str(string),
                              value='n',                    # this parameter can only be set to 'n' (meaning disabled)
                                                            # support for setting it to 'y' has not been implemented
                              menu_path_read=SubMenues.CONFIGURATION,
@@ -1756,7 +1756,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.AUXILIARY_1,
                              r'.*<5> Auxiliary 1\s+(\w+)\s+.*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : string,
+                             lambda string : str(string),
                              value='n',                    # this parameter can only be set to 'n' (meaning disabled)
                                                            # support for setting it to 'y' has not been implemented
                              menu_path_read=SubMenues.CONFIGURATION,
@@ -1767,7 +1767,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.AUXILIARY_2,
                              r'.*<6> Auxiliary 2\s+(\w+)\s+.*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : string,
+                             lambda string : str(string),
                              value='n',                    # this parameter can only be set to 'n' (meaning disabled)
                                                            # support for setting it to 'y' has not been implemented
                              menu_path_read=SubMenues.CONFIGURATION,
@@ -1778,7 +1778,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.AUXILIARY_3,
                              r'.*<7> Auxiliary 3\s+(\w+)\s+.*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : string,
+                             lambda string : str(string),
                              value='n',                    # this parameter can only be set to 'n' (meaning disabled)
                                                            # support for setting it to 'y' has not been implemented
                              menu_path_read=SubMenues.CONFIGURATION,
@@ -1789,7 +1789,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.SENSOR_ORIENTATION,
                              r'.*<O> Sensor Orientation\s+(.*)\n.*', 
                              lambda match : self._parse_sensor_orientation(match.group(1)),
-                             lambda string : string,
+                             lambda string : str(string),
                              value='2',
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
@@ -1799,7 +1799,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add(InstrumentParameters.SERIAL_NUMBER,
                              r'.*<S> Serial Number\s+(\w+)\s+.*', 
                              lambda match : match.group(1),
-                             lambda string : string,
+                             lambda string : str(string),
                              visibility=ParameterDictVisibility.READ_ONLY,
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,

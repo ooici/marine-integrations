@@ -307,38 +307,6 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         pass 
 
     
-    def put_driver_in_command_mode(self):
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms and in disconnected state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        # Connect to instrument and transition to unknown.
-        reply = self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, ProtocolStates.UNKNOWN)
-
-        # discover instrument state and transition to command.
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        try:
-            # Test that the driver protocol is in state command.
-            self.check_state(ProtocolStates.COMMAND)
-        except:
-            self.assertEqual(self.protocol_state, ProtocolStates.AUTOSAMPLE)
-            # Put the driver in command mode
-            self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-            # Test that the driver protocol is in state command.
-            self.check_state(ProtocolStates.COMMAND)
-
-
     def test_instrument_wakeup(self):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' state
@@ -361,17 +329,14 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         """
         Test device parameter access.
         """
-        self.put_driver_in_command_mode()
+        self.assert_initialize_driver()
 
-        reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
-
-        # Remember original configuration.
-        orig_config = reply
-        
         # parameter values to test.
         paramter_values = {InstrumentParameters.SYS_CLOCK : TIME_TO_SET,
+                           InstrumentParameters.NOTE1 : 'New note1 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                           InstrumentParameters.NOTE2 : 'New note2 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
                            InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                           InstrumentParameters.VELOCITY_FRAME : 4,
+                           InstrumentParameters.VELOCITY_FRAME : '4',
                            InstrumentParameters.MONITOR : 'y',
                            InstrumentParameters.LOG_DISPLAY_TIME : 'y',
                            InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : 'y',
@@ -395,50 +360,15 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
                            InstrumentParameters.AUXILIARY_3 : 'n',
                            InstrumentParameters.SENSOR_ORIENTATION : '2'
                            }
-
-        reply = self.driver_client.cmd_dvr('get_resource', parameter_list)
-        self.assertParamDictionariesEqual(reply, parameter_types)
-        for (name, value) in reply.iteritems():
-            log.debug('parameter %s=%s' %(name, value))        
-
-        # Remember the original subset.
-        orig_params = reply
         
+        # construct values dynamically to get time stamp for notes
         new_parameter_values = {}
-        for parameter in parameter_list:
-            new_parameter_values[parameter] = paramter_values[parameter]
+        for key in paramter_values.iterkeys():
+            new_parameter_values[key] = paramter_values[key]
                
         # Set parameters and verify.
-        reply = self.driver_client.cmd_dvr('set_resource', new_parameter_values)
-        reply = self.driver_client.cmd_dvr('get_resource', parameter_list)
-        for (name, value) in reply.iteritems():
-            log.debug('name=%s, set=%s, got=%s' %(name, new_parameter_values[name], value))
-        self.assertParamVals(reply, new_parameter_values)
+        self.assert_set_bulk(new_parameter_values)
         
-        """
-        # Restore original parameters and verify.
-        reply = self.driver_client.cmd_dvr('set_resource', orig_params)
-        reply = self.driver_client.cmd_dvr('get_resource', params)
-        self.assertParamVals(reply, orig_params)
-
-        # Retrieve the configuration and ensure it matches the original.
-        reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
-        self.assertParamVals(reply, orig_config)
-
-        # Disconnect from the port agent.
-        reply = self.driver_client.cmd_dvr('disconnect')
-        
-        # Test the driver is disconnected.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-        
-        # Deconfigure the driver.
-        reply = self.driver_client.cmd_dvr('initialize')
-        
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED) 
-        """       
 
     def test_instrumment_autosample(self):
         """
