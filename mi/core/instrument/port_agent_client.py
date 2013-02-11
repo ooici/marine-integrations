@@ -226,6 +226,9 @@ class PortAgentClient(object):
     asynchronously via a callback from this client's listener thread.
     """
     
+    HEARTBEAT_INTERVAL_COMMAND = "heartbeat_interval "
+    BREAK_COMMAND = "break"
+    
     def __init__(self, host, port, cmd_port, delim=None):
         """
         Logger client constructor.
@@ -253,8 +256,8 @@ class PortAgentClient(object):
         self.user_callback_data = user_callback_data        
         self.user_callback_raw = user_callback_raw        
         self.user_callback_error = user_callback_error
-        #self.heartbeat = heartbeat
-        #self.max_missed_heartbeats = max_missed_heartbeats        
+        self.heartbeat = heartbeat
+        self.max_missed_heartbeats = max_missed_heartbeats        
 
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -263,8 +266,12 @@ class PortAgentClient(object):
             self.sock.connect((self.host, self.port))
             self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             self.sock.setblocking(0)
+            heartbeat_string = str(heartbeat)
+            self.send_config_parameter(self.HEARTBEAT_INTERVAL_COMMAND, 
+                                       heartbeat_string)
             self.listener_thread = Listener(self.sock, self.delim, 
-                                            heartbeat, max_missed_heartbeats, self.callback_data,
+                                            heartbeat, max_missed_heartbeats, 
+                                            self.callback_data,
                                             self.callback_raw, self.callback_error)
             self.listener_thread.start()
             log.info('PortAgentClient.init_comms(): connected to port agent at %s:%i.'
@@ -328,11 +335,19 @@ class PortAgentClient(object):
         else:
             log.error("No user_callback_data defined")
 
+    def send_config_parameter(self, parameter, value):
+        """
+        Send a configuration parameter to the port agent
+        """
+        command = parameter + value
+        log.debug("Sending config parameter: %s") % (command)
+        self._command_port_agent(command)
+
     def send_break(self):
         """
         Command the port agent to send a break
         """
-        self._command_port_agent('break')
+        self._command_port_agent(self.BREAK_COMMAND)
 
     def _command_port_agent(self, cmd):
         """
@@ -392,6 +407,7 @@ class Listener(threading.Thread):
 
     MAX_HEARTBEAT_INTERVAL = 20 # Max, for range checking parameter
     MAX_MISSED_HEARTBEATS = 5   # Max number we can miss 
+    HEARTBEAT_FUDGE = 1         # Fudge factor to account for delayed heartbeat
 
     """
     A listener thread to monitor the client socket data incoming from
@@ -414,7 +430,6 @@ class Listener(threading.Thread):
         self._done = False
         self.linebuf = ''
         self.delim = delim
-        self.heartbeat = 0
         self.heartbeat_timer = None
         if (max_missed_heartbeats == None):
             self.max_missed_heartbeats = self.MAX_MISSED_HEARTBEATS
@@ -471,15 +486,22 @@ class Listener(threading.Thread):
 
     def set_heartbeat(self, heartbeat):
         """
-        Make sure the heartbeat is reasonable, then initialize the class 
-        member heartbeat
+        Make sure the heartbeat is reasonable; if so, initialize the class 
+        member heartbeat (plus fudge factor) to greater than the value passed 
+        in.  This is to account for possible delays in the heartbeat packet 
+        from the port_agent.
         """
-        if heartbeat > 0 and heartbeat < self.MAX_HEARTBEAT_INTERVAL: 
-            self.heartbeat = heartbeat;
-            return True
+        if heartbeat == 0:
+            self.heartbeat = heartbeat
+            returnValue = True
+        elif heartbeat > 0 and heartbeat <= self.MAX_HEARTBEAT_INTERVAL: 
+            self.heartbeat = heartbeat + self.HEARTBEAT_FUDGE;
+            returnValue = True
         else:
             log.error('heartbeat out of range: %d' % (heartbeat))
-            return False
+            returnValue = False
+            
+        return returnValue
         
     def start_heartbeat_timer(self):
         """
@@ -524,7 +546,8 @@ class Listener(threading.Thread):
             Got a heartbeat; reset the timer and re-init 
             heartbeat_missed_count.
             """
-            self.start_heartbeat_timer()
+            if self.heartbeat:
+                self.start_heartbeat_timer()
                 
             self.heartbeat_missed_count = self.max_missed_heartbeats
             

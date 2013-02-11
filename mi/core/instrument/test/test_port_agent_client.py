@@ -188,12 +188,56 @@ class TestPortAgentClient(MiUnitTest):
         
         paListener.start_heartbeat_timer()
         
-        gevent.sleep((test_max_missed_heartbeats * test_heartbeat) + 4)
+        gevent.sleep((test_max_missed_heartbeats * paListener.heartbeat) + 4)
         
         self.assertFalse(self.rawCallbackCalled)
         self.assertFalse(self.dataCallbackCalled)
         self.assertTrue(self.errorCallbackCalled)
         
+    def test_set_heartbeat(self):
+        """
+        Test the set_heart_beat function; make sure it returns False when 
+        passed invalid values, and true when valid.  Also make sure it
+        adds the HEARTBEAT_FUDGE
+        """
+        self.resetTestVars()
+        test_heartbeat = 0
+        test_max_missed_heartbeats = 5
+        paListener = Listener(None, None, test_heartbeat, test_max_missed_heartbeats,
+                              self.myGotData, self.myGotRaw, self.myGotError)
+
+        """ 
+        Test valid values
+        """        
+        test_heartbeat = 1
+        retValue = paListener.set_heartbeat(test_heartbeat)
+        self.assertTrue(retValue)
+        self.assertTrue(paListener.heartbeat == test_heartbeat + paListener.HEARTBEAT_FUDGE)
+                
+        test_heartbeat = paListener.MAX_HEARTBEAT_INTERVAL
+        retValue = paListener.set_heartbeat(test_heartbeat)
+        self.assertTrue(retValue)
+        self.assertTrue(paListener.heartbeat == test_heartbeat + paListener.HEARTBEAT_FUDGE)
+        
+        """
+        Test that a heartbeat value of zero results in the listener.heartbeat being zero 
+        (and doesn't include HEARTBEAT_FUDGE)
+        """
+        test_heartbeat = 0
+        retValue = paListener.set_heartbeat(test_heartbeat)
+        self.assertTrue(retValue)
+        self.assertTrue(paListener.heartbeat == test_heartbeat)
+                
+        """
+        Test invalid values
+        """
+        test_heartbeat = -1
+        retValue = paListener.set_heartbeat(test_heartbeat)
+        self.assertFalse(retValue)
+
+        test_heartbeat = paListener.MAX_HEARTBEAT_INTERVAL + 1
+        retValue = paListener.set_heartbeat(test_heartbeat)
+        self.assertFalse(retValue)
         
     @unittest.skip('not finished yet')
     def test_port_agent_client_receive(self):
