@@ -1,9 +1,6 @@
+from mi.instrument.seabird.driver import NEWLINE
 
-from mi.instrument.seabird.sbe54tps.ooicore.driver import NEWLINE
-
-SAMPLE_GETSD =  "S>getsd" + NEWLINE + \
-                "getsd" + NEWLINE + \
-                "<StatusData DeviceType='SBE54' SerialNumber='05400012'>" + NEWLINE + \
+SAMPLE_GETSD =  "<StatusData DeviceType='SBE54' SerialNumber='05400012'>" + NEWLINE + \
                 "<DateTime>2012-11-06T10:55:44</DateTime>" + NEWLINE + \
                 "<EventSummary numEvents='573'/>" + NEWLINE + \
                 "<Power>" + NEWLINE + \
@@ -16,9 +13,7 @@ SAMPLE_GETSD =  "S>getsd" + NEWLINE + \
                 "</MemorySummary>" + NEWLINE + \
                 "</StatusData>"
 
-SAMPLE_GETCD =  "S>getcd" + NEWLINE +\
-                "getcd" + NEWLINE +\
-                "<ConfigurationData DeviceType='SBE54' SerialNumber='05400012'>" + NEWLINE +\
+SAMPLE_GETCD =  "<ConfigurationData DeviceType='SBE54' SerialNumber='05400012'>" + NEWLINE +\
                 "<CalibrationCoefficients>" + NEWLINE +\
                 "<AcqOscCalDate>2012-02-20</AcqOscCalDate>" + NEWLINE +\
                 "<FRA0>5.999926E+06</FRA0>" + NEWLINE +\
@@ -52,9 +47,7 @@ SAMPLE_GETCD =  "S>getcd" + NEWLINE +\
                 "/>" + NEWLINE +\
                 "</ConfigurationData>"
 
-SAMPLE_GETEC =  "S>getec" + NEWLINE +\
-                "getec" + NEWLINE +\
-                "<EventSummary numEvents='573' maxStack='354'/>" + NEWLINE +\
+SAMPLE_GETEC =  "<EventSummary numEvents='573' maxStack='354'/>" + NEWLINE +\
                 "<EventList DeviceType='SBE54' SerialNumber='05400012'>" + NEWLINE +\
                 "<Event type='PowerOnReset' count='25'/>" + NEWLINE +\
                 "<Event type='PowerFailReset' count='25'/>" + NEWLINE +\
@@ -67,9 +60,7 @@ SAMPLE_GETEC =  "S>getec" + NEWLINE +\
                 "<Event type='Error12' count='1'/>" + NEWLINE +\
                 "</EventList>"
 
-SAMPLE_GETHD =  "S>gethd" + NEWLINE +\
-                "gethd" + NEWLINE +\
-                "<HardwareData DeviceType='SBE54' SerialNumber='05400012'>" + NEWLINE +\
+SAMPLE_GETHD =  "<HardwareData DeviceType='SBE54' SerialNumber='05400012'>" + NEWLINE +\
                 "<Manufacturer>Sea-Bird Electronics, Inc</Manufacturer>" + NEWLINE +\
                 "<FirmwareVersion>SBE54 V1.3-6MHZ</FirmwareVersion>" + NEWLINE +\
                 "<FirmwareDate>Mar 22 2007</FirmwareDate>" + NEWLINE +\
@@ -87,9 +78,7 @@ SAMPLE_SAMPLE = "<Sample Num='5947' Type='Pressure'>" + NEWLINE +\
                 "<PTemp>18.9047</PTemp>" + NEWLINE +\
                 "</Sample>"
 
-SAMPLE_TEST_REF_OSC = "S>TestRefOsc" + NEWLINE +\
-                      "TestRefOsc" + NEWLINE +\
-                      "<SetTimeout>120000</SetTimeout>" + NEWLINE +\
+SAMPLE_TEST_REF_OSC = "<SetTimeout>120000</SetTimeout>" + NEWLINE +\
                       "<SetTimeoutMax>OFF</SetTimeoutMax>" + NEWLINE +\
                       "<SetTimeoutICD>120000</SetTimeoutICD>" + NEWLINE +\
                       "<!--Ref osc warmup next 120 seconds-->" + NEWLINE +\
@@ -129,15 +118,11 @@ SAMPLE_TEST_REF_OSC = "S>TestRefOsc" + NEWLINE +\
                       "5999995.140 18037  0.092" + NEWLINE +\
                       "5999995.140 18025  0.088" + NEWLINE +\
                       "5999995.140 18013  0.083" + NEWLINE +\
-                      "</ReferenceOscTest>" + NEWLINE
+                      "</ReferenceOscTest>"
 
-
-
-SAMPLE_samplerefosc = "S>samplerefosc" + NEWLINE +\
-                      "samplerefosc" + NEWLINE +\
-                      "<SetTimeout>125000</SetTimeout>" + NEWLINE +\
+SAMPLE_samplerefosc = "<SetTimeout>125000</SetTimeout>" + NEWLINE +\
                       "<SetTimeoutMax>150000</SetTimeoutMax>" + NEWLINE +\
-                      "<SetTimeoutICD>125000</SetTimeoutICD>" + NEWLINE +\
+                      "<SetTimeoutICD>150000</SetTimeoutICD>" + NEWLINE +\
                       "<!--Ref osc warmup next 120 seconds-->" + NEWLINE +\
                       "<!--Warmup complete, starting measurement at 0.1Hz-->" + NEWLINE +\
                       "<Sample Num='1244' Type='RefOsc'>" + NEWLINE +\
@@ -145,7 +130,7 @@ SAMPLE_samplerefosc = "S>samplerefosc" + NEWLINE +\
                       "<RefOscFreq>5999995.955</RefOscFreq>" + NEWLINE +\
                       "<PCBTempRaw>18413</PCBTempRaw>" + NEWLINE +\
                       "<RefErrorPPM>0.090</RefErrorPPM>" + NEWLINE +\
-                      "</Sample>" + NEWLINE
+                      "</Sample>"
                       
                       
                       

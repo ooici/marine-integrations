@@ -24,12 +24,12 @@ from nose.plugins.attrib import attr
 from mi.instrument.seabird.sbe26plus.test.test_driver import SeaBird26PlusUnitTest
 from mi.instrument.seabird.sbe26plus.test.test_driver import SeaBird26PlusIntegrationTest
 from mi.instrument.seabird.sbe26plus.test.test_driver import SeaBird26PlusQualificationTest
+from mi.instrument.seabird.sbe26plus.test.test_driver import SeaBird26PlusPublicationTest
 from mi.instrument.seabird.sbe26plus.driver import DataParticleType
 from mi.instrument.seabird.sbe26plus.driver import ScheduledJob
 from mi.instrument.seabird.sbe26plus.driver import Parameter
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import DriverStartupConfigKey
-from mi.core.driver_scheduler import DriverSchedulerConfigKey
 
 InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id = '123xyz',
@@ -80,4 +80,13 @@ class IntFromIDK(SeaBird26PlusIntegrationTest):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualFromIDK(SeaBird26PlusQualificationTest):
+    pass
+
+###############################################################################
+#                             PUBLICATION TESTS                               #
+# Device specific publication tests are for                                   #
+# testing ion publications                                                    #
+###############################################################################
+@attr('PUB', group='mi')
+class PubFromIDK(SeaBird26PlusPublicationTest):
     pass

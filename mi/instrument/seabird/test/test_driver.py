@@ -24,6 +24,7 @@ from nose.plugins.attrib import attr
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import InstrumentDriverPublicationTestCase
 
 
 ###############################################################################
@@ -65,4 +66,12 @@ class SeaBirdQualificationTest(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-
+###############################################################################
+#                            QUALIFICATION TESTS                              #
+# Device specific qualification tests are for                                 #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('QUAL', group='mi')
+class SeaBirdPublicationTest(InstrumentDriverPublicationTestCase):
+    def setUp(self):
+        InstrumentDriverPublicationTestCase.setUp(self)

@@ -219,7 +219,7 @@ class SBE26plusTideSampleDataParticleKey(BaseEnum):
     TIMESTAMP = "date_time_string"
     PRESSURE = "absolute_pressure"  # p = calculated and stored pressure (psia).
     PRESSURE_TEMP = "pressure_temp" # pt = calculated pressure temperature (not stored) (C).
-    TEMPERATURE = "temperature"     # t = calculated and stored temperature (C).
+    TEMPERATURE = "seawater_temperature"     # t = calculated and stored temperature (C).
 
 class SBE26plusTideSampleDataParticle(DataParticle):
     """

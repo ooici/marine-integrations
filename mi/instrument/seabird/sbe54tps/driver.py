@@ -17,19 +17,16 @@ import string
 import re
 import time
 import ntplib
-from mi.core.time import get_timestamp_delayed
+from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.common import BaseEnum
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.time import get_timestamp_delayed
 from mi.core.instrument.instrument_fsm import InstrumentFSM
-from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
-
-from mi.core.log import get_logger ; log = get_logger()
-
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
@@ -39,54 +36,25 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from pyon.agent.agent import ResourceAgentState
-# newline.
-NEWLINE = '\r\n'
 
-# default timeout.
-TIMEOUT = 10
+from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
+from mi.instrument.seabird.driver import SeaBirdProtocol
+from mi.instrument.seabird.driver import NEWLINE
+from mi.instrument.seabird.driver import TIMEOUT
 
-STATUS_DATA_REGEX = r"(<StatusData DeviceType='.*?</StatusData>)"
-STATUS_DATA_REGEX_MATCHER = re.compile(STATUS_DATA_REGEX, re.DOTALL)
-
-CONFIGURATION_DATA_REGEX = r"(<ConfigurationData DeviceType=.*?</ConfigurationData>)"
-CONFIGURATION_DATA_REGEX_MATCHER = re.compile(CONFIGURATION_DATA_REGEX, re.DOTALL)
-
-EVENT_COUNTER_DATA_REGEX = r"(<EventSummary numEvents='.*?</EventList>)"
-EVENT_COUNTER_DATA_REGEX_MATCHER = re.compile(EVENT_COUNTER_DATA_REGEX, re.DOTALL)
-
-HARDWARE_DATA_REGEX = r"(<HardwareData DeviceType='.*?</HardwareData>)"
-HARDWARE_DATA_REGEX_MATCHER = re.compile(HARDWARE_DATA_REGEX, re.DOTALL)
-
-SAMPLE_DATA_REGEX = r"<Sample Num='[0-9]+' Type='Pressure'>.*?</Sample>"
-SAMPLE_DATA_REGEX_MATCHER = re.compile(SAMPLE_DATA_REGEX, re.DOTALL)
-
-SAMPLE_REF_OSC_REGEX = r"<SetTimeout>.*?</Sample>"
-SAMPLE_REF_OSC_MATCHER = re.compile(SAMPLE_REF_OSC_REGEX, re.DOTALL)
-
-ENGINEERING_DATA_REGEX = "<MainSupplyVoltage>([.\d]+)</MainSupplyVoltage>"
-ENGINEERING_DATA_MATCHER = re.compile(SAMPLE_REF_OSC_REGEX, re.DOTALL)
-
-
-# Packet config
-STREAM_NAME_PARSED = 'parsed'
-STREAM_NAME_RAW = 'raw'
-PACKET_CONFIG = [STREAM_NAME_PARSED, STREAM_NAME_RAW]
-
-PACKET_CONFIG = {
-    STREAM_NAME_PARSED : 'ctd_parsed_param_dict',
-    STREAM_NAME_RAW : 'ctd_raw_param_dict'
-}
-
+class ScheduledJob(BaseEnum):
+    ACQUIRE_STATUS = 'acquire_status'
+    CALIBRATION_COEFFICIENTS = 'calibration_coefficients'
+    CLOCK_SYNC = 'clock_sync'
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    PREST_REAL_TIME = 'prest_real_time' #
-    PREST_REFERENCE_OSCILLATOR = 'prest_reference_oscillator' #
-    PREST_ENGINEERING_PARAMETERS = 'prest_engineering_parameters'
-    PREST_CONFIGURATION_DATA = 'prest_configuration_data' # 
-    PREST_DEVICE_STATUS = 'prest_device_status' # 
-    PREST_EVENT_COUNTER = 'prest_event_counter' #
-    PREST_HARDWARE_DATA = 'prest_hardware_data' #
+    PREST_REAL_TIME = 'prest_real_time'
+    PREST_REFERENCE_OSCILLATOR = 'prest_reference_oscillator'
+    PREST_CONFIGURATION_DATA = 'prest_configuration_data'
+    PREST_DEVICE_STATUS = 'prest_device_status'
+    PREST_EVENT_COUNTER = 'prest_event_counter'
+    PREST_HARDWARE_DATA = 'prest_hardware_data'
     
 # Device specific parameters.
 class InstrumentCmds(BaseEnum):
@@ -94,130 +62,32 @@ class InstrumentCmds(BaseEnum):
     Instrument Commands
     These are the commands that according to the science profile must be supported.
     """
-
-
-    #### Artificial Constructed Commands for Driver ####
+    # Artificial Constructed Commands for Driver
     SET = "set"  # need to bring over _build_set_command/_parse_set_response
 
-    ################
-    #### Status ####
-    ################
+    # Status
     GET_CONFIGURATION_DATA = "GetCD"
     GET_STATUS_DATA = "GetSD"
     GET_EVENT_COUNTER_DATA = "GetEC"
     GET_HARDWARE_DATA = "GetHD"
 
-    ###############################
-    #### Setup - Communication ####
-    ###############################
-    # SET_BAUD_RATE = "SetBaudRate"                                         # DO NOT IMPLEMENT
+    # Setup - General
+    SET_SAMPLE_PERIOD = "SetSamplePeriod"
+    SET_TIME = "SetTime"
+    SET_BATTERY_TYPE = "SetBatteryType"
 
-    #########################
-    #### Setup - General ####
-    #########################
-    # INITIALIZE = "*Init"                                                  # DO NOT IMPLEMENT
-    SET_SAMPLE_PERIOD = "SetSamplePeriod"                  # VARIABLE
-    SET_TIME = "SetTime"                                   # VARIABLE       # S>settime=2006-01-15T13:31:00
-    SET_BATTERY_TYPE = "SetBatteryType"                    # VARIABLE
+    # Setup Data Output
+    SET_ENABLE_ALERTS = "SetEnableAlerts"
 
-    ###########################
-    #### Setup Data Output ####
-    ###########################
-    SET_ENABLE_ALERTS = "SetEnableAlerts"                   # VARIABLE
-
-    ##################
-    #### Sampling ####
-    ##################
+    # Sampling
     INIT_LOGGING = "InitLogging"
     START_LOGGING = "Start"
     STOP_LOGGING = "Stop"
     SAMPLE_REFERENCE_OSCILLATOR = "SampleRefOsc"
 
-    ################################
-    #### Data Access and Upload ####
-    ################################
-    # GET_SAMPLES = "GetSamples"                                            # DO NOT IMPLEMENT
-    # GET_LAST_PRESSURE_SAMPLES = "GetLastPSamples"                         # DO NOT IMPLEMENT
-    # GET_LAST_REFERENCE_SAMPLES = "GetLastRSamples"                        # DO NOT IMPLEMENT
-    # GET_REFERENCE_SAMPLES_LIST = "GetRSampleList"                         # DO NOT IMPLEMENT
-    SET_UPLOAD_TYPE = "SetUploadType"                      # VARIABLE
-    # UPLOAD_DATA = "UploadData"                                            # DO NOT IMPLEMENT
-
-    ####################
-    #### Diagnostic ####
-    ####################
+    # Diagnostic
     RESET_EC = "ResetEC"
     TEST_EEPROM = "TestEeprom"
-    # TEST_REFERENCE_OSCILLATOR = "TestRefOsc"                              # DO NOT IMPLEMENT
-
-    ##################################
-    #### Calibration Coefficients ####
-    ##################################
-    # SetAcqOscCalDate=S        S= acquisition crystal calibration date.
-    # SET_ACQUISITION_OSCILLATOR_CALIBRATION_DATE = "SetAcqOscCalDate"      # DO NOT IMPLEMENT
-
-    # SetFRA0=F                 F= acquisition crystal frequency A0.
-    # SET_ACQUISITION_FREQUENCY_A0 = "SetFRA0"                              # DO NOT IMPLEMENT
-
-    # SetFRA1=F                 F= acquisition crystal frequency A1.
-    # SET_ACQUISITION_FREQUENCY_A1 = "SetFRA1"                              # DO NOT IMPLEMENT
-
-    # SetFRA2=F                 F= acquisition crystal frequency A2.
-    # SET_ACQUISITION_FREQUENCY_A2 = "SetFRA2"                              # DO NOT IMPLEMENT
-
-    # SetFRA3=F                 F= acquisition crystal frequency A3.
-    # SET_ACQUISITION_FREQUENCY_A3 = "SetFRA3"                              # DO NOT IMPLEMENT
-
-    # SetPressureCalDate=S      S= pressure sensor calibration date.
-    # SET_PRESSURE_CALIBRATION_DATE = "SetPressureCalDate"                  # DO NOT IMPLEMENT
-
-    # SetPressureSerialNum=S    S= pressure sensor serial number.
-    # SET_PRESSURE_SERIAL_NUMBER = "SetPressureSerialNum"                   # DO NOT IMPLEMENT
-
-    # SetPRange=F               F= pressure sensor full scale range (psia).
-    # SET_PRESSURE_SENSOR_FULL_SCALE_RANGE = "SetPRange"                    # DO NOT IMPLEMENT
-
-    # SetPOffset=F              F= pressure sensor offset (psia).
-    # SET_PRESSURE_SENSOR_OFFSET = "SetPOffset"                             # DO NOT IMPLEMENT
-
-    # SetPU0=F                  F= pressure sensor U0.
-    # SET_PRESSURE_SENSOR_U0 = "SetPU0"                                     # DO NOT IMPLEMENT
-
-    # SetPY1=F                  F= pressure sensor Y1.
-    # SET_PRESSURE_SENSOR_Y1 = "SetPY1"                                     # DO NOT IMPLEMENT
-
-    # SetPY2=F                  F= pressure sensor Y2.
-    # SET_PRESSURE_SENSOR_Y2 = "SetPY2"                                     # DO NOT IMPLEMENT
-
-    # SetPY3=F                  F= pressure sensor Y3.
-    # SET_PRESSURE_SENSOR_Y3 = "SetPY3"                                     # DO NOT IMPLEMENT
-
-    # SetPC1=F                  F= pressure sensor C1.
-    # SET_PRESSURE_SENSOR_C1 = "SetPC1"                                     # DO NOT IMPLEMENT
-
-    # SetPC2=F                  F= pressure sensor C2.
-    # SET_PRESSURE_SENSOR_C2 = "SetPC2"                                     # DO NOT IMPLEMENT
-
-    # SetPC3=F                  F= pressure sensor C3.
-    # SET_PRESSURE_SENSOR_C3 = "SetPC3"                                     # DO NOT IMPLEMENT
-
-    # SetPD1=F                  F= pressure sensor D1.
-    # SET_PRESSURE_SENSOR_D1 = "SetPD1"                                     # DO NOT IMPLEMENT
-
-    # SetPD2=F                  F= pressure sensor D2.
-    # SET_PRESSURE_SENSOR_D2 = "SetPD2"                                     # DO NOT IMPLEMENT
-
-    # SetPT1=F                  F= pressure sensor T1.
-    # SET_PRESSURE_SENSOR_T1 = "SetPT1"                                     # DO NOT IMPLEMENT
-
-    # SetPT2=F                  F= pressure sensor T2.
-    # SET_PRESSURE_SENSOR_T2 = "SetPT2"                                     # DO NOT IMPLEMENT
-
-    # SetPT3=F                  F= pressure sensor T3.
-    # SET_PRESSURE_SENSOR_T3 = "SetPT3"                                     # DO NOT IMPLEMENT
-
-    # SetPT4=F                  F= pressure sensor T4.
-    # SET_PRESSURE_SENSOR_T4 = "SetPT4"                                     # DO NOT IMPLEMENT
 
 class ProtocolState(BaseEnum):
     """
@@ -228,14 +98,11 @@ class ProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    #TEST = DriverProtocolState.TEST
-    #CALIBRATE = DriverProtocolState.CALIBRATE
 
 class ProtocolEvent(BaseEnum):
     """
     Protocol events
     """
-
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
     # Do we need these here?
@@ -243,7 +110,6 @@ class ProtocolEvent(BaseEnum):
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
 
-    #ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
 
@@ -265,7 +131,6 @@ class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    #ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
@@ -277,164 +142,49 @@ class Capability(BaseEnum):
 
 # Device specific parameters.
 class Parameter(DriverParameter):
-    """
-    Device parameters
-    """
-    #
-    # Common fields in all commands
-    #
-
-    DEVICE_TYPE = "device_type"  #str
-    SERIAL_NUMBER = "serial_number" #str (could be int...)
-
-    #
-    # StatusData
-    #
-
     TIME = "time" # str
-    EVENT_COUNT = "event_count" #int
-    MAIN_SUPPLY_VOLTAGE = "main_supply_voltage" # float
-    NUMBER_OF_SAMPLES = "number_of_samples" # int
-    BYTES_USED = "bytes_used" # int
-    BYTES_FREE = "bytes_free" # int
-
-    #
-    # ConfigurationData
-    #
-
-    ACQ_OSC_CAL_DATE = "acq_osc_cal_date" # date
-    FRA0 = "acquisition_frequency_a0" # float
-    FRA1 = "acquisition_frequency_a1" # float
-    FRA2 = "acquisition_frequency_a2" # float
-    FRA3 = "acquisition_frequency_a3" # float
-    PRESSURE_SERIAL_NUM = "pressure_serial_num" # string
-    PRESSURE_CAL_DATE = "pressure_cal_date" # date
-    PU0 = "pressure_sensor_u0" # float
-    PY1 = "pressure_sensor_y1" # float
-    PY2 = "pressure_sensor_y2" # float
-    PY3 = "pressure_sensor_y3" # float
-    PC1 = "pressure_sensor_c1" # float
-    PC2 = "pressure_sensor_c2" # float
-    PC3 = "pressure_sensor_c3" # float
-    PD1 = "pressure_sensor_d1" # float
-    PD2 = "pressure_sensor_d2" # float
-    PT1 = "pressure_sensor_t1" # float
-    PT2 = "pressure_sensor_t2" # float
-    PT3 = "pressure_sensor_t3" # float
-    PT4 = "pressure_sensor_t4" # float
-    PRESSURE_OFFSET = "pressure_offset" # float (psia)
-    PRESSURE_RANGE = "pressure_range" # float (psia)
-    BATTERY_TYPE = "batterytype" # int
-    BAUD_RATE = "baudrate" # int
-    ENABLE_ALERTS = "enablealerts" # bool
-    UPLOAD_TYPE = "uploadtype" # int
     SAMPLE_PERIOD = "sampleperiod" # int
-
-    #
-    # Event Counter
-    #
-
-    NUMBER_EVENTS = "number_events" # int
-    MAX_STACK = "max_stack" # int
-    POWER_ON_RESET = "power_on_reset" # int
-    POWER_FAIL_RESET = "power_fail_reset" # int
-    SERIAL_BYTE_ERROR = "serial_byte_error" # int
-    COMMAND_BUFFER_OVERFLOW = "command_buffer_overflow" # int
-    SERIAL_RECEIVE_OVERFLOW = "serial_receive_overflow" # int
-    LOW_BATTERY = "low_battery" # int
-    SIGNAL_ERROR = "signal_error" # int
-    ERROR_10 = "error_10" # int
-    ERROR_12 = "error_12" # int
-
-    #
-    # Hardware Data
-    #
-
-    MANUFACTURER = "manufacturer" # string
-    FIRMWARE_VERSION = "firmware_version" # string
-    FIRMWARE_DATE = "firmware_date" # date
-    HARDWARE_VERSION = "hardware_version" # string
-    PCB_SERIAL_NUMBER = "pcb_serial_number" # string
-    PCB_TYPE = "pcb_type" # string
-    MANUFACTUR_DATE = "manufactur_date" # date
+    ENABLE_ALERTS = "enablealerts" # bool
+    BATTERY_TYPE = "batterytype" # int
 
 # Device prompts.
 class Prompt(BaseEnum):
-    """
-    io prompts.
-    """
     COMMAND = "<Executed/>\r\nS>"
-
     AUTOSAMPLE = "<Executed/>\r\n"
-
     BAD_COMMAND_AUTOSAMPLE = "<Error.*?\r\n<Executed/>\r\n" # REGEX ALERT
     BAD_COMMAND = "<Error.*?\r\n<Executed/>\r\nS>" # REGEX ALERT
 
 
-######################################### PARTICLES #############################
+######################### PARTICLES #############################
 
-class SBE54tpsEngineeringDataParticleKey(BaseEnum):
-    MAIN_SUPPLY_VOLTAGE = "main_supply_voltage"
+STATUS_DATA_REGEX = r"(<StatusData DeviceType='.*?</StatusData>)"
+STATUS_DATA_REGEX_MATCHER = re.compile(STATUS_DATA_REGEX, re.DOTALL)
 
-class SBE54tpsEngineeringDataParticle(BaseEnum):
-    """
-    Routines for parsing raw data into a data particle structure. Override
-    the building of values, and the rest should come along for free.
-    """
-    _data_particle_type = DataParticleType.PREST_ENGINEERING_PARAMETERS
-    
-    LINE4 = r"<MainSupplyVoltage>([.\d]+)</MainSupplyVoltage>"
-    def _build_parsed_values(self):
-        """
-        Take something in the StatusData format and split it into
-        values with appropriate tags
+CONFIGURATION_DATA_REGEX = r"(<ConfigurationData DeviceType=.*?</ConfigurationData>)"
+CONFIGURATION_DATA_REGEX_MATCHER = re.compile(CONFIGURATION_DATA_REGEX, re.DOTALL)
 
-        @throws SampleException If there is a problem with sample creation
-        """
-        # Initialize
+EVENT_COUNTER_DATA_REGEX = r"(<EventSummary numEvents='.*?</EventList>)"
+EVENT_COUNTER_DATA_REGEX_MATCHER = re.compile(EVENT_COUNTER_DATA_REGEX, re.DOTALL)
 
-        single_var_matches  = {
-            SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE: None
-        }
+HARDWARE_DATA_REGEX = r"(<HardwareData DeviceType='.*?</HardwareData>)"
+HARDWARE_DATA_REGEX_MATCHER = re.compile(HARDWARE_DATA_REGEX, re.DOTALL)
 
-        multi_var_matchers  = {
-            re.compile(self.LINE4): [
-                SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE
-            ]
-        }
+SAMPLE_DATA_REGEX = r"<Sample Num='[0-9]+' Type='Pressure'>.*?</Sample>"
+SAMPLE_DATA_REGEX_MATCHER = re.compile(SAMPLE_DATA_REGEX, re.DOTALL)
 
-        for line in self.raw_data.split(NEWLINE):
-            for (matcher, keys) in multi_var_matchers.iteritems():
-                match = matcher.match(line)
-                if match:
-                    index = 0
-                    for key in keys:
-                        index = index + 1
-                        val = match.group(index)
-                        
-                        #float
-                        if key in [
-                            SBE54tpsStatusDataParticleKey.MAIN_SUPPLY_VOLTAGE
-                        ]:
-                            single_var_matches[key] = float(val)
+SAMPLE_REF_OSC_REGEX = r"<SetTimeout>.*?</ReferenceOscTest>"
+SAMPLE_REF_OSC_MATCHER = re.compile(SAMPLE_REF_OSC_REGEX, re.DOTALL)
 
-                        else:
-                            raise SampleException("Unknown variable type in SBE54tpsStatusDataParticle._build_parsed_values")
+ENGINEERING_DATA_REGEX = "<MainSupplyVoltage>([.\d]+)</MainSupplyVoltage>"
+ENGINEERING_DATA_MATCHER = re.compile(SAMPLE_REF_OSC_REGEX, re.DOTALL)
 
-        result = []
-        for (key, value) in single_var_matches.iteritems():
-            result.append({DataParticleKey.VALUE_ID: key,
-                           DataParticleKey.VALUE: value})
-
-        return result
-    
 class SBE54tpsStatusDataParticleKey(BaseEnum):
     DEVICE_TYPE = "device_type"
     SERIAL_NUMBER = "serial_number"
-    TIME = "time"
+    TIME = "date_time_str"
     EVENT_COUNT = "event_count"
-    MAIN_SUPPLY_VOLTAGE = "main_supply_voltage"
-    NUMBER_OF_SAMPLES = "number_of_samples"
+    MAIN_SUPPLY_VOLTAGE = "battery_voltage_main"
+    NUMBER_OF_SAMPLES = "sample_number"
     BYTES_USED = "bytes_used"
     BYTES_FREE = "bytes_free"
 
@@ -443,7 +193,6 @@ class SBE54tpsStatusDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
-
     _data_particle_type = DataParticleType.PREST_DEVICE_STATUS
 
     LINE1 = r"<StatusData DeviceType='([^']+)' SerialNumber='(\d+)'>"
@@ -453,6 +202,7 @@ class SBE54tpsStatusDataParticle(DataParticle):
     LINE5 = r"<Samples>(\d+)</Samples>"
     LINE6 = r"<Bytes>(\d+)</Bytes>"
     LINE7 = r"<BytesFree>(\d+)</BytesFree>"
+
     def _build_parsed_values(self):
         """
         Take something in the StatusData format and split it into
@@ -461,7 +211,6 @@ class SBE54tpsStatusDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
         # Initialize
-
         single_var_matches  = {
             SBE54tpsStatusDataParticleKey.DEVICE_TYPE: None,
             SBE54tpsStatusDataParticleKey.SERIAL_NUMBER: None,
@@ -510,7 +259,6 @@ class SBE54tpsStatusDataParticle(DataParticle):
                         # str
                         if key in [
                             SBE54tpsStatusDataParticleKey.DEVICE_TYPE,
-                            SBE54tpsStatusDataParticleKey.TIME
                         ]:
                             single_var_matches[key] = val
 
@@ -532,19 +280,12 @@ class SBE54tpsStatusDataParticle(DataParticle):
 
                         # datetime
                         elif key in [
-                            #SBE54tpsStatusDataParticleKey.TIME
+                            SBE54tpsStatusDataParticleKey.TIME
                         ]:
-                            # 2012-11-13T17:56:42
                             # yyyy-mm-ddThh:mm:ss
-
-                            '''
-                            log.debug("GOT TIME FROM INSTRUMENT = " + str(val))
-                            text_timestamp = val
-                            py_timestamp = time.strptime(text_timestamp, "%Y-%m-%dT%H:%M:%S")
-                            timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
-                            log.debug("CONVERTED TIME FROM INSTRUMENT = " + str(timestamp))
-                            single_var_matches[key] = timestamp
-                            '''
+                            single_var_matches[key] = val
+                            py_timestamp = time.strptime(val, "%Y-%m-%dT%H:%M:%S")
+                            self.set_internal_timestamp(unix_time=time.mktime(py_timestamp))
 
                         else:
                             raise SampleException("Unknown variable type in SBE54tpsStatusDataParticle._build_parsed_values")
@@ -559,32 +300,32 @@ class SBE54tpsStatusDataParticle(DataParticle):
 class SBE54tpsConfigurationDataParticleKey(BaseEnum):
     DEVICE_TYPE = "device_type"
     SERIAL_NUMBER = "serial_number"
-    ACQ_OSC_CAL_DATE = "acquisition_crystal_calibration_date"
-    FRA0 = "fra0"
-    FRA1 = "fra1"
-    FRA2 = "fra2"
-    FRA3 = "fra3"
-    PRESSURE_SERIAL_NUM = "pressure_serial_number"
-    PRESSURE_CAL_DATE = "pressure_calibration_date"
-    PU0 = "pu0"
-    PY1 = "py1"
-    PY2 = "py2"
-    PY3 = "py3"
-    PC1 = "pc1"
-    PC2 = "pc2"
-    PC3 = "pc3"
-    PD1 = "pd1"
-    PD2 = "pd2"
-    PT1 = "pt1"
-    PT2 = "pt2"
-    PT3 = "pt3"
-    PT4 = "pt4"
-    PRESSURE_OFFSET = "pressure_sensor_offset" # pisa
-    PRESSURE_RANGE = "pressure_sensor_full_scale_range" # pisa
+    ACQ_OSC_CAL_DATE = "calibration_date_acq_crystal"
+    FRA0 = "acq_crystal_coeff_fra0"
+    FRA1 = "acq_crystal_coeff_fra1"
+    FRA2 = "acq_crystal_coeff_fra2"
+    FRA3 = "acq_crystal_coeff_fra3"
+    PRESSURE_SERIAL_NUM = "pressure_sensor_serial_number"
+    PRESSURE_CAL_DATE = "calibration_date_pressure"
+    PU0 = "press_coeff_pu0"
+    PY1 = "press_coeff_py1"
+    PY2 = "press_coeff_py2"
+    PY3 = "press_coeff_py3"
+    PC1 = "press_coeff_pc1"
+    PC2 = "press_coeff_pc2"
+    PC3 = "press_coeff_pc3"
+    PD1 = "press_coeff_pd1"
+    PD2 = "press_coeff_pd2"
+    PT1 = "press_coeff_pt1"
+    PT2 = "press_coeff_pt2"
+    PT3 = "press_coeff_pt3"
+    PT4 = "press_coeff_pt4"
+    PRESSURE_OFFSET = "press_coeff_poffsett" # pisa
+    PRESSURE_RANGE = "pressure_sensor_range" # pisa
     BATTERY_TYPE = "battery_type"
     BAUD_RATE = "baud_rate"
-    ENABLE_ALERTS = "enable_alerts"
     UPLOAD_TYPE = "upload_type"
+    ENABLE_ALERTS = "enable_alerts"
     SAMPLE_PERIOD = "sample_period"
 
 class SBE54tpsConfigurationDataParticle(DataParticle):
@@ -592,7 +333,6 @@ class SBE54tpsConfigurationDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
-    
     _data_particle_type = DataParticleType.PREST_CONFIGURATION_DATA
     
     LINE1 = r"<ConfigurationData DeviceType='([^']+)' SerialNumber='(\d+)'>"
@@ -765,20 +505,21 @@ class SBE54tpsConfigurationDataParticle(DataParticle):
                         # str
                         if key in [
                             SBE54tpsConfigurationDataParticleKey.DEVICE_TYPE,
-                            SBE54tpsConfigurationDataParticleKey.PRESSURE_SERIAL_NUM,
+                            SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE,
+                            SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE
                         ]:
                             single_var_matches[key] = val
 
                         # int
                         elif key in [
                             SBE54tpsConfigurationDataParticleKey.SERIAL_NUMBER,
+                            SBE54tpsConfigurationDataParticleKey.PRESSURE_SERIAL_NUM,
                             SBE54tpsConfigurationDataParticleKey.BATTERY_TYPE,
                             SBE54tpsConfigurationDataParticleKey.UPLOAD_TYPE,
                             SBE54tpsConfigurationDataParticleKey.SAMPLE_PERIOD,
                             SBE54tpsConfigurationDataParticleKey.BAUD_RATE
                         ]:
                             single_var_matches[key] = int(val)
-
 
                         # bool
                         elif key in [
@@ -810,19 +551,6 @@ class SBE54tpsConfigurationDataParticle(DataParticle):
                         ]:
                             single_var_matches[key] = float(val)
 
-                        # date
-                        elif key in [
-                            SBE54tpsConfigurationDataParticleKey.ACQ_OSC_CAL_DATE,
-                            SBE54tpsConfigurationDataParticleKey.PRESSURE_CAL_DATE
-                        ]:
-                            # ISO8601-2000 format.
-                            # yyyy-mm-dd
-                            # 2007-03-01
-                            text_timestamp = val
-                            py_timestamp = time.strptime(text_timestamp, "%Y-%m-%d")
-                            timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
-                            single_var_matches[key] = timestamp
-
                         else:
                             raise SampleException("Unknown variable type in SBE54tpsConfigurationDataParticle._build_parsed_values")
 
@@ -853,10 +581,9 @@ class SBE54tpsEventCounterDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
-
     _data_particle_type = DataParticleType.PREST_EVENT_COUNTER
 
-    LINE1 = r"EventSummary numEvents='(\d+)' maxStack='(\d+)'/>"
+    LINE1 = r"<EventSummary numEvents='(573)' maxStack='(354)'/>"
     LINE2 = r"<EventList DeviceType='([^']+)' SerialNumber='(\d+)'>"
     LINE3 = r"<Event type='PowerOnReset' count='(\d+)'/>"
     LINE4 = r"<Event type='PowerFailReset' count='(\d+)'/>"
@@ -982,14 +709,13 @@ class SBE54tpsHardwareDataParticleKey(BaseEnum):
     HARDWARE_VERSION = "hardware_version"
     PCB_SERIAL_NUMBER = "pcb_serial_number"
     PCB_TYPE = "pcb_type"
-    MANUFACTUR_DATE = "manufactur_date"
+    MANUFACTUR_DATE = "manufacture_date"
 
 class SBE54tpsHardwareDataParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
-
     _data_particle_type = DataParticleType.PREST_HARDWARE_DATA
     
     LINE1 = r"<HardwareData DeviceType='([^']+)' SerialNumber='(\d+)'>"
@@ -1065,7 +791,9 @@ class SBE54tpsHardwareDataParticle(DataParticle):
                             SBE54tpsHardwareDataParticleKey.FIRMWARE_VERSION,
                             SBE54tpsHardwareDataParticleKey.HARDWARE_VERSION,
                             SBE54tpsHardwareDataParticleKey.PCB_SERIAL_NUMBER,
-                            SBE54tpsHardwareDataParticleKey.PCB_TYPE
+                            SBE54tpsHardwareDataParticleKey.PCB_TYPE,
+                            SBE54tpsHardwareDataParticleKey.MANUFACTUR_DATE,
+                            SBE54tpsHardwareDataParticleKey.FIRMWARE_DATE,
                         ]:
                             single_var_matches[key] = val
 
@@ -1074,21 +802,6 @@ class SBE54tpsHardwareDataParticle(DataParticle):
                             SBE54tpsHardwareDataParticleKey.SERIAL_NUMBER
                         ]:
                             single_var_matches[key] = int(val)
-
-                        # date
-                        elif key in [
-                            SBE54tpsHardwareDataParticleKey.FIRMWARE_DATE,
-                            SBE54tpsHardwareDataParticleKey.MANUFACTUR_DATE
-                        ]:
-                            # <FirmwareDate>Mar 22 2007</FirmwareDate>
-                            # <MfgDate>Jun 27 2007</MfgDate>
-                            text_timestamp = val
-                            py_timestamp = time.strptime(text_timestamp, "%b %d %Y")
-                            timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
-                            single_var_matches[key] = timestamp
-
-                        else:
-                            raise SampleException("Unknown variable type in SBE54tpsConfigurationDataParticle._build_parsed_values")
 
         result = []
         for (key, value) in single_var_matches.iteritems():
@@ -1100,8 +813,8 @@ class SBE54tpsHardwareDataParticle(DataParticle):
 class SBE54tpsSampleDataParticleKey(BaseEnum):
     SAMPLE_NUMBER = "sample_number"
     SAMPLE_TYPE = "sample_type"
-    INST_TIME = "InstTime" # FUTURE "inst_time"
-    PRESSURE = "pressure" # psi
+    INST_TIME = "date_time_string"
+    PRESSURE = "absolute_pressure" # psi
     PRESSURE_TEMP = "pressure_temp"
 
 class SBE54tpsSampleDataParticle(DataParticle):
@@ -1118,7 +831,6 @@ class SBE54tpsSampleDataParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-
         # Initialize
         single_var_matches  = {
             SBE54tpsSampleDataParticleKey.SAMPLE_NUMBER: None,
@@ -1187,7 +899,6 @@ class SBE54tpsSampleDataParticle(DataParticle):
                         else:
                             raise SampleException("Unknown variable type in SBE54tpsConfigurationDataParticle._build_parsed_values")
 
-
         result = []
         for (key, value) in single_var_matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
@@ -1196,22 +907,21 @@ class SBE54tpsSampleDataParticle(DataParticle):
         return result
 
 class SBE54tpsSampleRefOscDataParticleKey(BaseEnum):
-    SET_TIMEOUT = "SetTimeout"
-    SET_TIMEOUT_MAX = "SetTimeoutMax"
-    SET_TIMEOUT_ICD = "SetTimeoutICD"
+    SET_TIMEOUT = "set_timeout"
+    SET_TIMEOUT_MAX = "set_timeout_max"
+    SET_TIMEOUT_ICD = "set_timeout_icd"
     SAMPLE_NUMBER = "sample_number"
     SAMPLE_TYPE = "sample_type"
-    SAMPLE_TIMESTAMP = "sample_timestamp"
-    REF_OSC_FREQ = "ref_osc_freq"
-    PCB_TEMP_RAW = "pcb_temp_raw"
-    REF_ERROR_PPM = "ref_error_ppm"
+    SAMPLE_TIMESTAMP = "date_time_string"
+    REF_OSC_FREQ = "reference_oscillator_freq"
+    PCB_TEMP_RAW = "pcb_thermistor_value"
+    REF_ERROR_PPM = "reference_error"
 
 class SBE54tpsSampleRefOscDataParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
-    
     _data_particle_type = DataParticleType.PREST_REFERENCE_OSCILLATOR
     
     def _build_parsed_values(self):
@@ -1221,7 +931,6 @@ class SBE54tpsSampleRefOscDataParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-
         # Initialize
         single_var_matches  = {
             SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT: None,
@@ -1271,12 +980,12 @@ class SBE54tpsSampleRefOscDataParticle(DataParticle):
                     for key in keys:
                         index = index + 1
                         val = match.group(index)
+                        log.debug("SAMPLE_TYPE = " + val)
 
                         # str
                         if key in [
                             SBE54tpsSampleRefOscDataParticleKey.SAMPLE_TYPE
                         ]:
-                            log.debug("SAMPLE_TYPE = " + val)
                             single_var_matches[key] = val
 
                         # int
@@ -1287,6 +996,8 @@ class SBE54tpsSampleRefOscDataParticle(DataParticle):
                             SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_ICD,
                             SBE54tpsSampleRefOscDataParticleKey.PCB_TEMP_RAW,
                         ]:
+                            if(key == SBE54tpsSampleRefOscDataParticleKey.SET_TIMEOUT_MAX and val.lower() == 'off'):
+                                val = 0
                             single_var_matches[key] = int(val)
 
                         # float
@@ -1302,10 +1013,9 @@ class SBE54tpsSampleRefOscDataParticle(DataParticle):
                         ]:
                             # <Time>2012-11-07T12:21:25</Time>
                             # yyyy-mm-ddThh:mm:ss
-                            text_timestamp = val
-                            py_timestamp = time.strptime(text_timestamp, "%Y-%m-%dT%H:%M:%S")
-                            timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
-                            single_var_matches[key] = timestamp
+                            single_var_matches[key] = val
+                            py_timestamp = time.strptime(val, "%Y-%m-%dT%H:%M:%S")
+                            self.set_internal_timestamp(time.mktime(py_timestamp))
 
                         else:
                             raise SampleException("Unknown variable type in SBE54tpsConfigurationDataParticle._build_parsed_values")
@@ -1325,10 +1035,10 @@ class SBE54tpsSampleRefOscDataParticle(DataParticle):
 # Driver
 ###############################################################################
 
-class InstrumentDriver(SingleConnectionInstrumentDriver):
+class SBE54PlusInstrumentDriver(SeaBirdInstrumentDriver):
     """
-    InstrumentDriver subclass
-    Subclasses SingleConnectionInstrumentDriver with connection state
+    SBEInstrumentDriver subclass
+    Subclasses Seabird driver with connection state
     machine.
     """
     def __init__(self, evt_callback):
@@ -1336,8 +1046,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         Driver constructor.
         @param evt_callback Driver process event callback.
         """
-        #Construct superclass.
-        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+        SeaBirdInstrumentDriver.__init__(self, evt_callback)
 
     ########################################################################
     # Superclass overrides for resource query.
@@ -1363,7 +1072,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 # Protocol
 ################################################################################
 
-class Protocol(CommandResponseInstrumentProtocol):
+class Protocol(SeaBirdProtocol):
     """
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
@@ -1376,7 +1085,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param driver_event Driver process event callback.
         """
         # Construct protocol superclass.
-        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+        SeaBirdProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
@@ -1386,16 +1095,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER,                  self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT,                   self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER,               self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.FORCE_STATE,            self._handler_unknown_force_state)   ######
-        #self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)  ##???? from unknown state?
-
-
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.FORCE_STATE,            self._handler_unknown_force_state)   ######
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER,                  self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT,                   self._handler_command_exit)
-        # have NO TAKE SAMPLE COMMAND
-        #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,         self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,       self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,                    self._handler_command_get)  ### ??
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)  ### ??
@@ -1406,6 +1108,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SAMPLE_REFERENCE_OSCILLATOR, self._handler_sample_ref_osc)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST_EEPROM,            self._handler_command_test_eeprom)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.RESET_EC,               self._handler_command_reset_ec)
+
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,      self._handler_command_aquire_status)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_get)
@@ -1433,7 +1137,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.TEST_EEPROM,            self._build_simple_command)
         self._add_build_handler(InstrumentCmds.RESET_EC,               self._build_simple_command)
 
-
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.SET,                    self._parse_set_response)
         self._add_response_handler(InstrumentCmds.GET_CONFIGURATION_DATA, self._parse_gc_response)
@@ -1446,14 +1149,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.RESET_EC,               self._parse_reset_ec)
         # Add sample handlers.
 
-
-
-
-
-
-
-
-
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
@@ -1462,25 +1157,19 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._chunker = StringChunker(Protocol.sieve_function)
 
-
-
     @staticmethod
     def sieve_function(raw_data):
         """
         The method that splits samples
         """
-
         return_list = []
 
-        sieve_matchers = [STATUS_DATA_REGEX_MATCHER,
-                          CONFIGURATION_DATA_REGEX_MATCHER,
-                          EVENT_COUNTER_DATA_REGEX_MATCHER,
-                          HARDWARE_DATA_REGEX_MATCHER,
-                          SAMPLE_DATA_REGEX_MATCHER,
-                          ENGINEERING_DATA_MATCHER
-                         ]
-
-
+        sieve_matchers = [ STATUS_DATA_REGEX_MATCHER,
+                           CONFIGURATION_DATA_REGEX_MATCHER,
+                           EVENT_COUNTER_DATA_REGEX_MATCHER,
+                           HARDWARE_DATA_REGEX_MATCHER,
+                           SAMPLE_DATA_REGEX_MATCHER,
+                           ENGINEERING_DATA_MATCHER ]
 
         for matcher in sieve_matchers:
             for match in matcher.finditer(raw_data):
@@ -1491,9 +1180,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _filter_capabilities(self, events):
         """
         Return a list of currently available capabilities.
-        @TODO CANDIDATE FOR PROMOTING TO BASE CLASS.
         """
-
         log.debug("%%% IN _filter_capabilities in state " + repr(self._protocol_fsm.get_current_state()))
 
         log.debug("%%% - EVENTS_IN = " + repr(events))
@@ -1502,7 +1189,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return events_out
 
-
     def _parse_set_response(self, response, prompt):
         """
         Parse handler for set command.
@@ -1510,7 +1196,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if set command misunderstood.
         """
-
         log.debug("_parse_set_response RESPONSE = " + str(response) + "/PROMPT = " + str(prompt))
         if ((prompt != Prompt.COMMAND) or ('Error' in response)):
             raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
@@ -1552,9 +1237,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("IN _parse_hd_response RESPONSE = " + repr(response))
         return response
 
-
-
-
     ########################################################################
     # Unknown handlers.
     ########################################################################
@@ -1568,35 +1250,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("%%% IN _handler_unknown_enter")
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    def _handler_unknown_force_state(self, *args, **kwargs):
-        """
-        Force driver into a given state for the purposes of unit testing
-        @param state=desired_state Required desired state to transition to.
-        @raises InstrumentParameterException if no st'ate parameter.
-        """
-        log.debug("************* " + repr(kwargs))
-        log.debug("************* in _handler_unknown_force_state()" + str(kwargs.get('state', None)))
-
-        state = kwargs.get('state', None)  # via kwargs
-        if state is None:
-            raise InstrumentParameterException('Missing state parameter.')
-
-        next_state = state
-        result = state
-
-        return (next_state, result)
-
-
-
-
-
-
-
-
-
-
-
-
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state; can be COMMAND or AUTOSAMPLE.
@@ -1607,7 +1260,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentStateException if the device response does not correspond to
         an expected state.
         """
-
         timeout = kwargs.get('timeout', TIMEOUT)
 
         next_state = None
@@ -1616,35 +1268,20 @@ class Protocol(CommandResponseInstrumentProtocol):
         current_state = self._protocol_fsm.get_current_state()
         log.debug("%%% IN _handler_unknown_discover current_state = " + str(current_state))
 
-        if current_state == ProtocolState.AUTOSAMPLE:
-            next_agent_state = ResourceAgentState.STREAMING
-        # If I think I am in COMMAND state, I better verify that.
-        elif (ProtocolState.COMMAND == current_state or
-             ProtocolState.UNKNOWN == current_state):
-            delay = 0.5
-            prompt = self._wakeup(timeout=timeout, delay=delay) # '<Executed/>\r\n'
-            log.debug("_handler_unknown_discover in UNKNOWN got prompt " + repr(prompt))
-            if  Prompt.AUTOSAMPLE  == prompt:
-                next_state = ProtocolState.AUTOSAMPLE
-                next_agent_state = ResourceAgentState.STREAMING
-                log.debug("_handler_unknown_discover - I am in STATE = " + str(next_state))
-            elif Prompt.COMMAND  == prompt:
-                next_state = ProtocolState.COMMAND
-                next_agent_state = ResourceAgentState.IDLE
-                log.debug("_handler_unknown_discover - I am in STATE = " + str(next_state))
-            else:
-                log.debug("_handler_unknown_discover - HOW DID THIS HAPPEN??? ")
-                raise InstrumentProtocolException('_handler_unknown_discover - should never reach this line! What did you do!!!!')
+        logging = self._is_logging()
 
-            self._do_cmd_resp(InstrumentCmds.GET_CONFIGURATION_DATA, timeout=timeout)
-            self._do_cmd_resp(InstrumentCmds.GET_STATUS_DATA, timeout=timeout)
-            self._do_cmd_resp(InstrumentCmds.GET_EVENT_COUNTER_DATA, timeout=timeout)
-            self._do_cmd_resp(InstrumentCmds.GET_HARDWARE_DATA, timeout=timeout)
+        if(logging == None):
+            raise InstrumentProtocolException('_handler_unknown_discover - unable to to determine state')
+
+        elif(logging):
+            next_state = ProtocolState.AUTOSAMPLE
+            next_agent_state = ResourceAgentState.STREAMING
+
+        else:
+            next_state = ProtocolState.COMMAND
+            next_agent_state = ResourceAgentState.IDLE
 
         return (next_state, next_agent_state)
-
-
-
 
     def _handler_unknown_exit(self, *args, **kwargs):
         """
@@ -1652,8 +1289,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         log.debug("%%% IN _handler_unknown_exit")
         pass
-
-
 
     ########################################################################
     # Command handlers.
@@ -1667,17 +1302,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         # Command device to update parameters and send a config change event.
 
-
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
-
-
         log.debug("%%% IN _handler_command_enter")
         #self._restore_da_params()
         self._update_params()
 
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
 
     def _handler_command_acquire_sample(self, *args, **kwargs):
         """
@@ -1716,7 +1347,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param kwargs:
         @return:
         """
-
         log.debug("%%% IN _handler_command_aquire_status")
 
         timeout = kwargs.get('timeout', TIMEOUT)
@@ -1730,14 +1360,12 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         result = result1 + result2 + result3 + result4
 
-
         log.debug("RESULT(RETURNED) = " + str(result))
         return (next_state, (next_agent_state, result))
 
     def _handler_command_start_direct(self, *args, **kwargs):
         """
         """
-
         next_state = None
         result = None
 
@@ -1760,7 +1388,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         start
         <Executed/>
         """
-
         log.debug("%%% IN _handler_command_start_autosample")
 
         next_state = ProtocolState.AUTOSAMPLE
@@ -1776,7 +1403,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
         @throws InstrumentParameterException if missing or invalid parameter.
         """
-
         log.debug("%%% IN _handler_command_get")
 
         next_state = None
@@ -1789,9 +1415,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         except IndexError:
             raise InstrumentParameterException('Get command requires a parameter list or tuple.')
 
-
         log.debug("params = " + repr(params))
-
 
         # If all params requested, retrieve config.
         if params == DriverParameter.ALL:
@@ -1827,7 +1451,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for set command.
         @throws InstrumentProtocolException if set command could not be built or misunderstood.
         """
-
         log.debug("%%% IN _handler_command_set")
 
         next_state = None
@@ -1846,11 +1469,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
-            for (key, val) in params.iteritems():
-                log.debug("KEY = " + str(key) + " VALUE = " + str(val))
-                result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
-                log.debug("**********************RESULT************* = " + str(result))
-                self._update_params()
+            self._set_params(params)
 
         return (next_state, result)
 
@@ -1862,7 +1481,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
-
         log.debug("%%% IN _handler_command_clock_sync")
 
         next_state = None
@@ -1870,33 +1488,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         timeout = kwargs.get('timeout', TIMEOUT)
-        delay = 1
-        prompt = self._wakeup(timeout=timeout, delay=delay)
-
-        # lets clear out any past data so it doesnt confuse the command
-        self._linebuf = ''
-        self._promptbuf = ''
-
-        """
-        SetTime=x
-        settime=2012-11-13T15:23:18
-
-        ---
-        Trying it a bit different from the sbe26
-        ---
-        """
-
-        timestamp = get_timestamp_delayed("%Y-%m-%dT%H:%M:%S")
-        set_cmd = '%s=%s' % (InstrumentCmds.SET_TIME, timestamp) + NEWLINE
-
-        self._do_cmd_direct(set_cmd)
-        (prompt, response) = self._get_response() #timeout=30)
-
-        if response != set_cmd + Prompt.COMMAND:
-            raise InstrumentProtocolException("_handler_clock_sync - response != set_cmd")
-
-        if prompt != Prompt.COMMAND:
-            raise InstrumentProtocolException("_handler_clock_sync - prompt != Prompt.COMMAND")
+        self._sync_clock(Parameter.TIME, Prompt.COMMAND, timeout)
 
         return (next_state, (next_agent_state, result))
 
@@ -1904,14 +1496,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Exit command state.
         """
-
         log.debug("%%% IN _handler_command_exit")
-
         pass
 
-
     def _handler_command_test_eeprom(self, *args, **kwargs):
-
         log.debug("%%% in _handler_command_test_eeprom")
 
         next_state = None
@@ -1924,13 +1512,10 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
-
-
     def _parse_test_eeprom(self, response, prompt):
         """
         @return: True or False
         """
-
         if prompt != 'S>':
             raise InstrumentProtocolException('TEST_EEPROM command not recognized: %s' % response)
 
@@ -1943,7 +1528,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         @return: True or False
         """
-
         if prompt != 'S>':
             raise InstrumentProtocolException('RESET_EC command not recognized: %s' % response)
 
@@ -2018,10 +1602,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("_parse_init_logging_response response = " + repr(response))
         log.debug("_parse_init_logging_response prompt = " + repr(prompt))
 
-
         #'InitLogging\r\n<WARNING>\r\nSample number will reset\r\nAll recorded data will be lost\r\n</WARNING>\r\n<ConfirmationRequired/>\r\n<Executed/>\r\nS>'
-
-
 
         if prompt != 'S>':
             raise InstrumentProtocolException('Initlogging command not recognized: %s' % response)
@@ -2073,7 +1654,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         next_state = None
         result = None
-
 
         # Issue start command and switch to autosample if successful.
         self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, *args, **kwargs)
@@ -2175,9 +1755,80 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("%%% IN _handler_direct_access_exit")
         pass
 
+    ########################################################################
+    # Private helpers.
+    ########################################################################
 
+    def _is_logging(self, timeout=TIMEOUT):
+        """
+        Wake up the instrument and inspect the prompt to determine if we
+        are in streaming
+        @param: timeout - Command timeout
+        @return: True - instrument logging, False - not logging,
+                 None - unknown logging state
+        @raise: InstrumentProtocolException if we can't identify the prompt
+        """
+        prompt = self._wakeup(timeout=timeout, delay=0.5)
+        if  Prompt.AUTOSAMPLE == prompt:
+            return True
+        elif Prompt.COMMAND == prompt:
+            return False
+        else:
+            raise InstrumentProtocolException("Unknown prompt '%s'" % prompt)
 
+    def _start_logging(self, timeout=TIMEOUT):
+        """
+        Command the instrument to start logging
+        @param timeout: how long to wait for a prompt
+        @return: True if successful
+        @raise: InstrumentProtocolException if failed to start logging
+        """
+        log.debug("Start Logging!")
+        if(self._is_logging()):
+            return True
 
+        self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, timeout=timeout)
+
+        if not self._is_logging(timeout):
+            raise InstrumentProtocolException("failed to start logging")
+
+        return True
+
+    def _stop_logging(self, timeout=TIMEOUT):
+        """
+        Command the instrument to stop logging
+        @param timeout: how long to wait for a prompt
+        @return: True if successful
+        @raise: InstrumentTimeoutException if prompt isn't seen
+        @raise: InstrumentProtocolException failed to stop logging
+        """
+        log.debug("Stop Logging!")
+
+        if not self._is_logging():
+            return True
+
+        # Issue the stop command.
+        self._do_cmd_resp(InstrumentCmds.STOP_LOGGING)
+
+        if self._is_logging(timeout):
+            raise InstrumentProtocolException("failed to stop logging")
+
+        return True
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        for (key, val) in params.iteritems():
+            log.debug("KEY = " + str(key) + " VALUE = " + str(val))
+            result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
+
+        self._update_params()
 
     def _build_set_command(self, cmd, param, val):
         """
@@ -2190,24 +1841,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if the parameter is not valid or
         if the formatting function could not accept the value passed.
         """
-
-        log.debug("%%% IN _build_set_command")
-
-        """
-        This breaks startup params
-
-        if param not in [
-            Parameter.TIME,
-            Parameter.UPLOAD_TYPE,
-            Parameter.ENABLE_ALERTS,
-            Parameter.SAMPLE_PERIOD,
-        ]:
-            raise InstrumentParameterException("Parameter " +str(param) + " is not allowed to be set")
-        """
-
         try:
-            log.debug("PARAM = "+ repr(param))
-            log.debug("VAL = "+ repr(val))
             str_val = self._param_dict.format(param, val)
             if None == str_val:
                 raise InstrumentParameterException("Driver PARAM was None!!!!")
@@ -2233,354 +1867,50 @@ class Protocol(CommandResponseInstrumentProtocol):
         #
         # StatusData
         #
-
-        self._param_dict.add(Parameter.DEVICE_TYPE,
-            SBE54tpsStatusDataParticle.LINE1,
-            lambda match : int(match.group(1)),
-            self._int_to_string,
-            multi_match=True)
-
-        self._param_dict.add(Parameter.SERIAL_NUMBER,
-            SBE54tpsStatusDataParticle.LINE1,
-            lambda match : int(match.group(2)),
-            self._int_to_string,
-            multi_match=True)
-
         self._param_dict.add(Parameter.TIME,
             SBE54tpsStatusDataParticle.LINE2,
-            lambda match : match.group(1), # self._string_to_datetime(match.group(1)),
-            self._string_to_string)
-            #self._time_to_string)
-
-        self._param_dict.add(Parameter.EVENT_COUNT,
-            SBE54tpsStatusDataParticle.LINE3,
-            lambda match : int(match.group(1)),
-            self._int_to_string)
-
-        self._param_dict.add(Parameter.MAIN_SUPPLY_VOLTAGE,
-            SBE54tpsStatusDataParticle.LINE4,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.NUMBER_OF_SAMPLES,
-            SBE54tpsStatusDataParticle.LINE5,
-            lambda match : int(match.group(1)),
-            self._int_to_string)
-
-        self._param_dict.add(Parameter.BYTES_USED,
-            SBE54tpsStatusDataParticle.LINE6,
-            lambda match : int(match.group(1)),
-            self._int_to_string)
-
-        self._param_dict.add(Parameter.BYTES_FREE,
-            SBE54tpsStatusDataParticle.LINE7,
-            lambda match :int(match.group(1)),
-            self._int_to_string)
-
-        #
-        # ConfigurationData
-        #
-
-        self._param_dict.add(Parameter.DEVICE_TYPE,
-            SBE54tpsConfigurationDataParticle.LINE1,
-            lambda match : int(match.group(1)),
-            self._int_to_string,
-            multi_match=True)
-
-        self._param_dict.add(Parameter.SERIAL_NUMBER,
-            SBE54tpsConfigurationDataParticle.LINE1,
-            lambda match : int(match.group(2)),
-            self._int_to_string,
-            multi_match=True)
-
-        self._param_dict.add(Parameter.ACQ_OSC_CAL_DATE,
-            SBE54tpsConfigurationDataParticle.LINE2,
-            lambda match : self._string_month_number_to_date(match.group(1)),
-            self._date_to_string)
-
-        self._param_dict.add(Parameter.FRA0,
-            SBE54tpsConfigurationDataParticle.LINE3,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.FRA1,
-            SBE54tpsConfigurationDataParticle.LINE4,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.FRA2,
-            SBE54tpsConfigurationDataParticle.LINE5,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.FRA3,
-            SBE54tpsConfigurationDataParticle.LINE6,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PRESSURE_SERIAL_NUM,
-            SBE54tpsConfigurationDataParticle.LINE7,
-            lambda match : string.upper(match.group(1)),
-            self._string_to_string)
-
-        self._param_dict.add(Parameter.PRESSURE_CAL_DATE,
-            SBE54tpsConfigurationDataParticle.LINE8,
-            lambda match : self._string_month_number_to_date(match.group(1)),
-            self._date_to_string)
-
-        self._param_dict.add(Parameter.PU0,
-            SBE54tpsConfigurationDataParticle.LINE9,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PY1,
-            SBE54tpsConfigurationDataParticle.LINE10,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PY2,
-            SBE54tpsConfigurationDataParticle.LINE11,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PY3,
-            SBE54tpsConfigurationDataParticle.LINE12,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PC1,
-            SBE54tpsConfigurationDataParticle.LINE13,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PC2,
-            SBE54tpsConfigurationDataParticle.LINE14,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PC3,
-            SBE54tpsConfigurationDataParticle.LINE15,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PD1,
-            SBE54tpsConfigurationDataParticle.LINE16,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PD2,
-            SBE54tpsConfigurationDataParticle.LINE17,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PT1,
-            SBE54tpsConfigurationDataParticle.LINE18,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PT2,
-            SBE54tpsConfigurationDataParticle.LINE19,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PT3,
-            SBE54tpsConfigurationDataParticle.LINE20,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PT4,
-            SBE54tpsConfigurationDataParticle.LINE21,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PRESSURE_OFFSET,
-            SBE54tpsConfigurationDataParticle.LINE22,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.PRESSURE_RANGE,
-            SBE54tpsConfigurationDataParticle.LINE23,
-            lambda match : float(match.group(1)),
-            self._float_to_string)
-
-        self._param_dict.add(Parameter.BATTERY_TYPE,
-            SBE54tpsConfigurationDataParticle.LINE24,
-            lambda match : int(match.group(1)),
-            self._int_to_string,
-            startup_param=True,
-            direct_access=True)
-
-        self._param_dict.add(Parameter.BAUD_RATE,
-            SBE54tpsConfigurationDataParticle.LINE25,
-            lambda match : int(match.group(1)),
-            self._int_to_string)
-
-        self._param_dict.add(Parameter.ENABLE_ALERTS,
-            SBE54tpsConfigurationDataParticle.LINE26,
-            lambda match : bool(int(match.group(1))),
-            self._bool_to_int_string,
-            startup_param=True,
-            direct_access=True)
-
-        self._param_dict.add(Parameter.UPLOAD_TYPE,
-            SBE54tpsConfigurationDataParticle.LINE27,
-            lambda match : int(match.group(1)),
-            self._int_to_string,
-            startup_param=True,
-            direct_access=True)
+            lambda match : match.group(1),
+            str)
 
         self._param_dict.add(Parameter.SAMPLE_PERIOD,
-            SBE54tpsConfigurationDataParticle.LINE28,
-            lambda match : int(match.group(1)),
-            self._int_to_string,
-            startup_param=True,
-            direct_access=True)
+                             SBE54tpsConfigurationDataParticle.LINE28,
+                             lambda match : int(match.group(1)),
+                             self._int_to_string,
+                             default_value=15,
+                             startup_param=True,
+                             direct_access=True)
 
-        #
-        # Event Counter
-        #
+        self._param_dict.add(Parameter.BATTERY_TYPE,
+                             SBE54tpsConfigurationDataParticle.LINE24,
+                             lambda match : int(match.group(1)),
+                             self._int_to_string,
+                             default_value=1,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             startup_param=True,
+                             direct_access=True)
 
-        self._param_dict.add(Parameter.NUMBER_EVENTS,
-            SBE54tpsEventCounterDataParticle.LINE1,
-            lambda match : int(match.group(1)),
-            self._int_to_string,
-            multi_match=True)
+        self._param_dict.add(Parameter.ENABLE_ALERTS,
+                             SBE54tpsConfigurationDataParticle.LINE26,
+                             lambda match : bool(int(match.group(1))),
+                             self._bool_to_int_string,
+                             default_value=1,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             startup_param=True,
+                             direct_access=True)
 
-        self._param_dict.add(Parameter.MAX_STACK,
-            SBE54tpsEventCounterDataParticle.LINE1,
-            lambda match : int(match.group(2)),
-            self._int_to_string,
-            multi_match=True)
-
-        self._param_dict.add(Parameter.DEVICE_TYPE,
-            SBE54tpsEventCounterDataParticle.LINE2,
-            lambda match : string.upper(match.group(1)),
-            self._string_to_string,
-            multi_match=True)
-
-        self._param_dict.add(Parameter.SERIAL_NUMBER,
-            SBE54tpsEventCounterDataParticle.LINE2,
-            lambda match : int(match.group(2)),
-            self._int_to_string,
-            multi_match=True)
-
-        self._param_dict.add(Parameter.POWER_ON_RESET,
-            SBE54tpsEventCounterDataParticle.LINE3,
-            lambda match : int(match.group(1)),
-            self._int_to_string)
-
-        self._param_dict.add(Parameter.POWER_FAIL_RESET,
-            SBE54tpsEventCounterDataParticle.LINE4,
-            lambda match : int(match.group(1)),
-            self._int_to_string)
-
-        self._param_dict.add(Parameter.SERIAL_BYTE_ERROR,
-            SBE54tpsEventCounterDataParticle.LINE5,
-            lambda match : int(match.group(1)),
-            self._int_to_string)
-
-        self._param_dict.add(Parameter.COMMAND_BUFFER_OVERFLOW,
-            SBE54tpsEventCounterDataParticle.LINE6,
-            lambda match : int(match.group(1)),
-            self._int_to_string)
-
-        self._param_dict.add(Parameter.SERIAL_RECEIVE_OVERFLOW,
-            SBE54tpsEventCounterDataParticle.LINE7,
-            lambda match : int(match.group(1)),
-            self._int_to_string)
-
-        self._param_dict.add(Parameter.LOW_BATTERY,
-            SBE54tpsEventCounterDataParticle.LINE8,
-            lambda match : int(match.group(1)),
-            self._int_to_string)
-
-        self._param_dict.add(Parameter.SIGNAL_ERROR,
-            SBE54tpsEventCounterDataParticle.LINE9,
-            lambda match : int(match.group(1)),
-            self._int_to_string)
-
-        self._param_dict.add(Parameter.ERROR_10,
-            SBE54tpsEventCounterDataParticle.LINE10,
-            lambda match : int(match.group(1)),
-            self._int_to_string)
-
-        self._param_dict.add(Parameter.ERROR_12,
-            SBE54tpsEventCounterDataParticle.LINE11,
-            lambda match : int(match.group(1)),
-            self._int_to_string)
-
-        #
-        # Hardware Data
-        #
-
-        self._param_dict.add(Parameter.DEVICE_TYPE,
-            SBE54tpsHardwareDataParticle.LINE1,
-            lambda match : string.upper(match.group(1)),
-            self._string_to_string,
-            multi_match=True)
-
-        self._param_dict.add(Parameter.SERIAL_NUMBER,
-            SBE54tpsHardwareDataParticle.LINE1,
-            lambda match : int(match.group(2)),
-            self._int_to_string,
-            multi_match=True)
-
-        self._param_dict.add(Parameter.MANUFACTURER,
-            SBE54tpsHardwareDataParticle.LINE2,
-            lambda match : string.upper(match.group(1)),
-            self._string_to_string)
-
-        self._param_dict.add(Parameter.FIRMWARE_VERSION,
-            SBE54tpsHardwareDataParticle.LINE3,
-            lambda match : string.upper(match.group(1)),
-            self._string_to_string)
-
-        self._param_dict.add(Parameter.FIRMWARE_DATE,
-            SBE54tpsHardwareDataParticle.LINE4,
-            lambda match : self._string_month_name_to_date(match.group(1)),
-            self._date_to_string)
-
-        self._param_dict.add(Parameter.HARDWARE_VERSION,
-            SBE54tpsHardwareDataParticle.LINE5,
-            lambda match : string.upper(match.group(1)),
-            self._string_to_string)
-
-        self._param_dict.add(Parameter.PCB_SERIAL_NUMBER,
-            SBE54tpsHardwareDataParticle.LINE6,
-            lambda match : string.upper(match.group(1)),
-            self._string_to_string)
-
-        self._param_dict.add(Parameter.PCB_TYPE,
-            SBE54tpsHardwareDataParticle.LINE7,
-            lambda match : string.upper(match.group(1)),
-            self._string_to_string)
-
-        self._param_dict.add(Parameter.MANUFACTUR_DATE,
-            SBE54tpsHardwareDataParticle.LINE8,
-            lambda match : self._string_month_name_to_date(match.group(1)),
-            self._date_to_string)
-
-    def _got_chunk(self, chunk):
+    def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
+        if(self._extract_sample(SBE54tpsStatusDataParticle, STATUS_DATA_REGEX_MATCHER, chunk, timestamp)) : return
+        if(self._extract_sample(SBE54tpsConfigurationDataParticle, CONFIGURATION_DATA_REGEX_MATCHER, chunk, timestamp)) : return
+        if(self._extract_sample(SBE54tpsEventCounterDataParticle, EVENT_COUNTER_DATA_REGEX_MATCHER, chunk, timestamp)) : return
+        if(self._extract_sample(SBE54tpsHardwareDataParticle, HARDWARE_DATA_REGEX_MATCHER, chunk, timestamp)) : return
+        if(self._extract_sample(SBE54tpsSampleRefOscDataParticle, SAMPLE_REF_OSC_MATCHER, chunk, timestamp)) : return
+        if(self._extract_sample(SBE54tpsSampleDataParticle, SAMPLE_DATA_REGEX_MATCHER, chunk, timestamp)):
+            pass
 
-
-        result = self._extract_sample(SBE54tpsStatusDataParticle, STATUS_DATA_REGEX_MATCHER, chunk)
-
-        result = self._extract_sample(SBE54tpsConfigurationDataParticle, CONFIGURATION_DATA_REGEX_MATCHER, chunk)
-
-        result = self._extract_sample(SBE54tpsEventCounterDataParticle, EVENT_COUNTER_DATA_REGEX_MATCHER, chunk)
-
-        result = self._extract_sample(SBE54tpsHardwareDataParticle, HARDWARE_DATA_REGEX_MATCHER, chunk)
-
-        result = self._extract_sample(SBE54tpsSampleRefOscDataParticle, SAMPLE_REF_OSC_MATCHER, chunk)
-
-        result = self._extract_sample(SBE54tpsSampleDataParticle, SAMPLE_DATA_REGEX_MATCHER, chunk)
-        
-        result = self._extract_sample(SBE54tpsEngineeringDataParticle, ENGINEERING_DATA_MATCHER, chunk)
-        
         """
         # @TODO need to enable this and wire the event, but not tonight.
         if result:
@@ -2614,14 +1944,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be timely woken.
         @throws InstrumentProtocolException if ds/dc misunderstood.
         """
-
         # Get old param dict config.
         old_config = self._param_dict.get_config()
 
         # Issue display commands and parse results.
         timeout = kwargs.get('timeout', TIMEOUT)
-
-
 
         response = self._do_cmd_resp(InstrumentCmds.GET_CONFIGURATION_DATA, timeout=timeout)
         for line in response.split(NEWLINE):
@@ -2633,28 +1960,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         for line in response.split(NEWLINE):
             self._param_dict.update(line)
 
-        log.debug("GET_STATUS_DATA response = " + repr(response))
-
-        response = self._do_cmd_resp(InstrumentCmds.GET_EVENT_COUNTER_DATA, timeout=timeout)
-        for line in response.split(NEWLINE):
-            self._param_dict.update(line)
-
-        log.debug("GET_EVENT_COUNTER_DATA response = " + repr(response))
-
-        response = self._do_cmd_resp(InstrumentCmds.GET_HARDWARE_DATA, timeout=timeout)
-        for line in response.split(NEWLINE):
-            self._param_dict.update(line)
-
-        log.debug("GET_HARDWARE_DATA response = " + repr(response))
-
-
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-
-
 
     #
     # Many of these will want to rise up to base class if not there already
@@ -2690,50 +2000,6 @@ class Protocol(CommandResponseInstrumentProtocol):
             #return '%e' % v #This returns a exponential formatted float
             # every time. not what is needed
             return str(v) #return a simple float
-
-    @staticmethod
-    def _string_to_string(v):
-        log.debug("IN _string_to_string")
-        return v
-
-    @staticmethod
-    def _time_to_string(v):
-        log.debug("IN _time_to_string")
-        # return the passed in float of seconds since epoch to a string formatted time
-
-        return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(v))
-
-    @staticmethod
-    def _date_to_string(v):
-        log.debug("IN _date_to_string")
-        # return the passed in float of seconds since epoch to a string formatted date
-        # 2006-01-15
-        return time.strftime("%Y-%m-%d", time.gmtime(v))
-
-    @staticmethod
-    def _string_month_number_to_date(v):
-        log.debug("IN _string_to_date")
-        # return a float of seconds since epoch for the passed in string formatted date
-        # 2006-01-15
-        py_timestamp = time.strptime(v, "%Y-%m-%d")
-        return ntplib.system_to_ntp_time(time.mktime(py_timestamp))
-
-    @staticmethod
-    def _string_month_name_to_date(v):
-        log.debug("IN _string_to_date")
-        # return a float of seconds since epoch for the passed in string formatted date
-        # 2006-01-15
-        py_timestamp = time.strptime(v, "%b %d %Y")
-        return ntplib.system_to_ntp_time(time.mktime(py_timestamp))
-
-    @staticmethod
-    def _string_to_datetime(v):
-        # return a float of seconds since epoch for the passed in string formatted date_time
-        # 2012-01-16T15:21:11
-
-        py_timestamp = time.strptime(v, "%Y-%m-%dT%H:%M:%S")
-        return ntplib.system_to_ntp_time(time.mktime(py_timestamp))
-
 
     @staticmethod
     def _bool_to_int_string(v):

@@ -36,6 +36,7 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.instrument.seabird.test.test_driver import SeaBirdUnitTest
 from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
 from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
+from mi.instrument.seabird.test.test_driver import SeaBirdPublicationTest
 
 from mi.instrument.seabird.sbe26plus.test.sample_data import *
 
@@ -1480,3 +1481,13 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         self.assert_set_parameter(Parameter.TXWAVESTATS, True)
         self.assetert_set_parameter(Parameter.TXREALTIME, False)
         self.assetert_set_parameter(Parameter.TXWAVEBURST, True)
+
+###############################################################################
+#                             PUBLICATION TESTS                               #
+# Device specific pulication tests are for                                   #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('QUAL', group='mi')
+class SeaBird26PlusPublicationTest(SeaBirdPublicationTest):
+    def setUp(self):
+        SeaBirdPublicationTest.setUp(self)

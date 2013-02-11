@@ -279,9 +279,20 @@ class DriverTestMixin(MiUnitTest):
 
             result[key] = param.get('value')
 
-
         return result
 
+    def assert_data_particle_keys(self, data_particle_key, test_config):
+        """
+        Ensure that the keys defined in the data particle key enum match
+        the keys defined in the test configuration.
+        @param data_particle_key: object that defines all data particle keys.
+        @param test_config: dictionary containing parameter verification values
+        """
+        driver_keys = sorted(data_particle_key.list())
+        test_config_keys = sorted(test_config.keys())
+
+        self.assertEqual(len(driver_keys), len(test_config_keys))
+        self.assertEqual(driver_keys, test_config_keys)
 
     def assert_data_particle_header(self, data_particle, stream_name, require_instrument_timestamp=False):
         """
@@ -1175,6 +1186,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         @param driver: a mocked up driver
         @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
         """
+        self.maxDiff = None
         self.assert_driver_connected(driver)
         all_capabilities = sorted(driver._protocol._protocol_fsm.get_events(current_state=False))
         expected_capabilities = []
@@ -2460,4 +2472,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         pass
 
+
+class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
+    """
+    Test driver publication.  These test are not include in general driver
+    qualification because publication definitions could change.
+    """
 

@@ -13,6 +13,8 @@ __license__ = 'Apache 2.0'
 
 from mi.core.log import get_logger ; log = get_logger()
 
+from mi.core.exceptions import NotImplementedException
+from mi.core.instrument.instrument_protocol import DriverProtocolState
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 
@@ -108,3 +110,118 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
 
         return True
 
+    ########################################################################
+    # Startup parameter handlers
+    ########################################################################
+    def apply_startup_params(self):
+        """
+        Apply all startup parameters.  First we check the instrument to see
+        if we need to set the parameters.  If they are they are set
+        correctly then we don't do anything.
+
+        If we need to set parameters then we might need to transition to
+        command first.  Then we will transition back when complete.
+
+        @todo: This feels odd.  It feels like some of this logic should
+               be handled by the state machine.  It's a pattern that we
+               may want to review.  I say this because this command
+               needs to be run from autosample or command mode.
+        @raise: InstrumentProtocolException if not in command or streaming
+        """
+        # Let's give it a try in unknown state
+        log.debug("CURRENT STATE: %s" % self.get_current_state())
+        if (self.get_current_state() != DriverProtocolState.COMMAND and
+                    self.get_current_state() != DriverProtocolState.AUTOSAMPLE):
+            raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
+
+        logging = self._is_logging()
+
+        # If we are in streaming mode and our configuration on the
+        # instrument matches what we think it should be then we
+        # don't need to do anything.
+        if(not self._instrument_config_dirty()):
+            return True
+
+        error = None
+
+        try:
+            if(logging):
+                # Switch to command mode,
+                self._stop_logging()
+
+            self._apply_params()
+
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            error = e
+
+        finally:
+            # Switch back to streaming
+            if(logging):
+                self._start_logging()
+
+        if(error):
+            raise error
+
+    def _start_logging(self):
+        """
+        Issue the instrument command to start logging data
+        """
+        raise NotImplementedException()
+
+    def _stop_logging(self):
+        """
+        Issue the instrument command to stop logging data
+        """
+        raise NotImplementedException()
+
+    def _is_logging(self):
+        """
+        Is the instrument in logging or command mode.
+        @return: True if streaming, False if in command, None if we don't know
+        """
+        raise NotImplementedException()
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Do the work of sending instrument commands to the instrument to set
+        parameters.
+        """
+        raise NotImplementedException()
+
+    def _update_params(self):
+        """
+        Send instrument commands to get data to refresh the param_dict cache
+        """
+        raise NotImplementedException()
+
+    def _apply_params(self):
+        """
+        apply startup parameters to the instrument.
+        @raise: InstrumentProtocolException if in wrong mode.
+        """
+        config = self.get_startup_config()
+        self._set_params(config)
+
+    def _instrument_config_dirty(self):
+        """
+        Read the startup config and compare that to what the instrument
+        is configured too.  If they differ then return True
+        @return: True if the startup config doesn't match the instrument
+        @raise: InstrumentParameterException
+        """
+        # Refresh the param dict cache
+
+        self._update_params()
+
+        startup_params = self._param_dict.get_startup_list()
+        log.debug("Startup Parameters: %s" % startup_params)
+
+        for param in startup_params:
+            if (self._param_dict.get(param) != self._param_dict.get_config_value(param)):
+                log.debug("DIRTY: %s %s != %s" % (param, self._param_dict.get(param), self._param_dict.get_config_value(param)))
+                return True
+
+        log.debug("Clean instrument config")
+        return False
