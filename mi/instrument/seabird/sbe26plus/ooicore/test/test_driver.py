@@ -25,7 +25,8 @@ from mi.instrument.seabird.sbe26plus.test.test_driver import SeaBird26PlusUnitTe
 from mi.instrument.seabird.sbe26plus.test.test_driver import SeaBird26PlusIntegrationTest
 from mi.instrument.seabird.sbe26plus.test.test_driver import SeaBird26PlusQualificationTest
 from mi.instrument.seabird.sbe26plus.driver import DataParticleType
-from mi.instrument.seabird.sbe26plus.driver import ScheduledEvents
+from mi.instrument.seabird.sbe26plus.driver import ScheduledJob
+from mi.instrument.seabird.sbe26plus.driver import Parameter
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import DriverStartupConfigKey
 from mi.core.driver_scheduler import DriverSchedulerConfigKey
@@ -38,11 +39,15 @@ InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.seabird.sbe26plus.ooicore.driver',
     driver_class="InstrumentDriver",
     driver_startup_config = {
-        DriverStartupConfigKey.PARAMETERS: {},
+        DriverStartupConfigKey.PARAMETERS: {
+            Parameter.TXWAVESTATS: False,
+            Parameter.TXREALTIME: True,
+            Parameter.TXWAVEBURST: False,
+        },
         DriverStartupConfigKey.SCHEDULER: {
-           ScheduledEvents.ACQUIRE_STATUS: {
-               DriverSchedulerConfigKey.TRIGGER: {}
-           }
+            ScheduledJob.ACQUIRE_STATUS: {},
+            ScheduledJob.CALIBRATION_COEFFICIENTS: {},
+            ScheduledJob.CLOCK_SYNC: {}
         }
     }
 )

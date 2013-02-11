@@ -22,6 +22,7 @@ from mock import Mock
 
 from mi.core.exceptions import TestModeException
 from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import NotImplementedException
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverParameter
@@ -153,6 +154,15 @@ class TestUnitInstrumentDriver(MiUnitTestCase):
         self.assertEquals(running_config["foo"], 10)
         self.assertEquals(running_config["bar"], 15)        
         
+    def test_apply_startup_params(self):
+        """
+        Test to see that calling a driver's apply_startup_params successfully
+        gets down into the base protocol class's apply_startup_params() stub
+        that throws an exception
+        """
+        self.assertRaises(NotImplementedException,
+                          self.driver.apply_startup_params)
+        
     def test_startup_params(self):
         """
         Tests to see that startup parameters are properly set when the
@@ -176,16 +186,19 @@ class TestUnitInstrumentDriver(MiUnitTestCase):
         
         # pretend to go through the motions of a startup sequence
         self.driver.set_init_params({'foo':100, "bar": 150, "baz": 200})
-        self.driver.apply_startup_params()
+
+        # Now a virtual method in the protocol that asserts when not implemented
+        # behavior proven in derived protocol classes
+        #self.driver.apply_startup_params()
 
         # check the values on the other end
-        running_config = self.driver._protocol.get_cached_config()
+        #running_config = self.driver._protocol.get_cached_config()
         
         # confirm that the default values were set back appropriately.
-        self.assertTrue(self.driver._protocol._param_dict.get("foo"), 100)
-        self.assertTrue(self.driver._protocol._param_dict.get("bar"), 150)
-        self.assertTrue(self.driver._protocol._param_dict.get("baz"), 2000)
-        self.assertTrue(self.driver._protocol._param_dict.get("bat"), 40)
+        #self.assertTrue(self.driver._protocol._param_dict.get("foo"), 100)
+        #self.assertTrue(self.driver._protocol._param_dict.get("bar"), 150)
+        #self.assertTrue(self.driver._protocol._param_dict.get("baz"), 2000)
+        #self.assertTrue(self.driver._protocol._param_dict.get("bat"), 40)
 
     ##### Integration tests for startup config in the SBE37 integration suite
 

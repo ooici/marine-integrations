@@ -15,6 +15,7 @@ __license__ = 'Apache 2.0'
 
 import time
 import json
+from functools import partial
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -85,7 +86,7 @@ class InstrumentProtocol(object):
         log.error("base got_data.  Who called me?")
         pass
 
-    def _extract_sample(self, particle_class, regex, line, publish=True):
+    def _extract_sample(self, particle_class, regex, line, timestamp, publish=True):
         """
         Extract sample from a response line if present and publish
         parsed particle
@@ -95,6 +96,7 @@ class InstrumentProtocol(object):
             behavior from this routine
         @param regex The regular expression that matches a data sample
         @param line string to match for sample.
+        @param timestamp port agent timestamp to include with the particle
         @param publish boolean to publish samples (default True). If True,
                two different events are published: one to notify raw data and
                the other to notify parsed data.
@@ -104,13 +106,10 @@ class InstrumentProtocol(object):
         @todo Figure out how the agent wants the results for a single poll
             and return them that way from here
         """
-
         sample = None
         if regex.match(line):
         
-            particle = particle_class(line,
-                preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
-
+            particle = particle_class(line, port_timestamp=timestamp)
             parsed_sample = particle.generate()
 
             if publish and self._driver_event:
@@ -124,13 +123,11 @@ class InstrumentProtocol(object):
         """
         Return current state of the protocol FSM.
         """
-
         return self._protocol_fsm.get_current_state()
 
     def get_resource_capabilities(self, current_state=True):
         """
         """
-
         res_cmds = self._protocol_fsm.get_events(current_state)
         res_cmds = self._filter_capabilities(res_cmds)        
         res_params = self._param_dict.get_keys()
@@ -140,7 +137,6 @@ class InstrumentProtocol(object):
     def _filter_capabilities(self, events):
         """
         """
-
         return events
 
     ########################################################################
@@ -158,8 +154,27 @@ class InstrumentProtocol(object):
         if(self._scheduler_callback.get(name)):
             raise KeyError("duplicate scheduler exists for '%s'" % name)
 
+        log.debug("Add scheduler callback: %s" % name)
         self._scheduler_callback[name] = callback
         self._add_scheduler_job(name)
+
+    def _add_scheduler_event(self, name, event):
+        """
+        Create a scheduler, but instead of passing a callback we pass in
+        an event to raise.  A callback function is dynamically created
+        to do this.
+        @param name the name of the job
+        @param event: event to raise when the scheduler is triggered
+        @raise KeyError if we try to add a job twice
+        """
+        # Create a callback for the scheduler to raise an event
+        def event_callback(self, event):
+            log.info("driver job triggered, raise event: %s" % event)
+            self._protocol_fsm.on_event(event)
+
+        # Dynamically create the method and add it
+        method = partial(event_callback, self, event)
+        self._add_scheduler(name, method)
 
     def _add_scheduler_job(self, name):
         """
@@ -181,6 +196,7 @@ class InstrumentProtocol(object):
             raise KeyError("scheduler job already configured '%s'" % name)
 
         scheduler_config = self._get_scheduler_config()
+        log.debug("Scheduler config: %s" % scheduler_config)
 
         # No config?  Nothing to do then.
         if(scheduler_config == None):
@@ -223,15 +239,35 @@ class InstrumentProtocol(object):
         Activate all configured schedulers added using _add_scheduler.
         Timers start when the job is activated.
         """
-        if(self._scheduler == None):
-            self._scheduler = DriverScheduler()
-            for name in self._scheduler_callback.keys():
-                self._add_scheduler_job(name)
+        log.debug("Scheduler config: %s" % self._get_scheduler_config())
+        log.debug("Scheduler callbacks: %s" % self._scheduler_callback)
+        self._scheduler = DriverScheduler()
+        for name in self._scheduler_callback.keys():
+            log.debug("Add job for callback: %s" % name)
+            self._add_scheduler_job(name)
 
     #############################################################
     # Configuration logic
     #############################################################
     
+    def apply_startup_params(self):
+        """
+        Apply the startup values previously stored in the protocol to
+        the running config of the live instrument. The startup values are the
+        values that are (1) marked as startup parameters and are (2) the "best"
+        value to use at startup. Preference is given to the previously-set init
+        value, then the default value, then the currently used value.
+        
+        This default method assumes a dict of parameter name and value for
+        the configuration.
+        
+        This is the base stub for applying startup parameters at the protocol layer.
+        
+        @raise InstrumentParameterException If the config cannot be applied
+        @raise NotImplementedException In the base class it isnt implemented
+        """
+        raise NotImplementedException("Base class does not implement apply_startup_params()")
+        
     def set_init_params(self, config):
         """
         Set the initialization parameters to the given values in the protocol
@@ -244,10 +280,11 @@ class InstrumentProtocol(object):
             raise InstrumentParameterException("Invalid init config format")
 
         self._startup_config = config
-
+        
         param_config = config.get(DriverConfigKey.PARAMETERS)
         if(param_config):
             for name in param_config.keys():
+                log.debug("Setting init value for %s to %s", name, param_config[name])
                 self._param_dict.set_init_value(name, param_config[name])
     
     def get_startup_config(self):
@@ -259,26 +296,22 @@ class InstrumentProtocol(object):
         @retval The dict of parameter_name/values (override this method if it
             is more involved for a specific instrument) that should be set at
             a higher level.
+
+        @raise InstrumentProtocolException if a startup parameter doesn't
+               have a init or default value
         """
         return_dict = {}
-        start_list = self._param_dict.get_startup_list()
+        start_list = self._param_dict.get_keys()
         log.trace("Startup list: %s", start_list)
         assert isinstance(start_list, list)
         
         for param in start_list:
-            result = self._param_dict.get_init_value(param)
-            if result != None:
-                log.trace("Got init value for %s: %s", param, result)
+            result = self._param_dict.get_config_value(param)
+            if(result != None):
                 return_dict[param] = result
-            else:
-                result = self._param_dict.get_default_value(param)
-                if result != None:
-                    log.trace("Got default value for %s: %s", param, result)
-                    return_dict[param] = result
-                else:
-                    log.trace("Got current value for %s: %s", param, result)
-                    return_dict[param] = self._param_dict.get(param)
-        
+            elif(self._param_dict.is_startup_param(param)):
+                raise InstrumentProtocolException("Required startup value not specified: %s" % param)
+
         return return_dict
         
     def get_direct_access_params(self):
@@ -650,8 +683,10 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
 
         data_length = port_agent_packet.get_data_size()
         data = port_agent_packet.get_data()
+        timestamp = port_agent_packet.get_timestamp()
 
         log.trace("Got Data: %s" % data)
+        log.debug("Add Port Agent Timestamp: %s" % timestamp)
 
         if data_length > 0:
             if self.get_current_state() == DriverProtocolState.DIRECT_ACCESS:
@@ -659,12 +694,12 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
 
             self.add_to_buffer(data)
 
-            self._chunker.add_chunk(data)
+            self._chunker.add_chunk(data, timestamp)
 
-            chunk = self._chunker.get_next_data()
+            (timestamp, chunk) = self._chunker.get_next_data()
             while(chunk):
-                self._got_chunk(chunk)
-                chunk = self._chunker.get_next_data()
+                self._got_chunk(chunk, timestamp)
+                (timestamp, chunk) = self._chunker.get_next_data()
 
             self.publish_raw(port_agent_packet)
 
@@ -674,7 +709,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @param: port_agent_packet port agent packet containing raw
         """
         particle = RawDataParticle(port_agent_packet.get_as_dict(),
-                       preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
+                                   port_timestamp=port_agent_packet.get_timestamp())
 
         if self._driver_event:
             self._driver_event(DriverAsyncEvent.SAMPLE, particle.generate())

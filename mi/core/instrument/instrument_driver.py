@@ -142,8 +142,7 @@ class DriverEvent(BaseEnum):
     FORCE_STATE = 'DRIVER_FORCE_STATE'
     CLOCK_SYNC = 'DRIVER_EVENT_CLOCK_SYNC'
     ACQUIRE_STATUS = 'DRIVER_EVENT_ACQUIRE_STATUS'
-    
-    
+
 class DriverAsyncEvent(BaseEnum):
     """
     Asynchronous driver event types.
@@ -476,6 +475,13 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
     #############################################################
     # Configuration logic
     #############################################################
+    def get_init_params(self):
+        """
+        get the driver initialization parameters
+        @return driver configuration dictionary
+        """
+        return self._startup_config
+
     def set_init_params(self, config):
         """
         Set the initialization parameters down in the protocol and store the
@@ -502,7 +508,8 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
 
             if(param_config):
                 self._protocol.set_init_params(param_config)
-
+                self._protocol.initialize_scheduler()
+                
         self._startup_config = config
     
     def apply_startup_params(self):
@@ -512,17 +519,20 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         values that are (1) marked as startup parameters and are (2) the "best"
         value to use at startup. Preference is given to the previously-set init
         value, then the default value, then the currently used value.
+
+        This default implementation simply pushes the logic down into the protocol
+        for processing should the action be better accomplished down there.
         
-        This default method assumes a dict of parameter name and value for
-        the configuration.
-        @raise InstrumentParameterException If the config cannot be applied
+        The driver writer can decide to overload this method in the derived
+        driver class and apply startup parameters in the driver (likely calling
+        some get and set methods for the resource). If the driver does not
+        implement an apply_startup_params() method in the driver, this method
+        will call into the protocol. Deriving protocol classes are expected to
+        implement an apply_startup_params() method lest they get the exception
+        from the base InstrumentProtocol implementation.
         """
-        config = self._protocol.get_startup_config()
-        
-        if not isinstance(config, dict):
-            raise InstrumentParameterException("Incompatible initialization parameters")
-        
-        self.set_resource(config)
+        log.debug("Base driver applying startup params...")
+        self._protocol.apply_startup_params()
         
     def get_cached_config(self):
         """

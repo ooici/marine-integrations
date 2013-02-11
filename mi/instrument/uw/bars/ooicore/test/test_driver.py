@@ -51,6 +51,7 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverConfigKey
 from mi.core.instrument.data_particle import DataParticleValue
 
 from mi.core.exceptions import InstrumentProtocolException
@@ -809,7 +810,8 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 	}
 		
 	# Set the values to something totally strange via init value?
-	self.driver_client.cmd_dvr('set_init_params', config_A)
+	self.driver_client.cmd_dvr('set_init_params', {DriverConfigKey.PARAMETERS:
+						       config_A})
 	self.driver_client.cmd_dvr('apply_startup_params')
 	
 	# verify they made it to the kooky values
@@ -818,7 +820,8 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         self.assertEqual(reply, config_A)
 	
 	# set them back
-	self.driver_client.cmd_dvr('set_init_params', config_B)
+	self.driver_client.cmd_dvr('set_init_params', {DriverConfigKey.PARAMETERS:
+						       config_B})
 	self.driver_client.cmd_dvr('apply_startup_params')
 	
 	# confirm that they made it back to where they should be
