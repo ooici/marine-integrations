@@ -875,18 +875,19 @@ class VectorSystemDataParticle(DataParticle):
         return result
             
 
-class ProbeCheckDataParticleKey(BaseEnum):
+class VectorProbeCheckDataParticleKey(BaseEnum):
     NUMBER_OF_SAMPLES_PER_BEAM = "number_of_samples_per_beam"
     FIRST_SAMPLE_NUMBER = "first_sample_number"
     BEAM_1_AMPLITUDES = "beam_1_amplitudes"
     BEAM_2_AMPLITUDES = "beam_2_amplitudes"
     BEAM_3_AMPLITUDES = "beam_3_amplitudes"
         
-class ProbeCheckDataParticle(DataParticle):
+class VectorProbeCheckDataParticle(DataParticle):
     """
     Routine for parsing probe check data into a data particle structure for the Vector sensor. 
     """
     _data_particle_type = DataParticleType.PROBE_CHECK
+    
     SAMPLES_PER_BEAM_OFFSET = 4
     FIRST_SAMPLE_NUMBER_OFFSET = 6
     START_OF_SAMPLES_OFFSET = 8
@@ -900,11 +901,11 @@ class ProbeCheckDataParticle(DataParticle):
         match = PROBE_CHECK_DATA_REGEX.match(self.raw_data)
         
         if not match:
-            raise SampleException("ProbeCheckDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
+            raise SampleException("VectorProbeCheckDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
         
         
         number_of_samples_per_beam = BinaryProtocolParameterDict.convert_word_to_int(self.raw_data[self.SAMPLES_PER_BEAM_OFFSET:self.SAMPLES_PER_BEAM_OFFSET+2])
-        log.debug("ProbeCheckDataParticle: samples per beam = %d" %number_of_samples_per_beam)
+        log.debug("VectorProbeCheckDataParticle: samples per beam = %d" %number_of_samples_per_beam)
         first_sample_number = BinaryProtocolParameterDict.convert_word_to_int(self.raw_data[self.FIRST_SAMPLE_NUMBER_OFFSET:self.FIRST_SAMPLE_NUMBER_OFFSET+2])
         
         index = self.START_OF_SAMPLES_OFFSET
@@ -921,19 +922,19 @@ class ProbeCheckDataParticle(DataParticle):
                 beam_3_amplitudes = beam_amplitudes
             
         
-        result = [{DataParticleKey.VALUE_ID: ProbeCheckDataParticleKey.NUMBER_OF_SAMPLES_PER_BEAM,
+        result = [{DataParticleKey.VALUE_ID: VectorProbeCheckDataParticleKey.NUMBER_OF_SAMPLES_PER_BEAM,
                    DataParticleKey.VALUE: number_of_samples_per_beam},
-                  {DataParticleKey.VALUE_ID: ProbeCheckDataParticleKey.FIRST_SAMPLE_NUMBER,
+                  {DataParticleKey.VALUE_ID: VectorProbeCheckDataParticleKey.FIRST_SAMPLE_NUMBER,
                    DataParticleKey.VALUE: first_sample_number},
-                  {DataParticleKey.VALUE_ID: ProbeCheckDataParticleKey.BEAM_1_AMPLITUDES,
+                  {DataParticleKey.VALUE_ID: VectorProbeCheckDataParticleKey.BEAM_1_AMPLITUDES,
                    DataParticleKey.VALUE: beam_1_amplitudes},
-                  {DataParticleKey.VALUE_ID: ProbeCheckDataParticleKey.BEAM_2_AMPLITUDES,
+                  {DataParticleKey.VALUE_ID: VectorProbeCheckDataParticleKey.BEAM_2_AMPLITUDES,
                    DataParticleKey.VALUE: beam_2_amplitudes},
-                  {DataParticleKey.VALUE_ID: ProbeCheckDataParticleKey.BEAM_3_AMPLITUDES,
+                  {DataParticleKey.VALUE_ID: VectorProbeCheckDataParticleKey.BEAM_3_AMPLITUDES,
                    DataParticleKey.VALUE: beam_3_amplitudes},
                   ]
         
-        log.debug('ProbeCheckDataParticle: particle=%s' %result)
+        log.debug('VectorProbeCheckDataParticle: particle=%s' %result)
         return result
             
 
@@ -1130,16 +1131,16 @@ class Protocol(CommandResponseInstrumentProtocol):
             for name in config.keys():
                 self._param_dict.set_init_value(name, config[name])
     
-    def _got_chunk(self, structure):
+    def _got_chunk(self, structure, timestamp):
         """
         The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes. 
         """
         log.debug("_got_chunk: detected structure = %s", structure.encode('hex'))
-        self._extract_sample(VectorVelocityDataParticle, VELOCITY_DATA_REGEX, structure)
-        self._extract_sample(VectorSystemDataParticle, SYSTEM_DATA_REGEX, structure)
-        self._extract_sample(VectorVelocityHeaderDataParticle, VELOCITY_HEADER_DATA_REGEX, structure)
-        self._extract_sample(ProbeCheckDataParticle, PROBE_CHECK_DATA_REGEX, structure)
+        self._extract_sample(VectorVelocityDataParticle, VELOCITY_DATA_REGEX, structure, timestamp)
+        self._extract_sample(VectorSystemDataParticle, SYSTEM_DATA_REGEX, structure, timestamp)
+        self._extract_sample(VectorVelocityHeaderDataParticle, VELOCITY_HEADER_DATA_REGEX, structure, timestamp)
+        self._extract_sample(VectorProbeCheckDataParticle, PROBE_CHECK_DATA_REGEX, structure, timestamp)
 
     def _get_response(self, timeout=5, expected_prompt=None):
         """

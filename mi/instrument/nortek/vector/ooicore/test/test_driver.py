@@ -68,8 +68,8 @@ from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticl
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticleKey
 from mi.instrument.nortek.vector.ooicore.driver import VectorSystemDataParticle
 from mi.instrument.nortek.vector.ooicore.driver import VectorSystemDataParticleKey
-from mi.instrument.nortek.vector.ooicore.driver import ProbeCheckDataParticle
-from mi.instrument.nortek.vector.ooicore.driver import ProbeCheckDataParticleKey
+from mi.instrument.nortek.vector.ooicore.driver import VectorProbeCheckDataParticle
+from mi.instrument.nortek.vector.ooicore.driver import VectorProbeCheckDataParticleKey
 
 from interface.objects import AgentCommand
 from interface.objects import CapabilityType
@@ -1342,7 +1342,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         """
         Test observatory polling function.
 
-        Verifies the acquire_status command.
+        Verifies the acquire_sample command.
         """
         # Set up all data subscriptions.  Stream names are defined
         # in the driver PACKET_CONFIG dictionary
@@ -1351,35 +1351,64 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         self.assert_enter_command_mode()
 
-        ###
+        for stream in sampleQueue:
+            # make sure there aren't any old samples in the data queues.
+            self.data_subscribers.clear_sample_queue(stream)
+
         # Poll for a sample
-        ###
-
-        # make sure there aren't any junk samples in the parsed
-        # data queue.
-        log.debug("Acquire Sample")
-        self.data_subscribers.clear_sample_queue(sampleQueue)
-
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
         self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
-
-        # Watch the parsed data queue and return once a sample
-        # has been read or the default timeout has been reached.
-        samples = self.data_subscribers.get_samples(sampleQueue, 4, timeout = timeout)
-        self.assertGreaterEqual(len(samples), 4)
-        log.error("SAMPLE: %s" % samples)
-
-        # Verify
-        for sample in samples:
-            sampleDataAssert(sample)
+    
+        for stream in sampleQueue:
+            # Watch the parsed data queue and return once a sample
+            # has been read or the default timeout has been reached.
+            samples = self.data_subscribers.get_samples(stream, 1, timeout = timeout)
+            self.assertGreaterEqual(len(samples), 1)
+            log.error("SAMPLE: %s" % samples)
+    
+            # Verify
+            for sample in samples:
+                sampleDataAssert(sample)
 
         self.assert_reset()
         self.doCleanups()
 
+    def assert_sample_autosample(self, sampleDataAssert, sampleQueue, timeout = 10):
+        """
+        Test observatory autosample function.
+
+        Verifies the autosample command.
+        """
+        # Set up all data subscriptions.  Stream names are defined
+        # in the driver PACKET_CONFIG dictionary
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        self.assert_enter_command_mode()
+
+        for stream in sampleQueue:
+            # make sure there aren't any old samples in the data queues.
+            self.data_subscribers.clear_sample_queue(stream)
+
+        # Begin streaming.
+        self.assert_start_autosample()
+    
+        for stream in sampleQueue:
+            # Watch the parsed data queue and return once a sample
+            # has been read or the default timeout has been reached.
+            samples = self.data_subscribers.get_samples(stream, 1, timeout = timeout)
+            self.assertGreaterEqual(len(samples), 1)
+            log.error("SAMPLE: %s" % samples)
+    
+            # Verify
+            for sample in samples:
+                sampleDataAssert(sample)
+
+        # Halt streaming.
+        self.assert_stop_autosample()
+
     def assertSampleDataParticle(self, sample):
         log.debug('assertSampleDataParticle: sample=%s' %sample)
-        self.assertTrue(sample[DataParticleKey.STREAM_NAME],
-            DataParticleType.PARSED)
         self.assertTrue(sample[DataParticleKey.PKT_FORMAT_ID],
             DataParticleValue.JSON_DATA)
         self.assertTrue(sample[DataParticleKey.PKT_VERSION], 1)
@@ -1392,12 +1421,12 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         value_ids = []
         for value in values:
             value_ids.append(value['value_id'])
-        if VectorVelocityDataParticleKey.ANALOG_INPUT2 in value_ids:
+        if sample[DataParticleKey.STREAM_NAME] == DataParticleType.VELOCITY:
             log.debug('assertSampleDataParticle: VectorVelocityDataParticle detected')
             self.assertEqual(sorted(value_ids), sorted(VectorVelocityDataParticleKey.list()))
             for value in values:
                 self.assertTrue(isinstance(value['value'], int))
-        elif VectorVelocityHeaderDataParticleKey.NUMBER_OF_RECORDS in value_ids:
+        elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.VELOCITY_HEADER:
             log.debug('assertSampleDataParticle: VectorVelocityHeaderDataParticle detected')
             self.assertEqual(sorted(value_ids), sorted(VectorVelocityHeaderDataParticleKey.list()))
             for value in values:
@@ -1405,7 +1434,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                     self.assertTrue(isinstance(value['value'], str))
                 else:
                     self.assertTrue(isinstance(value['value'], int))
-        elif VectorSystemDataParticleKey.BATTERY in value_ids:
+        elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.SYSTEM:
             log.debug('assertSampleDataParticle: VectorSystemDataParticleKey detected')
             self.assertEqual(sorted(value_ids), sorted(VectorSystemDataParticleKey.list()))
             for value in values:
@@ -1413,12 +1442,16 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                     self.assertTrue(isinstance(value['value'], str))
                 else:
                     self.assertTrue(isinstance(value['value'], int))
-        elif ProbeCheckDataParticleKey.NUMBER_OF_SAMPLES_PER_BEAM in value_ids:
-            log.debug('assertSampleDataParticle: VectorSystemDataParticleKey detected')
-            self.assertEqual(sorted(value_ids), sorted(VectorSystemDataParticleKey.list()))
+        elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.PROBE_CHECK:
+            log.debug('assertSampleDataParticle: VectorProbeCheckDataParticleKey detected')
+            self.assertEqual(sorted(value_ids), sorted(VectorProbeCheckDataParticleKey.list()))
             for value in values:
-                if value['value_id'] == VectorSystemDataParticleKey.TIMESTAMP:
-                    self.assertTrue(isinstance(value['value'], str))
+                if value['value_id'] in (VectorProbeCheckDataParticleKey.BEAM_1_AMPLITUDES,
+                                         VectorProbeCheckDataParticleKey.BEAM_2_AMPLITUDES,
+                                         VectorProbeCheckDataParticleKey.BEAM_3_AMPLITUDES):
+                    self.assertTrue(isinstance(value['value'], list))
+                    for item in value['value']:
+                        self.assertTrue(item, int)
                 else:
                     self.assertTrue(isinstance(value['value'], int))
         else:
@@ -1461,7 +1494,9 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         '''
 
         self.assert_sample_polled(self.assertSampleDataParticle,
-                                  DataParticleValue.PARSED,
+                                  [DataParticleType.VELOCITY,
+                                   DataParticleType.VELOCITY_HEADER,
+                                   DataParticleType.SYSTEM],
                                   timeout = 100)
 
     def test_autosample(self):
@@ -1469,7 +1504,10 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         start and stop autosample and verify data particle
         '''
         self.assert_sample_autosample(self.assertSampleDataParticle,
-                                  DataParticleValue.PARSED,
+                                  [DataParticleType.VELOCITY,
+                                   DataParticleType.VELOCITY_HEADER,
+                                   DataParticleType.SYSTEM,
+                                   DataParticleType.PROBE_CHECK],
                                   timeout = 100)
 
     def test_get_set_parameters(self):
