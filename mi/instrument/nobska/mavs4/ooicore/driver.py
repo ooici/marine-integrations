@@ -58,7 +58,7 @@ SAMPLE_DATA_PATTERN = (r'(\d+\s+\d+\s+\d+)' +    # date
                        '\s+(-*\d+\.\d+)' +       # MX
                        '\s+(-*\d+\.\d+)' +       # MY
                        '\s+(-*\d+\.\d+)' +       # pitch
-                       '\s+(-*\d+\.\d+)')        # roll
+                       '\s+(-*\d+\.\d+)\s+')     # roll
 
 SAMPLE_DATA_REGEX = re.compile(SAMPLE_DATA_PATTERN)
 
@@ -568,7 +568,7 @@ class Mavs4SampleDataParticle(DataParticle):
                 
         try:
             datetime = match.group(1) + ' ' + match.group(2)
-            timestamp = time.strptime(datetime, "%d %m %Y %H %M %S")
+            timestamp = time.strptime(datetime, "%m %d %Y %H %M %S")
             ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
             acoustic_axis_velocity_a = int(match.group(4), 16)
             acoustic_axis_velocity_b = int(match.group(5), 16)

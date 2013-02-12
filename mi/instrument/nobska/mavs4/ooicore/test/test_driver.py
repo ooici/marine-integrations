@@ -52,8 +52,19 @@ from mi.instrument.nobska.mavs4.ooicore.driver import DataParticleType
 from mi.instrument.nobska.mavs4.ooicore.driver import mavs4InstrumentDriver
 from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolStates
 from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolEvent
+from mi.instrument.nobska.mavs4.ooicore.driver import mavs4InstrumentProtocol
 from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentParameters
+from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentCmds
+from mi.instrument.nobska.mavs4.ooicore.driver import Capability
+from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentPrompts
 from mi.instrument.nobska.mavs4.ooicore.driver import Mavs4StatusDataParticleKey
+from mi.instrument.nobska.mavs4.ooicore.driver import DeployMenuParameters
+from mi.instrument.nobska.mavs4.ooicore.driver import SystemConfigurationMenuParameters
+from mi.instrument.nobska.mavs4.ooicore.driver import VelocityOffsetParameters
+from mi.instrument.nobska.mavs4.ooicore.driver import CompassOffsetParameters
+from mi.instrument.nobska.mavs4.ooicore.driver import CompassScaleFactorsParameters
+from mi.instrument.nobska.mavs4.ooicore.driver import TiltOffsetParameters
+from mi.instrument.nobska.mavs4.ooicore.driver import SubMenues
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
@@ -62,6 +73,8 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import DriverStartupConfigKey
+
+from mi.core.instrument.chunker import StringChunker
 
 from mi.core.tcp_client import TcpClient
 
@@ -179,6 +192,8 @@ class Mavs4Mixin(DriverTestMixin):
         Mavs4StatusDataParticleKey.SI_CONVERSION: {TYPE: unicode, VALUE: u'' },
     }
         
+    SAMPLE = "20 12 2012 18 50 50.40 FDC5 FF70 FF1B FF8C 1.2 3.4 5.6 22.21 0.96 0.28 3.0 -5.1\n"
+    
     def assert_particle_status(self, data_particle, verify_values = False):
         '''
         Verify a status data particle
@@ -208,32 +223,45 @@ class Mavs4Mixin(DriverTestMixin):
 ###############################################################################
 
 @attr('UNIT', group='mi')
-class Testmavs4_UNIT(InstrumentDriverTestCase):
+class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
     """Unit Test Container"""
     
     def setUp(self):
-        """
-        @brief initialize mock objects for the protocol object.
-        """
-        #self.callback = Mock(name='callback')
-        #self.logger = Mock(name='logger')
-        #self.logger_client = Mock(name='logger_client')
-        #self.protocol = mavs4InstrumentProtocol()
+        InstrumentDriverUnitTestCase.setUp(self)
     
-        #self.protocol.configure(self.comm_config)
-        #self.protocol.initialize()
-        #self.protocol._logger = self.logger 
-        #self.protocol._logger_client = self.logger_client
-        #self.protocol._get_response = Mock(return_value=('$', None))
-        
-        # Quick sanity check to make sure the logger got mocked properly
-        #self.assertEquals(self.protocol._logger, self.logger)
-        #self.assertEquals(self.protocol._logger_client, self.logger_client)
-        
-    ###
-    #    Add driver specific unit tests
-    ###
-    
+    def test_driver_enums(self):
+        """
+        Verify that all driver enumerations have no duplicate values that might cause confusion.  Also
+        do a little extra validation for the Capabilites
+        """
+        self.assert_enum_has_no_duplicates(DataParticleType())
+        self.assert_enum_has_no_duplicates(InstrumentPrompts())
+        self.assert_enum_has_no_duplicates(InstrumentCmds())
+        self.assert_enum_has_no_duplicates(ProtocolStates())
+        self.assert_enum_has_no_duplicates(ProtocolEvent())
+        self.assert_enum_has_no_duplicates(InstrumentParameters())
+        self.assert_enum_has_no_duplicates(DeployMenuParameters())
+        self.assert_enum_has_no_duplicates(SystemConfigurationMenuParameters())
+        self.assert_enum_has_no_duplicates(VelocityOffsetParameters())
+        self.assert_enum_has_no_duplicates(CompassOffsetParameters())
+        self.assert_enum_has_no_duplicates(CompassScaleFactorsParameters())
+        self.assert_enum_has_no_duplicates(TiltOffsetParameters())
+        self.assert_enum_has_no_duplicates(SubMenues())
+
+        # Test capabilites for duplicates, then verify that capabilities is a subset of protocol events
+        self.assert_enum_has_no_duplicates(Capability())
+        self.assert_enum_complete(Capability(), ProtocolEvent())
+
+    def test_chunker(self):
+        """
+        Test the chunker and verify the particles created.
+        """
+        chunker = StringChunker(mavs4InstrumentProtocol.chunker_sieve_function)
+
+        self.assert_chunker_sample(chunker, self.SAMPLE)
+        self.assert_chunker_sample_with_noise(chunker, self.SAMPLE)
+        self.assert_chunker_fragmented_sample(chunker, self.SAMPLE)
+        self.assert_chunker_combined_sample(chunker, self.SAMPLE)
     
 ###############################################################################
 #                            INTEGRATION TESTS                                #
