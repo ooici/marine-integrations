@@ -68,6 +68,8 @@ from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticl
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticleKey
 from mi.instrument.nortek.vector.ooicore.driver import VectorSystemDataParticle
 from mi.instrument.nortek.vector.ooicore.driver import VectorSystemDataParticleKey
+from mi.instrument.nortek.vector.ooicore.driver import VectorProbeCheckDataParticle
+from mi.instrument.nortek.vector.ooicore.driver import VectorProbeCheckDataParticleKey
 
 from interface.objects import AgentCommand
 from interface.objects import CapabilityType
@@ -216,6 +218,99 @@ def user_config2():
         user_config += chr(value)
     return user_config
         
+# probe check data particle & sample 
+def probe_check_sample():
+    sample_as_hex = ("a507c7012c010000d3cec0afabbbb5a9a8a29a8e"
+                     "827e78716a6e7173706d6a6664655f54568d7e67"
+                     "50403b3734373735323137373432333431303031"
+                     "3131313133313131313232323131303030323032"
+                     "3331302f2f302f2f30313131302f2f3030302f30"
+                     "30303031302f2f2f30302f2f3130302f30302f2f"
+                     "2f2f2f2e2e2f2f2f2f2f2f302f2f302f2f2f2f30"
+                     "302f2e2e2f3030302f2f3030302f2f2f3030302f"
+                     "302f2f2f302f30302f2f2f303030302f2f2f2e2e"
+                     "2f2f30302f2f302f2f2f2f2f302f2f302e2f2f2f"
+                     "2f2f302f2f3130302f2f302f2f2f2e2f2f2f2f2f"
+                     "2f2f2f2f2f2f2f2f2f2f2f2e2f2f2f2e2e2e2f2f"
+                     "2f2f2f2f2f2f2f302f302f2f2f2f2e2e2f2f2f2f"
+                     "30302e2f2e2f303030302f2f2f2f2f302f2f2f2f"
+                     "2f2f2f2f2f2e2f2f2f2f2f2f2f2f2f2f302f2f30"
+                     "302f2f2f2f2f2f2ed3cec0afabbbb5a9a8a29a8e"
+                     "827e7871696e7173706d6a6664655f55568e785f"
+                     "4b3c393535383b36353435383333353231323434"
+                     "3331303031303230303232313130313132313032"
+                     "32323134313131302f2f302f3031303030303030"
+                     "302f2f31303030302f30312f2f303030302f302f"
+                     "2f2f2f2f2e2f2f2f2f30302f2f2f2f2f30302f2f"
+                     "30302f302f2f2f302f2f302f30302f2f2f2f2e2f"
+                     "2f2f2f2f2f2f2f2e2f30302f2f2e2f2f2f2e2f2f"
+                     "2f2f2f302f2f2f2f2f2f2f302f2f2f2f2e2f2f2f"
+                     "2f2f2f2f2f2f2e2f2f2f2f2f2f2f2f2e2f2e2f2f"
+                     "2e2f2e2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f"
+                     "2f2f2e2f2e2e2f2e30302f302f2f2f2f2f2f2f2f"
+                     "2f2f2f2f2f2f2f2f2f2f2f2f2f2f2e2f2f2f2f2f"
+                     "2f2f2f2e2f2f2f2f2f2f2f2f2f2e2e2e2f2f2e2e"
+                     "2f2f2f2e2f2e2f2fd3cec0afaabbb5a9a8a19a8e"
+                     "827e7871696e7173706d6a6664655f5556877860"
+                     "4a3c363233363637363637363334373833343435"
+                     "32302f303334383534313034353834313231302f"
+                     "3030312f32313031303232323734323133343532"
+                     "3132323032313030313135353234313131323131"
+                     "2f303131303131333030302f30302f2f30313232"
+                     "31302f2f3030302f2f2f2f2f302f2e2e2f2e2e2f"
+                     "2f302f2f2f2e2e2f2f2f302f2f2f2f302f2f2f2f"
+                     "2f2f2e2f2f2f302f2f2e2f2f2e2e2f30302e2e2e"
+                     "2f2f2e2e2f2f2f2f2f2f2f2f2e2e2f2f2e2e2f2f"
+                     "2f302f2e2e2f2f2f2f2f2e2f2f302f2f2e2e2f2e"
+                     "2f2f2e2f2f2f2f2f2f2e2e2e2e302f2f2f2f2e2f"
+                     "2e2e2e2f2e2e2e2f2e2e2e2f2e2e2e2f2f2f2f2f"
+                     "2e2e2e2e2f2e2e2f2f2e2f2f2f2f2e2e2f2f2f2f"
+                     "2e2f2f2f2f2f2f2ffd74")
+    return sample_as_hex.decode('hex')
+
+# these values checkout against the sample above
+probe_check_particle = [{'value_id': 'number_of_samples_per_beam',  'value': 300},
+                        {'value_id': 'first_sample_number',  'value': 0},
+                        {'value_id': 'beam_1_amplitudes',  'value': [211, 206, 192, 175, 171, 187, 181, 169, 168, 162, 154, 142, 130, 126, 120, 113, 106, 110, 113, 115, 
+                                                                     112, 109, 106, 102, 100, 101, 95, 84, 86, 141, 126, 103, 80, 64, 59, 55, 52, 55, 55, 53, 50, 49, 
+                                                                     55, 55, 52, 50, 51, 52, 49, 48, 48, 49, 49, 49, 49, 49, 51, 49, 49, 49, 49, 50, 50, 50, 49, 49, 48, 
+                                                                     48, 48, 50, 48, 50, 51, 49, 48, 47, 47, 48, 47, 47, 48, 49, 49, 49, 48, 47, 47, 48, 48, 48, 47, 48, 
+                                                                     48, 48, 48, 49, 48, 47, 47, 47, 48, 48, 47, 47, 49, 48, 48, 47, 48, 48, 47, 47, 47, 47, 47, 46, 46, 
+                                                                     47, 47, 47, 47, 47, 47, 48, 47, 47, 48, 47, 47, 47, 47, 48, 48, 47, 46, 46, 47, 48, 48, 48, 47, 47, 
+                                                                     48, 48, 48, 47, 47, 47, 48, 48, 48, 47, 48, 47, 47, 47, 48, 47, 48, 48, 47, 47, 47, 48, 48, 48, 48, 
+                                                                     47, 47, 47, 46, 46, 47, 47, 48, 48, 47, 47, 48, 47, 47, 47, 47, 47, 48, 47, 47, 48, 46, 47, 47, 47, 
+                                                                     47, 47, 48, 47, 47, 49, 48, 48, 47, 47, 48, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 
+                                                                     47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 46, 46, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 48, 47, 48, 
+                                                                     47, 47, 47, 47, 46, 46, 47, 47, 47, 47, 48, 48, 46, 47, 46, 47, 48, 48, 48, 48, 47, 47, 47, 47, 47, 
+                                                                     48, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 48, 47, 47, 48, 
+                                                                     48, 47, 47, 47, 47, 47, 47, 46]},
+                        {'value_id': 'beam_2_amplitudes',  'value': [211, 206, 192, 175, 171, 187, 181, 169, 168, 162, 154, 142, 130, 126, 120, 113, 105, 110, 113, 115, 
+                                                                     112, 109, 106, 102, 100, 101, 95, 85, 86, 142, 120, 95, 75, 60, 57, 53, 53, 56, 59, 54, 53, 52, 53, 
+                                                                     56, 51, 51, 53, 50, 49, 50, 52, 52, 51, 49, 48, 48, 49, 48, 50, 48, 48, 50, 50, 49, 49, 48, 49, 49, 
+                                                                     50, 49, 48, 50, 50, 50, 49, 52, 49, 49, 49, 48, 47, 47, 48, 47, 48, 49, 48, 48, 48, 48, 48, 48, 48, 
+                                                                     47, 47, 49, 48, 48, 48, 48, 47, 48, 49, 47, 47, 48, 48, 48, 48, 47, 48, 47, 47, 47, 47, 47, 46, 47, 
+                                                                     47, 47, 47, 48, 48, 47, 47, 47, 47, 47, 48, 48, 47, 47, 48, 48, 47, 48, 47, 47, 47, 48, 47, 47, 48, 
+                                                                     47, 48, 48, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 48, 48, 47, 47, 46, 47, 47, 
+                                                                     47, 46, 47, 47, 47, 47, 47, 48, 47, 47, 47, 47, 47, 47, 47, 48, 47, 47, 47, 47, 46, 47, 47, 47, 47, 
+                                                                     47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 46, 47, 47, 46, 47, 46, 47, 47, 47, 
+                                                                     47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 46, 46, 47, 46, 48, 48, 47, 
+                                                                     48, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 
+                                                                     47, 47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 46, 46, 47, 47, 46, 46, 47, 
+                                                                     47, 47, 46, 47, 46, 47, 47]},
+                        {'value_id': 'beam_3_amplitudes',  'value': [211, 206, 192, 175, 170, 187, 181, 169, 168, 161, 154, 142, 130, 126, 120, 113, 105, 110, 113, 115, 
+                                                                     112, 109, 106, 102, 100, 101, 95, 85, 86, 135, 120, 96, 74, 60, 54, 50, 51, 54, 54, 55, 54, 54, 55, 
+                                                                     54, 51, 52, 55, 56, 51, 52, 52, 53, 50, 48, 47, 48, 51, 52, 56, 53, 52, 49, 48, 52, 53, 56, 52, 49, 
+                                                                     50, 49, 48, 47, 48, 48, 49, 47, 50, 49, 48, 49, 48, 50, 50, 50, 55, 52, 50, 49, 51, 52, 53, 50, 49, 
+                                                                     50, 50, 48, 50, 49, 48, 48, 49, 49, 53, 53, 50, 52, 49, 49, 49, 50, 49, 49, 47, 48, 49, 49, 48, 49, 
+                                                                     49, 51, 48, 48, 48, 47, 48, 48, 47, 47, 48, 49, 50, 50, 49, 48, 47, 47, 48, 48, 48, 47, 47, 47, 47, 
+                                                                     47, 48, 47, 46, 46, 47, 46, 46, 47, 47, 48, 47, 47, 47, 46, 46, 47, 47, 47, 48, 47, 47, 47, 47, 48, 
+                                                                     47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 48, 47, 47, 46, 47, 47, 46, 46, 47, 48, 48, 46, 46, 46, 47, 
+                                                                     47, 46, 46, 47, 47, 47, 47, 47, 47, 47, 47, 46, 46, 47, 47, 46, 46, 47, 47, 47, 48, 47, 46, 46, 47, 
+                                                                     47, 47, 47, 47, 46, 47, 47, 48, 47, 47, 46, 46, 47, 46, 47, 47, 46, 47, 47, 47, 47, 47, 47, 46, 46, 
+                                                                     46, 46, 48, 47, 47, 47, 47, 46, 47, 46, 46, 46, 47, 46, 46, 46, 47, 46, 46, 46, 47, 46, 46, 46, 47, 
+                                                                     47, 47, 47, 47, 46, 46, 46, 46, 47, 46, 46, 47, 47, 46, 47, 47, 47, 47, 46, 46, 47, 47, 47, 47, 46, 
+                                                                     47, 47, 47, 47, 47, 47, 47]},
+                        ]
 # velocity data particle & sample 
 def velocity_sample():
     sample_as_hex = "a51000db00008f10000049f041f72303303132120918d8f7"
@@ -449,6 +544,31 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
                                           system_sample(),
                                           expected_particle)
 
+    def test_probe_check_sample_format(self):
+        """
+        Test to make sure we can get probe check sample data out in a reasonable format.
+        Parsed is all we care about...raw is tested in the base DataParticle tests
+        """
+        
+        port_timestamp = 3555423720.711772
+        driver_timestamp = 3555423722.711772
+
+        # construct the expected particle
+        expected_particle = {
+            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
+            DataParticleKey.PKT_VERSION: 1,
+            DataParticleKey.STREAM_NAME: DataParticleType.PROBE_CHECK,
+            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
+            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
+            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
+            DataParticleKey.VALUES: probe_check_particle
+            }
+        
+        self.compare_parsed_data_particle(ProbeCheckDataParticle,
+                                          probe_check_sample(),
+                                          expected_particle)
+
     def test_chunker(self):
         """
         Tests the chunker
@@ -459,6 +579,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         self.assert_chunker_sample(chunker, velocity_sample())
         self.assert_chunker_sample(chunker, system_sample())
         self.assert_chunker_sample(chunker, velocity_header_sample())
+        self.assert_chunker_sample(chunker, probe_check_sample())
 
         # test fragmented data structures
         sample = velocity_sample()
@@ -473,14 +594,20 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         fragments = [sample[0:3], sample[3:11], sample[11:12], sample[12:]]
         self.assert_chunker_fragmented_sample(chunker, fragments, sample)
 
+        sample = probe_check_sample()
+        fragments = [sample[0:30], sample[30:110], sample[110:220], sample[220:500], sample[500:800], sample[800:]]
+        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
+
         # test combined data structures
         self.assert_chunker_combined_sample(chunker, velocity_sample(), system_sample(), velocity_header_sample())
         self.assert_chunker_combined_sample(chunker, velocity_header_sample(), velocity_sample(), system_sample())
+        self.assert_chunker_combined_sample(chunker, velocity_header_sample(), probe_check_sample(), system_sample())
 
         # test data structures with noise
         self.assert_chunker_sample_with_noise(chunker, velocity_sample())
         self.assert_chunker_sample_with_noise(chunker, system_sample())
         self.assert_chunker_sample_with_noise(chunker, velocity_header_sample())
+        self.assert_chunker_sample_with_noise(chunker, probe_check_sample())
 
     def test_corrupt_data_structures(self):
         # garbage is not okay
@@ -495,6 +622,11 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
             particle.generate()
          
         particle = VectorVelocityDataParticle(velocity_sample().replace(chr(16), chr(17), 1),
+                                                          port_timestamp = 3558720820.531179)
+        with self.assertRaises(SampleException):
+            particle.generate()
+         
+        particle = ProbeCheckDataParticle(velocity_sample().replace(chr(16), chr(17), 1),
                                                           port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
@@ -1210,7 +1342,7 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         """
         Test observatory polling function.
 
-        Verifies the acquire_status command.
+        Verifies the acquire_sample command.
         """
         # Set up all data subscriptions.  Stream names are defined
         # in the driver PACKET_CONFIG dictionary
@@ -1219,35 +1351,64 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
 
         self.assert_enter_command_mode()
 
-        ###
+        for stream in sampleQueue:
+            # make sure there aren't any old samples in the data queues.
+            self.data_subscribers.clear_sample_queue(stream)
+
         # Poll for a sample
-        ###
-
-        # make sure there aren't any junk samples in the parsed
-        # data queue.
-        log.debug("Acquire Sample")
-        self.data_subscribers.clear_sample_queue(sampleQueue)
-
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
         self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
-
-        # Watch the parsed data queue and return once a sample
-        # has been read or the default timeout has been reached.
-        samples = self.data_subscribers.get_samples(sampleQueue, 4, timeout = timeout)
-        self.assertGreaterEqual(len(samples), 4)
-        log.error("SAMPLE: %s" % samples)
-
-        # Verify
-        for sample in samples:
-            sampleDataAssert(sample)
+    
+        for stream in sampleQueue:
+            # Watch the parsed data queue and return once a sample
+            # has been read or the default timeout has been reached.
+            samples = self.data_subscribers.get_samples(stream, 1, timeout = timeout)
+            self.assertGreaterEqual(len(samples), 1)
+            log.error("SAMPLE: %s" % samples)
+    
+            # Verify
+            for sample in samples:
+                sampleDataAssert(sample)
 
         self.assert_reset()
         self.doCleanups()
 
+    def assert_sample_autosample(self, sampleDataAssert, sampleQueue, timeout = 10):
+        """
+        Test observatory autosample function.
+
+        Verifies the autosample command.
+        """
+        # Set up all data subscriptions.  Stream names are defined
+        # in the driver PACKET_CONFIG dictionary
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        self.assert_enter_command_mode()
+
+        for stream in sampleQueue:
+            # make sure there aren't any old samples in the data queues.
+            self.data_subscribers.clear_sample_queue(stream)
+
+        # Begin streaming.
+        self.assert_start_autosample()
+    
+        for stream in sampleQueue:
+            # Watch the parsed data queue and return once a sample
+            # has been read or the default timeout has been reached.
+            samples = self.data_subscribers.get_samples(stream, 1, timeout = timeout)
+            self.assertGreaterEqual(len(samples), 1)
+            log.error("SAMPLE: %s" % samples)
+    
+            # Verify
+            for sample in samples:
+                sampleDataAssert(sample)
+
+        # Halt streaming.
+        self.assert_stop_autosample()
+
     def assertSampleDataParticle(self, sample):
         log.debug('assertSampleDataParticle: sample=%s' %sample)
-        self.assertTrue(sample[DataParticleKey.STREAM_NAME],
-            DataParticleValue.PARSED)
         self.assertTrue(sample[DataParticleKey.PKT_FORMAT_ID],
             DataParticleValue.JSON_DATA)
         self.assertTrue(sample[DataParticleKey.PKT_VERSION], 1)
@@ -1260,12 +1421,12 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         value_ids = []
         for value in values:
             value_ids.append(value['value_id'])
-        if VectorVelocityDataParticleKey.ANALOG_INPUT2 in value_ids:
+        if sample[DataParticleKey.STREAM_NAME] == DataParticleType.VELOCITY:
             log.debug('assertSampleDataParticle: VectorVelocityDataParticle detected')
             self.assertEqual(sorted(value_ids), sorted(VectorVelocityDataParticleKey.list()))
             for value in values:
                 self.assertTrue(isinstance(value['value'], int))
-        elif VectorVelocityHeaderDataParticleKey.NUMBER_OF_RECORDS in value_ids:
+        elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.VELOCITY_HEADER:
             log.debug('assertSampleDataParticle: VectorVelocityHeaderDataParticle detected')
             self.assertEqual(sorted(value_ids), sorted(VectorVelocityHeaderDataParticleKey.list()))
             for value in values:
@@ -1273,12 +1434,24 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                     self.assertTrue(isinstance(value['value'], str))
                 else:
                     self.assertTrue(isinstance(value['value'], int))
-        elif VectorSystemDataParticleKey.BATTERY in value_ids:
+        elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.SYSTEM:
             log.debug('assertSampleDataParticle: VectorSystemDataParticleKey detected')
             self.assertEqual(sorted(value_ids), sorted(VectorSystemDataParticleKey.list()))
             for value in values:
                 if value['value_id'] == VectorSystemDataParticleKey.TIMESTAMP:
                     self.assertTrue(isinstance(value['value'], str))
+                else:
+                    self.assertTrue(isinstance(value['value'], int))
+        elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.PROBE_CHECK:
+            log.debug('assertSampleDataParticle: VectorProbeCheckDataParticleKey detected')
+            self.assertEqual(sorted(value_ids), sorted(VectorProbeCheckDataParticleKey.list()))
+            for value in values:
+                if value['value_id'] in (VectorProbeCheckDataParticleKey.BEAM_1_AMPLITUDES,
+                                         VectorProbeCheckDataParticleKey.BEAM_2_AMPLITUDES,
+                                         VectorProbeCheckDataParticleKey.BEAM_3_AMPLITUDES):
+                    self.assertTrue(isinstance(value['value'], list))
+                    for item in value['value']:
+                        self.assertTrue(item, int)
                 else:
                     self.assertTrue(isinstance(value['value'], int))
         else:
@@ -1321,7 +1494,9 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         '''
 
         self.assert_sample_polled(self.assertSampleDataParticle,
-                                  DataParticleValue.PARSED,
+                                  [DataParticleType.VELOCITY,
+                                   DataParticleType.VELOCITY_HEADER,
+                                   DataParticleType.SYSTEM],
                                   timeout = 100)
 
     def test_autosample(self):
@@ -1329,7 +1504,10 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         start and stop autosample and verify data particle
         '''
         self.assert_sample_autosample(self.assertSampleDataParticle,
-                                  DataParticleValue.PARSED,
+                                  [DataParticleType.VELOCITY,
+                                   DataParticleType.VELOCITY_HEADER,
+                                   DataParticleType.SYSTEM,
+                                   DataParticleType.PROBE_CHECK],
                                   timeout = 100)
 
     def test_get_set_parameters(self):
