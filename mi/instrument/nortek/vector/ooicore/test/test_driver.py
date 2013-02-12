@@ -572,7 +572,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
             DataParticleKey.VALUES: probe_check_particle
             }
         
-        self.compare_parsed_data_particle(ProbeCheckDataParticle,
+        self.compare_parsed_data_particle(VectorProbeCheckDataParticle,
                                           probe_check_sample(),
                                           expected_particle)
 
@@ -633,7 +633,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         with self.assertRaises(SampleException):
             particle.generate()
          
-        particle = ProbeCheckDataParticle(velocity_sample().replace(chr(16), chr(17), 1),
+        particle = VectorProbeCheckDataParticle(velocity_sample().replace(chr(16), chr(17), 1),
                                                           port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
