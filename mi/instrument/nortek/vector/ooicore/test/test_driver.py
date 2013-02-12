@@ -29,6 +29,7 @@ import re
 import time
 import datetime
 import base64
+import ntplib
 
 from nose.plugins.attrib import attr
 
@@ -476,7 +477,9 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         
         port_timestamp = 3555423720.711772
         driver_timestamp = 3555423722.711772
-
+        text_timestamp = time.strptime('17/12/2012 11:12:49', "%d/%m/%Y %H:%M:%S")
+        internal_timestamp = ntplib.system_to_ntp_time(time.mktime(text_timestamp))
+ 
         # construct the expected particle
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
@@ -484,6 +487,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
             DataParticleKey.STREAM_NAME: DataParticleType.VELOCITY_HEADER,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.INTERNAL_TIMESTAMP: internal_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
             DataParticleKey.VALUES: velocity_header_particle
@@ -527,6 +531,8 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         
         port_timestamp = 3555423720.711772
         driver_timestamp = 3555423722.711772
+        text_timestamp = time.strptime('13/12/2012 17:03:26', "%d/%m/%Y %H:%M:%S")
+        internal_timestamp = ntplib.system_to_ntp_time(time.mktime(text_timestamp))
 
         # construct the expected particle
         expected_particle = {
@@ -535,6 +541,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
             DataParticleKey.STREAM_NAME: DataParticleType.SYSTEM,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.INTERNAL_TIMESTAMP: internal_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
             DataParticleKey.VALUES: system_particle
