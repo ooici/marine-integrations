@@ -286,7 +286,6 @@ class Prompt(BaseEnum):
     COMMAND = '>'
     AUTOSAMPLE = ''
 
-
 ####################################################
 #  The adcpt_cache_dict is used to store data parsed
 #  in the ADCPT_EnsembleDataParticleKey class; this data
@@ -1291,7 +1290,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param cmd the simple adcpt command to format (no value to attach to the command)
         @retval The command to be sent to the device.
         """
-#        print("$$$$$$$$$$$$$$$$$$$$$$$ build_simple_command: %s" % cmd)
+        log.debug("$$$$$$$$$$$$$$$$$$$$$$$ build_simple_command: %s" % cmd)
         return cmd + NEWLINE
     
     def _build_set_command(self, cmd, param, val):
@@ -1312,7 +1311,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             str_val = self._param_dict.format(param, val)
             set_cmd = '%s%s' % (cmd, str_val)
             set_cmd = set_cmd + NEWLINE
-#            print("$$$$$$$$$$$$$$$$$$$$$$$ build_set_command: %s" % set_cmd)
+            log.debug("$$$$$$$$$$$$$$$$$$$$$$$ build_set_command: %s" % set_cmd)
         except KeyError:
             raise InstrumentParameterException('Unknown driver parameter %s' % param)
 
@@ -1727,12 +1726,20 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Unknown handlers.
     ########################################################################
     def _handler_unknown_break_success(self, *args, **kwargs):
+        """
+        Handles the event BREAK being successfully received by the adcpt
+        """
         log.debug("^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_unknown_break_success")
         next_state = ProtocolState.COMMAND
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         return(next_state)
 
     def _handler_unknown_break_alarm(self, *args, **kwargs):
+        """
+        Handles the event BREAK-ALARM being received by the adcpt and responding with
+        this because the internal battery is low. Typically don't want to deploy if
+        this is the case.
+        """
         log.debug("^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_unknown_break_alarm")
         next_state = None
         return(next_state)
@@ -1949,7 +1956,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Raise if no parameter provided, or not a dict.
         try:
             params = args[0]
-            log.debug("######### params = " + str(repr(params)))
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
@@ -1959,23 +1965,29 @@ class Protocol(CommandResponseInstrumentProtocol):
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
-#            for (key, val) in params_to_cmds.iteritems():
-#                log.debug("KEY = " + str(key) + " VALUE = " + str(val))
  
             for (key, val) in params.iteritems():
                 log.debug("KEY = " + str(key) + " VALUE = " + str(val))
-#                print"&&&&&&&&&&&&&&&&&&& handler_command_set: arguments to do_cmd etc are ",params_to_cmds[key],key,val
+                log.debug("&&&&&&&&&&&&&&&&&&& handler_command_set: arguments to do_cmd etc are ",params_to_cmds[key],key,val)
                 result = self._do_cmd_no_resp(params_to_cmds[key], key, str(val), **kwargs)
                 log.debug("**********************RESULT************* = " + str(result))
 
         return (next_state, result)
 
     def _handler_command_self_deploy(self, *args, **kwargs):
+        """
+        Handler for event where adcpt automatically reverts to AUTOSAMPLE from
+        COMMAND state after several minutes of inactivity
+        """
         log.debug("^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_self_deploy")
         next_state = ProtocolState.AUTOSAMPLE
         return(next_state)
 
     def _handler_command_start_autosample(self, *args, **kwargs):
+        """
+        Go into AUTOSAMPLE state when sent command to start.
+        'CS' is the adcpt command to start sampling.
+        """
         log.debug("^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_command_start_autosample")
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -1985,7 +1997,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_quit_session(self, *args, **kwargs):
         """
-        Power-down the instrument when sent a QUIT_SESSION event.
+        Power-down the instrument when sent a QUIT_SESSION command.
         'CZ' is the adcpt command to power down.
         """
         next_state = None
@@ -1994,6 +2006,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         return (next_state, result)
 
     def _handler_command_exit(self, *args, **kwargs):
+        """
+        Handles exiting the command state
+        (only possible by sending a BREAK command to the instrument)
+        """
         global command_set_cmds
         # send the commands that accumulated during 'execute'
         log.debug("^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_command_exit")
@@ -2015,6 +2031,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         return (next_state, (next_agent_state, result))
         
     def _handler_command_powering_down(self, *args, **kwargs):
+        """
+        Executed when no commands have been received in several minutes after entering
+        COMMAND state.
+        """
         log.debug("^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_command_powering_down")
         next_state = ProtocolState.UNKNOWN
         return(next_state)
@@ -2023,27 +2043,42 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Autosample handlers.
     ########################################################################
     def _handler_autosample_exit(self,*args,**kwargs):
+        """
+        Called when exiting autosample state.
+        """
         log.debug("^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_exit")
 
 
     def _handler_autosample_enter(self,*args,**kwargs):
+        """
+        Called on entry to autosample state.
+        """
         log.debug("^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_enter")
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
     
     def _handler_autosample_break_success(self, *args, **kwargs):
+        """
+        Break was received while autosampling; return to COMMAND state.
+        """
         log.debug("^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_break_success")
         next_state = ProtocolState.COMMAND
         return(next_state)
 
 
     def _handler_autosample_break_alarm(self, *args, **kwargs):
+        """
+        Handles receiving a ? command while autosampling.
+        """
         log.debug("^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_break_alarm")
 
 
 
     def _handler_autosample_get(self, *args, **kwargs):
+        """
+        Gets the value of a parameter
+        """
         log.debug("^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_get")
 
         self._build_param_dict()     #make sure data is up-to-date
@@ -2081,7 +2116,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_start_direct(self, *args, **kwargs):
         """
-"""
+        Start direct access
+        """
 
         next_state = None
         result = None
@@ -2104,6 +2140,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_direct_access_execute_direct(self, data):
         """
+        Execute direct access.
+        @data The command to be added to list for 'echo' filtering
         """
         next_state = None
         result = None
