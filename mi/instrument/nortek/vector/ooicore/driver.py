@@ -741,6 +741,8 @@ class VectorVelocityHeaderDataParticle(DataParticle):
             
     def _build_particle(self, match):
         timestamp = BinaryProtocolParameterDict.convert_time(match.group(1))
+        py_timestamp = time.strptime(timestamp, "%d/%m/%Y %H:%M:%S")
+        self.set_internal_timestamp(unix_time=time.mktime(py_timestamp))
         number_of_records = BinaryProtocolParameterDict.convert_word_to_int(match.group(2))
         noise1 = ord(match.group(3))
         noise2 = ord(match.group(4))
@@ -820,6 +822,8 @@ class VectorSystemDataParticle(DataParticle):
             
     def _build_particle(self, match):
         timestamp = BinaryProtocolParameterDict.convert_time(match.group(1))
+        py_timestamp = time.strptime(timestamp, "%d/%m/%Y %H:%M:%S")
+        self.set_internal_timestamp(unix_time=time.mktime(py_timestamp))
         battery = BinaryProtocolParameterDict.convert_word_to_int(match.group(2))
         sound_speed = BinaryProtocolParameterDict.convert_word_to_int(match.group(3))
         heading = BinaryProtocolParameterDict.convert_word_to_int(match.group(4))
