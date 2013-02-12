@@ -63,12 +63,15 @@ SYSTEM_DATA_LEN = 28
 SYSTEM_DATA_SYNC_BYTES = '\xa5\x11\x0e\x00'
 VELOCITY_HEADER_DATA_LEN = 42
 VELOCITY_HEADER_DATA_SYNC_BYTES = '\xa5\x12\x15\x00'
+PROBE_CHECK_SIZE_OFFSET = 2
+PROBE_CHECK_SYNC_BYTES = '\xa5\x07'
 CHECK_SUM_SEED = 0xb58c
 FAT_LENGTH = 512
 
 sample_structures = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
                      [SYSTEM_DATA_SYNC_BYTES, SYSTEM_DATA_LEN],
-                     [VELOCITY_HEADER_DATA_SYNC_BYTES, VELOCITY_HEADER_DATA_LEN]]
+                     [VELOCITY_HEADER_DATA_SYNC_BYTES, VELOCITY_HEADER_DATA_LEN],
+                     [PROBE_CHECK_SYNC_BYTES, PROBE_CHECK_SIZE_OFFSET]]
 
 VELOCITY_DATA_PATTERN = r'^%s(.{1})(.{1})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{1})(.{1})(.{1}).{2}' % VELOCITY_DATA_SYNC_BYTES
 VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN, re.DOTALL)
@@ -76,12 +79,15 @@ SYSTEM_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1}
 SYSTEM_DATA_REGEX = re.compile(SYSTEM_DATA_PATTERN, re.DOTALL)
 VELOCITY_HEADER_DATA_PATTERN = r'^%s(.{6})(.{2})(.{1})(.{1})(.{1}).{1}(.{1})(.{1})(.{1}).{23}' % VELOCITY_HEADER_DATA_SYNC_BYTES
 VELOCITY_HEADER_DATA_REGEX = re.compile(VELOCITY_HEADER_DATA_PATTERN, re.DOTALL)
+PROBE_CHECK_DATA_PATTERN = r'^%s' % PROBE_CHECK_SYNC_BYTES
+PROBE_CHECK_DATA_REGEX = re.compile(PROBE_CHECK_DATA_PATTERN, re.DOTALL)
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
     PARSED = 'parsed'
     VELOCITY = 'velocity'
     VELOCITY_HEADER = 'velocity_header'
+    PROBE_CHECK = 'probe_check'
     SYSTEM = 'system'
 
 # Device prompts.
@@ -869,6 +875,68 @@ class VectorSystemDataParticle(DataParticle):
         return result
             
 
+class ProbeCheckDataParticleKey(BaseEnum):
+    NUMBER_OF_SAMPLES_PER_BEAM = "number_of_samples_per_beam"
+    FIRST_SAMPLE_NUMBER = "first_sample_number"
+    BEAM_1_AMPLITUDES = "beam_1_amplitudes"
+    BEAM_2_AMPLITUDES = "beam_2_amplitudes"
+    BEAM_3_AMPLITUDES = "beam_3_amplitudes"
+        
+class ProbeCheckDataParticle(DataParticle):
+    """
+    Routine for parsing probe check data into a data particle structure for the Vector sensor. 
+    """
+    _data_particle_type = DataParticleType.PROBE_CHECK
+    SAMPLES_PER_BEAM_OFFSET = 4
+    FIRST_SAMPLE_NUMBER_OFFSET = 6
+    START_OF_SAMPLES_OFFSET = 8
+
+    def _build_parsed_values(self):
+        """
+        Take something in the probe check data sample format and parse it into
+        values with appropriate tags.
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = PROBE_CHECK_DATA_REGEX.match(self.raw_data)
+        
+        if not match:
+            raise SampleException("ProbeCheckDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
+        
+        
+        number_of_samples_per_beam = BinaryProtocolParameterDict.convert_word_to_int(self.raw_data[self.SAMPLES_PER_BEAM_OFFSET:self.SAMPLES_PER_BEAM_OFFSET+2])
+        log.debug("ProbeCheckDataParticle: samples per beam = %d" %number_of_samples_per_beam)
+        first_sample_number = BinaryProtocolParameterDict.convert_word_to_int(self.raw_data[self.FIRST_SAMPLE_NUMBER_OFFSET:self.FIRST_SAMPLE_NUMBER_OFFSET+2])
+        
+        index = self.START_OF_SAMPLES_OFFSET
+        for beam_number in range(1, 4):
+            beam_amplitudes = []
+            for sample in range(0, number_of_samples_per_beam):
+                beam_amplitudes.append(ord(self.raw_data[index]))
+                index += 1
+            if beam_number == 1:
+                beam_1_amplitudes = beam_amplitudes
+            elif beam_number == 2:
+                beam_2_amplitudes = beam_amplitudes
+            elif beam_number == 3:
+                beam_3_amplitudes = beam_amplitudes
+            
+        
+        result = [{DataParticleKey.VALUE_ID: ProbeCheckDataParticleKey.NUMBER_OF_SAMPLES_PER_BEAM,
+                   DataParticleKey.VALUE: number_of_samples_per_beam},
+                  {DataParticleKey.VALUE_ID: ProbeCheckDataParticleKey.FIRST_SAMPLE_NUMBER,
+                   DataParticleKey.VALUE: first_sample_number},
+                  {DataParticleKey.VALUE_ID: ProbeCheckDataParticleKey.BEAM_1_AMPLITUDES,
+                   DataParticleKey.VALUE: beam_1_amplitudes},
+                  {DataParticleKey.VALUE_ID: ProbeCheckDataParticleKey.BEAM_2_AMPLITUDES,
+                   DataParticleKey.VALUE: beam_2_amplitudes},
+                  {DataParticleKey.VALUE_ID: ProbeCheckDataParticleKey.BEAM_3_AMPLITUDES,
+                   DataParticleKey.VALUE: beam_3_amplitudes},
+                  ]
+        
+        log.debug('ProbeCheckDataParticle: particle=%s' %result)
+        return result
+            
+
 ###############################################################################
 # Protocol
 ################################################################################
@@ -1007,13 +1075,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         for structure_sync, structure_len in sample_structures:
             start = raw_data.find(structure_sync)
             if start != -1:    # found a sync pattern
+                if structure_sync == PROBE_CHECK_SYNC_BYTES:
+                    # must extract size of variable length structure
+                    if start+structure_len+1 <= len(raw_data):    # only extract the size if the first 4 bytes have arrived
+                        structure_len = BinaryProtocolParameterDict.convert_word_to_int(raw_data[start+structure_len:start+structure_len+2]) * 2
+                        log.debug('chunker_sieve_function: probe_check record size = %d' %structure_len)
                 if start+structure_len <= len(raw_data):    # only check the CRC if all of the structure has arrived
                     calculated_checksum = BinaryProtocolParameterDict.calculate_checksum(raw_data[start:start+structure_len], structure_len)
-                    #log.debug('chunker_sieve_function: calculated checksum = %s' % calculated_checksum)
+                    log.debug('chunker_sieve_function: calculated checksum = %s' % calculated_checksum)
                     sent_checksum = BinaryProtocolParameterDict.convert_word_to_int(raw_data[start+structure_len-2:start+structure_len])
                     if sent_checksum == calculated_checksum:
                         return_list.append((start, start+structure_len))        
-                        #log.debug("chunker_sieve_function: found %s", raw_data[start:start+structure_len].encode('hex'))
+                        log.debug("chunker_sieve_function: found %s", raw_data[start:start+structure_len].encode('hex'))
                 
         return return_list
     
@@ -1066,6 +1139,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._extract_sample(VectorVelocityDataParticle, VELOCITY_DATA_REGEX, structure)
         self._extract_sample(VectorSystemDataParticle, SYSTEM_DATA_REGEX, structure)
         self._extract_sample(VectorVelocityHeaderDataParticle, VELOCITY_HEADER_DATA_REGEX, structure)
+        self._extract_sample(ProbeCheckDataParticle, PROBE_CHECK_DATA_REGEX, structure)
 
     def _get_response(self, timeout=5, expected_prompt=None):
         """
