@@ -381,6 +381,7 @@ class InstrumentAgentDataSubscribers(object):
                     if(not self.samples_received.get(stream_name)):
                         self.samples_received[stream_name] = []
                     self.samples_received[stream_name].append(message)
+                    log.debug("Add message to stream '%s' value: %s" % (stream_name, message))
 
         for (stream_name, stream_config) in self.stream_config.iteritems():
             stream_id = stream_config['stream_id']
@@ -411,6 +412,7 @@ class InstrumentAgentDataSubscribers(object):
         result = []
         start_time = time.time()
 
+        log.debug("Fetch %d sample(s) from stream '%s'" % (sample_count, stream_name))
         while(len(result) < sample_count):
             if(self.samples_received.has_key(stream_name) and
                len(self.samples_received.get(stream_name))):
