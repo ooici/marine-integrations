@@ -226,6 +226,12 @@ class PortAgentClient(object):
     asynchronously via a callback from this client's listener thread.
     """
     
+    """
+    NOTE!!! MAX_RECOVERY_ATTEMPTS must not be greater than 1; if we decide
+    in the future to make it greater than 1, we need to test the 
+    error_callback, because it will be able to be re-entered.
+    """
+    MAX_RECOVERY_ATTEMPTS = 1  # !! MUST BE 1 and ONLY 1 (see above comment) !!
     HEARTBEAT_INTERVAL_COMMAND = "heartbeat_interval "
     BREAK_COMMAND = "break"
     
@@ -240,11 +246,15 @@ class PortAgentClient(object):
         self.listener_thread = None
         self.stop_event = None
         self.delim = delim
+        self.heartbeat = 0
+        self.max_missed_heartbeats = None
         self.send_attempts = MAX_SEND_ATTEMPTS
-        """
-        DHE: Defaulting to 0.  We need a way to synchronize what
-        the port agent uses and what the client is expecting.
-        """
+        self.recovery_attempts = 0
+        self.user_callback_data = None
+        self.user_callback_raw = None
+        self.user_callback_error = None
+        self.recovery_mutex = threading.Lock()
+        self.recovery_attempts = 0
         
     def init_comms(self, user_callback_data = None, user_callback_raw = None, 
                    user_callback_error = None, heartbeat = 0, 
@@ -260,19 +270,17 @@ class PortAgentClient(object):
         self.max_missed_heartbeats = max_missed_heartbeats        
 
         try:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            # This can be thrown here.
-            # error: [Errno 61] Connection refused
-            self.sock.connect((self.host, self.port))
-            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            self.sock.setblocking(0)
+            self.destroy_connection()
+            self.create_connection()
+
             heartbeat_string = str(heartbeat)
             self.send_config_parameter(self.HEARTBEAT_INTERVAL_COMMAND, 
                                        heartbeat_string)
             self.listener_thread = Listener(self.sock, self.delim, 
                                             heartbeat, max_missed_heartbeats, 
                                             self.callback_data,
-                                            self.callback_raw, self.callback_error)
+                                            self.callback_raw, 
+                                            self.callback_error)
             self.listener_thread.start()
             log.info('PortAgentClient.init_comms(): connected to port agent at %s:%i.'
                            % (self.host, self.port))        
@@ -282,7 +290,26 @@ class PortAgentClient(object):
             log.error(errorString, exc_info=True)
             self.callback_error(errorString)
             raise InstrumentConnectionException(errorString) 
-        
+
+    def create_connection(self):
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.connect((self.host, self.port))
+            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            self.sock.setblocking(0)
+        except Exception as e:
+            errorString = "init_comms(): Exception creating socket " +  \
+                      str(self.host) + ": " + str(self.cmd_port) + ": " + repr(e)
+            log.error(errorString, exc_info=True)
+            self.callback_error(errorString)
+            raise InstrumentConnectionException(errorString) 
+
+    def destroy_connection(self):
+        if self.sock:
+            self.sock.close()
+            self.sock = None
+            log.info('Port agent data socket closed.')
+                        
     def stop_comms(self):
         """
         Stop the listener thread and close client comms with the device
@@ -330,17 +357,47 @@ class PortAgentClient(object):
         Note: thinking we might need a callback_error for each context: instrument
         driver (write) and listener (read), unless the callback is reentrant.  
         """
-        if (self.user_callback_error):
-            self.user_callback_error(errorString)
-        else:
-            log.error("No user_callback_data defined")
+        returnValue = False
+        
+        self.recovery_mutex.acquire()
 
+        if (self.recovery_attempts >= self.MAX_RECOVERY_ATTEMPTS):
+            """
+            Release the mutex here.  The other thread can notice an error and
+            we will have not released the semaphore, and the thread will hang.  
+            The fact that we've incremented the MAX_RECOVERY_ATTEMPTS will
+            stop any re-entry.
+
+            """        
+            self.recovery_mutex.release()
+            if (self.user_callback_error):
+                self.user_callback_error(errorString)
+                returnValue = True
+            else:
+                log.error("No user_callback_data defined")
+                returnValue = False
+        else:
+            """
+            Try calling init_comms() again;
+            release the mutex before calling init_comms, which can cause
+            another exception, and we will have not released the semaphore.  
+            The fact that we've incremented the MAX_RECOVERY_ATTEMPTS will
+            stop any re-entry.
+            """
+            self.recovery_attempts = self.recovery_attempts + 1
+            log.error("Attempting connection_level recovery; attempt number %d" % (self.recovery_attempts))
+            self.recovery_mutex.release()
+            self.init_comms(self.user_callback_data, self.user_callback_raw, self.user_callback_error, self.heartbeat, self.max_missed_heartbeats)
+            returnValue = True
+            
+        return returnValue
+            
     def send_config_parameter(self, parameter, value):
         """
         Send a configuration parameter to the port agent
         """
         command = parameter + value
-        log.debug("Sending config parameter: %s") % (command)
+        log.debug("Sending config parameter: %s" % (command))
         self._command_port_agent(command)
 
     def send_break(self):
@@ -589,9 +646,7 @@ class Listener(threading.Thread):
                         log.error(errorString)
                         self.callback_error(errorString)
                         """
-                        DHE TODO: We might not want to just stop the whole thread here:
-                        maybe go wait on a semaphore until we're told to start 
-                        receiving again.  Exiting the thread might just work too though.
+                        This next statement causes the thread to exit.
                         """
                         self._done = True
                 
@@ -603,7 +658,12 @@ class Listener(threading.Thread):
                         received_data = True
                         paPacket.attach_data(data)
                     elif len(data) == 0:
-                        log.error('Zero bytes received from port_agent socket')
+                        errorString = 'Zero bytes received from port_agent socket'
+                        log.error(errorString)
+                        self.callback_error(errorString)
+                        """
+                        This next statement causes the thread to exit.
+                        """
                         self._done = True
 
                 if not self._done:
@@ -622,7 +682,7 @@ class Listener(threading.Thread):
                     self._done = True
 
 
-        log.info('Port_agent_client thread done listening.')
+        log.info('Port_agent_client thread done listening; going away.')
 
     def parse_packet(self, packet):
         log.debug('Logger client parse_packet')

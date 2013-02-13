@@ -32,8 +32,9 @@ from mi.core.log import get_logger ; log = get_logger()
 @attr('UNIT', group='mi')
 class TestPortAgentClient(MiUnitTest):
     def setUp(self):
-        self.ipaddr = "67.58.49.194"
-        self.port  = 4000
+        self.ipaddr = "localhost"
+        self.cmd_port = 9001
+        self.data_port  = 9002
     
     def resetTestVars(self):
         self.rawCallbackCalled = False
@@ -238,6 +239,46 @@ class TestPortAgentClient(MiUnitTest):
         test_heartbeat = paListener.MAX_HEARTBEAT_INTERVAL + 1
         retValue = paListener.set_heartbeat(test_heartbeat)
         self.assertFalse(retValue)
+
+    def test_callback_error(self):
+        paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
+        
+        """
+        Mock up the init_comms method; the callback_error will try to invoke
+        it, which will try to connect to the port_agent
+        """
+        mock_init_comms = Mock(spec = "init_comms")
+        paClient.init_comms = mock_init_comms
+        
+        """
+        Test that True is returned because the callback will try a recovery, 
+        and it doesn't matter at that point that there is no higher-level
+        callback registered.  Also assert that mock_init_comms was called.
+        """
+        retValue = paClient.callback_error("This is a great big error")
+        self.assertTrue(retValue)
+        self.assertTrue(len(mock_init_comms.mock_calls) == 1)
+
+        """
+        Now call callback_error again.  This time it should return False
+        because no higher-level callback has been registered.  Also assert
+        that mock_init_calls hasn't been called again (still is 1).
+        """
+        retValue = paClient.callback_error("This is a big boo boo")
+        self.assertFalse(retValue)
+        self.assertTrue(len(mock_init_comms.mock_calls) == 1)
+
+        """
+        Now call again with a callback registered; assert that the retValue
+        is True (callback registered), that mock_init_comms is still 1, and
+        that the higher-level callback was called.
+        """
+        self.resetTestVars()
+        paClient.user_callback_error = self.myGotError
+        retValue = paClient.callback_error("Another big boo boo")
+        self.assertTrue(retValue)
+        self.assertTrue(len(mock_init_comms.mock_calls) == 1)
+        self.assertTrue(self.errorCallbackCalled == 1)
         
     @unittest.skip('not finished yet')
     def test_port_agent_client_receive(self):
