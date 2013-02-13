@@ -652,6 +652,8 @@ class Mavs4StatusDataParticle(DataParticle):
         if not isinstance(self.raw_data, dict):
             raise SampleException("Error: raw_data is not a dictionary")
                      
+        log.debug('Mavs4StatusDataParticle: raw_data=%s' %self.raw_data)
+
         result = []
         for key, value in self.raw_data.items():
             result.append({DataParticleKey.VALUE_ID: key,
@@ -1429,7 +1431,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # build a dictionary of the parameters that are to be returned in the status data particle
         status_params = {}
         for name in Mavs4StatusDataParticleKey.list():
-            status_params[name] = self._param_dict.format_parameter(name)
+            status_params[name] = self._param_dict.get(name)
             
         # Create status data particle, but pass in a reference to the dictionary just created as first parameter instead of the 'line'.
         # The status data particle class will use the 'raw_data' variable as a reference to a dictionary object to get

@@ -36,12 +36,16 @@ import time
 import unittest
 import ntplib
 import datetime
+import json
 
 # 3rd party imports
 from nose.plugins.attrib import attr
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
+
+from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import DataParticleValue
 
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
@@ -176,26 +180,26 @@ class Mavs4Mixin(DriverTestMixin):
         InstrumentParameters.TILT_ROLL_OFFSET : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
     }
 
-    _status_sample_parameters = {
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_A: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_B: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_C: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_D: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.COMPASS_OFFSET_0: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.COMPASS_OFFSET_1: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.COMPASS_OFFSET_2: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.COMPASS_SCALE_FACTORS_0: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.COMPASS_SCALE_FACTORS_1: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.COMPASS_SCALE_FACTORS_2: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.TILT_PITCH_OFFSET: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.TILT_ROLL_OFFSET: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.SAMPLE_PERIOD: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.SAMPLES_PER_BURST: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.BURST_INTERVAL_DAYS: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.BURST_INTERVAL_HOURS: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.BURST_INTERVAL_MINUTES: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.BURST_INTERVAL_SECONDS: {TYPE: unicode, VALUE: u'' },
-        Mavs4StatusDataParticleKey.SI_CONVERSION: {TYPE: unicode, VALUE: u'' },
+    _status_parameters = {
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_A: {TYPE: int, VALUE: 1 },
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_B: {TYPE: int, VALUE: 2 },
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_C: {TYPE: int, VALUE: 3 },
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_D: {TYPE: int, VALUE: 4 },
+        Mavs4StatusDataParticleKey.COMPASS_OFFSET_0: {TYPE: int, VALUE: 5 },
+        Mavs4StatusDataParticleKey.COMPASS_OFFSET_1: {TYPE: int, VALUE: 6 },
+        Mavs4StatusDataParticleKey.COMPASS_OFFSET_2: {TYPE: int, VALUE: 7 },
+        Mavs4StatusDataParticleKey.COMPASS_SCALE_FACTORS_0: {TYPE: float, VALUE: 8.0 },
+        Mavs4StatusDataParticleKey.COMPASS_SCALE_FACTORS_1: {TYPE: float, VALUE: 9.0},
+        Mavs4StatusDataParticleKey.COMPASS_SCALE_FACTORS_2: {TYPE: float, VALUE: 10.0},
+        Mavs4StatusDataParticleKey.TILT_PITCH_OFFSET: {TYPE: int, VALUE: 11 },
+        Mavs4StatusDataParticleKey.TILT_ROLL_OFFSET: {TYPE: int, VALUE: 12 },
+        Mavs4StatusDataParticleKey.SAMPLE_PERIOD: {TYPE: float, VALUE: 13.0 },
+        Mavs4StatusDataParticleKey.SAMPLES_PER_BURST: {TYPE: int, VALUE: 14 },
+        Mavs4StatusDataParticleKey.BURST_INTERVAL_DAYS: {TYPE: int, VALUE: 15 },
+        Mavs4StatusDataParticleKey.BURST_INTERVAL_HOURS: {TYPE: int, VALUE: 16},
+        Mavs4StatusDataParticleKey.BURST_INTERVAL_MINUTES: {TYPE: int, VALUE: 17 },
+        Mavs4StatusDataParticleKey.BURST_INTERVAL_SECONDS: {TYPE: int, VALUE: 18 },
+        Mavs4StatusDataParticleKey.SI_CONVERSION: {TYPE: float, VALUE: 19.0 },
     }
         
     _sample_parameters = {
@@ -217,6 +221,25 @@ class Mavs4Mixin(DriverTestMixin):
 
     SAMPLE = "12 20 2012 18 50 50.40 FDC5 FF70 FF1B FF8C 1.2 3.4 5.6 22.21 0.96 0.28 3.0 -5.1\n"
     
+    def assert_status_data_particle_header(self, data_particle, stream_name):
+        """
+        Verify a status data particle header is formatted properly w/o port agent timestamp
+        @param data_particle: version 1 data particle
+        @param stream_name: version 1 data particle
+        """
+        sample_dict = self.convert_data_particle_to_dict(data_particle)
+        log.debug("assert_status_data_particle_header: SAMPLEDICT = %s" % sample_dict)
+
+        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME], stream_name)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID], DataParticleValue.JSON_DATA)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertIsInstance(sample_dict[DataParticleKey.VALUES], list)
+
+        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+        self.assertIsNotNone(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP))
+        self.assertIsInstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float)
+
     def assert_particle_sample(self, data_particle, verify_values = False):
         '''
         Verify a take sample data particle
@@ -232,8 +255,8 @@ class Mavs4Mixin(DriverTestMixin):
         @param data_particle:  status data particle
         @param verify_values:  bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, DataParticleType.STATUS)
-        self.assert_data_particle_parameters(data_particle, self._status_sample_parameters, verify_values)
+        self.assert_status_data_particle_header(data_particle, DataParticleType.STATUS)
+        self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
 
 
 #################################### RULES ####################################
@@ -261,6 +284,33 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
     
+    def assert_status_particle_published(self, particle_assert_method, verify_values = False):
+        """
+        Verify that we can send data through the port agent and the the correct particles
+        are generated.
+
+        Create a port agent packet, send it through got_data, then finally grab the data particle
+        from the data particle queue and verify it using the passed in assert method.
+        @param driver: instrument driver with mock port agent client
+        @param sample_data: the byte string we want to send to the driver
+        @param particle_assert_method: assert method to validate the data particle.
+        @param verify_values: Should we validate values?
+        """
+        # Find all particles of the correct data particle types (not raw)
+        particles = []
+        for p in self._data_particle_received:
+            particle_dict = json.loads(p)
+            stream_type = particle_dict.get('stream_name')
+            self.assertIsNotNone(stream_type)
+            if(stream_type == DataParticleType.STATUS):
+                particles.append(p)
+
+        log.debug("status particles: %s " % particles)
+        self.assertEqual(len(particles), 1)
+
+        # Verify the data particle
+        particle_assert_method(particles.pop(), verify_values)
+
     def test_driver_enums(self):
         """
         Verify that all driver enumerations have no duplicate values that might cause confusion.  Also
@@ -302,6 +352,31 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
         with self.assertRaises(SampleException):
             particle.generate()
          
+    def test_status_particle(self):
+        """
+        Verify driver produces the correct status data particle
+        """
+        driver = mavs4InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+        
+        # mock the _update_params() method which tries to get parameters from an actual instrument
+        _update_params_mock = Mock(spec="_update_params")
+        driver._protocol._update_params = _update_params_mock
+
+        # load the status parameter values
+        pd = driver._protocol._param_dict
+        for name in self._status_parameters.keys():
+            pd.set(name, self._status_parameters[name][VALUE])
+            
+        # clear out any old events
+        self.clear_data_particle_queue()
+
+        # call the method in the driver that generates and sends the status data particle
+        driver._protocol._generate_status_event()
+        
+        # check that the status data particle was published
+        self.assert_status_particle_published(self.assert_particle_status, verify_values=True)
+    
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
