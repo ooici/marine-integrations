@@ -29,6 +29,7 @@ from gevent import monkey; monkey.patch_all()
 from gevent.timeout import Timeout
 import gevent
 import socket
+from mock import Mock
 
 # Standard lib imports
 import time
@@ -66,6 +67,8 @@ from mi.instrument.nobska.mavs4.ooicore.driver import CompassOffsetParameters
 from mi.instrument.nobska.mavs4.ooicore.driver import CompassScaleFactorsParameters
 from mi.instrument.nobska.mavs4.ooicore.driver import TiltOffsetParameters
 from mi.instrument.nobska.mavs4.ooicore.driver import SubMenues
+from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentPrompts
+from mi.instrument.nobska.mavs4.ooicore.driver import INSTRUMENT_NEWLINE
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
@@ -302,7 +305,62 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
 
         # validate data particle
         self.assert_particle_published(driver, self.SAMPLE, self.assert_particle_sample, True)
+
+    def test_protocol_filter_capabilities(self):
+        """
+        This tests driver filter_capabilities.
+        Iterate through available capabilities, and verify that they can pass successfully through the filter.
+        Test silly made up capabilities to verify they are blocked by filter.
+        """
+        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
+        protocol = mavs4InstrumentProtocol(InstrumentPrompts, INSTRUMENT_NEWLINE, my_event_callback)
+        driver_capabilities = Capability().list()
+        test_capabilities = Capability().list()
+
+        # Add a bogus capability that will be filtered out.
+        test_capabilities.append("BOGUS_CAPABILITY")
+
+        # Verify "BOGUS_CAPABILITY was filtered out
+        self.assertEquals(driver_capabilities, protocol._filter_capabilities(test_capabilities))
         
+    def test_driver_parameters(self):
+        """
+        Verify the set of parameters known by the driver
+        """
+        driver = mavs4InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver, ProtocolStates.COMMAND)
+
+        expected_parameters = sorted(self._driver_parameters.keys())
+        reported_parameters = sorted(driver.get_resource(InstrumentParameters.ALL))
+
+        log.debug("Reported Parameters: %s" % reported_parameters)
+        log.debug("Expected Parameters: %s" % expected_parameters)
+
+        self.assertEqual(reported_parameters, expected_parameters)
+
+        # Verify the parameter definitions
+        self.assert_driver_parameter_definition(driver, self._driver_parameters)
+
+    def test_capabilities(self):
+        """
+        Verify the FSM reports capabilities as expected.  All states defined in this dict must
+        also be defined in the protocol FSM.
+        """
+        capabilities = {
+            ProtocolStates.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
+            ProtocolStates.COMMAND: ['DRIVER_EVENT_ACQUIRE_STATUS',
+                                     'DRIVER_EVENT_CLOCK_SYNC',
+                                     'DRIVER_EVENT_GET',
+                                     'DRIVER_EVENT_SET',
+                                     'DRIVER_EVENT_START_AUTOSAMPLE',
+                                     'DRIVER_EVENT_START_DIRECT'],
+            ProtocolStates.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE'],
+            ProtocolStates.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 
+                                           'EXECUTE_DIRECT']
+        }
+
+        driver = mavs4InstrumentDriver(self._got_data_event_callback)
+        self.assert_capabilities(driver, capabilities)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
