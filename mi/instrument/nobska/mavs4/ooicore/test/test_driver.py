@@ -48,8 +48,8 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
-from mi.instrument.nobska.mavs4.ooicore.driver import DataParticleType
 from mi.instrument.nobska.mavs4.ooicore.driver import mavs4InstrumentDriver
+from mi.instrument.nobska.mavs4.ooicore.driver import DataParticleType
 from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolStates
 from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolEvent
 from mi.instrument.nobska.mavs4.ooicore.driver import mavs4InstrumentProtocol
@@ -58,6 +58,7 @@ from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentCmds
 from mi.instrument.nobska.mavs4.ooicore.driver import Capability
 from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentPrompts
 from mi.instrument.nobska.mavs4.ooicore.driver import Mavs4StatusDataParticleKey
+from mi.instrument.nobska.mavs4.ooicore.driver import Mavs4SampleDataParticleKey
 from mi.instrument.nobska.mavs4.ooicore.driver import DeployMenuParameters
 from mi.instrument.nobska.mavs4.ooicore.driver import SystemConfigurationMenuParameters
 from mi.instrument.nobska.mavs4.ooicore.driver import VelocityOffsetParameters
@@ -192,8 +193,34 @@ class Mavs4Mixin(DriverTestMixin):
         Mavs4StatusDataParticleKey.SI_CONVERSION: {TYPE: unicode, VALUE: u'' },
     }
         
-    SAMPLE = "20 12 2012 18 50 50.40 FDC5 FF70 FF1B FF8C 1.2 3.4 5.6 22.21 0.96 0.28 3.0 -5.1\n"
+    _sample_parameters = {
+        Mavs4SampleDataParticleKey.TIMESTAMP: {TYPE: float, VALUE: 3565047050.0},
+        Mavs4SampleDataParticleKey.FRACTIONAL_SECOND: {TYPE: int, VALUE: 40},
+        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_A: {TYPE: int, VALUE: 64965},
+        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_B: {TYPE: int, VALUE: 65392},
+        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_C: {TYPE: int, VALUE: 65307},
+        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_D: {TYPE: int, VALUE: 65420},
+        Mavs4SampleDataParticleKey.VELOCITY_FRAME_EAST: {TYPE: float, VALUE: 1.2},
+        Mavs4SampleDataParticleKey.VELOCITY_FRAME_NORTH: {TYPE: float, VALUE: 3.4},
+        Mavs4SampleDataParticleKey.VELOCITY_FRAME_WEST: {TYPE: float, VALUE: 5.6},
+        Mavs4SampleDataParticleKey.TEMPERATURE: {TYPE: float, VALUE: 22.21},
+        Mavs4SampleDataParticleKey.COMPASS_MX: {TYPE: float, VALUE: 0.96},
+        Mavs4SampleDataParticleKey.COMPASS_MY: {TYPE: float, VALUE: 0.28},
+        Mavs4SampleDataParticleKey.PITCH: {TYPE: float, VALUE: 3.0},
+        Mavs4SampleDataParticleKey.ROLL: {TYPE: float, VALUE: -5.1},
+    }
+
+    SAMPLE = "12 20 2012 18 50 50.40 FDC5 FF70 FF1B FF8C 1.2 3.4 5.6 22.21 0.96 0.28 3.0 -5.1\n"
     
+    def assert_particle_sample(self, data_particle, verify_values = False):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  SBE26plusTideSampleDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.SAMPLE)
+        self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
+
     def assert_particle_status(self, data_particle, verify_values = False):
         '''
         Verify a status data particle
@@ -263,6 +290,20 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
         self.assert_chunker_fragmented_sample(chunker, self.SAMPLE)
         self.assert_chunker_combined_sample(chunker, self.SAMPLE)
     
+    def test_got_data(self):
+        """
+        Verify sample data passed through the got data method produces the correct data particles
+        """
+        # Create and initialize the instrument driver with a mock port agent
+        driver = mavs4InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        self.assert_raw_particle_published(driver, True)
+
+        # validate data particle
+        self.assert_particle_published(driver, self.SAMPLE, self.assert_particle_sample, True)
+        
+
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 #     Integration test test the direct driver / instrument interaction        #

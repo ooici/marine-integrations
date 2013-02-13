@@ -64,12 +64,8 @@ SAMPLE_DATA_REGEX = re.compile(SAMPLE_DATA_PATTERN)
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    PARSED = 'parsed'
+    SAMPLE = 'sample'
     STATUS = 'status'
-
-COMMAND = 'command'
-RESPONSE = 'response'
-NEXT_COMMAND = 'next_comand'
 
 INSTRUMENT_NEWLINE = '\r\n'
 WRITE_DELAY = 0
@@ -551,7 +547,7 @@ class Mavs4SampleDataParticle(DataParticle):
     """
     Class for parsing sample data into a data particle structure for the MAVS-4 sensor. 
     """
-    _data_particle_type = DataParticleType.PARSED
+    _data_particle_type = DataParticleType.SAMPLE
 
     def _build_parsed_values(self):
         """
@@ -569,12 +565,13 @@ class Mavs4SampleDataParticle(DataParticle):
         try:
             datetime = match.group(1) + ' ' + match.group(2)
             timestamp = time.strptime(datetime, "%m %d %Y %H %M %S")
+            self.set_internal_timestamp(unix_time=time.mktime(timestamp))
             ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
+            fractional_second = int(match.group(3))
             acoustic_axis_velocity_a = int(match.group(4), 16)
             acoustic_axis_velocity_b = int(match.group(5), 16)
             acoustic_axis_velocity_c = int(match.group(6), 16)
             acoustic_axis_velocity_d = int(match.group(7), 16)
-            fractional_second = int(match.group(3))
             velocity_frame_east = float(match.group(8))
             velocity_frame_north = float(match.group(9))
             velocity_frame_west = float(match.group(10))
@@ -863,13 +860,13 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         events_out = [x for x in events if Capability.has(x)]
         return events_out
 
-    def _got_chunk(self, structure):
+    def _got_chunk(self, structure, timestamp):
         """
         The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes. 
         """
         log.debug("_got_chunk: detected structure = <%s>", structure)
-        self._extract_sample(Mavs4SampleDataParticle, SAMPLE_DATA_REGEX, structure)
+        self._extract_sample(Mavs4SampleDataParticle, SAMPLE_DATA_REGEX, structure, timestamp)
 
 
     ########################################################################
@@ -1252,7 +1249,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Switch into autosample mode.
-        @retval (next_state, result) tuple, (SBE37ProtocolState.AUTOSAMPLE,
+        @retval (next_state, result) tuple, (ProtocolStates.AUTOSAMPLE,
         None) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
@@ -1275,7 +1272,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _handler_command_test(self, *args, **kwargs):
         """
         Switch to test state to perform instrument tests.
-        @retval (next_state, result) tuple, (SBE37ProtocolState.TEST, None).
+        @retval (next_state, result) tuple, (ProtocolStates.TEST, None).
         """
         next_state = None
         result = None
@@ -1324,25 +1321,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_state = None
         next_agent_state = None
         result = None
-
-        if not self._driver_event:
-            return
         
-        # update parameters so param_dict values used for status are latest and greatest.
-        self._update_params()
-
-        # build a dictionary of the parameters that are to be returned in the status data particle
-        status_params = {}
-        for name in Mavs4StatusDataParticleKey.list():
-            status_params[name] = self._param_dict.format_parameter(name)
-            
-        # Create status data particle, but pass in a reference to the dictionary just created as first parameter instead of the 'line'.
-        # The status data particle class will use the 'raw_data' variable as a reference to a dictionary object to get
-        # access to parameter values (see the Mavs4StatusDataParticle class).
-        particle = Mavs4StatusDataParticle(status_params, preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
-        status = particle.generate()
-
-        self._driver_event(DriverAsyncEvent.SAMPLE, status)
+        self._generate_status_event()
     
         return (next_state, (next_agent_state, result))
 
@@ -1367,7 +1347,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Stop autosample and switch back to command mode.
-        @retval (next_state, result) tuple, (SBE37ProtocolState.COMMAND,
+        @retval (next_state, result) tuple, (ProtocolStates.COMMAND,
         None) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command misunderstood or
@@ -1440,6 +1420,28 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     # Private helpers.
     ########################################################################
         
+    def _generate_status_event(self):
+        if not self._driver_event:
+            # can't send events, so don't bother creating the particle
+            return
+        
+        # update parameters so param_dict values used for status are latest and greatest.
+        self._update_params()
+
+        # build a dictionary of the parameters that are to be returned in the status data particle
+        status_params = {}
+        for name in Mavs4StatusDataParticleKey.list():
+            status_params[name] = self._param_dict.format_parameter(name)
+            
+        # Create status data particle, but pass in a reference to the dictionary just created as first parameter instead of the 'line'.
+        # The status data particle class will use the 'raw_data' variable as a reference to a dictionary object to get
+        # access to parameter values (see the Mavs4StatusDataParticle class).
+        particle = Mavs4StatusDataParticle(status_params, preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
+        status = particle.generate()
+
+        # send particle as an event
+        self._driver_event(DriverAsyncEvent.SAMPLE, status)
+    
     def _send_control_c(self, count):
         # spoon feed the control-c characters so instrument doesn't drop them if they are sent too fast
         for n in range(count):
