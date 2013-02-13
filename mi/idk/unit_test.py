@@ -732,6 +732,8 @@ class InstrumentDriverTestCase(MiIntTestCase):
             'log_level': 5,
             }
 
+        return config
+
     def init_port_agent(self):
         """
         @brief Launch the driver process and driver client.  This is used in the
@@ -1667,10 +1669,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'dvr_mod' : self.test_config.driver_module,
             'dvr_cls' : self.test_config.driver_class,
             'workdir' : self.test_config.working_dir,
-            'process_type' : self.test_config.driver_process_type,
-
+            'process_type' : (self.test_config.driver_process_type,),
             'comms_config' : self.port_agent_comm_config(),
-
             'startup_config' : self.test_config.driver_startup_config
         }
 
@@ -2576,8 +2576,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
             'dvr_mod' : self.test_config.driver_module,
             'dvr_cls' : self.test_config.driver_class,
             'workdir' : self.test_config.working_dir,
-            'process_type' : self.test_config.driver_process_type,
-
+            'process_type' : (self.test_config.driver_process_type,),
             'comms_config' : self.port_agent_comm_config(),
 
             'startup_config' : self.test_config.driver_startup_config
@@ -2609,25 +2608,21 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         Walk through IA states to get to command mode from uninitialized
         '''
         state = self.instrument_agent_client.get_agent_state()
-        if state == ResourceAgentState.UNINITIALIZED:
 
-            with self.assertRaises(Conflict):
-                res_state = self.instrument_agent_client.get_resource_state()
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+        log.info("Sent INITIALIZE; IA state = %s", state)
 
-            cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-            retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
-            state = self.instrument_agent_client.get_agent_state()
-            self.assertEqual(state, ResourceAgentState.INACTIVE)
-            log.info("Sent INITIALIZE; IA state = %s", state)
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
 
-            res_state = self.instrument_agent_client.get_resource_state()
-            self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
-
-            cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-            retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
-            state = self.instrument_agent_client.get_agent_state()
-            log.info("Sent GO_ACTIVE; IA state = %s", state)
-            self.assertEqual(state, ResourceAgentState.COMMAND)
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
+        state = self.instrument_agent_client.get_agent_state()
+        log.info("Sent GO_ACTIVE; IA state = %s", state)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
 
     def assert_sample_async(self, data, sampleDataAssert, sampleQueue, timeout=GO_ACTIVE_TIMEOUT):
         """
