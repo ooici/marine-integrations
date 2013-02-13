@@ -33,8 +33,10 @@ from mi.idk.exceptions import MissingConfig
 from mi.idk.exceptions import MissingExecutable
 from mi.idk.exceptions import FailedToLaunch
 from mi.idk.exceptions import SampleTimeout
+from mi.idk.exceptions import IDKException
 
 from mi.core.unit_test import MiIntTestCase
+from mi.core.instrument.data_particle import CommonDataParticleType
 
 from pyon.container.cc import Container
 from pyon.util.context import LocalContextMixin
@@ -51,7 +53,7 @@ from pyon.event.event import EventSubscriber
 #from interface.objects import StreamQuery
 
 DEFAULT_DEPLOY = 'res/deploy/r2deploy.yml'
-DEFAULT_PARAM_DICT = 'ctd_raw_param_dict'
+DEFAULT_STREAM_NAME = CommonDataParticleType.RAW
 
 class FakeProcess(LocalContextMixin):
     """
@@ -297,7 +299,7 @@ class InstrumentAgentDataSubscribers(object):
     """
     Setup Instrument Agent Publishers
     """
-    def __init__(self, packet_config = None, stream_definition = None, original = True, encoding = "ION R2"):
+    def __init__(self, packet_config = None, stream_definition = None, original = True, use_default_stream = True, encoding = "ION R2"):
         log.info("Start data subscribers")
 
         if packet_config == None:
@@ -312,6 +314,7 @@ class InstrumentAgentDataSubscribers(object):
         self.samples_received = {}
         self.data_subscribers = {}
         self.container = Container.instance
+        self.use_default_stream = use_default_stream
 
         self._build_stream_config()        
 
@@ -333,16 +336,26 @@ class InstrumentAgentDataSubscribers(object):
         self.stream_config = {}
 
         for stream_name in streams:
-            pd_id = dataset_management.read_parameter_dictionary_by_name(DEFAULT_PARAM_DICT, id_only=True)
+            pd_id = None
+            try:
+                pd_id = dataset_management.read_parameter_dictionary_by_name(stream_name, id_only=True)
+            except:
+                log.error("No pd_id found for param_dict '%s'" % stream_name)
+                if(self.use_default_stream):
+                    log.error("using default pd '%s'" % DEFAULT_STREAM_NAME)
+                    pd_id = dataset_management.read_parameter_dictionary_by_name(DEFAULT_STREAM_NAME, id_only=True)
+
             if(not pd_id):
-                log.error("No pd_id found for param_dict '%s'" % DEFAULT_PARAM_DICT)
+                raise IDKException("Missing parameter dictionary for stream '%s'" % stream_name)
+
+            log.debug("parameter dictionary id: %s" % pd_id)
 
             stream_def_id = pubsub_client.create_stream_definition(name=stream_name,
                                                                    parameter_dictionary_id=pd_id)
-            log.debug("Stream: %s (%s), stream_def_id %s" % (stream_name, type(stream_name), stream_def_id))
 
-            #pd = pubsub_client.read_stream_definition(stream_def_id).parameter_dictionary
-            pd = None
+            log.debug("Stream: %s (%s), stream_def_id %s" % (stream_name, type(stream_name), stream_def_id))
+            pd = pubsub_client.read_stream_definition(stream_def_id).parameter_dictionary
+            log.debug("Parameter Dictionary: %s" % pd)
 
             stream_id, stream_route = pubsub_client.create_stream(name=stream_name,
                                                 exchange_point='science_data',
@@ -354,7 +367,8 @@ class InstrumentAgentDataSubscribers(object):
                                  stream_id=stream_id,
                                  stream_definition_ref=stream_def_id,
                                  parameter_dictionary=pd)
-            self.stream_config[stream_name] = stream_config    
+            self.stream_config[stream_name] = stream_config
+            log.debug("Stream Config (%s): %s" % (stream_name, stream_config))
 
     def start_data_subscribers(self):
         """

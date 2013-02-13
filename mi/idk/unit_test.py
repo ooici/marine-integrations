@@ -2504,6 +2504,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         log.debug("Packet Config: %s" % self.test_config.instrument_agent_packet_config)
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.instrument_agent_packet_config,
+            use_default_stream=False
         )
         self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.instrument_agent_resource_id)
 
