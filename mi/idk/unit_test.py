@@ -135,6 +135,8 @@ class InstrumentDriverTestConfig(Singleton):
     instrument_agent_name = None
     instrument_agent_module = 'mi.idk.instrument_agent'
     instrument_agent_class = 'InstrumentAgent'
+    data_instrument_agent_module = 'ion.agents.instrument.instrument_agent'
+    data_instrument_agent_class = 'InstrumentAgent'
     instrument_agent_packet_config = None
     instrument_agent_stream_encoding = 'ION R2'
     instrument_agent_stream_definition = None
@@ -2478,4 +2480,93 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
     Test driver publication.  These test are not include in general driver
     qualification because publication definitions could change.
     """
+    def setUp(self):
+        """
+        @brief Setup test cases.
+        """
+        InstrumentDriverTestCase.setUp(self)
 
+        self.init_port_agent()
+        self.instrument_agent_manager = InstrumentAgentClient()
+        self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
+
+        self.container = self.instrument_agent_manager.container
+
+        log.debug("Packet Config: %s" % self.test_config.instrument_agent_packet_config)
+        self.data_subscribers = InstrumentAgentDataSubscribers(
+            packet_config=self.test_config.instrument_agent_packet_config,
+            )
+        self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.instrument_agent_resource_id)
+
+        self.init_instrument_agent_client()
+
+        self.event_subscribers.events_received = []
+        self.data_subscribers.start_data_subscribers()
+
+        log.debug("********* setUp complete.  Begin Testing *********")
+
+    def tearDown(self):
+        """
+        @brief Test teardown
+        """
+        log.debug("InstrumentDriverQualificationTestCase tearDown")
+
+        self.instrument_agent_manager.stop_container()
+        self.event_subscribers.stop()
+        self.data_subscribers.stop_data_subscribers()
+        InstrumentDriverTestCase.tearDown(self)
+
+    def init_instrument_agent_client(self):
+        log.info("Start Instrument Agent Client")
+
+        # Driver config
+        driver_config = {
+            'dvr_mod' : self.test_config.driver_module,
+            'dvr_cls' : self.test_config.driver_class,
+            'workdir' : self.test_config.working_dir,
+            'process_type' : self.test_config.driver_process_type,
+
+            'comms_config' : self.port_agent_comm_config(),
+
+            'startup_config' : self.test_config.driver_startup_config
+        }
+
+        # Create agent config.
+        agent_config = {
+            'driver_config' : driver_config,
+            'stream_config' : self.data_subscribers.stream_config,
+            'agent'         : {'resource_id': self.test_config.instrument_agent_resource_id},
+            'test_mode' : True  ## Enable a poison pill. If the spawning process dies
+            ## shutdown the daemon process.
+        }
+
+        # Start instrument agent client.
+        self.instrument_agent_manager.start_client(
+            name=self.test_config.instrument_agent_name,
+            module=self.test_config.data_instrument_agent_module,
+            cls=self.test_config.data_instrument_agent_class,
+            config=agent_config,
+            resource_id=self.test_config.instrument_agent_resource_id,
+            deploy_file=self.test_config.container_deploy_file
+        )
+
+        self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
+
+    def assert_sample_async(self, sampleDataAssert, sampleQueue,
+                            timeout=GO_ACTIVE_TIMEOUT, sample_count=1):
+        """
+        Watch the data queue for sample data.
+
+        This command is only useful for testing one stream produced in
+        streaming mode at a time.  If your driver has multiple streams
+        then you will need to call this method more than once or use a
+        different test.
+        """
+        self.data_subscribers.clear_sample_queue(sampleQueue)
+
+        samples = self.data_subscribers.get_samples(sampleQueue, sample_count, timeout = timeout)
+        self.assertGreaterEqual(len(samples), sample_count)
+
+        for s in samples:
+            log.debug("SAMPLE: %s" % s)
+            sampleDataAssert(s)

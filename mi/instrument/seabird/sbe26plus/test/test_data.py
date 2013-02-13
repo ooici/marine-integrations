@@ -1440,6 +1440,7 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         log.debug("TIME: %s && %s" % (lt, check_new_params[Parameter.DS_DEVICE_DATE_TIME]))
         self.assertTrue(lt[:12].upper() in check_new_params[Parameter.DS_DEVICE_DATE_TIME].upper())
 
+    @unittest.skip("Need to identify a startup parameter pattern")
     def test_startup_params_first_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -1460,6 +1461,7 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         self.assetert_set_parameter(Parameter.TXREALTIME, False)
         self.assetert_set_parameter(Parameter.TXWAVEBURST, True)
 
+    @unittest.skip("Need to identify a startup parameter pattern")
     def test_startup_params_second_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -1480,15 +1482,3 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         self.assetert_set_parameter(Parameter.TXREALTIME, False)
         self.assetert_set_parameter(Parameter.TXWAVEBURST, True)
 
-###############################################################################
-#                             PUBLICATION TESTS                               #
-# Device specific pulication tests are for                                   #
-# testing device specific capabilities                                        #
-###############################################################################
-@attr('QUAL', group='mi')
-class SeaBird26PlusPublicationTest(SeaBirdPublicationTest):
-    def setUp(self):
-        SeaBirdPublicationTest.setUp(self)
-
-    def test_startup(self):
-        pass

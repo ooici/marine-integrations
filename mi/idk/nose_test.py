@@ -121,6 +121,10 @@ class NoseTest(object):
         generator = DriverGenerator(self.metadata)
         return generator.test_modulename()
 
+    def _data_test_module(self):
+        generator = DriverGenerator(self.metadata)
+        return generator.data_test_modulename()
+
     def _driver_test_filename(self):
         generator = DriverGenerator(self.metadata)
         return generator.driver_test_path()
@@ -293,13 +297,13 @@ class NoseTest(object):
         """
         self._log("*** Starting Publication Tests ***")
 
-        self._log(" ==> module: " + self._driver_test_module())
+        self._log(" ==> module: " + self._data_test_module())
         if(self._pub_test_class == None):
             raise IDKException("Test module does not contain publication tests")
 
         self._log(" ==> class: " + self._pub_test_module_param())
         args=[ sys.argv[0], '-s', '-v', '-a', 'PUB', '-v', self._pub_test_module_param() ]
-        module = "%s" % (self._driver_test_module())
+        module = "%s" % (self._data_test_module())
 
         return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
 

@@ -108,6 +108,20 @@ class DriverGenerator:
         """
         return "test_driver.py"
 
+    def data_test_filename(self):
+        """
+        @brief file name of the new driver tests
+        @retval driver test filename
+        """
+        return "test_data.py"
+
+    def data_test_path(self):
+        """
+        @brief full-path file name of the new data tests
+        @retval full-path driver test filename
+        """
+        return os.path.join(self.driver_test_dir(), self.data_test_filename())
+
     def driver_test_path(self):
         """
         @brief full-path file name of the new driver tests
@@ -137,6 +151,13 @@ class DriverGenerator:
         return os.path.join(self.template_dir(), "driver.tmpl")
 
     def test_modulename(self):
+        """
+        @brief module name of the new driver tests
+        @retval driver test module name
+        """
+        return self.driver_test_path().replace(Config().base_dir() + "/",'').replace('/','.').replace('.py','')
+
+    def data_test_modulename(self):
         """
         @brief module name of the new driver tests
         @retval driver test module name
