@@ -9,6 +9,10 @@ up a TCP listener in a thread then an interface will allow you
 to send data through that TCP connection
 """
 
+# Needed because we import the time module below.  With out this '.' is search first
+# and we import ourselves.
+from __future__ import absolute_import
+
 __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
