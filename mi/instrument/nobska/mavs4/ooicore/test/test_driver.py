@@ -48,6 +48,7 @@ from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
+from mi.core.exceptions import SampleException
 
 from mi.instrument.nobska.mavs4.ooicore.driver import mavs4InstrumentDriver
 from mi.instrument.nobska.mavs4.ooicore.driver import DataParticleType
@@ -60,6 +61,7 @@ from mi.instrument.nobska.mavs4.ooicore.driver import Capability
 from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentPrompts
 from mi.instrument.nobska.mavs4.ooicore.driver import Mavs4StatusDataParticleKey
 from mi.instrument.nobska.mavs4.ooicore.driver import Mavs4SampleDataParticleKey
+from mi.instrument.nobska.mavs4.ooicore.driver import Mavs4SampleDataParticle
 from mi.instrument.nobska.mavs4.ooicore.driver import DeployMenuParameters
 from mi.instrument.nobska.mavs4.ooicore.driver import SystemConfigurationMenuParameters
 from mi.instrument.nobska.mavs4.ooicore.driver import VelocityOffsetParameters
@@ -293,6 +295,13 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
         self.assert_chunker_fragmented_sample(chunker, self.SAMPLE)
         self.assert_chunker_combined_sample(chunker, self.SAMPLE)
     
+    def test_corrupt_data_sample(self):
+        # garbage is not okay
+        particle = Mavs4SampleDataParticle(self.SAMPLE.replace('2012', 'foobar'),
+                                           port_timestamp = 3558720820.531179)
+        with self.assertRaises(SampleException):
+            particle.generate()
+         
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
