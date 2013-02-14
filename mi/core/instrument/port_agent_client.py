@@ -345,11 +345,11 @@ class PortAgentClient(object):
         A packet has been received from the port agent.  The packet is 
         contained in a packet object.  
         """
-        if (self.user_callback_data):
+        if (self.user_callback_raw):
             paPacket.verify_checksum()
             self.user_callback_raw(paPacket)
         else:
-            log.error("No user_callback_data defined")
+            log.error("No user_callback_raw defined")
 
     def callback_error(self, errorString = "No error string passed."):
         """
@@ -387,7 +387,9 @@ class PortAgentClient(object):
             self.recovery_attempts = self.recovery_attempts + 1
             log.error("Attempting connection_level recovery; attempt number %d" % (self.recovery_attempts))
             self.recovery_mutex.release()
-            self.init_comms(self.user_callback_data, self.user_callback_raw, self.user_callback_error, self.heartbeat, self.max_missed_heartbeats)
+            self.init_comms(self.user_callback_data, self.user_callback_raw, 
+                            self.user_callback_error, self.heartbeat, 
+                            self.max_missed_heartbeats)
             returnValue = True
             
         return returnValue
@@ -433,33 +435,43 @@ class PortAgentClient(object):
         """
         Send data to the port agent.
         """
-        if (not sock):
-            sock = self.sock
+        returnValue = 0
+        total_bytes_sent = 0
+        
+        sock = self.sock
 
         if sock:
-            tries = 0
-            while len(data) > 0:
+            would_block_tries = 0
+            continuing = True
+            while len(data) > 0 and continuing:
                 try:
                     sent = sock.send(data)
-                    gone = data[:sent]
+                    total_bytes_sent = len(data[:sent])
                     data = data[sent:]
                 except socket.error as e:
                     if e.errno == errno.EWOULDBLOCK:
-                        tries = tries + 1
-                        if tries > self.send_attempts:
-                            error_string = 'Send attempts (%d) exceeded while sending to %s:%i'  % (tries, self.host, self.port)
+                        would_block_tries = would_block_tries + 1
+                        if would_block_tries > self.send_attempts:
+                            error_string = 'Send attempts (%d) exceeded while sending to %s:%i'  % (would_block_tries, self.host, self.port)
                             log.error(error_string)
-                            raise InstrumentConnectionException(error_string) 
+                            self.callback_error(error_string)
+                            continuing = False 
                         else:
-                            error_string = 'Socket error while sending to (%s:%i): %r; tries = %d'  % (self.host, self.port, e, tries)
+                            error_string = 'Socket error while sending to (%s:%i): %r; tries = %d'  % (self.host, self.port, e, would_block_tries)
                             log.error(error_string)
                             time.sleep(.1)
                     else:
                         error_string = 'Socket error while sending to (%s:%i): %r'  % (self.host, self.port, e)
                         log.error(error_string)
-                        raise InstrumentConnectionException(error_string)
-
-                
+                        self.callback_error(error_string)
+                        continuing = False
+        else:
+            error_string = 'No socket defined!'
+            log.error(error_string)
+            self.callback_error(error_string)
+        
+        return total_bytes_sent
+            
 class Listener(threading.Thread):
 
     MAX_HEARTBEAT_INTERVAL = 20 # Max, for range checking parameter
@@ -684,7 +696,3 @@ class Listener(threading.Thread):
 
         log.info('Port_agent_client thread done listening; going away.')
 
-    def parse_packet(self, packet):
-        log.debug('Logger client parse_packet')
-        
-        

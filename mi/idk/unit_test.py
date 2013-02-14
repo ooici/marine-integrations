@@ -1086,7 +1086,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         self.clear_data_particle_queue()
 
         # Push the data into the driver
-        driver._protocol.got_data(port_agent_packet)
+        driver._protocol.got_raw(port_agent_packet)
         self.assertEqual(len(self._data_particle_received), 1)
         particle = self._data_particle_received.pop()
         particle_dict = json.loads(particle)
