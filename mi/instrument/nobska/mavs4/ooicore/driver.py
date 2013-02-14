@@ -1938,6 +1938,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : int(match.group(1)),
                              self._int_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
+                             value=-1,     # to indicate that the parameter has not been read from the instrument
                              menu_path_read=SubMenues.CALIBRATION,
                              submenu_read=InstrumentCmds.TILT_OFFSETS,
                              menu_path_write=None,
@@ -1947,6 +1948,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*Current tilt offsets:\s+\d+\s+(\d+)\s+.*', 
                              lambda match : int(match.group(1)),
                              self._int_to_string,
+                             value=-1,     # to indicate that the parameter has not been read from the instrument
                              visibility=ParameterDictVisibility.READ_ONLY,
                              menu_path_read=SubMenues.CALIBRATION,
                              submenu_read=InstrumentCmds.TILT_OFFSETS,
@@ -2471,7 +2473,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         compass_scale_factors_set_prameters_parsed = False
         tilt_offset_set_prameters_parsed = False
         
-        for key in InstrumentParameters.list():
+        # sort the list so that the solid_state_tilt parameter will be updated and accurate before the tilt_offset
+        # parameters are updated, so that the check of the solid_state_tilt param value reflects what's on the instrument
+        for key in sorted(InstrumentParameters.list()):
             if key == InstrumentParameters.ALL:
                 # this is not the name of any parameter
                 continue
@@ -2526,6 +2530,12 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             elif key in TiltOffsetParameters.list():
                 # only screen scrape the tilt offset set response once for efficiency
                 if tilt_offset_set_prameters_parsed == True:
+                    continue
+                elif self._param_dict.get(InstrumentParameters.SOLID_STATE_TILT) == 'n':
+                    # don't get the tilt offset parameters if the solid state tilt is disabled
+                    self._param_dict.set(InstrumentParameters.TILT_PITCH_OFFSET, -1)
+                    self._param_dict.set(InstrumentParameters.TILT_ROLL_OFFSET, -1)
+                    tilt_offset_set_prameters_parsed = True               
                     continue
                 else:
                     tilt_offset_set_prameters_parsed = True
