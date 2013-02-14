@@ -452,7 +452,7 @@ class PortAgentClient(object):
                     if e.errno == errno.EWOULDBLOCK:
                         would_block_tries = would_block_tries + 1
                         if would_block_tries > self.send_attempts:
-                            error_string = 'Send attempts (%d) exceeded while sending to %s:%i'  % (would_block_tries, self.host, self.port)
+                            error_string = 'Send EWOULDBLOCK attempts (%d) exceeded while sending to %s:%i'  % (would_block_tries, self.host, self.port)
                             log.error(error_string)
                             self.callback_error(error_string)
                             continuing = False 
