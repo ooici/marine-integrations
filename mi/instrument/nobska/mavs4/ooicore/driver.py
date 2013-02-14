@@ -112,6 +112,8 @@ class InstrumentPrompts(BaseEnum):
     SI_CONVERSION                 = 'Enter binary to SI velocity conversion (0.0010000 to 0.0200000) ?'
     WARM_UP_INTERVAL              = '[F]ast or [S]low sensor warm up interval [F] ?'
     THREE_AXIS_COMPASS            = '3-Axis compass enabled (Yes/No) ['
+    SOLID_STATE_TILT              = 'Solid state tilt enabled (Yes/No) ['
+    LOAD_DEFAULT_TILT             = 'Load default tilt coefficients (Yes/No) ['
     THERMISTOR                    = 'Thermistor enabled (Yes/No) ['
     THERMISTOR_OFFSET             = 'Set thermistor offset to 0.0 (default) (Yes/No) [N] ?'
     PRESSURE                      = 'Pressure enabled (Yes/No) ['
@@ -126,7 +128,8 @@ class InstrumentPrompts(BaseEnum):
     COMPASS_SCALE_FACTORS_SET     = 'Current compass scale factors:'
     TILT_OFFSETS                  = 'Tilt Offsets:'
     TILT_OFFSETS_SET              = 'Current tilt offsets:'
-    
+    SOLID_STATE_TILT_NOT_ENABLED  = 'Solid State Tilt is not currently enabled.'
+        
 class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dictionaries to work correctly
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
     DEPLOY_GO                                  = '\a'     # CTRL-G (bell)
@@ -167,6 +170,9 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     ENTER_WARM_UP_INTERVAL                     = 'enter_warm_up_interval'
     SET_THREE_AXIS_COMPASS                     = ' 1'                          # make different from SET_TIME with leading space
     ENTER_THREE_AXIS_COMPASS                   = 'enter_3_axis_compass'
+    SET_SOLID_STATE_TILT                       = '2'                                          
+    ENTER_SOLID_STATE_TILT                     = 'enter_solid_state_tilt'
+    ANSWER_SOLID_STATE_TILT_YES                = 'y'
     SET_THERMISTOR                             = ' 3'                          # make different from CALIBRATION_MENU with leading space                 
     ENTER_THERMISTOR                           = 'enter_thermistor'
     ANSWER_THERMISTOR_NO                       = 'n'
@@ -254,6 +260,7 @@ class InstrumentParameters(DriverParameter):
     SI_CONVERSION                        = 'si_conversion'
     WARM_UP_INTERVAL                     = 'warm_up_interval'
     THREE_AXIS_COMPASS                   = '3_axis_compass'
+    SOLID_STATE_TILT                     = 'solid_state_tilt'
     THERMISTOR                           = 'thermistor'
     PRESSURE                             = 'pressure'
     AUXILIARY_1                          = 'auxiliary_1'
@@ -299,6 +306,7 @@ class SystemConfigurationMenuParameters(BaseEnum):
     SI_CONVERSION      = InstrumentParameters.SI_CONVERSION
     WARM_UP_INTERVAL   = InstrumentParameters.WARM_UP_INTERVAL
     THREE_AXIS_COMPASS = InstrumentParameters.THREE_AXIS_COMPASS
+    SOLID_STATE_TILT   = InstrumentParameters.SOLID_STATE_TILT
     THERMISTOR         = InstrumentParameters.THERMISTOR
     PRESSURE           = InstrumentParameters.PRESSURE
     AUXILIARY_1        = InstrumentParameters.AUXILIARY_1
@@ -667,8 +675,9 @@ class Mavs4StatusDataParticle(DataParticle):
 ###
 class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     """
-    The protocol is a very simple command/response protocol with a few show
-    commands and a few set commands.
+    This protocol implements a simple command-response interaction for the menu based MAVs-4 instrument.  
+    It utilizes a dictionary that holds info on the more complex commands as well as command builders and 
+    response handles that can dynamically create and process the instrument interactions.
     """
     
     monitor_sub_parameters = (InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES, 
@@ -680,9 +689,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                                  InstrumentParameters.BURST_INTERVAL_MINUTES,
                                  InstrumentParameters.BURST_INTERVAL_SECONDS)
     
-    # Lookup dictionary which contains the response, the next command, and the parameter name for a given instrument command.
-    # The value None for the next command means there is no next command.
-    # Commands that decide the command or these values dynamically have there own build handlers and are not in this table.
+    # Lookup dictionary which contains the response, the next command, and the possible parameter name for 
+    # a given instrument command if it is needed.
+    # The value None for the next command means there is no next command (the interaction is complete).
+    # Commands that decide how to construct the command or any of these values dynamically have there own 
+    # build handlers and are not in this table.
     Command_Response = {InstrumentCmds.SET_TIME : 
                             [InstrumentPrompts.SET_TIME, None, None],
                         InstrumentCmds.ENTER_TIME : 
@@ -752,6 +763,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                         InstrumentCmds.SET_THREE_AXIS_COMPASS : 
                             [InstrumentPrompts.THREE_AXIS_COMPASS, InstrumentCmds.ENTER_THREE_AXIS_COMPASS, None],                        
                         InstrumentCmds.ENTER_THREE_AXIS_COMPASS : 
+                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
+                        InstrumentCmds.SET_SOLID_STATE_TILT : 
+                            [InstrumentPrompts.SOLID_STATE_TILT, InstrumentCmds.ENTER_SOLID_STATE_TILT, None],                        
+                        InstrumentCmds.ANSWER_SOLID_STATE_TILT_YES : 
                             [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
                         InstrumentCmds.SET_THERMISTOR : 
                             [InstrumentPrompts.THERMISTOR, InstrumentCmds.ENTER_THERMISTOR, None],                        
@@ -1449,7 +1464,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             time.sleep(.1)            
     
     def _go_to_root_menu(self):
-        # try to get root menu if instrument is not sleeping by sending single control-c
+        # try to get root menu presuming the instrument is not sleeping by sending single control-c
         for attempt in range(0,2):
             self._linebuf = ''
             self._promptbuf = ''
@@ -1465,10 +1480,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                     log.debug("_go_to_root_menu: got root menu prompt")
                     return
                 if prompt == InstrumentPrompts.SLEEPING:
+                    # instrument says it is sleeping, so try to wake it up
                     log.debug("_go_to_root_menu: GOT SLEEPING PROMPT !!!!!!!!!!!!!!!!!!!!!!!")
                     break
         # instrument acts like it's asleep, so try to wake it up and get to root menu
-        count = 3
+        count = 3   # send 3 control-c characters to get the instruments attention
         for attempt in range(0,5):
             self._linebuf = ''
             self._promptbuf = ''
@@ -1482,12 +1498,14 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             except:
                 log.debug('_go_to_root_menu: TIMED_OUT WAITING FOR PROMPT FROM 3 CONTROL-Cs !!!!!!!!!!!!!!!')
                 pass
-            log.debug("_go_to_root_menu: prompt after sending 3 control-c characters = <%s>" %prompt)
+            log.debug("_go_to_root_menu: prompt after sending %d control-c characters = <%s>" %(count, prompt))
             if prompt == InstrumentPrompts.MAIN_MENU:
                 return
             if prompt == InstrumentPrompts.SLEEP_WAKEUP:
-                count = 1
-        log.debug("_go_to_root_menu: failed to get to root menu, prompt=%s (%s)" %(self._prompt, self._prompt.encode("hex")))
+                count = 1    # send 1 control=c to get the root menu
+            if prompt == InstrumentPrompts.SLEEPING:
+                count = 3    # send 3 control-c characters to get the instruments attention
+        log.debug("_go_to_root_menu: failed to get to root menu, prompt=%s (%s)" %(prompt, prompt.encode("hex")))
         raise InstrumentTimeoutException("failed to get to root menu.")
                 
     def _parse_sensor_orientation(self, sensor_orientation):
@@ -1731,6 +1749,16 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              menu_path_write=SubMenues.CONFIGURATION,
                              submenu_write=InstrumentCmds.SET_THREE_AXIS_COMPASS)
 
+        self._param_dict.add(InstrumentParameters.SOLID_STATE_TILT,
+                             r'.*<2> Solid State Tilt\s+(\w+)\s+.*', 
+                             lambda match : self._parse_enable_disable(match.group(1)),
+                             lambda string : str(string),
+                             default_value='y',
+                             menu_path_read=SubMenues.CONFIGURATION,
+                             submenu_read=None,
+                             menu_path_write=SubMenues.CONFIGURATION,
+                             submenu_write=InstrumentCmds.SET_SOLID_STATE_TILT)
+
         self._param_dict.add(InstrumentParameters.THERMISTOR,
                              r'.*<3> Thermistor\s+(\w+)\s+.*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
@@ -1944,6 +1972,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.ANSWER_THERMISTOR_NO, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_THERMISTOR, self._build_enter_thermistor_command)
         self._add_build_handler(InstrumentCmds.SET_THERMISTOR, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.ANSWER_SOLID_STATE_TILT_YES, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.ENTER_SOLID_STATE_TILT, self._build_enter_solid_state_tilt_command)
+        self._add_build_handler(InstrumentCmds.SET_SOLID_STATE_TILT, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_THREE_AXIS_COMPASS, self._build_simple_enter_command)
         self._add_build_handler(InstrumentCmds.SET_THREE_AXIS_COMPASS, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_WARM_UP_INTERVAL, self._build_enter_warm_up_interval_command)
@@ -2025,6 +2056,27 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         response = InstrumentPrompts.AUXILIARY.replace("*", name[-1])
         log.debug("_build_set_auxiliary_command: cmd=%s" %cmd)
         return (cmd, response, InstrumentCmds.ENTER_AUXILIARY)
+
+    def _build_enter_solid_state_tilt_command(self, **kwargs):
+        """
+        Build handler for solid state tilt enter command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        name = kwargs.get('name', None)
+        if name == None:
+            raise InstrumentParameterException('solid state tilt enter command requires a name.')
+        value = kwargs.get('value', None)
+        if value == None:
+            raise InstrumentParameterException('solid state tilt  enter command requires a value.')
+        cmd = "%s" %(self._param_dict.format(name, value)[0])
+        log.debug("_build_enter_solid_state_tilt_command: cmd=%s" %cmd)
+        if cmd != InstrumentCmds.ANSWER_SOLID_STATE_TILT_YES:
+            return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
+        else:
+            return (cmd, InstrumentPrompts.LOAD_DEFAULT_TILT, InstrumentCmds.ANSWER_SOLID_STATE_TILT_YES)
 
     def _build_enter_thermistor_command(self, **kwargs):
         """
