@@ -800,7 +800,8 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         result = None
         
         self._build_protocol()
-        self._connection.init_comms(self._protocol.got_data)
+        self._connection.init_comms(self._protocol.got_data, 
+                                    self._protocol.got_raw)
         self._protocol._connection = self._connection
         next_state = DriverConnectionState.CONNECTED
         
