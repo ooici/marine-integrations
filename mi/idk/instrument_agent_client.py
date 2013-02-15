@@ -34,6 +34,7 @@ from mi.idk.exceptions import MissingExecutable
 from mi.idk.exceptions import FailedToLaunch
 from mi.idk.exceptions import SampleTimeout
 from mi.idk.exceptions import IDKException
+from mi.idk.exceptions import ParameterException
 
 from mi.core.unit_test import MiIntTestCase
 from mi.core.instrument.data_particle import CommonDataParticleType
@@ -95,9 +96,11 @@ class InstrumentAgentClient(object):
         self.instrument_agent_client = ia_client
 
 
-    def start_container(self, deploy_file = DEFAULT_DEPLOY):
+    def start_container(self, deploy_file = DEFAULT_DEPLOY, container_config = None):
         """
         @brief Launch the instrument agent
+        @param deploy_file Deployment file to use to start the container
+        @param container_config container parameters that we want to overload
         """
         log.info("Startup Instrument Agent")
 
@@ -127,11 +130,9 @@ class InstrumentAgentClient(object):
         testcase._start_container()
         container = testcase.container
 
-        log.debug( "Capability container id: %s" % testcase.container.id )
-
         # Bring up services in a deploy file (no need to message)
         log.info("Initialize container with %s" % deploy_file)
-        container.start_rel_from_url(deploy_file)
+        container.start_rel_from_url(deploy_file, container_config)
 
         self.container = container
 
@@ -353,9 +354,9 @@ class InstrumentAgentDataSubscribers(object):
             stream_def_id = pubsub_client.create_stream_definition(name=stream_name,
                                                                    parameter_dictionary_id=pd_id)
 
-            log.debug("Stream: %s (%s), stream_def_id %s" % (stream_name, type(stream_name), stream_def_id))
+            #log.debug("Stream: %s (%s), stream_def_id %s" % (stream_name, type(stream_name), stream_def_id))
             pd = pubsub_client.read_stream_definition(stream_def_id).parameter_dictionary
-            log.debug("Parameter Dictionary: %s" % pd)
+            #log.debug("Parameter Dictionary: %s" % pd)
 
             stream_id, stream_route = pubsub_client.create_stream(name=stream_name,
                                                 exchange_point='science_data',
@@ -368,7 +369,7 @@ class InstrumentAgentDataSubscribers(object):
                                  stream_definition_ref=stream_def_id,
                                  parameter_dictionary=pd)
             self.stream_config[stream_name] = stream_config
-            log.debug("Stream Config (%s): %s" % (stream_name, stream_config))
+            #log.debug("Stream Config (%s): %s" % (stream_name, stream_config))
 
     def start_data_subscribers(self):
         """

@@ -145,7 +145,8 @@ class InstrumentDriverTestConfig(Singleton):
     driver_startup_config = {}
 
     container_deploy_file = 'res/deploy/r2deploy.yml'
-    
+    publisher_deploy_file = 'res/deploy/r2idk.yml'
+
     initialized   = False
 
     def initialize(self, *args, **kwargs):
@@ -2496,8 +2497,23 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         self.init_instrument_simulator()
         self.init_port_agent()
 
+        pa_config = self.port_agent_config()
+
+        # Override some preload values
+        config = {
+            'idk_agent': 'IA4',
+            'idk_comms_method': 'ethernet',
+            'idk_server_address': 'localhost',
+            'idk_comms_device_address': pa_config.get('device_addr'),
+            'idk_comms_device_port': pa_config.get('device_port'),
+            'idk_comms_server_address': 'localhost',
+            'idk_comms_server_port': pa_config.get('data_port'),
+            'idk_comms_server_cmd_port': pa_config.get('command_port'),
+        }
+
         self.instrument_agent_manager = InstrumentAgentClient()
-        self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
+        self.instrument_agent_manager.start_container(deploy_file=self.test_config.publisher_deploy_file, container_config=config)
+        #self.instrument_agent_manager.start_container(deploy_file=self.test_config.publisher_deploy_file)
 
         self.container = self.instrument_agent_manager.container
 
