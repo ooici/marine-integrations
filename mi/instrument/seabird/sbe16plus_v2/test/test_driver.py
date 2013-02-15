@@ -578,8 +578,10 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
   
         test_driver._protocol.got_data(paPacket)
         
-        self.assertTrue(self.raw_stream_received is 1)
         self.assertTrue(self.parsed_stream_received is 0)
+
+        test_driver._protocol.got_raw(paPacket)
+        self.assertTrue(self.raw_stream_received is 1)
 
 
     """
@@ -640,9 +642,10 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         paPacket.pack_header()
   
         test_driver._protocol.got_data(paPacket)
-        
-        self.assertTrue(self.raw_stream_received is 1)
         self.assertTrue(self.parsed_stream_received is 0)
+        
+        test_driver._protocol.got_raw(paPacket)
+        self.assertTrue(self.raw_stream_received is 1)
         
         """
         This valid sample should not be published because it will be concatenated
@@ -655,9 +658,10 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         paPacket.pack_header()
   
         test_driver._protocol.got_data(paPacket)
-        
-        self.assertTrue(self.raw_stream_received is 2)
         self.assertTrue(self.parsed_stream_received is 1)
+        
+        test_driver._protocol.got_raw(paPacket)
+        self.assertTrue(self.raw_stream_received is 2)
         
         """
         This valid sample SHOULD be published because the _linebuf should be cleared
@@ -670,9 +674,10 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         paPacket.pack_header()
   
         test_driver._protocol.got_data(paPacket)
-        
-        self.assertTrue(self.raw_stream_received is 3)
         self.assertTrue(self.parsed_stream_received is 2)
+        
+        test_driver._protocol.got_raw(paPacket)
+        self.assertTrue(self.raw_stream_received is 3)
         
 
     """
@@ -734,9 +739,10 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         paPacket.pack_header()
   
         test_driver._protocol.got_data(paPacket)
+        self.assertTrue(self.parsed_stream_received is 0)
         
         self.assertTrue(self.raw_stream_received is 1)
-        self.assertTrue(self.parsed_stream_received is 0)
+        test_driver._protocol.got_raw(paPacket)
         
         test_sample = VALID_SAMPLE_FRAG_02
         
@@ -745,9 +751,10 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         paPacket.pack_header()
   
         test_driver._protocol.got_data(paPacket)
-        
-        self.assertTrue(self.raw_stream_received is 2)
         self.assertTrue(self.parsed_stream_received is 1)
+        
+        test_driver._protocol.got_raw(paPacket)
+        self.assertTrue(self.raw_stream_received is 2)
         
     """
     Test that the got_data method consumes a sample that has a concatenated fragment
@@ -808,9 +815,10 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         paPacket.pack_header()
   
         test_driver._protocol.got_data(paPacket)
-        
-        self.assertTrue(self.raw_stream_received is 1)
         self.assertTrue(self.parsed_stream_received is 1)
+        
+        test_driver._protocol.got_raw(paPacket)
+        self.assertTrue(self.raw_stream_received is 1)
         
         test_sample = VALID_SAMPLE_FRAG_02
         
@@ -819,9 +827,10 @@ class SBEUnitTestCase(InstrumentDriverUnitTestCase):
         paPacket.pack_header()
   
         test_driver._protocol.got_data(paPacket)
-        
-        self.assertTrue(self.raw_stream_received is 2)
         self.assertTrue(self.parsed_stream_received is 2)
+        
+        test_driver._protocol.got_raw(paPacket)
+        self.assertTrue(self.raw_stream_received is 2)
         
 
     @unittest.skip("Doesn't work because the set_handler tries to update variables.")    
