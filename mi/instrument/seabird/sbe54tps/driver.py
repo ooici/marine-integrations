@@ -105,17 +105,12 @@ class ProtocolEvent(BaseEnum):
     """
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
-    # Do we need these here?
     GET = DriverEvent.GET
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
-
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    FORCE_STATE = DriverEvent.FORCE_STATE
-
     INIT_LOGGING = 'PROTOCOL_EVENT_INIT_LOGGING'
     SAMPLE_REFERENCE_OSCILLATOR = 'PROTOCOL_EVENT_SAMPLE_REFERENCE_OSCILLATOR'
     TEST_EEPROM = 'PROTOCOL_EVENT_TEST_EEPROM'
@@ -123,10 +118,14 @@ class ProtocolEvent(BaseEnum):
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     PING_DRIVER = DriverEvent.PING_DRIVER
-
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-    
+    SCHEDULED_CLOCK_SYNC = 'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'
+    GET_CONFIGURATION_DATA = 'PROTOCOL_EVENT_GET_CONFIGURATION'
+    GET_STATUS_DATA = 'PROTOCOL_EVENT_GET_STATUS'
+    GET_EVENT_COUNTER = 'PROTOCOL_EVENT_GET_EVENT_COUNTER'
+    GET_HARDWARE_DATA = 'PROTOCOL_EVENT_GET_HARDWARE'
+
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
@@ -139,6 +138,10 @@ class Capability(BaseEnum):
     SAMPLE_REFERENCE_OSCILLATOR = ProtocolEvent.SAMPLE_REFERENCE_OSCILLATOR
     TEST_EEPROM = ProtocolEvent.TEST_EEPROM
     RESET_EC = ProtocolEvent.RESET_EC
+    GET_CONFIGURATION_DATA = ProtocolEvent.GET_CONFIGURATION_DATA
+    GET_STATUS_DATA = ProtocolEvent.GET_STATUS_DATA
+    GET_EVENT_COUNTER = ProtocolEvent.GET_EVENT_COUNTER
+    GET_HARDWARE_DATA = ProtocolEvent.GET_HARDWARE_DATA
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -1103,17 +1106,25 @@ class Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)  ### ??
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.INIT_LOGGING,           self._handler_command_init_logging)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC,             self._handler_command_clock_sync)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_aquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_CONFIGURATION_DATA, self._handler_command_get_configuration)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_STATUS_DATA,        self._handler_command_get_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_EVENT_COUNTER,      self._handler_command_get_event_counter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_HARDWARE_DATA,      self._handler_command_get_hardware)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SAMPLE_REFERENCE_OSCILLATOR, self._handler_sample_ref_osc)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST_EEPROM,            self._handler_command_test_eeprom)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.RESET_EC,               self._handler_command_reset_ec)
 
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,      self._handler_command_aquire_status)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,               self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                 self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,     self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,        self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET_CONFIGURATION_DATA, self._handler_command_get_configuration)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET_STATUS_DATA,        self._handler_command_get_status)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET_EVENT_COUNTER,      self._handler_command_get_event_counter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET_HARDWARE_DATA,      self._handler_command_get_hardware)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,                 self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                  self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                   self._handler_command_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,       self._handler_autosample_stop_autosample)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,             self._handler_direct_access_exit)
@@ -1340,9 +1351,9 @@ class Protocol(SeaBirdProtocol):
 
         return (next_state, (next_agent_state, result))
 
-    def _handler_command_aquire_status(self, *args, **kwargs):
+    def _handler_command_acquire_status(self, *args, **kwargs):
         """
-        Send a command
+        Run all Get?? commands.  Concat command results and return
         @param args:
         @param kwargs:
         @return:
@@ -1361,6 +1372,54 @@ class Protocol(SeaBirdProtocol):
         result = result1 + result2 + result3 + result4
 
         log.debug("RESULT(RETURNED) = " + str(result))
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_get_configuration(self, *args, **kwargs):
+        """
+        Run the GetCC Command
+        """
+        timeout = kwargs.get('timeout', TIMEOUT)
+
+        next_state = None
+        next_agent_state = None
+        result = self._do_cmd_resp(InstrumentCmds.GET_CONFIGURATION_DATA, timeout=timeout)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_get_status(self, *args, **kwargs):
+        """
+        Run the GetCC Command
+        """
+        timeout = kwargs.get('timeout', TIMEOUT)
+
+        next_state = None
+        next_agent_state = None
+        result = self._do_cmd_resp(InstrumentCmds.GET_STATUS_DATA, timeout=timeout)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_get_event_counter(self, *args, **kwargs):
+        """
+        Run the GetCC Command
+        """
+        timeout = kwargs.get('timeout', TIMEOUT)
+
+        next_state = None
+        next_agent_state = None
+        result = self._do_cmd_resp(InstrumentCmds.GET_EVENT_COUNTER_DATA, timeout=timeout)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_get_hardware(self, *args, **kwargs):
+        """
+        Run the GetCC Command
+        """
+        timeout = kwargs.get('timeout', TIMEOUT)
+
+        next_state = None
+        next_agent_state = None
+        result = self._do_cmd_resp(InstrumentCmds.GET_HARDWARE_DATA, timeout=timeout)
+
         return (next_state, (next_agent_state, result))
 
     def _handler_command_start_direct(self, *args, **kwargs):

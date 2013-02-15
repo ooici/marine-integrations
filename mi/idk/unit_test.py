@@ -787,7 +787,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
             'dvr_cls'      : self.test_config.driver_class,
             'workdir'      : self.test_config.working_dir,
             'comms_config' : self.port_agent_comm_config(),
-            'process_type' : self.test_config.driver_process_type,
+            'process_type' : (self.test_config.driver_process_type,),
             'startup_config' : self.test_config.driver_startup_config
         }
 

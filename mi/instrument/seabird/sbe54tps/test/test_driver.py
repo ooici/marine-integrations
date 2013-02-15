@@ -388,7 +388,6 @@ class SeaBird54PlusUnitTest(SeaBirdUnitTest, SeaBird54tpsMixin):
         # Verify the parameter definitions
         self.assert_driver_parameter_definition(driver, self._driver_parameters)
 
-    @unittest.skip("Fix it")
     def test_capabilities(self):
         """
         Verify the FSM reports capabilities as expected.  All states defined in this dict must
@@ -398,24 +397,24 @@ class SeaBird54PlusUnitTest(SeaBirdUnitTest, SeaBird54tpsMixin):
             ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
             ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_STATUS',
                                     'DRIVER_EVENT_CLOCK_SYNC',
-                                    'DRIVER_EVENT_DISCOVER',
                                     'DRIVER_EVENT_GET',
                                     'DRIVER_EVENT_SET',
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_START_DIRECT',
-                                    'DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                    'DRIVER_EVENT_STOP_DIRECT',
-                                    'DRIVER_FORCE_STATE',
-                                    'EXECUTE_DIRECT',
                                     'PROTOCOL_EVENT_INIT_LOGGING',
                                     'PROTOCOL_EVENT_RESET_EC',
                                     'PROTOCOL_EVENT_SAMPLE_REFERENCE_OSCILLATOR',
+                                    'PROTOCOL_EVENT_GET_CONFIGURATION',
+                                    'PROTOCOL_EVENT_GET_STATUS',
+                                    'PROTOCOL_EVENT_GET_EVENT_COUNTER',
+                                    'PROTOCOL_EVENT_GET_HARDWARE',
                                     'PROTOCOL_EVENT_TEST_EEPROM'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
                                        'DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                       'PROTOCOL_EVENT_SEND_LAST_SAMPLE',
-                                       'PROTOCOL_EVENT_ACQUIRE_CONFIGURATION',
-                                       'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
+                                       'PROTOCOL_EVENT_GET_CONFIGURATION',
+                                       'PROTOCOL_EVENT_GET_STATUS',
+                                       'PROTOCOL_EVENT_GET_EVENT_COUNTER',
+                                       'PROTOCOL_EVENT_GET_HARDWARE',
                                        'DRIVER_EVENT_ACQUIRE_STATUS'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
