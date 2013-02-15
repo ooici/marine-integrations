@@ -16,19 +16,50 @@ BUILDBOT_DRIVER_FILE = "config/buildbot.yml"
 
 
 def run():
+    """
+    Run tests for one or more drivers.  If -b is passed then
+    we read driver list from the build bot configuration, otherwise
+    we use the current IDK driver.
+    @return: If any test fails return false, otherwise true
+    """
 
     opts = parseArgs()
+    failure = False
 
-    if( opts.buildbot_unit ):
-        return not run_buildbot_unit(opts)
+    for metadata in get_metadata(opts):
+        app = NoseTest(metadata, testname=opts.testname)
 
-    if( opts.buildbot_int ):
-        return not run_buildbot_int(opts)
+        if( opts.unit ):
+            app.report_header()
+            success = app.run_unit()
+        elif( opts.integration ):
+            app.report_header()
+            success = app.run_integration()
+        elif( opts.qualification ):
+            app.report_header()
+            success = app.run_qualification()
+        elif( opts.publication ):
+            app.report_header()
+            success = app.run_publication()
+        else:
+            success = app.run()
 
-    if( opts.buildbot_qual ):
-        return not run_buildbot_qual(opts)
+        if(not success): failure = True
 
-    if( opts.buildbot ):
+    return failure
+
+def get_metadata(opts):
+    """
+    return a list of metadata objects that we would like to
+    run test for.  If buildbot option is set then we read
+    from the config file, otherwise we return the current
+    IDK driver metadata
+    @param opts: command line options dictionary.
+    @return: list of all metadata data objects we would
+             like to run tests for.
+    """
+    result = []
+    if(opts.buildbot):
         devices = read_buildbot_config()
         ret = True
         for (key, config) in devices:
@@ -36,74 +67,12 @@ def run():
             model = config.get(BuildBotConfig.MODEL)
             flavor =config.get(BuildBotConfig.FLAVOR)
             metadata = Metadata(make, model, flavor)
-            app = NoseTest(metadata, testname=opts.testname)
-            app.report_header()
-            if False == app.run_unit():
-                ret = False
-            if False == app.run_integration():
-                ret = False
-            if False == app.run_qualification():
-                ret = False
-        return not ret
-
+            result.append(metadata)
+        pass
     else:
-        app = NoseTest(Metadata(), testname=opts.testname)
-        if( opts.unit ):
-            app.report_header()
-            app.run_unit()
-        elif( opts.integration ):
-            app.report_header()
-            app.run_integration()
-        elif( opts.qualification ):
-            app.report_header()
-            app.run_qualification()
-        else:
-            app.run()
+        result.append(Metadata())
 
-def run_buildbot_unit(opts):
-    devices = read_buildbot_config()
-    ret = True
-    for (key, config) in devices:
-        make = config.get(BuildBotConfig.MAKE)
-        model = config.get(BuildBotConfig.MODEL)
-        flavor =config.get(BuildBotConfig.FLAVOR)
-        metadata = Metadata(make, model, flavor)
-        app = NoseTest(metadata, testname=opts.testname)
-        app.report_header()
-
-        if False == app.run_unit():
-            ret = False
-    return ret
-
-def run_buildbot_int(opts):
-    devices = read_buildbot_config()
-    ret = True
-    for (key, config) in devices:
-        make = config.get(BuildBotConfig.MAKE)
-        model = config.get(BuildBotConfig.MODEL)
-        flavor =config.get(BuildBotConfig.FLAVOR)
-        metadata = Metadata(make, model, flavor)
-        app = NoseTest(metadata, testname=opts.testname)
-        app.report_header()
-
-        if False == app.run_integration():
-            ret = False
-    return ret
-
-def run_buildbot_qual(opts):
-    devices = read_buildbot_config()
-    ret = True
-    for (key, config) in devices:
-        make = config.get(BuildBotConfig.MAKE)
-        model = config.get(BuildBotConfig.MODEL)
-        flavor =config.get(BuildBotConfig.FLAVOR)
-        metadata = Metadata(make, model, flavor)
-        app = NoseTest(metadata, testname=opts.testname)
-        app.report_header()
-
-        if False == app.run_qualification():
-            ret = False
-    return ret
+    return result
 
 def parseArgs():
     parser = argparse.ArgumentParser(description="IDK Start Driver")
@@ -112,15 +81,9 @@ def parseArgs():
     parser.add_argument("-i", dest='integration', action="store_true",
                         help="only run integration tests" )
     parser.add_argument("-q", dest='qualification', action="store_true",
-        help="only run qualification tests" )
-    
-    parser.add_argument("-bu", dest='buildbot_unit', action="store_true",
-        help="run unit tests for drivers listed in %s" % BUILDBOT_DRIVER_FILE)
-    parser.add_argument("-bi", dest='buildbot_int', action="store_true",
-        help="run int tests for drivers listed in %s" % BUILDBOT_DRIVER_FILE)
-    parser.add_argument("-bq", dest='buildbot_qual', action="store_true",
-        help="run qual tests for drivers listed in %s" % BUILDBOT_DRIVER_FILE)
-
+                        help="only run qualification tests" )
+    parser.add_argument("-p", dest='publication', action="store_true",
+        help="only run publication tests" )
     parser.add_argument("-b", dest='buildbot', action="store_true",
         help="run all tests for drivers listed in %s" % BUILDBOT_DRIVER_FILE)
     parser.add_argument("-t", dest='testname',

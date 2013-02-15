@@ -35,6 +35,7 @@ import time
 from mock import Mock
 from mi.core.unit_test import MiIntTestCase
 from mi.core.unit_test import MiUnitTest
+from mi.core.port_agent_simulator import TCPSimulatorServer
 from mi.core.instrument.instrument_driver import InstrumentDriver
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
@@ -135,6 +136,8 @@ class InstrumentDriverTestConfig(Singleton):
     instrument_agent_name = None
     instrument_agent_module = 'mi.idk.instrument_agent'
     instrument_agent_class = 'InstrumentAgent'
+    data_instrument_agent_module = 'mi.idk.instrument_agent'
+    data_instrument_agent_class = 'PublisherInstrumentAgent'
     instrument_agent_packet_config = None
     instrument_agent_stream_encoding = 'ION R2'
     instrument_agent_stream_definition = None
@@ -142,7 +145,8 @@ class InstrumentDriverTestConfig(Singleton):
     driver_startup_config = {}
 
     container_deploy_file = 'res/deploy/r2deploy.yml'
-    
+    publisher_deploy_file = 'res/deploy/r2idk.yml'
+
     initialized   = False
 
     def initialize(self, *args, **kwargs):
@@ -279,9 +283,20 @@ class DriverTestMixin(MiUnitTest):
 
             result[key] = param.get('value')
 
-
         return result
 
+    def assert_data_particle_keys(self, data_particle_key, test_config):
+        """
+        Ensure that the keys defined in the data particle key enum match
+        the keys defined in the test configuration.
+        @param data_particle_key: object that defines all data particle keys.
+        @param test_config: dictionary containing parameter verification values
+        """
+        driver_keys = sorted(data_particle_key.list())
+        test_config_keys = sorted(test_config.keys())
+
+        self.assertEqual(len(driver_keys), len(test_config_keys))
+        self.assertEqual(driver_keys, test_config_keys)
 
     def assert_data_particle_header(self, data_particle, stream_name, require_instrument_timestamp=False):
         """
@@ -701,6 +716,24 @@ class InstrumentDriverTestCase(MiIntTestCase):
         
         return CommConfig.get_config_from_file(config_file)
         
+    def port_agent_config(self):
+        """
+        return the port agent configuration
+        """
+        comm_config = self.get_comm_config()
+
+        config = {
+            'device_addr' : comm_config.device_addr,
+            'device_port' : comm_config.device_port,
+
+            'command_port': comm_config.command_port,
+            'data_port': comm_config.data_port,
+
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 5,
+            }
+
+        return config
 
     def init_port_agent(self):
         """
@@ -715,18 +748,8 @@ class InstrumentDriverTestCase(MiIntTestCase):
 
         log.debug("Startup Port Agent")
 
-        comm_config = self.get_comm_config()
-
-        config = {
-            'device_addr' : comm_config.device_addr,
-            'device_port' : comm_config.device_port,
-
-            'command_port': comm_config.command_port,
-            'data_port': comm_config.data_port,
-
-            'process_type': PortAgentProcessType.UNIX,
-            'log_level': 5,
-        }
+        config = self.port_agent_config()
+        log.debug("port agent config: %s" % config)
 
         port_agent = PortAgentProcess.launch_process(config, timeout = 60, test_mode = True)
 
@@ -764,7 +787,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
             'dvr_cls'      : self.test_config.driver_class,
             'workdir'      : self.test_config.working_dir,
             'comms_config' : self.port_agent_comm_config(),
-            'process_type' : self.test_config.driver_process_type,
+            'process_type' : (self.test_config.driver_process_type,),
             'startup_config' : self.test_config.driver_startup_config
         }
 
@@ -1175,6 +1198,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         @param driver: a mocked up driver
         @param capabilities: dictionary with protocol state as the key and a list as expected capabilities
         """
+        self.maxDiff = None
         self.assert_driver_connected(driver)
         all_capabilities = sorted(driver._protocol._protocol_fsm.get_events(current_state=False))
         expected_capabilities = []
@@ -1646,10 +1670,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'dvr_mod' : self.test_config.driver_module,
             'dvr_cls' : self.test_config.driver_class,
             'workdir' : self.test_config.working_dir,
-            'process_type' : self.test_config.driver_process_type,
-
+            'process_type' : (self.test_config.driver_process_type,),
             'comms_config' : self.port_agent_comm_config(),
-
             'startup_config' : self.test_config.driver_startup_config
         }
 
@@ -2460,4 +2482,178 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         pass
 
+
+class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
+    """
+    Test driver publication.  These test are not include in general driver
+    qualification because publication definitions could change.
+    """
+    def setUp(self):
+        """
+        @brief Setup test cases.
+        """
+        InstrumentDriverTestCase.setUp(self)
+
+        self.init_instrument_simulator()
+        self.init_port_agent()
+
+        pa_config = self.port_agent_config()
+
+        # Override some preload values
+        config = {
+            'idk_agent': 'IA4',
+            'idk_comms_method': 'ethernet',
+            'idk_server_address': 'localhost',
+            'idk_comms_device_address': pa_config.get('device_addr'),
+            'idk_comms_device_port': pa_config.get('device_port'),
+            'idk_comms_server_address': 'localhost',
+            'idk_comms_server_port': pa_config.get('data_port'),
+            'idk_comms_server_cmd_port': pa_config.get('command_port'),
+        }
+
+        self.instrument_agent_manager = InstrumentAgentClient()
+        self.instrument_agent_manager.start_container(deploy_file=self.test_config.publisher_deploy_file, container_config=config)
+        #self.instrument_agent_manager.start_container(deploy_file=self.test_config.publisher_deploy_file)
+
+        self.container = self.instrument_agent_manager.container
+
+        log.debug("Packet Config: %s" % self.test_config.instrument_agent_packet_config)
+        self.data_subscribers = InstrumentAgentDataSubscribers(
+            packet_config=self.test_config.instrument_agent_packet_config,
+            use_default_stream=False
+        )
+        self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.instrument_agent_resource_id)
+
+        self.init_instrument_agent_client()
+
+        self.event_subscribers.events_received = []
+        self.data_subscribers.start_data_subscribers()
+
+        log.debug("********* setUp complete.  Begin Testing *********")
+
+    def tearDown(self):
+        """
+        @brief Test teardown
+        """
+        log.debug("InstrumentDriverQualificationTestCase tearDown")
+
+        self.instrument_agent_manager.stop_container()
+        self.event_subscribers.stop()
+        self.data_subscribers.stop_data_subscribers()
+        InstrumentDriverTestCase.tearDown(self)
+
+    def init_instrument_simulator(self):
+        """
+        Startup a TCP server that we can use as an instrument simulator
+        """
+        self._instrument_simulator = TCPSimulatorServer()
+        self.addCleanup(self._instrument_simulator.close)
+
+        # Wait for the simulator to bind to a port
+        timeout = time.time() + 10
+        while(timeout > time.time()):
+            if(self._instrument_simulator.port > 0):
+                log.debug("Instrument simulator initialized on port %s" % self._instrument_simulator.port)
+                return
+
+            log.debug("waiting for simulator to bind. sleeping")
+            time.sleep(1)
+
+        raise IDKException("Timeout waiting for simulator to bind")
+
+    def port_agent_config(self):
+        """
+        Overload the default port agent configuration so that
+        it connects to a simulated TCP connection.
+        """
+        comm_config = self.get_comm_config()
+
+        config = {
+            'device_addr' : comm_config.device_addr,
+            'device_port' : comm_config.device_port,
+
+            'command_port': comm_config.command_port,
+            'data_port': comm_config.data_port,
+
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 5,
+        }
+
+        # Override the instrument connection information.
+        config['device_addr'] = 'localhost'
+        config['device_port'] = self._instrument_simulator.port
+
+        return config
+
+    def init_instrument_agent_client(self):
+        log.info("Start Instrument Agent Client")
+
+        # Driver config
+        driver_config = {
+            'dvr_mod' : self.test_config.driver_module,
+            'dvr_cls' : self.test_config.driver_class,
+            'workdir' : self.test_config.working_dir,
+            'process_type' : (self.test_config.driver_process_type,),
+            'comms_config' : self.port_agent_comm_config(),
+
+            'startup_config' : self.test_config.driver_startup_config
+        }
+
+        # Create agent config.
+        agent_config = {
+            'driver_config' : driver_config,
+            'stream_config' : self.data_subscribers.stream_config,
+            'agent'         : {'resource_id': self.test_config.instrument_agent_resource_id},
+            'test_mode' : True  ## Enable a poison pill. If the spawning process dies
+            ## shutdown the daemon process.
+        }
+
+        # Start instrument agent client.
+        self.instrument_agent_manager.start_client(
+            name=self.test_config.instrument_agent_name,
+            module=self.test_config.data_instrument_agent_module,
+            cls=self.test_config.data_instrument_agent_class,
+            config=agent_config,
+            resource_id=self.test_config.instrument_agent_resource_id,
+            deploy_file=self.test_config.container_deploy_file
+        )
+
+        self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
+
+    def assert_initialize_driver(self, timeout=GO_ACTIVE_TIMEOUT):
+        '''
+        Walk through IA states to get to command mode from uninitialized
+        '''
+        state = self.instrument_agent_client.get_agent_state()
+
+        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.INACTIVE)
+        log.info("Sent INITIALIZE; IA state = %s", state)
+
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
+        state = self.instrument_agent_client.get_agent_state()
+        log.info("Sent GO_ACTIVE; IA state = %s", state)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+    def assert_sample_async(self, data, sampleDataAssert, sampleQueue, timeout=GO_ACTIVE_TIMEOUT):
+        """
+        force a sample into the port agent and watch a queue for a
+        data granule.
+        """
+        self.data_subscribers.clear_sample_queue(sampleQueue)
+        self._instrument_simulator.send(data)
+        log.debug("Simulating instrument input: %s" % data)
+
+        samples = self.data_subscribers.get_samples(sampleQueue, timeout=timeout)
+        self.assertGreaterEqual(len(samples), 1)
+        sample = samples.pop()
+
+        log.debug("SAMPLE: %s" % sample)
+        sampleDataAssert(sample)
 

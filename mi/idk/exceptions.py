@@ -132,3 +132,6 @@ class SampleTimeout(IDKException):
     """Failed to read a sample from subscribed stream"""
     pass
 
+class ParameterException(IDKException):
+    pass
+

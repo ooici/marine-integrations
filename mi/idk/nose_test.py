@@ -29,6 +29,7 @@ from mi.idk.exceptions import IDKException
 
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import InstrumentDriverPublicationTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 
 BUILDBOT_DRIVER_FILE = "config/buildbot.yml"
@@ -45,6 +46,7 @@ class IDKTestClasses(BaseEnum):
     UNIT = InstrumentDriverUnitTestCase
     INT  = InstrumentDriverIntegrationTestCase
     QUAL = InstrumentDriverQualificationTestCase
+    PUB  = InstrumentDriverPublicationTestCase
 
 class NoseTest(object):
     """
@@ -119,6 +121,10 @@ class NoseTest(object):
         generator = DriverGenerator(self.metadata)
         return generator.test_modulename()
 
+    def _data_test_module(self):
+        generator = DriverGenerator(self.metadata)
+        return generator.data_test_modulename()
+
     def _driver_test_filename(self):
         generator = DriverGenerator(self.metadata)
         return generator.driver_test_path()
@@ -134,6 +140,9 @@ class NoseTest(object):
 
     def _qual_test_class(self):
         return 'QualFromIDK'
+
+    def _pub_test_class(self):
+        return 'PubFromIDK'
 
     def _unit_test_module_param(self):
         '''
@@ -162,6 +171,15 @@ class NoseTest(object):
         if(self._testname): result = "%s.%s" % (result, self._testname)
         return result
 
+    def _pub_test_module_param(self):
+        '''
+        Module name and test to run
+        @return: module name and optional test as string
+        '''
+        result = "%s:%s" % (self._driver_test_filename(), self._pub_test_class)
+        if(self._testname): result = "%s.%s" % (result, self._testname)
+        return result
+
     def _inspect_driver_module(self, test_module):
         '''
         Search the driver module for class definitions which are UNIT, INT, and QUAL tests.  We will import the module
@@ -172,6 +190,7 @@ class NoseTest(object):
         self._unit_test_class = None
         self._int_test_class = None
         self._qual_test_class = None
+        self._pub_test_class = None
 
         __import__(test_module)
         module = sys.modules.get(test_module)
@@ -182,12 +201,15 @@ class NoseTest(object):
 
             # We only want to inspect classes defined in the test module explicitly.  Ignore imported classes
             if(clsstr == str(clsobj)):
+                self._log("clsstr: %s" % clsstr)
                 if(issubclass(clsobj, IDKTestClasses.UNIT)):
                     self._unit_test_class = name
                 if(issubclass(clsobj, IDKTestClasses.INT)):
                     self._int_test_class = name
                 if(issubclass(clsobj, IDKTestClasses.QUAL)):
                     self._qual_test_class = name
+                if(issubclass(clsobj, IDKTestClasses.PUB)):
+                    self._pub_test_class = name
 
         if(not self._unit_test_class):
             raise IDKException("unit test class not found")
@@ -197,7 +219,6 @@ class NoseTest(object):
 
         if(not self._int_test_class):
             raise IDKException("int test class not found")
-
 
     ###
     #   Public Methods
@@ -217,6 +238,10 @@ class NoseTest(object):
         elif(not self.run_qualification()):
             self._log( "\n\n!!!! ERROR: Qualification Tests Failed !!!!")
             return False
+        # Publication tests are only run when explicitly asked for
+        #elif(not self.run_publication()):
+        #    self._log( "\n\n!!!! ERROR: Publication Tests Failed !!!!")
+        #    return False
         else:
             self._log( "\n\nAll tests have passed!")
             return True
@@ -263,6 +288,22 @@ class NoseTest(object):
         self._log(" ==> module: " + self._qualification_test_module())
         args=[ sys.argv[0], '-s', '-v', '-a', 'QUAL', '-v', self._qual_test_module_param() ]
         module = "%s" % (self._qualification_test_module())
+
+        return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
+
+    def run_publication(self):
+        """
+        @brief Run publication test for a driver
+        """
+        self._log("*** Starting Publication Tests ***")
+
+        self._log(" ==> module: " + self._data_test_module())
+        if(self._pub_test_class == None):
+            raise IDKException("Test module does not contain publication tests")
+
+        self._log(" ==> class: " + self._pub_test_module_param())
+        args=[ sys.argv[0], '-s', '-v', '-a', 'PUB', '-v', self._pub_test_module_param() ]
+        module = "%s" % (self._data_test_module())
 
         return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
 

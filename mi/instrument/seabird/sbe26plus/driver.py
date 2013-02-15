@@ -219,7 +219,7 @@ class SBE26plusTideSampleDataParticleKey(BaseEnum):
     TIMESTAMP = "date_time_string"
     PRESSURE = "absolute_pressure"  # p = calculated and stored pressure (psia).
     PRESSURE_TEMP = "pressure_temp" # pt = calculated pressure temperature (not stored) (C).
-    TEMPERATURE = "temperature"     # t = calculated and stored temperature (C).
+    TEMPERATURE = "seawater_temperature"     # t = calculated and stored temperature (C).
 
 class SBE26plusTideSampleDataParticle(DataParticle):
     """
@@ -282,9 +282,9 @@ class SBE26plusTideSampleDataParticle(DataParticle):
 
 # presf_wave_burst
 class SBE26plusWaveBurstDataParticleKey(BaseEnum):
-    TIMESTAMP = "date_time_string"         # start time of wave measurement.
-    PTFREQ = "ptemp_frequency"      # ptfreq = pressure temperature frequency (Hz);
-    PTRAW = "absolute_pressure"     # calculated pressure temperature number
+    TIMESTAMP = "date_time_string"     # start time of wave measurement.
+    PTFREQ = "ptemp_frequency"         # ptfreq = pressure temperature frequency (Hz);
+    PTRAW = "absolute_pressure_burst"  # calculated pressure temperature number
 
 class SBE26plusWaveBurstDataParticle(DataParticle):
     """
@@ -609,7 +609,7 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
         single_var_matchers  = {
             SBE26plusDeviceCalibrationDataParticleKey.PCALDATE:  (
                 re.compile(r'Pressure coefficients: +(\d+-[a-zA-Z]+-\d+)'),
-                lambda match : self._string_to_date(match.group(1), '%d-%b-%y')
+                lambda match : match.group(1)
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.PU0:  (
                 re.compile(r' +U0 = (-?[\d\.e\-\+]+)'),
@@ -677,7 +677,7 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.TCALDATE:  (
                 re.compile(r'Temperature coefficients: +(\d+-[a-zA-Z]+-\d+)'),
-                lambda match : self._string_to_date(match.group(1), '%d-%b-%y')
+                lambda match : match.group(1)
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.TA0:  (
                 re.compile(r' +TA0 = (-?[\d\.e\-\+]+)'),
@@ -697,7 +697,7 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.CCALDATE:  (
                 re.compile(r'Conductivity coefficients: +(\d+-[a-zA-Z]+-\d+)'),
-                lambda match : self._string_to_date(match.group(1), '%d-%b-%y')
+                lambda match : match.group(1)
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.CG:  (
                 re.compile(r' +CG = (-?[\d\.e\-\+]+)'),
