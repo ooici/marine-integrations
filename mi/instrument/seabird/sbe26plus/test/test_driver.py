@@ -1493,9 +1493,14 @@ class SeaBird26PlusPublicationTest(SeaBirdPublicationTest):
     def test_granule_generation(self):
         self.assert_initialize_driver()
 
-        #self.assert_sample_async("raw data", log.debug, DataParticleType.RAW, timeout=10)
-        #self.assert_sample_async(SAMPLE_STATISTICS, log.debug, DataParticleType.STATISTICS, timeout=10)
-        #self.assert_sample_async(SAMPLE_TIDE_DATA, log.debug, DataParticleType.TIDE_PARSED, timeout=10)
-        #self.assert_sample_async(SAMPLE_DEVICE_CALIBRATION, log.debug, DataParticleType.DEVICE_CALIBRATION, timeout=10)
-        #self.assert_sample_async(SAMPLE_DEVICE_STATUS, log.debug, DataParticleType.DEVICE_STATUS, timeout=10)
+        # Currently these tests only verify that the data granule is generated, but the values
+        # are not tested.  We will eventually need to replace log.debug with a better callback
+        # function that actually tests the granule.
+        self.assert_sample_async("raw data", log.debug, DataParticleType.RAW, timeout=10)
+        self.assert_sample_async(SAMPLE_STATISTICS, log.debug, DataParticleType.STATISTICS, timeout=10)
+        self.assert_sample_async(SAMPLE_TIDE_DATA, log.debug, DataParticleType.TIDE_PARSED, timeout=10)
+        self.assert_sample_async(SAMPLE_DEVICE_CALIBRATION, log.debug, DataParticleType.DEVICE_CALIBRATION, timeout=10)
+        self.assert_sample_async(SAMPLE_DEVICE_STATUS, log.debug, DataParticleType.DEVICE_STATUS, timeout=10)
+
+        # Currently this fails
         self.assert_sample_async(SAMPLE_WAVE_BURST, log.debug, DataParticleType.WAVE_BURST, timeout=10)
