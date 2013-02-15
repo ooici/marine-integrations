@@ -948,16 +948,22 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if dest_submenu == None:
             raise InstrumentProtocolException('_navigate_and_execute(): dest_submenu parameter missing')
 
-        # iterate through the directions 
+        # save timeout and expected_prompt for the execution of the actual command after any traversing of the menu
+        cmd_timeout = kwargs.pop('timeout', None)
+        cmd_expected_prompt = kwargs.pop('expected_prompt', None)
+
+        # iterate through the menu traversing directions 
         directions_list = self._menu.get_directions(dest_submenu)
         for directions in directions_list:
             log.debug('_navigate_and_execute: directions: %s' %(directions))
             command = directions.get_command()
             response = directions.get_response()
             timeout = directions.get_timeout()
-            kwargs.pop('timeout', None)
             self._do_cmd_resp(command, expected_prompt = response, timeout = timeout, **kwargs)
 
+        # restore timeout and expected_prompt for the execution of the actual command 
+        kwargs['timeout'] = cmd_timeout
+        kwargs['expected_prompt'] = cmd_expected_prompt
         command = cmd
         while command != None:
             log.debug('_navigate_and_execute: sending cmd:%s, kwargs: %s to _do_cmd_resp.' 
@@ -1276,7 +1282,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._navigate_and_execute(InstrumentCmds.DEPLOY_GO, 
                                    dest_submenu=SubMenues.DEPLOY, 
                                    timeout=20, 
-                                   expected_prompt=InstrumentPrompts.BEGIN_MEASUREMENT,
                                    *args, **kwargs)
                 
         next_state = ProtocolStates.AUTOSAMPLE        
