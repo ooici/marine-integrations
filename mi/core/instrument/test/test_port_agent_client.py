@@ -23,6 +23,10 @@ import datetime
 import array
 from nose.plugins.attrib import attr
 from mock import Mock
+
+from ion.agents.port.port_agent_process import PortAgentProcessType
+
+from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacket, Listener
 
 # MI logger
@@ -30,7 +34,7 @@ from mi.core.log import get_logger ; log = get_logger()
 
 #@unittest.skip('BROKEN - Useful in past, likely in future, but not just now')
 @attr('UNIT', group='mi')
-class TestPortAgentClient(MiUnitTest):
+class PAClientUnitTestCase(MiUnitTest):
     def setUp(self):
         self.ipaddr = "localhost"
         self.cmd_port = 9001
@@ -359,3 +363,98 @@ class TestPortAgentPacket(MiUnitTest):
         result = self.pap.get_timestamp()
         self.assertEqual(self.ntp_time, result)
         pass
+
+@attr('INT', group='mi')
+#class PAClientIntTestCase(InstrumentDriverIntegrationTestCase):
+class PAClientIntTestCase():
+    def setUp(self):
+        #InstrumentDriverIntegrationTestCase.setUp(self)
+
+        """
+        DHE: Change this to init my own simulator
+        """
+        
+        #self.init_instrument_simulator()
+        self.init_port_agent()
+
+        self.instrument_agent_manager = InstrumentAgentClient()
+        self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
+
+        self.container = self.instrument_agent_manager.container
+
+    def tearDown(self):
+        """
+        @brief Test teardown
+        """
+        log.debug("PACClientIntTestCase tearDown")
+
+        self.instrument_agent_manager.stop_container()
+        self.event_subscribers.stop()
+        self.data_subscribers.stop_data_subscribers()
+        InstrumentDriverTestCase.tearDown(self)
+
+    def init_port_agent(self):
+        """
+        @brief Launch the driver process and driver client.  This is used in the
+        integration and qualification tests.  The port agent abstracts the physical
+        interface with the instrument.
+        @retval return the pid to the logger process
+        """
+        if (self.port_agent):
+            log.error("Port agent already initialized")
+            return
+
+        log.debug("Startup Port Agent")
+
+        #comm_config = self.get_comm_config()
+
+        config = {
+            'device_addr' : 'localhost',
+            'device_port' : 9003,
+
+            'command_port': 9001,
+            'data_port': 9002,
+
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 5,
+        }
+
+        port_agent = PortAgentProcess.launch_process(config, timeout = 60, test_mode = True)
+
+        port = port_agent.get_data_port()
+        pid  = port_agent.get_pid()
+
+        log.info('Started port agent pid %s listening at port %s' % (pid, port))
+
+        self.addCleanup(self.stop_port_agent)
+        self.port_agent = port_agent
+        return port
+
+    def port_agent_config(self):
+        """
+        Overload the default port agent configuration so that
+        it connects to a simulated TCP connection.
+        """
+        comm_config = self.get_comm_config()
+
+        config = {
+            'device_addr' : comm_config.device_addr,
+            'device_port' : comm_config.device_port,
+
+            'command_port': comm_config.command_port,
+            'data_port': comm_config.data_port,
+
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 5,
+        }
+
+        # Override the instrument connection information.
+        config['device_addr'] = 'localhost'
+        config['device_port'] = self._instrument_simulator.port
+
+        return config
+    
+        
+    
+    
+    
