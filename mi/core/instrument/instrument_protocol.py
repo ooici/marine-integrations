@@ -521,8 +521,10 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
 
         while True:
             for item in prompt_list:
-                if self._promptbuf.rstrip().endswith(item.rstrip()):
-                    return (item, self._linebuf)
+                index = self._promptbuf.find(item)
+                if index >= 0:
+                    result = self._promptbuf[0:index+len(item)]
+                    return (item, result)
                 else:
                     time.sleep(.1)
 
@@ -743,7 +745,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         """
         pass
         
-    def  _wakeup(self, timeout, delay=1):
+    def _wakeup(self, timeout, delay=1):
         """
         Clear buffers and send a wakeup command to the instrument
         @param timeout The timeout to wake the device.
@@ -763,8 +765,10 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             time.sleep(delay)
 
             for item in self._prompts.list():
-                #log.debug("GOT " + repr(self._promptbuf))
-                if self._promptbuf.endswith(item):
+                log.debug("find prompt: %s" % item)
+                index = self._promptbuf.find(item)
+		log.debug("Got prompt (index: %s): %s " % (index, repr(self._promptbuf)))
+                if index >= 0:
                     log.trace('wakeup got prompt: %s' % repr(item))
                     return item
 
