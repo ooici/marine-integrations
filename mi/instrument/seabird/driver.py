@@ -202,7 +202,8 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
         @raise: InstrumentProtocolException if in wrong mode.
         """
         config = self.get_startup_config()
-        self._set_params(config)
+        # Pass true to _set_params so we know these are startup values
+        self._set_params(config, True)
 
     def _instrument_config_dirty(self):
         """

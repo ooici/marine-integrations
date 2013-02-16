@@ -465,6 +465,21 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         self.assert_set_readonly(Parameter.BATTERY_TYPE, 1)
         self.assert_set_readonly(Parameter.ENABLE_ALERTS, True)
 
+    def test_autosample(self):
+        """
+        Verify that we can enter streaming and that all particles are produced
+        properly.
+
+        Because we have to test for three different data particles we can't use
+        the common assert_sample_autosample method
+        """
+        self.assert_initialize_driver()
+        self.assert_set(Parameter.SAMPLE_PERIOD, 1)
+
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_async_particle_generation(DataParticleType.PREST_REAL_TIME, self.assert_particle_real_time, timeout=120)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -600,7 +615,6 @@ class SeaBird54PlusQualificationTest(SeaBirdQualificationTest):
             #  ...AND MAKE LIKE THIS NEVER HAPPENED!
         self.assertEqual(state, desired_state)
 
-    # WORKS
     def assert_SBE54tpsStatusDataParticle(self, prospective_particle):
         """
         @param prospective_particle: a perfect particle of SBE54tpsStatusDataParticle or FAIL!!!!

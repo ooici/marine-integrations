@@ -1420,10 +1420,27 @@ class Protocol(SeaBirdProtocol):
         """
         # Retrieve required parameter.
         # Raise if no parameter provided, or not a dict.
+        startup = False
         try:
             params = args[0]
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
+        # Only check for readonly parameters if we are not setting them from startup
+        if not startup:
+            readonly = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
+
+            log.debug("set param, but check visibility first")
+            log.debug("Read only keys: %s" % readonly)
+
+            for (key, val) in params.iteritems():
+                if key in readonly:
+                    raise InstrumentParameterException("Attempt to set read only parameter (%s)" % key)
 
         (set_params, ss_params) = self._split_params(**params)
         log.debug("SetSampling Params: %s" % ss_params)

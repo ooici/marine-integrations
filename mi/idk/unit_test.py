@@ -1376,15 +1376,13 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             with self.assertRaises(exception_class):
                 self.assert_set_bulk(param_dict)
 
-    def assert_set_readonly(self, param, value='dummyvalue'):
+    def assert_set_readonly(self, param, value='dummyvalue', exception_class=InstrumentParameterException):
         """
         Verify that a set command raises an exception on set.
         @param param: parameter to set
         @param value: what to set the parameter too
         """
-        # TODO: Fix this test. An exception isn't currently thrown if setting a read-only param
-        self.assertTrue(True)
-        #self.assert_set_exception(param, value, 'Set command not recognized')
+        self.assert_set_exception(param, value, exception_class=exception_class)
 
     def assert_set_exception(self, param, value='dummyvalue', error_regex=None, exception_class=InstrumentParameterException):
         """

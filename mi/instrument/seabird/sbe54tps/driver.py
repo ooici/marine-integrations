@@ -1209,7 +1209,7 @@ class Protocol(SeaBirdProtocol):
         """
         log.debug("_parse_set_response RESPONSE = " + str(response) + "/PROMPT = " + str(prompt))
         if ((prompt != Prompt.COMMAND) or ('Error' in response)):
-            raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
+            raise InstrumentParameterException('Protocol._parse_set_response : Set command not recognized: %s' % response)
 
     def _parse_gc_response(self, response, prompt):
 
@@ -1510,15 +1510,11 @@ class Protocol(SeaBirdProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for set command.
         @throws InstrumentProtocolException if set command could not be built or misunderstood.
         """
-        log.debug("%%% IN _handler_command_set")
-
         next_state = None
         result = None
 
         try:
             params = args[0]
-            log.debug("######### params = " + str(repr(params)))
-
         except IndexError:
             raise InstrumentParameterException('_handler_command_set Set command requires a parameter dict.')
 
@@ -1878,10 +1874,27 @@ class Protocol(SeaBirdProtocol):
         """
         Issue commands to the instrument to set various parameters
         """
+        startup = False
         try:
             params = args[0]
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
+        # Only check for readonly parameters if we are not setting them from startup
+        if not startup:
+            readonly = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
+
+            log.debug("set param, but check visibility first")
+            log.debug("Read only keys: %s" % readonly)
+
+            for (key, val) in params.iteritems():
+                if key in readonly:
+                    raise InstrumentParameterException("Attempt to set read only parameter (%s)" % key)
 
         for (key, val) in params.iteritems():
             log.debug("KEY = " + str(key) + " VALUE = " + str(val))
