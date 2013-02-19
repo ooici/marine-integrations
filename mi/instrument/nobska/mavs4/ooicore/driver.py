@@ -1325,13 +1325,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        str_time = get_timestamp_delayed("%M %S %d %H %y %m")
-        byte_time = ''
-        for v in str_time.split():
-            byte_time += chr(int('0x'+v, base=16))
-        values = str_time.split()
-        log.info("_handler_command_clock_sync: time set to %s:m %s:s %s:d %s:h %s:y %s:M (%s)" %(values[0], values[1], values[2], values[3], values[4], values[5], byte_time.encode('hex'))) 
-        self._do_cmd_resp(InstrumentCmds.SET_REAL_TIME_CLOCK, byte_time, **kwargs)
+        str_time = get_timestamp_delayed("%m/%d/%Y %H:%M:%S")
+        log.info("_handler_command_clock_sync: time set to %s" %str_time)
+        dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.SYS_CLOCK)
+        command = self._param_dict.get_submenu_write(InstrumentParameters.SYS_CLOCK)
+        self._navigate_and_execute(command, name=InstrumentParameters.SYS_CLOCK, value=str_time, dest_submenu=dest_submenu, timeout=5)
 
         return (next_state, (next_agent_state, result))
 

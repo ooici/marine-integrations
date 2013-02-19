@@ -256,17 +256,7 @@ class Mavs4Mixin(DriverTestMixin):
 
     SAMPLE = "12 20 2012 18 50 50.40 FDC5 FF70 FF1B FF8C 1.2 3.4 5.6 22.21 0.96 0.28 3.0 -5.1\n"
     
-    def assert_clock_set(self, sent_time):
-        new_parameter_values = {}
-        new_parameter_values[InstrumentParameters.SYS_CLOCK] = sent_time
-        new_parameter_list = []
-        new_parameter_list.append(InstrumentParameters.SYS_CLOCK)
-        
-        # Set parameters and verify.
-        reply = self.driver_client.cmd_dvr('set_resource', new_parameter_values)
-        reply = self.driver_client.cmd_dvr('get_resource', new_parameter_list)
-        
-        rcvd_time = reply[InstrumentParameters.SYS_CLOCK]
+    def assert_clock_set(self, sent_time, rcvd_time):
         # verify that the dates match
         print("sts=%s, rts=%s" %(sent_time, rcvd_time))
         self.assertTrue(sent_time[:12].upper() in rcvd_time.upper())
@@ -316,6 +306,8 @@ class Mavs4Mixin(DriverTestMixin):
         '''
         self.assert_status_data_particle_header(data_particle, DataParticleType.STATUS)
         self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
+
+    TIME_TO_SET = '03/29/2002 11:11:42'
 
 
 #################################### RULES ####################################
@@ -560,11 +552,19 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         
 
     def test_set_clock(self):
-        TIME_TO_SET = '03/29/2002 11:11:42'
-
         self.assert_initialize_driver()
 
-        self.assert_clock_set(TIME_TO_SET)
+        new_parameter_values = {}
+        new_parameter_values[InstrumentParameters.SYS_CLOCK] = self.TIME_TO_SET
+        new_parameter_list = []
+        new_parameter_list.append(InstrumentParameters.SYS_CLOCK)
+        
+        # Set parameters and verify.
+        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
+        reply = self.driver_client.cmd_dvr('get_resource', new_parameter_list)
+        
+        rcvd_time = reply[InstrumentParameters.SYS_CLOCK]
+        self.assert_clock_set(self.TIME_TO_SET, rcvd_time)
 
     
     def test_read_only_parameters(self):
@@ -951,3 +951,23 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, Mavs4Mixin):
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
+
+    def test_execute_clock_sync(self):
+        """
+        Verify we can synchronize the instrument internal clock
+        """
+        self.assert_enter_command_mode()
+
+        print("doing clock sync !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
+        print("doing acquire status !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        self.assert_execute_resource(ProtocolEvent.ACQUIRE_STATUS, timeout=60)
+
+        # Now verify that at least the date matches
+        params = [InstrumentParameters.SYS_CLOCK]
+        print("doing get resource")
+        reply = self.instrument_agent_client.get_resource(params)
+        rcvd_time = reply[InstrumentParameters.SYS_CLOCK]
+        lt = time.strftime("%m/%d/%Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+        self.assert_clock_set(lt, rcvd_time)
+
