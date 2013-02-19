@@ -250,9 +250,9 @@ class Mavs4Mixin(DriverTestMixin):
 
     SAMPLE = "12 20 2012 18 50 50.40 FDC5 FF70 FF1B FF8C 1.2 3.4 5.6 22.21 0.96 0.28 3.0 -5.1\n"
     
-    def assert_clock_set(self, time):
+    def assert_clock_set(self, sent_time):
         new_parameter_values = {}
-        new_parameter_values[InstrumentParameters.SYS_CLOCK] = time
+        new_parameter_values[InstrumentParameters.SYS_CLOCK] = sent_time
         new_parameter_list = []
         new_parameter_list.append(InstrumentParameters.SYS_CLOCK)
         
@@ -260,16 +260,18 @@ class Mavs4Mixin(DriverTestMixin):
         reply = self.driver_client.cmd_dvr('set_resource', new_parameter_values)
         reply = self.driver_client.cmd_dvr('get_resource', new_parameter_list)
         
-        val = reply[InstrumentParameters.SYS_CLOCK]
+        rcvd_time = reply[InstrumentParameters.SYS_CLOCK]
         # verify that the dates match
-        print("lts=%s, val=%s" %(time, val))
-        self.assertTrue(time[:12].upper() in val.upper())
+        print("sts=%s, rts=%s" %(sent_time, rcvd_time))
+        self.assertTrue(sent_time[:12].upper() in rcvd_time.upper())
            
+        sent_timestamp = time.strptime(sent_time, "%m/%d/%Y %H:%M:%S")
+        ntp_sent_timestamp = ntplib.system_to_ntp_time(time.mktime(sent_timestamp))
+        rcvd_timestamp = time.strptime(rcvd_time, "%m/%d/%Y %H:%M:%S")
+        ntp_rcvd_timestamp = ntplib.system_to_ntp_time(time.mktime(rcvd_timestamp))
         # verify that the times match closely
-        lt_sec = int(time[-2:])
-        it_sec = int(val[-2:])
-        print("lts=%d, its=%d" %(lt_sec, it_sec))
-        if abs(lt_sec - it_sec) > 15:
+        print("sts=%d, rts=%d" %(ntp_sent_timestamp, ntp_rcvd_timestamp))
+        if ntp_rcvd_timestamp - ntp_sent_timestamp > 45:
             self.fail("time delta too large after clock sync")        
     
     def assert_status_data_particle_header(self, data_particle, stream_name):
