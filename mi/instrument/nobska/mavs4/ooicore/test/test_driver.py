@@ -41,8 +41,13 @@ import json
 # 3rd party imports
 from nose.plugins.attrib import attr
 
+from pyon.agent.agent import ResourceAgentEvent
+
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
@@ -83,6 +88,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import DriverStartupConfigKey
+from mi.idk.unit_test import AgentCapabilityType
 
 from mi.core.instrument.chunker import StringChunker
 
@@ -660,7 +666,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
 ###############################################################################
 
 @attr('QUAL', group='mi')
-class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
+class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, Mavs4Mixin):
     """Qualification Test Container"""
     
     # Qualification tests live in the base class.  This class is extended
@@ -837,3 +843,111 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase):
             s.send_data("\r\n\r\n", "1")
             gevent.sleep(2)
                
+    def test_parameter_enum(self):
+        """
+        @ brief InstrumentParameters enum test
+
+            1. test that InstrumentParameters matches the expected enums from DriverParameter.
+            2. test that multiple distinct parameters do not resolve back to the same string.
+        """
+
+        self.assertEqual(InstrumentParameters.ALL, DriverParameter.ALL)
+
+        self.assert_enum_has_no_duplicates(DriverParameter)
+        self.assert_enum_has_no_duplicates(InstrumentParameters)
+
+    def test_protocol_state_enum(self):
+        """
+        @ brief ProtocolState enum test
+
+            1. test that ProtocolState matches the expected enums from DriverProtocolState.
+            2. test that multiple distinct states do not resolve back to the same string.
+
+        """
+
+        self.assertEqual(ProtocolStates.UNKNOWN, DriverProtocolState.UNKNOWN)
+        self.assertEqual(ProtocolStates.COMMAND, DriverProtocolState.COMMAND)
+        self.assertEqual(ProtocolStates.AUTOSAMPLE, DriverProtocolState.AUTOSAMPLE)
+        self.assertEqual(ProtocolStates.DIRECT_ACCESS, DriverProtocolState.DIRECT_ACCESS)
+
+        self.assert_enum_has_no_duplicates(DriverProtocolState)
+        self.assert_enum_has_no_duplicates(ProtocolStates)
+
+    def test_protocol_event_enum(self):
+        """
+        @brief ProtocolEvent enum test
+
+            1. test that ProtocolEvent matches the expected enums from DriverProtocolState.
+            2. test that multiple distinct events do not resolve back to the same string.
+        """
+
+        self.assertEqual(ProtocolEvent.ENTER, DriverEvent.ENTER)
+        self.assertEqual(ProtocolEvent.EXIT, DriverEvent.EXIT)
+        self.assertEqual(ProtocolEvent.GET, DriverEvent.GET)
+        self.assertEqual(ProtocolEvent.SET, DriverEvent.SET)
+        self.assertEqual(ProtocolEvent.DISCOVER, DriverEvent.DISCOVER)
+        self.assertEqual(ProtocolEvent.START_AUTOSAMPLE, DriverEvent.START_AUTOSAMPLE)
+        self.assertEqual(ProtocolEvent.STOP_AUTOSAMPLE, DriverEvent.STOP_AUTOSAMPLE)
+        self.assertEqual(ProtocolEvent.EXECUTE_DIRECT, DriverEvent.EXECUTE_DIRECT)
+        self.assertEqual(ProtocolEvent.START_DIRECT, DriverEvent.START_DIRECT)
+        self.assertEqual(ProtocolEvent.STOP_DIRECT, DriverEvent.STOP_DIRECT)
+
+        self.assert_enum_has_no_duplicates(DriverEvent)
+        self.assert_enum_has_no_duplicates(ProtocolEvent)
+
+    def test_get_capabilities(self):
+        """
+        @brief Verify that the correct capabilities are returned from get_capabilities
+        at various driver/agent states.
+        """
+        ##################
+        #  Command Mode
+        ##################
+
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: [
+                ResourceAgentEvent.CLEAR,
+                ResourceAgentEvent.RESET,
+                ResourceAgentEvent.GO_DIRECT_ACCESS,
+                ResourceAgentEvent.GO_INACTIVE,
+                ResourceAgentEvent.PAUSE
+            ],
+            AgentCapabilityType.AGENT_PARAMETER: ['example'],
+            AgentCapabilityType.RESOURCE_COMMAND: [
+                DriverEvent.CLOCK_SYNC,
+                DriverEvent.GET,
+                DriverEvent.SET,
+                DriverEvent.ACQUIRE_STATUS,
+                DriverEvent.START_AUTOSAMPLE,
+            ],
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
+            }
+
+        self.assert_enter_command_mode()
+        self.assert_capabilities(capabilities)
+
+        ##################
+        #  Streaming Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+            DriverEvent.STOP_AUTOSAMPLE,
+        ]
+
+        self.assert_start_autosample()
+        self.assert_capabilities(capabilities)
+        self.assert_stop_autosample()
+
+        #######################
+        #  Uninitialized Mode
+        #######################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.INITIALIZE]
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
+        self.assert_capabilities(capabilities)

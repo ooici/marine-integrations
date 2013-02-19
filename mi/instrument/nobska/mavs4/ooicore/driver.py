@@ -228,6 +228,7 @@ class Capability(BaseEnum):
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE  = ProtocolEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC       = ProtocolEvent.CLOCK_SYNC
+    ACQUIRE_STATUS   = ProtocolEvent.ACQUIRE_STATUS         
 
 # Device specific parameters.
 class InstrumentParameters(DriverParameter):
