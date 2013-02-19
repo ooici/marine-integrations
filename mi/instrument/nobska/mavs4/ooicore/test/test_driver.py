@@ -193,7 +193,7 @@ class Mavs4Mixin(DriverTestMixin):
                        InstrumentParameters.MONITOR : 'y',
                        InstrumentParameters.LOG_DISPLAY_TIME : 'y',
                        InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : 'y',
-                       InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'DEC',
+                       InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'HEX',
                        InstrumentParameters.QUERY_MODE : 'n',
                        InstrumentParameters.FREQUENCY : 2.0,
                        InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
@@ -958,9 +958,7 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, Mavs4Mixin):
         """
         self.assert_enter_command_mode()
 
-        print("doing clock sync !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
-        print("doing acquire status !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         self.assert_execute_resource(ProtocolEvent.ACQUIRE_STATUS, timeout=60)
 
         # Now verify that at least the date matches
@@ -971,3 +969,8 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, Mavs4Mixin):
         lt = time.strftime("%m/%d/%Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assert_clock_set(lt, rcvd_time)
 
+    def test_sample_autosample(self):
+        self.assert_enter_command_mode()
+        self.assert_start_autosample()
+
+        self.assert_sample_async(self.assert_particle_sample, DataParticleType.SAMPLE, timeout=30, sample_count=1)
