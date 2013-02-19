@@ -733,115 +733,21 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, Mavs4Mixin):
         gevent.sleep(600)  # wait for manual telnet session to be run
 
 
-    #@unittest.skip("skip for now")
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test verifies that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        Test that we can connect to the instrument via direct access.  Also
+        verify that direct access parameters are reset on exit.
         """
-        cmd = AgentCommand(command='power_down')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
+        self.assert_enter_command_mode()
 
-        cmd = AgentCommand(command='power_up')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.send_data("\r\n\r\n")
+        self.assertTrue(self.tcp_client.expect("Modular Acoustic Velocity Sensor"))
 
-        cmd = AgentCommand(command='initialize')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
+        self.assert_direct_access_stop_telnet()
 
-        cmd = AgentCommand(command='go_active')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.IDLE)
-
-        cmd = AgentCommand(command='run')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
-
-        gevent.sleep(5)  # wait for mavs4 to go back to sleep if it was sleeping
-        
-        # go direct access
-        cmd = AgentCommand(command='go_direct_access',
-                           kwargs={'session_type': DirectAccessTypes.telnet,
-                                   #kwargs={'session_type':DirectAccessTypes.vsp,
-                                   'session_timeout':600,
-                                   'inactivity_timeout':600})
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.warn("go_direct_access retval=" + str(retval.result))
-
-        # start 'telnet' client with returned address and port
-        s = TcpClient(retval.result['ip_address'], retval.result['port'])
-
-        # look for and swallow 'Username' prompt
-        try_count = 0
-        while s.peek_at_buffer().find("Username: ") == -1:
-            log.debug("WANT 'Username:' READ ==>" + str(s.peek_at_buffer()))
-            gevent.sleep(1)
-            try_count += 1
-            if try_count > 10:
-                raise Timeout('It took longer than 10 seconds to get a Username: prompt')
-        s.remove_from_buffer("Username: ")
-        # send some username string
-        s.send_data("bob\r\n", "1")
-        
-        # look for and swallow 'token' prompt
-        try_count = 0
-        while s.peek_at_buffer().find("token: ") == -1:
-            log.debug("WANT 'token: ' READ ==>" + str(s.peek_at_buffer()))
-            gevent.sleep(1)
-            try_count += 1
-            if try_count > 10:
-                raise Timeout('It took longer than 10 seconds to get a token: prompt')
-        s.remove_from_buffer("token: ")
-        # send the returned token
-        s.send_data(retval.result['token'] + "\r\n", "1")
-        
-        # look for and swallow telnet negotiation string
-        try_count = 0
-        while s.peek_at_buffer().find(WILL_ECHO_CMD) == -1:
-            log.debug("WANT %s READ ==> %s" %(WILL_ECHO_CMD, str(s.peek_at_buffer())))
-            gevent.sleep(1)
-            try_count += 1
-            if try_count > 10:
-                raise Timeout('It took longer than 10 seconds to get the telnet negotiation string')
-        s.remove_from_buffer(WILL_ECHO_CMD)
-        # send the telnet negotiation response string
-        s.send_data(DO_ECHO_CMD, "1")
-
-        # look for and swallow 'connected' indicator
-        try_count = 0
-        while s.peek_at_buffer().find("connected\r\n") == -1:
-            log.debug("WANT 'connected\n' READ ==>" + str(s.peek_at_buffer()))
-            gevent.sleep(1)
-            try_count += 1
-            if try_count > 10:
-                raise Timeout('It took longer than 10 seconds to get a connected prompt')
-        s.remove_from_buffer("connected\r\n")
-        
-        # try to interact with the instrument 
-        try_count = 0
-        while ((s.peek_at_buffer().find("Enter <CTRL>-<C> now to wake up") == -1) and
-              (s.peek_at_buffer().find("Main Menu") == -1)):
-            self.assertNotEqual(try_count, 5)
-            try_count += 1
-            log.debug("WANT %s or %s; READ ==> %s" %("'Enter <CTRL>-<C> now to wake up'", "'Main Menu'", str(s.peek_at_buffer())))
-            s.send_data("\r\n\r\n", "1")
-            gevent.sleep(2)
                
     def test_parameter_enum(self):
         """
