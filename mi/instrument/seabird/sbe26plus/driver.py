@@ -2023,14 +2023,6 @@ class Protocol(SeaBirdProtocol):
         if(error):
             raise error
 
-    def _apply_params(self):
-        """
-        apply startup parameters to the instrument.
-        @raise: InstrumentProtocolException if in wrong mode.
-        """
-        config = self.get_startup_config()
-        self._set_params(config)
-
     def _instrument_config_dirty(self):
         """
         Read the startup config and compare that to what the instrument
@@ -2122,7 +2114,6 @@ class Protocol(SeaBirdProtocol):
         """
         Send a newline to attempt to wake the sbe26plus device.
         """
-
         self._connection.send(NEWLINE)
 
     def _build_simple_command(self, cmd):
@@ -2131,7 +2122,6 @@ class Protocol(SeaBirdProtocol):
         @param cmd the simple sbe37 command to format.
         @retval The command to be sent to the device.
         """
-
         return cmd + NEWLINE
 
     def _build_param_dict(self):
@@ -2139,12 +2129,10 @@ class Protocol(SeaBirdProtocol):
         Populate the parameter dictionary with sbe26plus parameters.
         For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
-
         """
         # Add parameter handlers to parameter dict.
 
         # DS
-
         ds_line_01 = r'SBE 26plus V ([\w.]+) +SN (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)' # NOT DONE #
         ds_line_02 = r'user info=(.*)$'
         ds_line_03 = r'quartz pressure sensor: serial number = ([\d\.\-]+), range = ([\d\.\-]+) psia'
@@ -2528,15 +2516,12 @@ class Protocol(SeaBirdProtocol):
         @throws InstrumentTimeoutException if device cannot be timely woken.
         @throws InstrumentProtocolException if ds/dc misunderstood.
         """
-
-
         # Get old param dict config.
         old_config = self._param_dict.get_config()
 
         # Issue display commands and parse results.
         timeout = kwargs.get('timeout', TIMEOUT)
         self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, timeout=timeout)
-        #################################################################self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION, timeout=timeout)
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.

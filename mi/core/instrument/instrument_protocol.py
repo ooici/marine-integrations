@@ -494,7 +494,22 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         self._response_handlers = {}
 
         self._last_data_receive_timestamp = None
-        
+
+    def _get_prompts(self):
+        """
+        Return a list of prompts order from longest to shortest.  The
+        assumption is the longer is more specific.
+        @return: list of prompts orders by length.
+        """
+        if(isinstance(self._prompts, list)):
+            prompts = self._prompts
+        else:
+            prompts = self._prompts.list()
+
+        prompts.sort(lambda x,y: cmp(len(y), len(x)))
+
+        return prompts
+
     def _get_response(self, timeout=10, expected_prompt=None):
         """
         Get a response from the instrument, but be a bit loose with what we
@@ -512,7 +527,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
 
         starttime = time.time()
         if expected_prompt == None:
-            prompt_list = self._prompts.list()
+            prompt_list = self._get_prompts()
         else:
             if isinstance(expected_prompt, str):
                 prompt_list = [expected_prompt]
@@ -546,7 +561,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
 
         starttime = time.time()
         if expected_prompt == None:
-            prompt_list = self._prompts.list()
+            prompt_list = self._get_prompts()
         else:
             if isinstance(expected_prompt, str):
                 prompt_list = [expected_prompt]
@@ -687,7 +702,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         data = port_agent_packet.get_data()
         timestamp = port_agent_packet.get_timestamp()
 
-        log.trace("Got Data: %s" % data)
+        log.debug("Got Data: %s" % data)
         log.debug("Add Port Agent Timestamp: %s" % timestamp)
 
         if data_length > 0:
@@ -753,6 +768,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @throw InstrumentTimeoutException if the device could not be woken.
         """
         # Clear the prompt buffer.
+        log.debug("clearing promptbuf: %s" % self._promptbuf)
         self._promptbuf = ''
         
         # Grab time for timeout.
@@ -760,14 +776,17 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         
         while True:
             # Send a line return and wait a sec.
-            log.trace('Sending wakeup.')
+            log.trace('Sending wakeup. timeout=%s' % timeout)
             self._send_wakeup()
             time.sleep(delay)
 
-            for item in self._prompts.list():
+            log.debug("Prompts: %s" % self._get_prompts())
+
+            for item in self._get_prompts():
+                log.debug("buffer: %s" % self._promptbuf)
                 log.debug("find prompt: %s" % item)
                 index = self._promptbuf.find(item)
-		log.debug("Got prompt (index: %s): %s " % (index, repr(self._promptbuf)))
+                log.debug("Got prompt (index: %s): %s " % (index, repr(self._promptbuf)))
                 if index >= 0:
                     log.trace('wakeup got prompt: %s' % repr(item))
                     return item

@@ -22,12 +22,12 @@ from nose.plugins.attrib import attr
 from mi.instrument.seabird.sbe54tps.test.test_driver import SeaBird54PlusUnitTest
 from mi.instrument.seabird.sbe54tps.test.test_driver import SeaBird54PlusIntegrationTest
 from mi.instrument.seabird.sbe54tps.test.test_driver import SeaBird54PlusQualificationTest
+from mi.instrument.seabird.sbe54tps.test.test_driver import SeaBird54PlusPublicationTest
 from mi.instrument.seabird.sbe54tps.driver import DataParticleType
 from mi.instrument.seabird.sbe54tps.driver import ScheduledJob
 from mi.instrument.seabird.sbe54tps.driver import Parameter
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import DriverStartupConfigKey
-
 
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.seabird.sbe54tps.ooicore.driver',
@@ -44,12 +44,14 @@ InstrumentDriverTestCase.initialize(
         },
         DriverStartupConfigKey.SCHEDULER: {
             ScheduledJob.ACQUIRE_STATUS: {},
-            ScheduledJob.CALIBRATION_COEFFICIENTS: {},
+            ScheduledJob.STATUS_DATA: {},
+            ScheduledJob.HARDWARE_DATA: {},
+            ScheduledJob.EVENT_COUNTER_DATA: {},
+            ScheduledJob.CONFIGURATION_DATA: {},
             ScheduledJob.CLOCK_SYNC: {}
         }
     }
 )
-
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -58,7 +60,6 @@ InstrumentDriverTestCase.initialize(
 @attr('UNIT', group='mi')
 class UnitFromIDK(SeaBird54PlusUnitTest):
     pass
-
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -71,7 +72,6 @@ class UnitFromIDK(SeaBird54PlusUnitTest):
 class IntFromIDK(SeaBird54PlusIntegrationTest):
     pass
 
-
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -79,4 +79,13 @@ class IntFromIDK(SeaBird54PlusIntegrationTest):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualFromIDK(SeaBird54PlusQualificationTest):
+    pass
+
+###############################################################################
+#                             PUBLICATION TESTS                               #
+# Device specific qualification tests are for                                 #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('PUB', group='mi')
+class PubFromIDK(SeaBird54PlusPublicationTest):
     pass
