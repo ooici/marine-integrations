@@ -1187,21 +1187,6 @@ class Protocol(SeaBirdProtocol):
 
         current_state = self._protocol_fsm.get_current_state()
 
-        if current_state == ProtocolState.AUTOSAMPLE:
-            result = ResourceAgentState.STREAMING
-
-        elif current_state == ProtocolState.COMMAND:
-            result = ResourceAgentState.IDLE
-
-        elif current_state == ProtocolState.UNKNOWN:
-
-            # Wakeup the device with timeout if passed.
-
-            delay = 0.5
-            log.debug("############## TIMEOUT = " + str(timeout))
-            prompt = self._wakeup(timeout=timeout, delay=delay)
-            prompt = self._wakeup(timeout)
-
         logging = self._is_logging(timeout=timeout)
 
         if logging == True:

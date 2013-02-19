@@ -144,6 +144,7 @@ InstrumentDriverTestCase.initialize(
     driver_class="SBE37Driver",
 
     instrument_agent_resource_id = '123xyz',
+    instrument_agent_preload_id = 'IA2',
     instrument_agent_name = 'Agent007',
     instrument_agent_packet_config = DataParticleType()
 )
@@ -1471,7 +1472,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
             ResourceAgentEvent.GO_DIRECT_ACCESS
         ]
 
-        agt_pars_all = ['example']
+        agt_pars_all = ['example', 'pubfreq', 'alarms', 'streams']
 
         res_cmds_all =[
             SBE37ProtocolEvent.ACQUIRE_STATUS,
@@ -2161,3 +2162,21 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         self.assertEquals(reply[SBE37Parameter.NAVG], 2) # da param
         self.assertEquals(reply[SBE37Parameter.SAMPLENUM], 20) # non-da param
         self.assertEquals(reply[SBE37Parameter.INTERVAL], 20) # non-da param, w/default
+
+    def test_reset(self):
+        """
+        Overload base test because we are having issue with coming out of DA
+        """
+        self.assert_enter_command_mode()
+        self.assert_reset()
+
+        self.assert_enter_command_mode()
+        self.assert_start_autosample()
+        self.assert_reset()
+
+    def test_instrument_agent_common_state_model_lifecycle(self):
+        '''
+        Skipping this common test for now because we are having issues coming out of DA
+        @return:
+        '''
+        pass

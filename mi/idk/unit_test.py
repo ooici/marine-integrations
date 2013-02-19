@@ -156,7 +156,8 @@ class InstrumentDriverTestConfig(Singleton):
             self.working_dir = kwargs.get('working_dir')
         if kwargs.get('delimeter'):
             self.delimeter = kwargs.get('delimeter')
-        
+
+        self.instrument_agent_preload_id = kwargs.get('instrument_agent_preload_id')
         self.instrument_agent_resource_id = kwargs.get('instrument_agent_resource_id')
         self.instrument_agent_name = kwargs.get('instrument_agent_name')
         self.instrument_agent_packet_config = self._build_packet_config(kwargs.get('instrument_agent_packet_config'))
@@ -2132,14 +2133,14 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             state = self.instrument_agent_client.get_agent_state()
             log.info("Sent GO_ACTIVE; IA state = %s", state)
 
+            cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+            retval = self.instrument_agent_client.execute_agent(cmd)
+
         # The instrument is in autosample; take it out of autosample,
         # which will cause the driver and agent to transition to COMMAND
         if state == ResourceAgentState.STREAMING:
             self.assert_stop_autosample()
-        else:
-            cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-            retval = self.instrument_agent_client.execute_agent(cmd)
-                
+
         state = self.instrument_agent_client.get_agent_state()
         log.info("Sent RUN; IA state = %s", state)
         self.assertEqual(state, ResourceAgentState.COMMAND)
@@ -2542,7 +2543,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
 
         # Override some preload values
         config = {
-            'idk_agent': 'IA4',
+            'idk_agent': self.test_config.instrument_agent_preload_id,
             'idk_comms_method': 'ethernet',
             'idk_server_address': 'localhost',
             'idk_comms_device_address': pa_config.get('device_addr'),
@@ -2709,9 +2710,11 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
 
         # If in DA mode walk it out
         if(state == ResourceAgentState.DIRECT_ACCESS):
-            self.assert_direct_access_stop_telnet()
+            cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
+            retval = self.instrument_agent_client.execute_agent(cmd, timeout=30)
 
         # reset the instrument if it has been initialized
         if(state != ResourceAgentState.UNINITIALIZED):
-            self.assert_agent_command(ResourceAgentEvent.RESET)
-            self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
+            cmd = AgentCommand(command=ResourceAgentEvent.RESET)
+            state = self.instrument_agent_client.get_agent_state()
+            self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
