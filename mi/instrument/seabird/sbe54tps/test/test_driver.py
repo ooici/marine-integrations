@@ -440,6 +440,7 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         self.assert_set_exception(Parameter.SAMPLE_PERIOD, 241)
         self.assert_set_exception(Parameter.SAMPLE_PERIOD, 0)
         self.assert_set_exception(Parameter.SAMPLE_PERIOD, -1)
+        self.assert_set_exception(Parameter.SAMPLE_PERIOD, 0.2)
         self.assert_set_exception(Parameter.SAMPLE_PERIOD, "1")
 
         #   Read only parameters
@@ -765,7 +766,7 @@ class SeaBird54PlusQualificationTest(SeaBirdQualificationTest, SeaBird54tpsMixin
         self.assert_enter_command_mode()
         self.assert_set_parameter(Parameter.SAMPLE_PERIOD, 1)
 
-        self.assert_sample_autosample(self._assert_partucle_real_time, DataParticleType.PREST_REAL_TIME)
+        self.assert_sample_autosample(self.assert_particle_real_time, DataParticleType.PREST_REAL_TIME)
 
     def test_poll(self):
         '''

@@ -556,7 +556,7 @@ class SBE26plusDeviceCalibrationDataParticleKey(BaseEnum):
     FACTORY_M = 'press_coeff_m' # float,
     FACTORY_B = 'press_coeff_b' # float,
     POFFSET = 'press_coeff_poffset' # float,
-    TCALDATE = 'calibration_date_temperature' # tuple,
+    TCALDATE = 'calibration_date_temperature' # string,
     TA0 = 'temp_coeff_ta0' # float,
     TA1 = 'temp_coeff_ta1' # float,
     TA2 = 'temp_coeff_ta2' # float,
@@ -576,27 +576,6 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
     the building of values, and the rest should come along for free.
     """
     _data_particle_type = DataParticleType.DEVICE_CALIBRATION
-
-    @staticmethod
-    def _string_to_date(datestr, fmt):
-        """
-        Extract a date tuple from an sbe37 date string.
-        @param str a string containing date information in sbe37 format.
-        @retval a date tuple.
-        @throws InstrumentParameterException if datestr cannot be formatted to
-        a date.
-        """
-
-        if not isinstance(datestr, str):
-            raise InstrumentParameterException('Value %s is not a string.' % str(datestr))
-        try:
-            date_time = time.strptime(datestr, fmt)
-            date = (date_time[2],date_time[1],date_time[0])
-
-        except ValueError:
-            raise InstrumentParameterException('Value %s could not be formatted to a date.' % str(datestr))
-
-        return date
 
     def _build_parsed_values(self):
         """
@@ -677,7 +656,7 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.TCALDATE:  (
                 re.compile(r'Temperature coefficients: +(\d+-[a-zA-Z]+-\d+)'),
-                lambda match : match.group(1)
+                lambda match : str(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.TA0:  (
                 re.compile(r' +TA0 = (-?[\d\.e\-\+]+)'),
@@ -697,7 +676,7 @@ class SBE26plusDeviceCalibrationDataParticle(DataParticle):
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.CCALDATE:  (
                 re.compile(r'Conductivity coefficients: +(\d+-[a-zA-Z]+-\d+)'),
-                lambda match : match.group(1)
+                lambda match : str(match.group(1))
                 ),
             SBE26plusDeviceCalibrationDataParticleKey.CG:  (
                 re.compile(r' +CG = (-?[\d\.e\-\+]+)'),
@@ -2668,62 +2647,6 @@ class Protocol(SeaBirdProtocol):
             #return '%e' % v #This returns a exponential formatted float
             # every time. not what is needed
             return str(v) #return a simple float
-
-    @staticmethod
-    def _date_to_string(v):
-        """
-        Write a date tuple to string formatted for sbe37 set operations.
-        @param v a date tuple: (day,month,year).
-        @retval A date string formatted for sbe37 set operations.
-        @throws InstrumentParameterException if date tuple is not valid.
-        """
-
-        if not isinstance(v,(list,tuple)):
-            raise InstrumentParameterException('Value %s is not a list, tuple.' % str(v))
-
-        if not len(v)==3:
-            raise InstrumentParameterException('Value %s is not length 3.' % str(v))
-
-        months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep',
-                  'Oct','Nov','Dec']
-        day = v[0]
-        month = v[1]
-        year = v[2]
-
-        if len(str(year)) > 2:
-            year = int(str(year)[-2:])
-
-        if not isinstance(day,int) or day < 1 or day > 31:
-            raise InstrumentParameterException('Value %s is not a day of month.' % str(day))
-
-        if not isinstance(month,int) or month < 1 or month > 12:
-            raise InstrumentParameterException('Value %s is not a month.' % str(month))
-
-        if not isinstance(year,int) or year < 0 or year > 99:
-            raise InstrumentParameterException('Value %s is not a 0-99 year.' % str(year))
-
-        return '%02i-%s-%02i' % (day,months[month-1],year)
-
-    @staticmethod
-    def _string_to_date(datestr, fmt):
-        """
-        Extract a date tuple from an sbe37 date string.
-        @param str a string containing date information in sbe37 format.
-        @retval a date tuple.
-        @throws InstrumentParameterException if datestr cannot be formatted to
-        a date.
-        """
-
-        if not isinstance(datestr, str):
-            raise InstrumentParameterException('Value %s is not a string.' % str(datestr))
-        try:
-            date_time = time.strptime(datestr, fmt)
-            date = (date_time[2],date_time[1],date_time[0])
-
-        except ValueError:
-            raise InstrumentParameterException('Value %s could not be formatted to a date.' % str(datestr))
-
-        return date
 
     @staticmethod
     def _string_to_numeric_date_time_string(date_time_string):

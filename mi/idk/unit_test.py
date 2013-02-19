@@ -1990,7 +1990,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         # Assert we got 3 samples.
         samples = self.data_subscribers.get_samples(sample_queue, sample_count, timeout = timeout)
-        self.assertGreaterEqual(len(sample_count))
+        self.assertGreaterEqual(len(samples), sample_count)
 
         for sample in samples:
             log.debug("SAMPLE: %s" % sample)
@@ -2132,13 +2132,13 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             state = self.instrument_agent_client.get_agent_state()
             log.info("Sent GO_ACTIVE; IA state = %s", state)
 
-            # The instrument is in autosample; take it out of autosample,
-            # which will cause the driver and agent to transition to COMMAND
-            if state == ResourceAgentState.STREAMING:
-                self.assert_stop_autosample()
-            else:
-                cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-                retval = self.instrument_agent_client.execute_agent(cmd)
+        # The instrument is in autosample; take it out of autosample,
+        # which will cause the driver and agent to transition to COMMAND
+        if state == ResourceAgentState.STREAMING:
+            self.assert_stop_autosample()
+        else:
+            cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+            retval = self.instrument_agent_client.execute_agent(cmd)
                 
         state = self.instrument_agent_client.get_agent_state()
         log.info("Sent RUN; IA state = %s", state)
@@ -2269,7 +2269,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # IDLE
         ####
         self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
-        self.assert_agent_state(ResourceAgentState.IDLE)
 
         # Try to run some commands that aren't available in this state
         self.assert_agent_command_exception(ResourceAgentEvent.INITIALIZE, exception_class=Conflict)
@@ -2282,44 +2281,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         # Get back to idle
         self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
-        self.assert_agent_state(ResourceAgentState.IDLE)
 
-        ####
-        # COMMAND
-        ####
-        self.assert_agent_command(ResourceAgentEvent.RUN)
-        self.assert_agent_state(ResourceAgentState.COMMAND)
-
-        ####
-        # STOPPED
-        ####
-        self.assert_agent_command(ResourceAgentEvent.PAUSE)
-        self.assert_agent_state(ResourceAgentState.STOPPED)
-
-        # Verify we can resume back to command mode
-        self.assert_agent_command(ResourceAgentEvent.RESUME)
-        self.assert_agent_state(ResourceAgentState.COMMAND)
-
-        # Now back out of command mode
-        self.assert_agent_command(ResourceAgentEvent.CLEAR)
-        self.assert_agent_state(ResourceAgentState.IDLE)
-
-        # Finally back in
-        self.assert_agent_command(ResourceAgentEvent.RUN)
-        self.assert_agent_state(ResourceAgentState.COMMAND)
-
-        ####
         # DIRECT ACCESS
-        ####
-        args={'session_type': DirectAccessTypes.telnet,
-              'session_timeout':600,
-              'inactivity_timeout':600}
-        self.assert_agent_command(ResourceAgentEvent.GO_DIRECT_ACCESS, args=args)
-        self.assert_agent_state(ResourceAgentState.DIRECT_ACCESS)
-
-        # Exit direct access
-        self.assert_agent_command(ResourceAgentEvent.GO_COMMAND)
-        self.assert_agent_state(ResourceAgentState.COMMAND)
+        self.assert_direct_access_start_telnet()
+        self.assert_direct_access_stop_telnet()
 
         # Reset
         self.assert_agent_command(ResourceAgentEvent.RESET)
