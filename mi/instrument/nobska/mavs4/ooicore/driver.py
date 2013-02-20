@@ -58,18 +58,14 @@ SAMPLE_DATA_PATTERN = (r'(\d+\s+\d+\s+\d+)' +    # date
                        '\s+(-*\d+\.\d+)' +       # MX
                        '\s+(-*\d+\.\d+)' +       # MY
                        '\s+(-*\d+\.\d+)' +       # pitch
-                       '\s+(-*\d+\.\d+)')        # roll
+                       '\s+(-*\d+\.\d+)\s+')     # roll
 
 SAMPLE_DATA_REGEX = re.compile(SAMPLE_DATA_PATTERN)
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    PARSED = 'parsed'
+    SAMPLE = 'sample'
     STATUS = 'status'
-
-COMMAND = 'command'
-RESPONSE = 'response'
-NEXT_COMMAND = 'next_comand'
 
 INSTRUMENT_NEWLINE = '\r\n'
 WRITE_DELAY = 0
@@ -116,6 +112,8 @@ class InstrumentPrompts(BaseEnum):
     SI_CONVERSION                 = 'Enter binary to SI velocity conversion (0.0010000 to 0.0200000) ?'
     WARM_UP_INTERVAL              = '[F]ast or [S]low sensor warm up interval [F] ?'
     THREE_AXIS_COMPASS            = '3-Axis compass enabled (Yes/No) ['
+    SOLID_STATE_TILT              = 'Solid state tilt enabled (Yes/No) ['
+    LOAD_DEFAULT_TILT             = 'Load default tilt coefficients (Yes/No) ['
     THERMISTOR                    = 'Thermistor enabled (Yes/No) ['
     THERMISTOR_OFFSET             = 'Set thermistor offset to 0.0 (default) (Yes/No) [N] ?'
     PRESSURE                      = 'Pressure enabled (Yes/No) ['
@@ -130,7 +128,8 @@ class InstrumentPrompts(BaseEnum):
     COMPASS_SCALE_FACTORS_SET     = 'Current compass scale factors:'
     TILT_OFFSETS                  = 'Tilt Offsets:'
     TILT_OFFSETS_SET              = 'Current tilt offsets:'
-    
+    SOLID_STATE_TILT_NOT_ENABLED  = 'Solid State Tilt is not currently enabled.'
+        
 class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dictionaries to work correctly
     CONTROL_C                                  = '\x03'   # CTRL-C (end of text)
     DEPLOY_GO                                  = '\a'     # CTRL-G (bell)
@@ -171,6 +170,9 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     ENTER_WARM_UP_INTERVAL                     = 'enter_warm_up_interval'
     SET_THREE_AXIS_COMPASS                     = ' 1'                          # make different from SET_TIME with leading space
     ENTER_THREE_AXIS_COMPASS                   = 'enter_3_axis_compass'
+    SET_SOLID_STATE_TILT                       = '2'                                          
+    ENTER_SOLID_STATE_TILT                     = 'enter_solid_state_tilt'
+    ANSWER_SOLID_STATE_TILT_YES                = 'y'
     SET_THERMISTOR                             = ' 3'                          # make different from CALIBRATION_MENU with leading space                 
     ENTER_THERMISTOR                           = 'enter_thermistor'
     ANSWER_THERMISTOR_NO                       = 'n'
@@ -198,8 +200,6 @@ class ProtocolStates(BaseEnum):
     UNKNOWN       = DriverProtocolState.UNKNOWN
     COMMAND       = DriverProtocolState.COMMAND
     AUTOSAMPLE    = DriverProtocolState.AUTOSAMPLE
-    TEST          = DriverProtocolState.TEST
-    CALIBRATE     = DriverProtocolState.CALIBRATE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
     
 class ProtocolEvent(BaseEnum):
@@ -228,6 +228,7 @@ class Capability(BaseEnum):
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE  = ProtocolEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC       = ProtocolEvent.CLOCK_SYNC
+    ACQUIRE_STATUS   = ProtocolEvent.ACQUIRE_STATUS         
 
 # Device specific parameters.
 class InstrumentParameters(DriverParameter):
@@ -260,6 +261,7 @@ class InstrumentParameters(DriverParameter):
     SI_CONVERSION                        = 'si_conversion'
     WARM_UP_INTERVAL                     = 'warm_up_interval'
     THREE_AXIS_COMPASS                   = '3_axis_compass'
+    SOLID_STATE_TILT                     = 'solid_state_tilt'
     THERMISTOR                           = 'thermistor'
     PRESSURE                             = 'pressure'
     AUXILIARY_1                          = 'auxiliary_1'
@@ -305,6 +307,7 @@ class SystemConfigurationMenuParameters(BaseEnum):
     SI_CONVERSION      = InstrumentParameters.SI_CONVERSION
     WARM_UP_INTERVAL   = InstrumentParameters.WARM_UP_INTERVAL
     THREE_AXIS_COMPASS = InstrumentParameters.THREE_AXIS_COMPASS
+    SOLID_STATE_TILT   = InstrumentParameters.SOLID_STATE_TILT
     THERMISTOR         = InstrumentParameters.THERMISTOR
     PRESSURE           = InstrumentParameters.PRESSURE
     AUXILIARY_1        = InstrumentParameters.AUXILIARY_1
@@ -551,7 +554,7 @@ class Mavs4SampleDataParticle(DataParticle):
     """
     Class for parsing sample data into a data particle structure for the MAVS-4 sensor. 
     """
-    _data_particle_type = DataParticleType.PARSED
+    _data_particle_type = DataParticleType.SAMPLE
 
     def _build_parsed_values(self):
         """
@@ -568,13 +571,14 @@ class Mavs4SampleDataParticle(DataParticle):
                 
         try:
             datetime = match.group(1) + ' ' + match.group(2)
-            timestamp = time.strptime(datetime, "%d %m %Y %H %M %S")
+            timestamp = time.strptime(datetime, "%m %d %Y %H %M %S")
+            self.set_internal_timestamp(unix_time=time.mktime(timestamp))
             ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
+            fractional_second = int(match.group(3))
             acoustic_axis_velocity_a = int(match.group(4), 16)
             acoustic_axis_velocity_b = int(match.group(5), 16)
             acoustic_axis_velocity_c = int(match.group(6), 16)
             acoustic_axis_velocity_d = int(match.group(7), 16)
-            fractional_second = int(match.group(3))
             velocity_frame_east = float(match.group(8))
             velocity_frame_north = float(match.group(9))
             velocity_frame_west = float(match.group(10))
@@ -657,6 +661,8 @@ class Mavs4StatusDataParticle(DataParticle):
         if not isinstance(self.raw_data, dict):
             raise SampleException("Error: raw_data is not a dictionary")
                      
+        log.debug('Mavs4StatusDataParticle: raw_data=%s' %self.raw_data)
+
         result = []
         for key, value in self.raw_data.items():
             result.append({DataParticleKey.VALUE_ID: key,
@@ -670,8 +676,9 @@ class Mavs4StatusDataParticle(DataParticle):
 ###
 class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     """
-    The protocol is a very simple command/response protocol with a few show
-    commands and a few set commands.
+    This protocol implements a simple command-response interaction for the menu based MAVs-4 instrument.  
+    It utilizes a dictionary that holds info on the more complex commands as well as command builders and 
+    response handles that can dynamically create and process the instrument interactions.
     """
     
     monitor_sub_parameters = (InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES, 
@@ -683,9 +690,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                                  InstrumentParameters.BURST_INTERVAL_MINUTES,
                                  InstrumentParameters.BURST_INTERVAL_SECONDS)
     
-    # Lookup dictionary which contains the response, the next command, and the parameter name for a given instrument command.
-    # The value None for the next command means there is no next command.
-    # Commands that decide the command or these values dynamically have there own build handlers and are not in this table.
+    # Lookup dictionary which contains the response, the next command, and the possible parameter name for 
+    # a given instrument command if it is needed.
+    # The value None for the next command means there is no next command (the interaction is complete).
+    # Commands that decide how to construct the command or any of these values dynamically have there own 
+    # build handlers and are not in this table.
     Command_Response = {InstrumentCmds.SET_TIME : 
                             [InstrumentPrompts.SET_TIME, None, None],
                         InstrumentCmds.ENTER_TIME : 
@@ -755,6 +764,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                         InstrumentCmds.SET_THREE_AXIS_COMPASS : 
                             [InstrumentPrompts.THREE_AXIS_COMPASS, InstrumentCmds.ENTER_THREE_AXIS_COMPASS, None],                        
                         InstrumentCmds.ENTER_THREE_AXIS_COMPASS : 
+                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
+                        InstrumentCmds.SET_SOLID_STATE_TILT : 
+                            [InstrumentPrompts.SOLID_STATE_TILT, InstrumentCmds.ENTER_SOLID_STATE_TILT, None],                        
+                        InstrumentCmds.ANSWER_SOLID_STATE_TILT_YES : 
                             [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
                         InstrumentCmds.SET_THERMISTOR : 
                             [InstrumentPrompts.THERMISTOR, InstrumentCmds.ENTER_THERMISTOR, None],                        
@@ -863,13 +876,13 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         events_out = [x for x in events if Capability.has(x)]
         return events_out
 
-    def _got_chunk(self, structure):
+    def _got_chunk(self, structure, timestamp):
         """
         The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes. 
         """
         log.debug("_got_chunk: detected structure = <%s>", structure)
-        self._extract_sample(Mavs4SampleDataParticle, SAMPLE_DATA_REGEX, structure)
+        self._extract_sample(Mavs4SampleDataParticle, SAMPLE_DATA_REGEX, structure, timestamp)
 
 
     ########################################################################
@@ -936,16 +949,22 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if dest_submenu == None:
             raise InstrumentProtocolException('_navigate_and_execute(): dest_submenu parameter missing')
 
-        # iterate through the directions 
+        # save timeout and expected_prompt for the execution of the actual command after any traversing of the menu
+        cmd_timeout = kwargs.pop('timeout', None)
+        cmd_expected_prompt = kwargs.pop('expected_prompt', None)
+
+        # iterate through the menu traversing directions 
         directions_list = self._menu.get_directions(dest_submenu)
         for directions in directions_list:
             log.debug('_navigate_and_execute: directions: %s' %(directions))
             command = directions.get_command()
             response = directions.get_response()
             timeout = directions.get_timeout()
-            kwargs.pop('timeout', None)
             self._do_cmd_resp(command, expected_prompt = response, timeout = timeout, **kwargs)
 
+        # restore timeout and expected_prompt for the execution of the actual command 
+        kwargs['timeout'] = cmd_timeout
+        kwargs['expected_prompt'] = cmd_expected_prompt
         command = cmd
         while command != None:
             log.debug('_navigate_and_execute: sending cmd:%s, kwargs: %s to _do_cmd_resp.' 
@@ -1252,7 +1271,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Switch into autosample mode.
-        @retval (next_state, result) tuple, (SBE37ProtocolState.AUTOSAMPLE,
+        @retval (next_state, result) tuple, (ProtocolStates.AUTOSAMPLE,
         None) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
@@ -1264,7 +1283,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._navigate_and_execute(InstrumentCmds.DEPLOY_GO, 
                                    dest_submenu=SubMenues.DEPLOY, 
                                    timeout=20, 
-                                   expected_prompt=InstrumentPrompts.BEGIN_MEASUREMENT,
                                    *args, **kwargs)
                 
         next_state = ProtocolStates.AUTOSAMPLE        
@@ -1275,7 +1293,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _handler_command_test(self, *args, **kwargs):
         """
         Switch to test state to perform instrument tests.
-        @retval (next_state, result) tuple, (SBE37ProtocolState.TEST, None).
+        @retval (next_state, result) tuple, (ProtocolStates.TEST, None).
         """
         next_state = None
         result = None
@@ -1307,13 +1325,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        str_time = get_timestamp_delayed("%M %S %d %H %y %m")
-        byte_time = ''
-        for v in str_time.split():
-            byte_time += chr(int('0x'+v, base=16))
-        values = str_time.split()
-        log.info("_handler_command_clock_sync: time set to %s:m %s:s %s:d %s:h %s:y %s:M (%s)" %(values[0], values[1], values[2], values[3], values[4], values[5], byte_time.encode('hex'))) 
-        self._do_cmd_resp(InstrumentCmds.SET_REAL_TIME_CLOCK, byte_time, **kwargs)
+        str_time = get_timestamp_delayed("%m/%d/%Y %H:%M:%S")
+        log.info("_handler_command_clock_sync: time set to %s" %str_time)
+        dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.SYS_CLOCK)
+        command = self._param_dict.get_submenu_write(InstrumentParameters.SYS_CLOCK)
+        self._navigate_and_execute(command, name=InstrumentParameters.SYS_CLOCK, value=str_time, dest_submenu=dest_submenu, timeout=5)
 
         return (next_state, (next_agent_state, result))
 
@@ -1324,25 +1340,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_state = None
         next_agent_state = None
         result = None
-
-        if not self._driver_event:
-            return
         
-        # update parameters so param_dict values used for status are latest and greatest.
-        self._update_params()
-
-        # build a dictionary of the parameters that are to be returned in the status data particle
-        status_params = {}
-        for name in Mavs4StatusDataParticleKey.list():
-            status_params[name] = self._param_dict.format_parameter(name)
-            
-        # Create status data particle, but pass in a reference to the dictionary just created as first parameter instead of the 'line'.
-        # The status data particle class will use the 'raw_data' variable as a reference to a dictionary object to get
-        # access to parameter values (see the Mavs4StatusDataParticle class).
-        particle = Mavs4StatusDataParticle(status_params, preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
-        status = particle.generate()
-
-        self._driver_event(DriverAsyncEvent.SAMPLE, status)
+        self._generate_status_event()
     
         return (next_state, (next_agent_state, result))
 
@@ -1367,7 +1366,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Stop autosample and switch back to command mode.
-        @retval (next_state, result) tuple, (SBE37ProtocolState.COMMAND,
+        @retval (next_state, result) tuple, (ProtocolStates.COMMAND,
         None) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command misunderstood or
@@ -1440,6 +1439,28 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     # Private helpers.
     ########################################################################
         
+    def _generate_status_event(self):
+        if not self._driver_event:
+            # can't send events, so don't bother creating the particle
+            return
+        
+        # update parameters so param_dict values used for status are latest and greatest.
+        self._update_params()
+
+        # build a dictionary of the parameters that are to be returned in the status data particle
+        status_params = {}
+        for name in Mavs4StatusDataParticleKey.list():
+            status_params[name] = self._param_dict.get(name)
+            
+        # Create status data particle, but pass in a reference to the dictionary just created as first parameter instead of the 'line'.
+        # The status data particle class will use the 'raw_data' variable as a reference to a dictionary object to get
+        # access to parameter values (see the Mavs4StatusDataParticle class).
+        particle = Mavs4StatusDataParticle(status_params, preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
+        status = particle.generate()
+
+        # send particle as an event
+        self._driver_event(DriverAsyncEvent.SAMPLE, status)
+    
     def _send_control_c(self, count):
         # spoon feed the control-c characters so instrument doesn't drop them if they are sent too fast
         for n in range(count):
@@ -1447,7 +1468,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             time.sleep(.1)            
     
     def _go_to_root_menu(self):
-        # try to get root menu if instrument is not sleeping by sending single control-c
+        # try to get root menu presuming the instrument is not sleeping by sending single control-c
         for attempt in range(0,2):
             self._linebuf = ''
             self._promptbuf = ''
@@ -1463,10 +1484,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                     log.debug("_go_to_root_menu: got root menu prompt")
                     return
                 if prompt == InstrumentPrompts.SLEEPING:
+                    # instrument says it is sleeping, so try to wake it up
                     log.debug("_go_to_root_menu: GOT SLEEPING PROMPT !!!!!!!!!!!!!!!!!!!!!!!")
                     break
         # instrument acts like it's asleep, so try to wake it up and get to root menu
-        count = 3
+        count = 3   # send 3 control-c characters to get the instruments attention
         for attempt in range(0,5):
             self._linebuf = ''
             self._promptbuf = ''
@@ -1480,12 +1502,14 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             except:
                 log.debug('_go_to_root_menu: TIMED_OUT WAITING FOR PROMPT FROM 3 CONTROL-Cs !!!!!!!!!!!!!!!')
                 pass
-            log.debug("_go_to_root_menu: prompt after sending 3 control-c characters = <%s>" %prompt)
+            log.debug("_go_to_root_menu: prompt after sending %d control-c characters = <%s>" %(count, prompt))
             if prompt == InstrumentPrompts.MAIN_MENU:
                 return
             if prompt == InstrumentPrompts.SLEEP_WAKEUP:
-                count = 1
-        log.debug("_go_to_root_menu: failed to get to root menu, prompt=%s (%s)" %(self._prompt, self._prompt.encode("hex")))
+                count = 1    # send 1 control=c to get the root menu
+            if prompt == InstrumentPrompts.SLEEPING:
+                count = 3    # send 3 control-c characters to get the instruments attention
+        log.debug("_go_to_root_menu: failed to get to root menu, prompt=%s (%s)" %(prompt, prompt.encode("hex")))
         raise InstrumentTimeoutException("failed to get to root menu.")
                 
     def _parse_sensor_orientation(self, sensor_orientation):
@@ -1590,7 +1614,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda string : str(string),
                              startup_param=True,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             value='3',
+                             default_value='3',
                              menu_path_read=SubMenues.DEPLOY,
                              submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
@@ -1610,7 +1634,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*M\| Monitor\s+\w+\s+(\w+).*', 
                              lambda match : self._parse_on_off(match.group(1)),
                              lambda string : str(string),
-                             value='for_test')
+                             value='')
 
         self._param_dict.add(InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
                              r'.*M\| Monitor\s+\w+\s+\w+\s+(\w+).*', 
@@ -1638,7 +1662,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*4\| Measurement Frequency\s+(\d+.\d+)\s+\[Hz\].*', 
                              lambda match : float(match.group(1)),
                              self._float_to_string,
-                             value=1.0,
+                             default_value=1.0,
                              menu_path_read=SubMenues.DEPLOY,
                              submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
@@ -1648,7 +1672,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*5\| Measurements/Sample\s+(\d+)\s+\[M/S\].*', 
                              lambda match : int(match.group(1)),
                              self._int_to_string,
-                             value=1,
+                             default_value=1,
                              menu_path_read=SubMenues.DEPLOY,
                              submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
@@ -1658,7 +1682,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*6\| Sample Period\s+(\d+.\d+)\s+\[sec\].*', 
                              lambda match : float(match.group(1)),
                              self._float_to_string,
-                             value=0.0,
                              menu_path_read=SubMenues.DEPLOY,
                              submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
@@ -1668,7 +1691,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*7\| Samples/Burst\s+(\d+)\s+\[S/B\].*', 
                              lambda match : int(match.group(1)),
                              self._int_to_string,
-                             value=0,
                              menu_path_read=SubMenues.DEPLOY,
                              submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
@@ -1678,7 +1700,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*8\| Burst Interval\s+(\d+)\s+.*', 
                              lambda match : int(match.group(1)),
                              self._int_to_string,
-                             value=0,
+                             default_value=0,
                              menu_path_read=SubMenues.DEPLOY,
                              submenu_read=None,
                              menu_path_write=SubMenues.DEPLOY,
@@ -1688,25 +1710,24 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*8\| Burst Interval\s+\d+\s+(\d+):.*', 
                              lambda match : int(match.group(1)),
                              self._int_to_string,
-                             value=0)
+                             default_value=0)
 
         self._param_dict.add(InstrumentParameters.BURST_INTERVAL_MINUTES,
                              r'.*8\| Burst Interval\s+\d+\s+\d+:(\d+):.*', 
                              lambda match : int(match.group(1)),
                              self._int_to_string,
-                             value=0)
+                             default_value=0)
 
         self._param_dict.add(InstrumentParameters.BURST_INTERVAL_SECONDS,
                              r'.*8\| Burst Interval\s+\d+\s+\d+:\d+:(\d+)\s+.*', 
                              lambda match : int(match.group(1)),
                              self._int_to_string,
-                             value=0)
+                             default_value=0)
 
         self._param_dict.add(InstrumentParameters.SI_CONVERSION,
                              r'.*<C> Binary to SI Conversion\s+(\d+.\d+)\s+.*', 
                              lambda match : float(match.group(1)),
                              self._float_to_string,
-                             value=0.0028033,
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
@@ -1716,7 +1737,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*<W> Warm up interval\s+(\w+)\s+.*', 
                              lambda match : match.group(1),
                              lambda string : str(string),
-                             value='fast',
+                             default_value='fast',
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
@@ -1726,17 +1747,27 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*<1> 3-Axis Compass\s+(\w+)\s+.*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
                              lambda string : str(string),
-                             value='y',
+                             default_value='y',
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
                              submenu_write=InstrumentCmds.SET_THREE_AXIS_COMPASS)
 
+        self._param_dict.add(InstrumentParameters.SOLID_STATE_TILT,
+                             r'.*<2> Solid State Tilt\s+(\w+)\s+.*', 
+                             lambda match : self._parse_enable_disable(match.group(1)),
+                             lambda string : str(string),
+                             default_value='y',
+                             menu_path_read=SubMenues.CONFIGURATION,
+                             submenu_read=None,
+                             menu_path_write=SubMenues.CONFIGURATION,
+                             submenu_write=InstrumentCmds.SET_SOLID_STATE_TILT)
+
         self._param_dict.add(InstrumentParameters.THERMISTOR,
                              r'.*<3> Thermistor\s+(\w+)\s+.*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
                              lambda string : str(string),
-                             value='y',
+                             default_value='y',
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
@@ -1746,7 +1777,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*<4> Pressure\s+(\w+)\s+.*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
                              lambda string : str(string),
-                             value='n',                    # this parameter can only be set to 'n' (meaning disabled)
+                             default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
                                                            # support for setting it to 'y' has not been implemented
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
@@ -1757,7 +1788,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*<5> Auxiliary 1\s+(\w+)\s+.*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
                              lambda string : str(string),
-                             value='n',                    # this parameter can only be set to 'n' (meaning disabled)
+                             default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
                                                            # support for setting it to 'y' has not been implemented
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
@@ -1768,7 +1799,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*<6> Auxiliary 2\s+(\w+)\s+.*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
                              lambda string : str(string),
-                             value='n',                    # this parameter can only be set to 'n' (meaning disabled)
+                             default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
                                                            # support for setting it to 'y' has not been implemented
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
@@ -1779,7 +1810,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*<7> Auxiliary 3\s+(\w+)\s+.*', 
                              lambda match : self._parse_enable_disable(match.group(1)),
                              lambda string : str(string),
-                             value='n',                    # this parameter can only be set to 'n' (meaning disabled)
+                             default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
                                                            # support for setting it to 'y' has not been implemented
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
@@ -1790,7 +1821,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*<O> Sensor Orientation\s+(.*)\n.*', 
                              lambda match : self._parse_sensor_orientation(match.group(1)),
                              lambda string : str(string),
-                             value='2',
+                             default_value='2',
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
@@ -1911,6 +1942,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : int(match.group(1)),
                              self._int_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
+                             value=-1,     # to indicate that the parameter has not been read from the instrument
                              menu_path_read=SubMenues.CALIBRATION,
                              submenu_read=InstrumentCmds.TILT_OFFSETS,
                              menu_path_write=None,
@@ -1920,6 +1952,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              r'.*Current tilt offsets:\s+\d+\s+(\d+)\s+.*', 
                              lambda match : int(match.group(1)),
                              self._int_to_string,
+                             value=-1,     # to indicate that the parameter has not been read from the instrument
                              visibility=ParameterDictVisibility.READ_ONLY,
                              menu_path_read=SubMenues.CALIBRATION,
                              submenu_read=InstrumentCmds.TILT_OFFSETS,
@@ -1945,6 +1978,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.ANSWER_THERMISTOR_NO, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_THERMISTOR, self._build_enter_thermistor_command)
         self._add_build_handler(InstrumentCmds.SET_THERMISTOR, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.ANSWER_SOLID_STATE_TILT_YES, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.ENTER_SOLID_STATE_TILT, self._build_enter_solid_state_tilt_command)
+        self._add_build_handler(InstrumentCmds.SET_SOLID_STATE_TILT, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_THREE_AXIS_COMPASS, self._build_simple_enter_command)
         self._add_build_handler(InstrumentCmds.SET_THREE_AXIS_COMPASS, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_WARM_UP_INTERVAL, self._build_enter_warm_up_interval_command)
@@ -2026,6 +2062,27 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         response = InstrumentPrompts.AUXILIARY.replace("*", name[-1])
         log.debug("_build_set_auxiliary_command: cmd=%s" %cmd)
         return (cmd, response, InstrumentCmds.ENTER_AUXILIARY)
+
+    def _build_enter_solid_state_tilt_command(self, **kwargs):
+        """
+        Build handler for solid state tilt enter command 
+        @ retval list with:
+            The command to be sent to the device
+            The response expected from the device
+            The next command to be sent to device 
+        """
+        name = kwargs.get('name', None)
+        if name == None:
+            raise InstrumentParameterException('solid state tilt enter command requires a name.')
+        value = kwargs.get('value', None)
+        if value == None:
+            raise InstrumentParameterException('solid state tilt  enter command requires a value.')
+        cmd = "%s" %(self._param_dict.format(name, value)[0])
+        log.debug("_build_enter_solid_state_tilt_command: cmd=%s" %cmd)
+        if cmd != InstrumentCmds.ANSWER_SOLID_STATE_TILT_YES:
+            return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
+        else:
+            return (cmd, InstrumentPrompts.LOAD_DEFAULT_TILT, InstrumentCmds.ANSWER_SOLID_STATE_TILT_YES)
 
     def _build_enter_thermistor_command(self, **kwargs):
         """
@@ -2420,7 +2477,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         compass_scale_factors_set_prameters_parsed = False
         tilt_offset_set_prameters_parsed = False
         
-        for key in InstrumentParameters.list():
+        # sort the list so that the solid_state_tilt parameter will be updated and accurate before the tilt_offset
+        # parameters are updated, so that the check of the solid_state_tilt param value reflects what's on the instrument
+        for key in sorted(InstrumentParameters.list()):
             if key == InstrumentParameters.ALL:
                 # this is not the name of any parameter
                 continue
@@ -2475,6 +2534,12 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             elif key in TiltOffsetParameters.list():
                 # only screen scrape the tilt offset set response once for efficiency
                 if tilt_offset_set_prameters_parsed == True:
+                    continue
+                elif self._param_dict.get(InstrumentParameters.SOLID_STATE_TILT) == 'n':
+                    # don't get the tilt offset parameters if the solid state tilt is disabled
+                    self._param_dict.set(InstrumentParameters.TILT_PITCH_OFFSET, -1)
+                    self._param_dict.set(InstrumentParameters.TILT_ROLL_OFFSET, -1)
+                    tilt_offset_set_prameters_parsed = True               
                     continue
                 else:
                     tilt_offset_set_prameters_parsed = True
