@@ -40,7 +40,7 @@ class TestUnitInstrumentDriver(MiUnitTestCase):
         self.mock.port_agent = Mock(name='port_agent_client')
         self.mock.callback = Mock(name='callback')
 
-        def mock_set(values):
+        def mock_set(values, startup=True):
             assert isinstance(values, dict)
             return_string = ""
             for key in values.keys():

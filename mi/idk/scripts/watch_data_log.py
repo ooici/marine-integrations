@@ -9,24 +9,32 @@ __author__ = 'Bill French'
 
 import time
 import sys
-import re
-from xml.dom.minidom import parseString
+import binascii
 
 from mi.idk.comm_config import CommConfig
 from mi.idk.metadata import Metadata
+from mi.core.instrument.port_agent_client import PortAgentPacket, HEADER_SIZE
 
 DATADIR="/tmp"
 SLEEP=1.0
+SENTINLE=binascii.unhexlify('A39D7A')
 
 def run():
     buffer = ""
     file = _get_file()
     for line in _follow(file):
+        if(buffer == None): buffer = ""
         buffer = buffer + line
-        record = _get_record(buffer)
+        (record, buffer) = _get_record(buffer)
         if(record):
-            sys.stdout.write(record)
-            buffer = ""
+            _write_packet(record)
+
+def _write_packet(record):
+    if(record.get_header_type() == PortAgentPacket.DATA_FROM_INSTRUMENT):
+        sys.stdout.write(record.get_data())
+    elif(record.get_header_type() == PortAgentPacket.DATA_FROM_DRIVER):
+        sys.stdout.write(">>> %s" % record.get_data())
+        pass
 
 def _get_file():
     """
@@ -69,15 +77,49 @@ def _get_record(buffer):
     Work to read a XML record.  If we can't parse then just return nothing
     @return: if an XML port agent record is found, return it's value.
     """
-    try:
-        dom = parseString(buffer)
-        if(dom.documentElement.tagName != 'port_agent_packet'):
-            sys.stderr("ERROR: unrecognized tag name: %s" % dom.documentElement.tagName)
+    remaining = None
+    data_start = 0
+    data_end = 0
 
-        element = dom.getElementsByTagName('port_agent_packet')[0]
-        return element.firstChild.nodeValue
-    except Exception as e:
-        return None
+    index = buffer.find(SENTINLE)
+
+    if(index < 0):
+        return (None, buffer)
+
+    packet = _get_header(buffer[index:])
+    if packet:
+        remaining = _get_remaining(buffer[index:], packet)
+        if(_read_data(buffer[index:], packet)):
+            return (packet, remaining)
+        else:
+            if(remaining):
+                return (None, buffer[index+1:])
+            else:
+                return (None, buffer)
+    else:
+        return (None, buffer)
+
+def _get_header(buffer):
+    packet = PortAgentPacket()
+    if(len(buffer) < HEADER_SIZE): return None
+
+    header = buffer[0:HEADER_SIZE]
+    packet.unpack_header(header)
+
+    if(packet.get_data_size() < 0): return None
+
+    return packet
+
+def _read_data(buffer, packet):
+    if(len(buffer) < HEADER_SIZE + packet.get_data_size()): return False
+    data = buffer[HEADER_SIZE:HEADER_SIZE+packet.get_data_size()]
+    packet.attach_data(data)
+
+    return True
+
+def _get_remaining(buffer, packet):
+    if(len(buffer) == HEADER_SIZE + packet.get_data_size()): return None
+    return buffer[HEADER_SIZE+packet.get_data_size():]
 
 
 if __name__ == '__main__':
