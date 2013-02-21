@@ -27,19 +27,17 @@ def run():
     failure = False
 
     for metadata in get_metadata(opts):
-        app = NoseTest(metadata, testname=opts.testname)
+        app = NoseTest(metadata, testname=opts.testname, suppress_stdout=opts.suppress_stdout, noseargs=opts.noseargs)
+
+        app.report_header()
 
         if( opts.unit ):
-            app.report_header()
             success = app.run_unit()
         elif( opts.integration ):
-            app.report_header()
             success = app.run_integration()
         elif( opts.qualification ):
-            app.report_header()
             success = app.run_qualification()
         elif( opts.publication ):
-            app.report_header()
             success = app.run_publication()
         else:
             success = app.run()
@@ -76,6 +74,8 @@ def get_metadata(opts):
 
 def parseArgs():
     parser = argparse.ArgumentParser(description="IDK Start Driver")
+    parser.add_argument("-s", dest='suppress_stdout', action="store_true",
+                        help="hide stdout" )
     parser.add_argument("-u", dest='unit', action="store_true",
                         help="only run unit tests" )
     parser.add_argument("-i", dest='integration', action="store_true",
@@ -87,7 +87,9 @@ def parseArgs():
     parser.add_argument("-b", dest='buildbot', action="store_true",
         help="run all tests for drivers listed in %s" % BUILDBOT_DRIVER_FILE)
     parser.add_argument("-t", dest='testname',
-        help="test function name to run (all if not set)" )
+                        help="test function name to run (all if not set)" )
+    parser.add_argument("-n", dest='noseargs',
+        help="extra nosetest args, use '+' for '-'" )
     #parser.add_argument("-m", dest='launch_monitor', action="store_true",
     #                    help="Launch data file monitor" )
     return parser.parse_args()

@@ -8,10 +8,8 @@ __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
 import os
-import csv
 import sys
 import nose
-import yaml
 import inspect
 
 from mi.core.log import get_logger ; log = get_logger()
@@ -56,13 +54,17 @@ class NoseTest(object):
     ###
     #   Private Methods
     ###
-    def __init__(self, metadata, testname = None, log_file = None, launch_data_moniotor = False):
+    def __init__(self, metadata, testname = None, log_file = None, suppress_stdout = False, noseargs = None, launch_data_moniotor = False):
         """
         @brief Constructor
         @param metadata IDK Metadata object
         @param log_file File to store test results.  If none specified log to STDOUT
+        @param supress_stdout do not use the -s option with nosetest
+        @param noseargs extra arguments to sent to nose.
         """
         self._testname = testname
+
+        os.putenv('NOSE_NOCAPTURE', "")
 
         repo_dir = Config().get("working_repo")
         if(not repo_dir):
@@ -81,6 +83,9 @@ class NoseTest(object):
 
         if(metadata):
             self._init_test(metadata)
+
+        self._noseargs = noseargs
+        self._suppress_stdout = suppress_stdout
 
     def __del__(self):
         """
@@ -201,7 +206,6 @@ class NoseTest(object):
 
             # We only want to inspect classes defined in the test module explicitly.  Ignore imported classes
             if(clsstr == str(clsobj)):
-                self._log("clsstr: %s" % clsstr)
                 if(issubclass(clsobj, IDKTestClasses.UNIT)):
                     self._unit_test_class = name
                 if(issubclass(clsobj, IDKTestClasses.INT)):
@@ -228,7 +232,6 @@ class NoseTest(object):
         @brief Run all tests
         @retval False if any test has failed, True if all successful
         """
-        self.report_header()
         if(not self.run_unit()):
             self._log( "\n\n!!!! ERROR: Unit Tests Failed !!!!")
             return False
@@ -264,10 +267,14 @@ class NoseTest(object):
         """
         self._log("*** Starting Unit Tests ***")
         self._log(" ==> module: " + self._driver_test_module())
-        args=[ sys.argv[0], '-s', '-v', '-a', 'UNIT', self._unit_test_module_param()]
         module = "%s" % (self._driver_test_module())
 
-        return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
+        args=[sys.argv[0]]
+        args += self._nose_stdout()
+        args += self._extra_args()
+        args += [self._unit_test_module_param()]
+
+        self._run_nose(module, args)
 
     def run_integration(self):
         """
@@ -275,10 +282,10 @@ class NoseTest(object):
         """
         self._log("*** Starting Integration Tests ***")
         self._log(" ==> module: " + self._driver_test_module())
-        args=[ sys.argv[0], '-s', '-v', '-a', 'INT', self._int_test_module_param()]
+        args=[ sys.argv[0], self._nose_stdout(), '-v', '-a', 'INT', self._int_test_module_param()]
         module = "%s" % (self._driver_test_module())
 
-        return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
+        self._run_nose(module, args)
 
     def run_qualification(self):
         """
@@ -286,10 +293,10 @@ class NoseTest(object):
         """
         self._log("*** Starting Qualification Tests ***")
         self._log(" ==> module: " + self._qualification_test_module())
-        args=[ sys.argv[0], '-s', '-v', '-a', 'QUAL', '-v', self._qual_test_module_param() ]
+        args=[ sys.argv[0], self._nose_stdout(), '-v', '-a', 'QUAL', self._qual_test_module_param()]
         module = "%s" % (self._qualification_test_module())
 
-        return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
+        self._run_nose(module, args)
 
     def run_publication(self):
         """
@@ -302,11 +309,41 @@ class NoseTest(object):
             raise IDKException("Test module does not contain publication tests")
 
         self._log(" ==> class: " + self._pub_test_module_param())
-        args=[ sys.argv[0], '-s', '-v', '-a', 'PUB', '-v', self._pub_test_module_param() ]
+        args=[ sys.argv[0]]
+        args += self._nose_stdout()
+        args += ['-v', '-a', 'PUB']
+        args += [self._pub_test_module_param()]
+
         module = "%s" % (self._data_test_module())
 
+        self._run_nose(module, args)
+
+    def _nose_stdout(self):
+        """
+        Return '-s' if we want to output stdout
+        @return: Nosetest option for if we want stdout or not
+        """
+        if(self._suppress_stdout):
+            return ["v"]
+        else:
+            return []
+
+    def _extra_args(self):
+        """
+        Return a list of extra arguments we want to send to nose.  Not, thise currently splits a string on whitespace
+        which will catch quoted strings as well.  Some day we may need to make this a little smarter and split
+        like the shell would split a command line.
+        @return: list of nose arguments.
+        """
+        result = []
+        if(self._noseargs):
+            for arg in self._noseargs.split():
+                result.append(arg.replace("+", "-"))
+
+        return result
+
+    def _run_nose(self, module, args):
+        log.debug("running nose tests with args: %s" % args)
+        log.debug("ARGV: %s" % sys.argv)
         return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
-
-
-
 
