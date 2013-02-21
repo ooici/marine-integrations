@@ -64,7 +64,8 @@ class NoseTest(object):
         """
         self._testname = testname
 
-        os.putenv('NOSE_NOCAPTURE', "")
+        #os.environ['NOSE_NOCAPTURE'] = ""
+        log.debug("ENV: %s" % os.environ)
 
         repo_dir = Config().get("working_repo")
         if(not repo_dir):
@@ -324,9 +325,9 @@ class NoseTest(object):
         @return: Nosetest option for if we want stdout or not
         """
         if(self._suppress_stdout):
-            return ["v"]
-        else:
             return []
+        else:
+            return ["-s"]
 
     def _extra_args(self):
         """
