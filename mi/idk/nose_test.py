@@ -271,11 +271,11 @@ class NoseTest(object):
         module = "%s" % (self._driver_test_module())
 
         args=[sys.argv[0]]
-        args += self._nose_stdout()
-        args += self._extra_args()
+        #args += self._nose_stdout()
+        #args += self._extra_args()
         args += [self._unit_test_module_param()]
 
-        self._run_nose(module, args)
+        return self._run_nose(module, args)
 
     def run_integration(self):
         """
@@ -283,10 +283,11 @@ class NoseTest(object):
         """
         self._log("*** Starting Integration Tests ***")
         self._log(" ==> module: " + self._driver_test_module())
-        args=[ sys.argv[0], self._nose_stdout(), '-v', '-a', 'INT', self._int_test_module_param()]
+        args=[sys.argv[0]]
+        args += [self._int_test_module_param()]
         module = "%s" % (self._driver_test_module())
 
-        self._run_nose(module, args)
+        return self._run_nose(module, args)
 
     def run_qualification(self):
         """
@@ -294,10 +295,11 @@ class NoseTest(object):
         """
         self._log("*** Starting Qualification Tests ***")
         self._log(" ==> module: " + self._qualification_test_module())
-        args=[ sys.argv[0], self._nose_stdout(), '-v', '-a', 'QUAL', self._qual_test_module_param()]
+        args=[sys.argv[0]]
+        args += [self._qual_test_module_param()]
         module = "%s" % (self._qualification_test_module())
 
-        self._run_nose(module, args)
+        return self._run_nose(module, args)
 
     def run_publication(self):
         """
@@ -311,13 +313,13 @@ class NoseTest(object):
 
         self._log(" ==> class: " + self._pub_test_module_param())
         args=[ sys.argv[0]]
-        args += self._nose_stdout()
-        args += ['-v', '-a', 'PUB']
+        #args += self._nose_stdout()
+        #args += ['-v', '-a', 'PUB']
         args += [self._pub_test_module_param()]
 
         module = "%s" % (self._data_test_module())
 
-        self._run_nose(module, args)
+        return self._run_nose(module, args)
 
     def _nose_stdout(self):
         """
