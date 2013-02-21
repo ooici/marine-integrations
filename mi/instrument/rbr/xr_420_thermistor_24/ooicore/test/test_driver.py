@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-@package mi.instrument.rbr.xr-420_thermistor_24.test.test_driver
-@file /Users/Bill/WorkSpace/marine-integrations/mi/instrument/rbr/xr-420_thermistor_24/driver.py
+@package mi.instrument.rbr.xr_420_thermistor_24.test.test_driver
+@file /Users/Bill/WorkSpace/marine-integrations/mi/instrument/rbr/xr_420_thermistor_24/driver.py
 @author Bill Bollenbacher
-@brief Test cases for xr-420 thermistor driver
+@brief Test cases for xr_420 thermistor driver
  
 USAGE:
  Make tests verbose and provide stdout
@@ -15,10 +15,10 @@ USAGE:
        $ bin/test_driver -q
 
    * From pyon
-       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/rbr/xr-420_thermistor_24
-       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/rbr/xr-420_thermistor_24 -a UNIT
-       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/rbr/xr-420_thermistor_24 -a INT
-       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/rbr/xr-420_thermistor_24 -a QUAL
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/rbr/xr_420_thermistor_24
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/rbr/xr_420_thermistor_24 -a UNIT
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/rbr/xr_420_thermistor_24 -a INT
+       $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/rbr/xr_420_thermistor_24 -a QUAL
 """
 
 __author__ = 'Bill Bollenbacher'
@@ -59,27 +59,26 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
-from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import mavs4InstrumentDriver
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import DataParticleType
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import ProtocolStates
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import ProtocolEvent
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import mavs4InstrumentProtocol
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import InstrumentParameters
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import InstrumentCmds
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import Capability
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import InstrumentPrompts
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import Mavs4StatusDataParticleKey
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import Mavs4SampleDataParticleKey
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import Mavs4SampleDataParticle
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import DeployMenuParameters
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import SystemConfigurationMenuParameters
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import VelocityOffsetParameters
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import CompassOffsetParameters
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import CompassScaleFactorsParameters
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import TiltOffsetParameters
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import SubMenues
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import InstrumentPrompts
-from mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver import INSTRUMENT_NEWLINE
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentDriver
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import DataParticleType
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import ProtocolStates
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import ProtocolEvent
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentProtocol
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentParameters
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentCmds
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import Capability
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentPrompts
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import Mavs4StatusDataParticleKey
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import Mavs4SampleDataParticleKey
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import Mavs4SampleDataParticle
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import DeployMenuParameters
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import SystemConfigurationMenuParameters
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import VelocityOffsetParameters
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import CompassOffsetParameters
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import CompassScaleFactorsParameters
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import TiltOffsetParameters
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import SubMenues
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import INSTRUMENT_NEWLINE
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
@@ -104,16 +103,16 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 
 ## Initialize the test configuration
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver',
-    driver_class="mavs4InstrumentDriver",
+    driver_module='mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver',
+    driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = 'nobska_mavs4_ooicore',
-    instrument_agent_name = 'nobska_mavs4_ooicore_agent',
+    instrument_agent_resource_id = 'rbr_xr_420_ooicore',
+    instrument_agent_name = 'rbr_xr_420_ooicore_agent',
     instrument_agent_packet_config = DataParticleType(),
     
     driver_startup_config = {
         DriverStartupConfigKey.PARAMETERS: {
-            InstrumentParameters.VELOCITY_FRAME: '3',
+            InstrumentParameters.SYS_CLOCK: '3',
         },
     }
 )
@@ -506,12 +505,12 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
 ###############################################################################
 
 @attr('INT', group='mi')
-class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
+class TestINT(InstrumentDriverIntegrationTestCase):
     """Integration Test Container"""
     
     @staticmethod
     def driver_module():
-        return 'mi.instrument.rbr.xr-420_thermistor_24.ooicore.driver'
+        return 'mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver'
         
     @staticmethod
     def driver_class():

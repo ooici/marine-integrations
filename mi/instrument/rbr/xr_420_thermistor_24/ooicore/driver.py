@@ -78,7 +78,8 @@ class InstrumentResponses(BaseEnum):
     """
     XR-420 responses.
     """
-    IDENTIFICATION          = 'RBR XR-420'
+    STATUS          = 'Logger status '
+    LINE_TERMINATOR = INSTRUMENT_NEWLINE
         
 class InstrumentCmds(BaseEnum):   
     GET_IDENTIFICATION       = 'A' 
@@ -145,15 +146,59 @@ class InstrumentParameters(DriverParameter):
     Device parameters for XR-420.
     """
     # main menu parameters
-    IDENTIFICATION       = 'identification'
-    SYS_CLOCK            = 'sys_clock'
-    LOGGER_DATE_AND_TIME = 'logger_date_and_time'
-    SAMPLE_INTERVAL      = 'sample_interval'
-    START_DATE_AND_TIME  = 'start_date_and_time'
-    END_DATE_AND_TIME    = 'end_date_and_time'
+    #IDENTIFICATION       = 'identification'
+    #SYS_CLOCK            = 'sys_clock'
+    #LOGGER_DATE_AND_TIME = 'logger_date_and_time'
+    #SAMPLE_INTERVAL      = 'sample_interval'
+    #START_DATE_AND_TIME  = 'start_date_and_time'
+    #END_DATE_AND_TIME    = 'end_date_and_time'
     STATUS               = 'status'
-    BATTERY_VOLTAGE      = 'battery_voltage'
+    #BATTERY_VOLTAGE      = 'battery_voltage'
     
+class Status(DriverParameter):
+    NOT_ENABLED_FOR_SAMPLING       = 0x00
+    ENABLED_SAMPLING_NOT_STARTED   = 0x01
+    STARTED_SAMPLING               = 0x02
+    STOPPED_SAMPLING               = 0x04
+    TEMPORARILY_SUSPENDED_SAMPLING = 0x05
+    HIGH_SPEED_PROFILING_MODE      = 0x06
+    ERASING_DATA_MEMORY            = 0x7F
+    DATA_MEMORY_ERASE_FAILED       = 0x80
+    PASSED_END_TIME                = 0x01
+    RCVD_STOP_COMMAND              = 0x02
+    DATA_MEMORY_FULL               = 0x03
+    CONFIGURATION_ERROR            = 0x05
+
+###
+#   Driver for XR-420 Thermistor
+###
+class InstrumentDriver(SingleConnectionInstrumentDriver):
+
+    """
+    Instrument driver class for XR-420 driver.
+    Uses CommandResponseInstrumentProtocol to communicate with the device
+    """
+
+    def __init__(self, evt_callback):
+        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+        # replace the driver's discover handler with one that applies the startup values after discovery
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, 
+                                         DriverEvent.DISCOVER, 
+                                         self._handler_connected_discover)
+    
+    def _handler_connected_discover(self, event, *args, **kwargs):
+        # Redefine discover handler so that we can apply startup params after we discover. 
+        # For this instrument the driver puts the instrument into command mode during discover.
+        result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
+        self.apply_startup_params()
+        return result
+
+    def _build_protocol(self):
+        """
+        Construct the driver protocol state machine.
+        """
+        self._protocol = InstrumentProtocol(InstrumentResponses, INSTRUMENT_NEWLINE, self._driver_event)
+        
 ###############################################################################
 # Data particles
 ###############################################################################
@@ -195,7 +240,7 @@ class XR_420SampleDataParticle(DataParticle):
         return result
     
 class XR_420StatusDataParticleKey(BaseEnum):
-    BATTERY_VOLTAGE  = InstrumentParameters.BATTERY_VOLTAGE
+    BATTERY_VOLTAGE  = InstrumentParameters.STATUS
                 
 class XR_420StatusDataParticle(DataParticle):
     """
@@ -240,7 +285,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._last_data_timestamp = None
         self.eoln = INSTRUMENT_NEWLINE
         
-        CommandResponseInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event)
+        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
                 
         self._protocol_fsm = InstrumentFSM(ProtocolStates, 
                                            ProtocolEvent, 
@@ -310,6 +355,12 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     # implement virtual methods from base class.
     ########################################################################
 
+    def _send_wakeup(self):
+        # Send 'get status' command.
+        cmd = InstrumentCmds.GET_STATUS
+        log.debug('_send_wakeup: sending <%s>' % cmd)
+        self._connection.send(cmd)
+
     def apply_startup_params(self):
         """
         Apply all startup parameters.  First we check the instrument to see
@@ -366,24 +417,34 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
-        Discover current state; can be COMMAND or AUTOSAMPLE.  If the instrument is sleeping
-        consider that to be in command state.
+        Discover current state; can be COMMAND or AUTOSAMPLE.  
         @retval (next_state, result), (ProtocolStates.COMMAND or ProtocolStates.AUTOSAMPLE, None) if successful.
         """
         next_state = None
         result = None
         
-        # try to get root menu prompt from the device using timeout if passed.
-        # NOTE: this driver always tries to put instrument into command mode so that parameters can be initialized
         try:
-            prompt = self._go_to_root_menu()
+            response = self._wakeup(5, .1)
         except InstrumentTimeoutException:
-            # didn't get root menu prompt, so indicate that there is trouble with the instrument
+            # didn't get status response, so indicate that there is trouble with the instrument
             raise InstrumentStateException('Unknown state.')
+        
+        if InstrumentResponses.STATUS in self._promptbuf:
+            # got status response, so determine what mode the instrument is in
+            parsed = response.split() 
+            status = int(parsed[2], 16)
+            if status > Status.DATA_MEMORY_ERASE_FAILED:
+                status = Status.STOPPED_SAMPLING
+            if status in [Status.STARTED_SAMPLING,
+                          Status.TEMPORARILY_SUSPENDED_SAMPLING,
+                          Status.HIGH_SPEED_PROFILING_MODE]:
+                next_state = ProtocolStates.AUTOSAMPLE
+                result = ResourceAgentState.STREAMING
+            else:
+                next_state = ProtocolStates.COMMAND
+                result = ResourceAgentState.IDLE
         else:
-            # got root menu prompt, so device is in command mode           
-            next_state = ProtocolStates.COMMAND
-            result = ResourceAgentState.IDLE
+            raise InstrumentStateException('Unknown state.')
             
         return (next_state, result)
 
@@ -664,18 +725,19 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         # build a dictionary of the parameters that are to be returned in the status data particle
         status_params = {}
-        for name in Mavs4StatusDataParticleKey.list():
+        for name in XR_420StatusDataParticle.list():
             status_params[name] = self._param_dict.get(name)
             
         # Create status data particle, but pass in a reference to the dictionary just created as first parameter instead of the 'line'.
         # The status data particle class will use the 'raw_data' variable as a reference to a dictionary object to get
         # access to parameter values (see the Mavs4StatusDataParticle class).
-        particle = Mavs4StatusDataParticle(status_params, preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
+        particle = XR_420StatusDataParticle(status_params, preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
         status = particle.generate()
 
         # send particle as an event
         self._driver_event(DriverAsyncEvent.SAMPLE, status)
     
+
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with XR-420 parameters.
@@ -685,651 +747,41 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict = ProtocolParameterDict()
         
         # Add parameter handlers to parameter dictionary for instrument configuration parameters.
+        self._param_dict.add(InstrumentParameters.STATUS,
+                             r'Logger status (.*)\n', 
+                             lambda match : match.group(1),
+                             lambda string : str(string),
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_STATUS)
+
+        self._param_dict.add(InstrumentParameters.IDENTIFICATION,
+                             r'(.*)\n', 
+                             lambda match : match.group(1),
+                             lambda string : str(string),
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_IDENTIFICATION)
+
         self._param_dict.add(InstrumentParameters.SYS_CLOCK,
-                             r'.*\[(.*)\].*', 
+                             r'(.*)CTD\n', 
                              lambda match : match.group(1),
                              lambda string : str(string),
-                             menu_path_read=SubMenues.ROOT,
-                             submenu_read=InstrumentCmds.SET_TIME,
-                             menu_path_write=SubMenues.SET_TIME,
-                             submenu_write=InstrumentCmds.ENTER_TIME)
+                             submenu_read=InstrumentCmds.GET_LOGGER_DATE_AND_TIME,
+                             submenu_write=InstrumentCmds.SET_LOGGER_DATE_AND_TIME)
 
-        self._param_dict.add(InstrumentParameters.NOTE1,
-                             r'.*Notes 1\| (.*?)\r\n.*', 
-                             lambda match : match.group(1),
-                             lambda string : str(string),
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_NOTE)
-
-        self._param_dict.add(InstrumentParameters.NOTE2,
-                             r'.*2\| (.*?)\r\n.*', 
-                             lambda match : match.group(1),
-                             lambda string : str(string),
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_NOTE)
-
-        self._param_dict.add(InstrumentParameters.NOTE3,
-                             r'.*3\| (.*?)\r\n.*', 
-                             lambda match : match.group(1),
-                             lambda string : str(string),
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_NOTE)
-
-        self._param_dict.add(InstrumentParameters.VELOCITY_FRAME,
-                             r'.*Data  F\| Velocity Frame (.*?) TTag FSec Axes.*', 
-                             lambda match : self._parse_velocity_frame(match.group(1)),
-                             lambda string : str(string),
-                             startup_param=True,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             default_value='3',
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_VELOCITY_FRAME)
-
-        self._param_dict.add(InstrumentParameters.MONITOR,
-                             r'.*M\| Monitor\s+(\w+).*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             value='',
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_MONITOR)
-
-        self._param_dict.add(InstrumentParameters.LOG_DISPLAY_TIME,
-                             r'.*M\| Monitor\s+\w+\s+(\w+).*', 
-                             lambda match : self._parse_on_off(match.group(1)),
-                             lambda string : str(string),
-                             value='')
-
-        self._param_dict.add(InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
-                             r'.*M\| Monitor\s+\w+\s+\w+\s+(\w+).*', 
-                             lambda match : self._parse_on_off(match.group(1)),
-                             lambda string : str(string),
-                             value='')
-
-        self._param_dict.add(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES,
-                             r'.*M\| Monitor\s+\w+\s+\w+\s+\w+\s+(\w+).*', 
-                             lambda match : self._parse_on_off(match.group(1)),
-                             lambda string : str(string),
-                             value='')
-
-        self._param_dict.add(InstrumentParameters.QUERY_MODE,
-                             r'.*Q\| Query Mode\s+(\w+).*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             value='',
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_QUERY)
-
-        self._param_dict.add(InstrumentParameters.FREQUENCY,
-                             r'.*4\| Measurement Frequency\s+(\d+.\d+)\s+\[Hz\].*', 
-                             lambda match : float(match.group(1)),
-                             self._float_to_string,
-                             default_value=1.0,
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_FREQUENCY)
-
-        self._param_dict.add(InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
-                             r'.*5\| Measurements/Sample\s+(\d+)\s+\[M/S\].*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             default_value=1,
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_MEAS_PER_SAMPLE)
-
-        self._param_dict.add(InstrumentParameters.SAMPLE_PERIOD,
-                             r'.*6\| Sample Period\s+(\d+.\d+)\s+\[sec\].*', 
-                             lambda match : float(match.group(1)),
-                             self._float_to_string,
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_SAMPLE_PERIOD)
-
-        self._param_dict.add(InstrumentParameters.SAMPLES_PER_BURST,
-                             r'.*7\| Samples/Burst\s+(\d+)\s+\[S/B\].*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_SAMPLES_PER_BURST)
-
-        self._param_dict.add(InstrumentParameters.BURST_INTERVAL_DAYS,
-                             r'.*8\| Burst Interval\s+(\d+)\s+.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             default_value=0,
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_BURST_INTERVAL_DAYS)
-
-        self._param_dict.add(InstrumentParameters.BURST_INTERVAL_HOURS,
-                             r'.*8\| Burst Interval\s+\d+\s+(\d+):.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             default_value=0)
-
-        self._param_dict.add(InstrumentParameters.BURST_INTERVAL_MINUTES,
-                             r'.*8\| Burst Interval\s+\d+\s+\d+:(\d+):.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             default_value=0)
-
-        self._param_dict.add(InstrumentParameters.BURST_INTERVAL_SECONDS,
-                             r'.*8\| Burst Interval\s+\d+\s+\d+:\d+:(\d+)\s+.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             default_value=0)
-
-        self._param_dict.add(InstrumentParameters.SI_CONVERSION,
-                             r'.*<C> Binary to SI Conversion\s+(\d+.\d+)\s+.*', 
-                             lambda match : float(match.group(1)),
-                             self._float_to_string,
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_SI_CONVERSION)
-
-        self._param_dict.add(InstrumentParameters.WARM_UP_INTERVAL,
-                             r'.*<W> Warm up interval\s+(\w+)\s+.*', 
-                             lambda match : match.group(1),
-                             lambda string : str(string),
-                             default_value='fast',
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_WARM_UP_INTERVAL)
-
-        self._param_dict.add(InstrumentParameters.THREE_AXIS_COMPASS,
-                             r'.*<1> 3-Axis Compass\s+(\w+)\s+.*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             default_value='y',
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_THREE_AXIS_COMPASS)
-
-        self._param_dict.add(InstrumentParameters.SOLID_STATE_TILT,
-                             r'.*<2> Solid State Tilt\s+(\w+)\s+.*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             default_value='y',
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_SOLID_STATE_TILT)
-
-        self._param_dict.add(InstrumentParameters.THERMISTOR,
-                             r'.*<3> Thermistor\s+(\w+)\s+.*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             default_value='y',
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_THERMISTOR)
-
-        self._param_dict.add(InstrumentParameters.PRESSURE,
-                             r'.*<4> Pressure\s+(\w+)\s+.*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
-                                                           # support for setting it to 'y' has not been implemented
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_PRESSURE)
-
-        self._param_dict.add(InstrumentParameters.AUXILIARY_1,
-                             r'.*<5> Auxiliary 1\s+(\w+)\s+.*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
-                                                           # support for setting it to 'y' has not been implemented
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_AUXILIARY)
-
-        self._param_dict.add(InstrumentParameters.AUXILIARY_2,
-                             r'.*<6> Auxiliary 2\s+(\w+)\s+.*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
-                                                           # support for setting it to 'y' has not been implemented
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_AUXILIARY)
-
-        self._param_dict.add(InstrumentParameters.AUXILIARY_3,
-                             r'.*<7> Auxiliary 3\s+(\w+)\s+.*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
-                                                           # support for setting it to 'y' has not been implemented
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_AUXILIARY)
-
-        self._param_dict.add(InstrumentParameters.SENSOR_ORIENTATION,
-                             r'.*<O> Sensor Orientation\s+(.*)\n.*', 
-                             lambda match : self._parse_sensor_orientation(match.group(1)),
-                             lambda string : str(string),
-                             default_value='2',
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_SENSOR_ORIENTATION)
-
-        self._param_dict.add(InstrumentParameters.SERIAL_NUMBER,
-                             r'.*<S> Serial Number\s+(\w+)\s+.*', 
-                             lambda match : match.group(1),
-                             lambda string : str(string),
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=None,
-                             submenu_write=None)
-
-        self._param_dict.add(InstrumentParameters.VELOCITY_OFFSET_PATH_A,
-                             r'.*Current path offsets:\s+(\w+)\s+.*', 
-                             lambda match : int(match.group(1), 16),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
-
-        self._param_dict.add(InstrumentParameters.VELOCITY_OFFSET_PATH_B,
-                             r'.*Current path offsets:\s+\w+\s+(\w+)\s+.*', 
-                             lambda match : int(match.group(1), 16),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
-
-        self._param_dict.add(InstrumentParameters.VELOCITY_OFFSET_PATH_C,
-                             r'.*Current path offsets:\s+\w+\s+\w+\s+(\w+)\s+.*', 
-                             lambda match : int(match.group(1), 16),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
-
-        self._param_dict.add(InstrumentParameters.VELOCITY_OFFSET_PATH_D,
-                             r'.*Current path offsets:\s+\w+\s+\w+\s+\w+\s+(\w+)\s+.*', 
-                             lambda match : int(match.group(1), 16),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
-
-        self._param_dict.add(InstrumentParameters.COMPASS_OFFSET_0,
-                             r'.*Current compass offsets:\s+([-+]?\d+)\s+.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.COMPASS_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
-
-        self._param_dict.add(InstrumentParameters.COMPASS_OFFSET_1,
-                             r'.*Current compass offsets:\s+[-+]?\d+\s+([-+]?\d+)\s+.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.COMPASS_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
-
-        self._param_dict.add(InstrumentParameters.COMPASS_OFFSET_2,
-                             r'.*Current compass offsets:\s+[-+]?\d+\s+[-+]?\d+\s+([-+]?\d+)\s+.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.COMPASS_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
-
-        self._param_dict.add(InstrumentParameters.COMPASS_SCALE_FACTORS_0,
-                             r'.*Current compass scale factors:\s+(\d+.\d+)\s+.*', 
-                             lambda match : float(match.group(1)),
-                             self._float_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.COMPASS_SCALE_FACTORS,
-                             menu_path_write=None,
-                             submenu_write=None)
-
-        self._param_dict.add(InstrumentParameters.COMPASS_SCALE_FACTORS_1,
-                             r'.*Current compass scale factors:\s+\d+.\d+\s+(\d+.\d+)\s+.*', 
-                             lambda match : float(match.group(1)),
-                             self._float_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.COMPASS_SCALE_FACTORS,
-                             menu_path_write=None,
-                             submenu_write=None)
-
-        self._param_dict.add(InstrumentParameters.COMPASS_SCALE_FACTORS_2,
-                             r'.*Current compass scale factors:\s+\d+.\d+\s+\d+.\d+\s+(\d+.\d+)\s+.*', 
-                             lambda match : float(match.group(1)),
-                             self._float_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.COMPASS_SCALE_FACTORS,
-                             menu_path_write=None,
-                             submenu_write=None)
-
-        self._param_dict.add(InstrumentParameters.TILT_PITCH_OFFSET,
-                             r'.*Current tilt offsets:\s+(\d+)\s+.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             value=-1,     # to indicate that the parameter has not been read from the instrument
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.TILT_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
-
-        self._param_dict.add(InstrumentParameters.TILT_ROLL_OFFSET,
-                             r'.*Current tilt offsets:\s+\d+\s+(\d+)\s+.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             value=-1,     # to indicate that the parameter has not been read from the instrument
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.TILT_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
 
     def _build_command_handlers(self):
-        # these build handlers will be called by the base class during the navigate_and_execute sequence.        
-        self._add_build_handler(InstrumentCmds.TILT_OFFSETS, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.TILT_OFFSETS_SET, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.COMPASS_SCALE_FACTORS, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.COMPASS_SCALE_FACTORS_SET, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.COMPASS_OFFSETS, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.COMPASS_OFFSETS_SET, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.VELOCITY_OFFSETS, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.VELOCITY_OFFSETS_SET, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_SENSOR_ORIENTATION, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_SENSOR_ORIENTATION, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_AUXILIARY, self._build_enter_auxiliary_command)
-        self._add_build_handler(InstrumentCmds.SET_AUXILIARY, self._build_set_auxiliary_command)
-        self._add_build_handler(InstrumentCmds.ENTER_PRESSURE, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_PRESSURE, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ANSWER_THERMISTOR_NO, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_THERMISTOR, self._build_enter_thermistor_command)
-        self._add_build_handler(InstrumentCmds.SET_THERMISTOR, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ANSWER_SOLID_STATE_TILT_YES, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_SOLID_STATE_TILT, self._build_enter_solid_state_tilt_command)
-        self._add_build_handler(InstrumentCmds.SET_SOLID_STATE_TILT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_THREE_AXIS_COMPASS, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_THREE_AXIS_COMPASS, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_WARM_UP_INTERVAL, self._build_enter_warm_up_interval_command)
-        self._add_build_handler(InstrumentCmds.SET_WARM_UP_INTERVAL, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_SI_CONVERSION, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_SI_CONVERSION, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_SECONDS, self._build_simple_sub_parameter_enter_command)
-        self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_MINUTES, self._build_simple_sub_parameter_enter_command)
-        self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_HOURS, self._build_simple_sub_parameter_enter_command)
-        self._add_build_handler(InstrumentCmds.ENTER_BURST_INTERVAL_DAYS, self._build_simple_sub_parameter_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_BURST_INTERVAL_DAYS, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_SAMPLES_PER_BURST, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_SAMPLES_PER_BURST, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_SAMPLE_PERIOD, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_SAMPLE_PERIOD, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_MEAS_PER_SAMPLE, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_MEAS_PER_SAMPLE, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_FREQUENCY, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_FREQUENCY, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_QUERY, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_QUERY, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_ACOUSTIC_AXIS_VELOCITY_FORMAT, self._build_enter_log_display_acoustic_axis_velocity_format_command)
-        self._add_build_handler(InstrumentCmds.ENTER_LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES, self._build_enter_log_display_acoustic_axis_velocities_command)
-        self._add_build_handler(InstrumentCmds.ENTER_LOG_DISPLAY_FRACTIONAL_SECOND, self._build_simple_sub_parameter_enter_command)
-        self._add_build_handler(InstrumentCmds.ENTER_LOG_DISPLAY_TIME, self._build_simple_sub_parameter_enter_command)
-        self._add_build_handler(InstrumentCmds.ENTER_MONITOR, self._build_enter_monitor_command)
-        self._add_build_handler(InstrumentCmds.SET_MONITOR, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_VELOCITY_FRAME, self._build_enter_velocity_frame_command)
-        self._add_build_handler(InstrumentCmds.SET_VELOCITY_FRAME, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENTER_NOTE, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_NOTE, self._build_set_note_command)
-        self._add_build_handler(InstrumentCmds.ENTER_TIME, self._build_simple_enter_command)
-        self._add_build_handler(InstrumentCmds.SET_TIME, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.DEPLOY_MENU, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.SYSTEM_CONFIGURATION_MENU, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.CALIBRATION_MENU, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_simple_command)
+        
+        # Add build handlers for device commands.
+        self._add_build_handler(InstrumentCmds.GET_STATUS, self._build_keypress_command)
         
         # Add response handlers for device commands.
-        self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
-        self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
-        self._add_response_handler(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, self._parse_system_configuration_menu_response)
-        self._add_response_handler(InstrumentCmds.VELOCITY_OFFSETS_SET, self._parse_velocity_offset_set_response)
-        self._add_response_handler(InstrumentCmds.COMPASS_OFFSETS_SET, self._parse_compass_offset_set_response)
-        self._add_response_handler(InstrumentCmds.COMPASS_SCALE_FACTORS_SET, self._parse_compass_scale_factors_set_response)
-        self._add_response_handler(InstrumentCmds.TILT_OFFSETS_SET, self._parse_tilt_offset_set_response)
+        self._add_response_handler(InstrumentCmds.GET_STATUS, self._parse_status_response)
    
-    def _parse_time_response(self, response, prompt, **kwargs):
-        """
-        Parse handler for time command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if upload command misunderstood.
-        @ retval The next command to be sent to device (set to None to indicate there isn't one)
-        """
-        if not InstrumentPrompts.GET_TIME in response:
-            raise InstrumentProtocolException('get time command not recognized by instrument: %s.' % response)
-        
-        log.debug("_parse_time_response: response=%s" %response)
 
-        if not self._param_dict.update(InstrumentParameters.SYS_CLOCK, response.splitlines()[-1]):
-            log.debug('_parse_time_response: Failed to parse %s' %InstrumentParameters.SYS_CLOCK)
-        return None
-              
-    def _parse_deploy_menu_response(self, response, prompt, **kwargs):
-        """
-        Parse handler for deploy menu command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if upload command misunderstood.
-        @ retval The next command to be sent to device (set to None to indicate there isn't one)
-        """
-        if not InstrumentPrompts.DEPLOY_MENU in response:
-            raise InstrumentProtocolException('deploy menu command not recognized by instrument: %s.' %response)
-        
-        name = kwargs.get('name', None)
-        if name != InstrumentParameters.ALL:
-            # only get the parameter values if called from _update_params()
-            return None
-        for parameter in DeployMenuParameters.list():
-            #log.debug('_parse_deploy_menu_response: name=%s, response=%s' %(parameter, response))
-            if not self._param_dict.update(parameter, response):
-                log.debug('_parse_deploy_menu_response: Failed to parse %s' %parameter)
-        return None
-              
-    def _parse_system_configuration_menu_response(self, response, prompt, **kwargs):
-        """
-        Parse handler for system configuration menu command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if upload command misunderstood.
-        @ retval The next command to be sent to device (set to None to indicate there isn't one)
-        """
-        if not InstrumentPrompts.SYSTEM_CONFIGURATION_MENU in response:
-            raise InstrumentProtocolException('system configuration menu command not recognized by instrument: %s.' %response)
-        
-        name = kwargs.get('name', None)
-        if name != InstrumentParameters.ALL:
-            # only get the parameter values if called from _update_params()
-            return None
-        for parameter in SystemConfigurationMenuParameters.list():
-            #log.debug('_parse_system_configuration_menu_response: name=%s, response=%s' %(parameter, response))
-            if not self._param_dict.update(parameter, response):
-                log.debug('_parse_system_configuration_menu_response: Failed to parse %s' %parameter)
-        return None
-              
-    def _parse_velocity_offset_set_response(self, response, prompt, **kwargs):
-        """
-        Parse handler for velocity offset set command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if upload command misunderstood.
-        @ retval The next command to be sent to device (set to None to indicate there isn't one)
-        """
-        if not InstrumentPrompts.VELOCITY_OFFSETS_SET in response:
-            raise InstrumentProtocolException('velocity offset set command not recognized by instrument: %s.' %response)
-        
-        name = kwargs.get('name', None)
-        if name != InstrumentParameters.ALL:
-            # only get the parameter values if called from _update_params()
-            return None
-        for parameter in VelocityOffsetParameters.list():
-            #log.debug('_parse_velocity_offset_set_response: name=%s, response=%s' %(parameter, response))
-            if not self._param_dict.update(parameter, response):
-                log.debug('_parse_velocity_offset_set_response: Failed to parse %s' %parameter)
-        # don't leave instrument in calibration menu because it doesn't wakeup from sleeping correctly
-        self._go_to_root_menu()
-        return None
-              
-    def _parse_compass_offset_set_response(self, response, prompt, **kwargs):
-        """
-        Parse handler for compass offset set command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if upload command misunderstood.
-        @ retval The next command to be sent to device (set to None to indicate there isn't one)
-        """
-        if not InstrumentPrompts.COMPASS_OFFSETS_SET in response:
-            raise InstrumentProtocolException('compass offset set command not recognized by instrument: %s.' %response)
-        
-        name = kwargs.get('name', None)
-        if name != InstrumentParameters.ALL:
-            # only get the parameter values if called from _update_params()
-            return None
-        for parameter in CompassOffsetParameters.list():
-            #log.debug('_parse_compass_offset_set_response: name=%s, response=%s' %(parameter, response))
-            if not self._param_dict.update(parameter, response):
-                log.debug('_parse_compass_offset_set_response: Failed to parse %s' %parameter)
-        # don't leave instrument in calibration menu because it doesn't wakeup from sleeping correctly
-        self._go_to_root_menu()
-        return None
-              
-    def _parse_compass_scale_factors_set_response(self, response, prompt, **kwargs):
-        """
-        Parse handler for compass scale factors set command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if upload command misunderstood.
-        @ retval The next command to be sent to device (set to None to indicate there isn't one)
-        """
-        if not InstrumentPrompts.COMPASS_SCALE_FACTORS_SET in response:
-            raise InstrumentProtocolException('compass scale factors set command not recognized by instrument: %s.' %response)
-        
-        name = kwargs.get('name', None)
-        if name != InstrumentParameters.ALL:
-            # only get the parameter values if called from _update_params()
-            return None
-        for parameter in CompassScaleFactorsParameters.list():
-            #log.debug('_parse_compass_scale_factors_set_response: name=%s, response=%s' %(parameter, response))
-            if not self._param_dict.update(parameter, response):
-                log.debug('_parse_compass_scale_factors_set_response: Failed to parse %s' %parameter)
-        # don't leave instrument in calibration menu because it doesn't wakeup from sleeping correctly
-        self._go_to_root_menu()
-        return None
-              
-    def _parse_tilt_offset_set_response(self, response, prompt, **kwargs):
-        """
-        Parse handler for tilt offset set command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if upload command misunderstood.
-        @ retval The next command to be sent to device (set to None to indicate there isn't one)
-        """
-        if not InstrumentPrompts.TILT_OFFSETS_SET in response:
-            raise InstrumentProtocolException('tilt offset set command not recognized by instrument: %s.' %response)
-        
-        name = kwargs.get('name', None)
-        if name != InstrumentParameters.ALL:
-            # only get the parameter values if called from _update_params()
-            return None
-        for parameter in TiltOffsetParameters.list():
-            #log.debug('_parse_tilt_offset_set_response: name=%s, response=%s' %(parameter, response))
-            if not self._param_dict.update(parameter, response):
-                log.debug('_parse_tilt_offset_set_response: Failed to parse %s' %parameter)
-        # don't leave instrument in calibration menu because it doesn't wakeup from sleeping correctly
-        self._go_to_root_menu()
-        return None
-              
-    def  _get_prompt(self, timeout=8, delay=4):
-        """
-        _wakeup is replaced by this method for this instrument to search for 
-        prompt strings at other than just the end of the line.  There is no 
-        'wakeup' for this instrument when it is in 'deployed' mode,
-        so the best that can be done is to see if it responds or not.
-        
-        Clear buffers and send some CRs to the instrument
-        @param timeout The timeout to wake the device.
-        @param delay The time to wait between consecutive wakeups.
-        @throw InstrumentTimeoutException if the device could not be woken.
-        """
-        # Grab time for timeout.
-        starttime = time.time()
-        
-        # get longest prompt to match by sorting the prompts longest to shortest
-        prompts = self._sorted_longest_to_shortest(self._prompts.list())
-        log.debug("prompts=%s" %prompts)
-        
-        while True:
-            # Clear the prompt buffer.
-            self._promptbuf = ''
-        
-            # Send a line return and wait a 4 sec.
-            log.debug('Sending newline to get a response from the instrument.')
-            self._connection.send(INSTRUMENT_NEWLINE)
-            time.sleep(delay)
-            
-            for item in prompts:
-                if item in self._promptbuf:
-                    log.debug('_get_prompt got prompt: %s' % repr(item))
-                    return item
+    def _parse_status_response(self, response, prompt):
+        log.debug("_parse_status_response: response=%s" %response)
 
-            if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException()
-
+    
     def _update_params(self, *args, **kwargs):
         """
         Update the parameter dictionary. Issue the upload command. The response
@@ -1343,83 +795,12 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         # Get old param dict config.
         old_config = self._param_dict.get_config()
         
-        deploy_menu_prameters_parsed = False
-        system_configuration_menu_prameters_parsed = False
-        velocity_offset_set_prameters_parsed = False
-        compass_offset_set_prameters_parsed = False
-        compass_scale_factors_set_prameters_parsed = False
-        tilt_offset_set_prameters_parsed = False
-        
-        # sort the list so that the solid_state_tilt parameter will be updated and accurate before the tilt_offset
-        # parameters are updated, so that the check of the solid_state_tilt param value reflects what's on the instrument
-        for key in sorted(InstrumentParameters.list()):
+        for key in InstrumentParameters.list():
             if key == InstrumentParameters.ALL:
                 # this is not the name of any parameter
                 continue
-            dest_submenu = self._param_dict.get_menu_path_read(key)
             command = self._param_dict.get_submenu_read(key)
-
-            if key in DeployMenuParameters.list():
-                # only screen scrape the deploy menu once for efficiency
-                if deploy_menu_prameters_parsed == True:
-                    continue
-                else:
-                    deploy_menu_prameters_parsed = True
-                    # set name to ALL so _parse_deploy_menu_response() knows to get all values
-                    key = InstrumentParameters.ALL
-
-            elif key in SystemConfigurationMenuParameters.list():
-                # only screen scrape the system configuration menu once for efficiency
-                if system_configuration_menu_prameters_parsed == True:
-                    continue
-                else:
-                    system_configuration_menu_prameters_parsed = True
-                    # set name to ALL so _parse_system_configuration_menu_response() knows to get all values
-                    key = InstrumentParameters.ALL
-
-            elif key in VelocityOffsetParameters.list():
-                # only screen scrape the velocity offset set response once for efficiency
-                if velocity_offset_set_prameters_parsed == True:
-                    continue
-                else:
-                    velocity_offset_set_prameters_parsed = True
-                    # set name to ALL so _parse_velocity_offset_set_response() knows to get all values
-                    key = InstrumentParameters.ALL
-
-            elif key in CompassOffsetParameters.list():
-                # only screen scrape the compass offset set response once for efficiency
-                if compass_offset_set_prameters_parsed == True:
-                    continue
-                else:
-                    compass_offset_set_prameters_parsed = True
-                    # set name to ALL so _parse_compass_offset_set_response() knows to get all values
-                    key = InstrumentParameters.ALL
-                                                        
-            elif key in CompassScaleFactorsParameters.list():
-                # only screen scrape the compass scale factors set response once for efficiency
-                if compass_scale_factors_set_prameters_parsed == True:
-                    continue
-                else:
-                    compass_scale_factors_set_prameters_parsed = True
-                    # set name to ALL so _parse_compass_scale_factors_set_response() knows to get all values
-                    key = InstrumentParameters.ALL
-                                                        
-            elif key in TiltOffsetParameters.list():
-                # only screen scrape the tilt offset set response once for efficiency
-                if tilt_offset_set_prameters_parsed == True:
-                    continue
-                elif self._param_dict.get(InstrumentParameters.SOLID_STATE_TILT) == 'n':
-                    # don't get the tilt offset parameters if the solid state tilt is disabled
-                    self._param_dict.set(InstrumentParameters.TILT_PITCH_OFFSET, -1)
-                    self._param_dict.set(InstrumentParameters.TILT_ROLL_OFFSET, -1)
-                    tilt_offset_set_prameters_parsed = True               
-                    continue
-                else:
-                    tilt_offset_set_prameters_parsed = True
-                    # set name to ALL so _parse_tilt_offset_set_response() knows to get all values
-                    key = InstrumentParameters.ALL
-                                                        
-            self._navigate_and_execute(command, name=key, dest_submenu=dest_submenu, timeout=10)
+            self._do_cmd_resp(command)
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
@@ -1427,7 +808,3 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
             
-    def _sorted_longest_to_shortest(self, list):
-        sorted_list = sorted(list, key=len, reverse=True)
-        #log.debug("list=%s \nsorted=%s" %(list, sorted_list))
-        return sorted_list
