@@ -291,12 +291,30 @@ class InstrumentDriver(object):
     def execute_resource(self, *args, **kwargs):
         """
         Execute a driver command.
-        @param timeout=timeout Optional command timeout.        
+        @param timeout=timeout Optional command timeout.
         @ retval Command specific.
         @raises InstrumentTimeoutException if could not wake device or no response.
         @raises InstrumentProtocolException if command not recognized.
         @raises InstrumentStateException if command not allowed in current state.
-        @raises NotImplementedException if not implemented by subclass.        
+        @raises NotImplementedException if not implemented by subclass.
+        """
+        raise NotImplementedException('execute_resource() not implemented.')
+
+    def start_direct(self, *args, **kwargs):
+        """
+        Start direct access mode
+        @param timeout=timeout Optional command timeout.
+        @ retval Command specific.
+        @raises NotImplementedException if not implemented by subclass.
+        """
+        raise NotImplementedException('execute_resource() not implemented.')
+
+    def stop_direct(self, *args, **kwargs):
+        """
+        Stop direct access mode
+        @param timeout=timeout Optional command timeout.        
+        @ retval Command specific.
+        @raises NotImplementedException if not implemented by subclass.
         """
         raise NotImplementedException('execute_resource() not implemented.')
 
@@ -638,20 +656,53 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
     def execute_resource(self, resource_cmd, *args, **kwargs):
         """
         Poll for a sample.
-        @param timeout=timeout Optional command timeout.        
+        @param timeout=timeout Optional command timeout.
         @ retval Device sample dict.
         @raises InstrumentTimeoutException if could not wake device or no response.
         @raises InstrumentProtocolException if acquire command not recognized.
         @raises InstrumentStateException if command not allowed in current state.
-        @raises NotImplementedException if not implemented by subclass.                        
+        @raises NotImplementedException if not implemented by subclass.
         """
         # Forward event and argument to the protocol FSM.
-        if resource_cmd == DriverEvent.START_DIRECT:
-            return self._connection_fsm.on_event(DriverEvent.START_DIRECT, resource_cmd, *args, **kwargs)            
-        elif resource_cmd == DriverEvent.STOP_DIRECT:
-            return self._connection_fsm.on_event(DriverEvent.STOP_DIRECT, resource_cmd, *args, **kwargs)
-        else:
-            return self._connection_fsm.on_event(DriverEvent.EXECUTE, resource_cmd, *args, **kwargs)
+        return self._connection_fsm.on_event(DriverEvent.EXECUTE, resource_cmd, *args, **kwargs)
+
+    def start_direct(self, *args, **kwargs):
+        """
+        start direct access mode
+        @param timeout=timeout Optional command timeout.
+        @ retval Device sample dict.
+        @raises InstrumentTimeoutException if could not wake device or no response.
+        @raises InstrumentProtocolException if acquire command not recognized.
+        @raises InstrumentStateException if command not allowed in current state.
+        @raises NotImplementedException if not implemented by subclass.
+        """
+        # Need to pass the event as a parameter because the event handler to capture the current
+        # pre-da config requires it.
+        return self._connection_fsm.on_event(DriverEvent.START_DIRECT, DriverEvent.START_DIRECT)
+
+    def execute_direct(self, *args, **kwargs):
+        """
+        execute direct accesscommand
+        @param timeout=timeout Optional command timeout.
+        @ retval Device sample dict.
+        @raises InstrumentTimeoutException if could not wake device or no response.
+        @raises InstrumentProtocolException if acquire command not recognized.
+        @raises InstrumentStateException if command not allowed in current state.
+        @raises NotImplementedException if not implemented by subclass.
+        """
+        return self.execute_resource(DriverEvent.EXECUTE_DIRECT, *args, **kwargs)
+
+    def stop_direct(self, *args, **kwargs):
+        """
+        stop direct access mode
+        @param timeout=timeout Optional command timeout.
+        @ retval Device sample dict.
+        @raises InstrumentTimeoutException if could not wake device or no response.
+        @raises InstrumentProtocolException if acquire command not recognized.
+        @raises InstrumentStateException if command not allowed in current state.
+        @raises NotImplementedException if not implemented by subclass.
+        """
+        return self._connection_fsm.on_event(DriverEvent.STOP_DIRECT, DriverEvent.STOP_DIRECT)
 
     def test_force_state(self, *args, **kwargs):
         """
