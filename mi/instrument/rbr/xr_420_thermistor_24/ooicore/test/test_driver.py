@@ -67,17 +67,10 @@ from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentProt
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentParameters
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentCmds
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import Capability
-from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentPrompts
-from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import Mavs4StatusDataParticleKey
-from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import Mavs4SampleDataParticleKey
-from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import Mavs4SampleDataParticle
-from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import DeployMenuParameters
-from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import SystemConfigurationMenuParameters
-from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import VelocityOffsetParameters
-from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import CompassOffsetParameters
-from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import CompassScaleFactorsParameters
-from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import TiltOffsetParameters
-from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import SubMenues
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentResponses
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import XR_420StatusDataParticleKey
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import XR_420SampleDataParticleKey
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import XR_420SampleDataParticle
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import INSTRUMENT_NEWLINE
 
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -112,7 +105,7 @@ InstrumentDriverTestCase.initialize(
     
     driver_startup_config = {
         DriverStartupConfigKey.PARAMETERS: {
-            InstrumentParameters.SYS_CLOCK: '3',
+            #InstrumentParameters.SYS_CLOCK: '3',
         },
     }
 )
@@ -140,6 +133,7 @@ class Mavs4Mixin(DriverTestMixin):
     ###
     #  Parameter and Type Definitions
     ###
+    """
     _driver_parameters = {
         InstrumentParameters.SYS_CLOCK : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
         InstrumentParameters.NOTE1 : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
@@ -270,11 +264,10 @@ class Mavs4Mixin(DriverTestMixin):
             self.fail("time delta too large after clock sync")        
     
     def assert_status_data_particle_header(self, data_particle, stream_name):
-        """
-        Verify a status data particle header is formatted properly w/o port agent timestamp
-        @param data_particle: version 1 data particle
-        @param stream_name: version 1 data particle
-        """
+        # Verify a status data particle header is formatted properly w/o port agent timestamp
+        # @param data_particle: version 1 data particle
+        # @param stream_name: version 1 data particle
+        
         sample_dict = self.convert_data_particle_to_dict(data_particle)
         log.debug("assert_status_data_particle_header: SAMPLEDICT = %s" % sample_dict)
 
@@ -307,7 +300,7 @@ class Mavs4Mixin(DriverTestMixin):
         self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
 
     TIME_TO_SET = '03/29/2002 11:11:42'
-
+    """
 
 #################################### RULES ####################################
 #                                                                             #

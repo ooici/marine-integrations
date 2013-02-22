@@ -284,6 +284,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self.write_delay = WRITE_DELAY
         self._last_data_timestamp = None
         self.eoln = INSTRUMENT_NEWLINE
+        self.sorted_responses = sorted(InstrumentResponses.list(), key=len, reverse=True)
         
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
                 
@@ -398,6 +399,68 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
 
     ########################################################################
+    # overridden methods from base class.
+    ########################################################################
+
+    def _get_response(self, timeout=10, expected_prompt=None):
+        """
+        overridden to not strip \r\n, which is one of the responses of interest
+        Get a response from the instrument.
+        @param timeout The timeout in seconds
+        @param expected_prompt Only consider the specific expected prompt as
+        presented by this string
+        @throw InstrumentProtocolExecption on timeout
+        """
+        # Grab time for timeout and wait for prompt.
+
+        starttime = time.time()
+        if expected_prompt == None:
+            prompt_list = self._prompts.list()
+        else:
+            if isinstance(expected_prompt, str):
+                prompt_list = [expected_prompt]
+            else:
+                prompt_list = expected_prompt
+
+        while True:
+            for item in prompt_list:
+                if self._promptbuf.endswith(item):
+                    return (item, self._linebuf)
+                else:
+                    time.sleep(.1)
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException("in InstrumentProtocol._get_response()")
+
+    def  _wakeup(self, timeout, delay=1):
+        """
+        overridden to find longest matching prompt anywhere in the buffer
+        Clear buffers and send a wakeup command to the instrument
+        @param timeout The timeout to wake the device.
+        @param delay The time to wait between consecutive wakeups.
+        @throw InstrumentTimeoutException if the device could not be woken.
+        """
+        # Clear the prompt buffer.
+        self._promptbuf = ''
+        
+        # Grab time for timeout.
+        starttime = time.time()
+        
+        while True:
+            self._send_wakeup()
+            time.sleep(delay)
+
+            for item in self.sorted_responses:
+                #log.debug("_wakeup: GOT " + repr(self._promptbuf))
+                if item in self._promptbuf:
+                    log.debug('_wakeup got prompt: %s' % repr(item))
+                    return item
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException("in _wakeup()")    
+
+    
+    ########################################################################
     # State Unknown handlers.
     ########################################################################
 
@@ -424,15 +487,16 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         result = None
         
         try:
-            response = self._wakeup(5, .1)
+            self._wakeup(5, .5)
         except InstrumentTimeoutException:
             # didn't get status response, so indicate that there is trouble with the instrument
             raise InstrumentStateException('Unknown state.')
         
         if InstrumentResponses.STATUS in self._promptbuf:
             # got status response, so determine what mode the instrument is in
-            parsed = response.split() 
+            parsed = self._promptbuf.split() 
             status = int(parsed[2], 16)
+            log.debug("_handler_unknown_discover: parsed=%s, status=%d" %(parsed, status))
             if status > Status.DATA_MEMORY_ERASE_FAILED:
                 status = Status.STOPPED_SAMPLING
             if status in [Status.STARTED_SAMPLING,
@@ -748,12 +812,13 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         
         # Add parameter handlers to parameter dictionary for instrument configuration parameters.
         self._param_dict.add(InstrumentParameters.STATUS,
-                             r'Logger status (.*)\n', 
+                             r'Logger status (.*)\r\n', 
                              lambda match : match.group(1),
                              lambda string : str(string),
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_STATUS)
 
+        """
         self._param_dict.add(InstrumentParameters.IDENTIFICATION,
                              r'(.*)\n', 
                              lambda match : match.group(1),
@@ -767,7 +832,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              lambda string : str(string),
                              submenu_read=InstrumentCmds.GET_LOGGER_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_LOGGER_DATE_AND_TIME)
-
+        """
 
     def _build_command_handlers(self):
         
@@ -780,6 +845,12 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _parse_status_response(self, response, prompt):
         log.debug("_parse_status_response: response=%s" %response)
+        if InstrumentResponses.STATUS in response:
+            # got status response, so save it
+            self._param_dict.update(response)
+        else:
+            raise InstrumentParameterException('Status response not correct: %s.' %response)
+            
 
     
     def _update_params(self, *args, **kwargs):
@@ -806,5 +877,6 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()
         if new_config != old_config:
+            log.debug("_update_params: new_config = %s" %new_config)
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
             
