@@ -855,6 +855,23 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
         
+
+    def _convert_battery_voltage(self, reported_battery_voltage):
+        battery_voltage = int(reported_battery_voltage, 16)
+        battery_voltage *= .0816485
+        battery_voltage += .25417
+        return battery_voltage
+
+    def _convert_date_and_time(self, reported_date_and_time):
+        time_struct = time.strptime(reported_date_and_time, "%y%m%d%H%M%S")
+        time_str = time.strftime('%d/%b/%Y %H:%M:%S', time_struct)
+        return time_str
+
+    def _convert_time(self, reported_time):
+        time_struct = time.strptime(reported_time, "%H%M%S")
+        time_str = time.strftime('%H:%M:%S', time_struct)
+        return time_str
+
     def _update_params(self, *args, **kwargs):
         """
         Update the parameter dictionary. Issue the upload command. The response
@@ -930,36 +947,36 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.LOGGER_DATE_AND_TIME,
                              r'(.*)CTD\r\n', 
-                             lambda match : match.group(1),
+                             lambda match : self._convert_date_and_time(match.group(1)),
                              lambda string : str(string),
                              submenu_read=InstrumentCmds.GET_LOGGER_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_LOGGER_DATE_AND_TIME)
 
         self._param_dict.add(InstrumentParameters.SAMPLE_INTERVAL,
                              r'(.*)CSP\r\n', 
-                             lambda match : match.group(1),
+                             lambda match : self._convert_time(match.group(1)),
                              lambda string : str(string),
                              submenu_read=InstrumentCmds.GET_SAMPLE_INTERVAL,
                              submenu_write=InstrumentCmds.SET_SAMPLE_INTERVAL)
 
         self._param_dict.add(InstrumentParameters.START_DATE_AND_TIME,
                              r'(.*)CST\r\n', 
-                             lambda match : match.group(1),
+                             lambda match : self._convert_date_and_time(match.group(1)),
                              lambda string : str(string),
                              submenu_read=InstrumentCmds.GET_START_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_START_DATE_AND_TIME)
 
         self._param_dict.add(InstrumentParameters.END_DATE_AND_TIME,
                              r'(.*)CET\r\n', 
-                             lambda match : match.group(1),
+                             lambda match : self._convert_date_and_time(match.group(1)),
                              lambda string : str(string),
                              submenu_read=InstrumentCmds.GET_END_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_END_DATE_AND_TIME)
 
         self._param_dict.add(InstrumentParameters.BATTERY_VOLTAGE,
                              r'(.*)BAT\r\n', 
-                             lambda match : match.group(1),
-                             lambda string : str(string),
+                             lambda match : self._convert_battery_voltage(match.group(1)),
+                             self._float_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_BATTERY_VOLTAGE)
 
@@ -1108,5 +1125,5 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             # got battery voltage response, so save it
             self._param_dict.update(response)
         else:
-            raise InstrumentParameterException('Get battery voltage response not correct: %s.' %response)
+            raise InstrumentParameterException('Get battery voltage  response not correct: %s.' %response)
                            
