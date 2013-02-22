@@ -78,7 +78,7 @@ class InstrumentResponses(BaseEnum):
     """
     XR-420 responses.
     """
-    STATUS          = 'Logger status '
+    GET_STATUS          = 'Logger status '
         
 class InstrumentCmds(BaseEnum):   
     GET_IDENTIFICATION       = 'A' 
@@ -394,6 +394,41 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     # overridden methods from base class.
     ########################################################################
 
+    def _get_response(self, timeout=10, expected_prompt=None):
+        """
+        overridden to find expected prompt anywhere in buffer
+        Get a response from the instrument, but be a bit loose with what we
+        find. Leave some room for white space around prompts and not try to
+        match that just in case we are off by a little whitespace or not quite
+        at the end of a line.
+        
+        @todo Consider cases with no prompt
+        @param timeout The timeout in seconds
+        @param expected_prompt Only consider the specific expected prompt as
+        presented by this string
+        @throw InstrumentProtocolExecption on timeout
+        """
+        # Grab time for timeout and wait for prompt.
+
+        starttime = time.time()
+        if expected_prompt == None:
+            prompt_list = self._prompts.list()
+        else:
+            if isinstance(expected_prompt, str):
+                prompt_list = [expected_prompt]
+            else:
+                prompt_list = expected_prompt
+
+        while True:
+            for item in prompt_list:
+                if item in self._promptbuf:
+                    return (item, self._linebuf)
+                else:
+                    time.sleep(.1)
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException("in InstrumentProtocol._get_response()")
+
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
         overridden to retrieve the expected response from the build handler
@@ -432,8 +467,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._promptbuf = ''
 
         # Send command.
-        log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
-                        (repr(cmd_line), timeout, write_delay, expected_prompt))
+        log.debug('_do_cmd_resp: cmd=%s, timeout=%s, write_delay=%s, expected_prompt=%s,' 
+                  %(repr(cmd_line), timeout, write_delay, expected_prompt))
 
         if (write_delay == 0):
             self._connection.send(cmd_line)
@@ -443,11 +478,10 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                 time.sleep(write_delay)
 
         # Wait for the prompt, prepare result and return, timeout exception
-        (prompt, result) = self._get_response(timeout,
-                                              expected_prompt=expected_prompt)
+        (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
 
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
-            self._response_handlers.get(cmd, None)
+                       self._response_handlers.get(cmd, None)
         resp_result = None
         if resp_handler:
             resp_result = resp_handler(result, prompt)
@@ -477,18 +511,16 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             # Send 'get status' command.
             log.debug('_wakeup: sending <%s>' % InstrumentCmds.GET_STATUS)
             self._connection.send(InstrumentCmds.GET_STATUS)
+            # Grab send time for response timeout.
+            send_time = time.time()
 
-            self._send_wakeup()
-            
             while True:
-                # Grab time for response timeout.
-                send_time = time.time()
                 time.sleep(.1)
     
                 # look for response
-                if InstrumentResponses.STATUS in self._promptbuf:
-                    log.debug('_wakeup got prompt: %s' % repr(InstrumentResponses.STATUS))
-                    return InstrumentResponses.STATUS
+                if InstrumentResponses.GET_STATUS in self._promptbuf:
+                    log.debug('_wakeup got prompt: %s' % repr(InstrumentResponses.GET_STATUS))
+                    return InstrumentResponses.GET_STATUS
                     
                 time_now = time.time()
                 # check for overall timeout
@@ -531,7 +563,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             # didn't get status response, so indicate that there is trouble with the instrument
             raise InstrumentStateException('Unknown state.')
         
-        if InstrumentResponses.STATUS in self._promptbuf:
+        if InstrumentResponses.GET_STATUS in self._promptbuf:
             # got status response, so determine what mode the instrument is in
             parsed = self._promptbuf.split() 
             status = int(parsed[2], 16)
@@ -876,22 +908,28 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     def _build_command_handlers(self):
         
         # Add build handlers for device commands.
-        self._add_build_handler(InstrumentCmds.GET_STATUS, self._build_keypress_command)
+        self._add_build_handler(InstrumentCmds.GET_STATUS, self._build_get_status_command)
         
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.GET_STATUS, self._parse_status_response)
    
-
+    def _build_get_status_command(self, **kwargs):
+        cmd_name = kwargs.get('command', None)
+        if cmd_name == None:
+            raise InstrumentParameterException('_build_get_status_command requires a command.')
+        cmd = cmd_name
+        response = InstrumentResponses.GET_STATUS
+        log.debug("_build_get_status_command: cmd=%s, response=%s" %(cmd, response))
+        return (cmd, response)    
+    
     def _parse_status_response(self, response, prompt):
         log.debug("_parse_status_response: response=%s" %response.rstrip())
-        if InstrumentResponses.STATUS in response:
+        if InstrumentResponses.GET_STATUS in response:
             # got status response, so save it
             self._param_dict.update(response)
         else:
             raise InstrumentParameterException('Status response not correct: %s.' %response)
-            
-
-    
+               
     def _update_params(self, *args, **kwargs):
         """
         Update the parameter dictionary. Issue the upload command. The response
