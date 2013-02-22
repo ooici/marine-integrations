@@ -78,7 +78,13 @@ class InstrumentResponses(BaseEnum):
     """
     XR-420 responses.
     """
-    GET_STATUS          = 'Logger status '
+    GET_IDENTIFICATION       = 'RBR XR-420 '
+    GET_LOGGER_DATE_AND_TIME = 'CTD\r\n'
+    GET_SAMPLE_INTERVAL      = 'CSP\r\n'
+    GET_START_DATE_AND_TIME  = 'CST\r\n'
+    GET_END_DATE_AND_TIME    = 'CET\r\n'
+    GET_STATUS               = 'Logger status '
+    GET_BATTERY_VOLTAGE      = 'BAT\r\n'
         
 class InstrumentCmds(BaseEnum):   
     GET_IDENTIFICATION       = 'A' 
@@ -145,14 +151,13 @@ class InstrumentParameters(DriverParameter):
     Device parameters for XR-420.
     """
     # main menu parameters
-    #IDENTIFICATION       = 'identification'
-    #SYS_CLOCK            = 'sys_clock'
-    #LOGGER_DATE_AND_TIME = 'logger_date_and_time'
-    #SAMPLE_INTERVAL      = 'sample_interval'
-    #START_DATE_AND_TIME  = 'start_date_and_time'
-    #END_DATE_AND_TIME    = 'end_date_and_time'
+    IDENTIFICATION       = 'identification'
+    LOGGER_DATE_AND_TIME = 'logger_date_and_time'
+    SAMPLE_INTERVAL      = 'sample_interval'
+    START_DATE_AND_TIME  = 'start_date_and_time'
+    END_DATE_AND_TIME    = 'end_date_and_time'
     STATUS               = 'status'
-    #BATTERY_VOLTAGE      = 'battery_voltage'
+    BATTERY_VOLTAGE      = 'battery_voltage'
     
 class Status(DriverParameter):
     NOT_ENABLED_FOR_SAMPLING       = 0x00
@@ -850,6 +855,33 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
         
+    def _update_params(self, *args, **kwargs):
+        """
+        Update the parameter dictionary. Issue the upload command. The response
+        needs to be iterated through a line at a time and valuse saved.
+        @throws InstrumentTimeoutException if device cannot be timely woken.
+        @throws InstrumentProtocolException if ds/dc misunderstood.
+        """
+        if self.get_current_state() != ProtocolStates.COMMAND:
+            raise InstrumentStateException('Can not perform update of parameters when not in command state',
+                                           error_code=InstErrorCode.INCORRECT_STATE)
+        # Get old param dict config.
+        old_config = self._param_dict.get_config()
+        
+        for key in InstrumentParameters.list():
+            if key == InstrumentParameters.ALL:
+                # this is not the name of any parameter
+                continue
+            command = self._param_dict.get_submenu_read(key)
+            self._do_cmd_resp(command)
+
+        # Get new param dict config. If it differs from the old config,
+        # tell driver superclass to publish a config change event.
+        new_config = self._param_dict.get_config()
+        if new_config != old_config:
+            log.debug("_update_params: new_config = %s" %new_config)
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
     def _generate_status_event(self):
         if not self._driver_event:
             # can't send events, so don't bother creating the particle
@@ -889,30 +921,72 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_STATUS)
 
-        """
         self._param_dict.add(InstrumentParameters.IDENTIFICATION,
-                             r'(.*)\n', 
+                             r'(RBR XR-420 .*)\r\n', 
                              lambda match : match.group(1),
                              lambda string : str(string),
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_IDENTIFICATION)
 
-        self._param_dict.add(InstrumentParameters.SYS_CLOCK,
-                             r'(.*)CTD\n', 
+        self._param_dict.add(InstrumentParameters.LOGGER_DATE_AND_TIME,
+                             r'(.*)CTD\r\n', 
                              lambda match : match.group(1),
                              lambda string : str(string),
                              submenu_read=InstrumentCmds.GET_LOGGER_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_LOGGER_DATE_AND_TIME)
-        """
+
+        self._param_dict.add(InstrumentParameters.SAMPLE_INTERVAL,
+                             r'(.*)CSP\r\n', 
+                             lambda match : match.group(1),
+                             lambda string : str(string),
+                             submenu_read=InstrumentCmds.GET_SAMPLE_INTERVAL,
+                             submenu_write=InstrumentCmds.SET_SAMPLE_INTERVAL)
+
+        self._param_dict.add(InstrumentParameters.START_DATE_AND_TIME,
+                             r'(.*)CST\r\n', 
+                             lambda match : match.group(1),
+                             lambda string : str(string),
+                             submenu_read=InstrumentCmds.GET_START_DATE_AND_TIME,
+                             submenu_write=InstrumentCmds.SET_START_DATE_AND_TIME)
+
+        self._param_dict.add(InstrumentParameters.END_DATE_AND_TIME,
+                             r'(.*)CET\r\n', 
+                             lambda match : match.group(1),
+                             lambda string : str(string),
+                             submenu_read=InstrumentCmds.GET_END_DATE_AND_TIME,
+                             submenu_write=InstrumentCmds.SET_END_DATE_AND_TIME)
+
+        self._param_dict.add(InstrumentParameters.BATTERY_VOLTAGE,
+                             r'(.*)BAT\r\n', 
+                             lambda match : match.group(1),
+                             lambda string : str(string),
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_BATTERY_VOLTAGE)
 
     def _build_command_handlers(self):
         
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCmds.GET_STATUS, self._build_get_status_command)
+        self._add_build_handler(InstrumentCmds.GET_IDENTIFICATION, self._build_get_identification_command)
+        self._add_build_handler(InstrumentCmds.GET_LOGGER_DATE_AND_TIME, self._build_get_logger_date_and_time_command)
+        self._add_build_handler(InstrumentCmds.GET_SAMPLE_INTERVAL, self._build_get_sample_interval_command)
+        self._add_build_handler(InstrumentCmds.GET_START_DATE_AND_TIME, self._build_get_start_date_and_time_command)
+        self._add_build_handler(InstrumentCmds.GET_END_DATE_AND_TIME, self._build_get_end_date_and_time_command)
+        self._add_build_handler(InstrumentCmds.GET_BATTERY_VOLTAGE, self._build_get_battery_voltage_command)
         
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.GET_STATUS, self._parse_status_response)
+        self._add_response_handler(InstrumentCmds.GET_IDENTIFICATION, self._parse_identification_response)
+        self._add_response_handler(InstrumentCmds.GET_LOGGER_DATE_AND_TIME, self._parse_logger_date_and_time_response)
+        self._add_response_handler(InstrumentCmds.GET_SAMPLE_INTERVAL, self._parse_sample_interval_response)
+        self._add_response_handler(InstrumentCmds.GET_START_DATE_AND_TIME, self._parse_start_date_and_time_response)
+        self._add_response_handler(InstrumentCmds.GET_END_DATE_AND_TIME, self._parse_end_date_and_time_response)
+        self._add_response_handler(InstrumentCmds.GET_BATTERY_VOLTAGE, self._parse_battery_voltage_response)
    
+##################################################################################################
+# command handlers
+##################################################################################################
+
     def _build_get_status_command(self, **kwargs):
         cmd_name = kwargs.get('command', None)
         if cmd_name == None:
@@ -922,38 +996,117 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         log.debug("_build_get_status_command: cmd=%s, response=%s" %(cmd, response))
         return (cmd, response)    
     
+    def _build_get_identification_command(self, **kwargs):
+        cmd_name = kwargs.get('command', None)
+        if cmd_name == None:
+            raise InstrumentParameterException('_build_get_identification_command requires a command.')
+        cmd = cmd_name
+        response = InstrumentResponses.GET_IDENTIFICATION
+        log.debug("_build_get_identification_command: cmd=%s, response=%s" %(cmd, response))
+        return (cmd, response)    
+    
+    def _build_get_logger_date_and_time_command(self, **kwargs):
+        cmd_name = kwargs.get('command', None)
+        if cmd_name == None:
+            raise InstrumentParameterException('_build_get_logger_date_and_time_command requires a command.')
+        cmd = cmd_name
+        response = InstrumentResponses.GET_LOGGER_DATE_AND_TIME
+        log.debug("_build_get_logger_date_and_time_command: cmd=%s, response=%s" %(cmd, response))
+        return (cmd, response)    
+    
+    def _build_get_sample_interval_command(self, **kwargs):
+        cmd_name = kwargs.get('command', None)
+        if cmd_name == None:
+            raise InstrumentParameterException('_build_get_sample_interval_command requires a command.')
+        cmd = cmd_name
+        response = InstrumentResponses.GET_SAMPLE_INTERVAL
+        log.debug("_build_get_sample_interval_command: cmd=%s, response=%s" %(cmd, response))
+        return (cmd, response)    
+    
+    def _build_get_start_date_and_time_command(self, **kwargs):
+        cmd_name = kwargs.get('command', None)
+        if cmd_name == None:
+            raise InstrumentParameterException('_build_get_start_date_and_time_command requires a command.')
+        cmd = cmd_name
+        response = InstrumentResponses.GET_START_DATE_AND_TIME
+        log.debug("_build_get_start_date_and_time_command: cmd=%s, response=%s" %(cmd, response))
+        return (cmd, response)    
+    
+    def _build_get_end_date_and_time_command(self, **kwargs):
+        cmd_name = kwargs.get('command', None)
+        if cmd_name == None:
+            raise InstrumentParameterException('_build_get_end_date_and_time_command requires a command.')
+        cmd = cmd_name
+        response = InstrumentResponses.GET_END_DATE_AND_TIME
+        log.debug("_build_get_end_date_and_time_command: cmd=%s, response=%s" %(cmd, response))
+        return (cmd, response)    
+    
+    def _build_get_battery_voltage_command(self, **kwargs):
+        cmd_name = kwargs.get('command', None)
+        if cmd_name == None:
+            raise InstrumentParameterException('_build_get_battery_voltage_command requires a command.')
+        cmd = cmd_name
+        response = InstrumentResponses.GET_BATTERY_VOLTAGE
+        log.debug("_build_get_battery_voltage_command: cmd=%s, response=%s" %(cmd, response))
+        return (cmd, response)    
+    
+##################################################################################################
+# response handlers
+##################################################################################################
+
     def _parse_status_response(self, response, prompt):
         log.debug("_parse_status_response: response=%s" %response.rstrip())
         if InstrumentResponses.GET_STATUS in response:
             # got status response, so save it
             self._param_dict.update(response)
         else:
-            raise InstrumentParameterException('Status response not correct: %s.' %response)
+            raise InstrumentParameterException('Get status response not correct: %s.' %response)
                
-    def _update_params(self, *args, **kwargs):
-        """
-        Update the parameter dictionary. Issue the upload command. The response
-        needs to be iterated through a line at a time and valuse saved.
-        @throws InstrumentTimeoutException if device cannot be timely woken.
-        @throws InstrumentProtocolException if ds/dc misunderstood.
-        """
-        if self.get_current_state() != ProtocolStates.COMMAND:
-            raise InstrumentStateException('Can not perform update of parameters when not in command state',
-                                           error_code=InstErrorCode.INCORRECT_STATE)
-        # Get old param dict config.
-        old_config = self._param_dict.get_config()
-        
-        for key in InstrumentParameters.list():
-            if key == InstrumentParameters.ALL:
-                # this is not the name of any parameter
-                continue
-            command = self._param_dict.get_submenu_read(key)
-            self._do_cmd_resp(command)
+    def _parse_identification_response(self, response, prompt):
+        log.debug("_parse_identification_response: response=%s" %response.rstrip())
+        if InstrumentResponses.GET_IDENTIFICATION in response:
+            # got identification response, so save it
+            self._param_dict.update(response)
+        else:
+            raise InstrumentParameterException('Get identification response not correct: %s.' %response)
+               
+    def _parse_logger_date_and_time_response(self, response, prompt):
+        log.debug("_parse_logger_date_and_time_response: response=%s" %response.rstrip())
+        if InstrumentResponses.GET_LOGGER_DATE_AND_TIME in response:
+            # got logger data and time response, so save it
+            self._param_dict.update(response)
+        else:
+            raise InstrumentParameterException('Get logger date and time response not correct: %s.' %response)
+               
+    def _parse_sample_interval_response(self, response, prompt):
+        log.debug("_parse_sample_interval_response: response=%s" %response.rstrip())
+        if InstrumentResponses.GET_SAMPLE_INTERVAL in response:
+            # got sample interval response, so save it
+            self._param_dict.update(response)
+        else:
+            raise InstrumentParameterException('Get sample interval response not correct: %s.' %response)
 
-        # Get new param dict config. If it differs from the old config,
-        # tell driver superclass to publish a config change event.
-        new_config = self._param_dict.get_config()
-        if new_config != old_config:
-            log.debug("_update_params: new_config = %s" %new_config)
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-            
+    def _parse_start_date_and_time_response(self, response, prompt):
+        log.debug("_parse_start_date_and_time_response: response=%s" %response.rstrip())
+        if InstrumentResponses.GET_START_DATE_AND_TIME in response:
+            # got start date and time response, so save it
+            self._param_dict.update(response)
+        else:
+            raise InstrumentParameterException('Get start date and time response not correct: %s.' %response)
+
+    def _parse_end_date_and_time_response(self, response, prompt):
+        log.debug("_parse_end_date_and_time_response: response=%s" %response.rstrip())
+        if InstrumentResponses.GET_END_DATE_AND_TIME in response:
+            # got end date and time response, so save it
+            self._param_dict.update(response)
+        else:
+            raise InstrumentParameterException('Get end date and time response not correct: %s.' %response)
+
+    def _parse_battery_voltage_response(self, response, prompt):
+        log.debug("_parse_battery_voltage_response: response=%s" %response.rstrip())
+        if InstrumentResponses.GET_BATTERY_VOLTAGE in response:
+            # got battery voltage response, so save it
+            self._param_dict.update(response)
+        else:
+            raise InstrumentParameterException('Get battery voltage response not correct: %s.' %response)
+                           
