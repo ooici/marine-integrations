@@ -844,7 +844,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
    
 
     def _parse_status_response(self, response, prompt):
-        log.debug("_parse_status_response: response=%s" %response)
+        log.debug("_parse_status_response: response=%s" %response.rstrip())
         if InstrumentResponses.STATUS in response:
             # got status response, so save it
             self._param_dict.update(response)
