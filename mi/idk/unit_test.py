@@ -2711,10 +2711,12 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         # If in DA mode walk it out
         if(state == ResourceAgentState.DIRECT_ACCESS):
             cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-            retval = self.instrument_agent_client.execute_agent(cmd, timeout=30)
+            self.instrument_agent_client.execute_agent(cmd, timeout=30)
 
         # reset the instrument if it has been initialized
         if(state != ResourceAgentState.UNINITIALIZED):
             cmd = AgentCommand(command=ResourceAgentEvent.RESET)
+            self.instrument_agent_client.execute_agent(cmd)
+
             state = self.instrument_agent_client.get_agent_state()
             self.assertEqual(state, ResourceAgentState.UNINITIALIZED)

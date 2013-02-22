@@ -33,7 +33,7 @@ InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.seabird.sbe54tps.ooicore.driver',
     driver_class="InstrumentDriver",
     instrument_agent_resource_id = '123xyz',
-    instrument_agent_preload_id = 'ID7',
+    instrument_agent_preload_id = 'IA7',
     instrument_agent_name = 'Agent007',
     instrument_agent_packet_config = DataParticleType(),
 
