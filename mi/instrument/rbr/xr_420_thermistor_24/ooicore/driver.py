@@ -78,13 +78,15 @@ class InstrumentResponses(BaseEnum):
     """
     XR-420 responses.
     """
+    GET_STATUS               = 'Logger status '
     GET_IDENTIFICATION       = 'RBR XR-420 '
     GET_LOGGER_DATE_AND_TIME = 'CTD\r\n'
     GET_SAMPLE_INTERVAL      = 'CSP\r\n'
     GET_START_DATE_AND_TIME  = 'CST\r\n'
     GET_END_DATE_AND_TIME    = 'CET\r\n'
-    GET_STATUS               = 'Logger status '
     GET_BATTERY_VOLTAGE      = 'BAT\r\n'
+    GET_CHANNEL_CALIBRATION  = 'CAL\r\n'
+    UNKNOWN_COMMAND          = '? Unknown command \r\n'
         
 class InstrumentCmds(BaseEnum):   
     GET_IDENTIFICATION       = 'A' 
@@ -151,13 +153,14 @@ class InstrumentParameters(DriverParameter):
     Device parameters for XR-420.
     """
     # main menu parameters
-    IDENTIFICATION       = 'identification'
-    LOGGER_DATE_AND_TIME = 'logger_date_and_time'
-    SAMPLE_INTERVAL      = 'sample_interval'
-    START_DATE_AND_TIME  = 'start_date_and_time'
-    END_DATE_AND_TIME    = 'end_date_and_time'
-    STATUS               = 'status'
-    BATTERY_VOLTAGE      = 'battery_voltage'
+    IDENTIFICATION                     = 'identification'
+    LOGGER_DATE_AND_TIME               = 'logger_date_and_time'
+    SAMPLE_INTERVAL                    = 'sample_interval'
+    START_DATE_AND_TIME                = 'start_date_and_time'
+    END_DATE_AND_TIME                  = 'end_date_and_time'
+    STATUS                             = 'status'
+    BATTERY_VOLTAGE                    = 'battery_voltage'
+    CALIBRATION_COEFFICIENTS_CHANNEL_1 = 'calibration_coefficients_channel_1'
     
 class Status(DriverParameter):
     NOT_ENABLED_FOR_SAMPLING       = 0x00
@@ -489,7 +492,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                        self._response_handlers.get(cmd, None)
         resp_result = None
         if resp_handler:
-            resp_result = resp_handler(result, prompt)
+            resp_result = resp_handler(result, prompt, **kwargs)
 
         return resp_result
             
@@ -853,7 +856,12 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
         
-
+    def _float_list_to_string(self, float_list):
+        float_str = ''
+        for float_val in float_list:
+            float_str += '%f' %float_val
+            
+    
     def _convert_battery_voltage(self, reported_battery_voltage):
         battery_voltage = int(reported_battery_voltage, 16)
         battery_voltage *= .0816485
@@ -884,6 +892,16 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         return time.strftime("%H%M%S", time.strptime(ion_date_time_string, "%H:%M:%S"))
     
+    def _convert_calibration(self, calibration_string):
+        """
+        convert calibration string from 32 hex byte values to 4 floating point values
+        """
+        coefficient1 = 1.0
+        coefficient2 = 2.0
+        coefficient3 = 3.0
+        coefficient4 = 4.0
+        return [coefficient1, coefficient2, coefficient3, coefficient4]
+    
     def _update_params(self, *args, **kwargs):
         """
         Update the parameter dictionary. Issue the upload command. The response
@@ -902,7 +920,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                 # this is not the name of any parameter
                 continue
             command = self._param_dict.get_submenu_read(key)
-            self._do_cmd_resp(command)
+            self._do_cmd_resp(command, name=key)
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
@@ -992,6 +1010,13 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_BATTERY_VOLTAGE)
 
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
     def _build_command_handlers(self):
         
         # Add build handlers for device get commands.
@@ -1002,6 +1027,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.GET_START_DATE_AND_TIME, self._build_get_start_date_and_time_command)
         self._add_build_handler(InstrumentCmds.GET_END_DATE_AND_TIME, self._build_get_end_date_and_time_command)
         self._add_build_handler(InstrumentCmds.GET_BATTERY_VOLTAGE, self._build_get_battery_voltage_command)
+        self._add_build_handler(InstrumentCmds.GET_CHANNEL_CALIBRATION, self._build_get_channel_calibration_command)
         
         # Add build handlers for device set commands.
         self._add_build_handler(InstrumentCmds.SET_LOGGER_DATE_AND_TIME, self._build_set_date_time_command)
@@ -1017,6 +1043,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.GET_START_DATE_AND_TIME, self._parse_start_date_and_time_response)
         self._add_response_handler(InstrumentCmds.GET_END_DATE_AND_TIME, self._parse_end_date_and_time_response)
         self._add_response_handler(InstrumentCmds.GET_BATTERY_VOLTAGE, self._parse_battery_voltage_response)
+        self._add_response_handler(InstrumentCmds.GET_CHANNEL_CALIBRATION, self._parse_channel_calibration_response)
    
 ##################################################################################################
 # set command handlers
@@ -1108,11 +1135,24 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         log.debug("_build_get_battery_voltage_command: cmd=%s, response=%s" %(cmd, response))
         return (cmd, response)    
     
+    def _build_get_channel_calibration_command(self, **kwargs):
+        cmd_name = kwargs.get('command', None)
+        if cmd_name == None:
+            raise InstrumentParameterException('_build_get_channel_calibration_command requires a command.')
+        param_name = kwargs.get('name', None)
+        if param_name == None:
+            raise InstrumentParameterException('_build_get_channel_calibration_command requires a parameter name.')
+        channel_number = '%02X' %int(param_name[-1])
+        cmd = cmd_name + channel_number
+        response = InstrumentResponses.GET_CHANNEL_CALIBRATION
+        log.debug("_build_get_channel_calibration_command: cmd=%s, response=%s" %(cmd, response))
+        return (cmd, response)    
+    
 ##################################################################################################
 # response handlers
 ##################################################################################################
 
-    def _parse_status_response(self, response, prompt):
+    def _parse_status_response(self, response, prompt, **kwargs):
         log.debug("_parse_status_response: response=%s" %response.rstrip())
         if InstrumentResponses.GET_STATUS in response:
             # got status response, so save it
@@ -1120,7 +1160,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         else:
             raise InstrumentParameterException('Get status response not correct: %s.' %response)
                
-    def _parse_identification_response(self, response, prompt):
+    def _parse_identification_response(self, response, prompt, **kwargs):
         log.debug("_parse_identification_response: response=%s" %response.rstrip())
         if InstrumentResponses.GET_IDENTIFICATION in response:
             # got identification response, so save it
@@ -1128,7 +1168,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         else:
             raise InstrumentParameterException('Get identification response not correct: %s.' %response)
                
-    def _parse_logger_date_and_time_response(self, response, prompt):
+    def _parse_logger_date_and_time_response(self, response, prompt, **kwargs):
         log.debug("_parse_logger_date_and_time_response: response=%s" %response.rstrip())
         if InstrumentResponses.GET_LOGGER_DATE_AND_TIME in response:
             # got logger data and time response, so save it
@@ -1136,7 +1176,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         else:
             raise InstrumentParameterException('Get logger date and time response not correct: %s.' %response)
                
-    def _parse_sample_interval_response(self, response, prompt):
+    def _parse_sample_interval_response(self, response, prompt, **kwargs):
         log.debug("_parse_sample_interval_response: response=%s" %response.rstrip())
         if InstrumentResponses.GET_SAMPLE_INTERVAL in response:
             # got sample interval response, so save it
@@ -1144,7 +1184,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         else:
             raise InstrumentParameterException('Get sample interval response not correct: %s.' %response)
 
-    def _parse_start_date_and_time_response(self, response, prompt):
+    def _parse_start_date_and_time_response(self, response, prompt, **kwargs):
         log.debug("_parse_start_date_and_time_response: response=%s" %response.rstrip())
         if InstrumentResponses.GET_START_DATE_AND_TIME in response:
             # got start date and time response, so save it
@@ -1152,7 +1192,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         else:
             raise InstrumentParameterException('Get start date and time response not correct: %s.' %response)
 
-    def _parse_end_date_and_time_response(self, response, prompt):
+    def _parse_end_date_and_time_response(self, response, prompt, **kwargs):
         log.debug("_parse_end_date_and_time_response: response=%s" %response.rstrip())
         if InstrumentResponses.GET_END_DATE_AND_TIME in response:
             # got end date and time response, so save it
@@ -1160,11 +1200,23 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         else:
             raise InstrumentParameterException('Get end date and time response not correct: %s.' %response)
 
-    def _parse_battery_voltage_response(self, response, prompt):
+    def _parse_battery_voltage_response(self, response, prompt, **kwargs):
         log.debug("_parse_battery_voltage_response: response=%s" %response.rstrip())
         if InstrumentResponses.GET_BATTERY_VOLTAGE in response:
             # got battery voltage response, so save it
             self._param_dict.update(response)
         else:
-            raise InstrumentParameterException('Get battery voltage  response not correct: %s.' %response)
+            raise InstrumentParameterException('Get battery voltage response not correct: %s.' %response)
+
+    def _parse_channel_calibration_response(self, response, prompt, **kwargs):
+        log.debug("_parse_channel_calibration_response: response=%s" %response.rstrip())
+        param_name = kwargs.get('name', None)
+        if param_name == None:
+            raise InstrumentParameterException('_parse_channel_calibration_response requires a parameter name.')
+        if InstrumentResponses.GET_CHANNEL_CALIBRATION in response:
+            # got channel calibration response, so save it
+            coefficients = self._convert_calibration(response)
+            self._param_dict.set(param_name, coefficients)
+        else:
+            raise InstrumentParameterException('Get channel calibration response not correct: %s.' %response)
                            
