@@ -16,7 +16,6 @@ import gevent
 
 import logging
 import unittest
-from mi.core.unit_test import MiUnitTest
 import re
 import time
 import datetime
@@ -24,8 +23,13 @@ import array
 from nose.plugins.attrib import attr
 from mock import Mock
 
+from ion.agents.port.port_agent_process import PortAgentProcess
 from ion.agents.port.port_agent_process import PortAgentProcessType
 
+from mi.core.unit_test import MiUnitTest
+from mi.core.unit_test import MiIntTestCase
+from mi.core.port_agent_simulator import TCPSimulatorServer
+from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacket, Listener
 
@@ -365,8 +369,12 @@ class TestPortAgentPacket(MiUnitTest):
         pass
 
 @attr('INT', group='mi')
-#class PAClientIntTestCase(InstrumentDriverIntegrationTestCase):
-class PAClientIntTestCase():
+class PAClientIntTestCase(InstrumentDriverTestCase):
+#class PAClientIntTestCase(MiIntTestCase):
+
+    def initialize(cls, *args, **kwargs):
+        print "initialize"
+        
     def setUp(self):
         #InstrumentDriverIntegrationTestCase.setUp(self)
 
