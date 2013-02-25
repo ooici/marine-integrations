@@ -16,12 +16,10 @@ USAGE:
 __author__ = 'Lytle Johnson'
 __license__ = 'Apache 2.0'
 
-import unittest
-import re
 
 from nose.plugins.attrib import attr
 from mock import Mock
-from mi.core.common import BaseEnum
+from mi.core.instrument.chunker import StringChunker
 from mi.core.log import get_logger ; log = get_logger()
 
 # MI imports.
@@ -32,20 +30,6 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 
-from interface.objects import AgentCommand
-
-from mi.core.instrument.logger_client import LoggerClient
-
-from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverConnectionState
-from mi.core.instrument.instrument_driver import DriverProtocolState
-from mi.core.instrument.instrument_driver import DriverParameter
-from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.data_particle import DataParticleValue
-
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import InstrumentDriver
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import DataParticleType
@@ -71,11 +55,12 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import NEWLINE
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import adcpt_cache_dict
 
-from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
-from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException
-from pyon.core.exception import Conflict
-from pyon.agent.agent import ResourceAgentState
-from pyon.agent.agent import ResourceAgentEvent
+from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.test.test_data import SAMPLE_RAW_DATA 
+from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.test.test_data import CALIBRATION_RAW_DATA
+from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.test.test_data import PS0_RAW_DATA
+from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.test.test_data import PS3_RAW_DATA
+from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.test.test_data import FD_RAW_DATA
+from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.test.test_data import PT200_RAW_DATA
 
 from random import randint
 
@@ -83,218 +68,6 @@ from random import randint
 raw_stream_received = False
 parsed_stream_received = False
 
-SAMPLE_RAW_DATA = "7F7FF002000612004D008E008001FA01740200003228C941000D041E2D002003600101400900D0070\
-114001F000000007D3DD104610301053200620028000006FED0FC090100FF00A148000014800001000C0C0D0D323862000000\
-FF050800E014C5EE93EE2300040A000000000000454A4F4B4A4E829F80810088BDB09DFFFFFF9208000000140C0C0D0D323862\
-000120FF570089000FFF0080008000800080008000800080008000800080008000800080008000800080008000800080008000\
-800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080\
-00800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800\
-0800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080008000800080\
-008000800080008000800080008000800080008000800080008000800080008000800080008000025D585068650D0D2C0C0D0\
-C0E0C0E0C0D0C0E0D0C0C0E0E0B0D0E0D0D0D0C0C0C0C0E0F0E0C0D0F0C0D0E0F0D0C0C0D0D0D00000E0D00000D0B00000D0\
-C00000C0C00000C0B00000E0C00000D0C00000D0C00000D0C00000C0C00000D0C00000C00000000000000000000000000000\
-000000000000000000000035A52675150434B454341484142414841424148414241484142414841424148414241484142414\
-8414241484142414741424148414241474142414841434148414241484142414841424148414241484142414841424148414\
-24148414241484142414741424148414241484142414741424148414241484100040400005F00006400000064000000640000\
-006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400\
-00006400000064000000640000006400000064000000640000006400000064000000640000006400000064000000640000006400\
-FA604091"
-
-break_success_str = NEWLINE + "[BREAK Wakeup A]" + NEWLINE +\
-"WorkHorse Broadband ADCP Version 50.40" + NEWLINE +\
-"Teledyne RD Instruments (c) 1996-2010" + NEWLINE +\
-"All Rights Reserved." + NEWLINE +\
-">"
-
-break_alarm_str = NEWLINE + "[ALARM Wakeup A]" + NEWLINE +\
-"WorkHorse Broadband ADCP Version 50.40" + NEWLINE +\
-"Teledyne RD Instruments (c) 1996-2010" + NEWLINE +\
-"All Rights Reserved." + NEWLINE +\
-">"
-
-CALIBRATION_RAW_DATA = \
-"ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM" + NEWLINE +\
-"               Calibration date and time: 9/22/2012  11:53:32" + NEWLINE +\
-"                             S inverse" + NEWLINE +\
-"          ?                                                  " + NEWLINE +\
-"     Bx   ?   4.1275e-01  4.2168e-01 -2.0631e-02 -2.8440e-05 ?" + NEWLINE +\
-"     By   ?  -4.9163e-03  4.7625e-06 -2.7393e-03 -5.6853e-01 ?" + NEWLINE +\
-"     Bz   ?   2.1975e-01 -2.0662e-01 -3.0120e-01  2.7459e-03 ?" + NEWLINE +\
-"     Err  ?   4.8227e-01 -4.4007e-01  6.5367e-01 -7.3235e-03 ?" + NEWLINE +\
-"          ?                                                  ?" + NEWLINE +\
-"                             Coil Offset" + NEWLINE +\
-"                         ?                " + NEWLINE +\
-"                         ?   3.3914e+04   ?" + NEWLINE +\
-"                         ?   3.3331e+04   ?" + NEWLINE +\
-"                         ?   3.4030e+04   ?" + NEWLINE +\
-"                         ?   3.4328e+04   ?" + NEWLINE +\
-"                         ?                ?" + NEWLINE +\
-"                             Electrical Null" + NEWLINE +\
-"                              ?       " + NEWLINE +\
-"                              ? 33989 ?" + NEWLINE +\
-"                              ?       ?" + NEWLINE +\
-"                    TILT CALIBRATION MATRICES in NVRAM" + NEWLINE +\
-"                Calibration date and time: 9/22/2012  11:50:48" + NEWLINE +\
-"              Average Temperature During Calibration was   25.7 ?C" + NEWLINE + NEWLINE +\
-"                   Up                              Down" + NEWLINE + NEWLINE +\
-"        ?                           ?" + NEWLINE +\
-" Roll   ?  -1.7305e-07  -2.9588e-05 ?     ?   3.0294e-07   3.1274e-05 ?" + NEWLINE +\
-" Pitch  ?  -2.9052e-05  -5.6057e-07 ?     ?  -3.1059e-05  -5.2326e-07 ?" + NEWLINE +\
-"        ?                           ?     ?                           ?" + NEWLINE + NEWLINE +\
-"        ?                           ?     ?                           ?" + NEWLINE +\
-" Offset ?   3.2805e+04   3.2384e+04 ?     ?   3.3287e+04   3.1595e+04 ?" + NEWLINE +\
-"        ?                           ?     ?                           ?" + NEWLINE + NEWLINE +\
-"                             ?        " + NEWLINE +\
-"                      Null   ? 33272 ?" + NEWLINE +\
-"                             ?       ?" + NEWLINE +\
-">"
-
-PS0_RAW_DATA = \
-"Instrument S/N:  18593" + NEWLINE +\
-"       Frequency:  153600 HZ" + NEWLINE +\
-"   Configuration:  4 BEAM, JANUS" + NEWLINE +\
-"     Match Layer:  10" + NEWLINE +\
-"      Beam Angle:  20 DEGREES" + NEWLINE +\
-"    Beam Pattern:  CONVEX" + NEWLINE +\
-"     Orientation:  UP  " + NEWLINE +\
-"       Sensor(s):  HEADING  TILT 1  TILT 2  DEPTH  TEMPERATURE  PRESSURE" + NEWLINE +\
-"Pressure Sens Coefficients:" + NEWLINE +\
-"              c3 = +1.629386E-10" + NEWLINE +\
-"              c2 = -1.886023E-06" + NEWLINE +\
-"              c1 = +1.364779E+00" + NEWLINE +\
-"          Offset = -2.457906E+01" + NEWLINE + NEWLINE +\
-"Temp Sens Offset:  -0.17 degrees C" + NEWLINE + NEWLINE +\
-"    CPU Firmware:  50.40 [0]" + NEWLINE +\
-"   Boot Code Ver:  Required:  1.16   Actual:  1.16" + NEWLINE +\
-"    DEMOD #1 Ver:  ad48, Type:  1f" + NEWLINE +\
-"    DEMOD #2 Ver:  ad48, Type:  1f" + NEWLINE +\
-"    PWRTIMG  Ver:  85d3, Type:   6" + NEWLINE + NEWLINE +\
-"Board Serial Number Data:" + NEWLINE +\
-"   98  00 00 06 FF 13 A0  09 HPI727-3007-00A" + NEWLINE +\
-"   28  00 00 06 FE D0 FC  09 CPU727-2011-00E" + NEWLINE +\
-"   0C  00 00 06 FF 13 BA  09 HPA727-3009-02B" + NEWLINE +\
-"   E7  00 00 06 B2 C6 7D  09 REC727-1004-05A" + NEWLINE +\
-"   70  00 00 06 F5 AF 73  09 DSP727-2001-05H" + NEWLINE +\
-"   F0  00 00 06 F5 B2 EB  09 TUN727-1005-05A" + NEWLINE +\
-">"
-
-PS3_RAW_DATA = \
-"Beam Width:   3.7 degrees" + NEWLINE + NEWLINE +\
-"Beam     Elevation     Azimuth" + NEWLINE +\
-"  1         -69.81      269.92" + NEWLINE +\
-"  2         -70.00       89.92" + NEWLINE +\
-"  3         -69.82        0.07" + NEWLINE +\
-"  4         -69.89      180.08" + NEWLINE + NEWLINE +\
-"Beam Directional Matrix (Down):" + NEWLINE +\
-"  0.3453    0.0005    0.9385    0.2421  " + NEWLINE +\
-" -0.3421   -0.0005    0.9397    0.2444  " + NEWLINE +\
-" -0.0005   -0.3451    0.9386   -0.2429  " + NEWLINE +\
-"  0.0005    0.3438    0.9390   -0.2438  " + NEWLINE + NEWLINE +\
-"  Instrument Transformation Matrix (Down):    Q14:" + NEWLINE +\
-"  1.4587   -1.4508   -0.0010   -0.0051       23899  -23770     -16     -83  " + NEWLINE +\
-" -0.0008    0.0033   -1.4532    1.4500         -13      54  -23809   23757  " + NEWLINE +\
-"  0.2650    0.2676    0.2657    0.2667        4342    4384    4353    4370  " + NEWLINE +\
-"  1.0225    1.0323   -1.0257   -1.0297       16752   16913  -16805  -16871  " + NEWLINE +\
-"Beam Angle Corrections Are Loaded." + NEWLINE + ">"
-
-FD_RAW_DATA = \
-"Total Unique Faults   =     2" + NEWLINE +\
-"Overflow Count        =     0" + NEWLINE +\
-"Time of first fault:    12/11/29,19:40:37.32" + NEWLINE +\
-"Time of last fault:     12/12/12,20:31:37.14" + NEWLINE + NEWLINE +\
-"Fault Log:" + NEWLINE +\
-"Entry #  0 Code=0a08h  Count=    2  Delta=112625967 Time=12/12/12,20:31:36.99" + NEWLINE +\
-" Parameter = 00000000h" + NEWLINE +\
-"  Tilt axis X over range." + NEWLINE +\
-"Entry #  1 Code=0a09h  Count=    2  Delta=112625966 Time=12/12/12,20:31:37.14" + NEWLINE +\
-" Parameter = 00000000h" + NEWLINE +\
-"  Tilt axis Y over range." + NEWLINE +\
-"End of fault log." + NEWLINE + NEWLINE +\
-"Fault Log Dump:  addr=007EADC8" + NEWLINE +\
-"a5 01 00 02 00 00 00 00 20 13 28 25 0b 1d 0c 06" + NEWLINE +\
-"0e 14 1f 25 0c 0c 0c 05 01 f2 0a 08 00 00 00 02" + NEWLINE +\
-"63 14 1f 24 0c 0c 0c 05 06 b6 89 2f 00 00 00 00" + NEWLINE +\
-"02 6c 0a 09 00 00 00 02 0e 14 1f 25 0c 0c 0c 05" + NEWLINE +\
-"06 b6 89 2e 00 00 00 00 02 18 00 00 00 00 00 00" + NEWLINE +\
-"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
-"00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
-"00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00" + NEWLINE +\
-"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
-"00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
-"00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00" + NEWLINE +\
-"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
-"00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
-"00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00" + NEWLINE +\
-"00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
-"00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00" + NEWLINE +\
-"00 00 00 00 00 00 00 00 00 01 " + NEWLINE + NEWLINE +\
-">"
-
-PT200_RAW_DATA = \
-"Ambient  Temperature =    24.27 Degrees C" + NEWLINE +\
-"  Attitude Temperature =    26.70 Degrees C" + NEWLINE +\
-"  Internal Moisture    = 8C1Eh" + NEWLINE + NEWLINE +\
-"Correlation Magnitude: Narrow Bandwidth" + NEWLINE + NEWLINE +\
-"               Lag  Bm1  Bm2  Bm3  Bm4" + NEWLINE +\
-"                 0  255  255  255  255" + NEWLINE +\
-"                 1  140  160  177  149" + NEWLINE +\
-"                 2   41   62   94   50" + NEWLINE +\
-"                 3   20   15   43    5" + NEWLINE +\
-"                 4   12    3   19    4" + NEWLINE +\
-"                 5    2    3    8    2" + NEWLINE +\
-"                 6    3    1    3    3" + NEWLINE +\
-"                 7    5    2    1    3" + NEWLINE + NEWLINE +\
-"  High Gain RSSI:    66   65   72   65" + NEWLINE +\
-"   Low Gain RSSI:    11    8   12    9" + NEWLINE + NEWLINE +\
-"  SIN Duty Cycle:    48   49   48   49" + NEWLINE +\
-"  COS Duty Cycle:    47   48   50   48" + NEWLINE + NEWLINE +\
-"Receive Test Results = $00000000 ... PASS" + NEWLINE + NEWLINE +\
-"IXMT    =      0.8 Amps rms  [Data=46h]" + NEWLINE +\
-"VXMT    =     43.2 Volts rms [Data=49h]" + NEWLINE +\
-"   Z    =     53.9 Ohms" + NEWLINE +\
-"Transmit Test Results = $0 ... PASS" + NEWLINE + NEWLINE +\
-"    0    0    0    0" + NEWLINE +\
-"    0    0    0    0" + NEWLINE +\
-"    0    0    0    0" + NEWLINE +\
-"   12   12   12   12" + NEWLINE +\
-"  255  255  255  255" + NEWLINE +\
-"    0    0    0    0" + NEWLINE +\
-"   12   12   12   12" + NEWLINE +\
-"  255  255  255  255" + NEWLINE +\
-"    0    0    0    0" + NEWLINE +\
-"    0    0    0    0" + NEWLINE +\
-"   12   12   12   12" + NEWLINE +\
-"  255  255  255  255" + NEWLINE +\
-"Electronics Test Results = $00000000" + NEWLINE +\
-"Receive Bandwidth:" + NEWLINE +\
-"    Sample      bw    bw    bw    bw    bw" + NEWLINE +\
-"      rate  expect   Bm1   Bm2   Bm3   Bm4" + NEWLINE +\
-"        38      12    14    12    10    14 Khz" + NEWLINE +\
-"   results          PASS  PASS  PASS  PASS" + NEWLINE +\
-"RSSI Time Constant:" + NEWLINE + NEWLINE +\
-"RSSI Filter Strobe 1 =   38400 Hz" + NEWLINE +\
-"  time   Bm1   Bm2   Bm3   Bm4" + NEWLINE +\
-"  msec  cnts  cnts  cnts  cnts" + NEWLINE +\
-"     1     5     7     5     7" + NEWLINE +\
-"     2    10    13    10    12" + NEWLINE +\
-"     3    15    18    15    17" + NEWLINE +\
-"     4    18    22    18    22" + NEWLINE +\
-"     5    21    26    22    25" + NEWLINE +\
-"     6    24    29    25    28" + NEWLINE +\
-"     7    26    31    27    30" + NEWLINE +\
-"     8    28    32    29    32" + NEWLINE +\
-"     9    29    34    30    34" + NEWLINE +\
-"    10    31    35    32    35" + NEWLINE +\
-"   nom    38    42    40    42" + NEWLINE +\
-"result    PASS  PASS  PASS  PASS" + NEWLINE +\
-">"
-
-powering_down_str = NEWLINE +\
-"Powering Down"
-
-self_deploy_str = NEWLINE +\
-"System will self-deploy in 1 minute unless valid command entered!"
- 
 ###
 #   Driver parameters for tests
 ###
