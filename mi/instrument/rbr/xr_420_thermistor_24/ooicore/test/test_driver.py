@@ -186,6 +186,7 @@ class UtilMixin(DriverTestMixin):
     # parameter values to test.
     paramter_values = {InstrumentParameters.START_DATE_AND_TIME : TIME_TO_SET2,
                        InstrumentParameters.END_DATE_AND_TIME : TIME_TO_SET3,
+                       InstrumentParameters.SAMPLE_INTERVAL : '00:01:30'
                        }
     
     """  
