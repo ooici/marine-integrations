@@ -80,13 +80,14 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
 
-    def _sync_clock(self, date_time_param, prompts, timeout, delay=1):
+    def _sync_clock(self, date_time_param, prompts, timeout, delay=1, time_format="%d %b %Y %H:%M:%S"):
         """
         Send the command to the instrument to syncronize the clock
         @param date_time_param: date time parameter that we want to set
         @param prompts: expected prompt
         @param timeout: command timeout
         @param delay: wakeup delay
+        @param time_format: time format string for set command
         @return: true if the command is successful
         @raise: InstrumentProtocolException if command fails
         """
@@ -96,17 +97,8 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
         self._linebuf = ''
         self._promptbuf = ''
 
-        str_val = self._param_dict.format(date_time_param, get_timestamp_delayed("%d %b %Y %H:%M:%S"))
-        set_cmd = '%s=%s' % (date_time_param, str_val) + NEWLINE
-
-        self._do_cmd_direct(set_cmd)
-        (prompt, response) = self._get_response()
-
-        if response != set_cmd + prompt:
-            raise InstrumentProtocolException("_clock_sync - response != set_cmd")
-
-        if prompt != prompt:
-            raise InstrumentProtocolException("_clock_sync - prompt != Prompt.COMMAND")
+        str_val = self._param_dict.format(date_time_param, get_timestamp_delayed(time_format))
+        self._set_params({date_time_param: str_val})
 
         return True
 
@@ -134,12 +126,15 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
                     self.get_current_state() != DriverProtocolState.AUTOSAMPLE):
             raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
 
+        log.debug("sbe apply_startup_params, logging?")
         logging = self._is_logging()
+        log.debug("sbe apply_startup_params, logging == %s" % logging)
 
         # If we are in streaming mode and our configuration on the
         # instrument matches what we think it should be then we
         # don't need to do anything.
         if(not self._instrument_config_dirty()):
+            log.debug("configuration not dirty.  Nothing to do here")
             return True
 
         error = None
@@ -147,8 +142,10 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
         try:
             if(logging):
                 # Switch to command mode,
+                log.debug("stop logging")
                 self._stop_logging()
 
+            log.debug("sbe apply_startup_params now")
             self._apply_params()
 
         # Catch all error so we can put ourself back into
@@ -159,6 +156,7 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
         finally:
             # Switch back to streaming
             if(logging):
+                log.debug("sbe apply_startup_params start logging again")
                 self._start_logging()
 
         if(error):
@@ -202,7 +200,8 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
         @raise: InstrumentProtocolException if in wrong mode.
         """
         config = self.get_startup_config()
-        self._set_params(config)
+        # Pass true to _set_params so we know these are startup values
+        self._set_params(config, True)
 
     def _instrument_config_dirty(self):
         """
@@ -225,3 +224,4 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
 
         log.debug("Clean instrument config")
         return False
+

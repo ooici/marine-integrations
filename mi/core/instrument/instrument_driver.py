@@ -559,8 +559,9 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         da_params = self._protocol.get_direct_access_params()        
         for param in da_params:
             vals[param] = config[param]
-            
-        self.set_resource(vals)
+
+        log.debug("Restore DA Parameters: %s" % vals)
+        self.set_resource(vals, True)
         
     #############################################################
     # Commande and control interface.

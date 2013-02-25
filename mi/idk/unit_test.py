@@ -156,7 +156,8 @@ class InstrumentDriverTestConfig(Singleton):
             self.working_dir = kwargs.get('working_dir')
         if kwargs.get('delimeter'):
             self.delimeter = kwargs.get('delimeter')
-        
+
+        self.instrument_agent_preload_id = kwargs.get('instrument_agent_preload_id')
         self.instrument_agent_resource_id = kwargs.get('instrument_agent_resource_id')
         self.instrument_agent_name = kwargs.get('instrument_agent_name')
         self.instrument_agent_packet_config = self._build_packet_config(kwargs.get('instrument_agent_packet_config'))
@@ -1301,13 +1302,16 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         # If we are in streaming mode then stop streaming
         state = self.driver_client.cmd_dvr('get_resource_state')
         if(state == DriverProtocolState.AUTOSAMPLE and final_state != DriverProtocolState.AUTOSAMPLE):
+            log.debug("Stop autosample because we want to be in command mode")
             reply = self.driver_client.cmd_dvr('execute_resource', DriverEvent.STOP_AUTOSAMPLE)
             state = self.driver_client.cmd_dvr('get_resource_state')
 
         if(state == DriverProtocolState.COMMAND and final_state != DriverProtocolState.COMMAND):
+            log.debug("Start autosample because we don't want to be in command mode")
             reply = self.driver_client.cmd_dvr('execute_resource', DriverEvent.START_AUTOSAMPLE)
             state = self.driver_client.cmd_dvr('get_resource_state')
 
+        log.debug("initialize final state: %s" % state)
         # Test the driver is in the correct mode
         if(final_state == DriverProtocolState.AUTOSAMPLE):
             self.assertEqual(state, DriverProtocolState.AUTOSAMPLE)
@@ -1336,15 +1340,44 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
     def assert_set(self, param, value, no_get=False):
         """
-        Verify we can set a parameter and then do a get to confirm.
+        Verify we can set a parameter and then do a get to confirm. Also, unless
+        no_get is specified, verify a config change event is sent when values
+        change and none when they aren't changed.
         @param param: parameter to set
         @param param: no_get if true don't verify set with a get.
         @param value: what to set the parameter too
         """
-        reply = self.driver_client.cmd_dvr('set_resource', {param: value})
-        self.assertIsNone(reply, None)
+        if no_get:
+            reply = self.driver_client.cmd_dvr('set_resource', {param: value})
+            self.assertIsNone(reply, None)
+        else:
+            log.debug("assert_set, check values and events")
+            self.clear_events()
+            current_value = self.assert_get(param)
+            config_change = current_value != value
 
-        if(not no_get):
+            log.debug("current value: %s new value: %s" % (current_value, value))
+            self.assert_set(param, value, True)
+            self.assert_get(param, value)
+
+            time.sleep(1)
+            events = self.get_events(DriverAsyncEvent.CONFIG_CHANGE)
+
+            log.debug("got config change events: %d" % len(events))
+            if(config_change):
+                self.assertTrue(len(events) > 0)
+            else:
+                self.assertEqual(len(events), 0)
+
+            # Let's set it again.  This time we know it shouldn't generate a
+            # config change event
+            self.clear_events()
+            self.assert_set(param, value, True)
+            time.sleep(1)
+            log.debug("pass #2 got config change events: %d" % len(events))
+            events = self.get_events(DriverAsyncEvent.CONFIG_CHANGE)
+            self.assertEqual(len(events), 0)
+
             self.assert_get(param, value)
 
     def assert_set_bulk(self, param_dict):
@@ -1376,15 +1409,13 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             with self.assertRaises(exception_class):
                 self.assert_set_bulk(param_dict)
 
-    def assert_set_readonly(self, param, value='dummyvalue'):
+    def assert_set_readonly(self, param, value='dummyvalue', exception_class=InstrumentParameterException):
         """
         Verify that a set command raises an exception on set.
         @param param: parameter to set
         @param value: what to set the parameter too
         """
-        # TODO: Fix this test. An exception isn't currently thrown if setting a read-only param
-        self.assertTrue(True)
-        #self.assert_set_exception(param, value, 'Set command not recognized')
+        self.assert_set_exception(param, value, exception_class=exception_class)
 
     def assert_set_exception(self, param, value='dummyvalue', error_regex=None, exception_class=InstrumentParameterException):
         """
@@ -1411,7 +1442,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         @param regex: regex to match reply
         """
         # Execute the command
-        reply = self.driver_client.cmd_dvr('execute_resource', command)
+        reply = self.driver_client.cmd_dvr('execute_resource', command, )
         log.debug("Execute driver command: %s" % command)
         log.debug("Reply type: %s" % type(reply))
 
@@ -1455,12 +1486,13 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             with self.assertRaises(exception_class):
                 self.driver_client.cmd_dvr(command)
 
-    def assert_particle_generation(self, command, particle_type, particle_callback, delay=1):
+    def assert_particle_generation(self, command, particle_type, particle_callback, delay=1, timeout=None):
         """
         Verify we can generate a particle via a command.
         @param command: command used to generate the particle
         @param particle_type: particle type we are looking for
         @param particle_callback: callback used to validate the particle
+        @param timeout: command timeout
         """
         self.assert_driver_command(command, delay=delay)
 
@@ -1557,9 +1589,11 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         if(autosample_command):
             self.assert_driver_command(autosample_command)
 
-        # Ensure we have at least 3 seconds before the event should fire
-        safe_time = datetime.datetime.now() + datetime.timedelta(0,3)
+        # Ensure we have at least 5 seconds before the event should fire
+        safe_time = datetime.datetime.now() + datetime.timedelta(0,5)
         self.assertGreaterEqual(dt, safe_time, msg="Trigger time already in the past. Increase your delay")
+
+        time.sleep(2)
 
         # Now verify that the job is triggered and it does what we think it should
         assert_callback()
@@ -1657,6 +1691,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         """
         log.debug("InstrumentDriverQualificationTestCase tearDown")
 
+        self.assert_reset()
         self.instrument_agent_manager.stop_container()
         self.event_subscribers.stop()
         self.data_subscribers.stop_data_subscribers()
@@ -1695,6 +1730,50 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         )
 
         self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
+
+    def _common_agent_commands(self, agent_state):
+        '''
+        list of common agent parameters for a agent state
+        @return: list of agent parameters
+        @raise: KeyError for undefined agent state
+        '''
+        capabilities = {
+            ResourceAgentState.UNINITIALIZED: [
+                ResourceAgentEvent.INITIALIZE
+            ],
+            ResourceAgentState.COMMAND: [
+                ResourceAgentEvent.CLEAR,
+                ResourceAgentEvent.RESET,
+                ResourceAgentEvent.GO_DIRECT_ACCESS,
+                ResourceAgentEvent.GO_INACTIVE,
+                ResourceAgentEvent.PAUSE
+            ],
+            ResourceAgentState.STREAMING: [
+                ResourceAgentEvent.RESET,
+                ResourceAgentEvent.GO_INACTIVE
+            ],
+
+            ResourceAgentState.DIRECT_ACCESS: [
+                ResourceAgentEvent.GO_COMMAND
+            ]
+        }
+
+        return capabilities[agent_state]
+
+    def _common_da_resource_commands(self):
+        """
+        return a list of the common resource commands for DA
+        @return: list of da commands
+        """
+        return [
+        ]
+
+    def _common_agent_parameters(self):
+        '''
+        list of common agent parameters
+        @return: list of agent parameters
+        '''
+        return ['alarms', 'example', 'pubfreq', 'streams']
 
     def assert_agent_state(self, target_state):
         """
@@ -1912,7 +1991,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         # Assert we got 3 samples.
         samples = self.data_subscribers.get_samples(sample_queue, sample_count, timeout = timeout)
-        self.assertGreaterEqual(len(sample_count))
+        self.assertGreaterEqual(len(samples), sample_count)
 
         for sample in samples:
             log.debug("SAMPLE: %s" % sample)
@@ -1948,8 +2027,17 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         Exist active state
         '''
         log.debug("Reset Agent Now!")
-        self.assert_agent_command(ResourceAgentEvent.RESET)
-        self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
+
+        state = self.instrument_agent_client.get_agent_state()
+        log.debug("Current State: %s" % state)
+
+        if(state == ResourceAgentState.DIRECT_ACCESS):
+            self.assert_direct_access_stop_telnet()
+
+        # reset the instrument if it has been initialized
+        if(state != ResourceAgentState.UNINITIALIZED):
+            self.assert_agent_command(ResourceAgentEvent.RESET)
+            self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
 
     def assert_get_parameter(self, name, value):
         '''
@@ -2045,14 +2133,14 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             state = self.instrument_agent_client.get_agent_state()
             log.info("Sent GO_ACTIVE; IA state = %s", state)
 
-            # The instrument is in autosample; take it out of autosample,
-            # which will cause the driver and agent to transition to COMMAND
-            if state == ResourceAgentState.STREAMING:
-                self.assert_stop_autosample()
-            else:
-                cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-                retval = self.instrument_agent_client.execute_agent(cmd)
-                
+            cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+            retval = self.instrument_agent_client.execute_agent(cmd)
+
+        # The instrument is in autosample; take it out of autosample,
+        # which will cause the driver and agent to transition to COMMAND
+        if state == ResourceAgentState.STREAMING:
+            self.assert_stop_autosample()
+
         state = self.instrument_agent_client.get_agent_state()
         log.info("Sent RUN; IA state = %s", state)
         self.assertEqual(state, ResourceAgentState.COMMAND)
@@ -2182,7 +2270,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # IDLE
         ####
         self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
-        self.assert_agent_state(ResourceAgentState.IDLE)
 
         # Try to run some commands that aren't available in this state
         self.assert_agent_command_exception(ResourceAgentEvent.INITIALIZE, exception_class=Conflict)
@@ -2195,74 +2282,29 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         # Get back to idle
         self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
-        self.assert_agent_state(ResourceAgentState.IDLE)
 
-        ####
-        # COMMAND
-        ####
-        self.assert_agent_command(ResourceAgentEvent.RUN)
-        self.assert_agent_state(ResourceAgentState.COMMAND)
-
-        ####
-        # STOPPED
-        ####
-        self.assert_agent_command(ResourceAgentEvent.PAUSE)
-        self.assert_agent_state(ResourceAgentState.STOPPED)
-
-        # Verify we can resume back to command mode
-        self.assert_agent_command(ResourceAgentEvent.RESUME)
-        self.assert_agent_state(ResourceAgentState.COMMAND)
-
-        # Now back out of command mode
-        self.assert_agent_command(ResourceAgentEvent.CLEAR)
-        self.assert_agent_state(ResourceAgentState.IDLE)
-
-        # Finally back in
-        self.assert_agent_command(ResourceAgentEvent.RUN)
-        self.assert_agent_state(ResourceAgentState.COMMAND)
-
-        ####
         # DIRECT ACCESS
-        ####
-        args={'session_type': DirectAccessTypes.telnet,
-              'session_timeout':600,
-              'inactivity_timeout':600}
-        self.assert_agent_command(ResourceAgentEvent.GO_DIRECT_ACCESS, args=args)
-        self.assert_agent_state(ResourceAgentState.DIRECT_ACCESS)
-
-        # Exit direct access
-        self.assert_agent_command(ResourceAgentEvent.GO_COMMAND)
-        self.assert_agent_state(ResourceAgentState.COMMAND)
+        self.assert_direct_access_start_telnet()
+        self.assert_direct_access_stop_telnet()
 
         # Reset
         self.assert_agent_command(ResourceAgentEvent.RESET)
         self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
 
-    def test_instrument_agent_to_instrument_driver_connectivity(self, timeout=GO_ACTIVE_TIMEOUT):
+    def test_reset(self):
         """
-        @brief This test verifies that the instrument agent can
-               talk to the instrument driver.
-
-               The intent of this is to be a ping to the driver
-               layer.
+        Verify the agent can be reset
         """
         self.assert_enter_command_mode()
+        self.assert_reset()
 
-        retval = self.instrument_agent_client.ping_resource()
-        log.debug("RETVAL = " + str(type(retval)))
-        self.assertTrue("ping from resource ppid" in retval)
-        self.assertTrue("time:" in retval)
+        self.assert_enter_command_mode()
+        self.assert_start_autosample()
+        self.assert_reset()
 
-        retval = self.instrument_agent_client.ping_agent()
-        log.debug("RETVAL = " + str(type(retval)))
-        self.assertTrue("ping from InstrumentAgent" in retval)
-        self.assertTrue("time:" in retval)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_INACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd,
-                                                            timeout=EXECUTE_TIMEOUT)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
+        self.assert_enter_command_mode()
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assert_reset()
 
     @unittest.skip("Transaction management not yet implemented")
     def test_transaction_management_messages(self):
@@ -2501,7 +2543,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
 
         # Override some preload values
         config = {
-            'idk_agent': 'IA4',
+            'idk_agent': self.test_config.instrument_agent_preload_id,
             'idk_comms_method': 'ethernet',
             'idk_server_address': 'localhost',
             'idk_comms_device_address': pa_config.get('device_addr'),
@@ -2513,7 +2555,6 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
 
         self.instrument_agent_manager = InstrumentAgentClient()
         self.instrument_agent_manager.start_container(deploy_file=self.test_config.publisher_deploy_file, container_config=config)
-        #self.instrument_agent_manager.start_container(deploy_file=self.test_config.publisher_deploy_file)
 
         self.container = self.instrument_agent_manager.container
 
@@ -2537,6 +2578,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         """
         log.debug("InstrumentDriverQualificationTestCase tearDown")
 
+        self.assert_reset()
         self.instrument_agent_manager.stop_container()
         self.event_subscribers.stop()
         self.data_subscribers.stop_data_subscribers()
@@ -2657,3 +2699,24 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         log.debug("SAMPLE: %s" % sample)
         sampleDataAssert(sample)
 
+    def assert_reset(self):
+        '''
+        Exist active state
+        '''
+        log.debug("Reset Agent Now!")
+
+        state = self.instrument_agent_client.get_agent_state()
+        log.debug("Current State: %s" % state)
+
+        # If in DA mode walk it out
+        if(state == ResourceAgentState.DIRECT_ACCESS):
+            cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
+            self.instrument_agent_client.execute_agent(cmd, timeout=30)
+
+        # reset the instrument if it has been initialized
+        if(state != ResourceAgentState.UNINITIALIZED):
+            cmd = AgentCommand(command=ResourceAgentEvent.RESET)
+            self.instrument_agent_client.execute_agent(cmd)
+
+            state = self.instrument_agent_client.get_agent_state()
+            self.assertEqual(state, ResourceAgentState.UNINITIALIZED)

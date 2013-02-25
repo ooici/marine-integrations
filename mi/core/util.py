@@ -10,16 +10,20 @@
 __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
-def dict_equal(ldict, rdict):
+def dict_equal(ldict, rdict, ignore_keys=[]):
     """
     Compare two dictionary.  assumes both dictionaries are flat
     @param ldict: left side dict
     @param rdict: right side dict
+    @param ignore_keys: list of keys that we don't compare
     @return: true if equal false if not
     """
+    if(not isinstance(ignore_keys, list)):
+        ignore_keys = [ignore_keys]
+
     for key in set(ldict.keys() + rdict.keys()):
         if(key in ldict.keys() and key in rdict.keys()):
-            if(ldict[key] != rdict[key]):
+            if(not key in ignore_keys and ldict[key] != rdict[key]):
                 return False
         else:
             return False

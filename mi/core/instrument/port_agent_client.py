@@ -427,7 +427,7 @@ class PortAgentClient(object):
             sock.close()
         except Exception as e:
             log.error("send_break(): Exception occurred.", exc_info=True)
-            raise InstrumentConnectionException('Failed to connect to port agent command port at %s:%i (%s).'
+            raise InstrumentConnectionException('Failed to connect to port agent command port at %s:%s (%s).'
                                                 % (self.host, self.cmd_port, e))
 
 

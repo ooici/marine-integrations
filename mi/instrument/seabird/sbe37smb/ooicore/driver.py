@@ -704,6 +704,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(SBE37ProtocolState.TEST, SBE37ProtocolEvent.EXIT, self._handler_test_exit)
         self._protocol_fsm.add_handler(SBE37ProtocolState.TEST, SBE37ProtocolEvent.RUN_TEST, self._handler_test_run_tests)
         self._protocol_fsm.add_handler(SBE37ProtocolState.TEST, SBE37ProtocolEvent.GET, self._handler_command_autosample_test_get)
+
         self._protocol_fsm.add_handler(SBE37ProtocolState.DIRECT_ACCESS, SBE37ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(SBE37ProtocolState.DIRECT_ACCESS, SBE37ProtocolEvent.EXIT, self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(SBE37ProtocolState.DIRECT_ACCESS, SBE37ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)

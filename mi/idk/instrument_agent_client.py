@@ -137,7 +137,7 @@ class InstrumentAgentClient(object):
         self.container = container
 
     def stop_container(self):
-        log.info("Stop the instrument agent")
+        log.info("Stop the container")
 
         if not self.container:
             log.warn("Container not running.")
