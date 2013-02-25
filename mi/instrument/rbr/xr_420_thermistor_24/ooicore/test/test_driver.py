@@ -125,7 +125,7 @@ VALUE = ParameterTestConfigKey.VALUE
 REQUIRED = ParameterTestConfigKey.REQUIRED
 DEFAULT = ParameterTestConfigKey.DEFAULT
     
-class Mavs4Mixin(DriverTestMixin):
+class UtilMixin(DriverTestMixin):
     '''
     Mixin class used for storing data particle constants and common data assertion methods.
     '''
@@ -248,21 +248,23 @@ class Mavs4Mixin(DriverTestMixin):
     }
 
     SAMPLE = "12 20 2012 18 50 50.40 FDC5 FF70 FF1B FF8C 1.2 3.4 5.6 22.21 0.96 0.28 3.0 -5.1\n"
+    """
     
     def assert_clock_set(self, sent_time, rcvd_time):
         # verify that the dates match
         print("sts=%s, rts=%s" %(sent_time, rcvd_time))
         self.assertTrue(sent_time[:12].upper() in rcvd_time.upper())
            
-        sent_timestamp = time.strptime(sent_time, "%m/%d/%Y %H:%M:%S")
+        sent_timestamp = time.strptime(sent_time, "%d %b %Y %H:%M:%S")
         ntp_sent_timestamp = ntplib.system_to_ntp_time(time.mktime(sent_timestamp))
-        rcvd_timestamp = time.strptime(rcvd_time, "%m/%d/%Y %H:%M:%S")
+        rcvd_timestamp = time.strptime(rcvd_time, "%d %b %Y %H:%M:%S")
         ntp_rcvd_timestamp = ntplib.system_to_ntp_time(time.mktime(rcvd_timestamp))
         # verify that the times match closely
         print("sts=%d, rts=%d" %(ntp_sent_timestamp, ntp_rcvd_timestamp))
-        if ntp_rcvd_timestamp - ntp_sent_timestamp > 45:
+        if ntp_rcvd_timestamp - ntp_sent_timestamp > 5:
             self.fail("time delta too large after clock sync")        
     
+    """
     def assert_status_data_particle_header(self, data_particle, stream_name):
         # Verify a status data particle header is formatted properly w/o port agent timestamp
         # @param data_particle: version 1 data particle
@@ -299,8 +301,8 @@ class Mavs4Mixin(DriverTestMixin):
         self.assert_status_data_particle_header(data_particle, DataParticleType.STATUS)
         self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
 
-    TIME_TO_SET = '03/29/2002 11:11:42'
     """
+    TIME_TO_SET = '21 FEB 2002 11:11:42'
 
 #################################### RULES ####################################
 #                                                                             #
@@ -321,7 +323,7 @@ class Mavs4Mixin(DriverTestMixin):
 ###############################################################################
 
 @attr('UNIT', group='mi')
-class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
+class Testmavs4_UNIT(InstrumentDriverUnitTestCase, UtilMixin):
     """Unit Test Container"""
     
     def setUp(self):
@@ -498,7 +500,7 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
 ###############################################################################
 
 @attr('INT', group='mi')
-class TestINT(InstrumentDriverIntegrationTestCase):
+class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
     """Integration Test Container"""
     
     @staticmethod
@@ -528,6 +530,22 @@ class TestINT(InstrumentDriverIntegrationTestCase):
         self.assert_parameters(reply, self._driver_parameters, True)
 
 
+    def test_set_clock(self):
+        self.assert_initialize_driver()
+
+        new_parameter_values = {}
+        new_parameter_values[InstrumentParameters.LOGGER_DATE_AND_TIME] = self.TIME_TO_SET
+        new_parameter_list = []
+        new_parameter_list.append(InstrumentParameters.LOGGER_DATE_AND_TIME)
+        
+        # Set parameter and verify.
+        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
+        reply = self.driver_client.cmd_dvr('get_resource', new_parameter_list)
+        
+        rcvd_time = reply[InstrumentParameters.LOGGER_DATE_AND_TIME]
+        self.assert_clock_set(self.TIME_TO_SET, rcvd_time)
+
+
     def test_set(self):
         """
         Test device parameter access.
@@ -536,29 +554,15 @@ class TestINT(InstrumentDriverIntegrationTestCase):
 
         # construct values dynamically to get time stamp for notes
         new_parameter_values = {}
+        """
         for key in self.paramter_values.iterkeys():
             new_parameter_values[key] = self.paramter_values[key]
+        """
                
         # Set parameters and verify.
         self.assert_set_bulk(new_parameter_values)
         
 
-    def test_set_clock(self):
-        self.assert_initialize_driver()
-
-        new_parameter_values = {}
-        new_parameter_values[InstrumentParameters.SYS_CLOCK] = self.TIME_TO_SET
-        new_parameter_list = []
-        new_parameter_list.append(InstrumentParameters.SYS_CLOCK)
-        
-        # Set parameters and verify.
-        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
-        reply = self.driver_client.cmd_dvr('get_resource', new_parameter_list)
-        
-        rcvd_time = reply[InstrumentParameters.SYS_CLOCK]
-        self.assert_clock_set(self.TIME_TO_SET, rcvd_time)
-
-    
     def test_read_only_parameters(self):
         self.assert_initialize_driver()
 
@@ -658,7 +662,7 @@ class TestINT(InstrumentDriverIntegrationTestCase):
 ###############################################################################
 
 @attr('QUAL', group='mi')
-class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, Mavs4Mixin):
+class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     """Qualification Test Container"""
     
     # Qualification tests live in the base class.  This class is extended

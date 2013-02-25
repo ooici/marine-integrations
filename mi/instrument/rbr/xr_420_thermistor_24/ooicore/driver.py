@@ -493,7 +493,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         return resp_result
             
-    def  _wakeup(self):
+    def  _wakeup(self, *args):
         """
         overridden to find longest matching prompt anywhere in the buffer and to be
         more responsive with its use of sleep()
@@ -637,12 +637,10 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             if not isinstance(params_to_set, dict):
                 raise InstrumentParameterException('Set parameters not a dict.')
         
-        self._set_parameter_sub_parameters(params_to_set)
-                
         for (key, val) in params_to_set.iteritems():
-            dest_submenu = self._param_dict.get_menu_path_write(key)
             command = self._param_dict.get_submenu_write(key)
-            self._navigate_and_execute(command, name=key, value=val, dest_submenu=dest_submenu, timeout=5)
+            log.debug('_handler_command_set: cmd=%s, name=%s, value=%s' %(command, key, val))
+            self._do_cmd_no_resp(command, key, val, timeout=5)
 
         self._update_params()
             
@@ -862,16 +860,24 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         battery_voltage += .25417
         return battery_voltage
 
-    def _convert_date_and_time(self, reported_date_and_time):
-        time_struct = time.strptime(reported_date_and_time, "%y%m%d%H%M%S")
-        time_str = time.strftime('%d/%b/%Y %H:%M:%S', time_struct)
-        return time_str
+    def _convert_xr_420_date_and_time(self, reported_date_and_time):
+        """
+        convert string from XR-420 "yymmddhhmmss to ION "21 AUG 2012  09:51:55"
+        """
+        return time.strftime("%d %b %Y %H:%M:%S", time.strptime(reported_date_and_time, "%y%m%d%H%M%S"))
 
-    def _convert_time(self, reported_time):
-        time_struct = time.strptime(reported_time, "%H%M%S")
-        time_str = time.strftime('%H:%M:%S', time_struct)
-        return time_str
+    def _convert_xr_420_time(self, reported_time):
+        """
+        convert string from XR-420 "hhmmss to ION "09:51:55"
+        """
+        return time.strftime("%H:%M:%S", time.strptime(reported_time, "%H%M%S"))
 
+    def _convert_ion_date_time(self, ion_date_time_string):
+        """
+        convert string from ION "21 AUG 2012  09:51:55" to XR-420 "yymmddhhmmss"
+        """
+        return time.strftime("%y%m%d%H%M%S", time.strptime(ion_date_time_string, "%d %b %Y %H:%M:%S"))
+    
     def _update_params(self, *args, **kwargs):
         """
         Update the parameter dictionary. Issue the upload command. The response
@@ -947,28 +953,28 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.LOGGER_DATE_AND_TIME,
                              r'(.*)CTD\r\n', 
-                             lambda match : self._convert_date_and_time(match.group(1)),
+                             lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
                              submenu_read=InstrumentCmds.GET_LOGGER_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_LOGGER_DATE_AND_TIME)
 
         self._param_dict.add(InstrumentParameters.SAMPLE_INTERVAL,
                              r'(.*)CSP\r\n', 
-                             lambda match : self._convert_time(match.group(1)),
+                             lambda match : self._convert_xr_420_time(match.group(1)),
                              lambda string : str(string),
                              submenu_read=InstrumentCmds.GET_SAMPLE_INTERVAL,
                              submenu_write=InstrumentCmds.SET_SAMPLE_INTERVAL)
 
         self._param_dict.add(InstrumentParameters.START_DATE_AND_TIME,
                              r'(.*)CST\r\n', 
-                             lambda match : self._convert_date_and_time(match.group(1)),
+                             lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
                              submenu_read=InstrumentCmds.GET_START_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_START_DATE_AND_TIME)
 
         self._param_dict.add(InstrumentParameters.END_DATE_AND_TIME,
                              r'(.*)CET\r\n', 
-                             lambda match : self._convert_date_and_time(match.group(1)),
+                             lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
                              submenu_read=InstrumentCmds.GET_END_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_END_DATE_AND_TIME)
@@ -982,7 +988,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _build_command_handlers(self):
         
-        # Add build handlers for device commands.
+        # Add build handlers for device get commands.
         self._add_build_handler(InstrumentCmds.GET_STATUS, self._build_get_status_command)
         self._add_build_handler(InstrumentCmds.GET_IDENTIFICATION, self._build_get_identification_command)
         self._add_build_handler(InstrumentCmds.GET_LOGGER_DATE_AND_TIME, self._build_get_logger_date_and_time_command)
@@ -991,7 +997,10 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.GET_END_DATE_AND_TIME, self._build_get_end_date_and_time_command)
         self._add_build_handler(InstrumentCmds.GET_BATTERY_VOLTAGE, self._build_get_battery_voltage_command)
         
-        # Add response handlers for device commands.
+        # Add build handlers for device set commands.
+        self._add_build_handler(InstrumentCmds.SET_LOGGER_DATE_AND_TIME, self._build_set_command)
+
+        # Add response handlers for device get commands.
         self._add_response_handler(InstrumentCmds.GET_STATUS, self._parse_status_response)
         self._add_response_handler(InstrumentCmds.GET_IDENTIFICATION, self._parse_identification_response)
         self._add_response_handler(InstrumentCmds.GET_LOGGER_DATE_AND_TIME, self._parse_logger_date_and_time_response)
@@ -1001,7 +1010,21 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.GET_BATTERY_VOLTAGE, self._parse_battery_voltage_response)
    
 ##################################################################################################
-# command handlers
+# set command handlers
+##################################################################################################
+
+    def _build_set_command(self, cmd, *args):
+        [name, value] = args
+        log.debug('_build_set_command: cmd=%s, name=%s, value=%s' %(cmd, name, value))
+        time_str = self._convert_ion_date_time(value)
+        command = cmd + time_str
+        log.debug('_build_set_command: command=%s' %command)
+        return command
+        #raise InstrumentParameterException('_build_set_command quiting.')
+        
+
+##################################################################################################
+# get command handlers
 ##################################################################################################
 
     def _build_get_status_command(self, **kwargs):
