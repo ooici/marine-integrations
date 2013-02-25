@@ -329,6 +329,7 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
     
+    '''
     def assert_status_particle_published(self, particle_assert_method, verify_values = False):
         """
         Verify that we can send data through the port agent and the the correct particles
@@ -490,6 +491,7 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, UtilMixin):
 
         driver = mavs4InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
+    '''
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
