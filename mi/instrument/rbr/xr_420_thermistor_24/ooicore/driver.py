@@ -999,6 +999,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         
         # Add build handlers for device set commands.
         self._add_build_handler(InstrumentCmds.SET_LOGGER_DATE_AND_TIME, self._build_set_command)
+        self._add_build_handler(InstrumentCmds.SET_START_DATE_AND_TIME, self._build_set_command)
+        self._add_build_handler(InstrumentCmds.SET_END_DATE_AND_TIME, self._build_set_command)
 
         # Add response handlers for device get commands.
         self._add_response_handler(InstrumentCmds.GET_STATUS, self._parse_status_response)

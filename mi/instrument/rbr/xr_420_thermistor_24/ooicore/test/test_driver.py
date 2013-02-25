@@ -130,6 +130,10 @@ class UtilMixin(DriverTestMixin):
     Mixin class used for storing data particle constants and common data assertion methods.
     '''
     
+    TIME_TO_SET1 = '21 Feb 2002 11:18:42'
+    TIME_TO_SET2 = '01 Jan 2000 12:23:00'
+    TIME_TO_SET3 = '27 Dec 2003 01:10:59'
+
     ###
     #  Parameter and Type Definitions
     ###
@@ -177,37 +181,14 @@ class UtilMixin(DriverTestMixin):
         InstrumentParameters.TILT_PITCH_OFFSET : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.TILT_ROLL_OFFSET : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
     }
+    """
 
     # parameter values to test.
-    paramter_values = {InstrumentParameters.NOTE1 : 'New note1 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                       InstrumentParameters.NOTE2 : 'New note2 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                       InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                       InstrumentParameters.VELOCITY_FRAME : '3',
-                       InstrumentParameters.MONITOR : 'y',
-                       InstrumentParameters.LOG_DISPLAY_TIME : 'y',
-                       InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : 'y',
-                       InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'HEX',
-                       InstrumentParameters.QUERY_MODE : 'n',
-                       InstrumentParameters.FREQUENCY : 2.0,
-                       InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
-                       InstrumentParameters.SAMPLE_PERIOD : 5.0,
-                       InstrumentParameters.SAMPLES_PER_BURST : 2,
-                       InstrumentParameters.BURST_INTERVAL_DAYS : 0,
-                       InstrumentParameters.BURST_INTERVAL_HOURS : 0,
-                       InstrumentParameters.BURST_INTERVAL_MINUTES : 0,
-                       InstrumentParameters.BURST_INTERVAL_SECONDS : 0,
-                       InstrumentParameters.SI_CONVERSION : .00231,
-                       InstrumentParameters.WARM_UP_INTERVAL : 'Fast',
-                       InstrumentParameters.THREE_AXIS_COMPASS : 'y',
-                       InstrumentParameters.SOLID_STATE_TILT : 'y',
-                       InstrumentParameters.THERMISTOR : 'y',
-                       InstrumentParameters.PRESSURE : 'n',
-                       InstrumentParameters.AUXILIARY_1 : 'n',
-                       InstrumentParameters.AUXILIARY_2 : 'n',
-                       InstrumentParameters.AUXILIARY_3 : 'n',
-                       InstrumentParameters.SENSOR_ORIENTATION : '2'
+    paramter_values = {InstrumentParameters.START_DATE_AND_TIME : TIME_TO_SET2,
+                       InstrumentParameters.END_DATE_AND_TIME : TIME_TO_SET3,
                        }
-        
+    
+    """  
     _status_parameters = {
         Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_A: {TYPE: int, VALUE: 1 },
         Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_B: {TYPE: int, VALUE: 2 },
@@ -302,7 +283,6 @@ class UtilMixin(DriverTestMixin):
         self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
 
     """
-    TIME_TO_SET = '21 FEB 2002 11:11:42'
 
 #################################### RULES ####################################
 #                                                                             #
@@ -536,7 +516,7 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         self.assert_initialize_driver()
 
         new_parameter_values = {}
-        new_parameter_values[InstrumentParameters.LOGGER_DATE_AND_TIME] = self.TIME_TO_SET
+        new_parameter_values[InstrumentParameters.LOGGER_DATE_AND_TIME] = self.TIME_TO_SET1
         new_parameter_list = []
         new_parameter_list.append(InstrumentParameters.LOGGER_DATE_AND_TIME)
         
@@ -545,7 +525,7 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         reply = self.driver_client.cmd_dvr('get_resource', new_parameter_list)
         
         rcvd_time = reply[InstrumentParameters.LOGGER_DATE_AND_TIME]
-        self.assert_clock_set(self.TIME_TO_SET, rcvd_time)
+        self.assert_clock_set(self.TIME_TO_SET1, rcvd_time)
 
 
     def test_set(self):
@@ -556,10 +536,9 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
 
         # construct values dynamically to get time stamp for notes
         new_parameter_values = {}
-        """
+
         for key in self.paramter_values.iterkeys():
             new_parameter_values[key] = self.paramter_values[key]
-        """
                
         # Set parameters and verify.
         self.assert_set_bulk(new_parameter_values)
