@@ -269,7 +269,7 @@ class UtilMixin(DriverTestMixin):
 ###############################################################################
 
 @attr('UNIT', group='mi')
-class Testmavs4_UNIT(InstrumentDriverUnitTestCase, UtilMixin):
+class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
     """Unit Test Container"""
     
     def setUp(self):
@@ -609,7 +609,7 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
 ###############################################################################
 
 @attr('QUAL', group='mi')
-class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, UtilMixin):
+class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     """Qualification Test Container"""
     
     # Qualification tests live in the base class.  This class is extended
@@ -617,57 +617,17 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     # (UNIT, INT, and QUAL) are run.  
 
 
-    @unittest.skip("skip for automatic tests")
+    #@unittest.skip("skip for automatic tests")
     def test_direct_access_telnet_mode_manually(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
-        cmd = AgentCommand(command='power_down')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent power_down; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
-
-        cmd = AgentCommand(command='power_up')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent power_up; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command='initialize')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent initialize; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
-
-        cmd = AgentCommand(command='go_active')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent go_active; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.IDLE)
-
-        cmd = AgentCommand(command='run')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent run; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
-
-        gevent.sleep(5)  # wait for mavs4 to go back to sleep if it was sleeping
+        self.assert_enter_command_mode()
         
         # go direct access
-        cmd = AgentCommand(command='go_direct_access',
-                           kwargs={'session_type': DirectAccessTypes.telnet,
-                                   #kwargs={'session_type':DirectAccessTypes.vsp,
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
+                           #kwargs={'session_type': DirectAccessTypes.telnet,
+                           kwargs={'session_type':DirectAccessTypes.vsp,
                                    'session_timeout':600,
                                    'inactivity_timeout':600})
         retval = self.instrument_agent_client.execute_agent(cmd)
