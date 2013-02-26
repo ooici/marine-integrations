@@ -87,6 +87,7 @@ class InstrumentResponses(BaseEnum):
     GET_END_DATE_AND_TIME    = 'CET\r\n'
     GET_BATTERY_VOLTAGE      = 'BAT\r\n'
     GET_CHANNEL_CALIBRATION  = 'CAL\r\n'
+    GET_ADVANCED_FUNCTIONS   = 'STC\r\n'
     UNKNOWN_COMMAND          = '? Unknown command \r\n'
         
 class InstrumentCmds(BaseEnum):   
@@ -108,8 +109,8 @@ class InstrumentCmds(BaseEnum):
     STOP_SAMPLING            = '!9'
     SUSPEND_SAMPLING         = '!S'
     RESUME_SAMPLING          = '!R'
-    SET_ADVANCED_CONTROLS    = '!1'
-    GET_ADVANCED_CONTROLS    = '!2'
+    SET_ADVANCED_FUNCTIONS   = '!1'
+    GET_ADVANCED_FUNCTIONS   = '!2'
 
 class ProtocolStates(BaseEnum):
     """
@@ -154,22 +155,30 @@ class InstrumentParameters(DriverParameter):
     Device parameters for XR-420.
     """
     # main menu parameters
-    IDENTIFICATION                     = 'identification'
-    LOGGER_DATE_AND_TIME               = 'logger_date_and_time'
-    SAMPLE_INTERVAL                    = 'sample_interval'
-    START_DATE_AND_TIME                = 'start_date_and_time'
-    END_DATE_AND_TIME                  = 'end_date_and_time'
-    STATUS                             = 'status'
-    BATTERY_VOLTAGE                    = 'battery_voltage'
-    CALIBRATION_COEFFICIENTS_CHANNEL_1 = 'calibration_coefficients_channel_1'
-    CALIBRATION_COEFFICIENTS_CHANNEL_2 = 'calibration_coefficients_channel_2'
-    CALIBRATION_COEFFICIENTS_CHANNEL_3 = 'calibration_coefficients_channel_3'
-    CALIBRATION_COEFFICIENTS_CHANNEL_4 = 'calibration_coefficients_channel_4'
-    CALIBRATION_COEFFICIENTS_CHANNEL_5 = 'calibration_coefficients_channel_5'
-    CALIBRATION_COEFFICIENTS_CHANNEL_6 = 'calibration_coefficients_channel_6'
-    CALIBRATION_COEFFICIENTS_CHANNEL_7 = 'calibration_coefficients_channel_7'
-    CALIBRATION_COEFFICIENTS_CHANNEL_8 = 'calibration_coefficients_channel_8'
-    CALIBRATION_COEFFICIENTS_CHANNEL_9 = 'calibration_coefficients_channel_9'
+    IDENTIFICATION                      = 'identification'
+    LOGGER_DATE_AND_TIME                = 'logger_date_and_time'
+    SAMPLE_INTERVAL                     = 'sample_interval'
+    START_DATE_AND_TIME                 = 'start_date_and_time'
+    END_DATE_AND_TIME                   = 'end_date_and_time'
+    STATUS                              = 'status'
+    BATTERY_VOLTAGE                     = 'battery_voltage'
+    POWER_ALWAYS_ON                     = 'power_always_on'
+    SIX_HZ_PROFILING_MODE               = '6hz_profiling_mode'
+    OUTPUT_INCLUDES_SERIAL_NUMBER       = 'output_includes_serial_number'
+    OUTPUT_INCLUDES_BATTERY_VOLTAGE     = 'output_includes_battery_voltage'
+    SAMPLING_LED                        = 'sample_led'
+    ENGINEERING_UNITS_OUTPUT            = 'engineering_units_output'
+    AUTO_RUN                            = 'auto_run'
+    INHIBIT_DATA_STORAGE                = 'inhibit_data_storage'
+    CALIBRATION_COEFFICIENTS_CHANNEL_1  = 'calibration_coefficients_channel_1'
+    CALIBRATION_COEFFICIENTS_CHANNEL_2  = 'calibration_coefficients_channel_2'
+    CALIBRATION_COEFFICIENTS_CHANNEL_3  = 'calibration_coefficients_channel_3'
+    CALIBRATION_COEFFICIENTS_CHANNEL_4  = 'calibration_coefficients_channel_4'
+    CALIBRATION_COEFFICIENTS_CHANNEL_5  = 'calibration_coefficients_channel_5'
+    CALIBRATION_COEFFICIENTS_CHANNEL_6  = 'calibration_coefficients_channel_6'
+    CALIBRATION_COEFFICIENTS_CHANNEL_7  = 'calibration_coefficients_channel_7'
+    CALIBRATION_COEFFICIENTS_CHANNEL_8  = 'calibration_coefficients_channel_8'
+    CALIBRATION_COEFFICIENTS_CHANNEL_9  = 'calibration_coefficients_channel_9'
     CALIBRATION_COEFFICIENTS_CHANNEL_10 = 'calibration_coefficients_channel_10'
     CALIBRATION_COEFFICIENTS_CHANNEL_11 = 'calibration_coefficients_channel_11'
     CALIBRATION_COEFFICIENTS_CHANNEL_12 = 'calibration_coefficients_channel_12'
@@ -186,7 +195,7 @@ class InstrumentParameters(DriverParameter):
     CALIBRATION_COEFFICIENTS_CHANNEL_23 = 'calibration_coefficients_channel_23'
     CALIBRATION_COEFFICIENTS_CHANNEL_24 = 'calibration_coefficients_channel_24'
     
-class Status(DriverParameter):
+class Status(BaseEnum):
     NOT_ENABLED_FOR_SAMPLING       = 0x00
     ENABLED_SAMPLING_NOT_STARTED   = 0x01
     STARTED_SAMPLING               = 0x02
@@ -199,6 +208,26 @@ class Status(DriverParameter):
     RCVD_STOP_COMMAND              = 0x02
     DATA_MEMORY_FULL               = 0x03
     CONFIGURATION_ERROR            = 0x05
+
+class AdvancedFunctionsParameters(BaseEnum):
+    POWER_ALWAYS_ON                 = InstrumentParameters.POWER_ALWAYS_ON
+    SIX_HZ_PROFILING_MODE           = InstrumentParameters.SIX_HZ_PROFILING_MODE
+    OUTPUT_INCLUDES_SERIAL_NUMBER   = InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER  
+    OUTPUT_INCLUDES_BATTERY_VOLTAGE = InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE
+    SAMPLING_LED                    = InstrumentParameters.SAMPLING_LED  
+    ENGINEERING_UNITS_OUTPUT        = InstrumentParameters.ENGINEERING_UNITS_OUTPUT 
+    AUTO_RUN                        = InstrumentParameters.AUTO_RUN   
+    IINHIBIT_DATA_STORAGE           = InstrumentParameters.INHIBIT_DATA_STORAGE  
+
+class AdvancedFuntions(BaseEnum):
+    InstrumentParameters.POWER_ALWAYS_ON                 = 0x01
+    InstrumentParameters.SIX_HZ_PROFILING_MODE           = 0x02
+    InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER   = 0x400
+    InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE = 0x800
+    InstrumentParameters.SAMPLING_LED                    = 0x1000
+    InstrumentParameters.ENGINEERING_UNITS_OUTPUT        = 0x2000
+    InstrumentParameters.AUTO_RUN                        = 0x4000
+    InstrumentParameters.INHIBIT_DATA_STORAGE            = 0x8000
 
 
 ###############################################################################
@@ -1222,6 +1251,13 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
+        self._param_dict.add(InstrumentParameters.POWER_ALWAYS_ON,
+                             r'', 
+                             None,
+                             None,
+                             submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
+                             submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
+
     def _build_command_handlers(self):
         
         # Add build handlers for device get commands.
@@ -1233,6 +1269,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.GET_END_DATE_AND_TIME, self._build_get_end_date_and_time_command)
         self._add_build_handler(InstrumentCmds.GET_BATTERY_VOLTAGE, self._build_get_battery_voltage_command)
         self._add_build_handler(InstrumentCmds.GET_CHANNEL_CALIBRATION, self._build_get_channel_calibration_command)
+        self._add_build_handler(InstrumentCmds.GET_ADVANCED_FUNCTIONS, self._build_get_advanved_functions_command)
         
         # Add build handlers for device set commands.
         self._add_build_handler(InstrumentCmds.SET_LOGGER_DATE_AND_TIME, self._build_set_date_time_command)
@@ -1249,6 +1286,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.GET_END_DATE_AND_TIME, self._parse_end_date_and_time_response)
         self._add_response_handler(InstrumentCmds.GET_BATTERY_VOLTAGE, self._parse_battery_voltage_response)
         self._add_response_handler(InstrumentCmds.GET_CHANNEL_CALIBRATION, self._parse_channel_calibration_response)
+        self._add_response_handler(InstrumentCmds.GET_ADVANCED_FUNCTIONS, self._parse_advanced_functions_response)
    
 ##################################################################################################
 # set command handlers
@@ -1353,6 +1391,15 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         log.debug("_build_get_channel_calibration_command: cmd=%s, response=%s" %(cmd, response))
         return (cmd, response)    
     
+    def _build_get_advanved_functions_command(self, **kwargs):
+        cmd_name = kwargs.get('command', None)
+        if cmd_name == None:
+            raise InstrumentParameterException('_build_get_advanved_functions_command requires a command.')
+        cmd = cmd_name
+        response = InstrumentResponses.GET_ADVANCED_FUNCTIONS
+        log.debug("_build_get_advanved_functions_command: cmd=%s, response=%s" %(cmd, response))
+        return (cmd, response)    
+    
 ##################################################################################################
 # response handlers
 ##################################################################################################
@@ -1423,4 +1470,13 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             self._param_dict.update_specific(param_name, response)
         else:
             raise InstrumentParameterException('Get channel calibration response not correct: %s.' %response)
+
+    def _parse_advanced_functions_response(self, response, prompt, **kwargs):
+        log.debug("_parse_advanced_functions_response: response=%s" %response.rstrip())
+        if InstrumentResponses.GET_ADVANCED_FUNCTIONS in response:
+            # got advanced functions response, so save it
+            for name in AdvancedFunctionsParameters.list():
+                self._param_dict.set(name, self._get_bit_value(name, response))
+        else:
+            raise InstrumentParameterException('Get advanced functions response not correct: %s.' %response)
                            
