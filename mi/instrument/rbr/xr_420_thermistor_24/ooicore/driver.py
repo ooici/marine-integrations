@@ -162,6 +162,29 @@ class InstrumentParameters(DriverParameter):
     STATUS                             = 'status'
     BATTERY_VOLTAGE                    = 'battery_voltage'
     CALIBRATION_COEFFICIENTS_CHANNEL_1 = 'calibration_coefficients_channel_1'
+    CALIBRATION_COEFFICIENTS_CHANNEL_2 = 'calibration_coefficients_channel_2'
+    CALIBRATION_COEFFICIENTS_CHANNEL_3 = 'calibration_coefficients_channel_3'
+    CALIBRATION_COEFFICIENTS_CHANNEL_4 = 'calibration_coefficients_channel_4'
+    CALIBRATION_COEFFICIENTS_CHANNEL_5 = 'calibration_coefficients_channel_5'
+    CALIBRATION_COEFFICIENTS_CHANNEL_6 = 'calibration_coefficients_channel_6'
+    CALIBRATION_COEFFICIENTS_CHANNEL_7 = 'calibration_coefficients_channel_7'
+    CALIBRATION_COEFFICIENTS_CHANNEL_8 = 'calibration_coefficients_channel_8'
+    CALIBRATION_COEFFICIENTS_CHANNEL_9 = 'calibration_coefficients_channel_9'
+    CALIBRATION_COEFFICIENTS_CHANNEL_10 = 'calibration_coefficients_channel_10'
+    CALIBRATION_COEFFICIENTS_CHANNEL_11 = 'calibration_coefficients_channel_11'
+    CALIBRATION_COEFFICIENTS_CHANNEL_12 = 'calibration_coefficients_channel_12'
+    CALIBRATION_COEFFICIENTS_CHANNEL_13 = 'calibration_coefficients_channel_13'
+    CALIBRATION_COEFFICIENTS_CHANNEL_14 = 'calibration_coefficients_channel_14'
+    CALIBRATION_COEFFICIENTS_CHANNEL_15 = 'calibration_coefficients_channel_15'
+    CALIBRATION_COEFFICIENTS_CHANNEL_16 = 'calibration_coefficients_channel_16'
+    CALIBRATION_COEFFICIENTS_CHANNEL_17 = 'calibration_coefficients_channel_17'
+    CALIBRATION_COEFFICIENTS_CHANNEL_18 = 'calibration_coefficients_channel_18'
+    CALIBRATION_COEFFICIENTS_CHANNEL_19 = 'calibration_coefficients_channel_19'
+    CALIBRATION_COEFFICIENTS_CHANNEL_20 = 'calibration_coefficients_channel_20'
+    CALIBRATION_COEFFICIENTS_CHANNEL_21 = 'calibration_coefficients_channel_21'
+    CALIBRATION_COEFFICIENTS_CHANNEL_22 = 'calibration_coefficients_channel_22'
+    CALIBRATION_COEFFICIENTS_CHANNEL_23 = 'calibration_coefficients_channel_23'
+    CALIBRATION_COEFFICIENTS_CHANNEL_24 = 'calibration_coefficients_channel_24'
     
 class Status(DriverParameter):
     NOT_ENABLED_FOR_SAMPLING       = 0x00
@@ -915,11 +938,12 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         for index in range(4):
             bytes_in_hex = calibration_string[0:16]
             calibration_string = calibration_string[16:]
-            log.debug("_convert_calibration: index=%d, hex_str_to_convert=%s, rest_of_str=%s" %(index, bytes_in_hex, calibration_string))
+            #log.debug("_convert_calibration: index=%d, hex_str_to_convert=%s, rest_of_str=%s" %(index, bytes_in_hex, calibration_string))
             bytes_in_hex = bytes_in_hex.decode('hex')
-            for i in range(8):
-                log.debug("_convert_calibration: bih[%d]=%d" %(i, ord(bytes_in_hex[i])))
-            float_list.append(struct.unpack('<d', bytes_in_hex))
+            #for i in range(8):
+            #    log.debug("_convert_calibration: bih[%d]=%d" %(i, ord(bytes_in_hex[i])))
+            float_value = struct.unpack('<d', bytes_in_hex)
+            float_list.append(float_value[0])
         return float_list
     
     def _update_params(self, *args, **kwargs):
@@ -1031,6 +1055,167 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              submenu_read=InstrumentCmds.GET_BATTERY_VOLTAGE)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_2,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_3,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_4,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_5,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_6,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_7,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_8,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_9,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_10,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_11,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_12,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_13,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_14,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_15,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_16,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_17,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_18,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_19,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_20,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_21,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_22,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_23,
+                             r'(.*)CAL\r\n', 
+                             lambda match : self._convert_calibration(match.group(1)),
+                             self._float_list_to_string,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
+
+        self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_24,
                              r'(.*)CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
@@ -1162,7 +1347,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         param_name = kwargs.get('name', None)
         if param_name == None:
             raise InstrumentParameterException('_build_get_channel_calibration_command requires a parameter name.')
-        channel_number = '%02X' %int(param_name[-1])
+        channel_number = '%02X' %int(param_name.split('_')[-1])
         cmd = cmd_name + channel_number
         response = InstrumentResponses.GET_CHANNEL_CALIBRATION
         log.debug("_build_get_channel_calibration_command: cmd=%s, response=%s" %(cmd, response))

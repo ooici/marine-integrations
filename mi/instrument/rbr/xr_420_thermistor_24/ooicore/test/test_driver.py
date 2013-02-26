@@ -146,6 +146,29 @@ class UtilMixin(DriverTestMixin):
         InstrumentParameters.STATUS : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.BATTERY_VOLTAGE : {TYPE: float, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_2 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_3 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_4 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_5 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_6 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_7 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_8 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_9 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_10 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_11 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_12 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_13 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_14 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_15 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_16 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_17 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_18 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_19 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_20 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_21 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_22 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_23 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_24 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
     }
 
     # parameter values to test.
@@ -476,6 +499,8 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
         self.assert_parameters(reply, self._driver_parameters, True)
+        for (name, value) in reply.iteritems():
+            log.debug("test_get_parameters: name=%s, value=%s" %(name, str(value)))
 
 
     def test_set_clock(self):
