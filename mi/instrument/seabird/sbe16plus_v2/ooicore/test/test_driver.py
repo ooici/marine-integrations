@@ -22,8 +22,8 @@ from nose.plugins.attrib import attr
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEUnitTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEIntTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEQualTestCase
+from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEPubTestCase
 from mi.instrument.seabird.sbe16plus_v2.driver import DataParticleType
-from prototype.sci_data.stream_defs import ctd_stream_definition
 from mi.idk.unit_test import InstrumentDriverTestCase
 
 InstrumentDriverTestCase.initialize(
@@ -41,9 +41,7 @@ InstrumentDriverTestCase.initialize(
 ###############################################################################
 @attr('UNIT', group='mi')
 class UnitFromIDK(SBEUnitTestCase):
-    """
-
-    """
+    pass
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -54,9 +52,8 @@ class UnitFromIDK(SBEUnitTestCase):
 ###############################################################################
 @attr('INT', group='mi')
 class IntFromIDK(SBEIntTestCase):
-    """
+    pass
 
-    """
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -64,6 +61,13 @@ class IntFromIDK(SBEIntTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualFromIDK(SBEQualTestCase):
-    """
-    
-    """
+    pass
+
+###############################################################################
+#                             PUBLICATION TESTS                               #
+# Device specific publication tests are for                                   #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('PUB', group='mi')
+class PubFromIDK(SBEPubTestCase):
+    pass

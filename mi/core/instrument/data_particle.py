@@ -172,6 +172,8 @@ class DataParticle(object):
         result[DataParticleKey.STREAM_NAME] = self.data_particle_type()
         result[DataParticleKey.VALUES] = values
 
+        log.debug("Serialize result: %s" % result)
+
         # JSONify response, sorting is nice for testing
         json_result = json.dumps(result, sort_keys=True)
         

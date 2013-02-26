@@ -347,7 +347,9 @@ class DriverFileList:
             self.driver_test_file = driver_test_file
         else:
             self.driver_test_file = driver_generator.driver_test_path()
-        
+
+        self.driver_dependency = None
+        self.test_dependency = None
         self.driver_dependency = DependencyList(self.driver_file, include_internal_init=True)
         self.test_dependency = DependencyList(self.driver_test_file, include_internal_init=True)
 
@@ -363,7 +365,8 @@ class DriverFileList:
         test_files = self._scrub_test_files(self.test_dependency.internal_dependencies())
         extra_files = []
         extra_files = self._extra_files()
-        files = extra_files + driver_files + test_files
+        config_files = self._config_files()
+        files = extra_files + config_files + driver_files + test_files
 
         for fn in files:
             if not fn in result:
@@ -388,6 +391,8 @@ class DriverFileList:
 
         return result
 
+    def _config_files(self):
+        return ["config/logging.yml"]
 
     def _extra_files(self):
         result = []

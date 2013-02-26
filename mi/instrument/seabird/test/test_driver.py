@@ -26,6 +26,9 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import InstrumentDriverPublicationTestCase
 
+from mi.instrument.seabird.driver import SeaBirdProtocol
+from mi.core.exceptions import InstrumentParameterException
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -41,6 +44,32 @@ from mi.idk.unit_test import InstrumentDriverPublicationTestCase
 class SeaBirdUnitTest(InstrumentDriverUnitTestCase):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
+
+    def test_hex2value(self):
+        """
+        Verify the hex2value method works as expected.
+        """
+        value = SeaBirdProtocol.hex2value("F")
+        self.assertIsInstance(value, int)
+        self.assertEqual(value, 15)
+
+        value = SeaBirdProtocol.hex2value("F", 2)
+        self.assertIsInstance(value, float)
+        self.assertEqual(value, 7.5)
+
+        value = SeaBirdProtocol.hex2value("0xF")
+        self.assertIsInstance(value, int)
+        self.assertEqual(value, 15)
+
+        value = SeaBirdProtocol.hex2value("0x1000")
+        self.assertIsInstance(value, int)
+        self.assertEqual(value, 4096)
+
+        with self.assertRaises(InstrumentParameterException):
+            SeaBirdProtocol.hex2value("F", 0)
+
+        with self.assertRaises(InstrumentParameterException):
+            SeaBirdProtocol.hex2value(1, 0)
 
 
 ###############################################################################

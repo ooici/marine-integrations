@@ -296,7 +296,6 @@ class DriverTestMixin(MiUnitTest):
         driver_keys = sorted(data_particle_key.list())
         test_config_keys = sorted(test_config.keys())
 
-        self.assertEqual(len(driver_keys), len(test_config_keys))
         self.assertEqual(driver_keys, test_config_keys)
 
     def assert_data_particle_header(self, data_particle, stream_name, require_instrument_timestamp=False):
@@ -513,12 +512,13 @@ class DriverTestMixin(MiUnitTest):
 
         # Lets verify all required parameters are there
         for required in required_keys:
-            self.assertTrue(required in sample_keys)
+            self.assertTrue(required in sample_keys, msg="particle missing parameter '%s', a required key" % required)
             sample_keys.remove(required)
 
         # Now lets look for optional fields and removed them from the parameter list
         for optional in optional_keys:
-            sample_keys.remove(optional)
+            if(optional in sample_keys):
+                sample_keys.remove(optional)
 
         log.info("Unknown Keys: %s" % sample_keys)
 
