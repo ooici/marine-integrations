@@ -1,6 +1,3 @@
-
-
-
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import NEWLINE
 
 # From Lytle
@@ -35,47 +32,48 @@ break_alarm_str = NEWLINE + "[ALARM Wakeup A]" + NEWLINE +\
 "All Rights Reserved." + NEWLINE +\
 ">"
 
+EF_CHAR = '\xef'
 
 CALIBRATION_RAW_DATA = \
 "" + NEWLINE +\
 "              ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM" + NEWLINE + \
 "               Calibration date and time: 9/14/2012  09:25:32" + NEWLINE + \
 "                             S inverse" + NEWLINE + \
-"          �                                                  �" + NEWLINE + \
-"     Bx   �   3.9218e-01  3.9660e-01 -3.1681e-02  6.4332e-03 �" + NEWLINE + \
-"     By   �  -2.4320e-02 -1.0376e-02 -2.2428e-03 -6.0628e-01 �" + NEWLINE + \
-"     Bz   �   2.2453e-01 -2.1972e-01 -2.7990e-01 -2.4339e-03 �" + NEWLINE + \
-"     Err  �   4.6514e-01 -4.0455e-01  6.9083e-01 -1.4291e-02 �" + NEWLINE + \
-"          �                                                  �" + NEWLINE + \
+"          " + EF_CHAR + "                                                  " + EF_CHAR + "" + NEWLINE + \
+"     Bx   " + EF_CHAR + "   3.9218e-01  3.9660e-01 -3.1681e-02  6.4332e-03 " + EF_CHAR + "" + NEWLINE + \
+"     By   " + EF_CHAR + "  -2.4320e-02 -1.0376e-02 -2.2428e-03 -6.0628e-01 " + EF_CHAR + "" + NEWLINE + \
+"     Bz   " + EF_CHAR + "   2.2453e-01 -2.1972e-01 -2.7990e-01 -2.4339e-03 " + EF_CHAR + "" + NEWLINE + \
+"     Err  " + EF_CHAR + "   4.6514e-01 -4.0455e-01  6.9083e-01 -1.4291e-02 " + EF_CHAR + "" + NEWLINE + \
+"          " + EF_CHAR + "                                                  " + EF_CHAR + "" + NEWLINE + \
 "                             Coil Offset" + NEWLINE + \
-"                         �                �" + NEWLINE + \
-"                         �   3.4233e+04   �" + NEWLINE + \
-"                         �   3.4449e+04   �" + NEWLINE + \
-"                         �   3.4389e+04   �" + NEWLINE + \
-"                         �   3.4698e+04   �" + NEWLINE + \
-"                         �                �" + NEWLINE + \
+"                         " + EF_CHAR + "                " + EF_CHAR + "" + NEWLINE + \
+"                         " + EF_CHAR + "   3.4233e+04   " + EF_CHAR + "" + NEWLINE + \
+"                         " + EF_CHAR + "   3.4449e+04   " + EF_CHAR + "" + NEWLINE + \
+"                         " + EF_CHAR + "   3.4389e+04   " + EF_CHAR + "" + NEWLINE + \
+"                         " + EF_CHAR + "   3.4698e+04   " + EF_CHAR + "" + NEWLINE + \
+"                         " + EF_CHAR + "                " + EF_CHAR + "" + NEWLINE + \
 "                             Electrical Null" + NEWLINE + \
-"                              �       �" + NEWLINE + \
-"                              � 34285 �" + NEWLINE + \
-"                              �       �" + NEWLINE + \
+"                              " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
+"                              " + EF_CHAR + " 34285 " + EF_CHAR + "" + NEWLINE + \
+"                              " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
 "                    TILT CALIBRATION MATRICES in NVRAM" + NEWLINE + \
 "                Calibration date and time: 9/14/2012  09:14:45" + NEWLINE + \
-"              Average Temperature During Calibration was   24.4 �C" + NEWLINE + \
+"              Average Temperature During Calibration was   24.4 " + EF_CHAR + "C" + NEWLINE + \
 "" + NEWLINE + \
 "                   Up                              Down" + NEWLINE + \
 "" + NEWLINE + \
-"        �                           �     �                           �" + NEWLINE + \
-" Roll   �   7.4612e-07  -3.1727e-05 �     �  -3.0054e-07   3.2190e-05 �" + NEWLINE + \
-" Pitch  �  -3.1639e-05  -6.3505e-07 �     �  -3.1965e-05  -1.4881e-07 �" + NEWLINE + \
-"        �                           �     �                           �" + NEWLINE + \
+"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
+" Roll   " + EF_CHAR + "   7.4612e-07  -3.1727e-05 " + EF_CHAR + "     " + EF_CHAR + "  -3.0054e-07   3.2190e-05 " + EF_CHAR + "" + NEWLINE + \
+" Pitch  " + EF_CHAR + "  -3.1639e-05  -6.3505e-07 " + EF_CHAR + "     " + EF_CHAR + "  -3.1965e-05  -1.4881e-07 " + EF_CHAR + "" + NEWLINE + \
+"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
 "" + NEWLINE + \
-"        �                           �     �                           �" + NEWLINE + \
-" Offset �   3.2808e+04   3.2568e+04 �     �   3.2279e+04   3.3047e+04 �" + NEWLINE + \
-"        �                           �     �                           �" + NEWLINE + \
+"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
+" Offset " + EF_CHAR + "   3.2808e+04   3.2568e+04 " + EF_CHAR + "     " + EF_CHAR + "   3.2279e+04   3.3047e+04 " + EF_CHAR + "" + NEWLINE + \
+"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
 "" + NEWLINE + \
-"                             �       �" + NEWLINE + \
-"                      Null   � 33500 �" + NEWLINE + \
-"                             �       �" + NEWLINE + \
+"                             " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
+"                      Null   " + EF_CHAR + " 33500 " + EF_CHAR + "" + NEWLINE + \
+"                             " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
 "" + NEWLINE + \
 "" + NEWLINE + \
 "" + NEWLINE + \
@@ -84,7 +82,7 @@ CALIBRATION_RAW_DATA = \
 ">"
 
 PS0_RAW_DATA = \
-"  Instrument S/N:  18444" + NEWLINE +\
+"Instrument S/N:  18444" + NEWLINE +\
 "       Frequency:  76800 HZ" + NEWLINE +\
 "   Configuration:  4 BEAM, JANUS" + NEWLINE +\
 "     Match Layer:  10" + NEWLINE +\
@@ -139,6 +137,9 @@ PS3_RAW_DATA = \
 "Beam Angle Corrections Are Loaded." + NEWLINE +\
 ">"
 
+PS4_RAW_DATA = \
+"Ping Sequence:  W W" + NEWLINE +\
+">" 
 
 FD_RAW_DATA = \
 "Total Unique Faults   =     2" + NEWLINE +\
@@ -158,7 +159,7 @@ FD_RAW_DATA = \
 
 
 PT200_RAW_DATA = \
-"  Ambient  Temperature =    18.44 Degrees C" + NEWLINE +\
+"Ambient  Temperature =    18.44 Degrees C" + NEWLINE +\
 "  Attitude Temperature =    21.55 Degrees C" + NEWLINE +\
 "  Internal Moisture    = 8F26h" + NEWLINE +\
 "" + NEWLINE +\
@@ -235,4 +236,3 @@ powering_down_str = NEWLINE +\
 # From Lytle
 self_deploy_str = NEWLINE +\
 "System will self-deploy in 1 minute unless valid command entered!"
- 
