@@ -16,6 +16,7 @@ import time
 import re
 import datetime
 import ntplib
+import struct
 
 from mi.core.common import BaseEnum
 from mi.core.time import get_timestamp_delayed
@@ -176,9 +177,20 @@ class Status(DriverParameter):
     DATA_MEMORY_FULL               = 0x03
     CONFIGURATION_ERROR            = 0x05
 
-###
+
+###############################################################################
+# parameter dictionary
+###############################################################################
+class ListProtocolParameterDict(ProtocolParameterDict):
+    
+    def update_specific(self, name, input):
+        val = self._param_dict[name]
+        return val.update(input)
+        
+
+###############################################################################
 #   Driver for XR-420 Thermistor
-###
+###############################################################################
 class InstrumentDriver(SingleConnectionInstrumentDriver):
 
     """
@@ -277,9 +289,9 @@ class XR_420StatusDataParticle(DataParticle):
         log.debug('XR_420StatusDataParticle: particle=%s' %result)
         return result
     
-###
+###############################################################################
 #   Protocol for XR-420
-###
+###############################################################################
 class InstrumentProtocol(CommandResponseInstrumentProtocol):
     """
     This protocol implements a simple command-response interaction for the XR-420 instrument.  
@@ -896,11 +908,19 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         convert calibration string from 32 hex byte values to 4 floating point values
         """
-        coefficient1 = 1.0
-        coefficient2 = 2.0
-        coefficient3 = 3.0
-        coefficient4 = 4.0
-        return [coefficient1, coefficient2, coefficient3, coefficient4]
+        log.debug("_convert_calibration: calibration_string = %s" %calibration_string)
+        if len(calibration_string) != 64:
+            raise InstrumentParameterException('_convert_calibration: calibration response is not 64 characters in length.')
+        float_list = []
+        for index in range(4):
+            bytes_in_hex = calibration_string[0:16]
+            calibration_string = calibration_string[16:]
+            log.debug("_convert_calibration: index=%d, hex_str_to_convert=%s, rest_of_str=%s" %(index, bytes_in_hex, calibration_string))
+            bytes_in_hex = bytes_in_hex.decode('hex')
+            for i in range(8):
+                log.debug("_convert_calibration: bih[%d]=%d" %(i, ord(bytes_in_hex[i])))
+            float_list.append(struct.unpack('<d', bytes_in_hex))
+        return float_list
     
     def _update_params(self, *args, **kwargs):
         """
@@ -958,7 +978,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         For each parameter key add value formatting function for set commands.
         """
         # The parameter dictionary.
-        self._param_dict = ProtocolParameterDict()
+        self._param_dict = ListProtocolParameterDict()
         
         # Add parameter handlers to parameter dictionary for instrument configuration parameters.
         self._param_dict.add(InstrumentParameters.STATUS,
@@ -1215,8 +1235,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             raise InstrumentParameterException('_parse_channel_calibration_response requires a parameter name.')
         if InstrumentResponses.GET_CHANNEL_CALIBRATION in response:
             # got channel calibration response, so save it
-            coefficients = self._convert_calibration(response)
-            self._param_dict.set(param_name, coefficients)
+            self._param_dict.update_specific(param_name, response)
         else:
             raise InstrumentParameterException('Get channel calibration response not correct: %s.' %response)
                            
