@@ -163,10 +163,10 @@ class InstrumentParameters(DriverParameter):
     STATUS                              = 'status'
     BATTERY_VOLTAGE                     = 'battery_voltage'
     POWER_ALWAYS_ON                     = 'power_always_on'
-    SIX_HZ_PROFILING_MODE               = '6hz_profiling_mode'
+    SIX_HZ_PROFILING_MODE               = 'six_hz_profiling_mode'
     OUTPUT_INCLUDES_SERIAL_NUMBER       = 'output_includes_serial_number'
     OUTPUT_INCLUDES_BATTERY_VOLTAGE     = 'output_includes_battery_voltage'
-    SAMPLING_LED                        = 'sample_led'
+    SAMPLING_LED                        = 'sampling_led'
     ENGINEERING_UNITS_OUTPUT            = 'engineering_units_output'
     AUTO_RUN                            = 'auto_run'
     INHIBIT_DATA_STORAGE                = 'inhibit_data_storage'
@@ -217,17 +217,17 @@ class AdvancedFunctionsParameters(BaseEnum):
     SAMPLING_LED                    = InstrumentParameters.SAMPLING_LED  
     ENGINEERING_UNITS_OUTPUT        = InstrumentParameters.ENGINEERING_UNITS_OUTPUT 
     AUTO_RUN                        = InstrumentParameters.AUTO_RUN   
-    IINHIBIT_DATA_STORAGE           = InstrumentParameters.INHIBIT_DATA_STORAGE  
+    INHIBIT_DATA_STORAGE            = InstrumentParameters.INHIBIT_DATA_STORAGE  
 
 class AdvancedFuntions(BaseEnum):
-    InstrumentParameters.POWER_ALWAYS_ON                 = 0x01
-    InstrumentParameters.SIX_HZ_PROFILING_MODE           = 0x02
-    InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER   = 0x400
-    InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE = 0x800
-    InstrumentParameters.SAMPLING_LED                    = 0x1000
-    InstrumentParameters.ENGINEERING_UNITS_OUTPUT        = 0x2000
-    InstrumentParameters.AUTO_RUN                        = 0x4000
-    InstrumentParameters.INHIBIT_DATA_STORAGE            = 0x8000
+    power_always_on                 = 0x8000
+    six_hz_profiling_mode           = 0x4000
+    output_includes_serial_number   = 0x20
+    output_includes_battery_voltage = 0x10
+    sampling_led                    = 0x1000
+    engineering_units_output        = 0x4
+    auto_run                        = 0x2
+    inhibit_data_storage            = 0x1
 
 
 ###############################################################################
@@ -355,6 +355,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self.write_delay = WRITE_DELAY
         self._last_data_timestamp = None
         self.eoln = INSTRUMENT_NEWLINE
+        self.advanced_functions = AdvancedFuntions.dict()
+        print  self.advanced_functions
         
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
                 
@@ -988,10 +990,17 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         # Get old param dict config.
         old_config = self._param_dict.get_config()
         
+        advanced_functions_already_gotten = False
+        
         for key in InstrumentParameters.list():
             if key == InstrumentParameters.ALL:
                 # this is not the name of any parameter
                 continue
+            if key in AdvancedFunctionsParameters.list():
+                if advanced_functions_already_gotten:
+                    continue
+                else:
+                    advanced_functions_already_gotten = True
             command = self._param_dict.get_submenu_read(key)
             self._do_cmd_resp(command, name=key)
 
@@ -1252,7 +1261,56 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.POWER_ALWAYS_ON,
-                             r'', 
+                             r'$^', 
+                             None,
+                             None,
+                             submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
+                             submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
+
+        self._param_dict.add(InstrumentParameters.SIX_HZ_PROFILING_MODE,
+                             r'$^', 
+                             None,
+                             None,
+                             submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
+                             submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
+
+        self._param_dict.add(InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER,
+                             r'$^', 
+                             None,
+                             None,
+                             submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
+                             submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
+
+        self._param_dict.add(InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE,
+                             r'$^', 
+                             None,
+                             None,
+                             submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
+                             submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
+
+        self._param_dict.add(InstrumentParameters.SAMPLING_LED,
+                             r'$^', 
+                             None,
+                             None,
+                             submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
+                             submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
+
+        self._param_dict.add(InstrumentParameters.ENGINEERING_UNITS_OUTPUT,
+                             r'$^', 
+                             None,
+                             None,
+                             submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
+                             submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
+
+        self._param_dict.add(InstrumentParameters.AUTO_RUN,
+                             r'$^', 
+                             None,
+                             None,
+                             submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
+                             submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
+
+        self._param_dict.add(InstrumentParameters.INHIBIT_DATA_STORAGE,
+                             r'$^', 
                              None,
                              None,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
@@ -1471,12 +1529,20 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         else:
             raise InstrumentParameterException('Get channel calibration response not correct: %s.' %response)
 
+    def _get_bit_value(self, name, value):
+        bit_value = value & self.advanced_functions[name]
+        log.debug("_get_bit_value: value=%x, a_f[%s]=%x, bit_value=%d" %(value, name, self.advanced_functions[name], bit_value))
+        return 0 if bit_value == 0 else 1
+    
     def _parse_advanced_functions_response(self, response, prompt, **kwargs):
         log.debug("_parse_advanced_functions_response: response=%s" %response.rstrip())
         if InstrumentResponses.GET_ADVANCED_FUNCTIONS in response:
             # got advanced functions response, so save it
+            hex_str = response.rstrip('0000STC\r\n')
+            hex_value = int(hex_str, 16)
+            log.debug("_parse_advanced_functions_response: hex_str=%s, hex_value=%x" %(hex_str, hex_value))
             for name in AdvancedFunctionsParameters.list():
-                self._param_dict.set(name, self._get_bit_value(name, response))
+                self._param_dict.set(name, self._get_bit_value(name, hex_value))
         else:
             raise InstrumentParameterException('Get advanced functions response not correct: %s.' %response)
                            
