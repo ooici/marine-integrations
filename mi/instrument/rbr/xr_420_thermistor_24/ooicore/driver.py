@@ -224,7 +224,7 @@ class AdvancedFuntions(BaseEnum):
     six_hz_profiling_mode           = 0x4000
     output_includes_serial_number   = 0x20
     output_includes_battery_voltage = 0x10
-    sampling_led                    = 0x1000
+    sampling_led                    = 0x8
     engineering_units_output        = 0x4
     auto_run                        = 0x2
     inhibit_data_storage            = 0x1
