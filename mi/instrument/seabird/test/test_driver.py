@@ -16,6 +16,8 @@ USAGE:
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
+import time
+
 from gevent import monkey; monkey.patch_all()
 
 from mi.core.log import get_logger ; log = get_logger()
@@ -27,6 +29,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import InstrumentDriverPublicationTestCase
 
 from mi.instrument.seabird.driver import SeaBirdProtocol
+from mi.instrument.seabird.driver import SeaBirdParticle
 from mi.core.exceptions import InstrumentParameterException
 
 
@@ -49,27 +52,43 @@ class SeaBirdUnitTest(InstrumentDriverUnitTestCase):
         """
         Verify the hex2value method works as expected.
         """
-        value = SeaBirdProtocol.hex2value("F")
+        value = SeaBirdParticle.hex2value("F")
         self.assertIsInstance(value, int)
         self.assertEqual(value, 15)
 
-        value = SeaBirdProtocol.hex2value("F", 2)
+        value = SeaBirdParticle.hex2value("F", 2)
         self.assertIsInstance(value, float)
         self.assertEqual(value, 7.5)
 
-        value = SeaBirdProtocol.hex2value("0xF")
+        value = SeaBirdParticle.hex2value("0xF")
         self.assertIsInstance(value, int)
         self.assertEqual(value, 15)
 
-        value = SeaBirdProtocol.hex2value("0x1000")
+        value = SeaBirdParticle.hex2value("0x1000")
         self.assertIsInstance(value, int)
         self.assertEqual(value, 4096)
 
         with self.assertRaises(InstrumentParameterException):
-            SeaBirdProtocol.hex2value("F", 0)
+            SeaBirdParticle.hex2value("F", 0)
 
         with self.assertRaises(InstrumentParameterException):
-            SeaBirdProtocol.hex2value(1, 0)
+            SeaBirdParticle.hex2value(1, 0)
+
+    def test_sbetime2unixtime(self):
+        """
+        Verify the sbetime2unixtime method works as expected.
+        """
+        value = time.localtime(SeaBirdParticle.sbetime2unixtime(0))
+        self.assertEqual("2000-01-01 00:00:00", time.strftime("%Y-%m-%d %H:%M:%S", value))
+
+        value = time.localtime(SeaBirdParticle.sbetime2unixtime(5))
+        self.assertEqual("2000-01-01 00:00:05", time.strftime("%Y-%m-%d %H:%M:%S", value))
+
+        value = time.localtime(SeaBirdParticle.sbetime2unixtime(604800))
+        self.assertEqual("2000-01-08 00:00:00", time.strftime("%Y-%m-%d %H:%M:%S", value))
+
+        value = time.localtime(SeaBirdParticle.sbetime2unixtime(-1))
+        self.assertEqual("1999-12-31 23:59:59", time.strftime("%Y-%m-%d %H:%M:%S", value))
 
 
 ###############################################################################

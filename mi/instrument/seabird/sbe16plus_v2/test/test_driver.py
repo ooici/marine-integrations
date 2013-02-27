@@ -95,17 +95,17 @@ VALID_DS_RESPONSE = 'SBE 16plus V 2.2  SERIAL NO. 6841    29 Oct 2012 20:20:55' 
                'vbatt = 12.9, vlith =  8.5, ioper =  61.2 ma, ipump = 255.5 ma,' + NEWLINE + \
                'status = not logging' + NEWLINE + \
                'samples = 3684, free = 4382858' + NEWLINE + \
-               'sample interval = 10 seconds, number of measurements per sample = 10' + NEWLINE + \
+               'sample interval = 10 seconds, number of measurements per sample = 4' + NEWLINE + \
                'pump = run pump during sample, delay before sampling = 0.0 seconds' + NEWLINE + \
                'transmit real-time = yes' + NEWLINE + \
                'battery cutoff =  7.5 volts' + NEWLINE + \
                'pressure sensor = strain gauge, range = 160.0' + NEWLINE + \
                'SBE 38 = no, SBE 50 = no, WETLABS = no, OPTODE = no, Gas Tension Device = no' + NEWLINE + \
-               'Ext Volt 0 = no, Ext Volt 1 = no' + NEWLINE + \
+               'Ext Volt 0 = yes, Ext Volt 1 = yes' + NEWLINE + \
                'Ext Volt 2 = no, Ext Volt 3 = no' + NEWLINE + \
                'Ext Volt 4 = no, Ext Volt 5 = no' + NEWLINE + \
                'echo characters = yes' + NEWLINE + \
-               'output format = converted decimal' + NEWLINE + \
+               'output format = raw HEX' + NEWLINE + \
                'output salinity = no, output sound velocity = no' + NEWLINE + \
                'serial sync mode disabled' + NEWLINE
 
@@ -162,33 +162,33 @@ class SeaBird16plusMixin(DriverTestMixin):
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.DATE_TIME : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        Parameter.DATE_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
         Parameter.ECHO : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.OUTPUT_EXEC_TAG : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
-        Parameter.TXREALTIME : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, DEFAULT: True, VALUE: True},
-        Parameter.PUMP_MODE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: 2},
-        Parameter.NCYCLES : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: True, VALUE: 4},
-        Parameter.INTERVAL : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 5},
-        Parameter.BIOWIPER : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: False},
-        Parameter.PTYPE : {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: 'strain gauge'},
+        Parameter.TXREALTIME : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
+        Parameter.PUMP_MODE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 2, VALUE: 2},
+        Parameter.NCYCLES : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 4, VALUE: 4},
+        Parameter.INTERVAL : {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 10},
+        Parameter.BIOWIPER : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.PTYPE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.VOLT0 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.VOLT1 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
-        Parameter.VOLT2 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
-        Parameter.VOLT3 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
-        Parameter.VOLT4 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
-        Parameter.VOLT5 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
-        Parameter.DELAY_BEFORE_SAMPLE : {TYPE: float, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: 0.0},
-        Parameter.DELAY_AFTER_SAMPLE : {TYPE: float, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: 0.0},
-        Parameter.SBE63 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: False},
-        Parameter.SBE38 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: False},
-        Parameter.SBE50 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: False},
-        Parameter.WETLABS : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: False},
-        Parameter.GTD : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: False},
-        Parameter.DUALGTD : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: False},
-        Parameter.OPTODE : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: False},
-        Parameter.SYNCMODE : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: False},
-        Parameter.SYNCWAIT : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: False},
-        Parameter.OUTPUT_FORMAT : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: 0},
+        Parameter.VOLT2 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.VOLT3 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.VOLT4 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.VOLT5 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.DELAY_BEFORE_SAMPLE : {TYPE: float, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0.0, VALUE: 0.0},
+        Parameter.DELAY_AFTER_SAMPLE : {TYPE: float, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0.0, VALUE: 0.0, REQUIRED: False},
+        Parameter.SBE63 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False, REQUIRED: False},
+        Parameter.SBE38 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.SBE50 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.WETLABS : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.GTD : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.OPTODE : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.SYNCMODE : {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.SYNCWAIT : {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0, REQUIRED: False},
+        Parameter.OUTPUT_FORMAT : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        Parameter.LOGGING : {TYPE: bool, READONLY: True, DA: False, STARTUP: False},
     }
 
     _sample_parameters = {
@@ -212,7 +212,7 @@ class SeaBird16plusMixin(DriverTestMixin):
         SBE16StatusParticleKey.FREE: {TYPE: int, VALUE: 4382858, REQUIRED: True },
         SBE16StatusParticleKey.SAMPLE_INTERVAL: {TYPE: unicode, VALUE: '10 seconds', REQUIRED: True },
         SBE16StatusParticleKey.MEASUREMENTS_PER_SAMPLE: {TYPE: int, VALUE: 10, REQUIRED: True },
-        SBE16StatusParticleKey.PUMP_MODE: {TYPE: unicode, VALUE: 'run pump during sample,', REQUIRED: True },
+        SBE16StatusParticleKey.PUMP_MODE: {TYPE: unicode, VALUE: 'run pump during sample', REQUIRED: True },
         SBE16StatusParticleKey.DELAY_BEFORE_SAMPLING: {TYPE: float, VALUE: 0.0, REQUIRED: True },
         SBE16StatusParticleKey.DELAY_AFTER_SAMPLING: {TYPE: float, VALUE: 0.0, REQUIRED: False },
         SBE16StatusParticleKey.TX_REAL_TIME: {TYPE: bool, VALUE: True, REQUIRED: True },
@@ -231,7 +231,7 @@ class SeaBird16plusMixin(DriverTestMixin):
         SBE16StatusParticleKey.EXT_VOLT_4: {TYPE: bool, VALUE: False, REQUIRED: True },
         SBE16StatusParticleKey.EXT_VOLT_5: {TYPE: bool, VALUE: False, REQUIRED: True },
         SBE16StatusParticleKey.ECHO_CHARACTERS: {TYPE: bool, VALUE: True, REQUIRED: True },
-        SBE16StatusParticleKey.OUTPUT_FORMAT: {TYPE: unicode, VALUE: 'converted decimal', REQUIRED: True },
+        SBE16StatusParticleKey.OUTPUT_FORMAT: {TYPE: unicode, VALUE: 'raw HEX', REQUIRED: True },
         SBE16StatusParticleKey.OUTPUT_SALINITY: {TYPE: bool, VALUE: False, REQUIRED: True },
         SBE16StatusParticleKey.OUTPUT_SOUND_VELOCITY: {TYPE: bool, VALUE: False, REQUIRED: True },
         SBE16StatusParticleKey.SERIAL_SYNC_MODE: {TYPE: bool, VALUE: False, REQUIRED: True },
@@ -302,7 +302,7 @@ class SeaBird16plusMixin(DriverTestMixin):
         @param verify_values:  bool, should we verify parameter values
         '''
         self.assert_data_particle_keys(SBE16DataParticleKey, self._sample_parameters)
-        self.assert_data_particle_header(data_particle, DataParticleType.CTD_PARSED)
+        self.assert_data_particle_header(data_particle, DataParticleType.CTD_PARSED, require_instrument_timestamp=True)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
 
     def assert_particle_status(self, data_particle, verify_values = False):
@@ -383,10 +383,10 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
         self.assert_chunker_fragmented_sample(chunker, VALID_DS_RESPONSE, 64)
         self.assert_chunker_combined_sample(chunker, VALID_DS_RESPONSE)
 
-        #self.assert_chunker_sample(chunker, VALID_DCAL_RESPONSE)
-        #self.assert_chunker_sample_with_noise(chunker, VALID_DCAL_RESPONSE)
-        #self.assert_chunker_fragmented_sample(chunker, VALID_DCAL_RESPONSE)
-        #self.assert_chunker_combined_sample(chunker, VALID_DCAL_RESPONSE)
+        self.assert_chunker_sample(chunker, VALID_DCAL_RESPONSE)
+        self.assert_chunker_sample_with_noise(chunker, VALID_DCAL_RESPONSE)
+        self.assert_chunker_fragmented_sample(chunker, VALID_DCAL_RESPONSE, 64)
+        self.assert_chunker_combined_sample(chunker, VALID_DCAL_RESPONSE)
 
     def test_got_data(self):
         """
@@ -399,10 +399,10 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
         #self.assert_raw_particle_published(driver, True)
 
         # Start validating data particles
-        #self.assert_particle_published(driver, VALID_SAMPLE, self.assert_particle_sample, True)
-        #self.assert_particle_published(driver, VALID_SAMPLE2, self.assert_particle_sample, True)
+        self.assert_particle_published(driver, VALID_SAMPLE, self.assert_particle_sample, True)
+        self.assert_particle_published(driver, VALID_SAMPLE2, self.assert_particle_sample, True)
         self.assert_particle_published(driver, VALID_DS_RESPONSE, self.assert_particle_status, True)
-        #self.assert_particle_published(driver, VALID_DCAL_RESPONSE, self.assert_particle_calibration, True)
+        self.assert_particle_published(driver, VALID_DCAL_RESPONSE, self.assert_particle_calibration, True)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -446,33 +446,61 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
         """
         capabilities = {
             ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
-            ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_STATUS',
+            ProtocolState.TEST: ['DRIVER_EVENT_GET',
+                                 'DRIVER_EVENT_RUN_TEST'],
+            ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                    'DRIVER_EVENT_ACQUIRE_STATUS',
                                     'DRIVER_EVENT_CLOCK_SYNC',
                                     'DRIVER_EVENT_GET',
                                     'DRIVER_EVENT_SET',
+                                    'DRIVER_EVENT_TEST',
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_START_DIRECT',
-                                    'PROTOCOL_EVENT_SAMPLE_REFERENCE_OSCILLATOR',
                                     'PROTOCOL_EVENT_GET_CONFIGURATION',
-                                    'PROTOCOL_EVENT_GET_STATUS',
-                                    'PROTOCOL_EVENT_RECOVER_AUTOSAMPLE',
-                                    'PROTOCOL_EVENT_GET_EVENT_COUNTER',
-                                    'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
-                                    'PROTOCOL_EVENT_GET_HARDWARE',
-                                    'PROTOCOL_EVENT_TEST_EEPROM'],
+                                    'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
                                        'DRIVER_EVENT_STOP_AUTOSAMPLE',
                                        'PROTOCOL_EVENT_GET_CONFIGURATION',
-                                       'PROTOCOL_EVENT_GET_STATUS',
-                                       'PROTOCOL_EVENT_GET_EVENT_COUNTER',
-                                       'PROTOCOL_EVENT_GET_HARDWARE',
-                                       'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
+                                       'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC',
                                        'DRIVER_EVENT_ACQUIRE_STATUS'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
 
         driver = SBE16InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
+
+    def test_parse_ds(self):
+        """
+        Create a mock port agent
+        """
+        driver = SBE16InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
+        source = VALID_DS_RESPONSE
+
+        # First verify that parse ds sets all know parameters.
+        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        pd = driver._protocol._param_dict.get_config()
+        log.debug("Param Dict Values: %s" % pd)
+        log.debug("Param Sample: %s" % source)
+        self.assert_driver_parameters(pd, True)
+
+        # Now change some things and make sure they are parsed properly
+        # Note:  Only checking parameters that can change.
+
+        # Logging
+        source = source.replace("= not logging", "= logging")
+        log.debug("Param Sample: %s" % source)
+        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        pd = driver._protocol._param_dict.get_config()
+        self.assertTrue(pd.get(Parameter.LOGGING))
+
+        # Sync Mode
+        source = source.replace("serial sync mode disabled", "serial sync mode enabled")
+        log.debug("Param Sample: %s" % source)
+        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        pd = driver._protocol._param_dict.get_config()
+        self.assertTrue(pd.get(Parameter.SYNCMODE))
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #

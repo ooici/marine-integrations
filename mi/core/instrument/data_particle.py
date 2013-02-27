@@ -106,7 +106,7 @@ class DataParticle(object):
         #if(not self._check_timestamp(timestamp)):
         #    raise InstrumentParameterException("invalid timestamp")
 
-        self.contents[DataParticleKey.INTERNAL_TIMESTAMP] = timestamp
+        self.contents[DataParticleKey.INTERNAL_TIMESTAMP] = float(timestamp)
 
     def set_value(self, id, value):
         """

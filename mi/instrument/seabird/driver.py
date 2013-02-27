@@ -32,6 +32,8 @@ from mi.core.time import get_timestamp_delayed
 
 NEWLINE = '\r\n'
 
+SBE_EPOCH = 946713600 # Unix time for SBE epoch 2000-01-01 00:00:00
+
 # default timeout.
 TIMEOUT = 10
 DEFAULT_ENCODER_KEY = '__default__'
@@ -110,9 +112,9 @@ class SeaBirdParticle(DataParticle):
         regexs = self.regex_multiline()
 
         for line in split_fun(self.raw_data):
-            #log.trace("Line: %s" % line)
+            log.trace("Line: %s" % line)
             for key in matchers.keys():
-                #log.trace("match: %s" % regexs.get(key))
+                log.trace("match: %s" % regexs.get(key))
                 match = matchers[key].search(line)
                 if(match):
                     encoder = self._get_encoder(key)
@@ -122,7 +124,7 @@ class SeaBirdParticle(DataParticle):
                     else:
                         value = match.group(1)
 
-                    #log.trace("multiline match %s = %s (%s)" % (key, match.group(1), value))
+                    log.trace("multiline match %s = %s (%s)" % (key, match.group(1), value))
                     result.append({
                         DataParticleKey.VALUE_ID: key,
                         DataParticleKey.VALUE: value
@@ -194,21 +196,33 @@ class SeaBirdParticle(DataParticle):
             raise InstrumentParameterException("Could not convert '%s' to bool" % value)
 
     @staticmethod
-    def interval2seconds(value):
+    def disabled2bool(value):
         """
-        Convert interval string to seconds
+        convert a disabled/enabled to bool
         @param value: string to convert
-        @return: int
+        @return: bool
         """
         if not isinstance(value, str):
             raise InstrumentParameterException("value not a string")
 
-        if(value.lower() == 'no'):
+        if(value.lower() == 'disabled'):
             return False
-        elif(value.lower() == 'yes'):
+        elif(value.lower() == 'enabled'):
             return True
         else:
             raise InstrumentParameterException("Could not convert '%s' to bool" % value)
+
+    @staticmethod
+    def sbetime2unixtime(value):
+        """
+        Convert an SBE integer time (epoch 1-1-2000) to unix time
+        @param value: sbe integer time
+        @return: unix time
+        """
+        if not isinstance(value, int):
+            raise InstrumentParameterException("value not a int")
+
+        return SBE_EPOCH + value
 
 
 ###############################################################################
