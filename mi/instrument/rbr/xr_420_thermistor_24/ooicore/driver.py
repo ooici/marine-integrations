@@ -683,6 +683,19 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         pass
     
+    def _set_advanced_functions_parameters(self, params_to_set):
+        # handle advanced functions parameters as a single '!1' operation
+        parameters_dict = dict([(x, params_to_set[x]) for x in AdvancedFunctionsParameters.list() if x in params_to_set])
+        if parameters_dict:
+            # set the parameter values so they can be gotten in the command builders
+            for (key, value) in parameters_dict.iteritems():
+                self._param_dict.set(key, value)
+            command = self._param_dict.get_submenu_write(InstrumentParameters.POWER_ALWAYS_ON)
+            self._do_cmd_no_resp(command, None, None, timeout=5)
+            # remove the sub-parameters from the params_to_set dictionary
+            for parameter in parameters_dict:
+                del params_to_set[parameter]
+        
     def _handler_command_set(self, *args, **kwargs):
         """
         Perform a set command.
@@ -706,6 +719,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             if not isinstance(params_to_set, dict):
                 raise InstrumentParameterException('Set parameters not a dict.')
         
+        self._set_advanced_functions_parameters(params_to_set)
+                
         for (key, val) in params_to_set.iteritems():
             command = self._param_dict.get_submenu_write(key)
             log.debug('_handler_command_set: cmd=%s, name=%s, value=%s' %(command, key, val))
@@ -1334,6 +1349,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.SET_START_DATE_AND_TIME, self._build_set_date_time_command)
         self._add_build_handler(InstrumentCmds.SET_END_DATE_AND_TIME, self._build_set_date_time_command)
         self._add_build_handler(InstrumentCmds.SET_SAMPLE_INTERVAL, self._build_set_time_command)
+        self._add_build_handler(InstrumentCmds.SET_ADVANCED_FUNCTIONS, self._build_set_advanved_functions_command)
 
         # Add response handlers for device get commands.
         self._add_response_handler(InstrumentCmds.GET_STATUS, self._parse_status_response)
@@ -1365,6 +1381,19 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         time_str = self._convert_ion_time(value)
         command = cmd + time_str
         log.debug('_build_set_time_command: command=%s' %command)
+        return command
+        #raise InstrumentParameterException('_build_set_command quiting.')
+        
+    def _build_set_advanved_functions_command(self, cmd, *args):
+        value = 0
+        for name in AdvancedFunctionsParameters.list():
+            if self._param_dict.get(name) == 1:
+                value = value | self.advanced_functions[name]
+            log.debug("_build_set_advanved_functions_command: value=%x, a_f[%s]=%x" %(value, name, self.advanced_functions[name]))
+        value *= 0x10000
+        value_str = '%8x' %value
+        command = cmd + value_str
+        log.debug('_build_set_advanved_functions_command: command=%s' %command)
         return command
         #raise InstrumentParameterException('_build_set_command quiting.')
         

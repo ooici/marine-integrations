@@ -182,7 +182,15 @@ class UtilMixin(DriverTestMixin):
     # parameter values to test.
     paramter_values = {InstrumentParameters.START_DATE_AND_TIME : TIME_TO_SET2,
                        InstrumentParameters.END_DATE_AND_TIME : TIME_TO_SET3,
-                       InstrumentParameters.SAMPLE_INTERVAL : '00:01:30'
+                       InstrumentParameters.SAMPLE_INTERVAL : '00:01:30',
+                       InstrumentParameters.POWER_ALWAYS_ON : 1,
+                       InstrumentParameters.SIX_HZ_PROFILING_MODE : 1,
+                       InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER : 1,
+                       InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE : 1,
+                       InstrumentParameters.SAMPLING_LED : 1,
+                       InstrumentParameters.ENGINEERING_UNITS_OUTPUT : 1,
+                       InstrumentParameters.AUTO_RUN : 1,
+                       InstrumentParameters.INHIBIT_DATA_STORAGE : 1,
                        }
     
     """  
