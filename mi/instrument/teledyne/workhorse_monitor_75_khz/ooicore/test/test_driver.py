@@ -796,14 +796,18 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
+        log.debug("test_direct_access_telnet_mode 1")
         self.assert_direct_access_start_telnet()
+        log.debug("test_direct_access_telnet_mode 2")
         self.assertTrue(self.tcp_client)
+        log.debug("test_direct_access_telnet_mode 3")
 
         ###
         #   Add instrument specific code here.
         ###
 
         self.assert_direct_access_stop_telnet()
+        log.debug("test_direct_access_telnet_mode 4")
 
     def test_poll(self):
         '''

@@ -94,14 +94,91 @@ num_data_types = 0  # value from header data; used to determine size of header r
 num_bytes_in_ensemble = 0  # value from header data; used to determine size of ensemble and calculate checksum.
 
 
-class DataParticleType(BaseEnum):
-    RAW = CommonDataParticleType.RAW
-    ENSEMBLE_PARSED = 'ensemble_parsed'
-    CALIBRATION_PARSED = 'calibration_parsed'
-    PS0_PARSED = 'ps0_parsed'
-    PS3_PARSED = 'ps3_parsed'
-    FD_PARSED = 'fd_parsed'
-    PT200_PARSED = 'pt200_parsed'
+
+class Parameter(DriverParameter):
+    """
+    Device parameters
+    """
+    #
+    # set-able parameters
+    #
+    INSTRUMENT_ID = 'CI'                # Int 0-255
+    POLLED_MODE = 'CP'                  # 1=ON, 0=OFF;
+    XMIT_POWER = 'CQ'                   # 0=Low, 255=High
+    TIME_PER_BURST = 'TB'               # 00:00:00.00  (hrs:min:sec.sec/100)
+    ENSEMBLES_PER_BURST = 'TC'          # 0-65535
+    TIME_PER_ENSEMBLE = 'TE'            # 01:00:00.00 (hrs:min:sec.sec/100)
+    TIME_OF_FIRST_PING = 'TF'           # **/**/**,**:**:**  (yr/mon/day,hour:min:sec)
+    TIME_OF_FIRST_PING_Y2K = 'TG'       # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
+    TIME_PER_PING = 'TP'                # 00:00.20  (min:sec.sec/100)
+    #TIME = 'TS'                        # 13/02/22,13:18:09 (yr/mon/day,hour:min:sec)
+    TIME = 'TT'                         # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
+    BUFFERED_OUTPUT_PERIOD = 'TX'       # 00:00:00 (hh:mm:ss)
+    FALSE_TARGET_THRESHOLD = 'WA'       # 255,001 (Max)(0-255),Start Bin # <--------- TRICKY.... COMPLEX TYPE
+    CORRELATION_THRESHOLD = 'WC'        # 064  Correlation Threshold
+    SERIAL_OUT_FW_SWITCHES = 'WD'       # 111100000  Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
+    ERROR_VELOCITY_THRESHOLD = 'WE'     # 5000  Error Velocity Threshold (0-5000 mm/s)
+    BLANK_AFTER_TRANSMIT = 'WF'         # 0088  Blank After Transmit (cm)
+    CLIP_DATA_PAST_BOTTOM = 'WI'        # 0 Clip Data Past Bottom (0=OFF,1=ON)
+    RECEIVER_GAIN_SELECT = 'WJ'         # 1  Rcvr Gain Select (0=Low,1=High)
+    WATER_REFERENCE_LAYER = 'WL'        # 001,005  Water Reference Layer: Begin Cell (0=OFF), End Cell
+    WATER_PROFILING_MODE = 'WM'         # Profiling Mode (1-15)
+    NUMBER_OF_DEPTH_CELLS = 'WN'        #Number of depth cells (1-255)
+    PINGS_PER_ENSEMBLE = 'WP'           # Pings per Ensemble (0-16384)
+    DEPTH_CELL_SIZE = 'WS'              # 0800  Depth Cell Size (cm)
+    TRANSMIT_LENGTH = 'WT'              # 0000 Transmit Length 0 to 3200(cm) 0 = Bin Length
+    PING_WEIGHT = 'WU'                  # 0 Ping Weighting (0=Box,1=Triangle)
+    AMBIGUITY_VELOCITY = 'WV'           # 175 Mode 1 Ambiguity Vel (cm/s radial)
+    CHOOSE_EXTERNAL_DEVICE = 'CC'       # 000 000 000 or 000 000 001 Choose External Devices (x;x;x x;x;x x;x;SBMC)
+    BANNER = 'CH'                       # Suppress Banner 0=Show, 1=Suppress
+    IMM_OUTPUT_ENABLE = 'CJ'            # IMM Output Enable (0=Disable,1=Enable)
+    SLEEP_ENABLE = 'CL'                 # Sleep Enable (0 = Disable, 1 = Enable, 2 See Manual)
+    SERIAL_SYNC_MASTER = 'CM'           # RS-232 Sync Master (0 = OFF, 1 = ON)
+    SAVE_NVRAM_TO_RECORDER = 'CN'       # Save NVRAM to recorder (0 = ON, 1 = OFF)
+    TRIGGER_TIMEOUT = 'CW'              # Trigger Timeout (ms; 0 = no timeout)
+    LOW_LATENCY_TRIGGER_ENABLE = 'CX'   # Trigger Enable (0 = OFF, 1 = ON)
+    HEADING_ALIGNMENT = 'EA'            # Heading Alignment (1/100 deg) -17999 to 18000
+    HEADING_BIAS = 'EB'                 # Heading Bias (1/100 deg) -17999 to 18000
+    SPEED_OF_SOUND = 'EC'               # 1500  Speed Of Sound (m/s)
+    TRANSDUCER_DEPTH = 'ED'             # Transducer Depth (0 - 65535 dm)
+    HEADING = 'EH'                      # Heading (1/100 deg) 0 to 35999 (000.00 to 359.99 degrees)
+    PITCH = 'EP'                        # Tilt 1 Sensor (1/100 deg) -6000 to 6000 (-60.00 to +60.00 degrees)
+    ROLL = 'ER'                         # Tilt 2 Sensor (1/100 deg) -6000 to 6000 (-60.00 to +60.00 degrees)
+    SALINITY = 'ES'                     # 35 (0-40 pp thousand)
+    TEMPERATURE = 'ET'                  # Temperature (1/100 deg Celsius) -500 to 4000 (-5.00 C to +40.00 C)
+    COORDINATE_TRANSFORMATION = 'EX'    # Coord Transform (Xform:Type; Tilts; 3Bm; Map)
+    SENSOR_SOURCE = 'EZ'                # Sensor Source (C;D;H;P;R;S;T)
+    
+    OUTPUT_BIN_SELECTION = 'PB'         # PD12 Bin Select (first;num;sub) x 1 to 128 y 0 to 128z 1 to 7 [start, every nth, total count]
+    DATA_STREAM_SELECT = 'PD'           # Data Stream Select (0-18)
+    ENSEMBLE_SELECT = 'PE'              # PD12 Ensemble Select (1-65535)
+    VELOCITY_COMPONENT_SELECT = 'PO'    # PD12 Velocity Component Select (0 OR 1 FOR v1;v2;v3;v4) AFFECTED BY EX
+    SYNCHRONIZE = 'SA'                  # Synch Before/After Ping/Ensemble Bottom/Water/Both
+    BREAK_INTERUPTS = 'SB'              # Channel B Break Interrupts 0 Disabled 1 ENABLED
+    SYNC_INTERVAL = 'SI'                # Synch Interval (0-65535)
+    MODE_SELECT = 'SM'                  # Mode Select (0=OFF,1=MASTER,2=SLAVE,3=NEMO)'
+    RDS3_SLEEP_MODE = 'SS'              # RDS3 Sleep Mode (0=No Sleep)
+    SLAVE_TIMEOUT = 'ST'                # Slave Timeout (seconds,0=indefinite)
+    SYNC_DELAY = 'SW'                   # Synch Delay (1/10 msec) 0 to 65535 (units of 0.1 milliseconds)
+    DEVICE_485_ID = 'DW'                # Current ID on RS-485 Bus (0 to 31)
+    DEPLOYMENT_AUTO_INCRIMENT = 'RI'    # Auto Increment Deployment File (0=Disable,1=Enable)
+    DEPLOYMENT_NAME = 'RN'              # Set Deployment Name
+    BANDWIDTH_CONTROL = 'WB'            # Bandwidth Control (0=Wid,1=Nar)
+    WANTED_GOOD_PERCENT = 'WG'          # Percent Good Minimum (1-100%)  Contains the minimum percentage of water-profiling pings in an ensemble that must be considered good to output velocity data.
+    SAMPLE_AMBIENT_SOUND = 'WQ'         # Sample Ambient Sound (0=OFF,1=ON)
+    PINGS_BEFORE_REAQUIRE = 'WW'        # Mode 1 Pings before Mode 4 Re-acquire
+    MODE_5_AMBIGUITY_VELOCITY = 'WZ'    # Mode 5 Ambiguity Velocity (cm/s radial)
+
+    #
+    # Read Only Vars
+    #
+
+    ZERO_PRESSURE_READING = 'AZ'        #  Zero pressure reading' (RO) ALSO a command
+    SERIAL_PORT_CONTROL = 'CB'          # 411 \Serial Port Control (Baud 4=9600; Par; Stop)'
+    SERIAL_DATA_OUT = 'CD'              # 000 000 000 Serial Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
+    SERIAL_FLOW_CONTROL = 'CF'          # 11110  Flow Ctrl (EnsCyc;PngCyc;Binry;Ser;Rec)
+    SERIAL_485_BAUD = 'DB'              # RS-485 Port Control (Baud; N/U; N/U) Baud = 1 to 7 (300 to 57600)
+    DEPLOYMENTS_RECORDED = 'RA'         # Number of Deployments Recorded
 
 
 class InstrumentCmds(BaseEnum):
@@ -112,154 +189,37 @@ class InstrumentCmds(BaseEnum):
     """
 
     BREAK = 'break 500'
-
-    ### -- set commands
-    SET_TRANSMIT_POWER = 'CQ'
-    SET_SPEED_OF_SOUND = 'EC'
-    SET_SALINITY = 'ES'
-    SET_TIME_PER_BURST = 'TB'
-    SET_ENSEMBLES_PER_BURST = 'TC'
-    SET_TIME_PER_ENSEMBLE = 'TE'
-    SET_TIME_OF_FIRST_PING = 'TF'
-    SET_TIME_OF_FIRST_PING_Y2K = 'TG'
-    SET_TIME_BETWEEN_PINGS = 'TP'
-    SET_REAL_TIME_CLOCK = 'TS'
-    SET_REAL_TIME_CLOCK_Y2K = 'TT'
-    SET_BUFFERED_OUTPUT_PERIOD = 'TX'
-    SET_FALSE_TARGET_THRESHOLD_MAXIMUM = 'WA'
-    SET_LOW_CORRELATION_THRESHOLD = 'WC'
-    SET_ERROR_VELOCITY_THRESHOLD = 'WE'
-    SET_CLIP_DATA_PAST_BOTTOM = 'WI'
-    SET_RECEIVER_GAIN_SELECT = 'WJ'
-    SET_WATER_REFERENCE_LAYER = 'WL'
-    SET_NUMBER_OF_DEPTH_CELLS = 'WN'
-    SET_PINGS_PER_ENSEMBLE = 'WP'
-    SET_DEPTH_CELL_SIZE = 'WS'
-    SET_TRANSMIT_LENGTH = 'WT'
-    SET_PING_WEIGHT = 'WU'
-    SET_AMBIGUITY_VELOCITY = 'WV'
-    SET_MODE_1_BANDWIDTH_CONTROL = 'WB'
-    SET_BLANK_AFTER_TRANSMIT = 'WF'
-    SET_DATA_OUT = 'WD'
-    SET_INSTRUMENT_ID = 'CI'
-    SET_WATER_PROFILING_MODE = 'WM'
-
-    ### -- action commands
-    POWER_DOWN = 'CZ'
-    START_DEPLOYMENT = 'CS'
+    ZERO_PRESSURE_READING = 'AZ'
+    FAULT_DEBUG = 'FX'                  # toggles debug flag.. <------ problem?
+    EXPERT_ON = 'EXPERTON'
+    EXPERT_OFF = 'EXPERTOFF'
+    LIST_FIRMWARE_UPGRADES = 'OL'
+    OUTPUT_CALIBRATION_DATA = 'AC'
+    OUTPUT_FACTORY_CALIBRATION_DATA = 'AD'
+    FIELD_CALIBRATE_COMPAS = 'AF'
+    LOAD_FACTORY_CALIBRATION = 'AR'
+    ZERO_PRESSURE_SENSOR = 'AZ'
+    CHOOSE_EXTERNAL_DEVICES = 'CC'
+    SEND_LAST_DATA_ENSEMBLE = 'CE'
     SAVE_SETUP_TO_RAM = 'CK'
+    RETRIEVE_PARAMETERS = 'CR'
+    START_DEPLOYMENT = 'CS'
     CLEAR_ERROR_STATUS_WORD = 'CY0'
     DISPLAY_ERROR_STATUS_WORD = 'CY1'
+    POWER_DOWN = 'CZ'
+    LOAD_SPEED_OF_SOUND = 'DS'
+    GO_RAW_MODE = 'DX'
+    GO_REAL_MODE = 'DY'
+    GET_SINGLE_SCAN = 'DZ'
     CLEAR_FAULT_LOG = 'FC'
-    POLLED_MODE_OFF = 'CP0'  # TODO: make this 'CP' takes 0/1 rather than a command like this
-
-    ### -- action commands that return data
-    DISPLAY_SYSTEM_CONFIGURATION = 'PS0'
-    DISPLAY_TRANSFORMATION_MATRIX = 'PS3'
-    DISPLAY_PING_SEQUENCE = 'PS4'
     DISPLAY_FAULT_LOG = 'FD'
-    BUILT_IN_TEST = 'PT200'  # RUN ALL BUILTIN TESTS
-    OUTPUT_CALIBRATION_DATA = 'AC'
-    SEND_LAST_DATA_ENSEMBLE = 'CE'
-
-    #
-    # Following block use _build_simple_command.
-    # This is not appropriate for their usage,
-    # as it locks them into a static value.
-    #
-    ### -- startup cmds
-    # Next 20 lines have been validated with ADCPS-K instrument
-    COMM_PARAMS_DEFAULT = 'CB411'
-    COLLECTION_MODE_DEFAULT = 'CF11110'
-    SPEED_OF_SOUND_DEFAULT = 'EC1500'
-    INSTRUMENT_ID_DEFAULT = 'CI000'
-    SALINITY_DEFAULT = 'ES35'
-    TIME_PER_BURST_DEFAULT = 'TB00:00:00:00'
-    ENSEMBLES_PER_BURST_DEFAULT = 'TC00002'
-    TIME_PER_ENSEMBLE_DEFAULT = 'TE01:00:00:00'
-    TIME_OF_FIRST_PING_DEFAULT = 'TF14/02/01,00:00:00'
-    TIME_OF_FIRST_PING_Y2K_DEFAULT = 'TG2014/02/01,00:00:00'
-    TIME_BETWEEN_PINGS_DEFAULT = 'TP01:20:00'
-    REAL_TIME_CLOCK_DEFAULT = 'TS13/02/25,11:46:01'
-    REAL_TIME_CLOCK_Y2K_DEFAULT = 'TT2013/02/25,11:47:08'
-    BUFFERED_OUTPUT_PERIOD_DEFAULT = 'TX00:00:00'
-    NUMBER_OF_DEPTH_CELLS_DEFAULT = 'WN030'
-    PINGS_PER_ENSEMBLE_DEFAULT = 'WP45'
-    DEPTH_CELL_SIZE_DEFAULT = 'WS800'
-    TRANSMIT_LENGTH_DEFAULT = 'WT0'
-    PING_WEIGHT_DEFAULT = 'WU0'
-    AMBIGUITY_VELOCITY_DEFAULT = 'WV175'
-
-    """
-    Not yet supported
-    AD --------------------- Display Calibration Data
-    AF --------------------- Field Calibrate to remove Hard and/or Soft Iron Error
-    AR --------------------- Restore Factory Fluxgate Calibration data:make factory the active calibration data
-    AX --------------------- Examine Compass Performance
-    AZ 14.480079 ---------- Zero pressure reading
-    CB = 411 ----------------- Serial Port Control (Baud 4=9600; Par; Stop)
-    CC = 000 000 000 --------- Choose External Devices (x;x;x x;x;x x;x;SBMC)
-    CD = 000 000 000 --------- Serial Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
-    CF = 11110 --------------- Flow Ctrl (EnsCyc;PngCyc;Binry;Ser;Rec)
-    CH = 0 ------------------- Suppress Banner
-    CJ = 0 ------------------- IMM Output Enable (0=Disable,1=Enable)
-    CL = 0 ------------------- Sleep Enable (0 = Disable, 1 = Enable, 2 See Manual)
-    CM = 0 ------------------- RS-232 Sync Master (0 = OFF, 1 = ON)
-    CN = 1 ------------------- Save NVRAM to recorder (0 = ON, 1 = OFF)
-    CR # --------------------- Retrieve Parameters (0 = USER, 1 = FACTORY)
-    CW = 00250 --------------- Trigger Timeout (ms; 0 = no timeout)
-    CX = 0 ------------------- Trigger Enable (0 = OFF, 1 = ON)
-    EA = +00000 -------------- Heading Alignment (1/100 deg)
-    EB = +00000 -------------- Heading Bias (1/100 deg)
-    ED = 00000 --------------- Transducer Depth (0 - 65535 dm)
-    EH = 00000 --------------- Heading (1/100 deg)
-    EP = +0000 --------------- Tilt 1 Sensor (1/100 deg)
-    ER = +0000 --------------- Tilt 2 Sensor (1/100 deg)
-    ET = +2500 --------------- Temperature (1/100 deg Celsius)
-    EX = 00000 --------------- Coord Transform (Xform:Type; Tilts; 3Bm; Map)
-    EZ = 1111101 ------------- Sensor Source (C;D;H;P;R;S;T)
-    PA ----------------------- Pre-Deployment Tests
-    PB = 001,000,1 ------------- PD12 Bin Select (first;num;sub)
-    PC ### ------------------- Built In Tests,
-    PC 0 = Help
-    PD = 00 ------------------ Data Stream Select (0-18)
-    PE = 00001 --------------- PD12 Ensemble Select (1-65535)
-    PM ----------------------- Distance Measure Facility
-    PO = 1111 ---------------- PD12 Velocity Component Select (v1;v2;v3;v4)
-    PS # --------------------- Show Sys Parms (0=Xdcr,1=FLdr,2=VLdr,3=Mat,4=Seq)
-    SA = 001 ----------------- Synch Before/After Ping/Ensemble Bottom/Water/Both
-    SB = 1 ------------------- Channel B Break Interrupts are ENABLED
-    SI = 00000 --------------- Synch Interval (0-65535)
-    SM = 1 ------------------- Mode Select (0=OFF,1=MASTER,2=SLAVE,3=NEMO)
-    SS = 0 ------------------- RDS3 Sleep Mode (0=No Sleep)
-    ST = 00000 --------------- Slave Timeout (seconds,0=indefinite)
-    SW = 00100 --------------- Synch Delay (1/10 msec)
-    DB 411 ----------------- RS-485 Port Control (Baud; N/U; N/U)
-    DS 1500 0 -------------- Load SpeedOfSound with SVSS Sample (BITResult)
-    DW 0 ------------------ Current ID on RS-485 Bus
-    DX --------------------- Set SVSS to RAW Mode
-    DY --------------------- Set SVSS to REAL Mode
-    DZ --------------------- Get Single SCAN from SVSS
-    OL --------------------- Display Feature List
-    WG 000 ----------------- Percent Good Minimum (1-100%)
-    WQ 0 ------------------- Sample Ambient Sound (0=OFF,1=ON)
-    WW 004 ----------------- Mode 1 Pings before Mode 4 Re-acquire
-    WZ 010 ----------------- Mode 5 Ambiguity Velocity (cm/s radial)
-    """
-    
-    """
-    We dont have a recorder...
-    RA --------------------- Number of Deployments Recorded
-    RB --------------------- Recorder Built-In-Test
-    RD --------------------- Open/Close Deployment File
-    RE --------------------- Recorder Erase
-    RF --------------------- Recorder Space used/free (bytes)
-    RI 1 ------------------- Auto Increment Deployment File
-    RN RDI -------------- Set Deployment Name
-    RR --------------------- Recorder diRectory
-    RS --------------------- Recorder Space used/free (Mb)
-    RY --------------------- Upload Recorder Files to Host
-    """
+    TOGGLE_FAULT_LOG_DEBUG = 'FX'
+    RUN_PRE_DEPLOYMENT_TESTS = 'PA'
+    RUN_BEAM_CONTINUITY_TEST = 'PC1'
+    SHOW_HEADING_PITCH_ROLL_ORIENTATION_TEST_RESULTS = 'PC2'
+    GET_SYSTEM_CONFIGURATION = 'PS0'
+    GET_INSTRUMENT_TRANSFORM_MATRIX = 'PS3'
+    RUN_TEST = 'PT'
 
 
 class ProtocolState(BaseEnum):
@@ -298,44 +258,7 @@ class Capability(BaseEnum):
     """
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     QUIT_SESSION = ProtocolEvent.QUIT_SESSION
-
-
-class Parameter(DriverParameter):
-    """
-    Device parameters
-    """
-    ### -- settable parameters
-    TRANSMIT_POWER = 'TRANSMIT_POWER'  # same as SystemPower in particle
-    SPEED_OF_SOUND = 'SPEED_OF_SOUND'  # same as in particle
-    SALINITY = 'SALINITY'  # same as in particle
-    TIME_PER_BURST = 'TIME_PER_BURST'
-    ENSEMBLES_PER_BURST = 'ENSEMBLES_PER_BURST'
-    TIME_PER_ENSEMBLE = 'TIME_PER_ENSEMBLE'
-    TIME_OF_FIRST_PING = 'TIME_OF_FIRST_PING'
-    TIME_OF_FIRST_PING_Y2K = 'TIME_OF_FIRST_PING_Y2K'
-    TIME_BETWEEN_PINGS = 'TIME_BETWEEN_PINGS'
-    REAL_TIME_CLOCK = 'REAL_TIME_CLOCK'
-    REAL_TIME_CLOCK_Y2K = 'REAL_TIME_CLOCK_Y2K'
-    BUFFERED_OUTPUT_PERIOD = 'BUFFERED_OUTPUT_PERIOD'
-    FALSE_TARGET_THRESHOLD_MAXIMUM = 'FALSE_TARGET_THRESHOLD_MAXIMUM'
-    LOW_CORRELATION_THRESHOLD = 'LOW_CORRELATION_THRESHOLD'  # same as LOW_CORR_THRESH in particle; WC cmd.
-    ERROR_VELOCITY_THRESHOLD = 'ERROR_VELOCITY_THRESHOLD'  # same as ERR_VEL_MAX in particle; initially set by WE.
-    CLIP_DATA_PAST_BOTTOM = 'CLIP_DATA_PAST_BOTTOM'
-    RECEIVER_GAIN_SELECT = 'RECEIVER_GAIN_SELECT'
-    WATER_REFERENCE_LAYER = 'WATER_REFERENCE_LAYER'  # tuple, same as particle (WL cmd)
-    NUMBER_OF_DEPTH_CELLS = 'NUMBER_OF_DEPTH_CELLS' # same as NUM_CELLS in particle
-    PINGS_PER_ENSEMBLE = 'PINGS_PER_ENSEMBLE'  # same as in particle
-    DEPTH_CELL_SIZE = 'DEPTH_CELL_SIZE'  # same as DEPTH_CELL_LEN in particle
-    TRANSMIT_LENGTH = 'TRANSMIT_LENGTH'  # different than XMIT_PULSE_LEN(WT) in particle.
-    PING_WEIGHT = 'PING_WEIGHT'
-    AMBIGUITY_VELOCITY = 'AMBIGUITY_VELOCITY'
-    MODE_1_BANDWIDTH_CONTROL = 'MODE_1_BANDWIDTH_CONTROL'
-    BLANK_AFTER_TRANSMIT = 'BLANK_AFTER_TRANSMIT'
-    DATA_OUT = 'DATA_OUT'
-    INSTRUMENT_ID = 'INSTRUMENT_ID'
-    WATER_PROFILING_MODE = 'WATER_PROFILING_MODE'
-
-
+    
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
@@ -391,6 +314,15 @@ adcpt_cache_dict = {
 ###############################################################################
 # Data Particles
 ###############################################################################
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW
+    ENSEMBLE_PARSED = 'ensemble_parsed'
+    CALIBRATION_PARSED = 'calibration_parsed'
+    PS0_PARSED = 'ps0_parsed'
+    PS3_PARSED = 'ps3_parsed'
+    FD_PARSED = 'fd_parsed'
+    PT200_PARSED = 'pt200_parsed'
+
 class ADCPT_PS0DataParticleKey(BaseEnum):
     PS0_DATA = "ps0_data"
 
