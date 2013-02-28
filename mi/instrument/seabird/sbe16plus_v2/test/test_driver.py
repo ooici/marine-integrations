@@ -55,12 +55,14 @@ from mi.idk.unit_test import AgentCapabilityType
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16Protocol
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16InstrumentDriver
 from mi.instrument.seabird.sbe16plus_v2.driver import DataParticleType
+from mi.instrument.seabird.sbe16plus_v2.driver import ConfirmedParameter
 from mi.instrument.seabird.sbe16plus_v2.driver import NEWLINE
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16DataParticle, SBE16DataParticleKey
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16StatusParticle, SBE16StatusParticleKey
@@ -166,7 +168,7 @@ class SeaBird16plusMixin(DriverTestMixin):
         Parameter.ECHO : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.OUTPUT_EXEC_TAG : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.TXREALTIME : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
-        Parameter.PUMP_MODE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 2, VALUE: 2},
+        Parameter.PUMP_MODE : {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 2, VALUE: 2},
         Parameter.NCYCLES : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 4, VALUE: 4},
         Parameter.INTERVAL : {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 10},
         Parameter.BIOWIPER : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
@@ -185,8 +187,8 @@ class SeaBird16plusMixin(DriverTestMixin):
         Parameter.WETLABS : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.GTD : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.OPTODE : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
-        Parameter.SYNCMODE : {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
-        Parameter.SYNCWAIT : {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0, REQUIRED: False},
+        Parameter.SYNCMODE : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.SYNCWAIT : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0, REQUIRED: False},
         Parameter.OUTPUT_FORMAT : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.LOGGING : {TYPE: bool, READONLY: True, DA: False, STARTUP: False},
     }
@@ -356,7 +358,9 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(ProtocolState())
         self.assert_enum_has_no_duplicates(ProtocolEvent())
+
         self.assert_enum_has_no_duplicates(Parameter())
+        self.assert_enum_complete(ConfirmedParameter(), Parameter())
 
         # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
         self.assert_enum_has_no_duplicates(Capability())
@@ -501,6 +505,52 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
         pd = driver._protocol._param_dict.get_config()
         self.assertTrue(pd.get(Parameter.SYNCMODE))
 
+        # Pump Mode 0
+        source = source.replace("run pump during sample", "no pump")
+        log.debug("Param Sample: %s" % source)
+        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        pd = driver._protocol._param_dict.get_config()
+        self.assertEqual(pd.get(Parameter.PUMP_MODE), 0)
+
+        # Pump Mode 1
+        source = source.replace("no pump", "run pump for 0.5 sec")
+        log.debug("Param Sample: %s" % source)
+        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        pd = driver._protocol._param_dict.get_config()
+        self.assertEqual(pd.get(Parameter.PUMP_MODE), 1)
+
+        # Pressure Sensor type 2
+        source = source.replace("strain gauge", "quartz without temp comp")
+        log.debug("Param Sample: %s" % source)
+        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        pd = driver._protocol._param_dict.get_config()
+        self.assertEqual(pd.get(Parameter.PTYPE), 2)
+
+        # Pressure Sensor type 3
+        source = source.replace("quartz without temp comp", "quartz with temp comp")
+        log.debug("Param Sample: %s" % source)
+        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        pd = driver._protocol._param_dict.get_config()
+        self.assertEqual(pd.get(Parameter.PTYPE), 3)
+
+    def test_parse_set_response(self):
+        """
+        Test response from set commands.
+        """
+        driver = SBE16InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
+
+        response = "Not an error"
+        driver._protocol._parse_set_response(response, Prompt.EXECUTED)
+        driver._protocol._parse_set_response(response, Prompt.COMMAND)
+
+        with self.assertRaises(InstrumentProtocolException):
+            driver._protocol._parse_set_response(response, Prompt.BAD_COMMAND)
+
+        response = "<ERROR type='INVALID ARGUMENT' msg='out of range'/>"
+        with self.assertRaises(InstrumentParameterException):
+            driver._protocol._parse_set_response(response, Prompt.EXECUTED)
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -511,7 +561,7 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
 ###############################################################################
 
 @attr('INT', group='mi')
-class SBEIntTestCase(SeaBirdIntegrationTest):
+class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
     """
     Integration tests for the sbe16 driver. This class tests and shows
     use patterns for the sbe16 driver as a zmq driver process.
@@ -522,7 +572,8 @@ class SBEIntTestCase(SeaBirdIntegrationTest):
         """
         self.assert_initialize_driver()
 
-        timeout = time.time() + 60
+        start_time = time.time()
+        timeout = time.time() + 300
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.TEST)
 
         self.assert_current_state(ProtocolState.TEST)
@@ -531,7 +582,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest):
         state = self.driver_client.cmd_dvr('get_resource_state')
 
         while state != ProtocolState.COMMAND:
-            gevent.sleep(5)
+            time.sleep(5)
             elapsed = time.time() - start_time
             log.info('Device testing %f seconds elapsed.' % elapsed)
             state = self.driver_client.cmd_dvr('get_resource_state')
@@ -558,20 +609,98 @@ class SBEIntTestCase(SeaBirdIntegrationTest):
         """
         self.assert_initialize_driver()
 
-        #   Instrument Parameteres
+        # Pump Mode
+        # x=0: No pump.
+        # x=1: Run pump for 0.5 sec before each sample.
+        # x=2: Run pump during each sample.
+        self.assert_set(Parameter.PUMP_MODE, 0)
+        self.assert_set(Parameter.PUMP_MODE, 1)
+        self.assert_set(Parameter.PUMP_MODE, 2)
+        self.assert_set_exception(Parameter.PUMP_MODE, -1)
+        self.assert_set_exception(Parameter.PUMP_MODE, 3)
+        self.assert_set_exception(Parameter.PUMP_MODE, 'bad')
 
-        # Sample Period.  integer 1 - 240
-#        self.assert_set(Parameter.SAMPLE_PERIOD, 1)
-#        self.assert_set(Parameter.SAMPLE_PERIOD, 240)
-#        self.assert_set_exception(Parameter.SAMPLE_PERIOD, 241)
-#        self.assert_set_exception(Parameter.SAMPLE_PERIOD, 0)
-#        self.assert_set_exception(Parameter.SAMPLE_PERIOD, -1)
-#        self.assert_set_exception(Parameter.SAMPLE_PERIOD, 0.2)
-#        self.assert_set_exception(Parameter.SAMPLE_PERIOD, "1")
+        # NCYCLE Range 1 - 100
+        self.assert_set(Parameter.NCYCLES, 1)
+        self.assert_set(Parameter.NCYCLES, 100)
+        self.assert_set_exception(Parameter.NCYCLES, 0)
+        self.assert_set_exception(Parameter.NCYCLES, 101)
+        self.assert_set_exception(Parameter.NCYCLES, -1)
+        self.assert_set_exception(Parameter.NCYCLES, 0.1)
+        self.assert_set_exception(Parameter.NCYCLES, 'bad')
 
-        #   Read only parameters
-#        self.assert_set_readonly(Parameter.BATTERY_TYPE, 1)
-#        self.assert_set_readonly(Parameter.ENABLE_ALERTS, True)
+        # SampleInterval Range 10 - 14,400
+        self.assert_set(Parameter.INTERVAL, 10)
+        self.assert_set(Parameter.INTERVAL, 14400)
+        self.assert_set_exception(Parameter.INTERVAL, 9)
+        self.assert_set_exception(Parameter.INTERVAL, 14401)
+        self.assert_set_exception(Parameter.INTERVAL, -1)
+        self.assert_set_exception(Parameter.INTERVAL, 0.1)
+        self.assert_set_exception(Parameter.INTERVAL, 'bad')
+
+        # Read only parameters
+        self.assert_set_readonly(Parameter.ECHO, False)
+        self.assert_set_readonly(Parameter.OUTPUT_EXEC_TAG, False)
+        self.assert_set_readonly(Parameter.TXREALTIME, False)
+        self.assert_set_readonly(Parameter.BIOWIPER, False)
+        self.assert_set_readonly(Parameter.PTYPE, 1)
+        self.assert_set_readonly(Parameter.VOLT0, False)
+        self.assert_set_readonly(Parameter.VOLT1, False)
+        self.assert_set_readonly(Parameter.VOLT2, False)
+        self.assert_set_readonly(Parameter.VOLT3, False)
+        self.assert_set_readonly(Parameter.VOLT4, False)
+        self.assert_set_readonly(Parameter.VOLT5, False)
+        self.assert_set_readonly(Parameter.DELAY_BEFORE_SAMPLE, 1)
+        self.assert_set_readonly(Parameter.DELAY_AFTER_SAMPLE, 1)
+        self.assert_set_readonly(Parameter.SBE63, False)
+        self.assert_set_readonly(Parameter.SBE38, False)
+        self.assert_set_readonly(Parameter.SBE50, False)
+        self.assert_set_readonly(Parameter.WETLABS, False)
+        self.assert_set_readonly(Parameter.GTD, False)
+        self.assert_set_readonly(Parameter.OPTODE, False)
+        self.assert_set_readonly(Parameter.SYNCMODE, False)
+        self.assert_set_readonly(Parameter.SYNCWAIT, 1)
+        self.assert_set_readonly(Parameter.OUTPUT_FORMAT, 1)
+        self.assert_set_readonly(Parameter.LOGGING, False)
+
+    def test_startup_params(self):
+        """
+        Verify that startup parameters are applied correctly. Generally this
+        happens in the driver discovery method.
+        """
+
+        # Explicitly verify these values after discover.  They should match
+        # what the startup values should be
+        get_values = {
+            Parameter.INTERVAL: 10,
+            Parameter.PUMP_MODE: 2,
+            Parameter.NCYCLES: 4
+        }
+
+        # Change the values of these parameters to something before the
+        # driver is reinitalized.  They should be blown away on reinit.
+        new_values = {
+            Parameter.INTERVAL: 20,
+            Parameter.PUMP_MODE: 0,
+            Parameter.NCYCLES: 6
+        }
+
+        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
+
+    def test_commands(self):
+        """
+        Run instrument commands from both command and streaming mode.
+        """
+        self.assert_initialize_driver()
+
+        ####
+        new_values = {
+            Parameter.INTERVAL: 20,
+            Parameter.PUMP_MODE: 0,
+            Parameter.NCYCLES: 6
+        }
+
+        self.assert_startup_parameters(self._driver_parameters, new_values)
 
     def test_commands(self):
         """
@@ -670,39 +799,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest):
 #        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND)
 #        self.assert_get(Parameter.SAMPLE_PERIOD, 15)
 
-    def test_startup_params_first_pass(self):
-        """
-        Verify that startup parameters are applied correctly. Generally this
-        happens in the driver discovery method.  We have two identical versions
-        of this test so it is run twice.  First time to check and CHANGE, then
-        the second time to check again.
 
-        since nose orders the tests by ascii value this should run first.
-        """
-        self.assert_initialize_driver()
-
-#        self.assert_get(Parameter.SAMPLE_PERIOD, 15)
-
-        # Now change them so they are caught and see if they are caught
-        # on the second pass.
-#        self.assert_set(Parameter.SAMPLE_PERIOD, 5)
-
-    def test_startup_params_second_pass(self):
-        """
-        Verify that startup parameters are applied correctly. Generally this
-        happens in the driver discovery method.  We have two identical versions
-        of this test so it is run twice.  First time to check and CHANGE, then
-        the second time to check again.
-
-        since nose orders the tests by ascii value this should run second.
-        """
-        self.assert_initialize_driver()
-
-#        self.assert_get(Parameter.SAMPLE_PERIOD, 15)
-
-        # Now change them so they are caught and see if they are caught
-        # on the second pass.
-#        self.assert_set(Parameter.SAMPLE_PERIOD, 5)
 
 
 ###############################################################################

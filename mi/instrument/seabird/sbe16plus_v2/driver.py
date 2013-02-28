@@ -53,6 +53,9 @@ from mi.instrument.seabird.driver import DEFAULT_ENCODER_KEY
 # Static enumerations for this class
 ###############################################################################
 
+ERROR_PATTERN = r"<ERROR type='(.*?)' msg='(.*?)'\/>"
+ERROR_REGEX   = re.compile(ERROR_PATTERN, re.DOTALL)
+
 class ScheduledJob(BaseEnum):
     ACQUIRE_STATUS = 'acquire_status'
     CONFIGURATION_DATA = "configuration_data"
@@ -71,6 +74,7 @@ class Command(BaseEnum):
         TT = 'tt'
         TP = 'tp'
         SET = 'set'
+        GETCD = 'getcd'
 
 class ProtocolState(BaseEnum):
     """
@@ -131,7 +135,7 @@ class Parameter(DriverParameter):
     LOGGING = "logging"
     ECHO = "echo"
     OUTPUT_EXEC_TAG = 'OutputExecutedTag'
-    PUMP_MODE = "pump_mode"
+    PUMP_MODE = "PumpMode"
     NCYCLES = "NCycles"
     BIOWIPER = "Biowiper"
     PTYPE = "PType"
@@ -152,6 +156,22 @@ class Parameter(DriverParameter):
     SYNCMODE = "SyncMode"
     SYNCWAIT = "SyncWait"
     OUTPUT_FORMAT = "OutputFormat"
+
+class ConfirmedParameter(BaseEnum):
+    """
+    List of all parameters that require confirmation
+    i.e. set sent twice to confirm.
+    """
+    PTYPE =  Parameter.PTYPE
+    SBE63 =  Parameter.SBE63
+    SBE38 =  Parameter.SBE38
+    SBE50 =  Parameter.SBE50
+    VOLT0 =  Parameter.VOLT0
+    VOLT1 =  Parameter.VOLT1
+    VOLT2 =  Parameter.VOLT2
+    VOLT3 =  Parameter.VOLT3
+    VOLT4 =  Parameter.VOLT4
+    VOLT5 =  Parameter.VOLT5
 
 # Device prompts.
 class Prompt(BaseEnum):
@@ -625,7 +645,7 @@ class SBE16InstrumentDriver(SeaBirdInstrumentDriver):
         @param evt_callback Driver process event callback.
         """
         #Construct superclass.
-        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+        SeaBirdInstrumentDriver.__init__(self, evt_callback)
 
     ########################################################################
     # Superclass overrides for resource query.
@@ -842,6 +862,7 @@ class SBE16Protocol(SeaBirdProtocol):
         """
         next_state = None
         result = None
+        startup = False
 
         # Retrieve required parameter.
         # Raise if no parameter provided, or not a dict.
@@ -853,16 +874,43 @@ class SBE16Protocol(SeaBirdProtocol):
 
         if not isinstance(params, dict):
             raise InstrumentParameterException('Set parameters not a dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
         
-        # For each key, val in the dict, issue set command to device.
-        # Raise if the command not understood.
-        else:
-            
-            for (key, val) in params.iteritems():
-                result = self._do_cmd_resp(Command.SET, key, val, **kwargs)
-            self._update_params()
-            
+        self._set_params(params, startup)
+
         return (next_state, result)
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        SeaBirdProtocol._set_params(self, *args, **kwargs)
+
+        params = args[0]
+
+        # Pump Mode is the only parameter that is set by the driver
+        # that where the input isn't validated by the instrument.  So
+        # We will do a quick range check before we start all sets
+        for (key, val) in params.iteritems():
+            if(key == Parameter.PUMP_MODE and val not in [0, 1, 2]):
+                raise InstrumentParameterException("pump mode out of range")
+
+        for (key, val) in params.iteritems():
+            log.debug("KEY = " + str(key) + " VALUE = " + str(val))
+
+            if(key in ConfirmedParameter.list()):
+                # We add a write delay here because this command has to be sent
+                # twice, the write delay allows it to process the first command
+                # before it receives the beginning of the second.
+                response = self._do_cmd_resp(Command.SET, key, val, write_delay=0.2)
+            else:
+                response = self._do_cmd_resp(Command.SET, key, val, **kwargs)
+
+        self._update_params()
 
     def _handler_command_acquire_sample(self, *args, **kwargs):
         """
@@ -1238,6 +1286,10 @@ class SBE16Protocol(SeaBirdProtocol):
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()
+
+        # We ignore the data time parameter diffs
+        new_config[Parameter.DATE_TIME] = old_config.get(Parameter.DATE_TIME)
+
         if new_config != old_config and self._protocol_fsm.get_current_state() != ProtocolState.UNKNOWN:
             log.debug("parameters updated, sending event")
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
@@ -1271,11 +1323,27 @@ class SBE16Protocol(SeaBirdProtocol):
 
             set_cmd = '%s=%s' % (param, str_val)
             set_cmd = set_cmd + NEWLINE
-            
+
+            # Some set commands need to be sent twice to confirm
+            if(param in ConfirmedParameter.list()):
+                set_cmd = set_cmd + set_cmd
+
         except KeyError:
             raise InstrumentParameterException('Unknown driver parameter %s' % param)
             
         return set_cmd
+
+    def _find_error(self, response):
+        """
+        Find an error xml message in a response
+        @param response command response string.
+        @return tuple with type and message, None otherwise
+        """
+        match = re.search(ERROR_REGEX, response)
+        if(match):
+            return (match.group(1), match.group(2))
+
+        return None
 
     def _parse_set_response(self, response, prompt):
         """
@@ -1284,6 +1352,12 @@ class SBE16Protocol(SeaBirdProtocol):
         @param prompt prompt following command response.        
         @throws InstrumentProtocolException if set command misunderstood.
         """
+        error = self._find_error(response)
+
+        if error:
+            log.error("Set command encountered error; type='%s' msg='%s'" % (error[0], error[1]))
+            raise InstrumentParameterException('Set command failure: type="%s" msg="%s"' % (error[0], error[1]))
+
         if prompt not in [Prompt.EXECUTED, Prompt.COMMAND]:
             log.error("Set command encountered error; instrument returned: %s", response) 
             raise InstrumentProtocolException('Set command not recognized: %s' % response)
@@ -1386,13 +1460,12 @@ class SBE16Protocol(SeaBirdProtocol):
                              default_value = True,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PUMP_MODE,
-                             r'pump = (run pump during sample)',
-                             lambda match : 2 if match.group(1) else -1,
+                             r'pump = (run pump during sample|run pump for 0.5 sec|no pump)',
+                             self._pump_mode_to_int,
                              str,
                              startup_param = True,
                              direct_access = True,
-                             default_value = 2,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             default_value = 2)
         self._param_dict.add(Parameter.NCYCLES,
                              r'number of measurements per sample = (\d+)',
                              lambda match : int(match.group(1)),
@@ -1417,7 +1490,7 @@ class SBE16Protocol(SeaBirdProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.PTYPE,
                              r'pressure sensor = ([\w\s]+),',
-                             lambda match : 1 if match.group(1)=='strain gauge' else 0,
+                             self._pressure_sensor_to_int,
                              self._int_to_string,
                              startup_param = True,
                              direct_access = True,
@@ -1429,7 +1502,7 @@ class SBE16Protocol(SeaBirdProtocol):
                              self._true_false_to_string,
                              startup_param = True,
                              direct_access = True,
-                             default_value = 1,
+                             default_value = True,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.VOLT1,
                              r'Ext Volt 1 = ([\w]+)',
@@ -1437,7 +1510,7 @@ class SBE16Protocol(SeaBirdProtocol):
                              self._true_false_to_string,
                              startup_param = True,
                              direct_access = True,
-                             default_value = 1,
+                             default_value = True,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.VOLT2,
                              r'Ext Volt 2 = ([\w]+)',
@@ -1445,7 +1518,7 @@ class SBE16Protocol(SeaBirdProtocol):
                              self._true_false_to_string,
                              startup_param = True,
                              direct_access = True,
-                             default_value = 1,
+                             default_value = False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.VOLT3,
                              r'Ext Volt 3 = ([\w]+)',
@@ -1453,7 +1526,7 @@ class SBE16Protocol(SeaBirdProtocol):
                              self._true_false_to_string,
                              startup_param = True,
                              direct_access = True,
-                             default_value = 1,
+                             default_value = False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.VOLT4,
                              r'Ext Volt 4 = ([\w]+)',
@@ -1461,7 +1534,7 @@ class SBE16Protocol(SeaBirdProtocol):
                              self._true_false_to_string,
                              startup_param = True,
                              direct_access = True,
-                             default_value = 1,
+                             default_value = False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.VOLT5,
                              r'Ext Volt 5 = ([\w]+)',
@@ -1469,7 +1542,7 @@ class SBE16Protocol(SeaBirdProtocol):
                              self._true_false_to_string,
                              startup_param = True,
                              direct_access = True,
-                             default_value = 1,
+                             default_value = False,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.DELAY_BEFORE_SAMPLE,
                              r'delay before sampling = (\d+\.\d+)',
@@ -1477,7 +1550,7 @@ class SBE16Protocol(SeaBirdProtocol):
                              self._float_to_string,
                              startup_param = True,
                              direct_access = True,
-                             default_value = 0,
+                             default_value = 0.0,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.DELAY_AFTER_SAMPLE,
                              r'delay after sampling = (\d\.\d)',
@@ -1485,7 +1558,7 @@ class SBE16Protocol(SeaBirdProtocol):
                              str,
                              startup_param = True,
                              direct_access = True,
-                             default_value = 0,
+                             default_value = 0.0,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.SBE63,
                              r'SBE\s?63 = (yes|no)',
@@ -1541,14 +1614,16 @@ class SBE16Protocol(SeaBirdProtocol):
                              self._true_false_to_string,
                              startup_param = True,
                              direct_access = True,
-                             default_value = False)
+                             default_value = False,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.SYNCWAIT,
                              r'wait time after sampling = (\d) seconds',
                              lambda match : int(match.group(1)),
                              str,
                              startup_param = True,
                              direct_access = True,
-                             default_value = 0)
+                             default_value = 0,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.OUTPUT_FORMAT,
                              r'output format = (raw HEX)',
                              lambda match : 0 if match.group(1) == 'raw HEX' else -1,
@@ -1567,6 +1642,44 @@ class SBE16Protocol(SeaBirdProtocol):
     ########################################################################
     # Static helpers to format set commands.
     ########################################################################
+
+    @staticmethod
+    def _pressure_sensor_to_int(match):
+        """
+        map a pressure sensor string into an int representation
+        @param v: regex match
+        @return: mode 1, 2, 3 or None for no match
+        """
+        v = match.group(1)
+
+        log.debug("get pressure type from: %s" % v)
+        if(v == "strain gauge"):
+            return 1
+        elif(v == "quartz without temp comp"):
+            return 2
+        elif(v == "quartz with temp comp"):
+            return 3
+        else:
+            return None
+
+    @staticmethod
+    def _pump_mode_to_int(match):
+        """
+        map a pump mode string into an int representation
+        @param v: regex match
+        @return: mode 0, 1, 2 or None for no match
+        """
+        v = match.group(1)
+
+        log.debug("get pump mode from: %s" % v)
+        if(v == "no pump"):
+            return 0
+        elif(v == "run pump for 0.5 sec"):
+            return 1
+        elif(v == "run pump during sample"):
+            return 2
+        else:
+            return None
 
     @staticmethod
     def _true_false_to_string(v):

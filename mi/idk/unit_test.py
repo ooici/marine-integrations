@@ -37,6 +37,7 @@ from mi.core.unit_test import MiIntTestCase
 from mi.core.unit_test import MiUnitTest
 from mi.core.port_agent_simulator import TCPSimulatorServer
 from mi.core.instrument.instrument_driver import InstrumentDriver
+from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
@@ -856,7 +857,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
             self.assertTrue(len(subset) > 0)
 
         for item in subset:
-            self.assertTrue(item in superset)
+            self.assertTrue(item in superset, msg="%s missing from superset" % item)
 
         # This added so the unit test can set a true flag.  If we have made it
         # this far we should pass the test.
@@ -1317,6 +1318,52 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             self.assertEqual(state, DriverProtocolState.AUTOSAMPLE)
         else:
             self.assertEqual(state, DriverProtocolState.COMMAND)
+
+    def assert_startup_parameters(self, parameter_assert, new_values, get_values=None):
+        """
+        Verify that driver startup parameters are set properly.  To
+        Do this we first test all parameters using the mixin class.
+        This assumes that you have values in the driver parameter
+        config structure.  This is defined in the mixin class.
+
+        After we have checked the parameters we will set new values
+        and re-initialize the driver.  This destroys the protocol which
+        also destroys the param_dict which holds cached values. When the
+        driver re-initializes it should apply the startup parameters.
+
+        @param params: callback to parameter assert method
+        @param new_values: values to change on the instrument
+        @param get_values: optional values to explicitly check after discover
+        """
+        self.assert_initialize_driver()
+        reply = self.driver_client.cmd_dvr('get_resource', DriverParameter.ALL)
+        parameter_assert(reply, True)
+
+        self.assert_set_bulk(new_values)
+
+        if(get_values != None):
+            for (key, val) in get_values.itteritem():
+                self.assert_get(key, val)
+
+        # Now let's re-initalize
+        reply = self.driver_client.cmd_dvr('disconnect')
+        self.assertEqual(reply, None)
+        self.assert_current_state(DriverConnectionState.DISCONNECTED)
+        self.assert_initialize_driver()
+
+        ###
+        #   Rinse and repeat
+        ###
+
+        # Should be back to our startup parameters.
+        reply = self.driver_client.cmd_dvr('get_resource', DriverParameter.ALL)
+        parameter_assert(reply, True)
+
+        if(get_values != None):
+            for (key, val) in get_values.itteritem():
+                self.assert_get(key, val)
+
+
 
     def assert_get(self, param, value=None, pattern=None):
         """

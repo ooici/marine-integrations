@@ -21,6 +21,7 @@ from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProt
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -247,6 +248,7 @@ class SeaBirdInstrumentDriver(SingleConnectionInstrumentDriver):
     def _handler_connected_discover(self, event, *args, **kwargs):
         # Redefine discover handler so that we can apply startup params
         # when we discover. Gotta get into command mode first though.
+        log.debug("in _handler_connected_discover")
         result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
         self.apply_startup_params()
         return result
@@ -379,10 +381,32 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
 
     def _set_params(self, *args, **kwargs):
         """
-        Do the work of sending instrument commands to the instrument to set
-        parameters.
+        Issue commands to the instrument to set various parameters
         """
-        raise NotImplementedException()
+        startup = False
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
+        # Only check for readonly parameters if we are not setting them from startup
+        if not startup:
+            readonly = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
+
+            log.debug("set param, but check visibility first")
+            log.debug("Read only keys: %s" % readonly)
+
+            for (key, val) in params.iteritems():
+                if key in readonly:
+                    raise InstrumentParameterException("Attempt to set read only parameter (%s)" % key)
+
+        # Make sure this method is overloaded because this just verifies, but doesn't
+        # set a damn thing.
 
     def _update_params(self):
         """
