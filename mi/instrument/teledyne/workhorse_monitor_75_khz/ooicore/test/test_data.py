@@ -272,3 +272,218 @@ powering_down_str = NEWLINE +\
 # From Lytle
 self_deploy_str = NEWLINE +\
 "System will self-deploy in 1 minute unless valid command entered!"
+
+get_params_output = \
+            "CI?" + NEWLINE +\
+            "CI = 000 ----------------- Instrument ID (0-255)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">CP?" + NEWLINE +\
+            "CP = 0 ------------------- PolledMode (1=ON, 0=OFF;  BREAK resets)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">CQ?" + NEWLINE +\
+            "CQ = 255 ----------------- Xmt Power (0=Low, 255=High)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">TB?" + NEWLINE +\
+            "TB 00:00:00.00 --------- Time per Burst (hrs:min:sec.sec/100)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">TC?" + NEWLINE +\
+            "TC 00002 --------------- Ensembles Per Burst (0-65535)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">TE?" + NEWLINE +\
+            "TE 01:00:00.00 --------- Time per Ensemble (hrs:min:sec.sec/100)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">TF?" + NEWLINE +\
+            "TF **/**/**,**:**:** --- Time of First Ping (yr/mon/day,hour:min:sec)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">TG?" + NEWLINE +\
+            "TG ****/**/**,**:**:** - Time of First Ping (CCYY/MM/DD,hh:mm:ss)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">TP?" + NEWLINE +\
+            "TP 01:20.00 ------------ Time per Ping (min:sec.sec/100)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">TT?" + NEWLINE +\
+            "TT 2013/02/28,07:55:33 - Time Set (CCYY/MM/DD,hh:mm:ss)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">TX?" + NEWLINE +\
+            "TX 00:00:00 ------------ Buffer Output Period: (hh:mm:ss)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WA?" + NEWLINE +\
+            "WA 255,001 ------------- False Target Threshold (Max)(0-255),[Start Bin]" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WC?" + NEWLINE +\
+            "WC 064 ----------------- Correlation Threshold" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WD?" + NEWLINE +\
+            "WD 111100000 ----------- Data Out (Vel;Cor;Amp  PG;St;P0  P1;P2;P3)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WE?" + NEWLINE +\
+            "WE 5000 ---------------- Error Velocity Threshold (0-5000 mm/s)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WF?" + NEWLINE +\
+            "WF 0088 ---------------- Blank After Transmit (cm)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WI?" + NEWLINE +\
+            "WI 0 ------------------- Clip Data Past Bottom (0=OFF,1=ON)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WJ?" + NEWLINE +\
+            "WJ 1 ------------------- Rcvr Gain Select (0=Low,1=High)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WL?" + NEWLINE +\
+            "WL 001,005 ------------- Water Reference Layer:  Begin Cell (0=OFF), End Cell" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WM?" + NEWLINE +\
+            "WM 1 ------------------- Profiling Mode (1-15)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WN?" + NEWLINE +\
+            "WN 030 ----------------- Number of depth cells (1-255)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WP?" + NEWLINE +\
+            "WP 00045 --------------- Pings per Ensemble (0-16384)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WS?" + NEWLINE +\
+            "WS 0800 ---------------- Depth Cell Size (cm)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WT?" + NEWLINE +\
+            "WT 0000 ---------------- Transmit Length (cm) [0 = Bin Length]" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WU?" + NEWLINE +\
+            "WU 0 ------------------- Ping Weighting (0=Box,1=Triangle)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WV?" + NEWLINE +\
+            "WV 175 ----------------- Mode 1 Ambiguity Vel (cm/s radial)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">CC?" + NEWLINE +\
+            "CC = 000 000 000 --------- Choose External Devices (x;x;x  x;x;x  x;x;SBMC)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">CH?" + NEWLINE +\
+            "CH = 1 ------------------- Suppress Banner" + NEWLINE +\
+            ">" + NEWLINE +\
+            "CJ?" + NEWLINE +\
+            "CJ = 0 ------------------- IMM Output Enable (0=Disable,1=Enable)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">CL?" + NEWLINE +\
+            "CL = 0 ------------------- Sleep Enable (0 = Disable, 1 = Enable, 2 See Manual)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">CM?" + NEWLINE +\
+            "CM = 0 ------------------- RS-232 Sync Master (0 = OFF, 1 = ON)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">CN?" + NEWLINE +\
+            "CN = 1 ------------------- Save NVRAM to recorder (0 = ON, 1 = OFF)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">CW?" + NEWLINE +\
+            "CW = 00250 --------------- Trigger Timeout (ms; 0 = no timeout)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">CX?" + NEWLINE +\
+            "CX = 1 ------------------- Trigger Enable (0 = OFF, 1 = ON)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">EA?" + NEWLINE +\
+            "EA = +00000 -------------- Heading Alignment (1/100 deg)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">EB?" + NEWLINE +\
+            "EB = +00000 -------------- Heading Bias (1/100 deg)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">EC?" + NEWLINE +\
+            "EC = 1500 ---------------- Speed Of Sound (m/s)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">ED?" + NEWLINE +\
+            "ED = 00000 --------------- Transducer Depth (0 - 65535 dm)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">EH?" + NEWLINE +\
+            "EH = 00000 --------------- Heading (1/100 deg)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">EP?" + NEWLINE +\
+            "EP = +0000 --------------- Tilt 1 Sensor (1/100 deg)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">ER?" + NEWLINE +\
+            "ER = +0000 --------------- Tilt 2 Sensor (1/100 deg)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">ES?" + NEWLINE +\
+            "ES = 35 ------------------ Salinity (0-40 pp thousand)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">ET?" + NEWLINE +\
+            "ET = +2500 --------------- Temperature (1/100 deg Celsius)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">EX?" + NEWLINE +\
+            "EX = 00000 --------------- Coord Transform (Xform:Type; Tilts; 3Bm; Map)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">EZ?" + NEWLINE +\
+            "EZ = 1111101 ------------- Sensor Source (C;D;H;P;R;S;T)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">PB?" + NEWLINE +\
+            "PB = 001,000,1 ------------- PD12 Bin Select (first;num;sub)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">PD?" + NEWLINE +\
+            "PD = 00 ------------------ Data Stream Select (0-18)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">PE?" + NEWLINE +\
+            "PE = 00001 --------------- PD12 Ensemble Select (1-65535)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">PO?" + NEWLINE +\
+            "PO = 1111 ---------------- PD12 Velocity Component Select (v1;v2;v3;v4)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">SA?" + NEWLINE +\
+            "SA = 001 ----------------- Synch Before/After Ping/Ensemble Bottom/Water/Both" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">SB?" + NEWLINE +\
+            "SB = 1 ------------------- Channel B Break Interrupts are ENABLED" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">SI?" + NEWLINE +\
+            "SI = 00000 --------------- Synch Interval (0-65535)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">SM?" + NEWLINE +\
+            "SM = 1 ------------------- Mode Select (0=OFF,1=MASTER,2=SLAVE,3=NEMO)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">SS?" + NEWLINE +\
+            "SS = 0 ------------------- RDS3 Sleep Mode (0=No Sleep)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">ST?" + NEWLINE +\
+            "ST = 00000 --------------- Slave Timeout (seconds,0=indefinite)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">SW?" + NEWLINE +\
+            "SW = 00100 --------------- Synch Delay (1/10 msec)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">DW?" + NEWLINE +\
+            "DW  0 ------------------ Current ID on RS-485 Bus" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">RI?" + NEWLINE +\
+            "" + NEWLINE +\
+            "Deployment Auto Increment is ENABLED" + NEWLINE +\
+            NEWLINE +\
+            ">" + NEWLINE +\
+            ">RN?" + NEWLINE +\
+            NEWLINE +\
+            "Current deployment name = _RDI_" + NEWLINE +\
+            NEWLINE +\
+            ">" + NEWLINE +\
+            ">WB?" + NEWLINE +\
+            "WB 1 ------------------- Bandwidth Control (0=Wid,1=Nar)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WG?" + NEWLINE +\
+            "WG 000 ----------------- Percent Good Minimum (1-100%)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WQ?" + NEWLINE +\
+            "WQ 0 ------------------- Sample Ambient Sound (0=OFF,1=ON)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WW?" + NEWLINE +\
+            "WW 004 ----------------- Mode 1 Pings before Mode 4 Re-acquire" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">WZ?" + NEWLINE +\
+            "WZ 010 ----------------- Mode 5 Ambiguity Velocity (cm/s radial)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">AZ?" + NEWLINE +\
+            NEWLINE +\
+            " 13.386345" + NEWLINE +\
+            NEWLINE +\
+            ">" + NEWLINE +\
+            ">CB?" + NEWLINE +\
+            "CB = 411 ----------------- Serial Port Control (Baud [4=9600]; Par; Stop)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">CD?" + NEWLINE +\
+            "CD = 000 000 000 --------- Serial Data Out (Vel;Cor;Amp  PG;St;P0  P1;P2;P3)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">CF?" + NEWLINE +\
+            "CF = 11110 --------------- Flow Ctrl (EnsCyc;PngCyc;Binry;Ser;Rec)" + NEWLINE +\
+            ">" + NEWLINE +\
+            ">DB?" + NEWLINE +\
+            "DB 411 ----------------- RS-485 Port Control (Baud; N/U; N/U)" + NEWLINE +\
+            ">" + NEWLINE
