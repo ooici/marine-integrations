@@ -15,6 +15,7 @@ import re
 import time
 import string
 import ntplib
+from datetime import *
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
@@ -1384,228 +1385,248 @@ class Protocol(CommandResponseInstrumentProtocol):
         and value formatting function for set commands.
         """
 
-        #INSTRUMENT_ID = 'CI'                # Int 0-255
         self._param_dict.add(Parameter.INSTRUMENT_ID,
-            r'XXXXX',
+            r'CI = (\d+) \-+ Instrument ID \(0-255\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #POLLED_MODE = 'CP'                  # 1=ON, 0=OFF;
         self._param_dict.add(Parameter.POLLED_MODE,
-                r'XXXXX',
-                lambda match: bool(match.group(1)),
-                self._bool_to_int)
+            r'CP = (\d) \-+ PolledMode \(1=ON, 0=OFF;  BREAK resets\)',
+            lambda match: bool(match.group(1)),
+            self._bool_to_int)
 
-        #XMIT_POWER = 'CQ'                   # 0=Low, 255=High
         self._param_dict.add(Parameter.XMIT_POWER,
-            r'XXX',
+            r'CQ = (\d+) \-+ Xmt Power \(0=Low, 255=High\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        TIME_PER_BURST = 'TB'               # 00:00:00.00  (hrs:min:sec.sec/100)
+        self._param_dict.add(Parameter.TIME_PER_BURST,
+            r'TC (\d+) \-+ Ensembles Per Burst \(0\-65535\)',
+            lambda match: datetime.strptime(match.group(1), '%H:%M:%S.%f'),
+            self._datetime_with_milis_to_time_string_with_milis)
 
-        #ENSEMBLES_PER_BURST = 'TC'          # 0-65535
         self._param_dict.add(Parameter.ENSEMBLES_PER_BURST,
-            r'XXX',
+            r'TC (\d+) \-+ Ensembles Per Burst \(0\-65535\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        TIME_PER_ENSEMBLE = 'TE'            # 01:00:00.00 (hrs:min:sec.sec/100)
-        TIME_OF_FIRST_PING = 'TF'           # **/**/**,**:**:**  (yr/mon/day,hour:min:sec)
-        TIME_OF_FIRST_PING_Y2K = 'TG'       # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
-        TIME_PER_PING = 'TP'                # 00:00.20  (min:sec.sec/100)
-        #TIME = 'TS'                        # 13/02/22,13:18:09 (yr/mon/day,hour:min:sec)
-        TIME = 'TT'                         # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
-        BUFFERED_OUTPUT_PERIOD = 'TX'       # 00:00:00 (hh:mm:ss)
-        FALSE_TARGET_THRESHOLD = 'WA'       # 255,001 (Max)(0-255),Start Bin # <--------- TRICKY.... COMPLEX TYPE
+        self._param_dict.add(Parameter.TIME_PER_ENSEMBLE,
+            r'TE (\d\d:\d\d:\d\d.\d\d \-+ Time per Ensemble \(hrs:min:sec.sec/100\)',
+            lambda match: str(match.group(1)),
+            self._string_to_string)
 
-        #CORRELATION_THRESHOLD = 'WC'        # 064  Correlation Threshold
+        self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
+            r'TF (../../..,..:..:..) --- Time of First Ping \(yr/mon/day,hour:min:sec\)',
+            lambda match: str(match.group(1)),
+            self._string_to_string)
+
+        self._param_dict.add(Parameter.TIME_OF_FIRST_PING_Y2K,
+            r'TG (..../../..,..:..:..) - Time of First Ping \(CCYY/MM/DD,hh:mm:ss\)',
+            lambda match: str(match.group(1)),
+            self._string_to_string)
+
+        self._param_dict.add(Parameter.TIME_PER_PING,
+            r'TP (\d\d:\d\d.\d\d) \-+ Time per Ping \(min:sec.sec/100\)',
+            lambda match: str(match.group(1)),
+            self._string_to_string)
+
+        #self._param_dict.add(Parameter.TIME,
+        #    r'TS (\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \-+ Time Set \(yr/mon/day,hour:min:sec\)',
+        #    lambda match: time.strptime(match.group(1), "%y/%m/%d,%H:%M:%S"),
+        #    self._datetime_YY_to_string)
+
+        self._param_dict.add(Parameter.TIME,
+            r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set \(CCYY/MM/DD,hh:mm:ss\)',
+            lambda match: time.strptime(match.group(1), "%Y/%m/%d,%H:%M:%S"),
+            self._datetime_YYYY_to_string)
+
+        self._param_dict.add(Parameter.BUFFERED_OUTPUT_PERIOD,
+            r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period: \(hh:mm:ss\)',
+            lambda match: time.strptime(match.group(1), "%H:%M:%S"),
+            self._time_to_string)
+
+        self._param_dict.add(Parameter.FALSE_TARGET_THRESHOLD,
+            r'WA (\d+,\d+) \-+ False Target Threshold \(Max\)\(0-255\),\[Start Bin\]',
+            lambda match: str(match.group(1)),
+            self._string_to_string)
+
         self._param_dict.add(Parameter.CORRELATION_THRESHOLD,
-            r'XXX',
+            r'WC (\d+) \-+ Correlation Threshold',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        SERIAL_OUT_FW_SWITCHES = 'WD'       # 111100000  Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
+        self._param_dict.add(Parameter.SERIAL_OUT_FW_SWITCHES,
+            r'WD (\d+) \-+ Data Out \(Vel;Cor;Amp  PG;St;P0  P1;P2;P3\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
 
-        #ERROR_VELOCITY_THRESHOLD = 'WE'     # 5000  Error Velocity Threshold (0-5000 mm/s)
         self._param_dict.add(Parameter.ERROR_VELOCITY_THRESHOLD,
-            r'XXX',
+            r'WE (\d+) \-+ Error Velocity Threshold \(0\-5000 mm/s\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #BLANK_AFTER_TRANSMIT = 'WF'         # 0088  Blank After Transmit (cm)
         self._param_dict.add(Parameter.BLANK_AFTER_TRANSMIT,
-            r'XXX',
+            r'WF (\d+) \-+ Blank After Transmit \(cm\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #CLIP_DATA_PAST_BOTTOM = 'WI'        # 0 Clip Data Past Bottom (0=OFF,1=ON)
         self._param_dict.add(Parameter.CLIP_DATA_PAST_BOTTOM,
-                r'XXXXX',
-                lambda match: bool(match.group(1)),
-                self._bool_to_int)
+            r'WI (\d) \-+ Clip Data Past Bottom \(0=OFF,1=ON\)',
+            lambda match: bool(match.group(1)),
+            self._bool_to_int)
 
-        #RECEIVER_GAIN_SELECT = 'WJ'         # 1  Rcvr Gain Select (0=Low,1=High)
         self._param_dict.add(Parameter.RECEIVER_GAIN_SELECT,
-            r'XXX',
+            r'WJ (\d) \-+ Rcvr Gain Select \(0=Low,1=High\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        WATER_REFERENCE_LAYER = 'WL'        # 001,005  Water Reference Layer: Begin Cell (0=OFF), End Cell
+        self._param_dict.add(Parameter.WATER_REFERENCE_LAYER,
+            r'WL (\d+,\d+) \-+ Water Reference Layer:  Begin Cell \(0=OFF\), End Cell',
+            lambda match: str(match.group(1)),
+            self._string_to_string)
 
-        #WATER_PROFILING_MODE = 'WM'         # Profiling Mode (1-15)
         self._param_dict.add(Parameter.WATER_PROFILING_MODE,
-            r'XXX',
+            r'WM (\d+) \-+ Profiling Mode \(1\-15\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #NUMBER_OF_DEPTH_CELLS = 'WN'        #Number of depth cells (1-255)
         self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
-            r'XXX',
+            r'WN (\d+) \-+ Number of depth cells \(1\-255\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #PINGS_PER_ENSEMBLE = 'WP'           # Pings per Ensemble (0-16384)
         self._param_dict.add(Parameter.PINGS_PER_ENSEMBLE,
-            r'XXX',
+            r'WP (\d+) \-+ Pings per Ensemble \(0\-16384\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #DEPTH_CELL_SIZE = 'WS'              # 0800  Depth Cell Size (cm)
         self._param_dict.add(Parameter.DEPTH_CELL_SIZE,
-            r'XXX',
+            r'WS (\d+) \-+ Depth Cell Size \(cm\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #TRANSMIT_LENGTH = 'WT'              # 0000 Transmit Length 0 to 3200(cm) 0 = Bin Length
         self._param_dict.add(Parameter.TRANSMIT_LENGTH,
-            r'XXX',
+            r'WT (\d+) \-+ Transmit Length (cm) \[0 = Bin Length\]',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #PING_WEIGHT = 'WU'                  # 0 Ping Weighting (0=Box,1=Triangle)
         self._param_dict.add(Parameter.PING_WEIGHT,
-            r'XXX',
+            r'WU (\d) \-+ Ping Weighting \(0=Box,1=Triangle\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #AMBIGUITY_VELOCITY = 'WV'           # 175 Mode 1 Ambiguity Vel (cm/s radial)
         self._param_dict.add(Parameter.AMBIGUITY_VELOCITY,
-            r'XXX',
+            r'WV (\d) \-+ Mode 1 Ambiguity Vel \(cm/s radial\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        CHOOSE_EXTERNAL_DEVICE = 'CC'       # 000 000 000 or 000 000 001 Choose External Devices (x;x;x x;x;x x;x;SBMC)
+        self._param_dict.add(Parameter.CHOOSE_EXTERNAL_DEVICE,
+            r'CC = (\d\d\d \d\d\d \d\d\d) \-+ Choose External Devices \(x;x;x  x;x;x  x;x;SBMC\)',
+            lambda match: str(match.group(1)),
+            self._string_to_string)
 
-        #BANNER = 'CH'                       # Suppress Banner 0=Show, 1=Suppress
         self._param_dict.add(Parameter.BANNER,
-            r'XXXXX',
+            r'CH = (\d) \-+ Suppress Banner',
             lambda match: not bool(match.group(1)),
             self._reverse_bool_to_int)
 
-        #IMM_OUTPUT_ENABLE = 'CJ'            # IMM Output Enable (0=Disable,1=Enable)
         self._param_dict.add(Parameter.IMM_OUTPUT_ENABLE,
-            r'XXXXX',
+            r'CJ = (\d) \-+ IMM Output Enable \(0=Disable,1=Enable\)',
             lambda match: bool(match.group(1)),
             self._bool_to_int)
 
-        #SLEEP_ENABLE = 'CL'                 # Sleep Enable (0 = Disable, 1 = Enable, 2 See Manual)
         self._param_dict.add(Parameter.SLEEP_ENABLE,
-            r'XXXXX',
+            r'CL = (\d) \-+ Sleep Enable \(0 = Disable, 1 = Enable, 2 See Manual\)',
             lambda match: bool(match.group(1)),
             self._bool_to_int)
 
-        #SERIAL_SYNC_MASTER = 'CM'           # RS-232 Sync Master (0 = OFF, 1 = ON)
         self._param_dict.add(Parameter.SERIAL_SYNC_MASTER,
-            r'XXXXX',
+            r'CM = (\d) \-+ RS-232 Sync Master \(0 = OFF, 1 = ON\)',
             lambda match: bool(match.group(1)),
             self._bool_to_int)
 
-        #SAVE_NVRAM_TO_RECORDER = 'CN'       # Save NVRAM to recorder (0 = ON, 1 = OFF)
         self._param_dict.add(Parameter.SAVE_NVRAM_TO_RECORDER,
-            r'XXXXX',
+            r'CN = (\d) \-+ Save NVRAM to recorder \(0 = ON, 1 = OFF\)',
             lambda match: bool(match.group(1)),
             self._bool_to_int)
 
-        TRIGGER_TIMEOUT = 'CW'              # Trigger Timeout (ms; 0 = no timeout)
+        self._param_dict.add(Parameter.TRIGGER_TIMEOUT,
+            r'CW = (\d+) \-+ Trigger Timeout \(ms; 0 = no timeout\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
 
-        #LOW_LATENCY_TRIGGER_ENABLE = 'CX'   # Trigger Enable (0 = OFF, 1 = ON)
         self._param_dict.add(Parameter.LOW_LATENCY_TRIGGER_ENABLE,
-            r'XXXXX',
+            r'CX = (\d) \-+ Trigger Enable \(0 = OFF, 1 = ON\)',
             lambda match: bool(match.group(1)),
             self._bool_to_int)
 
-        #HEADING_ALIGNMENT = 'EA'            # Heading Alignment (1/100 deg) -17999 to 18000
         self._param_dict.add(Parameter.HEADING_ALIGNMENT,
-            r'XXX',
+            r'EA = ([\+\-\d]+) \-+ Heading Alignment \(1/100 deg\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #HEADING_BIAS = 'EB'                 # Heading Bias (1/100 deg) -17999 to 18000
         self._param_dict.add(Parameter.HEADING_BIAS,
-            r'XXX',
+            r'EB = ([\+\-\d]+) \-+ Heading Bias \(1/100 deg\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #SPEED_OF_SOUND = 'EC'               # 1500  Speed Of Sound (m/s)
         self._param_dict.add(Parameter.SPEED_OF_SOUND,
-            r'XXX',
+            r'EC = (\d+) \-+ Speed Of Sound \(m/s\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #TRANSDUCER_DEPTH = 'ED'             # Transducer Depth (0 - 65535 dm)
         self._param_dict.add(Parameter.TRANSDUCER_DEPTH,
-            r'XXX',
+            r'ED = (\d+) \-+ Transducer Depth \(0 \- 65535 dm\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #HEADING = 'EH'                      # Heading (1/100 deg) 0 to 35999 (000.00 to 359.99 degrees)
         self._param_dict.add(Parameter.HEADING,
-            r'XXX',
+            r'EH = (\d+) \-+ Heading \(1/100 deg\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #PITCH = 'EP'                        # Tilt 1 Sensor (1/100 deg) -6000 to 6000 (-60.00 to +60.00 degrees)
         self._param_dict.add(Parameter.PITCH,
-            r'XXX',
+            r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor \(1/100 deg\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #ROLL = 'ER'                         # Tilt 2 Sensor (1/100 deg) -6000 to 6000 (-60.00 to +60.00 degrees)
         self._param_dict.add(Parameter.ROLL,
-            r'XXX',
+            r'ER = ([\+\-\d]+) \-+ Tilt 2 Sensor \(1/100 deg\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #SALINITY = 'ES'                     # 35 (0-40 pp thousand)
         self._param_dict.add(Parameter.SALINITY,
-            r'XXX',
+            r'ES = (\d+) \-+ Salinity \(0-40 pp thousand\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        #TEMPERATURE = 'ET'                  # Temperature (1/100 deg Celsius) -500 to 4000 (-5.00 C to +40.00 C)
         self._param_dict.add(Parameter.TEMPERATURE,
             r'ET = ([\+\-\d]+) \-+ Temperature \(1/100 deg Celsius\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
-        COORDINATE_TRANSFORMATION = 'EX'    # Coord Transform (Xform:Type; Tilts; 3Bm; Map)
-
+        self._param_dict.add(Parameter.COORDINATE_TRANSFORMATION,
+            r'EX = (\d+) \-+ Coord Transform \(Xform:Type; Tilts; 3Bm; Map\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
 
         self._param_dict.add(Parameter.SENSOR_SOURCE,
             r'EZ = (\d) \-+ Sensor Source \(C;D;H;P;R;S;T\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
-        #OUTPUT_BIN_SELECTION = 'PB'         # PD12 Bin Select (first;num;sub) x 1 to 128 y 0 to 128z 1 to 7 [start, every nth, total count]
-        #r'PB = 001,000,1 ------------- PD12 Bin Select \(first;num;sub\)'
+
+        self._param_dict.add(Parameter.OUTPUT_BIN_SELECTION,
+            r'PB = ([\d,]+) \-+ PD12 Bin Select \(first;num;sub\)',
+            lambda match: str(match.group(1)),
+            self._string_to_string)
 
         self._param_dict.add(Parameter.DATA_STREAM_SELECT,
-            r'PD = (\d+) \-+ Data Stream Select \(0-18\)',
+            r'PD = (\d+) \-+ Data Stream Select \(0\-18\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.ENSEMBLE_SELECT,
-            r'PE = (\d+) \-+ PD12 Ensemble Select \(1-65535\)',
+            r'PE = (\d+) \-+ PD12 Ensemble Select \(1\-65535\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
@@ -1628,7 +1649,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._bool_to_int)
 
         self._param_dict.add(Parameter.SYNC_INTERVAL,
-            r'SI = (\d+) \-+ Synch Interval \(0-65535\)',
+            r'SI = (\d+) \-+ Synch Interval \(0\-65535\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
@@ -1653,13 +1674,13 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._int_to_string)
 
         self._param_dict.add(Parameter.DEVICE_485_ID,
-            r'DW  (\d+) \-+ Current ID on RS-485 Bus',
+            r'DW  (\d+) \-+ Current ID on RS\-485 Bus',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
         self._param_dict.add(Parameter.DEPLOYMENT_AUTO_INCRIMENT,
             r'Deployment Auto Increment is (.*)',
-            lambda match: True if (match.group(1)=='ENABLED') else False, 
+            lambda match: True if (match.group(1) =='ENABLED') else False,
             self._bool_to_int)
 
         self._param_dict.add(Parameter.DEPLOYMENT_NAME,
@@ -1673,7 +1694,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._int_to_string)
 
         self._param_dict.add(Parameter.WANTED_GOOD_PERCENT,
-            r'WG (\d) \-+ Percent Good Minimum \(1-100\%\)',
+            r'WG (\d) \-+ Percent Good Minimum \(1\-100\%\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
@@ -1683,7 +1704,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._bool_to_int)
 
         self._param_dict.add(Parameter.PINGS_BEFORE_REAQUIRE,
-            r'WW (\d+) \-+ Mode 1 Pings before Mode 4 Re-acquire',
+            r'WW (\d+) \-+ Mode 1 Pings before Mode 4 Re\-acquire',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
@@ -1697,14 +1718,19 @@ class Protocol(CommandResponseInstrumentProtocol):
         #
 
         """
-        >AZ?
-        AZ?
-
-         13.386345
+        >>> import re
+        >>> t = "RA?\r\n\r\n0\r\n"
+        >>> pat = re.compile(r'RA\?\r\n\r\n([\d\.]+)\r\n'
+        ... )
+        >>> pat.match(t)
+        <_sre.SRE_Match object at 0x109d203f0>
+        >>> m = pat.match(t)
+        >>> m.group(1)
+        '0'
         """
         #ZERO_PRESSURE_READING = 'AZ'        #  Zero pressure reading' (RO) ALSO a command
         self._param_dict.add(Parameter.ZERO_PRESSURE_READING,
-            r'XXXX',
+            r'AZ\?\n\r\n\r([\d\.]+)\n\r',
             lambda match: float(match.group(1)),
             self._float_to_string,
             visibility=ParameterDictVisibility.READ_ONLY)
@@ -1733,17 +1759,8 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._int_to_string,
             visibility=ParameterDictVisibility.READ_ONLY)
 
-        """
-        >RA?
-        RA?
-
-        0
-
-        >
-        """
-        #DEPLOYMENTS_RECORDED = 'RA'         # Number of Deployments Recorded
         self._param_dict.add(Parameter.DEPLOYMENTS_RECORDED,
-            r'XXXXX',
+            r'AZ\?\n\r\n\r([\d\.]+)\n\r',
             lambda match: int(match.group(1)),
             self._int_to_string,
             visibility=ParameterDictVisibility.READ_ONLY)
@@ -2370,3 +2387,59 @@ class Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentParameterException('Value %s is not a float.' % v)
         else:
             return str(v)  # return a simple float
+
+    @staticmethod
+    def _time_to_string(v):
+        """
+        Write a time value to string.
+        @param v a time val.
+        @retval a time string formatted.
+        @throws InstrumentParameterException if value is not a time.
+        """
+
+        if not isinstance(v, time):
+            raise InstrumentParameterException('Value %s is not a time.' % v)
+        else:
+            return time.strftime("%H:%M:%S", v)
+
+    @staticmethod
+    def _datetime_with_milis_to_time_string_with_milis(v):
+        """
+        Write a datetime value to string.
+        @param v a datetime val.
+        @retval a time w/milis string formatted.
+        @throws InstrumentParameterException if value is not a datetime.
+        """
+
+        if not isinstance(v, datetime):
+            raise InstrumentParameterException('Value %s is not a datetime.' % v)
+        else:
+            return datetime.strftime(v, '%H:%M:%S.%f')
+
+    @staticmethod
+    def _datetime_YYYY_to_string(v):
+        """
+        Write a time value to string.
+        @param v a time val.
+        @retval a time with date string formatted.
+        @throws InstrumentParameterException if value is not a datetime.
+        """
+
+        if not isinstance(v, time):
+            raise InstrumentParameterException('Value %s is not a datetime.' % v)
+        else:
+            return time.strftime("%Y/%m/%d,%H:%M:%S", v)
+
+    @staticmethod
+    def _datetime_YY_to_string(v):
+        """
+        Write a time value to string.
+        @param v a time val.
+        @retval a time with date string formatted.
+        @throws InstrumentParameterException if value is not a datetime.
+        """
+
+        if not isinstance(v, time):
+            raise InstrumentParameterException('Value %s is not a datetime.' % v)
+        else:
+            return time.strftime("%y/%m/%d,%H:%M:%S", v)
