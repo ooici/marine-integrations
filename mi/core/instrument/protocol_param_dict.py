@@ -329,7 +329,7 @@ class ProtocolParameterDict(object):
         @raises KeyError if the name is invalid.
         """
         log.debug("setting " + name + " to " + str(value))
-        self._param_dict[name].value = value
+        self._param_dict[name] = value
         
     def set_default(self, name):
         """
