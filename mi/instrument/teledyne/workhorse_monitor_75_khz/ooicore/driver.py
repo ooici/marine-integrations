@@ -32,7 +32,7 @@ from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.exceptions import InstrumentParameterException
-
+from mi.core.exceptions import InstrumentProtocolException
 # newline.
 NEWLINE = '\n'
 
@@ -77,6 +77,9 @@ POWERING_DOWN_REGEX_MATCHER = re.compile(POWERING_DOWN_REGEX)
 ERR_REGEX = r'ERR(.*?\n)*?>'
 ERR_REGEX_MATCHER = re.compile(ERR_REGEX)
 
+
+
+"""
 ENSEMBLE_HEADER_ID = '7F7F'
 FIXED_LEADER_ID = '0000'
 VAR_LEADER_ID = '8000'
@@ -92,7 +95,115 @@ ENSEMBLE_LENGTH_LOC = 4  # index in header where number of bytes in ensemble is 
 NumCells = 0  # value from fixed leader datq; used to determine size of velocity and other data records.
 num_data_types = 0  # value from header data; used to determine size of header record and total number of data records.
 num_bytes_in_ensemble = 0  # value from header data; used to determine size of ensemble and calculate checksum.
+"""
 
+class InstrumentCmds(BaseEnum):
+    """
+    Device specific commands
+    Represents the commands the driver implements and the string that
+    must be sent to the instrument to execute the command.
+    """
+
+    BREAK = 'break 500'
+    ZERO_PRESSURE_READING = 'AZ'
+    FAULT_DEBUG = 'FX'                  # toggles debug flag.. <------ problem?
+    EXPERT_ON = 'EXPERTON'
+    EXPERT_OFF = 'EXPERTOFF'
+    LIST_FIRMWARE_UPGRADES = 'OL'
+    OUTPUT_CALIBRATION_DATA = 'AC'
+    OUTPUT_FACTORY_CALIBRATION_DATA = 'AD'
+    FIELD_CALIBRATE_COMPAS = 'AF'
+    LOAD_FACTORY_CALIBRATION = 'AR'
+    ZERO_PRESSURE_SENSOR = 'AZ'
+    CHOOSE_EXTERNAL_DEVICES = 'CC'
+    SEND_LAST_DATA_ENSEMBLE = 'CE'
+    SAVE_SETUP_TO_RAM = 'CK'
+    RETRIEVE_PARAMETERS = 'CR'
+    START_DEPLOYMENT = 'CS'
+    CLEAR_ERROR_STATUS_WORD = 'CY0'
+    DISPLAY_ERROR_STATUS_WORD = 'CY1'
+    POWER_DOWN = 'CZ'
+    LOAD_SPEED_OF_SOUND = 'DS'
+    GO_RAW_MODE = 'DX'
+    GO_REAL_MODE = 'DY'
+    GET_SINGLE_SCAN = 'DZ'
+    CLEAR_FAULT_LOG = 'FC'
+    DISPLAY_FAULT_LOG = 'FD'
+    TOGGLE_FAULT_LOG_DEBUG = 'FX'
+    RUN_PRE_DEPLOYMENT_TESTS = 'PA'
+    RUN_BEAM_CONTINUITY_TEST = 'PC1'
+    SHOW_HEADING_PITCH_ROLL_ORIENTATION_TEST_RESULTS = 'PC2'
+    GET_SYSTEM_CONFIGURATION = 'PS0'
+    GET_INSTRUMENT_TRANSFORM_MATRIX = 'PS3'
+    RUN_TEST = 'PT'
+
+
+class ProtocolState(BaseEnum):
+    """
+    Instrument protocol states
+    """
+    UNKNOWN = DriverProtocolState.UNKNOWN
+    COMMAND = DriverProtocolState.COMMAND
+    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
+    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
+    TEST = DriverProtocolState.TEST
+    POLL = DriverProtocolState.POLL
+
+
+class ProtocolEvent(BaseEnum):
+    """
+    Protocol events
+    """
+
+    ENTER = DriverEvent.ENTER
+    EXIT = DriverEvent.EXIT
+
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS  # DOES IT HAVE THIS?
+    ACQUIRE_CONFIGURATION = "PROTOCOL_EVENT_ACQUIRE_CONFIGURATION"  # DOES IT HAVE THIS?
+    SEND_LAST_SAMPLE = "PROTOCOL_EVENT_SEND_LAST_SAMPLE"
+
+    GET = DriverEvent.GET
+    SET = DriverEvent.SET
+
+    DISCOVER = DriverEvent.DISCOVER
+
+    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    START_DIRECT = DriverEvent.START_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
+
+    PING_DRIVER = DriverEvent.PING_DRIVER
+
+    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
+
+    # Different event because we don't want to expose this as a capability
+    SCHEDULED_CLOCK_SYNC = 'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'
+
+    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE         # DOES IT HAVE THIS?
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+
+    QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
+
+    #BREAK_ALARM = 'BREAK_ALARM'  ???
+    #BREAK_SUCCESS = 'BREAK_SUCCESS'
+    #SELF_DEPLOY = 'SELF_DEPLOY'
+    #POWERING_DOWN = 'POWERING_DOWN'
+
+
+class Capability(BaseEnum):
+    """
+    Protocol events that should be exposed to users (subset of above).
+    """
+    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
+    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
+    ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
+    ACQUIRE_CONFIGURATION = ProtocolEvent.ACQUIRE_CONFIGURATION
+    SEND_LAST_SAMPLE = ProtocolEvent.SEND_LAST_SAMPLE
+    QUIT_SESSION = ProtocolEvent.QUIT_SESSION
+    SETSAMPLING = ProtocolEvent.SETSAMPLING
+    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
+    TEST = ProtocolEvent.TEST
 
 
 class Parameter(DriverParameter):
@@ -148,7 +259,7 @@ class Parameter(DriverParameter):
     TEMPERATURE = 'ET'                  # Temperature (1/100 deg Celsius) -500 to 4000 (-5.00 C to +40.00 C)
     COORDINATE_TRANSFORMATION = 'EX'    # Coord Transform (Xform:Type; Tilts; 3Bm; Map)
     SENSOR_SOURCE = 'EZ'                # Sensor Source (C;D;H;P;R;S;T)
-    
+
     OUTPUT_BIN_SELECTION = 'PB'         # PD12 Bin Select (first;num;sub) x 1 to 128 y 0 to 128z 1 to 7 [start, every nth, total count]
     DATA_STREAM_SELECT = 'PD'           # Data Stream Select (0-18)
     ENSEMBLE_SELECT = 'PE'              # PD12 Ensemble Select (1-65535)
@@ -181,135 +292,13 @@ class Parameter(DriverParameter):
     DEPLOYMENTS_RECORDED = 'RA'         # Number of Deployments Recorded
 
 
-class InstrumentCmds(BaseEnum):
-    """
-    Device specific commands
-    Represents the commands the driver implements and the string that
-    must be sent to the instrument to execute the command.
-    """
-
-    BREAK = 'break 500'
-    ZERO_PRESSURE_READING = 'AZ'
-    FAULT_DEBUG = 'FX'                  # toggles debug flag.. <------ problem?
-    EXPERT_ON = 'EXPERTON'
-    EXPERT_OFF = 'EXPERTOFF'
-    LIST_FIRMWARE_UPGRADES = 'OL'
-    OUTPUT_CALIBRATION_DATA = 'AC'
-    OUTPUT_FACTORY_CALIBRATION_DATA = 'AD'
-    FIELD_CALIBRATE_COMPAS = 'AF'
-    LOAD_FACTORY_CALIBRATION = 'AR'
-    ZERO_PRESSURE_SENSOR = 'AZ'
-    CHOOSE_EXTERNAL_DEVICES = 'CC'
-    SEND_LAST_DATA_ENSEMBLE = 'CE'
-    SAVE_SETUP_TO_RAM = 'CK'
-    RETRIEVE_PARAMETERS = 'CR'
-    START_DEPLOYMENT = 'CS'
-    CLEAR_ERROR_STATUS_WORD = 'CY0'
-    DISPLAY_ERROR_STATUS_WORD = 'CY1'
-    POWER_DOWN = 'CZ'
-    LOAD_SPEED_OF_SOUND = 'DS'
-    GO_RAW_MODE = 'DX'
-    GO_REAL_MODE = 'DY'
-    GET_SINGLE_SCAN = 'DZ'
-    CLEAR_FAULT_LOG = 'FC'
-    DISPLAY_FAULT_LOG = 'FD'
-    TOGGLE_FAULT_LOG_DEBUG = 'FX'
-    RUN_PRE_DEPLOYMENT_TESTS = 'PA'
-    RUN_BEAM_CONTINUITY_TEST = 'PC1'
-    SHOW_HEADING_PITCH_ROLL_ORIENTATION_TEST_RESULTS = 'PC2'
-    GET_SYSTEM_CONFIGURATION = 'PS0'
-    GET_INSTRUMENT_TRANSFORM_MATRIX = 'PS3'
-    RUN_TEST = 'PT'
-
-
-class ProtocolState(BaseEnum):
-    """
-    Instrument protocol states
-    """
-    UNKNOWN = DriverProtocolState.UNKNOWN
-    COMMAND = DriverProtocolState.COMMAND
-    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
-    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-
-
-class ProtocolEvent(BaseEnum):
-    """
-    Protocol events
-    """
-    BREAK_ALARM = 'BREAK_ALARM'
-    BREAK_SUCCESS = 'BREAK_SUCCESS'
-    START_AUTOSAMPLE = 'START_AUTOSAMPLE'
-    SELF_DEPLOY = 'SELF_DEPLOY'
-    POWERING_DOWN = 'POWERING_DOWN'
-    #
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
-    ENTER = DriverEvent.ENTER
-    EXIT = DriverEvent.EXIT
-    DISCOVER = DriverEvent.DISCOVER
-    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
-    QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
-
-
-class Capability(BaseEnum):
-    """
-    Protocol events that should be exposed to users (subset of above).
-    """
-    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
-    QUIT_SESSION = ProtocolEvent.QUIT_SESSION
-    
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
     """
     COMMAND = '>'
     AUTOSAMPLE = ''
-
-####################################################
-#  The adcpt_cache_dict is used to store data parsed
-#  in the ADCPT_EnsembleDataParticleKey class; this data
-#  is then used by the Protocol class as a source of
-#  parameter data which can't be obtained by querying
-#  the instrument with GET commands.
-#  The initial data in the cache has been set to default
-#  values for the parameters, in case they are used
-#  before being modified by user.
-#####################################################
-
-
-# TODO: remove adcpt_cache_dict
-adcpt_cache_dict = {
-    'TRANSMIT_POWER': 255,
-    'SPEED_OF_SOUND': 1500,
-    'SALINITY': 35,
-    'TIME_PER_BURST': '00:00:00:00',
-    'ENSEMBLES_PER_BURST': 0,
-    'TIME_PER_ENSEMBLE': '01:00:00:00',
-    'TIME_OF_FIRST_PING': '00/00/00, 00:00:00',
-    'TIME_OF_FIRST_PING_Y2K': '0000/00/00, 00:00:00',
-    'TIME_BETWEEN_PINGS': '01:20:00',
-    'REAL_TIME_CLOCK': '00/00/00, 00:00:00',
-    'REAL_TIME_CLOCK_Y2K': '0000/00/00, 00:00:00',
-    'BUFFERED_OUTPUT_PERIOD': '00:00:00',
-    'FALSE_TARGET_THRESHOLD_MAXIMUM': 50,
-    'LOW_CORRELATION_THRESHOLD': 64,
-    'ERROR_VELOCITY_THRESHOLD': 2000,
-    'CLIP_DATA_PAST_BOTTOM': 0,
-    'RECEIVER_GAIN_SELECT': 1,
-    'WATER_REFERENCE_LAYER': [1, 5],
-    'NUMBER_OF_DEPTH_CELLS': 30,
-    'PINGS_PER_ENSEMBLE': 45,
-    'DEPTH_CELL_SIZE': 800,
-    'TRANSMIT_LENGTH': 0,
-    'PING_WEIGHT':  0,
-    'AMBIGUITY_VELOCITY': 175,
-    'MODE_1_BANDWIDTH_CONTROL': 1,
-    'BLANK_AFTER_TRANSMIT': 352,
-    'DATA_OUT': 111100000,
-    'INSTRUMENT_ID': 0,
-    'WATER_PROFILING_MODE': 1}
-
+    ERR = 'ERR:'
 
 ###############################################################################
 # Data Particles
@@ -1144,17 +1133,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
 
     ########################################################################
-    # Superclass overrides for resource query.
-    ########################################################################
-    def get_resource_params(self):
-        """
-        Return list of device parameters available.
-        """
-        log.debug("get_resource_params: parmeter list %s" % Parameter.list())
-
-        return Parameter.list()
-
-    ########################################################################
     # Protocol builder.
     ########################################################################
     def _build_protocol(self):
@@ -1316,30 +1294,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("build_simple_command: %s" % cmd)
         return cmd + NEWLINE
 
-    def _build_set_command(self, cmd, param, val):
-        """
-        Build handler for set commands. param=val followed by newline.
-        String val constructed by param dict formatting function.
-        @param param the parameter key to set.
-        @param val the parameter value to set.
-        @ retval The set command to be sent to the device.
-        @throws InstrumentProtocolException if the parameter is not valid or
-        if the formatting function could not accept the value passed.
-        try:
-        try:
-
-            set_cmd = '%s%s' % (cmd, val)
-        """
-        try:
-            str_val = self._param_dict.format(param, val)
-            set_cmd = '%s%s' % (cmd, str_val)
-            set_cmd = set_cmd + NEWLINE
-            log.debug("build_set_command: %s" % set_cmd)
-        except KeyError:
-            raise InstrumentParameterException('Unknown driver parameter %s' % param)
-
-        return set_cmd + NEWLINE
-
     def get_word_value(self, s, index):
         """
         Returns value of a 2-byte word in an
@@ -1425,246 +1379,374 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _build_param_dict(self):
         """
-        Populate the parameter dictionary with parameters.
-        For each parameter key, add match string, match lambda function,
+        Populate the parameter dictionary with sbe26plus parameters.
+        For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
-        adcpt: not using regex/match lambdas, but keeping them in the calls
-        to avoid errors.
         """
-        # Add parameter handlers to parameter dict.
-        ds_line_01 = r'user info=(.*)$'
 
-        self._param_dict.add(Parameter.TRANSMIT_POWER,
-            ds_line_01,
-            lambda st: adcpt_cache_dict[Parameter.TRANSMIT_POWER],
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.TRANSMIT_POWER],
-            default_value=255)
-
-        self._param_dict.add(Parameter.SPEED_OF_SOUND,
-            ds_line_01,
-            lambda st: adcpt_cache_dict[Parameter.SPEED_OF_SOUND],
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.SPEED_OF_SOUND],
-            startup_param=True,
-            default_value=1500)
-
-        self._param_dict.add(Parameter.SALINITY,
-            ds_line_01,
-            lambda st: adcpt_cache_dict[Parameter.SALINITY],
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.SALINITY],
-            startup_param=True,
-            default_value=35)
-
-        self._param_dict.add(Parameter.TIME_PER_BURST,
-            ds_line_01,
-            lambda: adcpt_cache_dict[Parameter.TIME_PER_BURST],
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.TIME_PER_BURST],
-            startup_param=True,
-            default_value='00:00:00:00')
-
-        self._param_dict.add(Parameter.ENSEMBLES_PER_BURST,
-            ds_line_01,
-            lambda: adcpt_cache_dict[Parameter.ENSEMBLES_PER_BURST],
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.ENSEMBLES_PER_BURST],
-            startup_param=True,
-            default_value=0)
-
-        self._param_dict.add(Parameter.TIME_PER_ENSEMBLE,
-            ds_line_01,
-            lambda: adcpt_cache_dict[Parameter.TIME_PER_ENSEMBLE],
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.TIME_PER_ENSEMBLE],
-            startup_param=True,
-            default_value='01:00:00:00')
-
-        self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
-            ds_line_01,
-            lambda: adcpt_cache_dict[Parameter.TIME_OF_FIRST_PING],
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.TIME_OF_FIRST_PING],
-            startup_param=True,
-            default_value='00/00/00, 00:00:00')
-
-        self._param_dict.add(Parameter.TIME_OF_FIRST_PING_Y2K,
-            ds_line_01,
-            lambda: adcpt_cache_dict[Parameter.TIME_OF_FIRST_PING_Y2K],
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.TIME_OF_FIRST_PING_Y2K],
-            startup_param=True,
-            default_value='0000/00/00, 00:00:00')
-
-        self._param_dict.add(Parameter.TIME_BETWEEN_PINGS,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.TIME_BETWEEN_PINGS],
-            startup_param=True,
-            default_value='01:20:00')
-
-        self._param_dict.add(Parameter.REAL_TIME_CLOCK,
-            ds_line_01,
-            lambda: adcpt_cache_dict[Parameter.REAL_TIME_CLOCK],
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.REAL_TIME_CLOCK],
-            startup_param=True,
-            default_value='00/00/00, 00:00:00')
-
-        self._param_dict.add(Parameter.REAL_TIME_CLOCK_Y2K,
-            ds_line_01,
-            lambda: adcpt_cache_dict[Parameter.REAL_TIME_CLOCK_Y2K],
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.REAL_TIME_CLOCK_Y2K],
-            startup_param=True,
-            default_value='0000/00/00, 00:00:00')
-
-        self._param_dict.add(Parameter.BUFFERED_OUTPUT_PERIOD,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.BUFFERED_OUTPUT_PERIOD],
-            startup_param=True,
-            default_value='00:00:00')
-
-        self._param_dict.add(Parameter.FALSE_TARGET_THRESHOLD_MAXIMUM,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.FALSE_TARGET_THRESHOLD_MAXIMUM],
-            default_value=50)
-
-        self._param_dict.add(Parameter.LOW_CORRELATION_THRESHOLD,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.LOW_CORRELATION_THRESHOLD],
-            default_value=64)
-
-        self._param_dict.add(Parameter.ERROR_VELOCITY_THRESHOLD,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.ERROR_VELOCITY_THRESHOLD],
-            default_value=2000)
-
-        self._param_dict.add(Parameter.CLIP_DATA_PAST_BOTTOM,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.CLIP_DATA_PAST_BOTTOM],
-            default_value=0)
-
-        self._param_dict.add(Parameter.RECEIVER_GAIN_SELECT,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.RECEIVER_GAIN_SELECT],
-            default_value=1)
-
-        self._param_dict.add(Parameter.WATER_REFERENCE_LAYER,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.WATER_REFERENCE_LAYER],
-            default_value=[1, 5])
-
-        self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.NUMBER_OF_DEPTH_CELLS],
-            startup_param=True,
-            default_value=30)
-
-        self._param_dict.add(Parameter.PINGS_PER_ENSEMBLE,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.PINGS_PER_ENSEMBLE],
-            startup_param=True,
-            default_value=45)
-
-        self._param_dict.add(Parameter.DEPTH_CELL_SIZE,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.DEPTH_CELL_SIZE],
-            startup_param=True,
-            default_value=800)
-
-        self._param_dict.add(Parameter.TRANSMIT_LENGTH,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.TRANSMIT_LENGTH],
-            startup_param=True,
-            default_value=0)
-
-        self._param_dict.add(Parameter.PING_WEIGHT,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.PING_WEIGHT],
-            startup_param=True,
-            default_value=0)
-
-        self._param_dict.add(Parameter.AMBIGUITY_VELOCITY,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.AMBIGUITY_VELOCITY],
-            startup_param=True,
-            default_value=175)
-
-        self._param_dict.add(Parameter.MODE_1_BANDWIDTH_CONTROL,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.MODE_1_BANDWIDTH_CONTROL],
-            startup_param=False,
-            default_value=1,
-            visibility=ParameterDictVisibility.READ_ONLY)
-
-        self._param_dict.add(Parameter.BLANK_AFTER_TRANSMIT,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.BLANK_AFTER_TRANSMIT],
-            startup_param=True,
-            default_value=352,
-            visibility=ParameterDictVisibility.READ_ONLY)
-
-        self._param_dict.add(Parameter.DATA_OUT,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.DATA_OUT],
-            startup_param=True,
-            default_value=111100000,
-            visibility=ParameterDictVisibility.READ_ONLY)
-
+        #INSTRUMENT_ID = 'CI'                # Int 0-255
         self._param_dict.add(Parameter.INSTRUMENT_ID,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.INSTRUMENT_ID],
-            startup_param=True,
-            default_value=0,
-            visibility=ParameterDictVisibility.READ_ONLY)
+            r'XXXXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
 
+        #POLLED_MODE = 'CP'                  # 1=ON, 0=OFF;
+        self._param_dict.add(Parameter.POLLED_MODE,
+                r'XXXXX',
+                lambda match: bool(match.group(1)),
+                self._bool_to_int)
+
+        #XMIT_POWER = 'CQ'                   # 0=Low, 255=High
+        self._param_dict.add(Parameter.XMIT_POWER,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        TIME_PER_BURST = 'TB'               # 00:00:00.00  (hrs:min:sec.sec/100)
+
+        #ENSEMBLES_PER_BURST = 'TC'          # 0-65535
+        self._param_dict.add(Parameter.ENSEMBLES_PER_BURST,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        TIME_PER_ENSEMBLE = 'TE'            # 01:00:00.00 (hrs:min:sec.sec/100)
+        TIME_OF_FIRST_PING = 'TF'           # **/**/**,**:**:**  (yr/mon/day,hour:min:sec)
+        TIME_OF_FIRST_PING_Y2K = 'TG'       # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
+        TIME_PER_PING = 'TP'                # 00:00.20  (min:sec.sec/100)
+        #TIME = 'TS'                        # 13/02/22,13:18:09 (yr/mon/day,hour:min:sec)
+        TIME = 'TT'                         # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
+        BUFFERED_OUTPUT_PERIOD = 'TX'       # 00:00:00 (hh:mm:ss)
+        FALSE_TARGET_THRESHOLD = 'WA'       # 255,001 (Max)(0-255),Start Bin # <--------- TRICKY.... COMPLEX TYPE
+
+        #CORRELATION_THRESHOLD = 'WC'        # 064  Correlation Threshold
+        self._param_dict.add(Parameter.CORRELATION_THRESHOLD,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        SERIAL_OUT_FW_SWITCHES = 'WD'       # 111100000  Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
+
+        #ERROR_VELOCITY_THRESHOLD = 'WE'     # 5000  Error Velocity Threshold (0-5000 mm/s)
+        self._param_dict.add(Parameter.ERROR_VELOCITY_THRESHOLD,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #BLANK_AFTER_TRANSMIT = 'WF'         # 0088  Blank After Transmit (cm)
+        self._param_dict.add(Parameter.BLANK_AFTER_TRANSMIT,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #CLIP_DATA_PAST_BOTTOM = 'WI'        # 0 Clip Data Past Bottom (0=OFF,1=ON)
+        self._param_dict.add(Parameter.CLIP_DATA_PAST_BOTTOM,
+                r'XXXXX',
+                lambda match: bool(match.group(1)),
+                self._bool_to_int)
+
+        #RECEIVER_GAIN_SELECT = 'WJ'         # 1  Rcvr Gain Select (0=Low,1=High)
+        self._param_dict.add(Parameter.RECEIVER_GAIN_SELECT,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        WATER_REFERENCE_LAYER = 'WL'        # 001,005  Water Reference Layer: Begin Cell (0=OFF), End Cell
+
+        #WATER_PROFILING_MODE = 'WM'         # Profiling Mode (1-15)
         self._param_dict.add(Parameter.WATER_PROFILING_MODE,
-            ds_line_01,
-            lambda match: string.upper(match.group(1)),
-            self._string_to_string,
-            value=adcpt_cache_dict[Parameter.WATER_PROFILING_MODE],
-            startup_param=True,
-            default_value=1,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #NUMBER_OF_DEPTH_CELLS = 'WN'        #Number of depth cells (1-255)
+        self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #PINGS_PER_ENSEMBLE = 'WP'           # Pings per Ensemble (0-16384)
+        self._param_dict.add(Parameter.PINGS_PER_ENSEMBLE,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #DEPTH_CELL_SIZE = 'WS'              # 0800  Depth Cell Size (cm)
+        self._param_dict.add(Parameter.DEPTH_CELL_SIZE,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #TRANSMIT_LENGTH = 'WT'              # 0000 Transmit Length 0 to 3200(cm) 0 = Bin Length
+        self._param_dict.add(Parameter.TRANSMIT_LENGTH,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #PING_WEIGHT = 'WU'                  # 0 Ping Weighting (0=Box,1=Triangle)
+        self._param_dict.add(Parameter.PING_WEIGHT,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #AMBIGUITY_VELOCITY = 'WV'           # 175 Mode 1 Ambiguity Vel (cm/s radial)
+        self._param_dict.add(Parameter.AMBIGUITY_VELOCITY,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        CHOOSE_EXTERNAL_DEVICE = 'CC'       # 000 000 000 or 000 000 001 Choose External Devices (x;x;x x;x;x x;x;SBMC)
+
+        #BANNER = 'CH'                       # Suppress Banner 0=Show, 1=Suppress
+        self._param_dict.add(Parameter.BANNER,
+            r'XXXXX',
+            lambda match: not bool(match.group(1)),
+            self._reverse_bool_to_int)
+
+        #IMM_OUTPUT_ENABLE = 'CJ'            # IMM Output Enable (0=Disable,1=Enable)
+        self._param_dict.add(Parameter.IMM_OUTPUT_ENABLE,
+            r'XXXXX',
+            lambda match: bool(match.group(1)),
+            self._bool_to_int)
+
+        #SLEEP_ENABLE = 'CL'                 # Sleep Enable (0 = Disable, 1 = Enable, 2 See Manual)
+        self._param_dict.add(Parameter.SLEEP_ENABLE,
+            r'XXXXX',
+            lambda match: bool(match.group(1)),
+            self._bool_to_int)
+
+        #SERIAL_SYNC_MASTER = 'CM'           # RS-232 Sync Master (0 = OFF, 1 = ON)
+        self._param_dict.add(Parameter.SERIAL_SYNC_MASTER,
+            r'XXXXX',
+            lambda match: bool(match.group(1)),
+            self._bool_to_int)
+
+        #SAVE_NVRAM_TO_RECORDER = 'CN'       # Save NVRAM to recorder (0 = ON, 1 = OFF)
+        self._param_dict.add(Parameter.SAVE_NVRAM_TO_RECORDER,
+            r'XXXXX',
+            lambda match: bool(match.group(1)),
+            self._bool_to_int)
+
+        TRIGGER_TIMEOUT = 'CW'              # Trigger Timeout (ms; 0 = no timeout)
+
+        #LOW_LATENCY_TRIGGER_ENABLE = 'CX'   # Trigger Enable (0 = OFF, 1 = ON)
+        self._param_dict.add(Parameter.LOW_LATENCY_TRIGGER_ENABLE,
+            r'XXXXX',
+            lambda match: bool(match.group(1)),
+            self._bool_to_int)
+
+        #HEADING_ALIGNMENT = 'EA'            # Heading Alignment (1/100 deg) -17999 to 18000
+        self._param_dict.add(Parameter.HEADING_ALIGNMENT,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #HEADING_BIAS = 'EB'                 # Heading Bias (1/100 deg) -17999 to 18000
+        self._param_dict.add(Parameter.HEADING_BIAS,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #SPEED_OF_SOUND = 'EC'               # 1500  Speed Of Sound (m/s)
+        self._param_dict.add(Parameter.SPEED_OF_SOUND,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #TRANSDUCER_DEPTH = 'ED'             # Transducer Depth (0 - 65535 dm)
+        self._param_dict.add(Parameter.TRANSDUCER_DEPTH,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #HEADING = 'EH'                      # Heading (1/100 deg) 0 to 35999 (000.00 to 359.99 degrees)
+        self._param_dict.add(Parameter.HEADING,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #PITCH = 'EP'                        # Tilt 1 Sensor (1/100 deg) -6000 to 6000 (-60.00 to +60.00 degrees)
+        self._param_dict.add(Parameter.PITCH,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #ROLL = 'ER'                         # Tilt 2 Sensor (1/100 deg) -6000 to 6000 (-60.00 to +60.00 degrees)
+        self._param_dict.add(Parameter.ROLL,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #SALINITY = 'ES'                     # 35 (0-40 pp thousand)
+        self._param_dict.add(Parameter.SALINITY,
+            r'XXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #TEMPERATURE = 'ET'                  # Temperature (1/100 deg Celsius) -500 to 4000 (-5.00 C to +40.00 C)
+        self._param_dict.add(Parameter.TEMPERATURE,
+            r'ET = ([\+\-\d]+) \-+ Temperature \(1/100 deg Celsius\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        COORDINATE_TRANSFORMATION = 'EX'    # Coord Transform (Xform:Type; Tilts; 3Bm; Map)
+
+
+        self._param_dict.add(Parameter.SENSOR_SOURCE,
+            r'EZ = (\d) \-+ Sensor Source \(C;D;H;P;R;S;T\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+        #OUTPUT_BIN_SELECTION = 'PB'         # PD12 Bin Select (first;num;sub) x 1 to 128 y 0 to 128z 1 to 7 [start, every nth, total count]
+        #r'PB = 001,000,1 ------------- PD12 Bin Select \(first;num;sub\)'
+
+        self._param_dict.add(Parameter.DATA_STREAM_SELECT,
+            r'PD = (\d+) \-+ Data Stream Select \(0-18\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        self._param_dict.add(Parameter.ENSEMBLE_SELECT,
+            r'PE = (\d+) \-+ PD12 Ensemble Select \(1-65535\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        self._param_dict.add(Parameter.VELOCITY_COMPONENT_SELECT,
+            r'PO = (\d) \-+ PD12 Velocity Component Select \(v1;v2;v3;v4\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        self._param_dict.add(Parameter.SYNCHRONIZE,
+            r'SA = (\d+) \-+ Synch Before/After Ping/Ensemble Bottom/Water/Both',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #
+        # This may enable resume after timeout...
+        #
+        self._param_dict.add(Parameter.BREAK_INTERUPTS,
+            r'SB = (\d) \-+ Channel B Break Interrupts are ENABLED',
+            lambda match: bool(match.group(1)),
+            self._bool_to_int)
+
+        self._param_dict.add(Parameter.SYNC_INTERVAL,
+            r'SI = (\d+) \-+ Synch Interval \(0-65535\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        self._param_dict.add(Parameter.MODE_SELECT,
+            r'SM = (\d+) \-+ Mode Select \(0=OFF,1=MASTER,2=SLAVE,3=NEMO\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        self._param_dict.add(Parameter.RDS3_SLEEP_MODE,
+            r'SS = (\d+) \-+ RDS3 Sleep Mode \(0=No Sleep\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        self._param_dict.add(Parameter.SLAVE_TIMEOUT,
+            r'ST = (\d+) \-+ Slave Timeout \(seconds,0=indefinite\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        self._param_dict.add(Parameter.SYNC_DELAY,
+            r'SW = (\d+) \-+ Synch Delay (1/10 msec)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        self._param_dict.add(Parameter.DEVICE_485_ID,
+            r'DW  (\d+) \-+ Current ID on RS-485 Bus',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        self._param_dict.add(Parameter.DEPLOYMENT_AUTO_INCRIMENT,
+            r'Deployment Auto Increment is (.*)',
+            lambda match: True if (match.group(1)=='ENABLED') else False, 
+            self._bool_to_int)
+
+        self._param_dict.add(Parameter.DEPLOYMENT_NAME,
+            r'Current deployment name = (.*)',
+            lambda match: str(match.group(1)),
+            self._string_to_string)
+
+        self._param_dict.add(Parameter.BANDWIDTH_CONTROL,
+            r'WB 1 \-+ Bandwidth Control \(0=Wid,1=Nar\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        self._param_dict.add(Parameter.WANTED_GOOD_PERCENT,
+            r'WG (\d) \-+ Percent Good Minimum \(1-100\%\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        self._param_dict.add(Parameter.SAMPLE_AMBIENT_SOUND,
+            r'WQ (\d) \-+ Sample Ambient Sound \(0=OFF,1=ON\)',
+            lambda match: bool(match.group(1)),
+            self._bool_to_int)
+
+        self._param_dict.add(Parameter.PINGS_BEFORE_REAQUIRE,
+            r'WW (\d+) \-+ Mode 1 Pings before Mode 4 Re-acquire',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        self._param_dict.add(Parameter.MODE_5_AMBIGUITY_VELOCITY,
+            r'WZ (\d+) \-+ Mode 5 Ambiguity Velocity \(cm/s radial\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string)
+
+        #
+        # Read Only Vars
+        #
+
+        """
+        >AZ?
+        AZ?
+
+         13.386345
+        """
+        #ZERO_PRESSURE_READING = 'AZ'        #  Zero pressure reading' (RO) ALSO a command
+        self._param_dict.add(Parameter.ZERO_PRESSURE_READING,
+            r'XXXX',
+            lambda match: float(match.group(1)),
+            self._float_to_string,
             visibility=ParameterDictVisibility.READ_ONLY)
 
-        local_dict=self._param_dict.get_config()
+        self._param_dict.add(Parameter.SERIAL_PORT_CONTROL,
+            r'CB = (\d\d\d) \-+ Serial Port Control \(Baud [4=9600]; Par; Stop\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY)
+
+        self._param_dict.add(Parameter.SERIAL_DATA_OUT,
+            r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out \(Vel;Cor;Amp  PG;St;P0  P1;P2;P3\)',
+            lambda match: str(match.group(1)),
+            self._string_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY)
+
+        self._param_dict.add(Parameter.SERIAL_FLOW_CONTROL,
+            r'CF = (\d+) \-+ Flow Ctrl \(EnsCyc;PngCyc;Binry;Ser;Rec\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY)
+
+        self._param_dict.add(Parameter.SERIAL_485_BAUD,
+            r'DB (\d+) \-+ RS-485 Port Control \(Baud; N/U; N/U\)',
+            lambda match: int(match.group(1)),
+            self._int_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY)
+
+        """
+        >RA?
+        RA?
+
+        0
+
+        >
+        """
+        #DEPLOYMENTS_RECORDED = 'RA'         # Number of Deployments Recorded
+        self._param_dict.add(Parameter.DEPLOYMENTS_RECORDED,
+            r'XXXXX',
+            lambda match: int(match.group(1)),
+            self._int_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
     def _update_params(self, *args, **kwargs):
         """
@@ -1693,9 +1775,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
-    @staticmethod
-    def _string_to_string(v):
-        return v
 
     def _got_chunk(self, chunk, timestamp):
         """
@@ -1936,50 +2015,22 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
+
+    ################################
+    # SET
+    ################################
+
+    #REDONE#
     def _handler_command_set(self, *args, **kwargs):
         """
-        Set parameter
+        Perform a set command.
+        @param args[0] parameter : value dict.
+        @retval (next_state, result) tuple, (None, None).
+        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
+        not a dict, or if paramter can't be properly formatted.
+        @throws InstrumentTimeoutException if device cannot be woken for set command.
+        @throws InstrumentProtocolException if set command could not be built or misunderstood.
         """
-        log.debug("FSM_TRACKER: in _handler_command_set")
-
-        params_to_cmds = {
-            # InstrumentCmds.SET_COMM_PARAMS,
-            # InstrumentCmds.SET_COLLECTION_MODE,
-            'TRANSMIT_POWER': InstrumentCmds.SET_TRANSMIT_POWER,
-            'SPEED_OF_SOUND': InstrumentCmds.SET_SPEED_OF_SOUND,
-            'SALINITY': InstrumentCmds.SET_SALINITY,
-            'TIME_PER_BURST': InstrumentCmds.SET_TIME_PER_BURST,
-            'ENSEMBLES_PER_BURST': InstrumentCmds.SET_ENSEMBLES_PER_BURST,
-            'TIME_PER_ENSEMBLE': InstrumentCmds.SET_TIME_PER_ENSEMBLE,
-            'TIME_OF_FIRST_PING': InstrumentCmds.SET_TIME_OF_FIRST_PING,
-            'TIME_OF_FIRST_PING_Y2K': InstrumentCmds.SET_TIME_OF_FIRST_PING_Y2K,
-            'TIME_BETWEEN_PINGS': InstrumentCmds.SET_TIME_BETWEEN_PINGS,
-            'REAL_TIME_CLOCK': InstrumentCmds.SET_REAL_TIME_CLOCK,
-            'REAL_TIME_CLOCK_Y2K': InstrumentCmds.SET_REAL_TIME_CLOCK_Y2K,
-            'BUFFERED_OUTPUT_PERIOD': InstrumentCmds.SET_BUFFERED_OUTPUT_PERIOD,
-            'FALSE_TARGET_THRESHOLD_MAXIMUM': InstrumentCmds.SET_FALSE_TARGET_THRESHOLD_MAXIMUM,
-            'LOW_CORRELATION_THRESHOLD': InstrumentCmds.SET_LOW_CORRELATION_THRESHOLD,
-            'ERROR_VELOCITY_THRESHOLD': InstrumentCmds.SET_ERROR_VELOCITY_THRESHOLD,
-            'CLIP_DATA_PAST_BOTTOM': InstrumentCmds.SET_CLIP_DATA_PAST_BOTTOM,
-            'RECEIVER_GAIN_SELECT': InstrumentCmds.SET_RECEIVER_GAIN_SELECT,
-            'WATER_REFERENCE_LAYER': InstrumentCmds.SET_WATER_REFERENCE_LAYER,
-            'NUMBER_OF_DEPTH_CELLS': InstrumentCmds.SET_NUMBER_OF_DEPTH_CELLS,
-            'PINGS_PER_ENSEMBLE': InstrumentCmds.SET_PINGS_PER_ENSEMBLE,
-            'DEPTH_CELL_SIZE': InstrumentCmds.SET_DEPTH_CELL_SIZE,
-            'TRANSMIT_LENGTH': InstrumentCmds.SET_TRANSMIT_LENGTH,
-            'PING_WEIGHT': InstrumentCmds.SET_PING_WEIGHT,
-            'AMBIGUITY_VELOCITY': InstrumentCmds.SET_AMBIGUITY_VELOCITY,
-            'MODE_1_BANDWIDTH_CONTROL': InstrumentCmds.SET_MODE_1_BANDWIDTH_CONTROL,
-            'BLANK_AFTER_TRANSMIT': InstrumentCmds.SET_BLANK_AFTER_TRANSMIT,
-            'DATA_OUT': InstrumentCmds.SET_DATA_OUT,
-            'INSTRUMENT_ID': InstrumentCmds.SET_INSTRUMENT_ID,
-            'WATER_PROFILING_MODE': InstrumentCmds.SET_WATER_PROFILING_MODE
-        }
-
-        # if input command == 'DEPLOY', set up for state change 
-        # generate an event for go-to-deployment
-        # next_state = ProtocolState.AUTOSAMPLE
-
         next_state = None
         result = None
         # Retrieve required parameter.
@@ -1995,17 +2046,83 @@ class Protocol(CommandResponseInstrumentProtocol):
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
- 
-            for (key, val) in params.iteritems():
-                log.debug("KEY = " + str(key) + " VALUE = " + str(val))
-                log.debug("&&& handler_command_set: arguments to do_cmd etc are ",
-                          params_to_cmds[key], key, val)
-                result = self._do_cmd_no_resp(params_to_cmds[key], key,
-                                              str(val), **kwargs)
-                log.debug("******RESULT************* = " + str(result))
+            self._set_params(params)
 
         return (next_state, result)
 
+    #REDONE#
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        # Retrieve required parameter.
+        # Raise if no parameter provided, or not a dict.
+        startup = False
+        try:
+            set_params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
+        # Only check for readonly parameters if we are not setting them from startup
+        if not startup:
+            readonly = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
+
+            log.debug("set param, but check visibility first")
+            log.debug("Read only keys: %s" % readonly)
+
+            for (key, val) in set_params.iteritems():
+                if key in readonly:
+                    raise InstrumentParameterException("Attempt to set read only parameter (%s)" % key)
+
+        log.debug("General Set Params: %s" % set_params)
+
+        if set_params != {}:
+            for (key, val) in set_params.iteritems():
+                log.debug("KEY = " + str(key) + " VALUE = " + str(val))
+                result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
+
+        self._update_params()
+
+    #REDONE#
+    def _build_set_command(self, cmd, param, val):
+        """
+        Build handler for set commands. param=val followed by newline.
+        String val constructed by param dict formatting function.
+        @param param the parameter key to set.
+        @param val the parameter value to set.
+        @ retval The set command to be sent to the device.
+        @ retval The set command to be sent to the device.
+        @throws InstrumentProtocolException if the parameter is not valid or
+        if the formatting function could not accept the value passed.
+        """
+        try:
+            str_val = self._param_dict.format(param, val)
+            set_cmd = '%s%s' % (param, str_val)
+
+            set_cmd = set_cmd + NEWLINE
+        except KeyError:
+            raise InstrumentParameterException('Unknown driver parameter %s' % param)
+
+        return set_cmd
+
+    #REDONE#
+    def _parse_set_response(self, response, prompt):
+        """
+        Parse handler for set command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if set command misunderstood.
+        """
+
+        if prompt == Prompt.ERR:
+            raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
+
+    #REDONE#
     def _handler_command_self_deploy(self, *args, **kwargs):
         """
         Handler for event where adcpt automatically reverts to AUTOSAMPLE from
@@ -2197,3 +2314,59 @@ class Protocol(CommandResponseInstrumentProtocol):
         Exit direct access state.
         """
         pass
+
+    ########################################################################
+    # Static helpers to format set commands.
+    ########################################################################
+
+    @staticmethod
+    def _string_to_string(v):
+        return v
+
+    @staticmethod
+    def _bool_to_int(v):
+        """
+        Write a bool value to string as an int.
+        @param v A bool val.
+        @retval a int string.
+        @throws InstrumentParameterException if value is not a float.
+        """
+
+        if not isinstance(v, int):
+            raise InstrumentParameterException('Value %s is not a float.' % v)
+        else:
+            if v:
+                return 1
+            else:
+                return 0
+
+    @staticmethod
+    def _reverse_bool_to_int(v):
+        """
+        Write a inverse-bool value to string as an int.
+        @param v A bool val.
+        @retval a int string.
+        @throws InstrumentParameterException if value is not a float.
+        """
+
+        if not isinstance(v, int):
+            raise InstrumentParameterException('Value %s is not a float.' % v)
+        else:
+            if v:
+                return 0
+            else:
+                return 1
+
+    @staticmethod
+    def _float_to_string(v):
+        """
+        Write a float value to string.
+        @param v a float val.
+        @retval a float string formatted.
+        @throws InstrumentParameterException if value is not a float.
+        """
+
+        if not isinstance(v, float):
+            raise InstrumentParameterException('Value %s is not a float.' % v)
+        else:
+            return str(v)  # return a simple float
