@@ -381,26 +381,55 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         """
         DHE: Change this to init my own simulator
         """
+        #self.ipaddr = "69.196.56.192"
+        self.ipaddr = "localhost"
+        self.cmd_port = 9001
+        self.data_port  = 9002
+        self.device_port = 9003
         
-        #self.init_instrument_simulator()
-        self.init_port_agent()
-
-        self.instrument_agent_manager = InstrumentAgentClient()
-        self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
-
-        self.container = self.instrument_agent_manager.container
-
+        self.rawCallbackCalled = False
+        self.dataCallbackCalled = False
+        self.errorCallbackCalled = False
+        
     def tearDown(self):
         """
         @brief Test teardown
         """
         log.debug("PACClientIntTestCase tearDown")
 
-        self.instrument_agent_manager.stop_container()
-        self.event_subscribers.stop()
-        self.data_subscribers.stop_data_subscribers()
         InstrumentDriverTestCase.tearDown(self)
 
+    def startPortAgent(self):
+        pa_port = self.init_port_agent()
+        print "port_agent started on port: " + str(pa_port)
+
+    def resetTestVars(self):
+        self.rawCallbackCalled = False
+        self.dataCallbackCalled = False
+        self.errorCallbackCalled = False
+            
+    def myGotData(self, paPacket):
+        self.dataCallbackCalled = True
+        if paPacket.is_valid():
+            validity = "valid"
+        else:
+            validity = "invalid"
+            
+        print "Got " + validity + " port agent data packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
+
+    def myGotRaw(self, paPacket):
+        self.rawCallbackCalled = True
+        if paPacket.is_valid():
+            validity = "valid"
+        else:
+            validity = "invalid"
+            
+        print "Got " + validity + " port agent raw packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
+
+    def myGotError(self, errorString = "No error string passed in."):
+        self.errorCallbackCalled = True
+        print "Got error: " +  errorString + "\r\n"
+                       
     def init_port_agent(self):
         """
         @brief Launch the driver process and driver client.  This is used in the
@@ -417,11 +446,11 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         #comm_config = self.get_comm_config()
 
         config = {
-            'device_addr' : 'localhost',
-            'device_port' : 9003,
+            'device_addr' : self.ipaddr,
+            'device_port' : self.device_port,
 
-            'command_port': 9001,
-            'data_port': 9002,
+            'command_port': self.cmd_port,
+            'data_port': self.data_port,
 
             'process_type': PortAgentProcessType.UNIX,
             'log_level': 5,
@@ -462,6 +491,31 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
 
         return config
     
+    def test_start_paClient_no_port_agent(self):
+
+        print "port agent client test begin"
+
+        paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
+        
+        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
+        
+        self.assertTrue(self.errorCallbackCalled)
+    
+    @unittest.skip('Need to add instrument simulator (listener or instrument port')
+    def test_start_paClient_with_port_agent(self):
+
+        print "port agent client test begin"
+        self.startPortAgent()
+        paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
+        
+        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
+        
+        paClient.send("this is a great big test")
+        
+        time.sleep(1)
+        
+        paClient.stop_comms()
+        
         
     
     
