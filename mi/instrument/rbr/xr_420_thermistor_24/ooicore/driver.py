@@ -33,7 +33,8 @@ from mi.core.exceptions import InstrumentTimeoutException, \
                                InstrumentParameterException, \
                                InstrumentProtocolException, \
                                SampleException, \
-                               InstrumentStateException
+                               InstrumentStateException, \
+                               InstrumentCommandException
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVal
@@ -89,28 +90,29 @@ class InstrumentResponses(BaseEnum):
     GET_CHANNEL_CALIBRATION  = 'CAL\r\n'
     GET_ADVANCED_FUNCTIONS   = 'STC\r\n'
     UNKNOWN_COMMAND          = '? Unknown command \r\n'
+    START_SAMPLING           = 'Logger started in mode '
         
 class InstrumentCmds(BaseEnum):   
-    GET_IDENTIFICATION       = 'A' 
-    GET_LOGGER_DATE_AND_TIME = 'B'
-    GET_SAMPLE_INTERVAL      = 'C'
-    GET_START_DATE_AND_TIME  = 'D'  
-    GET_END_DATE_AND_TIME    = 'E' 
-    GET_STATUS               = 'T'
-    GET_CHANNEL_CALIBRATION  = 'Z'
-    GET_BATTERY_VOLTAGE      = '!D'
-    SET_LOGGER_DATE_AND_TIME = 'J'
-    SET_SAMPLE_INTERVAL      = 'K'
-    SET_START_DATE_AND_TIME  = 'L'  
-    SET_END_DATE_AND_TIME    = 'M'
-    TAKE_SAMPLE_IMMEDIATELY  = 'F' 
-    RESET_SAMPLING           = 'N'
-    START_SAMPLING           = 'P'
-    STOP_SAMPLING            = '!9'
-    SUSPEND_SAMPLING         = '!S'
-    RESUME_SAMPLING          = '!R'
-    SET_ADVANCED_FUNCTIONS   = '!1'
-    GET_ADVANCED_FUNCTIONS   = '!2'
+    GET_IDENTIFICATION         = 'A' 
+    GET_LOGGER_DATE_AND_TIME   = 'B'
+    GET_SAMPLE_INTERVAL        = 'C'
+    GET_START_DATE_AND_TIME    = 'D'  
+    GET_END_DATE_AND_TIME      = 'E' 
+    GET_STATUS                 = 'T'
+    GET_CHANNEL_CALIBRATION    = 'Z'
+    GET_BATTERY_VOLTAGE        = '!D'
+    SET_LOGGER_DATE_AND_TIME   = 'J'
+    SET_SAMPLE_INTERVAL        = 'K'
+    SET_START_DATE_AND_TIME    = 'L'  
+    SET_END_DATE_AND_TIME      = 'M'
+    TAKE_SAMPLE_IMMEDIATELY    = 'F' 
+    RESET_SAMPLING_ERASE_FLASH = 'N'
+    START_SAMPLING             = 'P'
+    STOP_SAMPLING              = '!9'
+    SUSPEND_SAMPLING           = '!S'
+    RESUME_SAMPLING            = '!R'
+    SET_ADVANCED_FUNCTIONS     = '!1'
+    GET_ADVANCED_FUNCTIONS     = '!2'
 
 class ProtocolStates(BaseEnum):
     """
@@ -219,7 +221,7 @@ class AdvancedFunctionsParameters(BaseEnum):
     AUTO_RUN                        = InstrumentParameters.AUTO_RUN   
     INHIBIT_DATA_STORAGE            = InstrumentParameters.INHIBIT_DATA_STORAGE  
 
-class AdvancedFuntions(BaseEnum):
+class AdvancedFuntionsBits(BaseEnum):
     power_always_on                 = 0x8000
     six_hz_profiling_mode           = 0x4000
     output_includes_serial_number   = 0x20
@@ -355,8 +357,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self.write_delay = WRITE_DELAY
         self._last_data_timestamp = None
         self.eoln = INSTRUMENT_NEWLINE
-        self.advanced_functions = AdvancedFuntions.dict()
-        print  self.advanced_functions
+        self.advanced_functions_bits = AdvancedFuntionsBits.dict()
+        print  self.advanced_functions_bits
         
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
                 
@@ -776,13 +778,30 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         next_state = None
         result = None
+        sampling_parameters_to_set = [InstrumentParameters.POWER_ALWAYS_ON,
+                                      InstrumentParameters.END_DATE_AND_TIME,
+                                      InstrumentParameters.START_DATE_AND_TIME,
+                                      InstrumentParameters.LOGGER_DATE_AND_TIME,
+                                      InstrumentParameters.SAMPLE_INTERVAL]
 
-        # Issue start command and switch to autosample if successful.
-        self._navigate_and_execute(InstrumentCmds.DEPLOY_GO, 
-                                   dest_submenu=SubMenues.DEPLOY, 
-                                   timeout=20, 
-                                   *args, **kwargs)
-                
+        # this call will return if reset is successful or raise an exception otherwise
+        self._reset_instrument()
+
+        # configure sampling parameters
+        for parameter in sampling_parameters_to_set:
+            command = self._param_dict.get_submenu_write(parameter)
+            value = self._param_dict.get(parameter)
+            self._do_cmd_no_resp(command, parameter, value, timeout=5)
+        
+        # now start sampling
+        status_response = self._do_cmd_resp(InstrumentCmds.START_SAMPLING)
+        log.debug('_handler_command_start_autosample: status=%s' %status_response)
+        status_as_int = int(status_response, 16)
+        if not status_as_int in [Status.ENABLED_SAMPLING_NOT_STARTED, Status.STARTED_SAMPLING]:
+            raise InstrumentCommandException("_handler_command_start_autosample: " +
+                                             "Failed to start sampling, status=%s" 
+                                             %status_response)
+            
         next_state = ProtocolStates.AUTOSAMPLE        
         next_agent_state = ResourceAgentState.STREAMING
         
@@ -869,23 +888,16 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command misunderstood or
         incorrect prompt received.
+        TODO: As a general question, what state should the driver go to if a request fails?
+              Staying in autosample state if the reset fails is not a good solution,
+              but the framework doesn't have a failure/recovery mechanism to use.
         """
         next_state = None
         result = None
-
-        # Issue stop command and switch to command if successful.
-        got_root_prompt = False
-        for i in range(2):
-            try:
-                self._go_to_root_menu()
-                got_root_prompt = True
-                break
-            except:
-                pass
-            
-        if not got_root_prompt:                
-            raise InstrumentTimeoutException()
         
+        # this call will return if reset is successful or raise an exception otherwise
+        self._reset_instrument()
+
         next_state = ProtocolStates.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
@@ -937,6 +949,42 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
         
+    def _reset_instrument(self):
+        ENABLING_SEQUENCE = '!U01N'
+        TIMEOUT = 60
+        # Issue reset command and return if successful.
+        for i in range(2):
+            # Wakeup the device, pass up exception if timeout    
+            self._wakeup()
+            # Send 'reset sampling' command.
+            log.debug('_reset_instrument: sending <%s>' % ENABLING_SEQUENCE)
+            self._connection.send(ENABLING_SEQUENCE)
+            time.sleep(.1)
+            log.debug('_reset_instrument: sending <%s>' % InstrumentCmds.RESET_SAMPLING_ERASE_FLASH)
+            self._connection.send(InstrumentCmds.RESET_SAMPLING_ERASE_FLASH)
+            starttime = time.time()
+            while True:
+                self._do_cmd_resp(InstrumentCmds.GET_STATUS)
+                status_as_int = int(self._param_dict.get(InstrumentParameters.STATUS), 16)
+                log.debug('_reset_instrument: status=%x' %status_as_int)
+                if status_as_int == Status.NOT_ENABLED_FOR_SAMPLING:
+                    # instrument is reset and ready
+                    return
+                if status_as_int == Status.ERASING_DATA_MEMORY:
+                    # instrument is still busy
+                    time.sleep(1)
+                    continue
+                if status_as_int == Status.DATA_MEMORY_ERASE_FAILED:
+                    # serious instrument failure
+                    raise InstrumentCommandException("_reset_instrument: " +
+                                                     "SERIOUS FAILURE to reset instrument! status=%s" 
+                                                     %Status.DATA_MEMORY_ERASE_FAILED)
+                if time.time() > starttime + TIMEOUT:
+                    raise InstrumentCommandException("_reset_instrument: " +
+                                                     "Failed to reset instrument in %d seconds, status=%s" 
+                                                     %(TIMEOUT, self._param_dict.get(InstrumentParameters.STATUS)))
+            
+
     def _float_list_to_string(self, float_list):
         float_str = ''
         for float_val in float_list:
@@ -1343,6 +1391,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.GET_BATTERY_VOLTAGE, self._build_get_battery_voltage_command)
         self._add_build_handler(InstrumentCmds.GET_CHANNEL_CALIBRATION, self._build_get_channel_calibration_command)
         self._add_build_handler(InstrumentCmds.GET_ADVANCED_FUNCTIONS, self._build_get_advanved_functions_command)
+        self._add_build_handler(InstrumentCmds.START_SAMPLING, self._build_start_sampling_command)
         
         # Add build handlers for device set commands.
         self._add_build_handler(InstrumentCmds.SET_LOGGER_DATE_AND_TIME, self._build_set_date_time_command)
@@ -1361,41 +1410,48 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.GET_BATTERY_VOLTAGE, self._parse_battery_voltage_response)
         self._add_response_handler(InstrumentCmds.GET_CHANNEL_CALIBRATION, self._parse_channel_calibration_response)
         self._add_response_handler(InstrumentCmds.GET_ADVANCED_FUNCTIONS, self._parse_advanced_functions_response)
+        self._add_response_handler(InstrumentCmds.START_SAMPLING, self._parse_start_sampling_response)
    
 ##################################################################################################
 # set command handlers
 ##################################################################################################
 
     def _build_set_date_time_command(self, cmd, *args):
-        [name, value] = args
-        log.debug('_build_set_date_time_command: cmd=%s, name=%s, value=%s' %(cmd, name, value))
-        time_str = self._convert_ion_date_time(value)
-        command = cmd + time_str
-        log.debug('_build_set_build_set_date_time_command_command: command=%s' %command)
-        return command
-        #raise InstrumentParameterException('_build_set_command quiting.')
+        try:
+            [name, value] = args
+            log.debug('_build_set_date_time_command: cmd=%s, name=%s, value=%s' %(cmd, name, value))
+            time_str = self._convert_ion_date_time(value)
+            command = cmd + time_str
+            log.debug('_build_set_build_set_date_time_command_command: command=%s' %command)
+            return command
+        except Exception as ex:
+            raise InstrumentParameterException('_build_set_date_time_command: %s.' %repr(ex))
 
     def _build_set_time_command(self, cmd, *args):
-        [name, value] = args
-        log.debug('_build_set_time_command: cmd=%s, name=%s, value=%s' %(cmd, name, value))
-        time_str = self._convert_ion_time(value)
-        command = cmd + time_str
-        log.debug('_build_set_time_command: command=%s' %command)
-        return command
-        #raise InstrumentParameterException('_build_set_command quiting.')
+        try:
+            [name, value] = args
+            log.debug('_build_set_time_command: cmd=%s, name=%s, value=%s' %(cmd, name, value))
+            time_str = self._convert_ion_time(value)
+            command = cmd + time_str
+            log.debug('_build_set_time_command: command=%s' %command)
+            return command
+        except Exception as ex:
+            raise InstrumentParameterException('_build_set_time_command: %s.' %repr(ex))
         
     def _build_set_advanved_functions_command(self, cmd, *args):
-        value = 0
-        for name in AdvancedFunctionsParameters.list():
-            if self._param_dict.get(name) == 1:
-                value = value | self.advanced_functions[name]
-            log.debug("_build_set_advanved_functions_command: value=%x, a_f[%s]=%x" %(value, name, self.advanced_functions[name]))
-        value *= 0x10000
-        value_str = '%8x' %value
-        command = cmd + value_str
-        log.debug('_build_set_advanved_functions_command: command=%s' %command)
-        return command
-        #raise InstrumentParameterException('_build_set_command quiting.')
+        try:
+            value = 0
+            for name in AdvancedFunctionsParameters.list():
+                if self._param_dict.get(name) == 1:
+                    value = value | self.advanced_functions_bits[name]
+                log.debug("_build_set_advanved_functions_command: value=%x, a_f[%s]=%x" %(value, name, self.advanced_functions_bits[name]))
+            value *= 0x10000
+            value_str = '%8x' %value
+            command = cmd + value_str
+            log.debug('_build_set_advanved_functions_command: command=%s' %command)
+            return command
+        except Exception as ex:
+            raise InstrumentParameterException('_build_set_advanved_functions_command: %s.' %repr(ex))
         
 
 ##################################################################################################
@@ -1487,6 +1543,15 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         log.debug("_build_get_advanved_functions_command: cmd=%s, response=%s" %(cmd, response))
         return (cmd, response)    
     
+    def _build_start_sampling_command(self, **kwargs):
+        cmd_name = kwargs.get('command', None)
+        if cmd_name == None:
+            raise InstrumentParameterException('_build_get_advanved_functions_command requires a command.')
+        cmd = cmd_name
+        response = InstrumentResponses.START_SAMPLING
+        log.debug("_build_get_advanved_functions_command: cmd=%s, response=%s" %(cmd, response))
+        return (cmd, response)    
+    
 ##################################################################################################
 # response handlers
 ##################################################################################################
@@ -1559,8 +1624,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             raise InstrumentParameterException('Get channel calibration response not correct: %s.' %response)
 
     def _get_bit_value(self, name, value):
-        bit_value = value & self.advanced_functions[name]
-        log.debug("_get_bit_value: value=%x, a_f[%s]=%x, bit_value=%d" %(value, name, self.advanced_functions[name], bit_value))
+        bit_value = value & self.advanced_functions_bits[name]
+        log.debug("_get_bit_value: value=%x, a_f[%s]=%x, bit_value=%d" %(value, name, self.advanced_functions_bits[name], bit_value))
         return 0 if bit_value == 0 else 1
     
     def _parse_advanced_functions_response(self, response, prompt, **kwargs):
@@ -1574,4 +1639,12 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                 self._param_dict.set(name, self._get_bit_value(name, hex_value))
         else:
             raise InstrumentParameterException('Get advanced functions response not correct: %s.' %response)
-                           
+  
+    def _parse_start_sampling_response(self, response, prompt, **kwargs):
+        log.debug("_parse_start_sampling_response: response=%s" %response.rstrip())
+        if InstrumentResponses.START_SAMPLING in response:
+            # got start sampling response, so parse out the status
+            return response.rstrip()[-2:]
+        else:
+            raise InstrumentParameterException('Start sampling response not correct: %s.' %response)
+                         

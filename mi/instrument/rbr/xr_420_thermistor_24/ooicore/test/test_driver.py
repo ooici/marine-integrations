@@ -182,12 +182,12 @@ class UtilMixin(DriverTestMixin):
     # parameter values to test.
     paramter_values = {InstrumentParameters.START_DATE_AND_TIME : TIME_TO_SET2,
                        InstrumentParameters.END_DATE_AND_TIME : TIME_TO_SET3,
-                       InstrumentParameters.SAMPLE_INTERVAL : '00:01:30',
+                       InstrumentParameters.SAMPLE_INTERVAL : '00:00:15',
                        InstrumentParameters.POWER_ALWAYS_ON : 1,
                        InstrumentParameters.SIX_HZ_PROFILING_MODE : 0,
                        InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER : 1,
                        InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE : 1,
-                       InstrumentParameters.SAMPLING_LED : 1,
+                       InstrumentParameters.SAMPLING_LED : 0,
                        InstrumentParameters.ENGINEERING_UNITS_OUTPUT : 1,
                        InstrumentParameters.AUTO_RUN : 1,
                        InstrumentParameters.INHIBIT_DATA_STORAGE : 1,
@@ -584,19 +584,23 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         """
         self.assert_initialize_driver()
                 
+        log.debug('test_instrumment_start_stop_autosample: starting autosample')
         # start auto-sample.
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
 
         # Test the driver is in autosample mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.AUTOSAMPLE)
+        log.debug('test_instrumment_start_stop_autosample: autosample started')        
                 
+        log.debug('test_instrumment_start_stop_autosample: stopping autosample')
         # stop auto-sample.
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
 
         # Test the driver is in command mode.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, ProtocolStates.COMMAND)
+        log.debug('test_instrumment_start_stop_autosample: autosample stopped')        
 
 
     def test_instrument_autosample_samples(self):
