@@ -232,10 +232,15 @@ class UtilMixin(DriverTestMixin):
         Mavs4SampleDataParticleKey.PITCH: {TYPE: float, VALUE: 3.0},
         Mavs4SampleDataParticleKey.ROLL: {TYPE: float, VALUE: -5.1},
     }
-
-    SAMPLE = "12 20 2012 18 50 50.40 FDC5 FF70 FF1B FF8C 1.2 3.4 5.6 22.21 0.96 0.28 3.0 -5.1\n"
     """
     
+    SAMPLE = 
+        "TIM 020225135300 " +
+        "21.4548 21.0132 20.9255 21.1266 21.1341 21.5606 21.2156 21.4749 " +
+        "21.3044 21.1320 21.1798 21.2352 21.3488 21.1214 21.6426 21.1479 " +
+        "21.0069 21.5426 21.3204 21.2402 21.3968 21.4371 21.0411 21.4361 " +
+        "BV: 11.5916 SN: 021968 FET"
+             
     def assert_clock_set(self, sent_time, rcvd_time):
         # verify that the dates match
         print("sts=%s, rts=%s" %(sent_time, rcvd_time))

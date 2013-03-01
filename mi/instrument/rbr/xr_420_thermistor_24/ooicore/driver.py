@@ -240,8 +240,18 @@ class ListProtocolParameterDict(ProtocolParameterDict):
     def update_specific(self, name, input):
         val = self._param_dict[name]
         return val.update(input)
+    
+    def set_value(self, name, value):
+        """
+        Set a parameter value in the dictionary.
+        @param name The parameter name.
+        @param value The parameter value.
+        @raises KeyError if the name is invalid.
+        """
+        log.debug("setting " + name + " to " + str(value))
+        self._param_dict[name].value = value
         
-
+        
 ###############################################################################
 #   Driver for XR-420 Thermistor
 ###############################################################################
@@ -691,7 +701,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         if parameters_dict:
             # set the parameter values so they can be gotten in the command builders
             for (key, value) in parameters_dict.iteritems():
-                self._param_dict.set(key, value)
+                self._param_dict.set_value(key, value)
             command = self._param_dict.get_submenu_write(InstrumentParameters.POWER_ALWAYS_ON)
             self._do_cmd_no_resp(command, None, None, timeout=5)
             # remove the sub-parameters from the params_to_set dictionary
@@ -1636,7 +1646,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             hex_value = int(hex_str, 16)
             log.debug("_parse_advanced_functions_response: hex_str=%s, hex_value=%x" %(hex_str, hex_value))
             for name in AdvancedFunctionsParameters.list():
-                self._param_dict.set(name, self._get_bit_value(name, hex_value))
+                self._param_dict.set_value(name, self._get_bit_value(name, hex_value))
         else:
             raise InstrumentParameterException('Get advanced functions response not correct: %s.' %response)
   
