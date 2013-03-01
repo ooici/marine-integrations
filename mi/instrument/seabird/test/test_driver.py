@@ -13,7 +13,7 @@ USAGE:
        $ bin/test_driver -q
 """
 
-__author__ = 'Roger Unwin'
+__author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
 import time

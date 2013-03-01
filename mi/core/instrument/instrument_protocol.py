@@ -249,7 +249,7 @@ class InstrumentProtocol(object):
     #############################################################
     # Configuration logic
     #############################################################
-    
+
     def apply_startup_params(self):
         """
         Apply the startup values previously stored in the protocol to

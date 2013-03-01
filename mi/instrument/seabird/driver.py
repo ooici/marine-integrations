@@ -296,7 +296,7 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
         self._promptbuf = ''
 
         str_val = self._param_dict.format(date_time_param, get_timestamp_delayed(time_format))
-        self._set_params({date_time_param: str_val})
+        self._set_params({date_time_param: str_val}, True)
 
         return True
 
@@ -319,14 +319,14 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
         @raise: InstrumentProtocolException if not in command or streaming
         """
         # Let's give it a try in unknown state
-        log.debug("CURRENT STATE: %s" % self.get_current_state())
+        log.debug("CURRENT STATE: %s", self.get_current_state())
         if (self.get_current_state() != DriverProtocolState.COMMAND and
                     self.get_current_state() != DriverProtocolState.AUTOSAMPLE):
             raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
 
         log.debug("sbe apply_startup_params, logging?")
         logging = self._is_logging()
-        log.debug("sbe apply_startup_params, logging == %s" % logging)
+        log.debug("sbe apply_startup_params, logging == %s", logging)
 
         # If we are in streaming mode and our configuration on the
         # instrument matches what we think it should be then we
@@ -399,7 +399,7 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
             readonly = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
 
             log.debug("set param, but check visibility first")
-            log.debug("Read only keys: %s" % readonly)
+            log.debug("Read only keys: %s", readonly)
 
             for (key, val) in params.iteritems():
                 if key in readonly:
@@ -435,15 +435,12 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
         self._update_params()
 
         startup_params = self._param_dict.get_startup_list()
-        log.debug("Startup Parameters: %s" % startup_params)
+        log.debug("Startup Parameters: %s", startup_params)
 
         for param in startup_params:
             if (self._param_dict.get(param) != self._param_dict.get_config_value(param)):
-                log.debug("DIRTY: %s %s != %s" % (param, self._param_dict.get(param), self._param_dict.get_config_value(param)))
+                log.debug("DIRTY: %s %s != %s", param, self._param_dict.get(param), self._param_dict.get_config_value(param))
                 return True
 
         log.debug("Clean instrument config")
         return False
-
-
-
