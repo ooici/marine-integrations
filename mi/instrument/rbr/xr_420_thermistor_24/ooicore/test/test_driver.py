@@ -68,6 +68,8 @@ from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentPara
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentCmds
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import Capability
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentResponses
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import AdvancedFunctionsParameters
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import AdvancedFuntionsBits
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import XR_420StatusDataParticleKey
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import XR_420SampleDataParticleKey
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import XR_420SampleDataParticle
@@ -215,30 +217,43 @@ class UtilMixin(DriverTestMixin):
         Mavs4StatusDataParticleKey.BURST_INTERVAL_SECONDS: {TYPE: int, VALUE: 18 },
         Mavs4StatusDataParticleKey.SI_CONVERSION: {TYPE: float, VALUE: 19.0 },
     }
+    """
         
     _sample_parameters = {
-        Mavs4SampleDataParticleKey.TIMESTAMP: {TYPE: float, VALUE: 3565047050.0},
-        Mavs4SampleDataParticleKey.FRACTIONAL_SECOND: {TYPE: int, VALUE: 40},
-        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_A: {TYPE: int, VALUE: 64965},
-        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_B: {TYPE: int, VALUE: 65392},
-        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_C: {TYPE: int, VALUE: 65307},
-        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_D: {TYPE: int, VALUE: 65420},
-        Mavs4SampleDataParticleKey.VELOCITY_FRAME_EAST: {TYPE: float, VALUE: 1.2},
-        Mavs4SampleDataParticleKey.VELOCITY_FRAME_NORTH: {TYPE: float, VALUE: 3.4},
-        Mavs4SampleDataParticleKey.VELOCITY_FRAME_WEST: {TYPE: float, VALUE: 5.6},
-        Mavs4SampleDataParticleKey.TEMPERATURE: {TYPE: float, VALUE: 22.21},
-        Mavs4SampleDataParticleKey.COMPASS_MX: {TYPE: float, VALUE: 0.96},
-        Mavs4SampleDataParticleKey.COMPASS_MY: {TYPE: float, VALUE: 0.28},
-        Mavs4SampleDataParticleKey.PITCH: {TYPE: float, VALUE: 3.0},
-        Mavs4SampleDataParticleKey.ROLL: {TYPE: float, VALUE: -5.1},
+        XR_420SampleDataParticleKey.TIMESTAMP: {TYPE: float, VALUE: 3223662780.0},
+        XR_420SampleDataParticleKey.CHANNEL_1: {TYPE: float, VALUE: 21.4548},
+        XR_420SampleDataParticleKey.CHANNEL_2: {TYPE: float, VALUE: 21.0132},
+        XR_420SampleDataParticleKey.CHANNEL_3: {TYPE: float, VALUE: 20.9255},
+        XR_420SampleDataParticleKey.CHANNEL_4: {TYPE: float, VALUE: 21.1266},
+        XR_420SampleDataParticleKey.CHANNEL_5: {TYPE: float, VALUE: 21.1341},
+        XR_420SampleDataParticleKey.CHANNEL_6: {TYPE: float, VALUE: 21.5606},
+        XR_420SampleDataParticleKey.CHANNEL_7: {TYPE: float, VALUE: 21.2156},
+        XR_420SampleDataParticleKey.CHANNEL_8: {TYPE: float, VALUE: 21.4749},
+        XR_420SampleDataParticleKey.CHANNEL_9: {TYPE: float, VALUE: 21.3044},
+        XR_420SampleDataParticleKey.CHANNEL_10: {TYPE: float, VALUE: 21.1320},
+        XR_420SampleDataParticleKey.CHANNEL_11: {TYPE: float, VALUE: 21.1798},
+        XR_420SampleDataParticleKey.CHANNEL_12: {TYPE: float, VALUE: 21.2352},
+        XR_420SampleDataParticleKey.CHANNEL_13: {TYPE: float, VALUE: 21.3488},
+        XR_420SampleDataParticleKey.CHANNEL_14: {TYPE: float, VALUE: 21.1214},
+        XR_420SampleDataParticleKey.CHANNEL_15: {TYPE: float, VALUE: 21.6426},
+        XR_420SampleDataParticleKey.CHANNEL_16: {TYPE: float, VALUE: 21.1479},
+        XR_420SampleDataParticleKey.CHANNEL_17: {TYPE: float, VALUE: 21.0069},
+        XR_420SampleDataParticleKey.CHANNEL_18: {TYPE: float, VALUE: 21.5426},
+        XR_420SampleDataParticleKey.CHANNEL_19: {TYPE: float, VALUE: 21.3204},
+        XR_420SampleDataParticleKey.CHANNEL_20: {TYPE: float, VALUE: 21.2402},
+        XR_420SampleDataParticleKey.CHANNEL_21: {TYPE: float, VALUE: 21.3968},
+        XR_420SampleDataParticleKey.CHANNEL_22: {TYPE: float, VALUE: 21.4371},
+        XR_420SampleDataParticleKey.CHANNEL_23: {TYPE: float, VALUE: 21.0411},
+        XR_420SampleDataParticleKey.CHANNEL_24: {TYPE: float, VALUE: 21.4361},
+        XR_420SampleDataParticleKey.BATTERY_VOLTAGE: {TYPE: float, VALUE: 11.5916},
+        XR_420SampleDataParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: u"021968"},
     }
-    """
     
-    SAMPLE = 
-        "TIM 020225135300 " +
-        "21.4548 21.0132 20.9255 21.1266 21.1341 21.5606 21.2156 21.4749 " +
-        "21.3044 21.1320 21.1798 21.2352 21.3488 21.1214 21.6426 21.1479 " +
-        "21.0069 21.5426 21.3204 21.2402 21.3968 21.4371 21.0411 21.4361 " +
+    SAMPLE = \
+        "TIM 020225135300 " + \
+        "21.4548 21.0132 20.9255 21.1266 21.1341 21.5606 21.2156 21.4749 " + \
+        "21.3044 21.1320 21.1798 21.2352 21.3488 21.1214 21.6426 21.1479 " + \
+        "21.0069 21.5426 21.3204 21.2402 21.3968 21.4371 21.0411 21.4361 " + \
         "BV: 11.5916 SN: 021968 FET"
              
     def assert_clock_set(self, sent_time, rcvd_time):
@@ -255,6 +270,15 @@ class UtilMixin(DriverTestMixin):
         if ntp_rcvd_timestamp - ntp_sent_timestamp > 5:
             self.fail("time delta too large after clock sync")        
     
+    def assert_particle_sample(self, data_particle, verify_values = False):
+        '''
+        Verify a take sample data particle
+        @param data_particle:  data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.SAMPLE)
+        self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
+
     """
     def assert_status_data_particle_header(self, data_particle, stream_name):
         # Verify a status data particle header is formatted properly w/o port agent timestamp
@@ -273,15 +297,6 @@ class UtilMixin(DriverTestMixin):
 
         self.assertIsNotNone(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP))
         self.assertIsInstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float)
-
-    def assert_particle_sample(self, data_particle, verify_values = False):
-        '''
-        Verify a take sample data particle
-        @param data_particle:  SBE26plusTideSampleDataParticle data particle
-        @param verify_values:  bool, should we verify parameter values
-        '''
-        self.assert_data_particle_header(data_particle, DataParticleType.SAMPLE)
-        self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
 
     def assert_particle_status(self, data_particle, verify_values = False):
         '''
@@ -319,7 +334,6 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
     
-    '''
     def assert_status_particle_published(self, particle_assert_method, verify_values = False):
         """
         Verify that we can send data through the port agent and the the correct particles
@@ -353,20 +367,15 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         do a little extra validation for the Capabilites
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
-        self.assert_enum_has_no_duplicates(InstrumentPrompts())
+        self.assert_enum_has_no_duplicates(InstrumentResponses())
         self.assert_enum_has_no_duplicates(InstrumentCmds())
         self.assert_enum_has_no_duplicates(ProtocolStates())
         self.assert_enum_has_no_duplicates(ProtocolEvent())
         self.assert_enum_has_no_duplicates(InstrumentParameters())
-        self.assert_enum_has_no_duplicates(DeployMenuParameters())
-        self.assert_enum_has_no_duplicates(SystemConfigurationMenuParameters())
-        self.assert_enum_has_no_duplicates(VelocityOffsetParameters())
-        self.assert_enum_has_no_duplicates(CompassOffsetParameters())
-        self.assert_enum_has_no_duplicates(CompassScaleFactorsParameters())
-        self.assert_enum_has_no_duplicates(TiltOffsetParameters())
-        self.assert_enum_has_no_duplicates(SubMenues())
+        self.assert_enum_has_no_duplicates(AdvancedFunctionsParameters())
+        self.assert_enum_has_no_duplicates(AdvancedFuntionsBits())
 
-        # Test capabilites for duplicates, then verify that capabilities is a subset of protocol events
+        # Test capabilities for duplicates, then verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
@@ -374,7 +383,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         """
         Test the chunker and verify the particles created.
         """
-        chunker = StringChunker(mavs4InstrumentProtocol.chunker_sieve_function)
+        chunker = StringChunker(InstrumentProtocol.chunker_sieve_function)
 
         self.assert_chunker_sample(chunker, self.SAMPLE)
         self.assert_chunker_sample_with_noise(chunker, self.SAMPLE)
@@ -383,16 +392,17 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
     
     def test_corrupt_data_sample(self):
         # garbage is not okay
-        particle = Mavs4SampleDataParticle(self.SAMPLE.replace('2012', 'foobar'),
-                                           port_timestamp = 3558720820.531179)
+        particle = XR_420SampleDataParticle(self.SAMPLE.replace('020225135300', 'foobar'),
+                                            port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
          
+    @unittest.skip("skip, not finished yet")
     def test_status_particle(self):
         """
         Verify driver produces the correct status data particle
         """
-        driver = mavs4InstrumentDriver(self._got_data_event_callback)
+        driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, ProtocolStates.COMMAND)
         
         # mock the _update_params() method which tries to get parameters from an actual instrument
@@ -418,7 +428,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         Verify sample data passed through the got data method produces the correct data particles
         """
         # Create and initialize the instrument driver with a mock port agent
-        driver = mavs4InstrumentDriver(self._got_data_event_callback)
+        driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)    # defaults to autosample mode, so sample generated
 
         self.assert_raw_particle_published(driver, True)
@@ -433,7 +443,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         Test silly made up capabilities to verify they are blocked by filter.
         """
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
-        protocol = mavs4InstrumentProtocol(InstrumentPrompts, INSTRUMENT_NEWLINE, my_event_callback)
+        protocol = InstrumentProtocol(InstrumentResponses, INSTRUMENT_NEWLINE, my_event_callback)
         driver_capabilities = Capability().list()
         test_capabilities = Capability().list()
 
@@ -447,7 +457,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         """
         Verify the set of parameters known by the driver
         """
-        driver = mavs4InstrumentDriver(self._got_data_event_callback)
+        driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, ProtocolStates.COMMAND)
 
         expected_parameters = sorted(self._driver_parameters.keys())
@@ -479,9 +489,9 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
                                            'EXECUTE_DIRECT']
         }
 
-        driver = mavs4InstrumentDriver(self._got_data_event_callback)
+        driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
-    '''
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -667,7 +677,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     # (UNIT, INT, and QUAL) are run.  
 
 
-    #@unittest.skip("skip for automatic tests")
+    @unittest.skip("skip for automatic tests")
     def test_direct_access_telnet_mode_manually(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)

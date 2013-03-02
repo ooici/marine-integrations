@@ -46,21 +46,33 @@ from pyon.agent.agent import ResourceAgentState
 from mi.core.log import get_logger
 log = get_logger()
 
-SAMPLE_DATA_PATTERN = (r'(\d+\s+\d+\s+\d+)' +    # date
-                       '\s+(\d+\s+\d+\s+\d+)' +  # time
-                       '\.(\d+)' +               # fractional second
-                       '\s+(\w+)' +              # vector A
-                       '\s+(\w+)' +              # vector B
-                       '\s+(\w+)' +              # vector C
-                       '\s+(\w+)' +              # vector D
-                       '\s+(-*\d+\.\d+)' +       # east
-                       '\s+(-*\d+\.\d+)' +       # north
-                       '\s+(-*\d+\.\d+)' +       # west
-                       '\s+(-*\d+\.\d+)' +       # temperature
-                       '\s+(-*\d+\.\d+)' +       # MX
-                       '\s+(-*\d+\.\d+)' +       # MY
-                       '\s+(-*\d+\.\d+)' +       # pitch
-                       '\s+(-*\d+\.\d+)\s+')     # roll
+SAMPLE_DATA_PATTERN = (r'TIM (\d+)' +          # timestamp
+                       '\s+(-*\d+\.\d+)' +     # Channel 1
+                       '\s+(-*\d+\.\d+)' +     # Channel 2
+                       '\s+(-*\d+\.\d+)' +     # Channel 3
+                       '\s+(-*\d+\.\d+)' +     # Channel 4
+                       '\s+(-*\d+\.\d+)' +     # Channel 5
+                       '\s+(-*\d+\.\d+)' +     # Channel 6
+                       '\s+(-*\d+\.\d+)' +     # Channel 7
+                       '\s+(-*\d+\.\d+)' +     # Channel 8
+                       '\s+(-*\d+\.\d+)' +     # Channel 9
+                       '\s+(-*\d+\.\d+)' +     # Channel 10
+                       '\s+(-*\d+\.\d+)' +     # Channel 11
+                       '\s+(-*\d+\.\d+)' +     # Channel 12
+                       '\s+(-*\d+\.\d+)' +     # Channel 13
+                       '\s+(-*\d+\.\d+)' +     # Channel 14
+                       '\s+(-*\d+\.\d+)' +     # Channel 15
+                       '\s+(-*\d+\.\d+)' +     # Channel 16
+                       '\s+(-*\d+\.\d+)' +     # Channel 17
+                       '\s+(-*\d+\.\d+)' +     # Channel 18
+                       '\s+(-*\d+\.\d+)' +     # Channel 19
+                       '\s+(-*\d+\.\d+)' +     # Channel 20
+                       '\s+(-*\d+\.\d+)' +     # Channel 21
+                       '\s+(-*\d+\.\d+)' +     # Channel 22
+                       '\s+(-*\d+\.\d+)' +     # Channel 23
+                       '\s+(-*\d+\.\d+)' +     # Channel 24
+                       '\s+BV: (-*\d+\.\d+)' + # battery voltage
+                       '\s+SN: (\d+) FET')     # serial number
 
 SAMPLE_DATA_REGEX = re.compile(SAMPLE_DATA_PATTERN)
 
@@ -287,7 +299,33 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 ###############################################################################
 
 class XR_420SampleDataParticleKey(BaseEnum):
-    TIMESTAMP                = "timestamp"
+    TIMESTAMP       = "timestamp"
+    CHANNEL_1       = "channel_1"
+    CHANNEL_2       = "channel_2"
+    CHANNEL_3       = "channel_3"
+    CHANNEL_4       = "channel_4"
+    CHANNEL_5       = "channel_5"
+    CHANNEL_6       = "channel_6"
+    CHANNEL_7       = "channel_7"
+    CHANNEL_8       = "channel_8"
+    CHANNEL_9       = "channel_9"
+    CHANNEL_10       = "channel_10"
+    CHANNEL_11       = "channel_11"
+    CHANNEL_12       = "channel_12"
+    CHANNEL_13       = "channel_13"
+    CHANNEL_14       = "channel_14"
+    CHANNEL_15       = "channel_15"
+    CHANNEL_16       = "channel_16"
+    CHANNEL_17       = "channel_17"
+    CHANNEL_18       = "channel_18"
+    CHANNEL_19       = "channel_19"
+    CHANNEL_20       = "channel_20"
+    CHANNEL_21       = "channel_21"
+    CHANNEL_22       = "channel_22"
+    CHANNEL_23       = "channel_23"
+    CHANNEL_24       = "channel_24"
+    BATTERY_VOLTAGE = "battery_voltage"
+    SERIAL_NUMBER   = "serial_number"
                 
 class XR_420SampleDataParticle(DataParticle):
     """
@@ -306,18 +344,98 @@ class XR_420SampleDataParticle(DataParticle):
         if not match:
             raise SampleException("XR_420SampleDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
         
-        #log.debug('_build_parsed_values: match=%s' %match.group(0))
+        log.debug('_build_parsed_values: match=%s' %match.group(0))
                 
         try:
-            datetime = match.group(1) + ' ' + match.group(2)
-            timestamp = time.strptime(datetime, "%m %d %Y %H %M %S")
+            log.debug('_build_parsed_values: group(1)=%s' %match.group(1))
+            timestamp = time.strptime(match.group(1), "%y%m%d%H%M%S")
+            log.debug("_build_parsed_values: ts=%s" %str(timestamp))
             self.set_internal_timestamp(unix_time=time.mktime(timestamp))
             ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
+            channel_1 = float(match.group(2))
+            channel_2 = float(match.group(3))
+            channel_3 = float(match.group(4))
+            channel_4 = float(match.group(5))
+            channel_5 = float(match.group(6))
+            channel_6 = float(match.group(7))
+            channel_7 = float(match.group(8))
+            channel_8 = float(match.group(9))
+            channel_9 = float(match.group(10))
+            channel_10 = float(match.group(11))
+            channel_11 = float(match.group(12))
+            channel_12 = float(match.group(13))
+            channel_13 = float(match.group(14))
+            channel_14 = float(match.group(15))
+            channel_15 = float(match.group(16))
+            channel_16 = float(match.group(17))
+            channel_17 = float(match.group(18))
+            channel_18 = float(match.group(19))
+            channel_19 = float(match.group(20))
+            channel_20 = float(match.group(21))
+            channel_21 = float(match.group(22))
+            channel_22 = float(match.group(23))
+            channel_23 = float(match.group(24))
+            channel_24 = float(match.group(25))
+            battery_voltage = float(match.group(26))
+            serial_number = match.group(27)
+            
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]" %(ex, self.raw_data))
                      
         result = [{DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TIMESTAMP,
-                   DataParticleKey.VALUE: ntp_timestamp}]
+                   DataParticleKey.VALUE: ntp_timestamp},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_1,
+                   DataParticleKey.VALUE: channel_1},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_2,
+                   DataParticleKey.VALUE: channel_2},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_3,
+                   DataParticleKey.VALUE: channel_3},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_4,
+                   DataParticleKey.VALUE: channel_4},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_5,
+                   DataParticleKey.VALUE: channel_5},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_6,
+                   DataParticleKey.VALUE: channel_6},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_7,
+                   DataParticleKey.VALUE: channel_7},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_8,
+                   DataParticleKey.VALUE: channel_8},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_9,
+                   DataParticleKey.VALUE: channel_9},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_10,
+                   DataParticleKey.VALUE: channel_10},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_11,
+                   DataParticleKey.VALUE: channel_11},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_12,
+                   DataParticleKey.VALUE: channel_12},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_13,
+                   DataParticleKey.VALUE: channel_13},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_14,
+                   DataParticleKey.VALUE: channel_14},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_15,
+                   DataParticleKey.VALUE: channel_15},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_16,
+                   DataParticleKey.VALUE: channel_16},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_17,
+                   DataParticleKey.VALUE: channel_17},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_18,
+                   DataParticleKey.VALUE: channel_18},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_19,
+                   DataParticleKey.VALUE: channel_19},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_20,
+                   DataParticleKey.VALUE: channel_20},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_21,
+                   DataParticleKey.VALUE: channel_21},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_22,
+                   DataParticleKey.VALUE: channel_22},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_23,
+                   DataParticleKey.VALUE: channel_23},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_24,
+                   DataParticleKey.VALUE: channel_24},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.BATTERY_VOLTAGE,
+                   DataParticleKey.VALUE: battery_voltage},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.SERIAL_NUMBER,
+                   DataParticleKey.VALUE: serial_number}]
  
         log.debug('XR_420SampleDataParticle: particle=%s' %result)
         return result
