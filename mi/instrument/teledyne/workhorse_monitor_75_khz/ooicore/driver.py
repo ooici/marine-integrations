@@ -34,6 +34,7 @@ from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentStateException
 # newline.
 NEWLINE = '\n'
 
@@ -107,7 +108,6 @@ class InstrumentCmds(BaseEnum):
 
     BREAK = 'break 500'
     ZERO_PRESSURE_READING = 'AZ'
-    FAULT_DEBUG = 'FX'                  # toggles debug flag.. <------ problem?
     EXPERT_ON = 'EXPERTON'
     EXPERT_OFF = 'EXPERTOFF'
     LIST_FIRMWARE_UPGRADES = 'OL'
@@ -115,7 +115,6 @@ class InstrumentCmds(BaseEnum):
     OUTPUT_FACTORY_CALIBRATION_DATA = 'AD'
     FIELD_CALIBRATE_COMPAS = 'AF'
     LOAD_FACTORY_CALIBRATION = 'AR'
-    ZERO_PRESSURE_SENSOR = 'AZ'
     CHOOSE_EXTERNAL_DEVICES = 'CC'
     SEND_LAST_DATA_ENSEMBLE = 'CE'
     SAVE_SETUP_TO_RAM = 'CK'
@@ -137,7 +136,7 @@ class InstrumentCmds(BaseEnum):
     GET_SYSTEM_CONFIGURATION = 'PS0'
     GET_INSTRUMENT_TRANSFORM_MATRIX = 'PS3'
     RUN_TEST = 'PT'
-
+    SET = ' '  # leading spaces are OK. set is just PARAM_NAME next to VALUE
 
 class ProtocolState(BaseEnum):
     """
@@ -147,8 +146,8 @@ class ProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    TEST = DriverProtocolState.TEST
-    POLL = DriverProtocolState.POLL
+    #TEST = DriverProtocolState.TEST
+    #POLL = DriverProtocolState.POLL
 
 
 class ProtocolEvent(BaseEnum):
@@ -185,10 +184,7 @@ class ProtocolEvent(BaseEnum):
 
     QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
 
-    #BREAK_ALARM = 'BREAK_ALARM'  ???
-    #BREAK_SUCCESS = 'BREAK_SUCCESS'
-    #SELF_DEPLOY = 'SELF_DEPLOY'
-    #POWERING_DOWN = 'POWERING_DOWN'
+
 
 
 class Capability(BaseEnum):
@@ -202,9 +198,8 @@ class Capability(BaseEnum):
     ACQUIRE_CONFIGURATION = ProtocolEvent.ACQUIRE_CONFIGURATION
     SEND_LAST_SAMPLE = ProtocolEvent.SEND_LAST_SAMPLE
     QUIT_SESSION = ProtocolEvent.QUIT_SESSION
-    SETSAMPLING = ProtocolEvent.SETSAMPLING
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
-    TEST = ProtocolEvent.TEST
+
 
 
 class Parameter(DriverParameter):
@@ -300,6 +295,13 @@ class Prompt(BaseEnum):
     COMMAND = '>'
     AUTOSAMPLE = ''
     ERR = 'ERR:'
+
+
+class ScheduledJob(BaseEnum):
+    ACQUIRE_STATUS = 'acquire_status'
+    CALIBRATION_COEFFICIENTS = 'calibration_coefficients'
+    CLOCK_SYNC = 'clock_sync'
+
 
 ###############################################################################
 # Data Particles
@@ -542,7 +544,6 @@ class ADCPT_EnsembleDataParticle(DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
     """
-    global adcpt_cache_dict
 
     _data_particle_type = DataParticleType.ENSEMBLE_PARSED
 
@@ -641,15 +642,15 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         NumCells = self.get_byte_value(s, start_index + 18)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.NUM_CELLS,
                        DataParticleKey.VALUE: NumCells})
-        adcpt_cache_dict[Parameter.NUMBER_OF_DEPTH_CELLS] = NumCells
+
         PingsPerEnsemble = self.get_word_value(s, start_index + 20)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.PINGS_PER_ENSEMBLE,
                        DataParticleKey.VALUE: PingsPerEnsemble})
-        adcpt_cache_dict[Parameter.PINGS_PER_ENSEMBLE] = PingsPerEnsemble
+        
         DepthCellLength = self.get_word_value(s, start_index + 24)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.DEPTH_CELL_LEN,
                        DataParticleKey.VALUE: DepthCellLength})
-        adcpt_cache_dict[Parameter.DEPTH_CELL_SIZE] = DepthCellLength
+        
         Blank_after_transmit = self.get_word_value(s, start_index + 28)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.BLANK_AFTER_TX,
                        DataParticleKey.VALUE: Blank_after_transmit})
@@ -659,7 +660,7 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         Low_correlation_threshold = self.get_byte_value(s, start_index + 34)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.LOW_CORR_THRESH,
                        DataParticleKey.VALUE: Low_correlation_threshold})
-        adcpt_cache_dict[Parameter.LOW_CORRELATION_THRESHOLD] = Low_correlation_threshold
+
         code_repetitions = self.get_byte_value(s, start_index + 36)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.NUM_CODE_REPS,
                        DataParticleKey.VALUE: code_repetitions})
@@ -669,13 +670,13 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         Error_velocity_maximum = self.get_word_value(s, start_index + 40)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.ERR_VEL_MAX,
                        DataParticleKey.VALUE: Error_velocity_maximum})
-        adcpt_cache_dict[Parameter.ERROR_VELOCITY_THRESHOLD] = Error_velocity_maximum
+        
         Time_between_pings = [self.get_byte_value(s, start_index + 44),
                               self.get_byte_value(s, start_index + 46),
                               self.get_byte_value(s, start_index + 48)]
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.TIME_BETWEEN_PINGS,
                        DataParticleKey.VALUE: Time_between_pings})
-        adcpt_cache_dict[Parameter.TIME_BETWEEN_PINGS] = Time_between_pings
+        
         Coordinate_transform = self.get_byte_value(s, start_index + 50)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.COORD_XFRM,
                        DataParticleKey.VALUE: Coordinate_transform})
@@ -794,7 +795,7 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         System_Power = self.get_byte_value(s, start_index + 104)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.SYS_PWR,
                        DataParticleKey.VALUE: System_Power})
-        adcpt_cache_dict[Parameter.TRANSMIT_POWER] = System_Power
+
         ###### Instrument serial number merely reported as raw string; not clear from documentation how to decode it.
         Instrument_Serial_Number = s[start_index + 108:start_index + 116]
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.INST_SN,
@@ -834,7 +835,7 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         Speed_of_sound = self.get_word_value(s, start_index + 28)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.SPEED_OF_SOUND,
                        DataParticleKey.VALUE: Speed_of_sound})
-        adcpt_cache_dict[Parameter.SPEED_OF_SOUND] = Speed_of_sound
+        
         Depth_of_transducer = self.get_word_value(s, start_index + 32)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.DEPTH_OF_XDUCER,
                        DataParticleKey.VALUE: Depth_of_transducer})
@@ -850,7 +851,7 @@ class ADCPT_EnsembleDataParticle(DataParticle):
         Salinity = self.get_word_value(s, start_index + 48)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.SALINITY,
                        DataParticleKey.VALUE: Salinity})
-        adcpt_cache_dict[Parameter.SALINITY] = Salinity
+        
         Temperature = self.get_word_value(s, start_index + 52)
         retlist.append({DataParticleKey.VALUE_ID: ADCPT_EnsembleDataParticleKey.TEMPERATURE,
                        DataParticleKey.VALUE: Temperature})
@@ -1112,7 +1113,7 @@ class ADCPT_EnsembleDataParticle(DataParticle):
                    DataParticleKey.VALUE: self.parse_data_record(data_stream, id_offset)}])
             else:
                 log.error("Data type record ID %s not recognized in build_parsed_values" % id_value)
-        log.debug("after parsing ensemble, adcpt_cache_dict is %s" % adcpt_cache_dict)        
+
         return result
 
 
@@ -1151,7 +1152,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
-    global adcpt_cache_dict
+
 
     def __init__(self, prompts, newline, driver_event):
         """
@@ -1167,123 +1168,192 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
                             ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
-        # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.BREAK_SUCCESS, self._handler_unknown_break_success)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.BREAK_ALARM, self._handler_unknown_enter)
+        # Add event handlers for protocol state machine.        
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
 
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,  self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,  self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION, self._handler_command_quit_session)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.POWERING_DOWN, self._handler_command_powering_down)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SELF_DEPLOY, self._handler_command_self_deploy)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER,                  self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT,                   self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,         self._handler_command_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,       self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,                    self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC,             self._handler_command_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC,   self._handler_command_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION,  self._handler_command_acquire_configuration)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION,           self._handler_command_quit_session)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
 
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.BREAK_SUCCESS, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,  self._handler_autosample_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,                   self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                    self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                     self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,          self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_CONFIGURATION,   self._handler_command_acquire_configuration)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,         self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SEND_LAST_SAMPLE,        self._handler_command_send_last_sample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_CLOCK_SYNC,    self._handler_autosample_clock_sync)
 
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,             self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT,   self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT,      self._handler_direct_access_stop_direct)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
 
-        # Add build handlers for device commands.
-        ### -- first the action commands
-        self._add_build_handler(InstrumentCmds.POWER_DOWN, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.START_DEPLOYMENT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.SAVE_SETUP_TO_RAM, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.SEND_LAST_DATA_ENSEMBLE, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.DISPLAY_ERROR_STATUS_WORD, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.CLEAR_ERROR_STATUS_WORD, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.DISPLAY_SYSTEM_CONFIGURATION, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.DISPLAY_TRANSFORMATION_MATRIX, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.DISPLAY_FAULT_LOG, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.CLEAR_FAULT_LOG, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.BUILT_IN_TEST, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.OUTPUT_CALIBRATION_DATA, self._build_simple_command)
+        #
+        # These will need a handful of shared functions to stage the 
+        # parameters to the commands
+        #
 
-        ### -- then the default commands (usually startup commands)
-        self._add_build_handler(InstrumentCmds.COMM_PARAMS_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.COLLECTION_MODE_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.SPEED_OF_SOUND_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.INSTRUMENT_ID_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.SALINITY_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.TIME_PER_BURST_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.ENSEMBLES_PER_BURST_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.TIME_PER_ENSEMBLE_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.TIME_OF_FIRST_PING_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.TIME_OF_FIRST_PING_Y2K_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.TIME_BETWEEN_PINGS_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.REAL_TIME_CLOCK_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.REAL_TIME_CLOCK_Y2K_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.BUFFERED_OUTPUT_PERIOD_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.NUMBER_OF_DEPTH_CELLS_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.PINGS_PER_ENSEMBLE_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.DEPTH_CELL_SIZE_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.TRANSMIT_LENGTH_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.PING_WEIGHT_DEFAULT, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.AMBIGUITY_VELOCITY_DEFAULT, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.BREAK,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.ZERO_PRESSURE_READING,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.EXPERT_ON,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.EXPERT_OFF,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.LIST_FIRMWARE_UPGRADES,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.OUTPUT_CALIBRATION_DATA,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.OUTPUT_FACTORY_CALIBRATION_DATA,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.FIELD_CALIBRATE_COMPAS,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.LOAD_FACTORY_CALIBRATION, 
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.CHOOSE_EXTERNAL_DEVICES,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SEND_LAST_DATA_ENSEMBLE,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SAVE_SETUP_TO_RAM,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.RETRIEVE_PARAMETERS,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.START_DEPLOYMENT,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.CLEAR_ERROR_STATUS_WORD,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DISPLAY_ERROR_STATUS_WORD,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.POWER_DOWN,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.LOAD_SPEED_OF_SOUND,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.GO_RAW_MODE,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.GO_REAL_MODE,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.GET_SINGLE_SCAN,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.CLEAR_FAULT_LOG,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DISPLAY_FAULT_LOG,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.TOGGLE_FAULT_LOG_DEBUG,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.RUN_PRE_DEPLOYMENT_TESTS,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.RUN_BEAM_CONTINUITY_TEST,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SHOW_HEADING_PITCH_ROLL_ORIENTATION_TEST_RESULTS,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.GET_SYSTEM_CONFIGURATION,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.RUN_TEST,
+                                self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SET,
+                                self._build_set_command)
+        #
+        # Response handlers
+        #
+        self._add_response_handler(InstrumentCmds.BREAK,
+                                self._parse_break_response)
+        self._add_response_handler(InstrumentCmds.ZERO_PRESSURE_READING,
+                                self._parse_zero_pressure_reading_response)
+        self._add_response_handler(InstrumentCmds.EXPERT_ON,
+                                self._parse_expert_on_response)
+        self._add_response_handler(InstrumentCmds.EXPERT_OFF,
+                                self._parse_expert_off_response)
+        self._add_response_handler(InstrumentCmds.LIST_FIRMWARE_UPGRADES,
+                                self._parse_list_firmware_upgrades_response)
+        self._add_response_handler(InstrumentCmds.OUTPUT_CALIBRATION_DATA,
+                                self._parse_output_calibration_data_response)
+        self._add_response_handler(InstrumentCmds.OUTPUT_FACTORY_CALIBRATION_DATA,
+                                self._parse_output_factory_calibration_data_response)
+        self._add_response_handler(InstrumentCmds.FIELD_CALIBRATE_COMPAS,
+                                self._parse_field_calibrate_compas_response)
+        self._add_response_handler(InstrumentCmds.LOAD_FACTORY_CALIBRATION,
+                                self._parse_load_factory_calibration_response)
+        self._add_response_handler(InstrumentCmds.CHOOSE_EXTERNAL_DEVICES,
+                                self._parse_choose_external_devices_response)
+        self._add_response_handler(InstrumentCmds.SEND_LAST_DATA_ENSEMBLE,
+                                self._parse_send_last_data_ensemble_response)
+        self._add_response_handler(InstrumentCmds.SAVE_SETUP_TO_RAM,
+                                self._parse_save_setup_to_ram_response)
+        self._add_response_handler(InstrumentCmds.RETRIEVE_PARAMETERS,
+                                self._parse_retrieve_parameters_response)
+        self._add_response_handler(InstrumentCmds.START_DEPLOYMENT,
+                                self._parse_start_deployment_response)
+        self._add_response_handler(InstrumentCmds.CLEAR_ERROR_STATUS_WORD,
+                                self._parse_clear_error_status_response)
+        self._add_response_handler(InstrumentCmds.DISPLAY_ERROR_STATUS_WORD,
+                                self._parse_error_status_response)
+        self._add_response_handler(InstrumentCmds.POWER_DOWN,
+                                self._parse_power_down_response)
+        self._add_response_handler(InstrumentCmds.LOAD_SPEED_OF_SOUND,
+                                self._parse_load_speed_of_sound_response)
+        self._add_response_handler(InstrumentCmds.GO_RAW_MODE,
+                                self._parse_raw_mode_response)
+        self._add_response_handler(InstrumentCmds.GO_REAL_MODE,
+                                self._parse_real_mode_response)
+        self._add_response_handler(InstrumentCmds.GET_SINGLE_SCAN,
+                                self._parse_single_scan_response)
+        self._add_response_handler(InstrumentCmds.CLEAR_FAULT_LOG,
+                                self._parse_clear_fault_log_response)
+        self._add_response_handler(InstrumentCmds.DISPLAY_FAULT_LOG,
+                                self._parse_fault_log_response)
+        self._add_response_handler(InstrumentCmds.TOGGLE_FAULT_LOG_DEBUG,
+                                self._parse_fault_log_toggle_response)
+        self._add_response_handler(InstrumentCmds.RUN_PRE_DEPLOYMENT_TESTS,
+                                self._parse_depolyment_tests)
+        self._add_response_handler(InstrumentCmds.RUN_BEAM_CONTINUITY_TEST,
+                                self._parse_beam_continuity_test)
+        self._add_response_handler(InstrumentCmds.SHOW_HEADING_PITCH_ROLL_ORIENTATION_TEST_RESULTS,
+                                self._parse_heading_pitch_roll_orientation_test_results)
+        self._add_response_handler(InstrumentCmds.GET_SYSTEM_CONFIGURATION,
+                                self._parse_system_configuration_response)
+        self._add_response_handler(InstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX,
+                                self._parse_instrument_transform_matrix_response)
+        self._add_response_handler(InstrumentCmds.RUN_TEST,
+                                self._parse_test_response)
+        self._add_response_handler(InstrumentCmds.SET,
+                                self._parse_set_response)
 
-        ### -- and finally the SET commands
-        self._add_build_handler(InstrumentCmds.SET_TRANSMIT_POWER, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_SPEED_OF_SOUND, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_SALINITY, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_TIME_PER_BURST, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_ENSEMBLES_PER_BURST, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_TIME_PER_ENSEMBLE, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_TIME_OF_FIRST_PING, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_TIME_OF_FIRST_PING_Y2K, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_TIME_BETWEEN_PINGS, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_REAL_TIME_CLOCK, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_REAL_TIME_CLOCK_Y2K, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_BUFFERED_OUTPUT_PERIOD, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_FALSE_TARGET_THRESHOLD_MAXIMUM, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_LOW_CORRELATION_THRESHOLD, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_ERROR_VELOCITY_THRESHOLD, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_CLIP_DATA_PAST_BOTTOM, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_RECEIVER_GAIN_SELECT, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_WATER_REFERENCE_LAYER, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_NUMBER_OF_DEPTH_CELLS, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_PINGS_PER_ENSEMBLE, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_DEPTH_CELL_SIZE, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_TRANSMIT_LENGTH, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_PING_WEIGHT, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_AMBIGUITY_VELOCITY, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_MODE_1_BANDWIDTH_CONTROL, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_BLANK_AFTER_TRANSMIT, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_DATA_OUT, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_INSTRUMENT_ID, self._build_set_command)
-        self._add_build_handler(InstrumentCmds.SET_WATER_PROFILING_MODE, self._build_set_command)
-
-        # Add response handlers for device commands.
-        #  self._add_response_handler(InstrumentCmds.DISPLAY_SYSTEM_CONFIGURATION, self._parse_display_system_configuration_response)
-        #  self._add_response_handler(InstrumentCmds.DISPLAY_TRANSFORMATION_MATRIX, self._parse_display_transformation_matrix_response)
-        #  self._add_response_handler(InstrumentCmds.DISPLAY_FAULT_LOG, self._parse_display_fault_log_response)
-        #  self._add_response_handler(InstrumentCmds.BUILT_IN_TEST, self._parse_built_in_test_response)
-        #  self._add_response_handler(InstrumentCmds.OUTPUT_CALIBRATION_DATA, self._parse_output_calibration_data_response)
-
-        self._add_response_handler(InstrumentCmds.DISPLAY_SYSTEM_CONFIGURATION, self._build_simple_command)
-        self._add_response_handler(InstrumentCmds.DISPLAY_TRANSFORMATION_MATRIX, self._build_simple_command)
-        self._add_response_handler(InstrumentCmds.DISPLAY_FAULT_LOG, self._build_simple_command)
-        self._add_response_handler(InstrumentCmds.BUILT_IN_TEST, self._build_simple_command)
-        self._add_response_handler(InstrumentCmds.OUTPUT_CALIBRATION_DATA, self._build_simple_command)
-
-        # Add sample handlers.
-
-        # Start state machine in UNKNOWN state.
+        # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
-        # commands sent to device to be filtered in responses for telnet DA
+        # commands sent sent to device to be
+        # filtered in responses for telnet DA
         self._sent_cmds = []
 
         self._chunker = StringChunker(Protocol.sieve_function)
+
+        self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS,
+                                  ProtocolEvent.ACQUIRE_STATUS)
+        self._add_scheduler_event(ScheduledJob.CALIBRATION_COEFFICIENTS,
+                                  ProtocolEvent.ACQUIRE_CONFIGURATION)
+        self._add_scheduler_event(ScheduledJob.CLOCK_SYNC,
+                                  ProtocolEvent.SCHEDULED_CLOCK_SYNC)
+
+
 
     def _build_simple_command(self, cmd):
         """
@@ -1305,76 +1375,21 @@ class Protocol(CommandResponseInstrumentProtocol):
     @staticmethod
     def sieve_function(raw_data):
         """
-        The method that splits samples
         Chunker sieve method to help the chunker identify chunks.
-        @returns a list of chunks identified, if any. 
-        The chunks are all the same type.
+        @returns a list of chunks identified, if any.  The chunks are all the same type.
         """
-
-        raw_data = raw_data.replace('\xef', '?')
-
-        sieve_matchers = [ENSEMBLE_REGEX_MATCHER,
-                          CALIBRATION_DATA_REGEX_MATCHER,
-                          PS0_REGEX_MATCHER,
-                          PS3_REGEX_MATCHER,
-                          FD_REGEX_MATCHER,
-                          PT200_REGEX_MATCHER,
-                          BREAK_SUCCESS_REGEX,
-                          BREAK_ALARM_REGEX,
-                          POWERING_DOWN_REGEX,
-                          ERR_REGEX]
+        sieve_matchers = [_REGEX_MATCHER,
+                          _REGEX_MATCHER,
+                          _REGEX_MATCHER,
+                          _REGEX_MATCHER,
+                          _REGEX_MATCHER,
+                          _REGEX_MATCHER]
 
         return_list = []
+
         for matcher in sieve_matchers:
-            if matcher == ENSEMBLE_REGEX_MATCHER:
-                start_pos = 0   # starting index in a string for search
-                numIDs = raw_data.count(ENSEMBLE_HEADER_ID)    # see how many ensembles to look for
-                while numIDs > 0:
-                    pos = raw_data.find(ENSEMBLE_HEADER_ID, start_pos)
-                    strip = raw_data[pos:]
-
-                    if len(strip) > ENSEMBLE_LENGTH_LOC + WORD_SIZE:  # make sure you have long-enough string to get the ensemble size
-                        ensemble_length_bytes = int(strip[ENSEMBLE_LENGTH_LOC + 2: ENSEMBLE_LENGTH_LOC + 4] + 
-                                                    strip[ENSEMBLE_LENGTH_LOC: ENSEMBLE_LENGTH_LOC + 2], 16)
-                        ensemble_length_chars = BYTE_SIZE * ensemble_length_bytes + WORD_SIZE  # size in header didn't include size of checksum word
-                        if len(strip) >= ensemble_length_chars:
-                            log.debug("sieve_function got enough data")
-                            return_list.append((pos, pos + ensemble_length_chars))
-                            start_pos += pos + ensemble_length_chars
-                        else:
-                            log.debug("sieve_function didn't get enough data")
-                    numIDs -= 1
-
-            elif matcher == BREAK_SUCCESS_REGEX:
-                ### This should not be done in the sieve. Steve F. suggets using command
-                ### responses where possible, and monitoring _linebuf() if no command is
-                ### involved.
-                ### THIS ONE WILL BE A RESPONSE TO A BREAK COMMAND; STILL UNCLEAR HOW TO
-                ### ISSUE IT.
-                pass
-            elif matcher == BREAK_ALARM_REGEX:
-                ### This should not be done in the sieve. Steve F. suggets using command
-                ### responses where possible, and monitoring _linebuf() if no command is
-                ### involved.
-                ### THIS ONE WILL BE A RESPONSE TO A BREAK COMMAND; STILL UNCLEAR HOW TO
-                ### ISSUE IT.
-                pass
-            elif matcher == POWERING_DOWN_REGEX:
-                ### This should not be done in the sieve. Steve F. suggets using command
-                ### responses where possible, and monitoring _linebuf() if no command is
-                ### involved.
-                ### THIS ONE OCCURS ASYNCHRONOUSLY. THERE IS ALSO A MESSAGE ABOUT REVERTING
-                ### TO DEPLOYED STATE, ALSO ASYNCHRONOUS.  ???
-                pass
-            elif matcher == ERR_REGEX:
-                ### This should not be done in the sieve. Steve F. suggets using command
-                ### responses where possible, and monitoring _linebuf() if no command is
-                ### involved.
-                ### THIS ONE IS DEFINITELY A RESPONSE MESSAGE!
-                pass
-            else:
-                for match in matcher.finditer(raw_data):
-                    return_list.append((match.start(), match.end()))
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
 
         return return_list
 
@@ -1401,7 +1416,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._int_to_string)
 
         self._param_dict.add(Parameter.TIME_PER_BURST,
-            r'TC (\d+) \-+ Ensembles Per Burst \(0\-65535\)',
+            r'TB (\d+:\d+:\d+.\d+) \-+ Time per Burst \(hrs:min:sec.sec/100\)',
             lambda match: datetime.strptime(match.group(1), '%H:%M:%S.%f'),
             self._datetime_with_milis_to_time_string_with_milis)
 
@@ -1411,9 +1426,9 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._int_to_string)
 
         self._param_dict.add(Parameter.TIME_PER_ENSEMBLE,
-            r'TE (\d\d:\d\d:\d\d.\d\d \-+ Time per Ensemble \(hrs:min:sec.sec/100\)',
-            lambda match: str(match.group(1)),
-            self._string_to_string)
+            r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble \(hrs:min:sec.sec/100\)',
+            lambda match: datetime.strptime(match.group(1), '%H:%M:%S.%f'),
+            self._datetime_with_milis_to_time_string_with_milis)
 
         self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
             r'TF (../../..,..:..:..) --- Time of First Ping \(yr/mon/day,hour:min:sec\)',
@@ -1777,13 +1792,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Issue display commands and parse results.
 
-        ### adcpt--send CE command to get last ensemble (wait for response)
-        ### adcpt--make sure ensemble goes through parser!!
-        ### adcpt--ok to leave new values in cache?? Steve F. 
-        ### says inefficient to call
-        ###    _build_param_dict every time.
-        self._do_cmd_no_resp(InstrumentCmds.SEND_LAST_DATA_ENSEMBLE)
-
         self._build_param_dict()
 
         # Get new param dict config. If it differs from the old config,
@@ -1834,62 +1842,172 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     ### Not sure if these are needed, since I'm creating data particles
     ### for the information.
-    def _parse_display_system_configuration_response(self, *args, **kwargs):
-        pass
 
-    def _parse_display_transformation_matrix_response(self, *args, **kwargs):
-        pass
 
-    def _parse_display_fault_log_response(self, *args, **kwargs):
-        pass
 
-    def _parse_built_in_test_response(self, *args, **kwargs):
-        pass
 
-    def _parse_output_calibration_data_response(self, *args, **kwargs):
-        pass
 
-    def _parse_display_fatory_calibration_response(self, *args, **kwargs):
-        pass
+    #REDONE#
+    def _parse_set_response(self, response, prompt):
+        """
+        Parse handler for set command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if set command misunderstood.
+        """
+
+        if prompt == Prompt.ERR:
+            raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
+
+    def _parse_break_response(self, response, prompt):
+        """
+        """
+
+    def _parse_zero_pressure_reading_response(self, response, prompt):
+        """
+        """
+
+    def _parse_fault_debug_response(self, response, prompt):
+        """
+        """
+
+    def _parse_expert_on_response(self, response, prompt):
+        """
+        """
+
+    def _parse_expert_off_response(self, response, prompt):
+        """
+        """
+
+    def _parse_list_firmware_upgrades_response(self, response, prompt):
+        """
+        """
+
+    def _parse_output_calibration_data_response(self, response, prompt):
+        """
+        """
+
+    def _parse_output_factory_calibration_data_response(self, response, prompt):
+        """
+        """
+
+    def _parse_field_calibrate_compas_response(self, response, prompt):
+        """
+        """
+
+    def _parse_load_factory_calibration_response(self, response, prompt):
+        """
+        """
+
+    def _parse_choose_external_devices_response(self, response, prompt):
+        """
+        """
+
+    def _parse_send_last_data_ensemble_response(self, response, prompt):
+        """
+        """
+
+    def _parse_save_setup_to_ram_response(self, response, prompt):
+        """
+        """
+
+    def _parse_retrieve_parameters_response(self, response, prompt):
+        """
+        """
+
+    def _parse_start_deployment_response(self, response, prompt):
+        """
+        """
+
+    def _parse_clear_error_status_response(self, response, prompt):
+        """
+        """
+
+    def _parse_error_status_response(self, response, prompt):
+        """
+        """
+
+    def _parse_power_down_response(self, response, prompt):
+        """
+        """
+
+    def _parse_load_speed_of_sound_response(self, response, prompt):
+        """
+        """
+
+    def _parse_raw_mode_response(self, response, prompt):
+        """
+        """
+
+    def _parse_real_mode_response(self, response, prompt):
+        """
+        """
+
+    def _parse_single_scan_response(self, response, prompt):
+        """
+        """
+
+    def _parse_clear_fault_log_response(self, response, prompt):
+        """
+        """
+
+    def _parse_fault_log_response(self, response, prompt):
+        """
+        """
+
+    def _parse_fault_log_toggle_response(self, response, prompt):
+        """
+        """
+
+    def _parse_depolyment_tests(self, response, prompt):
+        """
+        """
+
+    def _parse_beam_continuity_test(self, response, prompt):
+        """
+        """
+
+    def _parse_heading_pitch_roll_orientation_test_results(self, response, prompt):
+        """
+        """
+
+    def _parse_system_configuration_response(self, response, prompt):
+        """
+        """
+
+    def _parse_instrument_transform_matrix_response(self, response, prompt):
+        """
+        """
+
+    def _parse_test_response(self, response, prompt):
+        """
+        """
 
     ########################################################################
-    # Unknown handlers.
+    # handlers.
     ########################################################################
-    def _handler_unknown_break_success(self, *args, **kwargs):
-        """
-        Handles the event BREAK being successfully received by the adcpt
-        """
-        log.debug("FSM_TRACKER: in _handler_unknown_break_success")
-        next_state = ProtocolState.COMMAND
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        return(next_state)
 
-    def _handler_unknown_break_alarm(self, *args, **kwargs):
-        """
-        Handles the event BREAK-ALARM being received by the adcpt
-        and responding with this because the internal battery is low.
-        Typically don't want to deploy if this is the case.
-        """
-        log.debug("FSM_TRACKER: in _handler_unknown_break_alarm")
-        next_state = None
-        return(next_state)
 
-    def _handler_unknown_enter(self, *args, **kwargs):
+
+    def _handler_command_enter(self, *args, **kwargs):
         """
-        Enter unknown state.
+        Enter command state.
+        @throws InstrumentTimeoutException if the device cannot be woken.
+        @throws InstrumentProtocolException if the update commands and not recognized.
         """
-        log.debug("FSM_TRACKER: in _handler_unknown_enter")
+        # Command device to update parameters and send a config change event.
+
+        log.debug("*** IN _handler_command_enter(), updating params")
+        self._update_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    def _handler_unknown_exit(self, *args, **kwargs):
+    def _handler_command_exit(self, *args, **kwargs):
         """
-        Exit unknown state.
+        Exit command state.
         """
-        log.debug("FSM_TRACKER: in _handler_unknown_exit")
-
         pass
 
     def _handler_unknown_discover(self, *args, **kwargs):
@@ -1898,113 +2016,116 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval (next_state, result), (ProtocolState.COMMAND or
         State.AUTOSAMPLE, None) if successful.
         @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentStateException if the device response does not
-        correspond to an expected state.
+        @throws InstrumentStateException if the device response does not correspond to
+        an expected state.
         """
-        log.debug("FSM_TRACKER: in _handler_unknown_discover")
 
         timeout = kwargs.get('timeout', TIMEOUT)
 
+        next_state = None
+        result = None
+
         current_state = self._protocol_fsm.get_current_state()
 
-        if current_state == ProtocolState.AUTOSAMPLE:
-            result = ResourceAgentState.STREAMING
+        logging = self._is_logging(timeout=timeout)
 
-        elif current_state == ProtocolState.COMMAND:
-            result = ResourceAgentState.IDLE
-
-        elif current_state == ProtocolState.UNKNOWN:
-
-            # Wakeup the device with timeout if passed.
-
-            delay = 0.5
-
-            prompt = self._wakeup(timeout=timeout, delay=delay)
-            prompt = self._wakeup(timeout)
-            result = ResourceAgentState.IDLE
-        # Set the state to change.
-        # Raise if the prompt returned does not match command or autosample.
-
-        pd = self._param_dict.get_config()
-
-        """
-        if pd[Parameter.LOGGING] == True:
+        if logging == True:
             next_state = ProtocolState.AUTOSAMPLE
             result = ResourceAgentState.STREAMING
-        elif pd[Parameter.LOGGING] == False:
+        elif logging == False:
             next_state = ProtocolState.COMMAND
             result = ResourceAgentState.IDLE
         else:
             raise InstrumentStateException('Unknown state.')
-        """
-        next_state = ProtocolState.COMMAND
+
         return (next_state, result)
 
-    ########################################################################
-    # Command handlers.
-    ########################################################################
-    _command_set_cmds = [
-                    InstrumentCmds.COMM_PARAMS_DEFAULT]
-
-    def _handler_command_enter(self, *args, **kwargs):
+    def _handler_command_acquire_sample(self, *args, **kwargs):
         """
-        Enter command state.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not 
-        recognized.
+        Acquire sample from SBE26 Plus.
+        @retval (next_state, result) tuple, (None, sample dict).
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        @throws SampleException if a sample could not be extracted from result.
         """
-        log.debug("FSM_TRACKER: in _handler_command_enter")
 
-        instrument_setup_cmds = [
-            InstrumentCmds.COMM_PARAMS_DEFAULT,
-            InstrumentCmds.COLLECTION_MODE_DEFAULT,
-            InstrumentCmds.SPEED_OF_SOUND_DEFAULT,
-            InstrumentCmds.INSTRUMENT_ID_DEFAULT,
-            InstrumentCmds.SALINITY_DEFAULT,
-            InstrumentCmds.TIME_PER_BURST_DEFAULT,
-            InstrumentCmds.ENSEMBLES_PER_BURST_DEFAULT,
-            InstrumentCmds.TIME_PER_ENSEMBLE_DEFAULT,
-            InstrumentCmds.TIME_OF_FIRST_PING_DEFAULT,
-            InstrumentCmds.TIME_OF_FIRST_PING_Y2K_DEFAULT,
-            InstrumentCmds.TIME_BETWEEN_PINGS_DEFAULT,
-            InstrumentCmds.REAL_TIME_CLOCK_DEFAULT,
-            InstrumentCmds.REAL_TIME_CLOCK_Y2K_DEFAULT,
-            InstrumentCmds.BUFFERED_OUTPUT_PERIOD_DEFAULT,
-            InstrumentCmds.NUMBER_OF_DEPTH_CELLS_DEFAULT,
-            InstrumentCmds.PINGS_PER_ENSEMBLE_DEFAULT,
-            InstrumentCmds.DEPTH_CELL_SIZE_DEFAULT,
-            InstrumentCmds.TRANSMIT_LENGTH_DEFAULT,
-            InstrumentCmds.PING_WEIGHT_DEFAULT,
-            InstrumentCmds.AMBIGUITY_VELOCITY_DEFAULT]
-
-        # make sure comm is set up properly.
-        # send these commands first, because their default values could override
-        # something you have set if you run these last.
-
-        # Command device to update parameters and send a config change event.
-
-        self._update_params()
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        for cmd in instrument_setup_cmds:
-            result = self._do_cmd_no_resp(cmd)
-
+        next_state = None
         next_agent_state = None
         result = None
-#        next_state = ProtocolState.COMMAND
-        next_state = None
+
+        kwargs['timeout'] = 45 # samples can take a long time
+
+        result = self._do_cmd_resp(InstrumentCmds.TAKE_SAMPLE, *args, **kwargs)
+
         return (next_state, (next_agent_state, result))
 
-    def _handler_command_get(self, *args, **kwargs):
+    def _handler_autosample_enter(self, *args, **kwargs):
         """
-        Get parameter
+        Enter autosample state.
         """
-        log.debug("FSM_TRACKER: in _handler_command_get")
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_autosample_exit(self, *args, **kwargs):
+        """
+        Exit autosample state.
+        """
+        pass
+
+    def _handler_command_start_autosample(self, *args, **kwargs):
+        """
+        Switch into autosample mode.
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        kwargs['expected_prompt'] = Prompt.COMMAND
+        kwargs['timeout'] = 30
+
+        next_state = None
+        result = None
+
+        # Issue start command and switch to autosample if successful.
+        self._start_logging()
+
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+
+        return (next_state, (next_agent_state, result))
+    
+    def _handler_autosample_stop_autosample(self, *args, **kwargs):
+        """
+        Stop autosample and switch back to command mode.
+        @retval (next_state, result) tuple, (ProtocolState.COMMAND,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command misunderstood or
+        incorrect prompt received.
+        """
+        next_state = None
+        result = None
+
+        # Wake up the device, continuing until autosample prompt seen.
+        timeout = kwargs.get('timeout', TIMEOUT)
+        self._wakeup_until(timeout, Prompt.AUTOSAMPLE)
+
+        self._stop_logging(timeout)
+
         next_state = ProtocolState.COMMAND
-        self._build_param_dict()  # make sure data is up-to-date
+        next_agent_state = ResourceAgentState.COMMAND
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_autosample_test_get(self, *args, **kwargs):
+        """
+        Get device parameters from the parameter dict.
+        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
+        @throws InstrumentParameterException if missing or invalid parameter.
+        """
+        next_state = None
         result = None
 
         # Retrieve the required parameter, raise if not present.
@@ -2032,12 +2153,45 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
+    def _handler_autosample_clock_sync(self, *args, **kwargs):
+        """
+        execute a clock sync on the leading edge of a second change from
+        autosample mode.  For this command we have to move the instrument
+        into command mode, do the clock sync, then switch back.  If an
+        exception is thrown we will try to get ourselves back into
+        streaming and then raise that exception.
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+        error = None
 
-    ################################
-    # SET
-    ################################
+        try:
+            # Switch to command mode,
+            self._stop_logging()
 
-    #REDONE#
+            # Sync the clock
+            timeout = kwargs.get('timeout', TIMEOUT)
+            self._sync_clock(Parameter.DS_DEVICE_DATE_TIME, Prompt.COMMAND, timeout)
+
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            error = e
+
+        finally:
+            # Switch back to streaming
+            self._start_logging()
+
+        if(error):
+            raise error
+
+        return (next_state, (next_agent_state, result))
+
     def _handler_command_set(self, *args, **kwargs):
         """
         Perform a set command.
@@ -2067,7 +2221,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
-    #REDONE#
     def _set_params(self, *args, **kwargs):
         """
         Issue commands to the instrument to set various parameters
@@ -2105,6 +2258,144 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._update_params()
 
+    def _handler_command_acquire_status(self, *args, **kwargs):
+        """
+        @param args:
+        @param kwargs:
+        @return:
+        """
+        next_state = None
+        next_agent_state = None
+        kwargs['timeout'] = 30
+        result = self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+    
+    def _handler_command_acquire_configuration(self, *args, **kwargs):
+        """
+        @param args:
+        @param kwargs:
+        @return:
+        """
+        next_state = None
+        next_agent_state = None
+        kwargs['timeout'] = 30
+        result = self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_quit_session(self, *args, **kwargs):
+        """
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup and command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
+
+        next_state = None
+        result = None
+
+        result = self._do_cmd_no_resp(InstrumentCmds.QUIT_SESSION, *args, **kwargs)
+        return (next_state, result)
+
+    def _handler_command_clock_sync(self, *args, **kwargs):
+        """
+        execute a clock sync on the leading edge of a second change
+        @retval (next_state, result) tuple, (None, (None, )) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        timeout = kwargs.get('timeout', TIMEOUT)
+        self._sync_clock(Parameter.DS_DEVICE_DATE_TIME, Prompt.COMMAND, timeout)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_send_last_sample(self, *args, **kwargs):
+        """
+        @param args:
+        @param kwargs:
+        @return:
+        """
+        next_state = None
+        next_agent_state = None
+        kwargs['timeout'] = 30
+        result = self._do_cmd_resp(InstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_start_direct(self, *args, **kwargs):
+        """
+        """
+        next_state = None
+        result = None
+
+        next_state = ProtocolState.DIRECT_ACCESS
+        next_agent_state = ResourceAgentState.DIRECT_ACCESS
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_direct_access_enter(self, *args, **kwargs):
+        """
+        Enter direct access state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        self._sent_cmds = []
+
+    def _handler_direct_access_exit(self, *args, **kwargs):
+        """
+        Exit direct access state.
+        """
+        pass
+    
+    def _handler_direct_access_execute_direct(self, data):
+        """
+        """
+        next_state = None
+        result = None
+        next_agent_state = None
+
+        self._do_cmd_direct(data)
+
+        # add sent command to list for 'echo' filtering in callback
+        self._sent_cmds.append(data)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_direct_access_stop_direct(self):
+        """
+        @throw InstrumentProtocolException on invalid command
+        """
+
+        next_state = None
+        result = None
+
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        return (next_state, (next_agent_state, result))
+
+
+
+
+
+
+
+
+
+
+
+
     #REDONE#
     def _build_set_command(self, cmd, param, val):
         """
@@ -2127,210 +2418,22 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return set_cmd
 
-    #REDONE#
-    def _parse_set_response(self, response, prompt):
-        """
-        Parse handler for set command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if set command misunderstood.
-        """
 
-        if prompt == Prompt.ERR:
-            raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
 
-    #REDONE#
-    def _handler_command_self_deploy(self, *args, **kwargs):
-        """
-        Handler for event where adcpt automatically reverts to AUTOSAMPLE from
-        COMMAND state after several minutes of inactivity
-        """
-        log.debug("FSM_TRACKER: in _handler_autosample_self_deploy")
-        next_state = ProtocolState.AUTOSAMPLE
-        return(next_state)
 
-    def _handler_command_start_autosample(self, *args, **kwargs):
-        """
-        Go into AUTOSAMPLE state when sent command to start.
-        'CS' is the adcpt command to start sampling.
-        """
-        log.debug("FSM_TRACKER: in _handler_command_start_autosample")
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
 
-        result = None
-        return (next_state, (next_agent_state, result)) 
 
-    def _handler_command_quit_session(self, *args, **kwargs):
-        """
-        Power-down the instrument when sent a QUIT_SESSION command.
-        'CZ' is the adcpt command to power down.
-        """
-        next_state = None
 
-        result = self._do_cmd_no_resp(InstrumentCmds.POWER_DOWN, *args, **kwargs)
-        return (next_state, result)
 
-    def _handler_command_exit(self, *args, **kwargs):
-        """
-        Handles exiting the command state
-        (only possible by sending a BREAK command to the instrument)
-        """
-        global command_set_cmds
-        # send the commands that accumulated during 'execute'
-        log.debug("FSM_TRACKER: in _handler_command_exit")
 
-        final_before_deploy_cmds = [
-            InstrumentCmds.SAVE_SETUP_TO_RAM,
-            InstrumentCmds.START_DEPLOYMENT]
 
-        self._command_set_cmds.extend(final_before_deploy_cmds)
-        for cmd in self._command_set_cmds:
-            self._do_cmd_no_resp(cmd)
 
-        #send cmds sent other than minimum required
-        #send remaining min req'd cmds
 
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = None
-        result = None
-        return (next_state, (next_agent_state, result))
 
-    def _handler_command_powering_down(self, *args, **kwargs):
-        """
-        Executed when no commands have been received in several minutes
-        after entering COMMAND state.
-        """
-        log.debug("^^^^ FSM_TRACKER: in _handler_command_powering_down")
-        next_state = ProtocolState.UNKNOWN
-        return(next_state)
 
-    ########################################################################
-    # Autosample handlers.
-    ########################################################################
-    def _handler_autosample_exit(self, *args, **kwargs):
-        """
-        Called when exiting autosample state.
-        """
-        log.debug("^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_exit")
 
-    def _handler_autosample_enter(self, *args, **kwargs):
-        """
-        Called on entry to autosample state.
-        """
-        log.debug("^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_enter")
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    def _handler_autosample_break_success(self, *args, **kwargs):
-        """
-        Break was received while autosampling; return to COMMAND state.
-        """
-        log.debug("^^^^^^^ FSM_TRACKER: in _handler_autosample_break_success")
-        next_state = ProtocolState.COMMAND
-        return(next_state)
 
-    def _handler_autosample_break_alarm(self, *args, **kwargs):
-        """
-        Handles receiving a ? command while autosampling.
-        """
-        log.debug("^^^^^^^ FSM_TRACKER: in _handler_autosample_break_alarm")
-
-    def _handler_autosample_get(self, *args, **kwargs):
-        """
-        Gets the value of a parameter
-        """
-        log.debug("^^^^^^^^^^^^^^^^^^ FSM_TRACKER: in _handler_autosample_get")
-
-        self._build_param_dict()  # make sure data is up-to-date
-        next_state = None
-        result = None
-
-        # Retrieve the required parameter, raise if not present.
-        try:
-            params = args[0]
-
-        except IndexError:
-            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
-
-        # If all params requested, retrieve config.
-        if params == DriverParameter.ALL or DriverParameter.ALL in params:
-            result = self._param_dict.get_config()
-
-        # If not all params, confirm a list or tuple of params to retrieve.
-        # Raise if not a list or tuple.
-        # Retireve each key in the list, raise if any are invalid.
-
-        else:
-            if not isinstance(params, (list, tuple)):
-                raise InstrumentParameterException('Get argument not a list or tuple.')
-            result = {}
-            for key in params:
-                val = self._param_dict.get(key)
-                result[key] = val
-
-        return (next_state, result)
-
-    ########################################################################
-    # Direct access handlers.
-    ########################################################################
-
-    def _handler_command_start_direct(self, *args, **kwargs):
-        """
-        Start direct access
-        """
-
-        result = None
-
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-
-        return (next_state, (next_agent_state, result))
-
-    def _handler_direct_access_enter(self, *args, **kwargs):
-        """
-        Enter direct access state.
-        """
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-        self._sent_cmds = []
-
-    def _handler_direct_access_execute_direct(self, data):
-        """
-        Execute direct access.
-        @data The command to be added to list for 'echo' filtering
-        """
-        next_state = None
-        result = None
-        next_agent_state = None
-
-        self._do_cmd_direct(data)
-
-        # add sent command to list for 'echo' filtering in callback
-        self._sent_cmds.append(data)
-
-        return (next_state, (next_agent_state, result))
-
-    def _handler_direct_access_stop_direct(self):
-        """
-        @throw InstrumentProtocolException on invalid command
-        """
-
-        result = None
-
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        return (next_state, (next_agent_state, result))
-
-    def _handler_direct_access_exit(self, *args, **kwargs):
-        """
-        Exit direct access state.
-        """
-        pass
 
     ########################################################################
     # Static helpers to format set commands.
