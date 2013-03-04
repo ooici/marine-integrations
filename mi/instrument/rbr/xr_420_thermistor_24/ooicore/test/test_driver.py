@@ -70,7 +70,7 @@ from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import Capability
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentResponses
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import AdvancedFunctionsParameters
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import AdvancedFuntionsBits
-from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import XR_420StatusDataParticleKey
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import XR_420EngineeringDataParticleKey
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import XR_420SampleDataParticleKey
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import XR_420SampleDataParticle
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import INSTRUMENT_NEWLINE
@@ -195,29 +195,33 @@ class UtilMixin(DriverTestMixin):
                        InstrumentParameters.INHIBIT_DATA_STORAGE : 1,
                        }
     
-    """  
-    _status_parameters = {
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_A: {TYPE: int, VALUE: 1 },
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_B: {TYPE: int, VALUE: 2 },
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_C: {TYPE: int, VALUE: 3 },
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_D: {TYPE: int, VALUE: 4 },
-        Mavs4StatusDataParticleKey.COMPASS_OFFSET_0: {TYPE: int, VALUE: 5 },
-        Mavs4StatusDataParticleKey.COMPASS_OFFSET_1: {TYPE: int, VALUE: 6 },
-        Mavs4StatusDataParticleKey.COMPASS_OFFSET_2: {TYPE: int, VALUE: 7 },
-        Mavs4StatusDataParticleKey.COMPASS_SCALE_FACTORS_0: {TYPE: float, VALUE: 8.0 },
-        Mavs4StatusDataParticleKey.COMPASS_SCALE_FACTORS_1: {TYPE: float, VALUE: 9.0},
-        Mavs4StatusDataParticleKey.COMPASS_SCALE_FACTORS_2: {TYPE: float, VALUE: 10.0},
-        Mavs4StatusDataParticleKey.TILT_PITCH_OFFSET: {TYPE: int, VALUE: 11 },
-        Mavs4StatusDataParticleKey.TILT_ROLL_OFFSET: {TYPE: int, VALUE: 12 },
-        Mavs4StatusDataParticleKey.SAMPLE_PERIOD: {TYPE: float, VALUE: 13.0 },
-        Mavs4StatusDataParticleKey.SAMPLES_PER_BURST: {TYPE: int, VALUE: 14 },
-        Mavs4StatusDataParticleKey.BURST_INTERVAL_DAYS: {TYPE: int, VALUE: 15 },
-        Mavs4StatusDataParticleKey.BURST_INTERVAL_HOURS: {TYPE: int, VALUE: 16},
-        Mavs4StatusDataParticleKey.BURST_INTERVAL_MINUTES: {TYPE: int, VALUE: 17 },
-        Mavs4StatusDataParticleKey.BURST_INTERVAL_SECONDS: {TYPE: int, VALUE: 18 },
-        Mavs4StatusDataParticleKey.SI_CONVERSION: {TYPE: float, VALUE: 19.0 },
+    _engineering_parameters = {
+        XR_420EngineeringDataParticleKey.BATTERY_VOLTAGE: {TYPE: float, VALUE: 11.5916},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_1: {TYPE: float, VALUE: 21.4548},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_2: {TYPE: float, VALUE: 21.0132},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_3: {TYPE: float, VALUE: 20.9255},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_4: {TYPE: float, VALUE: 21.1266},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_5: {TYPE: float, VALUE: 21.1341},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_6: {TYPE: float, VALUE: 21.5606},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_7: {TYPE: float, VALUE: 21.2156},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_8: {TYPE: float, VALUE: 21.4749},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_9: {TYPE: float, VALUE: 21.3044},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_10: {TYPE: float, VALUE: 21.1320},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_11: {TYPE: float, VALUE: 21.1798},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_12: {TYPE: float, VALUE: 21.2352},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_13: {TYPE: float, VALUE: 21.3488},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_14: {TYPE: float, VALUE: 21.1214},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_15: {TYPE: float, VALUE: 21.6426},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_16: {TYPE: float, VALUE: 21.1479},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_17: {TYPE: float, VALUE: 21.0069},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_18: {TYPE: float, VALUE: 21.5426},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_19: {TYPE: float, VALUE: 21.3204},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_20: {TYPE: float, VALUE: 21.2402},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_21: {TYPE: float, VALUE: 21.3968},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_22: {TYPE: float, VALUE: 21.4371},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_23: {TYPE: float, VALUE: 21.0411},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_24: {TYPE: float, VALUE: 21.4361},
     }
-    """
         
     _sample_parameters = {
         XR_420SampleDataParticleKey.TIMESTAMP: {TYPE: float, VALUE: 3223662780.0},
@@ -279,14 +283,13 @@ class UtilMixin(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.SAMPLE)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
 
-    """
-    def assert_status_data_particle_header(self, data_particle, stream_name):
-        # Verify a status data particle header is formatted properly w/o port agent timestamp
+    def assert_engineering_data_particle_header(self, data_particle, stream_name):
+        # Verify a engineering data particle header is formatted properly w/o port agent timestamp
         # @param data_particle: version 1 data particle
         # @param stream_name: version 1 data particle
         
         sample_dict = self.convert_data_particle_to_dict(data_particle)
-        log.debug("assert_status_data_particle_header: SAMPLEDICT = %s" % sample_dict)
+        log.debug("assert_engineering_data_particle_header: SAMPLEDICT = %s" % sample_dict)
 
         self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME], stream_name)
         self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID], DataParticleValue.JSON_DATA)
@@ -298,16 +301,15 @@ class UtilMixin(DriverTestMixin):
         self.assertIsNotNone(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP))
         self.assertIsInstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float)
 
-    def assert_particle_status(self, data_particle, verify_values = False):
+    def assert_particle_engineering(self, data_particle, verify_values = False):
         '''
-        Verify a status data particle
+        Verify an engineering data particle
         @param data_particle:  status data particle
         @param verify_values:  bool, should we verify parameter values
         '''
-        self.assert_status_data_particle_header(data_particle, DataParticleType.STATUS)
-        self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
+        self.assert_engineering_data_particle_header(data_particle, DataParticleType.ENGINEERING)
+        self.assert_data_particle_parameters(data_particle, self._engineering_parameters, verify_values)
 
-    """
 
 #################################### RULES ####################################
 #                                                                             #
@@ -334,7 +336,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
     
-    def assert_status_particle_published(self, particle_assert_method, verify_values = False):
+    def assert_engineering_particle_published(self, particle_assert_method, verify_values = False):
         """
         Verify that we can send data through the port agent and the the correct particles
         are generated.
@@ -352,7 +354,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
             particle_dict = json.loads(p)
             stream_type = particle_dict.get('stream_name')
             self.assertIsNotNone(stream_type)
-            if(stream_type == DataParticleType.STATUS):
+            if(stream_type == DataParticleType.ENGINEERING):
                 particles.append(p)
 
         log.debug("status particles: %s " % particles)
@@ -397,10 +399,9 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         with self.assertRaises(SampleException):
             particle.generate()
          
-    @unittest.skip("skip, not finished yet")
-    def test_status_particle(self):
+    def test_engineering_particle(self):
         """
-        Verify driver produces the correct status data particle
+        Verify driver produces the correct engineering data particle
         """
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, ProtocolStates.COMMAND)
@@ -409,10 +410,10 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         _update_params_mock = Mock(spec="_update_params")
         driver._protocol._update_params = _update_params_mock
 
-        # load the status parameter values
+        # load the engineering parameter values
         pd = driver._protocol._param_dict
-        for name in self._status_parameters.keys():
-            pd.set(name, self._status_parameters[name][VALUE])
+        for name in self._engineering_parameters.keys():
+            pd.set_value(name, self._engineering_parameters[name][VALUE])
             
         # clear out any old events
         self.clear_data_particle_queue()
@@ -421,7 +422,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         driver._protocol._generate_status_event()
         
         # check that the status data particle was published
-        self.assert_status_particle_published(self.assert_particle_status, verify_values=True)
+        self.assert_engineering_particle_published(self.assert_particle_engineering, verify_values=True)
     
     def test_got_data(self):
         """

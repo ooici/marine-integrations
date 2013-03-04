@@ -78,8 +78,8 @@ SAMPLE_DATA_REGEX = re.compile(SAMPLE_DATA_PATTERN)
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    SAMPLE = 'sample'
-    STATUS = 'status'
+    SAMPLE      = 'sample'
+    ENGINEERING = 'engineering'
 
 INSTRUMENT_NEWLINE = '\r\n'
 WRITE_DELAY = 0
@@ -440,16 +440,40 @@ class XR_420SampleDataParticle(DataParticle):
         log.debug('XR_420SampleDataParticle: particle=%s' %result)
         return result
     
-class XR_420StatusDataParticleKey(BaseEnum):
-    BATTERY_VOLTAGE  = InstrumentParameters.STATUS
+class XR_420EngineeringDataParticleKey(BaseEnum):
+    BATTERY_VOLTAGE                     = InstrumentParameters.BATTERY_VOLTAGE
+    CALIBRATION_COEFFICIENTS_CHANNEL_1  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1
+    CALIBRATION_COEFFICIENTS_CHANNEL_2  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_2
+    CALIBRATION_COEFFICIENTS_CHANNEL_3  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_3
+    CALIBRATION_COEFFICIENTS_CHANNEL_4  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_4
+    CALIBRATION_COEFFICIENTS_CHANNEL_5  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_5
+    CALIBRATION_COEFFICIENTS_CHANNEL_6  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_6
+    CALIBRATION_COEFFICIENTS_CHANNEL_7  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_7
+    CALIBRATION_COEFFICIENTS_CHANNEL_8  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_8
+    CALIBRATION_COEFFICIENTS_CHANNEL_9  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_9
+    CALIBRATION_COEFFICIENTS_CHANNEL_10 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_10
+    CALIBRATION_COEFFICIENTS_CHANNEL_11 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_11
+    CALIBRATION_COEFFICIENTS_CHANNEL_12 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_12
+    CALIBRATION_COEFFICIENTS_CHANNEL_13 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_13
+    CALIBRATION_COEFFICIENTS_CHANNEL_14 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_14
+    CALIBRATION_COEFFICIENTS_CHANNEL_15 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_15
+    CALIBRATION_COEFFICIENTS_CHANNEL_16 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_16
+    CALIBRATION_COEFFICIENTS_CHANNEL_17 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_17
+    CALIBRATION_COEFFICIENTS_CHANNEL_18 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_18
+    CALIBRATION_COEFFICIENTS_CHANNEL_19 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_19
+    CALIBRATION_COEFFICIENTS_CHANNEL_20 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_20
+    CALIBRATION_COEFFICIENTS_CHANNEL_21 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_21
+    CALIBRATION_COEFFICIENTS_CHANNEL_22 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_22
+    CALIBRATION_COEFFICIENTS_CHANNEL_23 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_23
+    CALIBRATION_COEFFICIENTS_CHANNEL_24 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_24
                 
-class XR_420StatusDataParticle(DataParticle):
+class XR_420EngineeringDataParticle(DataParticle):
     """
-    Class for constructing status data into a status particle structure for the XR-420 sensor. 
+    Class for constructing engineering data into an engineering particle structure for the XR-420 sensor. 
     The raw_data variable in the DataParticle base class needs to be initialized to a reference to 
     a dictionary that contains the status parameters.
     """
-    _data_particle_type = DataParticleType.STATUS
+    _data_particle_type = DataParticleType.ENGINEERING
 
     def _build_parsed_values(self):
         """
@@ -461,14 +485,14 @@ class XR_420StatusDataParticle(DataParticle):
         if not isinstance(self.raw_data, dict):
             raise SampleException("Error: raw_data is not a dictionary")
                      
-        log.debug('XR_420StatusDataParticle: raw_data=%s' %self.raw_data)
+        log.debug('XR_420EngineeringDataParticle: raw_data=%s' %self.raw_data)
 
         result = []
         for key, value in self.raw_data.items():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
              
-        log.debug('XR_420StatusDataParticle: particle=%s' %result)
+        log.debug('XR_420EngineeringDataParticle: particle=%s' %result)
         return result
     
 ###############################################################################
@@ -1173,11 +1197,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         Update the parameter dictionary. Issue the upload command. The response
         needs to be iterated through a line at a time and valuse saved.
         @throws InstrumentTimeoutException if device cannot be timely woken.
-        @throws InstrumentProtocolException if ds/dc misunderstood.
         """
-        if self.get_current_state() != ProtocolStates.COMMAND:
-            raise InstrumentStateException('Can not perform update of parameters when not in command state',
-                                           error_code=InstErrorCode.INCORRECT_STATE)
         # Get old param dict config.
         old_config = self._param_dict.get_config()
         
@@ -1212,13 +1232,13 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         # build a dictionary of the parameters that are to be returned in the status data particle
         status_params = {}
-        for name in XR_420StatusDataParticle.list():
+        for name in XR_420EngineeringDataParticleKey.list():
             status_params[name] = self._param_dict.get(name)
             
         # Create status data particle, but pass in a reference to the dictionary just created as first parameter instead of the 'line'.
         # The status data particle class will use the 'raw_data' variable as a reference to a dictionary object to get
-        # access to parameter values (see the Mavs4StatusDataParticle class).
-        particle = XR_420StatusDataParticle(status_params, preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
+        # access to parameter values (see the Mavs4EngineeringDataParticle class).
+        particle = XR_420EngineeringDataParticle(status_params, preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
         status = particle.generate()
 
         # send particle as an event
