@@ -134,7 +134,7 @@ class UtilMixin(DriverTestMixin):
     
     TIME_TO_SET1 = '21 Feb 2002 11:18:42'
     TIME_TO_SET2 = '01 Jan 2000 12:23:00'
-    TIME_TO_SET3 = '27 Dec 2003 01:10:59'
+    TIME_TO_SET3 = '27 Dec 2023 01:10:59'
 
     ###
     #  Parameter and Type Definitions
@@ -711,8 +711,8 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet(timeout=600)
         self.assertTrue(self.tcp_client)
-        self.tcp_client.send_data("\r\n\r\n")
-        self.assertTrue(self.tcp_client.expect("Modular Acoustic Velocity Sensor"))
+        self.tcp_client.send_data("AA")
+        self.assertTrue(self.tcp_client.expect("RBR XR-420 6.810 021968"))
 
         self.assert_direct_access_stop_telnet()
 
@@ -836,11 +836,11 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         self.assert_execute_resource(ProtocolEvent.ACQUIRE_STATUS, timeout=60)
 
         # Now verify that at least the date matches
-        params = [InstrumentParameters.SYS_CLOCK]
+        params = [InstrumentParameters.LOGGER_DATE_AND_TIME]
         print("doing get resource")
         reply = self.instrument_agent_client.get_resource(params)
-        rcvd_time = reply[InstrumentParameters.SYS_CLOCK]
-        lt = time.strftime("%m/%d/%Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+        rcvd_time = reply[InstrumentParameters.LOGGER_DATE_AND_TIME]
+        lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assert_clock_set(lt, rcvd_time)
 
     def test_sample_autosample(self):

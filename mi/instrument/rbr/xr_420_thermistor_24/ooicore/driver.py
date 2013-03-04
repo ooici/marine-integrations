@@ -995,12 +995,14 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        str_time = get_timestamp_delayed("%m/%d/%Y %H:%M:%S")
+        # get time in ION format so command builder method can convert it correctly
+        str_time = get_timestamp_delayed("%d %b %Y %H:%M:%S")
         log.info("_handler_command_clock_sync: time set to %s" %str_time)
-        dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.SYS_CLOCK)
-        command = self._param_dict.get_submenu_write(InstrumentParameters.SYS_CLOCK)
-        self._navigate_and_execute(command, name=InstrumentParameters.SYS_CLOCK, value=str_time, dest_submenu=dest_submenu, timeout=5)
-
+        command = self._param_dict.get_submenu_write(InstrumentParameters.LOGGER_DATE_AND_TIME)
+        self._do_cmd_no_resp(command, InstrumentParameters.LOGGER_DATE_AND_TIME, str_time, timeout=5)
+        command = self._param_dict.get_submenu_read(InstrumentParameters.LOGGER_DATE_AND_TIME)
+        self._do_cmd_resp(command)
+        
         return (next_state, (next_agent_state, result))
 
     def _handler_command_acquire_status(self, *args, **kwargs):
