@@ -996,29 +996,6 @@ class SBEQualTestCase(SeaBirdQualificationTest, SeaBird16plusMixin):
         instrument_time = time.mktime(time.strptime(check_new_params.get(Parameter.DATE_TIME).lower(), "%d %b %Y %H:%M:%S"))
         self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 15)
 
-    def test_startup_params(self):
-        """
-        Verify that startup parameters are applied correctly. Generally this
-        happens in the driver discovery method.
-        """
-        # Explicitly verify these values after discover.  They should match
-        # what the startup values should be
-        get_values = {
-            Parameter.INTERVAL: 10,
-            Parameter.PUMP_MODE: 2,
-            Parameter.NCYCLES: 4
-        }
-
-        # Change the values of these parameters to something before the
-        # driver is reinitalized.  They should be blown away on reinit.
-        new_values = {
-            Parameter.INTERVAL: 20,
-            Parameter.PUMP_MODE: 0,
-            Parameter.NCYCLES: 6
-        }
-
-        #self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
-
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
