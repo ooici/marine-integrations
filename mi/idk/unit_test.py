@@ -857,7 +857,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
             self.assertTrue(len(subset) > 0)
 
         for item in subset:
-            self.assertTrue(item in superset, msg="%s missing from superset" % item)
+            self.assertTrue(item in superset)
 
         # This added so the unit test can set a true flag.  If we have made it
         # this far we should pass the test.
