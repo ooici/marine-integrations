@@ -430,6 +430,25 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         self.errorCallbackCalled = True
         print "Got error: " +  errorString + "\r\n"
                        
+    def init_instrument_simulator(self):
+        """
+        Startup a TCP server that we can use as an instrument simulator
+        """
+        self._instrument_simulator = TCPSimulatorServer()
+        self.addCleanup(self._instrument_simulator.close)
+
+        # Wait for the simulator to bind to a port
+        timeout = time.time() + 10
+        while (timeout > time.time()):
+            if (self._instrument_simulator.port > 0):
+                log.debug("Instrument simulator initialized on port %s" % self._instrument_simulator.port)
+                return
+
+            log.debug("waiting for simulator to bind. sleeping")
+            time.sleep(1)
+
+        raise IDKException("Timeout waiting for simulator to bind")
+
     def init_port_agent(self):
         """
         @brief Launch the driver process and driver client.  This is used in the
@@ -445,16 +464,8 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
 
         #comm_config = self.get_comm_config()
 
-        config = {
-            'device_addr' : self.ipaddr,
-            'device_port' : self.device_port,
-
-            'command_port': self.cmd_port,
-            'data_port': self.data_port,
-
-            'process_type': PortAgentProcessType.UNIX,
-            'log_level': 5,
-        }
+        config = self.port_agent_config()
+        log.debug("port agent config: %s" % config)
 
         port_agent = PortAgentProcess.launch_process(config, timeout = 60, test_mode = True)
 
@@ -472,14 +483,12 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         Overload the default port agent configuration so that
         it connects to a simulated TCP connection.
         """
-        comm_config = self.get_comm_config()
-
         config = {
-            'device_addr' : comm_config.device_addr,
-            'device_port' : comm_config.device_port,
+            'device_addr' : self.ipaddr,
+            'device_port' : self.device_port,
 
-            'command_port': comm_config.command_port,
-            'data_port': comm_config.data_port,
+            'command_port': self.cmd_port,
+            'data_port': self.data_port,
 
             'process_type': PortAgentProcessType.UNIX,
             'log_level': 5,
@@ -501,22 +510,29 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         
         self.assertTrue(self.errorCallbackCalled)
     
-    @unittest.skip('Need to add instrument simulator (listener or instrument port')
+    #@unittest.skip('Need to add instrument simulator (listener or instrument port')
     def test_start_paClient_with_port_agent(self):
 
-        print "port agent client test begin"
+        self.init_instrument_simulator()
         self.startPortAgent()
+
         paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
         
         paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
         
-        paClient.send("this is a great big test")
+        data = "this is a great big test"
+        paClient.send(data)
         
         time.sleep(1)
+
+        self._instrument_simulator.send(data)
         
+        time.sleep(5)
+
         paClient.stop_comms()
         
-        
+        self.assertTrue(self.rawCallbackCalled)
+        self.assertTrue(self.dataCallbackCalled)
     
     
     
