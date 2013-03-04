@@ -106,7 +106,7 @@ class DataParticle(object):
         #if(not self._check_timestamp(timestamp)):
         #    raise InstrumentParameterException("invalid timestamp")
 
-        self.contents[DataParticleKey.INTERNAL_TIMESTAMP] = timestamp
+        self.contents[DataParticleKey.INTERNAL_TIMESTAMP] = float(timestamp)
 
     def set_value(self, id, value):
         """
@@ -171,6 +171,8 @@ class DataParticle(object):
         result = self._build_base_structure()
         result[DataParticleKey.STREAM_NAME] = self.data_particle_type()
         result[DataParticleKey.VALUES] = values
+
+        log.debug("Serialize result: %s" % result)
 
         # JSONify response, sorting is nice for testing
         json_result = json.dumps(result, sort_keys=True)

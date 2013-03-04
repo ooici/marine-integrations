@@ -33,7 +33,7 @@ from mi.idk.unit_test import DriverStartupConfigKey
 
 InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id = '123xyz',
-    instruemnt_agent_preload_id = 'IA4',
+    instrument_agent_preload_id = 'IA4',
     instrument_agent_name = 'Agent007',
     instrument_agent_packet_config = DataParticleType(),
 

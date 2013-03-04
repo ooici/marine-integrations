@@ -360,6 +360,7 @@ class TestDriverFileList(IDKPackageNose):
                       'mi/foo/res/test_file',
                       'mi/foo/test/__init__.py',
                       'mi/foo/test/test_process.py',
+                      'res/config/mi-logging.yml'
         ]
         
         files = filelist.files()
@@ -492,7 +493,8 @@ class TestDriverEggGenerator(IDKPackageNose):
 
     def test_egg_build(self):
         files = [ 'mi/instrument/seabird/sbe37smb/example/driver.py',
-                  'mi/instrument/seabird/sbe37smb/example/test/test_driver.py']
+                  'mi/instrument/seabird/sbe37smb/example/test/test_driver.py',
+                  'res/config/mi-logging.yml']
 
         egg_file = self._generator._build_egg(files)
         self.assertTrue(exists(egg_file))
