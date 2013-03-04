@@ -196,31 +196,31 @@ class UtilMixin(DriverTestMixin):
                        }
     
     _engineering_parameters = {
-        XR_420EngineeringDataParticleKey.BATTERY_VOLTAGE: {TYPE: float, VALUE: 11.5916},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_1: {TYPE: float, VALUE: 21.4548},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_2: {TYPE: float, VALUE: 21.0132},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_3: {TYPE: float, VALUE: 20.9255},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_4: {TYPE: float, VALUE: 21.1266},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_5: {TYPE: float, VALUE: 21.1341},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_6: {TYPE: float, VALUE: 21.5606},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_7: {TYPE: float, VALUE: 21.2156},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_8: {TYPE: float, VALUE: 21.4749},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_9: {TYPE: float, VALUE: 21.3044},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_10: {TYPE: float, VALUE: 21.1320},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_11: {TYPE: float, VALUE: 21.1798},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_12: {TYPE: float, VALUE: 21.2352},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_13: {TYPE: float, VALUE: 21.3488},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_14: {TYPE: float, VALUE: 21.1214},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_15: {TYPE: float, VALUE: 21.6426},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_16: {TYPE: float, VALUE: 21.1479},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_17: {TYPE: float, VALUE: 21.0069},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_18: {TYPE: float, VALUE: 21.5426},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_19: {TYPE: float, VALUE: 21.3204},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_20: {TYPE: float, VALUE: 21.2402},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_21: {TYPE: float, VALUE: 21.3968},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_22: {TYPE: float, VALUE: 21.4371},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_23: {TYPE: float, VALUE: 21.0411},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_24: {TYPE: float, VALUE: 21.4361},
+        XR_420EngineeringDataParticleKey.BATTERY_VOLTAGE: {TYPE: float},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_1: {TYPE: list, VALUE: [0.00348434592083916, -0.00025079534389118, 2.46625541318206e-06, -4.68427140350704e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_2: {TYPE: list, VALUE: [0.00350431927843206, -0.000251204828829799, 2.47944749760338e-06, -6.07097826319064e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_3: {TYPE: list, VALUE: [0.00345245367779891, -0.000249630218352203, 2.42311925467998e-06, -6.44890925539532e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_4: {TYPE: list, VALUE: [0.00352560682330522, -0.000250866602804003, 2.52838011189997e-06, -6.59845645057904e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_5: {TYPE: list, VALUE: [0.00349238911184589, -0.000250387621319053, 2.46469119446334e-06, -6.52907822336288e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_6: {TYPE: list, VALUE: [0.00347069636129611, -0.000250240094109838, 2.42229283361364e-06, -4.45003789108644e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_7: {TYPE: list, VALUE: [0.00350890530165844, -0.000251515584649114, 2.51112506349963e-06, -4.38077113777949e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_8: {TYPE: list, VALUE: [0.00350614509888292, -0.000250869607382059, 2.4673223724984e-06, -6.34255414457636e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_9: {TYPE: list, VALUE: [0.00346875161001148, -0.000249917885668956, 2.4462460817433e-06, -6.16521743719807e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_10: {TYPE: list, VALUE: [0.00348513782969848, -0.000251026521664712, 2.43691281012686e-06, -6.20043955328834e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_11: {TYPE: list, VALUE: [0.00347506508740299, -0.000249823064086735, 2.47364969392914e-06, -5.08520514692428e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_12: {TYPE: list, VALUE: [0.00346221865821905, -0.000249968110400968, 2.41607029745207e-06, -6.43739826056667e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_13: {TYPE: list, VALUE: [0.00346881396800936, -0.000250736831210758, 2.38580390197586e-06, -5.80406598258295e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_14: {TYPE: list, VALUE: [0.00351117015857009, -0.000251024826040815, 2.51659427750457e-06, -5.45877098086669e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_15: {TYPE: list, VALUE: [0.00345108841668974, -0.000249303524732281, 2.46289905716957e-06, -5.30152030837836e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_16: {TYPE: list, VALUE: [0.00346592828894553, -0.000250344084236676, 2.48384257560737e-06, -4.34686667325137e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_17: {TYPE: list, VALUE: [0.0035271618376036, -0.000251223111896753, 2.50684094979287e-06, -6.07732409715931e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_18: {TYPE: list, VALUE: [0.00353778079506935, -0.000251533918261812, 2.52193374386203e-06, -6.78165294521451e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_19: {TYPE: list, VALUE: [0.00353435662461817, -0.000251991786768581, 2.50186675120244e-06, -5.26462032302453e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_20: {TYPE: list, VALUE: [0.00350827427940715, -0.000251225212724367, 2.46789518571518e-06, -6.02627979813181e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_21: {TYPE: list, VALUE: [0.00354312989778391, -0.000251153531111239, 2.54839417555195e-06, -6.22674006461501e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_22: {TYPE: list, VALUE: [0.0034724148801051, -0.000249639133047429, 2.48834421114212e-06, -5.3619098270147e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_23: {TYPE: list, VALUE: [0.0034824744494318, -0.000250065611772488, 2.47012874159369e-06, -4.45481883026538e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_24: {TYPE: list, VALUE: [0.00351750580977995, -0.000250840574934303, 2.52129990230494e-06, -5.2796149358899e-08]},
     }
         
     _sample_parameters = {
@@ -271,7 +271,7 @@ class UtilMixin(DriverTestMixin):
         ntp_rcvd_timestamp = ntplib.system_to_ntp_time(time.mktime(rcvd_timestamp))
         # verify that the times match closely
         print("sts=%d, rts=%d" %(ntp_sent_timestamp, ntp_rcvd_timestamp))
-        if ntp_rcvd_timestamp - ntp_sent_timestamp > 5:
+        if ntp_rcvd_timestamp - ntp_sent_timestamp > 3:
             self.fail("time delta too large after clock sync")        
     
     def assert_particle_sample(self, data_particle, verify_values = False):
@@ -301,7 +301,7 @@ class UtilMixin(DriverTestMixin):
         self.assertIsNotNone(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP))
         self.assertIsInstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float)
 
-    def assert_particle_engineering(self, data_particle, verify_values = False):
+    def assert_particle_engineering(self, data_particle, verify_values = True):
         '''
         Verify an engineering data particle
         @param data_particle:  status data particle
@@ -570,29 +570,33 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
     def test_read_only_parameters(self):
         self.assert_initialize_driver()
 
-        self.assert_set_readonly(InstrumentParameters.VELOCITY_OFFSET_PATH_A)
-        self.assert_set_readonly(InstrumentParameters.VELOCITY_OFFSET_PATH_B)
-        self.assert_set_readonly(InstrumentParameters.VELOCITY_OFFSET_PATH_C)
-        self.assert_set_readonly(InstrumentParameters.VELOCITY_OFFSET_PATH_D)
-        self.assert_set_readonly(InstrumentParameters.COMPASS_OFFSET_0)
-        self.assert_set_readonly(InstrumentParameters.COMPASS_OFFSET_1)
-        self.assert_set_readonly(InstrumentParameters.COMPASS_OFFSET_2)
-        self.assert_set_readonly(InstrumentParameters.COMPASS_SCALE_FACTORS_0)
-        self.assert_set_readonly(InstrumentParameters.COMPASS_SCALE_FACTORS_1)
-        self.assert_set_readonly(InstrumentParameters.COMPASS_SCALE_FACTORS_2)
-        self.assert_set_readonly(InstrumentParameters.TILT_PITCH_OFFSET)
-        self.assert_set_readonly(InstrumentParameters.TILT_ROLL_OFFSET)
-        self.assert_set_readonly(InstrumentParameters.VELOCITY_FRAME)
-        self.assert_set_readonly(InstrumentParameters.WARM_UP_INTERVAL)
-        self.assert_set_readonly(InstrumentParameters.THREE_AXIS_COMPASS)
-        self.assert_set_readonly(InstrumentParameters.SOLID_STATE_TILT)
-        self.assert_set_readonly(InstrumentParameters.THERMISTOR)
-        self.assert_set_readonly(InstrumentParameters.PRESSURE)
-        self.assert_set_readonly(InstrumentParameters.AUXILIARY_1)
-        self.assert_set_readonly(InstrumentParameters.AUXILIARY_2)
-        self.assert_set_readonly(InstrumentParameters.AUXILIARY_3)
-        self.assert_set_readonly(InstrumentParameters.SENSOR_ORIENTATION)
-        self.assert_set_readonly(InstrumentParameters.SERIAL_NUMBER)
+        self.assert_set_readonly(InstrumentParameters.STATUS)
+        self.assert_set_readonly(InstrumentParameters.IDENTIFICATION)
+        self.assert_set_readonly(InstrumentParameters.BATTERY_VOLTAGE)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_2)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_3)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_4)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_5)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_6)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_7)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_8)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_9)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_10)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_11)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_12)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_13)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_14)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_15)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_16)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_17)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_18)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_19)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_20)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_21)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_22)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_23)
+        self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_24)
     
     def test_instrumment_start_stop_autosample(self):
         """
@@ -631,8 +635,8 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         self.assert_current_state(ProtocolStates.AUTOSAMPLE)
            
         # wait for some samples to be generated
-        log.debug('test_instrument_start_stop_autosample: waiting 5 seconds for samples')
-        gevent.sleep(5)
+        log.debug('test_instrument_start_stop_autosample: waiting 45 seconds for samples')
+        gevent.sleep(45)
 
         # Verify we received at least 2 samples.
         sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
@@ -660,7 +664,7 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         """
         self.assert_initialize_driver()
 
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.STATUS, self.assert_particle_status, delay=20)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.ENGINEERING, self.assert_particle_engineering, delay=10)
         
 
 ###############################################################################

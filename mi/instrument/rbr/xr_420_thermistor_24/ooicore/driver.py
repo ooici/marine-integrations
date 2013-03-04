@@ -489,6 +489,7 @@ class XR_420EngineeringDataParticle(DataParticle):
 
         result = []
         for key, value in self.raw_data.items():
+            log.debug('_build_parsed_values: %s = %s' %(key, value))
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
              
@@ -880,7 +881,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             log.debug('_handler_command_set: cmd=%s, name=%s, value=%s' %(command, key, val))
             self._do_cmd_no_resp(command, key, val, timeout=5)
 
-        self._update_params()
+        self._update_params(called_from_set=True)
             
         return (next_state, result)
 
@@ -1198,6 +1199,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         needs to be iterated through a line at a time and valuse saved.
         @throws InstrumentTimeoutException if device cannot be timely woken.
         """
+        called_from_set = kwargs.get('called_from_set', False)
+
         # Get old param dict config.
         old_config = self._param_dict.get_config()
         
@@ -1207,6 +1210,10 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             if key == InstrumentParameters.ALL:
                 # this is not the name of any parameter
                 continue
+            if 'calibration_coefficients_channel' in key:
+                if called_from_set:
+                    # only get calibration values when entering command mode, not after sets
+                    continue
             if key in AdvancedFunctionsParameters.list():
                 if advanced_functions_already_gotten:
                     continue
