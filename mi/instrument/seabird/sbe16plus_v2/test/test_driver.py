@@ -24,38 +24,23 @@ __license__ = 'Apache 2.0'
 
 # Standard lib imports
 import time
-import unittest
 
 # 3rd party imports
 from nose.plugins.attrib import attr
 from mock import Mock
-from mock import patch
-from pyon.core.bootstrap import CFG
 
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
 
-from interface.objects import AgentCommand
-from mi.core.common import BaseEnum
-
-from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
-
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverConnectionState
-from mi.core.instrument.instrument_driver import DriverProtocolState
-from mi.core.instrument.instrument_driver import DriverEvent
-from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.chunker import StringChunker
 
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
 
-from mi.core.exceptions import InstrumentException
-from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentProtocolException
-from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16Protocol
@@ -63,9 +48,9 @@ from mi.instrument.seabird.sbe16plus_v2.driver import SBE16InstrumentDriver
 from mi.instrument.seabird.sbe16plus_v2.driver import DataParticleType
 from mi.instrument.seabird.sbe16plus_v2.driver import ConfirmedParameter
 from mi.instrument.seabird.sbe16plus_v2.driver import NEWLINE
-from mi.instrument.seabird.sbe16plus_v2.driver import SBE16DataParticle, SBE16DataParticleKey
-from mi.instrument.seabird.sbe16plus_v2.driver import SBE16StatusParticle, SBE16StatusParticleKey
-from mi.instrument.seabird.sbe16plus_v2.driver import SBE16CalibrationParticle, SBE16CalibrationParticleKey
+from mi.instrument.seabird.sbe16plus_v2.driver import SBE16DataParticleKey
+from mi.instrument.seabird.sbe16plus_v2.driver import SBE16StatusParticleKey
+from mi.instrument.seabird.sbe16plus_v2.driver import SBE16CalibrationParticleKey
 from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolState
 from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolEvent
 from mi.instrument.seabird.sbe16plus_v2.driver import ScheduledJob
@@ -73,18 +58,14 @@ from mi.instrument.seabird.sbe16plus_v2.driver import Capability
 from mi.instrument.seabird.sbe16plus_v2.driver import Parameter
 from mi.instrument.seabird.sbe16plus_v2.driver import Command
 from mi.instrument.seabird.sbe16plus_v2.driver import Prompt
-
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+from mi.instrument.seabird.driver import SBE_EPOCH
 
 from mi.instrument.seabird.test.test_driver import SeaBirdUnitTest
 from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
 from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
 from mi.instrument.seabird.test.test_driver import SeaBirdPublicationTest
-from mi.core.instrument.chunker import StringChunker
 
 from pyon.agent.agent import ResourceAgentState
-from pyon.agent.agent import ResourceAgentEvent
-from pyon.core.exception import Conflict
 
 ###
 # Test Inputs
@@ -223,7 +204,7 @@ class SeaBird16plusMixin(DriverTestMixin):
         Parameter.GTD : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.OPTODE : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.SYNCMODE : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
-        Parameter.SYNCWAIT : {TYPE: bool, READONLY: True, DA: True, STARTUP: False, DEFAULT: 0, VALUE: 0, REQUIRED: False},
+        Parameter.SYNCWAIT : {TYPE: bool, READONLY: True, DA: False, STARTUP: False, DEFAULT: 0, VALUE: 0, REQUIRED: False},
         Parameter.OUTPUT_FORMAT : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.LOGGING : {TYPE: bool, READONLY: True, DA: False, STARTUP: False},
     }
@@ -557,8 +538,11 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_START_DIRECT',
                                     'PROTOCOL_EVENT_GET_CONFIGURATION',
+                                    'PROTOCOL_EVENT_RESET_EC',
+                                    'PROTOCOL_EVENT_QUIT_SESSION',
                                     'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
+                                       'PROTOCOL_EVENT_QUIT_SESSION',
                                        'DRIVER_EVENT_STOP_AUTOSAMPLE',
                                        'PROTOCOL_EVENT_GET_CONFIGURATION',
                                        'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC',
@@ -705,6 +689,9 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         """
         self.assert_initialize_driver()
 
+        # Verify we can set the clock
+        self.assert_set_clock(Parameter.DATE_TIME, tolerance=5)
+
         # Verify we can set all parameters in bulk
         new_values = {
             Parameter.INTERVAL: 20,
@@ -790,12 +777,13 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         }
 
         self.assert_initialize_driver()
-
-        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
+        #self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
         # Start autosample and try again
+        self.assert_set_bulk(new_values)
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
-        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
+        self.assert_startup_parameters(self.assert_driver_parameters)
+        self.assert_current_state(ProtocolEvent.START_AUTOSAMPLE)
 
     def test_commands(self):
         """
@@ -806,11 +794,13 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         ####
         # First test in command mode
         ####
+        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
+        self.assert_driver_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        self.assert_driver_command(ProtocolEvent.QUIT_SESSION)
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'serial sync mode')
-        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
-        self.assert_driver_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        self.assert_driver_command(ProtocolEvent.RESET_EC)
 
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'serial sync mode')
         self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION, regex=r'EXTFREQSF =')
@@ -824,6 +814,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         self.assert_driver_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'serial sync mode')
         self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION, regex=r'EXTFREQSF =')
+        self.assert_driver_command(ProtocolEvent.QUIT_SESSION)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
@@ -861,6 +852,84 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_status)
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.CTD_PARSED, self.assert_particle_sample)
 
+    ###
+    #   Test scheduled events
+    ###
+    def assert_calibration_coefficients(self):
+        """
+        Verify a calibration particle was generated
+        """
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration_strain, timeout=120)
+
+    def test_scheduled_device_configuration_command(self):
+        """
+        Verify the device configuration command can be triggered and run in command
+        """
+        self.assert_scheduled_event(ScheduledJob.CONFIGURATION_DATA, self.assert_calibration_coefficients, delay=120)
+        self.assert_current_state(ProtocolState.COMMAND)
+
+    def test_scheduled_device_configuration_autosample(self):
+        """
+        Verify the device configuration command can be triggered and run in autosample
+        """
+        self.assert_scheduled_event(ScheduledJob.CONFIGURATION_DATA, self.assert_calibration_coefficients,
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=180)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+
+    def assert_acquire_status(self):
+        """
+        Verify a status particle was generated
+        """
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_status, timeout=120)
+
+    def test_scheduled_device_status_command(self):
+        """
+        Verify the device status command can be triggered and run in command
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status, delay=100)
+        self.assert_current_state(ProtocolState.COMMAND)
+
+    def test_scheduled_device_status_autosample(self):
+        """
+        Verify the device status command can be triggered and run in autosample
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status,
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=180)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+
+    def test_scheduled_clock_sync_command(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        timeout = 85
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=timeout)
+        self.assert_current_state(ProtocolState.COMMAND)
+
+        # Set the clock to some time in the past
+        self.assert_set_clock(Parameter.DATE_TIME, time_override=SBE_EPOCH)
+
+        # Check the clock until it is set correctly (by a schedued event)
+        self.assert_clock_set(Parameter.DATE_TIME, sync_clock_cmd=ProtocolEvent.GET_CONFIGURATION, timeout=timeout)
+
+    def test_scheduled_clock_sync_autosample(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        timeout = 240
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=timeout)
+        self.assert_current_state(ProtocolState.COMMAND)
+
+        # Set the clock to some time in the past
+        self.assert_set_clock(Parameter.DATE_TIME, time_override=SBE_EPOCH)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
+
+        # Check the clock until it is set correctly (by a scheduled event)
+        self.assert_clock_set(Parameter.DATE_TIME, sync_clock_cmd=ProtocolEvent.GET_CONFIGURATION, timeout=timeout, tolerance=10)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -882,7 +951,7 @@ class SBEQualTestCase(SeaBirdQualificationTest, SeaBird16plusMixin):
         self.assert_sample_autosample(self.assert_particle_sample, DataParticleType.CTD_PARSED)
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status, DataParticleType.DEVICE_STATUS, sample_count=1)
-        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1)
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration_strain, DataParticleType.DEVICE_CALIBRATION, sample_count=1)
 
     def test_poll(self):
         '''
@@ -893,26 +962,25 @@ class SBEQualTestCase(SeaBirdQualificationTest, SeaBird16plusMixin):
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sample, DataParticleType.CTD_PARSED, sample_count=1)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status, DataParticleType.DEVICE_STATUS, sample_count=1)
-        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1)
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration_strain, DataParticleType.DEVICE_CALIBRATION, sample_count=1)
 
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
         self.assert_enter_command_mode()
-        self.assert_set_parameter(Parameter.INTERVAL, 5)
+        self.assert_set_parameter(Parameter.INTERVAL, 10)
 
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet(timeout=600)
-        self.assertTrue(self.tcp_client)
         self.tcp_client.send_data("%sampleinterval=97%s" % (NEWLINE, NEWLINE))
-        self.tcp_client.expect("S>")
+        self.tcp_client.expect(Prompt.EXECUTED)
 
         self.assert_direct_access_stop_telnet()
 
         # verify the setting got restored.
         self.assert_enter_command_mode()
-        self.assert_get_parameter(Parameter.INTERVAL, 5)
+        self.assert_get_parameter(Parameter.INTERVAL, 10)
 
     def test_execute_clock_sync(self):
         """
@@ -920,25 +988,19 @@ class SBEQualTestCase(SeaBirdQualificationTest, SeaBird16plusMixin):
         """
         self.assert_enter_command_mode()
 
-        # Set the clock to something in the past
-        self.assert_set_parameter(Parameter.DATE_TIME, "2001-01-01T01:01:01", verify=False)
-
         self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
         self.assert_execute_resource(ProtocolEvent.ACQUIRE_STATUS)
 
         # Now verify that at least the date matches
-        params = [Parameter.DATE_TIME]
-        check_new_params = self.instrument_agent_client.get_resource(params)
-        lt = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
-        log.debug("TIME: %s && %s" % (lt, check_new_params[Parameter.DATE_TIME]))
-        self.assertTrue(lt[:12].upper() in check_new_params[Parameter.DATE_TIME].upper())
+        check_new_params = self.instrument_agent_client.get_resource([Parameter.DATE_TIME])
+        instrument_time = time.mktime(time.strptime(check_new_params.get(Parameter.DATE_TIME).lower(), "%d %b %Y %H:%M:%S"))
+        self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 15)
 
     def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
         happens in the driver discovery method.
         """
-
         # Explicitly verify these values after discover.  They should match
         # what the startup values should be
         get_values = {
@@ -955,7 +1017,7 @@ class SBEQualTestCase(SeaBirdQualificationTest, SeaBird16plusMixin):
             Parameter.NCYCLES: 6
         }
 
-        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
+        #self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
     def test_get_capabilities(self):
         """
@@ -971,9 +1033,14 @@ class SBEQualTestCase(SeaBirdQualificationTest, SeaBird16plusMixin):
             AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
             AgentCapabilityType.RESOURCE_COMMAND: [
-                ProtocolEvent.START_AUTOSAMPLE,
-                ProtocolEvent.ACQUIRE_STATUS,
+                ProtocolEvent.TEST,
+                ProtocolEvent.GET,
+                ProtocolEvent.SET,
+                ProtocolEvent.RESET_EC,
                 ProtocolEvent.CLOCK_SYNC,
+                ProtocolEvent.QUIT_SESSION,
+                ProtocolEvent.ACQUIRE_STATUS,
+                ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.GET_CONFIGURATION,
                 ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
@@ -988,7 +1055,9 @@ class SBEQualTestCase(SeaBirdQualificationTest, SeaBird16plusMixin):
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+            ProtocolEvent.GET,
             ProtocolEvent.STOP_AUTOSAMPLE,
+            ProtocolEvent.QUIT_SESSION,
             ProtocolEvent.ACQUIRE_STATUS,
             ProtocolEvent.GET_CONFIGURATION,
             ]

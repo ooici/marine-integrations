@@ -56,12 +56,12 @@ from mi.instrument.seabird.driver import DEFAULT_ENCODER_KEY
 ERROR_PATTERN = r"<ERROR type='(.*?)' msg='(.*?)'\/>"
 ERROR_REGEX   = re.compile(ERROR_PATTERN, re.DOTALL)
 
+LOGGING_PATTERN = r'<LoggingState>(.*?)</LoggingState>'
+LOGGING_REGEX = re.compile(LOGGING_PATTERN, re.DOTALL)
+
 class ScheduledJob(BaseEnum):
     ACQUIRE_STATUS = 'acquire_status'
     CONFIGURATION_DATA = "configuration_data"
-    STATUS_DATA = "status_data"
-    EVENT_COUNTER_DATA = "event_counter"
-    HARDWARE_DATA = "hardware_data"
     CLOCK_SYNC = 'clock_sync'
 
 class Command(BaseEnum):
@@ -75,6 +75,9 @@ class Command(BaseEnum):
         TP = 'tp'
         SET = 'set'
         GETCD = 'getcd'
+        GETSD = 'getsd'
+        QS = 'qs'
+        RESET_EC = 'ResetEC'
 
 class ProtocolState(BaseEnum):
     """
@@ -108,6 +111,8 @@ class ProtocolEvent(BaseEnum):
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     SCHEDULED_CLOCK_SYNC = DriverEvent.SCHEDULED_CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+    QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
+    RESET_EC = 'PROTOCOL_EVENT_RESET_EC'
 
 class Capability(BaseEnum):
     """
@@ -115,6 +120,7 @@ class Capability(BaseEnum):
     """
     GET = DriverEvent.GET
     SET = DriverEvent.SET
+    QUIT_SESSION = ProtocolEvent.QUIT_SESSION
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
@@ -122,7 +128,7 @@ class Capability(BaseEnum):
     GET_CONFIGURATION = ProtocolEvent.GET_CONFIGURATION
     TEST = DriverEvent.TEST
     DISCOVER = DriverEvent.DISCOVER
-
+    RESET_EC = ProtocolEvent.RESET_EC
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -404,7 +410,7 @@ class SBE16StatusParticle(SeaBirdParticle):
             SBE16StatusParticleKey.VLITH : r'vlith = *(\d+.\d+),',
             SBE16StatusParticleKey.IOPER : r'ioper = *(\d+.\d+) [a-zA-Z]+',
             SBE16StatusParticleKey.IPUMP : r'ipump = *(\d+.\d+) [a-zA-Z]+',
-            SBE16StatusParticleKey.STATUS : r'status = *(\w+ +\w+)',
+            SBE16StatusParticleKey.STATUS : r'status = *(.*)',
             SBE16StatusParticleKey.SAMPLES : r'samples = *(\d+)',
             SBE16StatusParticleKey.FREE : r'free = *(\d+)',
             SBE16StatusParticleKey.SAMPLE_INTERVAL : r'sample interval = *(\d+ *\w+),',
@@ -731,22 +737,25 @@ class SBE16Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION, self._handler_command_autosample_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_CONFIGURATION, self._handler_command_get_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.RESET_EC, self._handler_command_reset_ec)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST, self._handler_command_test)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync_clock)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_command_clock_sync_clock)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.QUIT_SESSION, self._handler_command_autosample_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET_CONFIGURATION, self._handler_command_get_configuration)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS, self._handler_autosample_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET_CONFIGURATION, self._handler_autosample_get_configuration)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_autosample_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.ENTER, self._handler_test_enter)
         self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.EXIT, self._handler_test_exit)
@@ -764,7 +773,6 @@ class SBE16Protocol(SeaBirdProtocol):
 
         # Add build handlers for device commands.
         self._add_build_handler(Command.DS, self._build_simple_command)
-        # DHE dcal replaces dc
         self._add_build_handler(Command.DCAL, self._build_simple_command)
         self._add_build_handler(Command.TS, self._build_simple_command)
         self._add_build_handler(Command.STARTNOW, self._build_simple_command)
@@ -773,6 +781,9 @@ class SBE16Protocol(SeaBirdProtocol):
         self._add_build_handler(Command.TT, self._build_simple_command)
         self._add_build_handler(Command.TP, self._build_simple_command)
         self._add_build_handler(Command.SET, self._build_set_command)
+        self._add_build_handler(Command.GETSD, self._build_simple_command)
+        self._add_build_handler(Command.QS, self._build_simple_command)
+        self._add_build_handler(Command.RESET_EC, self._build_simple_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(Command.DS, self._parse_dsdc_response)
@@ -781,12 +792,16 @@ class SBE16Protocol(SeaBirdProtocol):
         self._add_response_handler(Command.TC, self._parse_test_response)
         self._add_response_handler(Command.TT, self._parse_test_response)
         self._add_response_handler(Command.TP, self._parse_test_response)
+        self._add_response_handler(Command.GETSD, self._parse_simple_response)
 
         # State state machine in UNKNOWN state. 
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
         
         self._chunker = StringChunker(self.sieve_function)
-        
+
+        self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
+        self._add_scheduler_event(ScheduledJob.CONFIGURATION_DATA, ProtocolEvent.GET_CONFIGURATION)
+        self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
     @staticmethod
     def sieve_function(raw_data):
@@ -885,6 +900,23 @@ class SBE16Protocol(SeaBirdProtocol):
         """
         pass
 
+    def _handler_command_autosample_quit_session(self, *args, **kwargs):
+        """
+        put the instrument back to sleep.  This is important in autosample
+        mode because this will restart sampling.
+        @retval (next_state, next_agent_state)
+        """
+        self._do_cmd_no_resp(Command.QS, *args, **kwargs)
+        return (None, None)
+
+    def _handler_command_reset_ec(self, *args, **kwargs):
+        """
+        clear event counter
+        @retval (next_state, next_agent_state)
+        """
+        self._do_cmd_no_resp(Command.RESET_EC, *args, **kwargs)
+        return (None, None)
+
     def _handler_command_set(self, *args, **kwargs):
         """
         Perform a set command.
@@ -980,6 +1012,29 @@ class SBE16Protocol(SeaBirdProtocol):
 
         return (next_state, (next_agent_state, result))
 
+    def _handler_autosample_get_configuration(self, *args, **kwargs):
+        """
+        DCal from SBE16.
+        @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        @throws SampleException if a sample could not be extracted from result.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        # When in autosample this command requires two wakeups to get to the right prompt
+        prompt = self._wakeup(timeout=10, delay=0.3)
+        prompt = self._wakeup(timeout=10, delay=0.3)
+
+        result = self._do_cmd_resp(Command.DCAL, *args, **kwargs)
+
+        log.debug("quit session, restart sampling")
+        self._protocol_fsm.on_event(ProtocolEvent.QUIT_SESSION)
+
+        return (next_state, (next_agent_state, result))
+
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Switch into autosample mode.
@@ -1042,7 +1097,7 @@ class SBE16Protocol(SeaBirdProtocol):
         timeout = kwargs.get('timeout', TIMEOUT)
         prompt = self._wakeup(timeout=timeout)
 
-        self._sync_clock(Parameter.DATE_TIME, Prompt.COMMAND, timeout, time_format="%d%m%Y%H%M%S")
+        self._sync_clock(Parameter.DATE_TIME, Prompt.COMMAND, timeout)
 
         return (next_state, (next_agent_state, result))
 
@@ -1184,7 +1239,23 @@ class SBE16Protocol(SeaBirdProtocol):
             
         return (next_state, result)
 
-    def _handler_command_autosample_acquire_status(self, *args, **kwargs):
+    def _handler_command_acquire_status(self, *args, **kwargs):
+        """
+        Get device status
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+        log.debug("_handler_command_acquire_status")
+
+        kwargs['timeout'] = 30
+        result = self._do_cmd_resp(Command.DS, *args, **kwargs)
+
+        log.debug("DS Response: %s", result)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_autosample_acquire_status(self, *args, **kwargs):
         """
         Get device status
         """
@@ -1192,10 +1263,17 @@ class SBE16Protocol(SeaBirdProtocol):
         next_agent_state = None
         result = None
 
+        # When in autosample this command requires two wakeups to get to the right prompt
+        prompt = self._wakeup(timeout=10, delay=0.3)
+        prompt = self._wakeup(timeout=10, delay=0.3)
+
         kwargs['timeout'] = 30
         result = self._do_cmd_resp(Command.DS, *args, **kwargs)
 
         log.debug("DS Response: %s", result)
+
+        log.debug("send the QS command to restart sampling")
+        self._protocol_fsm.on_event(ProtocolEvent.QUIT_SESSION)
 
         return (next_state, (next_agent_state, result))
 
@@ -1327,11 +1405,8 @@ class SBE16Protocol(SeaBirdProtocol):
                  None - unknown logging state
         @raise: InstrumentProtocolException if we can't identify the prompt
         """
-        self._update_params()
-
+        self._update_params(timeout=TIMEOUT)
         pd = self._param_dict.get_config()
-        log.debug("Logging? %s", pd.get(Parameter.LOGGING))
-
         return pd.get(Parameter.LOGGING)
 
     def _start_logging(self, *args, **kwargs):
@@ -1399,6 +1474,8 @@ class SBE16Protocol(SeaBirdProtocol):
         """
         timeout = kwargs.get('timeout', TIMEOUT)
         prompt = self._wakeup(timeout=timeout, delay=0.3)
+
+        # For some reason when in streaming we require a second wakeup
         prompt = self._wakeup(timeout=timeout, delay=0.3)
 
         # Get old param dict config.
@@ -1410,6 +1487,16 @@ class SBE16Protocol(SeaBirdProtocol):
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()
+
+        ###
+        # The 16plus V2 responds only to GetCD, GetSD, GetCC, GetEC,
+        # ResetEC, GetHD, DS, DCal, TS, SL, SLT, GetLastSamples:x, QS, and
+        # Stop while sampling autonomously. If you wake the 16plus V2 while it is
+        # sampling autonomously (for example, to send DS to check on progress), it
+        # temporarily stops sampling. Autonomous sampling resumes when it
+        ###
+        if(new_config.get(Parameter.LOGGING)):
+            self._do_cmd_no_resp(Command.QS, timeout=timeout)
 
         # We ignore the data time parameter diffs
         new_config[Parameter.DATE_TIME] = old_config.get(Parameter.DATE_TIME)
@@ -1469,11 +1556,26 @@ class SBE16Protocol(SeaBirdProtocol):
 
         return None
 
+    def _parse_simple_response(self, response, prompt):
+        """
+        Parse handler for basic commands
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if set command misunderstood.
+        """
+        error = self._find_error(response)
+
+        if error:
+            log.error("command encountered error; type='%s' msg='%s'", error[0], error[1])
+            raise InstrumentParameterException('command failure: type="%s" msg="%s"' % (error[0], error[1]))
+
+        return response
+
     def _parse_set_response(self, response, prompt):
         """
         Parse handler for set command.
         @param response command response string.
-        @param prompt prompt following command response.        
+        @param prompt prompt following command response.
         @throws InstrumentProtocolException if set command misunderstood.
         """
         error = self._find_error(response)
@@ -1483,7 +1585,7 @@ class SBE16Protocol(SeaBirdProtocol):
             raise InstrumentParameterException('Set command failure: type="%s" msg="%s"' % (error[0], error[1]))
 
         if prompt not in [Prompt.EXECUTED, Prompt.COMMAND]:
-            log.error("Set command encountered error; instrument returned: %s", response) 
+            log.error("Set command encountered error; instrument returned: %s", response)
             raise InstrumentProtocolException('Set command not recognized: %s' % response)
 
     def _parse_dsdc_response(self, response, prompt):
@@ -1561,7 +1663,7 @@ class SBE16Protocol(SeaBirdProtocol):
         self._param_dict.add(Parameter.DATE_TIME,
                              r'SBE 16plus V ([\w.]+) +SERIAL NO. (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)',
                              lambda match : string.upper(match.group(3)),
-                             str,
+                             self._string_to_numeric_date_time_string,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ECHO,
                              r'echo characters = (yes|no)',
@@ -1751,7 +1853,7 @@ class SBE16Protocol(SeaBirdProtocol):
                              # Not a startup parameter because syncmode is read only false.
                              # This parameter is not needed.
                              startup_param = False,
-                             direct_access = True,
+                             direct_access = False,
                              default_value = 0,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.OUTPUT_FORMAT,
@@ -1915,6 +2017,5 @@ class SBE16Protocol(SeaBirdProtocol):
         """
         convert string from "21 AUG 2012  09:51:55" to numeric "mmddyyyyhhmmss"
         """
-
         return time.strftime("%m%d%Y%H%M%S", time.strptime(date_time_string, "%d %b %Y %H:%M:%S"))
     

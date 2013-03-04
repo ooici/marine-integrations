@@ -34,7 +34,7 @@ from ooi.logging import config, log
 LOGGING_CONFIG_ENVIRONMENT_VARIABLE="MI_LOGGING_CONFIG"
 
 LOGGING_PRIMARY_FROM_FILE='res/config/mi-logging.yml'
-LOGGING_PRIMARY_FROM_EGG='logging.yml'
+LOGGING_PRIMARY_FROM_EGG='mi-logging.yml'
 LOGGING_MI_OVERRIDE='res/config/mi-logging.local.yml'
 LOGGING_CONTAINER_OVERRIDE='res/config/logging.local.yml'
 

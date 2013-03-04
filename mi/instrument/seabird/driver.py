@@ -295,7 +295,9 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
         self._linebuf = ''
         self._promptbuf = ''
 
-        str_val = self._param_dict.format(date_time_param, get_timestamp_delayed(time_format))
+        log.debug("Set time format(%s) '%s''", time_format, date_time_param)
+        str_val = get_timestamp_delayed(time_format)
+        log.debug("Set time value == '%s'", str_val)
         self._set_params({date_time_param: str_val}, True)
 
         return True

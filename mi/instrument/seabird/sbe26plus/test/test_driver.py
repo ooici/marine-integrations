@@ -1263,10 +1263,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         """
         Verify the clock is set to at least the current date
         """
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-        dt = self.assert_get(Parameter.DS_DEVICE_DATE_TIME)
-        lt = time.strftime("%d %b %Y  %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
-        self.assertTrue(lt[:12].upper() in dt.upper())
+        self.assert_set_clock(Parameter.DS_DEVICE_DATE_TIME)
 
     def test_scheduled_clock_sync_command(self):
         """

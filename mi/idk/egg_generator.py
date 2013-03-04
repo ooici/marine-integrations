@@ -29,6 +29,7 @@ from mi.idk.exceptions import FileNotFound
 from mi.idk.exceptions import InvalidParameters
 from mi.idk.exceptions import MissingTemplate
 from mi.idk.exceptions import ValidationFailure
+from mi.idk.exceptions import IDKException
 from mi.idk.unit_test import InstrumentDriverTestConfig
 from mi.idk.driver_generator import DriverGenerator
 
@@ -373,7 +374,8 @@ class DriverFileList:
                 f = basep.sub('', fn)
                 f = rootp.sub('', f)
                 result.append(f)
-                
+
+        log.debug("Result File List: %s" % result)
         return result
 
     def _scrub_test_files(self, filelist):
@@ -392,7 +394,7 @@ class DriverFileList:
         return result
 
     def _config_files(self):
-        return ["config/logging.yml"]
+        return ["res/config/mi-logging.yml"]
 
     def _extra_files(self):
         result = []
@@ -491,7 +493,6 @@ class EggGenerator:
         if not os.path.exists(self._build_dir()):
             os.makedirs(self._build_dir())
 
-
         for file in files:
             dest = os.path.join(self._build_dir(), file)
             destdir = dirname(dest)
@@ -520,6 +521,9 @@ class EggGenerator:
     def _generate_setup_file(self):
         if not os.path.exists(self._build_dir()):
             os.makedirs(self._build_dir())
+
+        if not os.path.exists(self._build_dir()):
+            raise IDKException("failed to create build dir: %s" % self._build_dir())
 
 
         setup_file = self._setup_path()
