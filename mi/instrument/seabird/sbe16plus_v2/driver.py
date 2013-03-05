@@ -194,7 +194,7 @@ class Prompt(BaseEnum):
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    CTD_PARSED = 'ctdbp_cdef_parsed'
+    CTD_PARSED = 'ctdbp_cdef_sample'
     DEVICE_STATUS = 'ctdbp_cdef_status'
     DEVICE_CALIBRATION = 'ctdbp_cdef_calibration_coefficients'
 
@@ -357,6 +357,7 @@ class SBE16StatusParticle(SeaBirdParticle):
             SBE16StatusParticleKey.IOPER : float,
             SBE16StatusParticleKey.IPUMP : float,
             SBE16StatusParticleKey.SAMPLES : int,
+            SBE16StatusParticleKey.SAMPLE_INTERVAL : int,
             SBE16StatusParticleKey.FREE : int,
             SBE16StatusParticleKey.MEASUREMENTS_PER_SAMPLE : int,
             SBE16StatusParticleKey.DELAY_BEFORE_SAMPLING : float,
@@ -376,6 +377,7 @@ class SBE16StatusParticle(SeaBirdParticle):
             SBE16StatusParticleKey.EXT_VOLT_4 : self.yesno2bool,
             SBE16StatusParticleKey.EXT_VOLT_5 : self.yesno2bool,
             SBE16StatusParticleKey.ECHO_CHARACTERS : self.yesno2bool,
+            SBE16StatusParticleKey.OUTPUT_FORMAT : SBE16Protocol._output_format_string_2_int,
             SBE16StatusParticleKey.OUTPUT_SALINITY : self.yesno2bool,
             SBE16StatusParticleKey.OUTPUT_SOUND_VELOCITY : self.yesno2bool,
             SBE16StatusParticleKey.SERIAL_SYNC_MODE : self.disabled2bool,
@@ -413,7 +415,7 @@ class SBE16StatusParticle(SeaBirdParticle):
             SBE16StatusParticleKey.STATUS : r'status = *(.*)',
             SBE16StatusParticleKey.SAMPLES : r'samples = *(\d+)',
             SBE16StatusParticleKey.FREE : r'free = *(\d+)',
-            SBE16StatusParticleKey.SAMPLE_INTERVAL : r'sample interval = *(\d+ *\w+),',
+            SBE16StatusParticleKey.SAMPLE_INTERVAL : r'sample interval = *(\d+)',
             SBE16StatusParticleKey.MEASUREMENTS_PER_SAMPLE :  r'number of measurements per sample = (\d+)',
             SBE16StatusParticleKey.PUMP_MODE :  r'^pump = ([ \w]+),',
             SBE16StatusParticleKey.DELAY_BEFORE_SAMPLING : r'delay before sampling = (\d+.\d+) \w+',
@@ -1858,8 +1860,8 @@ class SBE16Protocol(SeaBirdProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.OUTPUT_FORMAT,
                              r'output format = (raw HEX)',
-                             lambda match : 0 if match.group(1) == 'raw HEX' else -1,
-                             str,
+                             self._output_format_string_2_int,
+                             self._output_format_int_2_string,
                              startup_param = True,
                              direct_access = True,
                              default_value = 0,
@@ -2018,4 +2020,44 @@ class SBE16Protocol(SeaBirdProtocol):
         convert string from "21 AUG 2012  09:51:55" to numeric "mmddyyyyhhmmss"
         """
         return time.strftime("%m%d%Y%H%M%S", time.strptime(date_time_string, "%d %b %Y %H:%M:%S"))
-    
+
+    @staticmethod
+    def _output_format_int_2_string(format_int):
+        """
+        Convert an output format from an int to a string
+        @param format_int sbe output format as int
+        @retval string representation of output format
+        @raise InstrumentParameterException if int out of range.
+        """
+        if(format_int == 0):
+            return "raw HEX"
+        elif(format_int == 1):
+            return "converted HEX"
+        elif(format_int == 2):
+            return "raw decimal"
+        elif(format_int == 3):
+            return "converted decimal"
+        else:
+            raise InstrumentParameterException("output format out of range: %s" % format_int)
+
+    @staticmethod
+    def _output_format_string_2_int(format_string):
+        """
+        Convert an output format from an string to an int
+        @param format_string sbe output format as string or regex match
+        @retval int representation of output format
+        @raise InstrumentParameterException if format unknown
+        """
+        if(not isinstance(format_string, str)):
+            format_string = format_string.group(1)
+
+        if(format_string.lower() ==  "raw hex"):
+            return 0
+        elif(format_string.lower() == "converted hex"):
+            return 1
+        elif(format_string.lower() == "raw decimal"):
+            return 2
+        elif(format_string.lower() == "converted decimal"):
+            return 3
+        else:
+            raise InstrumentParameterException("output format unknown: %s" % format_string)
