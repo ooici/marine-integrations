@@ -1281,6 +1281,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(.*)CTD\r\n', 
                              lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
+                             startup_param=True,
                              submenu_read=InstrumentCmds.GET_LOGGER_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_LOGGER_DATE_AND_TIME)
 
@@ -1288,6 +1289,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(.*)CSP\r\n', 
                              lambda match : self._convert_xr_420_time(match.group(1)),
                              lambda string : str(string),
+                             startup_param=True,
+                             default_value='000012',
                              submenu_read=InstrumentCmds.GET_SAMPLE_INTERVAL,
                              submenu_write=InstrumentCmds.SET_SAMPLE_INTERVAL)
 
@@ -1295,6 +1298,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(.*)CST\r\n', 
                              lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
+                             startup_param=True,
+                             default_value='000101000000',          # 1/1/2000 00:00:00
                              submenu_read=InstrumentCmds.GET_START_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_START_DATE_AND_TIME)
 
@@ -1302,6 +1307,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(.*)CET\r\n', 
                              lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
+                             startup_param=True,
+                             default_value='500101000000',          # 1/1/2050 00:00:00
                              submenu_read=InstrumentCmds.GET_END_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_END_DATE_AND_TIME)
 
@@ -1484,6 +1491,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              None,
                              None,
+                             startup_param=True,
+                             default_value=1,          # 1 = True
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1491,6 +1500,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              None,
                              None,
+                             startup_param=True,
+                             default_value=0,          # 0 = False
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1498,6 +1509,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              None,
                              None,
+                             startup_param=True,
+                             default_value=1,          # 1 = True
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1505,6 +1518,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              None,
                              None,
+                             startup_param=True,
+                             default_value=1,          # 1 = True
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1512,6 +1527,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              None,
                              None,
+                             startup_param=True,
+                             default_value=0,          # 0 = False
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1519,6 +1536,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              None,
                              None,
+                             startup_param=True,
+                             default_value=1,          # 1 = True
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1526,6 +1545,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              None,
                              None,
+                             startup_param=True,
+                             default_value=1,          # 1 = True
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1533,6 +1554,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              None,
                              None,
+                             startup_param=True,
+                             default_value=1,          # 1 = True
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
