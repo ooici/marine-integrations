@@ -17,7 +17,7 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.log import get_logger,LoggerManager
 log = get_logger()
 
-class InstrumentFSM():
+class InstrumentFSM(object):
     """
     Simple state mahcine for driver and agent classes.
     """
