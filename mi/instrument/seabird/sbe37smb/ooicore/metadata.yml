@@ -4,5 +4,6 @@ driver_metadata:
   driver_model: sbe37smb
   driver_name: ooicore
   email: edhunter@ucsd.edu
+  instrument_agent_id: IA2
   release_notes: SBE Driver
-  version: 0.0.1
+  version: 0.0.4

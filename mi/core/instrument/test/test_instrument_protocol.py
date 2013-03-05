@@ -19,6 +19,7 @@ from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.instrument.satlantic.par_ser_600m.driver import SAMPLE_REGEX
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticle
 
@@ -73,6 +74,23 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
 
         self.assertGreater(count, 0)
 
+    def test_get_prompts(self):
+        """
+        ensure prompts are returned sorted by length
+        """
+        prompts = ['aa', 'bbb', 'c', 'dddd']
+        expected = ['dddd', 'bbb', 'aa', 'c']
+        class Prompts(BaseEnum):
+            A = 'aa'
+            B = 'bbb'
+            C = 'c'
+            D = 'dddd'
+
+        self.protocol = CommandResponseInstrumentProtocol(prompts, '\r\n', self.event_callback)
+        self.assertEqual(self.protocol._get_prompts(), expected)
+
+        self.protocol = CommandResponseInstrumentProtocol(Prompts, '\r\n', self.event_callback)
+        self.assertEqual(self.protocol._get_prompts(), expected)
 
     def test_extraction(self):
         sample_line = "SATPAR0229,10.01,2206748544,234\r\n"

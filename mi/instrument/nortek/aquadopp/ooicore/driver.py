@@ -16,7 +16,7 @@ import string
 import re
 import copy
 import base64
-from ordereddict import OrderedDict
+#from ordereddict import OrderedDict
 
 from mi.core.common import BaseEnum
 from mi.core.time import get_timestamp_delayed
@@ -2076,17 +2076,18 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         parsed = []
          
-        record_length = 16
-        for index in range(0, FAT_LENGTH-record_length, record_length):
-            record = FAT[index:index+record_length]
-            record_number = index / record_length
-            parsed_record = OrderedDict([('FileNumber', record_number), 
-                                         ('FileName', record[0:6].rstrip(chr(0x00))), 
-                                         ('SequenceNumber', ord(record[6:7])), 
-                                         ('Status', record[7:8]), 
-                                         ('StartAddr', record[8:12].encode('hex')), 
-                                         ('StopAddr', record[12:record_length].encode('hex'))])
-            parsed.append(parsed_record)  
-        return parsed
+# Pulled out because it added a new dependency.  Need to evaluate need.  SHould be done in driver cleanup
+#        record_length = 16
+#        for index in range(0, FAT_LENGTH-record_length, record_length):
+#            record = FAT[index:index+record_length]
+#            record_number = index / record_length
+#            parsed_record = OrderedDict([('FileNumber', record_number), 
+#                                         ('FileName', record[0:6].rstrip(chr(0x00))), 
+#                                         ('SequenceNumber', ord(record[6:7])), 
+#                                         ('Status', record[7:8]), 
+#                                         ('StartAddr', record[8:12].encode('hex')), 
+##                                         ('StopAddr', record[12:record_length].encode('hex'))])
+#            parsed.append(parsed_record)  
+#        return parsed
 
                     

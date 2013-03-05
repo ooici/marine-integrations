@@ -1,4 +1,4 @@
-from mi.instrument.seabird.sbe54tps.ooicore.driver import Parameter
+from mi.instrument.seabird.sbe54tps.driver import Parameter
 
 PARAMS = {
     #
@@ -48,7 +48,6 @@ PARAMS = {
     Parameter.BATTERY_TYPE : int,
     Parameter.BAUD_RATE : int,
     Parameter.ENABLE_ALERTS : bool,
-    Parameter.UPLOAD_TYPE : int,
     Parameter.SAMPLE_PERIOD : int,
 
     #

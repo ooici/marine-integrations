@@ -41,7 +41,7 @@ setup(  name = 'marine-integrations',
             'gitpy==0.6.0',
             'snakefood==1.4',
             'ntplib>=0.1.9',
-            'apscheduler==2.0.3',
+            'apscheduler==2.1.0',
             'utilities',
         ],
      )

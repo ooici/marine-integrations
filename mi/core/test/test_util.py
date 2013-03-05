@@ -30,3 +30,7 @@ class TestUtil(MiUnitTest):
         self.assertFalse(dict_equal({a:1, b:2}, {a:1, b:1}))
         self.assertFalse(dict_equal({a:1, b:{b}}, {a:1, b:1}))
         self.assertFalse(dict_equal({a:1, b:b}, {a:1, b:1}))
+        self.assertTrue(dict_equal({a:1, b:b}, {a:1, b:1}, [b]))
+        self.assertTrue(dict_equal({a:1, b:b}, {a:1, b:1}, b))
+        self.assertFalse(dict_equal({a:1, b:b}, {a:1, b:1}, 'c'))
+

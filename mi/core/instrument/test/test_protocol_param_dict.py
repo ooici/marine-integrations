@@ -163,7 +163,6 @@ bar=200, baz=300
         self.assertEqual(val, False)
         
         result = self.param_dict.update(1005) # just change first in list
-        self.assertEqual(result, 'fn_foo')
         val = self.param_dict.get("fn_foo")
         self.assertEqual(val, 3)
         val = self.param_dict.get("fn_bar")

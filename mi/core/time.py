@@ -46,7 +46,7 @@ def get_timestamp_delayed(format):
     while(current.microsecond > now.microsecond):
         current = datetime.datetime.utcnow()
 
-    return current.strftime(format)
+    return time.strftime(format, time.gmtime())
 
 
 def get_timestamp(format):
@@ -63,5 +63,4 @@ def get_timestamp(format):
     if(not format):
         raise ValueError
 
-    now = datetime.datetime.utcnow()
-    return now.strftime(format)
+    return time.strftime(format, time.gmtime())

@@ -25,6 +25,7 @@ to create a logger automatically scoped with the calling package and ready to us
 """
 import os
 import sys
+import yaml
 import pkg_resources
 
 from mi.core.common import Singleton
@@ -33,7 +34,7 @@ from ooi.logging import config, log
 LOGGING_CONFIG_ENVIRONMENT_VARIABLE="MI_LOGGING_CONFIG"
 
 LOGGING_PRIMARY_FROM_FILE='res/config/mi-logging.yml'
-LOGGING_PRIMARY_FROM_EGG='logging.yml'
+LOGGING_PRIMARY_FROM_EGG='mi-logging.yml'
 LOGGING_MI_OVERRIDE='res/config/mi-logging.local.yml'
 LOGGING_CONTAINER_OVERRIDE='res/config/logging.local.yml'
 
@@ -56,10 +57,11 @@ class LoggerManager(Singleton):
             if debug:
                 print >> sys.stderr, str(os.getpid()) + ' configured logging from ' + LOGGING_PRIMARY_FROM_FILE
         else:
-            path = pkg_resources.resource_filename('config', LOGGING_PRIMARY_FROM_EGG)
-            config.replace_configuration(path)
+            logconfig = pkg_resources.resource_string('mi', LOGGING_PRIMARY_FROM_EGG)
+            parsed = yaml.load(logconfig)
+            config.replace_configuration(parsed)
             if debug:
-                print >> sys.stderr, str(os.getpid()) + ' configured logging from ' + path
+                print >> sys.stderr, str(os.getpid()) + ' configured logging from config/' + LOGGING_PRIMARY_FROM_FILE
 
         if os.path.isfile(LOGGING_MI_OVERRIDE):
             config.add_configuration(LOGGING_MI_OVERRIDE)
