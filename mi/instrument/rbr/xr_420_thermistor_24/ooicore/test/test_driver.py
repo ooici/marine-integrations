@@ -141,20 +141,20 @@ class UtilMixin(DriverTestMixin):
     ###
     _driver_parameters = {
         InstrumentParameters.IDENTIFICATION : {TYPE: str, READONLY: True, DA: False, STARTUP: False},                          
-        InstrumentParameters.LOGGER_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.SAMPLE_INTERVAL : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.START_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.END_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.LOGGER_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: ''},
+        InstrumentParameters.SAMPLE_INTERVAL : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:12'},
+        InstrumentParameters.START_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '01 Jan 2000 00:00:00'},
+        InstrumentParameters.END_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '01 Jan 2050 00:00:00'},
         InstrumentParameters.STATUS : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.BATTERY_VOLTAGE : {TYPE: float, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.POWER_ALWAYS_ON : {TYPE: int, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.SIX_HZ_PROFILING_MODE : {TYPE: int, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER : {TYPE: int, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE : {TYPE: int, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.SAMPLING_LED : {TYPE: int, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.ENGINEERING_UNITS_OUTPUT : {TYPE: int, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.AUTO_RUN : {TYPE: int, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.INHIBIT_DATA_STORAGE : {TYPE: int, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.POWER_ALWAYS_ON : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
+        InstrumentParameters.SIX_HZ_PROFILING_MODE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0},
+        InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
+        InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
+        InstrumentParameters.SAMPLING_LED : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0},
+        InstrumentParameters.ENGINEERING_UNITS_OUTPUT : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
+        InstrumentParameters.AUTO_RUN : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
+        InstrumentParameters.INHIBIT_DATA_STORAGE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_2 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_3 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
@@ -196,7 +196,7 @@ class UtilMixin(DriverTestMixin):
                        }
     
     _engineering_parameters = {
-        XR_420EngineeringDataParticleKey.BATTERY_VOLTAGE: {TYPE: float},
+        XR_420EngineeringDataParticleKey.BATTERY_VOLTAGE: {TYPE: float, REQUIRED: False},
         XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_1: {TYPE: list, VALUE: [0.00348434592083916, -0.00025079534389118, 2.46625541318206e-06, -4.68427140350704e-08]},
         XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_2: {TYPE: list, VALUE: [0.00350431927843206, -0.000251204828829799, 2.47944749760338e-06, -6.07097826319064e-08]},
         XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_3: {TYPE: list, VALUE: [0.00345245367779891, -0.000249630218352203, 2.42311925467998e-06, -6.44890925539532e-08]},
@@ -413,7 +413,8 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         # load the engineering parameter values
         pd = driver._protocol._param_dict
         for name in self._engineering_parameters.keys():
-            pd.set_value(name, self._engineering_parameters[name][VALUE])
+            if self._engineering_parameters[name].has_key(VALUE):
+                pd.set_value(name, self._engineering_parameters[name][VALUE])
             
         # clear out any old events
         self.clear_data_particle_queue()
@@ -842,6 +843,17 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         rcvd_time = reply[InstrumentParameters.LOGGER_DATE_AND_TIME]
         lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assert_clock_set(lt, rcvd_time)
+
+    def test_reset(self):
+        """
+        Overload base test because we are having issue with coming out of DA
+        """
+        self.assert_enter_command_mode()
+        self.assert_reset()
+
+        self.assert_enter_command_mode()
+        self.assert_start_autosample()
+        self.assert_reset()
 
     def test_sample_autosample(self):
         self.assert_enter_command_mode()

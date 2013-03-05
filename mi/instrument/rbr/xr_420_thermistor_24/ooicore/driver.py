@@ -586,11 +586,12 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     def apply_startup_params(self):
         """
         Apply all startup parameters.  First we check the instrument to see
-        if we need to set the parameters.  If they are they are set
-        correctly then we don't do anything.
+        if we need to set the parameters.  If they are set correctly then 
+        we don't do anything.
 
-        If we need to set parameters then we might need to transition to
-        command first.  Then we will transition back when complete.
+        If we need to set parameters then we need to transition to
+        command mode first if auto-sampling.  Then we will transition back
+        when complete.
 
         @todo: This feels odd.  It feels like some of this logic should
                be handled by the state machine.  It's a pattern that we
@@ -612,6 +613,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             if (self._param_dict.get(param) != self._param_dict.get_config_value(param)):
                 instrument_configured = False
                 break
+
         if instrument_configured:
             return
         
@@ -874,9 +876,22 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             if not isinstance(params_to_set, dict):
                 raise InstrumentParameterException('Set parameters not a dict.')
         
+        readonly_params = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
+
+        not_settable = []
+        for (key, val) in params_to_set.iteritems():
+            if key in readonly_params:
+                not_settable.append(key)
+        if len(not_settable) > 0:
+            raise InstrumentParameterException("Attempt to set read only parameter(s) (%s)" %not_settable)
+
         self._set_advanced_functions_parameters(params_to_set)
                 
         for (key, val) in params_to_set.iteritems():
+            if key == InstrumentParameters.LOGGER_DATE_AND_TIME and val == '':
+                # coming from apply_startup_params, so sync clock
+                self._clock_sync()
+                continue
             command = self._param_dict.get_submenu_write(key)
             log.debug('_handler_command_set: cmd=%s, name=%s, value=%s' %(command, key, val))
             self._do_cmd_no_resp(command, key, val, timeout=5)
@@ -995,13 +1010,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        # get time in ION format so command builder method can convert it correctly
-        str_time = get_timestamp_delayed("%d %b %Y %H:%M:%S")
-        log.info("_handler_command_clock_sync: time set to %s" %str_time)
-        command = self._param_dict.get_submenu_write(InstrumentParameters.LOGGER_DATE_AND_TIME)
-        self._do_cmd_no_resp(command, InstrumentParameters.LOGGER_DATE_AND_TIME, str_time, timeout=5)
-        command = self._param_dict.get_submenu_read(InstrumentParameters.LOGGER_DATE_AND_TIME)
-        self._do_cmd_resp(command)
+        self._clock_sync()
         
         return (next_state, (next_agent_state, result))
 
@@ -1104,6 +1113,17 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
         
+    def _clock_sync(self):
+        # get time in ION format so command builder method can convert it correctly
+        str_time = get_timestamp_delayed("%d %b %Y %H:%M:%S")
+        log.info("_handler_command_clock_sync: time set to %s" %str_time)
+        # set the time
+        command = self._param_dict.get_submenu_write(InstrumentParameters.LOGGER_DATE_AND_TIME)
+        self._do_cmd_no_resp(command, InstrumentParameters.LOGGER_DATE_AND_TIME, str_time, timeout=5)
+        # get the time to update the parameter value
+        command = self._param_dict.get_submenu_read(InstrumentParameters.LOGGER_DATE_AND_TIME)
+        self._do_cmd_resp(command)
+
     def _reset_instrument(self):
         ENABLING_SEQUENCE = '!U01N'
         TIMEOUT = 60
@@ -1139,13 +1159,11 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                                                      "Failed to reset instrument in %d seconds, status=%s" 
                                                      %(TIMEOUT, self._param_dict.get(InstrumentParameters.STATUS)))
             
-
     def _float_list_to_string(self, float_list):
         float_str = ''
         for float_val in float_list:
             float_str += '%f' %float_val
             
-    
     def _convert_battery_voltage(self, reported_battery_voltage):
         battery_voltage = int(reported_battery_voltage, 16)
         battery_voltage *= .0816485
@@ -1228,7 +1246,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()
         if new_config != old_config:
-            log.debug("_update_params: new_config = %s" %new_config)
+            for (name, value) in new_config.iteritems():
+                log.debug("_update_params: %s = %s" %(name, value))
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     def _generate_status_event(self):
@@ -1282,6 +1301,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
                              startup_param=True,
+                             default_value='',                    # set using system clock
                              submenu_read=InstrumentCmds.GET_LOGGER_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_LOGGER_DATE_AND_TIME)
 
@@ -1290,7 +1310,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              lambda match : self._convert_xr_420_time(match.group(1)),
                              lambda string : str(string),
                              startup_param=True,
-                             default_value='000012',
+                             default_value='00:00:12',             # 12 seconds
                              submenu_read=InstrumentCmds.GET_SAMPLE_INTERVAL,
                              submenu_write=InstrumentCmds.SET_SAMPLE_INTERVAL)
 
@@ -1299,7 +1319,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
                              startup_param=True,
-                             default_value='000101000000',          # 1/1/2000 00:00:00
+                             default_value='01 Jan 2000 00:00:00',     
                              submenu_read=InstrumentCmds.GET_START_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_START_DATE_AND_TIME)
 
@@ -1308,7 +1328,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
                              startup_param=True,
-                             default_value='500101000000',          # 1/1/2050 00:00:00
+                             default_value='01 Jan 2050 00:00:00',     
                              submenu_read=InstrumentCmds.GET_END_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_END_DATE_AND_TIME)
 
