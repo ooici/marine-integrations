@@ -16,13 +16,21 @@ import gevent
 
 import logging
 import unittest
-from mi.core.unit_test import MiUnitTest
 import re
 import time
 import datetime
 import array
 from nose.plugins.attrib import attr
 from mock import Mock
+
+from ion.agents.port.port_agent_process import PortAgentProcess
+from ion.agents.port.port_agent_process import PortAgentProcessType
+
+from mi.core.unit_test import MiUnitTest
+from mi.core.unit_test import MiIntTestCase
+from mi.core.port_agent_simulator import TCPSimulatorServer
+from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacket, Listener
 
 # MI logger
@@ -30,7 +38,7 @@ from mi.core.log import get_logger ; log = get_logger()
 
 #@unittest.skip('BROKEN - Useful in past, likely in future, but not just now')
 @attr('UNIT', group='mi')
-class TestPortAgentClient(MiUnitTest):
+class PAClientUnitTestCase(MiUnitTest):
     def setUp(self):
         self.ipaddr = "localhost"
         self.cmd_port = 9001
@@ -359,3 +367,172 @@ class TestPortAgentPacket(MiUnitTest):
         result = self.pap.get_timestamp()
         self.assertEqual(self.ntp_time, result)
         pass
+
+@attr('INT', group='mi')
+class PAClientIntTestCase(InstrumentDriverTestCase):
+#class PAClientIntTestCase(MiIntTestCase):
+
+    def initialize(cls, *args, **kwargs):
+        print "initialize"
+        
+    def setUp(self):
+        #InstrumentDriverIntegrationTestCase.setUp(self)
+
+        """
+        DHE: Change this to init my own simulator
+        """
+        #self.ipaddr = "69.196.56.192"
+        self.ipaddr = "localhost"
+        self.cmd_port = 9001
+        self.data_port  = 9002
+        self.device_port = 9003
+        
+        self.rawCallbackCalled = False
+        self.dataCallbackCalled = False
+        self.errorCallbackCalled = False
+        
+    def tearDown(self):
+        """
+        @brief Test teardown
+        """
+        log.debug("PACClientIntTestCase tearDown")
+
+        InstrumentDriverTestCase.tearDown(self)
+
+    def startPortAgent(self):
+        pa_port = self.init_port_agent()
+        print "port_agent started on port: " + str(pa_port)
+
+    def resetTestVars(self):
+        self.rawCallbackCalled = False
+        self.dataCallbackCalled = False
+        self.errorCallbackCalled = False
+            
+    def myGotData(self, paPacket):
+        self.dataCallbackCalled = True
+        if paPacket.is_valid():
+            validity = "valid"
+        else:
+            validity = "invalid"
+            
+        print "Got " + validity + " port agent data packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
+
+    def myGotRaw(self, paPacket):
+        self.rawCallbackCalled = True
+        if paPacket.is_valid():
+            validity = "valid"
+        else:
+            validity = "invalid"
+            
+        print "Got " + validity + " port agent raw packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
+
+    def myGotError(self, errorString = "No error string passed in."):
+        self.errorCallbackCalled = True
+        print "Got error: " +  errorString + "\r\n"
+                       
+    def init_instrument_simulator(self):
+        """
+        Startup a TCP server that we can use as an instrument simulator
+        """
+        self._instrument_simulator = TCPSimulatorServer()
+        self.addCleanup(self._instrument_simulator.close)
+
+        # Wait for the simulator to bind to a port
+        timeout = time.time() + 10
+        while (timeout > time.time()):
+            if (self._instrument_simulator.port > 0):
+                log.debug("Instrument simulator initialized on port %s" % self._instrument_simulator.port)
+                return
+
+            log.debug("waiting for simulator to bind. sleeping")
+            time.sleep(1)
+
+        raise IDKException("Timeout waiting for simulator to bind")
+
+    def init_port_agent(self):
+        """
+        @brief Launch the driver process and driver client.  This is used in the
+        integration and qualification tests.  The port agent abstracts the physical
+        interface with the instrument.
+        @retval return the pid to the logger process
+        """
+        if (self.port_agent):
+            log.error("Port agent already initialized")
+            return
+
+        log.debug("Startup Port Agent")
+
+        #comm_config = self.get_comm_config()
+
+        config = self.port_agent_config()
+        log.debug("port agent config: %s" % config)
+
+        port_agent = PortAgentProcess.launch_process(config, timeout = 60, test_mode = True)
+
+        port = port_agent.get_data_port()
+        pid  = port_agent.get_pid()
+
+        log.info('Started port agent pid %s listening at port %s' % (pid, port))
+
+        self.addCleanup(self.stop_port_agent)
+        self.port_agent = port_agent
+        return port
+
+    def port_agent_config(self):
+        """
+        Overload the default port agent configuration so that
+        it connects to a simulated TCP connection.
+        """
+        config = {
+            'device_addr' : self.ipaddr,
+            'device_port' : self.device_port,
+
+            'command_port': self.cmd_port,
+            'data_port': self.data_port,
+
+            'process_type': PortAgentProcessType.UNIX,
+            'log_level': 5,
+        }
+
+        # Override the instrument connection information.
+        config['device_addr'] = 'localhost'
+        config['device_port'] = self._instrument_simulator.port
+
+        return config
+    
+    def test_start_paClient_no_port_agent(self):
+
+        print "port agent client test begin"
+
+        paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
+        
+        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
+        
+        self.assertTrue(self.errorCallbackCalled)
+    
+    #@unittest.skip('Need to add instrument simulator (listener or instrument port')
+    def test_start_paClient_with_port_agent(self):
+
+        self.init_instrument_simulator()
+        self.startPortAgent()
+
+        paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
+        
+        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
+        
+        data = "this is a great big test"
+        paClient.send(data)
+        
+        time.sleep(1)
+
+        self._instrument_simulator.send(data)
+        
+        time.sleep(5)
+
+        paClient.stop_comms()
+        
+        self.assertTrue(self.rawCallbackCalled)
+        self.assertTrue(self.dataCallbackCalled)
+    
+    
+    

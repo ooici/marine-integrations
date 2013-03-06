@@ -232,6 +232,7 @@ class PortAgentClient(object):
     error_callback, because it will be able to be re-entered.
     """
     MAX_RECOVERY_ATTEMPTS = 1  # !! MUST BE 1 and ONLY 1 (see above comment) !!
+    RECOVERY_SLEEP_TIME = 2
     HEARTBEAT_INTERVAL_COMMAND = "heartbeat_interval "
     BREAK_COMMAND = "break"
     
@@ -286,23 +287,16 @@ class PortAgentClient(object):
                            % (self.host, self.port))        
         except Exception as e:
             errorString = "init_comms(): Exception initializing comms for " +  \
-                      str(self.host) + ": " + str(self.cmd_port) + ": " + repr(e)
+                      str(self.host) + ": " + str(self.port) + ": " + repr(e)
             log.error(errorString, exc_info=True)
+            time.sleep(self.RECOVERY_SLEEP_TIME)
             self.callback_error(errorString)
-            raise InstrumentConnectionException(errorString) 
 
     def create_connection(self):
-        try:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.connect((self.host, self.port))
-            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            self.sock.setblocking(0)
-        except Exception as e:
-            errorString = "init_comms(): Exception creating socket " +  \
-                      str(self.host) + ": " + str(self.cmd_port) + ": " + repr(e)
-            log.error(errorString, exc_info=True)
-            self.callback_error(errorString)
-            raise InstrumentConnectionException(errorString) 
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((self.host, self.port))
+        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.sock.setblocking(0)
 
     def destroy_connection(self):
         if self.sock:
@@ -321,7 +315,7 @@ class PortAgentClient(object):
         #-self.sock.shutdown(socket.SHUT_RDWR)
         self.sock.close()
         self.sock = None
-        log.info('Logger client comms stopped.')
+        log.info('Port Agent Client stopped.')
 
     def done(self):
         """
@@ -353,9 +347,8 @@ class PortAgentClient(object):
 
     def callback_error(self, errorString = "No error string passed."):
         """
-        A catastrophic error has occurred; call back into the instrument driver.
-        Note: thinking we might need a callback_error for each context: instrument
-        driver (write) and listener (read), unless the callback is reentrant.  
+        A catastrophic error has occurred; attempt to recover, and if that fails,
+        call back into the instrument driver.
         """
         returnValue = False
         
@@ -371,10 +364,13 @@ class PortAgentClient(object):
             """        
             self.recovery_mutex.release()
             if (self.user_callback_error):
+                log.error("Maximum connection_level recovery attempts (%d) reached." % (self.recovery_attempts))
                 self.user_callback_error(errorString)
                 returnValue = True
             else:
                 log.error("No user_callback_data defined")
+                if self.listener_thread and self.listener_thread.is_alive():
+                    self.listener_thread.done()
                 returnValue = False
         else:
             """
@@ -421,9 +417,9 @@ class PortAgentClient(object):
                 raise InstrumentConnectionException("Missing port agent command port config")
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((self.host, self.cmd_port))
-            log.info('PortAgentClient.init_comms(): connected to port agent at %s:%i.'
+            log.info('PortAgentClient._command_port_agent(): connected to port agent at %s:%i.'
                      % (self.host, self.cmd_port))
-            self.send(cmd, sock)
+            self.send(cmd, sock) 
             sock.close()
         except Exception as e:
             log.error("send_break(): Exception occurred.", exc_info=True)
@@ -438,7 +434,13 @@ class PortAgentClient(object):
         returnValue = 0
         total_bytes_sent = 0
         
-        sock = self.sock
+        """
+        The socket can be a parameter (in case we need to send to the command
+        port, for instance); if not provided, default to self.sock which 
+        should be the data port.
+        """
+        if (not sock):
+            sock = self.sock
 
         if sock:
             would_block_tries = 0
@@ -452,16 +454,24 @@ class PortAgentClient(object):
                     if e.errno == errno.EWOULDBLOCK:
                         would_block_tries = would_block_tries + 1
                         if would_block_tries > self.send_attempts:
-                            error_string = 'Send EWOULDBLOCK attempts (%d) exceeded while sending to %s:%i'  % (would_block_tries, self.host, self.port)
+                            """
+                            TODO: Remove the commented out lines that print self.host and self.port after verifying that getpeername works
+                            (self.host and self.port aren't necessarily correct; the sock is a parameter here and host and port might not
+                            be correct).
+                            """
+                            #error_string = 'Send EWOULDBLOCK attempts (%d) exceeded while sending to %s:%i'  % (would_block_tries, self.host, self.port)
+                            error_string = 'Send EWOULDBLOCK attempts (%d) exceeded while sending to %r'  % (would_block_tries, sock.getpeername())
                             log.error(error_string)
                             self.callback_error(error_string)
                             continuing = False 
                         else:
-                            error_string = 'Socket error while sending to (%s:%i): %r; tries = %d'  % (self.host, self.port, e, would_block_tries)
+                            #error_string = 'Socket error while sending to (%s:%i): %r; tries = %d'  % (self.host, self.port, e, would_block_tries)
+                            error_string = 'Socket error while sending to %r: %r; tries = %d'  % (sock.getpeername(), e, would_block_tries)
                             log.error(error_string)
                             time.sleep(.1)
                     else:
-                        error_string = 'Socket error while sending to (%s:%i): %r'  % (self.host, self.port, e)
+                        #error_string = 'Socket error while sending to (%s:%i): %r'  % (self.host, self.port, e)
+                        error_string = 'Socket error while sending to %r: %r'  % (sock.getpeername(), e)
                         log.error(error_string)
                         self.callback_error(error_string)
                         continuing = False
