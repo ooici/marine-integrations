@@ -838,7 +838,6 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         # Now verify that at least the date matches
         params = [InstrumentParameters.LOGGER_DATE_AND_TIME]
-        print("doing get resource")
         reply = self.instrument_agent_client.get_resource(params)
         rcvd_time = reply[InstrumentParameters.LOGGER_DATE_AND_TIME]
         lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))

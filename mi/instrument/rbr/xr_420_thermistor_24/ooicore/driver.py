@@ -524,16 +524,18 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolStates.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolStates.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolStates.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(ProtocolStates.UNKNOWN, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.GET, self._handler_command_get)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -601,8 +603,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         """
 
         log.debug("apply_startup_params: CURRENT STATE = %s" % self.get_current_state())
-        if (self.get_current_state() != ProtocolStates.COMMAND):
-            raise InstrumentProtocolException("Not in command state. Unable to apply startup parameters")
+        current_state = self.get_current_state()
+        if (not current_state in [ProtocolStates.COMMAND, ProtocolStates.AUTOSAMPLE]):
+            raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup parameters")
 
         # If our configuration on the instrument matches what we think it should be then 
         # we don't need to do anything.
@@ -617,9 +620,17 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         if instrument_configured:
             return
         
+        if current_state == ProtocolStates.AUTOSAMPLE:
+            # this call will return if reset is successful or raise an exception otherwise
+            self._reset_instrument()
+            
         config = self.get_startup_config()
+        # this call will set the parameters on the instrument and then update their values in the param_dict
         self._handler_command_set(config)
 
+        if current_state == ProtocolStates.AUTOSAMPLE:
+            # this call will return if start is successful or raise an exception otherwise
+            self._start_sampling()
 
     ########################################################################
     # overridden methods from base class.
@@ -812,6 +823,13 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         else:
             raise InstrumentStateException('Unknown state.')
             
+        # Command device to update parameters and send a config change event.
+        self._update_params()
+        
+        print('got here A')
+        log.debug("parameters values are: %s" %str(self._param_dict.get_config()))
+        print('got here B')
+
         return (next_state, result)
 
 
@@ -825,11 +843,6 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
-        # Command device to update parameters and send a config change event.
-        self._update_params()
-        
-        log.debug("parameters values are: %s" %str(self._param_dict.get_config()))
-
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -900,42 +913,6 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             
         return (next_state, result)
 
-    def _handler_command_get(self, *args, **kwargs):
-        """
-        Get device parameters from the parameter dict.
-        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
-        @throws InstrumentParameterException if missing or invalid parameter.
-        """
-        next_state = None
-        result = None
-
-        # Retrieve the required parameter, raise if not present.
-        try:
-            params = args[0]
-        except IndexError:
-            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
-
-        # If all params requested, retrieve config.
-        if params == DriverParameter.ALL:
-            result = self._param_dict.get_config()
-
-        # If not all params, confirm a list or tuple of params to retrieve.
-        # Raise if not a list or tuple.
-        # Retireve each key in the list, raise if any are invalid.
-        else:
-            if not isinstance(params, (list, tuple)):
-                raise InstrumentParameterException('Get argument not a list or tuple.')
-            result = {}
-            for key in params:
-                try:
-                    val = self._param_dict.get(key)
-                    result[key] = val
-
-                except KeyError:
-                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
-
-        return (next_state, result)
-
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Switch into autosample mode.
@@ -946,29 +923,12 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         next_state = None
         result = None
-        sampling_parameters_to_set = [InstrumentParameters.POWER_ALWAYS_ON,
-                                      InstrumentParameters.END_DATE_AND_TIME,
-                                      InstrumentParameters.START_DATE_AND_TIME,
-                                      InstrumentParameters.LOGGER_DATE_AND_TIME,
-                                      InstrumentParameters.SAMPLE_INTERVAL]
 
         # this call will return if reset is successful or raise an exception otherwise
         self._reset_instrument()
 
-        # configure sampling parameters
-        for parameter in sampling_parameters_to_set:
-            command = self._param_dict.get_submenu_write(parameter)
-            value = self._param_dict.get(parameter)
-            self._do_cmd_no_resp(command, parameter, value, timeout=5)
-        
-        # now start sampling
-        status_response = self._do_cmd_resp(InstrumentCmds.START_SAMPLING)
-        log.debug('_handler_command_start_autosample: status=%s' %status_response)
-        status_as_int = int(status_response, 16)
-        if not status_as_int in [Status.ENABLED_SAMPLING_NOT_STARTED, Status.STARTED_SAMPLING]:
-            raise InstrumentCommandException("_handler_command_start_autosample: " +
-                                             "Failed to start sampling, status=%s" 
-                                             %status_response)
+        # this call will return if start is successful or raise an exception otherwise
+        self._start_sampling()
             
         next_state = ProtocolStates.AUTOSAMPLE        
         next_agent_state = ResourceAgentState.STREAMING
@@ -1110,6 +1070,46 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         return (next_state, (next_agent_state, result))
 
     ########################################################################
+    # general handlers.
+    ########################################################################
+
+    def _handler_get(self, *args, **kwargs):
+        """
+        Get device parameters from the parameter dict.
+        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
+        @throws InstrumentParameterException if missing or invalid parameter.
+        """
+        next_state = None
+        result = None
+
+        # Retrieve the required parameter, raise if not present.
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
+
+        # If all params requested, retrieve config.
+        if params == DriverParameter.ALL:
+            result = self._param_dict.get_config()
+
+        # If not all params, confirm a list or tuple of params to retrieve.
+        # Raise if not a list or tuple.
+        # Retireve each key in the list, raise if any are invalid.
+        else:
+            if not isinstance(params, (list, tuple)):
+                raise InstrumentParameterException('Get argument not a list or tuple.')
+            result = {}
+            for key in params:
+                try:
+                    val = self._param_dict.get(key)
+                    result[key] = val
+
+                except KeyError:
+                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
+
+        return (next_state, result)
+
+    ########################################################################
     # Private helpers.
     ########################################################################
         
@@ -1124,6 +1124,27 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         command = self._param_dict.get_submenu_read(InstrumentParameters.LOGGER_DATE_AND_TIME)
         self._do_cmd_resp(command)
 
+    def _start_sampling(self):
+        sampling_parameters_to_set = [InstrumentParameters.POWER_ALWAYS_ON,
+                                      InstrumentParameters.END_DATE_AND_TIME,
+                                      InstrumentParameters.START_DATE_AND_TIME,
+                                      InstrumentParameters.LOGGER_DATE_AND_TIME,
+                                      InstrumentParameters.SAMPLE_INTERVAL]
+        # configure sampling parameters
+        for parameter in sampling_parameters_to_set:
+            command = self._param_dict.get_submenu_write(parameter)
+            value = self._param_dict.get(parameter)
+            self._do_cmd_no_resp(command, parameter, value, timeout=5)
+        
+        # now start sampling
+        status_response = self._do_cmd_resp(InstrumentCmds.START_SAMPLING)
+        log.debug('_handler_command_start_autosample: status=%s' %status_response)
+        status_as_int = int(status_response, 16)
+        if not status_as_int in [Status.ENABLED_SAMPLING_NOT_STARTED, Status.STARTED_SAMPLING]:
+            raise InstrumentCommandException("_handler_command_start_autosample: " +
+                                             "Failed to start sampling, status=%s" 
+                                             %status_response)
+            
     def _reset_instrument(self):
         ENABLING_SEQUENCE = '!U01N'
         TIMEOUT = 60
@@ -1248,7 +1269,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         if new_config != old_config:
             for (name, value) in new_config.iteritems():
                 log.debug("_update_params: %s = %s" %(name, value))
+            print('got here I')
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        print('got here II')
 
     def _generate_status_event(self):
         if not self._driver_event:
@@ -1300,8 +1323,6 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(.*)CTD\r\n', 
                              lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
-                             startup_param=True,
-                             default_value='',                    # set using system clock
                              submenu_read=InstrumentCmds.GET_LOGGER_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_LOGGER_DATE_AND_TIME)
 
