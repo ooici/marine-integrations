@@ -127,15 +127,15 @@ REQUIRED = ParameterTestConfigKey.REQUIRED
 DEFAULT = ParameterTestConfigKey.DEFAULT
 
 # Make tests verbose and provide stdout
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_process
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_config
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_connect
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_get_set
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_poll
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_autosample
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_test
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_errors
-# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:TestSBE37Driver.test_discover_autosample
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:SBEIntTestCase.test_process
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:SBEIntTestCase.test_config
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:SBEIntTestCase.test_connect
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:SBEIntTestCase.test_get_set
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:SBEIntTestCase.test_poll
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:SBEIntTestCase.test_autosample
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:SBEIntTestCase.test_test
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:SBEIntTestCase.test_errors
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:SBEIntTestCase.test_discover_autosample
 
 
 ## Initialize the test parameters

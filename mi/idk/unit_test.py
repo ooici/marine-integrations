@@ -37,6 +37,7 @@ from mi.core.unit_test import MiIntTestCase
 from mi.core.unit_test import MiUnitTest
 from mi.core.port_agent_simulator import TCPSimulatorServer
 from mi.core.instrument.instrument_driver import InstrumentDriver
+from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
@@ -296,7 +297,6 @@ class DriverTestMixin(MiUnitTest):
         driver_keys = sorted(data_particle_key.list())
         test_config_keys = sorted(test_config.keys())
 
-        self.assertEqual(len(driver_keys), len(test_config_keys))
         self.assertEqual(driver_keys, test_config_keys)
 
     def assert_data_particle_header(self, data_particle, stream_name, require_instrument_timestamp=False):
@@ -513,12 +513,13 @@ class DriverTestMixin(MiUnitTest):
 
         # Lets verify all required parameters are there
         for required in required_keys:
-            self.assertTrue(required in sample_keys)
+            self.assertTrue(required in sample_keys, msg="particle missing parameter '%s', a required key" % required)
             sample_keys.remove(required)
 
         # Now lets look for optional fields and removed them from the parameter list
         for optional in optional_keys:
-            sample_keys.remove(optional)
+            if(optional in sample_keys):
+                sample_keys.remove(optional)
 
         log.info("Unknown Keys: %s" % sample_keys)
 
@@ -1318,6 +1319,48 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         else:
             self.assertEqual(state, DriverProtocolState.COMMAND)
 
+    def assert_startup_parameters(self, parameter_assert, new_values=None, get_values=None):
+        """
+        Verify that driver startup parameters are set properly.  To
+        Do this we first test all parameters using the mixin class.
+        This assumes that you have values in the driver parameter
+        config structure.  This is defined in the mixin class.
+
+        After we have checked the parameters we will force the driver to
+        re-apply startup params
+
+        @param params: callback to parameter assert method
+        @param new_values: values to change on the instrument
+        @param get_values: optional values to explicitly check after discover
+        """
+        if(get_values):
+            reply = self.driver_client.cmd_dvr('get_resource', DriverParameter.ALL)
+            parameter_assert(reply, True)
+
+        if(get_values != None):
+            for (key, val) in get_values.iteritems():
+                self.assert_get(key, val)
+
+        if(new_values):
+            self.assert_set_bulk(new_values)
+
+        # Force a reapply
+        reply = self.driver_client.cmd_dvr('apply_startup_params')
+
+        ###
+        #   Rinse and repeat
+        ###
+
+        # Should be back to our startup parameters.
+        reply = self.driver_client.cmd_dvr('get_resource', DriverParameter.ALL)
+        parameter_assert(reply, True)
+
+        if(get_values != None):
+            for (key, val) in get_values.iteritems():
+                self.assert_get(key, val)
+
+
+
     def assert_get(self, param, value=None, pattern=None):
         """
         Verify we can get a parameter and compare the fetched value
@@ -1338,17 +1381,18 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         return return_value
 
-    def assert_set(self, param, value, no_get=False):
+    def assert_set(self, param, value, no_get=False, startup=False):
         """
         Verify we can set a parameter and then do a get to confirm. Also, unless
         no_get is specified, verify a config change event is sent when values
         change and none when they aren't changed.
         @param param: parameter to set
         @param param: no_get if true don't verify set with a get.
+        @param param: startup is this simulating a startup set?
         @param value: what to set the parameter too
         """
         if no_get:
-            reply = self.driver_client.cmd_dvr('set_resource', {param: value})
+            reply = self.driver_client.cmd_dvr('set_resource', {param: value}, startup)
             self.assertIsNone(reply, None)
         else:
             log.debug("assert_set, check values and events")
@@ -1540,7 +1584,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
             time.sleep(.3)
 
-    def assert_scheduled_event(self, job_name, assert_callback, autosample_command=None, delay=5):
+    def assert_scheduled_event(self, job_name, assert_callback=None, autosample_command=None, delay=5):
         """
         Verify that a scheduled event can be triggered and use the
         assert callback to verify that it worked. If an auto sample command
@@ -1596,7 +1640,8 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         time.sleep(2)
 
         # Now verify that the job is triggered and it does what we think it should
-        assert_callback()
+        if(assert_callback):
+            assert_callback()
 
     ###
     #   Common Integration Tests
@@ -1605,7 +1650,6 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         """
         @Brief Test for correct launch of driver process and communications, including asynchronous driver events.
         """
-
         log.info("Ensuring driver process was started properly ...")
         
         # Verify processes exist.
@@ -2057,12 +2101,10 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         setParams = { name : value }
         getParams = [ name ]
 
-        self.instrument_agent_client.set_resource(setParams,
-                                                  timeout=SET_TIMEOUT)
+        self.instrument_agent_client.set_resource(setParams, timeout=SET_TIMEOUT)
 
         if(verify):
-            result = self.instrument_agent_client.get_resource(getParams,
-                                                               timeout=GET_TIMEOUT)
+            result = self.instrument_agent_client.get_resource(getParams, timeout=GET_TIMEOUT)
             self.assertEqual(result[name], value)
 
     def assert_read_only_parameter(self, name, value):
@@ -2133,13 +2175,14 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             state = self.instrument_agent_client.get_agent_state()
             log.info("Sent GO_ACTIVE; IA state = %s", state)
 
-            cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-            retval = self.instrument_agent_client.execute_agent(cmd)
-
         # The instrument is in autosample; take it out of autosample,
         # which will cause the driver and agent to transition to COMMAND
         if state == ResourceAgentState.STREAMING:
             self.assert_stop_autosample()
+        elif state == ResourceAgentState.IDLE:
+            cmd = AgentCommand(command=ResourceAgentEvent.RUN)
+            retval = self.instrument_agent_client.execute_agent(cmd)
+
 
         state = self.instrument_agent_client.get_agent_state()
         log.info("Sent RUN; IA state = %s", state)
@@ -2269,7 +2312,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         ####
         # IDLE
         ####
-        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
+        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
 
         # Try to run some commands that aren't available in this state
         self.assert_agent_command_exception(ResourceAgentEvent.INITIALIZE, exception_class=Conflict)
@@ -2281,7 +2324,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assert_agent_state(ResourceAgentState.INACTIVE)
 
         # Get back to idle
-        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
+        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
 
         # DIRECT ACCESS
         self.assert_direct_access_start_telnet()

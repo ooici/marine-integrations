@@ -29,6 +29,7 @@ from mi.idk.exceptions import FileNotFound
 from mi.idk.exceptions import InvalidParameters
 from mi.idk.exceptions import MissingTemplate
 from mi.idk.exceptions import ValidationFailure
+from mi.idk.exceptions import IDKException
 from mi.idk.unit_test import InstrumentDriverTestConfig
 from mi.idk.driver_generator import DriverGenerator
 
@@ -347,7 +348,9 @@ class DriverFileList:
             self.driver_test_file = driver_test_file
         else:
             self.driver_test_file = driver_generator.driver_test_path()
-        
+
+        self.driver_dependency = None
+        self.test_dependency = None
         self.driver_dependency = DependencyList(self.driver_file, include_internal_init=True)
         self.test_dependency = DependencyList(self.driver_test_file, include_internal_init=True)
 
@@ -363,14 +366,16 @@ class DriverFileList:
         test_files = self._scrub_test_files(self.test_dependency.internal_dependencies())
         extra_files = []
         extra_files = self._extra_files()
-        files = extra_files + driver_files + test_files
+        config_files = self._config_files()
+        files = extra_files + config_files + driver_files + test_files
 
         for fn in files:
             if not fn in result:
                 f = basep.sub('', fn)
                 f = rootp.sub('', f)
                 result.append(f)
-                
+
+        log.debug("Result File List: %s" % result)
         return result
 
     def _scrub_test_files(self, filelist):
@@ -388,6 +393,8 @@ class DriverFileList:
 
         return result
 
+    def _config_files(self):
+        return ["res/config/mi-logging.yml"]
 
     def _extra_files(self):
         result = []
@@ -486,7 +493,6 @@ class EggGenerator:
         if not os.path.exists(self._build_dir()):
             os.makedirs(self._build_dir())
 
-
         for file in files:
             dest = os.path.join(self._build_dir(), file)
             destdir = dirname(dest)
@@ -515,6 +521,9 @@ class EggGenerator:
     def _generate_setup_file(self):
         if not os.path.exists(self._build_dir()):
             os.makedirs(self._build_dir())
+
+        if not os.path.exists(self._build_dir()):
+            raise IDKException("failed to create build dir: %s" % self._build_dir())
 
 
         setup_file = self._setup_path()

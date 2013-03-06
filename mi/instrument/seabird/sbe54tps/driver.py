@@ -670,7 +670,7 @@ class SBE54tpsEventCounterDataParticle(DataParticle):
                     for key in keys:
                         index = index + 1
                         val = match.group(index)
-                        log.debug("KEY [" + str(key) + "] = VAL [" + str(val) +"]")
+                        log.debug("KEY [%s] VAL[%s]", key, val)
                         # str
                         if key in [
                             SBE54tpsEventCounterDataParticleKey.DEVICE_TYPE
@@ -698,7 +698,7 @@ class SBE54tpsEventCounterDataParticle(DataParticle):
 
         result = []
         for (key, value) in single_var_matches.iteritems():
-            log.debug("SETTING " + str(key) + " = " + str(value))
+            log.debug("SETTING %s = %s", key, value)
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
 
@@ -874,7 +874,7 @@ class SBE54tpsSampleDataParticle(DataParticle):
                             SBE54tpsSampleDataParticleKey.SAMPLE_TYPE,
                             SBE54tpsSampleDataParticleKey.INST_TIME
                         ]:
-                            log.debug("SAMPLE_TYPE = " + val)
+                            log.debug("SAMPLE_TYPE = %s", val)
                             single_var_matches[key] = val
 
                         # int

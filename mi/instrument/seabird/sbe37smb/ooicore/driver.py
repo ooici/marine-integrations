@@ -41,9 +41,6 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.log import get_logger
 log = get_logger()
 
-
-
-
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
     PARSED = 'parsed'

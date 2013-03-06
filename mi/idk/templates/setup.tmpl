@@ -8,6 +8,7 @@ setup(
     author_email='${email}',
     url='${url}',
     packages=find_packages(),
+    data_files=[('mi', ['res/config/mi-logging.yml'])],
     entry_points = {
         'setuptools.installation': [
             'eggsecutable = mi.main:run',
@@ -19,6 +20,7 @@ setup(
     install_requires = [
         'pyzmq==2.2.0',
         'pyyaml==3.1.0',
+        'ntplib',
         'utilities'
     ]
 )

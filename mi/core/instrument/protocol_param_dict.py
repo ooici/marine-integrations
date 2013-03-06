@@ -124,9 +124,9 @@ class RegexParamDictVal(ParameterDictVal):
             match = self.regex.search(str(input))
         else:
             match = self.regex.search(input)
+
         if match:
             self.value = self.f_getval(match)
-            log.trace('self.value = ' + str(self.value))
             log.trace('Updated parameter %s=%s', self.name, str(self.value))
 
             return True
@@ -432,11 +432,13 @@ class ProtocolParameterDict(object):
         @param input A string to match to a dictionary object.
         @retval The name that was successfully updated, None if not updated
         """
+        log.debug("update input: %s" % input)
+        found = False
         for (name, val) in self._param_dict.iteritems():
-            log.trace("Updating param dict name: %s, value: %s", name, val)
+            log.trace("update param dict name: %s" % name)
             if val.update(input):
-                return name
-        return False
+                found = True
+        return found
     
     def get_config(self):
         """
@@ -447,7 +449,7 @@ class ProtocolParameterDict(object):
         for (key, val) in self._param_dict.iteritems():
             config[key] = val.value
         return config
-    
+
     def format(self, name, val):
         """
         Format a parameter for a set command.
