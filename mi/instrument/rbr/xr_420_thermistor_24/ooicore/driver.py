@@ -511,7 +511,6 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._last_data_timestamp = None
         self.eoln = INSTRUMENT_NEWLINE
         self.advanced_functions_bits = AdvancedFuntionsBits.dict()
-        print  self.advanced_functions_bits
         
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
                 
@@ -817,19 +816,16 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                           Status.HIGH_SPEED_PROFILING_MODE]:
                 next_state = ProtocolStates.AUTOSAMPLE
                 result = ResourceAgentState.STREAMING
+                # Command device to update parameters and send a config change event.
+                # do this here because it shouldn't be done on entry to autosample everytime, 
+                # but the parameters need to be initialized in this mode also
+                self._update_params()
             else:
                 next_state = ProtocolStates.COMMAND
                 result = ResourceAgentState.IDLE
         else:
             raise InstrumentStateException('Unknown state.')
-            
-        # Command device to update parameters and send a config change event.
-        self._update_params()
-        
-        print('got here A')
-        log.debug("parameters values are: %s" %str(self._param_dict.get_config()))
-        print('got here B')
-
+                    
         return (next_state, result)
 
 
@@ -843,6 +839,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
+        # Command device to update parameters and send a config change event if needed.
+        self._update_params()
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -888,6 +887,11 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         else:
             if not isinstance(params_to_set, dict):
                 raise InstrumentParameterException('Set parameters not a dict.')
+            
+        log.debug('_handler_command_set: params_to_set = %s' %params_to_set)
+        
+        if len(params_to_set) == 0:
+            return (next_state, result)
         
         readonly_params = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
 
@@ -1242,6 +1246,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         called_from_set = kwargs.get('called_from_set', False)
 
+        log.debug('_update_params: current state = %s, called_from_set = %s' %(self.get_current_state(), called_from_set))
+        
         # Get old param dict config.
         old_config = self._param_dict.get_config()
         
@@ -1269,9 +1275,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         if new_config != old_config:
             for (name, value) in new_config.iteritems():
                 log.debug("_update_params: %s = %s" %(name, value))
-            print('got here I')
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-        print('got here II')
 
     def _generate_status_event(self):
         if not self._driver_event:

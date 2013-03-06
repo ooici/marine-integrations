@@ -141,7 +141,7 @@ class UtilMixin(DriverTestMixin):
     ###
     _driver_parameters = {
         InstrumentParameters.IDENTIFICATION : {TYPE: str, READONLY: True, DA: False, STARTUP: False},                          
-        InstrumentParameters.LOGGER_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: ''},
+        InstrumentParameters.LOGGER_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False},
         InstrumentParameters.SAMPLE_INTERVAL : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:12'},
         InstrumentParameters.START_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '01 Jan 2000 00:00:00'},
         InstrumentParameters.END_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '01 Jan 2050 00:00:00'},
@@ -479,14 +479,16 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         also be defined in the protocol FSM.
         """
         capabilities = {
-            ProtocolStates.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
+            ProtocolStates.UNKNOWN: ['DRIVER_EVENT_DISCOVER',
+                                     'DRIVER_EVENT_GET'],
             ProtocolStates.COMMAND: ['DRIVER_EVENT_ACQUIRE_STATUS',
                                      'DRIVER_EVENT_CLOCK_SYNC',
                                      'DRIVER_EVENT_GET',
                                      'DRIVER_EVENT_SET',
                                      'DRIVER_EVENT_START_AUTOSAMPLE',
                                      'DRIVER_EVENT_START_DIRECT'],
-            ProtocolStates.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE'],
+            ProtocolStates.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                        'DRIVER_EVENT_GET'],
             ProtocolStates.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 
                                            'EXECUTE_DIRECT']
         }
