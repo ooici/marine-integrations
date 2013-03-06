@@ -23,7 +23,7 @@ import json
 from mi.core.common import BaseEnum
 from mi.core.instrument.port_agent_client import PortAgentPacket
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
-from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_fsm import InstrumentFSM, ThreadSafeFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -672,7 +672,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build SBE37 protocol state machine.
-        self._protocol_fsm = InstrumentFSM(SBE37ProtocolState, SBE37ProtocolEvent,
+        self._protocol_fsm = ThreadSafeFSM(SBE37ProtocolState, SBE37ProtocolEvent,
                             SBE37ProtocolEvent.ENTER, SBE37ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
