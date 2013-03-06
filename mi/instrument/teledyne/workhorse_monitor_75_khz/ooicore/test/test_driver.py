@@ -19,6 +19,7 @@ __license__ = 'Apache 2.0'
 import unittest
 import time as time
 import datetime as dt
+from mi.core.time import get_timestamp_delayed
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -47,18 +48,20 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import Param
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import Protocol
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ScheduledJob
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import Prompt
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_EnsembleDataParticleKey
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_EnsembleDataParticle
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_CalibrationDataParticleKey
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_CalibrationDataParticle
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PS0DataParticleKey
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PS0DataParticle
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PS3DataParticleKey
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PS3DataParticle
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_FDDataParticleKey
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_FDDataParticle
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PT200DataParticleKey
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PT200DataParticle
+from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PS3DataParticleKey
+from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PS3DataParticle
+from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PS0DataParticleKey
+from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PS0DataParticle
+
+#from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_EnsembleDataParticleKey
+#from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_EnsembleDataParticle
+#from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_CalibrationDataParticleKey
+#from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_CalibrationDataParticle
+#from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_FDDataParticleKey
+#from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_FDDataParticle
+
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import NEWLINE
 
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.test.test_data import SAMPLE_RAW_DATA 
@@ -635,7 +638,7 @@ class ADCPTMixin(DriverTestMixin):
         }
 
 
-
+    """
     _header_sample_parameters = {
         ADCPT_EnsembleDataParticleKey.NUM_BYTES_IN_ENSEMBLE: {'type': int, 'value': 752 },
         ADCPT_EnsembleDataParticleKey.NUM_DATA_TYPES: {'type': int, 'value': 6 },
@@ -813,6 +816,26 @@ class ADCPTMixin(DriverTestMixin):
         }
 
 
+
+
+    _fd_parameters = {
+        ADCPT_FDDataParticleKey.FD_DATA: {'type': unicode, 'value': 
+            "Total Unique Faults   =     2" + NEWLINE +\
+            "Overflow Count        =     0" + NEWLINE +\
+            "Time of first fault:    13/02/11,10:05:43.29" + NEWLINE +\
+            "Time of last fault:     13/02/22,12:59:26.80" + NEWLINE +\
+            NEWLINE +\
+            "Fault Log:" + NEWLINE +\
+            "Entry #  0 Code=0a08h  Count=    5  Delta=7679898 Time=13/02/22,12:59:26.66" + NEWLINE +\
+            " Parameter = 00000000h" + NEWLINE +\
+            "  Tilt axis X over range." + NEWLINE +\
+            "Entry #  1 Code=0a09h  Count=    5  Delta=7679899 Time=13/02/22,12:59:26.80" + NEWLINE +\
+            " Parameter = 00000000h" + NEWLINE +\
+            "  Tilt axis Y over range." + NEWLINE +\
+            "End of fault log." + NEWLINE + NEWLINE}
+        }
+    """
+
     _ps0_parameters = {
         ADCPT_PS0DataParticleKey.PS0_DATA: {'type': unicode, 'value': 
             "Instrument S/N:  18444" + NEWLINE +\
@@ -868,24 +891,7 @@ class ADCPTMixin(DriverTestMixin):
             "  0.2661    0.2661    0.2661    0.2661        4359    4359    4359    4359" + NEWLINE +\
             "  1.0337    1.0337   -1.0337   -1.0337       16936   16936  -16936  -16936" + NEWLINE +\
             "Beam Angle Corrections Are Loaded." + NEWLINE  }
-    }       
-        
-    _fd_parameters = {
-        ADCPT_FDDataParticleKey.FD_DATA: {'type': unicode, 'value': 
-            "Total Unique Faults   =     2" + NEWLINE +\
-            "Overflow Count        =     0" + NEWLINE +\
-            "Time of first fault:    13/02/11,10:05:43.29" + NEWLINE +\
-            "Time of last fault:     13/02/22,12:59:26.80" + NEWLINE +\
-            NEWLINE +\
-            "Fault Log:" + NEWLINE +\
-            "Entry #  0 Code=0a08h  Count=    5  Delta=7679898 Time=13/02/22,12:59:26.66" + NEWLINE +\
-            " Parameter = 00000000h" + NEWLINE +\
-            "  Tilt axis X over range." + NEWLINE +\
-            "Entry #  1 Code=0a09h  Count=    5  Delta=7679899 Time=13/02/22,12:59:26.80" + NEWLINE +\
-            " Parameter = 00000000h" + NEWLINE +\
-            "  Tilt axis Y over range." + NEWLINE +\
-            "End of fault log." + NEWLINE + NEWLINE}
-        }
+    }
 
     _pt200_parameters = {
         ADCPT_PT200DataParticleKey.PT200_DATA: {'type': unicode, 'value': 
@@ -973,16 +979,19 @@ class ADCPTMixin(DriverTestMixin):
         Verify a particle is a know particle to this driver and verify the particle is  correct
         @param data_particle: Data particle of unkown type produced by the driver
         '''
+        """
         if (isinstance(data_particle, ADCPT_EnsembleDataParticle)):
             self.assert_particle_header_sample(data_particle)
         elif (isinstance(data_particle, ADCPT_CalibrationDataParticle)):
             self.assert_particle_calibration_data(data_particle)
-        elif (isinstance(data_particle, ADCPT_PS0DataParticle)):
+        elif (isinstance(data_particle, ADCPT_FDDataParticle)):
+            self.assert_particle_fd_data(data_particle)
+        el
+        """
+        if (isinstance(data_particle, ADCPT_PS0DataParticle)):
             self.assert_particle_ps0_data(data_particle)
         elif (isinstance(data_particle, ADCPT_PS3DataParticle)):
             self.assert_particle_ps3_data(data_particle)
-        elif (isinstance(data_particle, ADCPT_FDDataParticle)):
-            self.assert_particle_fd_data(data_particle)
         elif (isinstance(data_particle, ADCPT_PT200DataParticle)):
             self.assert_particle_py200_data(data_particle)
         else:
@@ -1007,6 +1016,17 @@ class ADCPTMixin(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.CALIBRATION_PARSED)
         self.assert_data_particle_parameters(data_particle, self._calibration_data_parameters, verify_values)
 
+    def assert_particle_fd_data(self, data_particle, verify_values = False):
+        '''
+        Verify an adcpt fd data particle
+        @param data_particle: ADCPT_FDDataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.FD_PARSED)
+        self.assert_data_particle_parameters(data_particle, self._fd_parameters, verify_values)
+
+
+
     def assert_particle_ps0_data(self, data_particle, verify_values = False):
         '''
         Verify an adcpt ps0 data particle
@@ -1025,15 +1045,6 @@ class ADCPTMixin(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.PS3_PARSED)
         self.assert_data_particle_parameters(data_particle, self._ps3_parameters, verify_values)
 
-    def assert_particle_fd_data(self, data_particle, verify_values = False):
-        '''
-        Verify an adcpt fd data particle
-        @param data_particle: ADCPT_FDDataParticle data particle
-        @param verify_values: bool, should we verify parameter values
-        '''
-        self.assert_data_particle_header(data_particle, DataParticleType.FD_PARSED)
-        self.assert_data_particle_parameters(data_particle, self._fd_parameters, verify_values)
-
     def assert_particle_pt200_data(self, data_particle, verify_values = False):
         '''
         Verify an adcpt pt200 data particle
@@ -1042,6 +1053,10 @@ class ADCPTMixin(DriverTestMixin):
         '''
         self.assert_data_particle_header(data_particle, DataParticleType.PT200_PARSED)
         self.assert_data_particle_parameters(data_particle, self._pt200_parameters, verify_values)
+
+
+
+
 
 
 ###############################################################################
@@ -1073,7 +1088,7 @@ class DriverUnitTest(TeledyneUnitTest, ADCPTMixin):
         Test the chunker and verify the particles created.
         """
         chunker = StringChunker(Protocol.sieve_function)
-
+        """
         self.assert_chunker_sample(chunker, SAMPLE_TIDE_DATA_POLLED)
         self.assert_chunker_sample_with_noise(chunker, SAMPLE_TIDE_DATA_POLLED)
         self.assert_chunker_fragmented_sample(chunker, SAMPLE_TIDE_DATA_POLLED)
@@ -1103,6 +1118,7 @@ class DriverUnitTest(TeledyneUnitTest, ADCPTMixin):
         self.assert_chunker_sample_with_noise(chunker, SAMPLE_DEVICE_STATUS)
         self.assert_chunker_fragmented_sample(chunker, SAMPLE_DEVICE_STATUS, 512)
         self.assert_chunker_combined_sample(chunker, SAMPLE_DEVICE_STATUS)
+        """
 
     def test_got_data(self):
         """
@@ -1115,12 +1131,13 @@ class DriverUnitTest(TeledyneUnitTest, ADCPTMixin):
         self.assert_raw_particle_published(driver, True)
 
         # Start validating data particles
-        self.assert_particle_published(driver, SAMPLE_TIDE_DATA, self.assert_particle_tide_sample, True)
-        self.assert_particle_published(driver, SAMPLE_TIDE_DATA_POLLED, self.assert_particle_tide_sample, True)
-        self.assert_particle_published(driver, SAMPLE_WAVE_BURST, self.assert_particle_wave_burst, True)
-        self.assert_particle_published(driver, SAMPLE_STATISTICS, self.assert_particle_statistics, True)
-        self.assert_particle_published(driver, SAMPLE_DEVICE_CALIBRATION, self.assert_particle_device_calibration, True)
-        self.assert_particle_published(driver, SAMPLE_DEVICE_STATUS, self.assert_particle_device_status, True)
+        self.assert_particle_published(driver, PT200_RAW_DATA, self.assert_particle_pt200_data, True)
+        #self.assert_particle_published(driver, SAMPLE_TIDE_DATA, self.assert_particle_tide_sample, True)
+        #self.assert_particle_published(driver, SAMPLE_TIDE_DATA_POLLED, self.assert_particle_tide_sample, True)
+        #self.assert_particle_published(driver, SAMPLE_WAVE_BURST, self.assert_particle_wave_burst, True)
+        #self.assert_particle_published(driver, SAMPLE_STATISTICS, self.assert_particle_statistics, True)
+        #self.assert_particle_published(driver, SAMPLE_DEVICE_CALIBRATION, self.assert_particle_device_calibration, True)
+        #self.assert_particle_published(driver, SAMPLE_DEVICE_STATUS, self.assert_particle_device_status, True)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -1191,7 +1208,7 @@ class DriverUnitTest(TeledyneUnitTest, ADCPTMixin):
 #                            INTEGRATION TESTS                                #
 ###############################################################################
 @attr('INT', group='mi')
-class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, ADCPTMixin):
+class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
     def setUp(self):
         TeledyneIntegrationTest.setUp(self)
 
@@ -1219,9 +1236,11 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, ADCPTMixin):
         # behavior, but we need to check this behavior on all SBE instruments.
         set_time = get_timestamp_delayed("%d %b %Y  %H:%M:%S")
         # One second later
+        log.debug("One second later....")
         expected_time = get_timestamp_delayed("%d %b %Y  %H:%M:%S")
-        self.assert_set(Parameter.DS_DEVICE_DATE_TIME, set_time, no_get=True)
-        self.assert_get(Parameter.DS_DEVICE_DATE_TIME, expected_time.upper())
+        log.debug("SET_TIME = %s", set_time)
+        self.assert_set(Parameter.TIME, set_time, no_get=True)
+        self.assert_get(Parameter.TIME, expected_time.upper())
 
         ###
         #   Instrument Parameteres
