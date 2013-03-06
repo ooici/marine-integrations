@@ -11,6 +11,12 @@ with individual instruments in the system.
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
+print '#########################'
+print '#########################'
+print '#########################'
+print 'importing from external repo'
+
+
 import time
 
 from mi.core.common import BaseEnum
@@ -18,7 +24,7 @@ from mi.core.exceptions import TestModeException
 from mi.core.exceptions import NotImplementedException
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentParameterException
-from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_fsm import InstrumentFSM, ThreadSafeFSM
 from mi.core.instrument.port_agent_client import PortAgentClient
 
 from mi.core.log import get_logger,LoggerManager
@@ -409,7 +415,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._protocol = None
         
         # Build connection state machine.
-        self._connection_fsm = InstrumentFSM(DriverConnectionState,
+        self._connection_fsm = ThreadSafeFSM(DriverConnectionState,
                                                 DriverEvent,
                                                 DriverEvent.ENTER,
                                                 DriverEvent.EXIT)
