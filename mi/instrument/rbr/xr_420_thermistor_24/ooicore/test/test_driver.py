@@ -789,7 +789,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
                 ResourceAgentEvent.GO_INACTIVE,
                 ResourceAgentEvent.PAUSE
             ],
-            AgentCapabilityType.AGENT_PARAMETER: ['example'],
+            AgentCapabilityType.AGENT_PARAMETER: ['example', 'pubfreq', 'alarms', 'streams'],
             AgentCapabilityType.RESOURCE_COMMAND: [
                 DriverEvent.CLOCK_SYNC,
                 DriverEvent.GET,
@@ -810,6 +810,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+            DriverEvent.GET,
             DriverEvent.STOP_AUTOSAMPLE,
         ]
 
