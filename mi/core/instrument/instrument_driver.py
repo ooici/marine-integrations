@@ -11,6 +11,12 @@ with individual instruments in the system.
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
+print '#########################'
+print '#########################'
+print '#########################'
+print 'importing from external repo'
+
+
 import time
 
 from mi.core.common import BaseEnum
@@ -18,7 +24,7 @@ from mi.core.exceptions import TestModeException
 from mi.core.exceptions import NotImplementedException
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentParameterException
-from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_fsm import InstrumentFSM, ThreadSafeFSM
 from mi.core.instrument.port_agent_client import PortAgentClient
 
 from mi.core.log import get_logger,LoggerManager
@@ -409,7 +415,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._protocol = None
         
         # Build connection state machine.
-        self._connection_fsm = InstrumentFSM(DriverConnectionState,
+        self._connection_fsm = ThreadSafeFSM(DriverConnectionState,
                                                 DriverEvent,
                                                 DriverEvent.ENTER,
                                                 DriverEvent.EXIT)
@@ -854,7 +860,8 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         
         self._build_protocol()
         self._connection.init_comms(self._protocol.got_data, 
-                                    self._protocol.got_raw)
+                                    self._protocol.got_raw,
+                                    self._lost_connection)
         self._protocol._connection = self._connection
         next_state = DriverConnectionState.CONNECTED
         
@@ -985,6 +992,13 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         except (TypeError, KeyError):
             raise InstrumentParameterException('Invalid comms config dict.')
 
+    def _lost_connection(self):
+        """
+        A callback invoked by the port agent client when it looses
+        connectivity to the port agent.
+        """
+        pass
+    
     def _build_protocol(self):
         """
         Construct device specific single connection protocol FSM.

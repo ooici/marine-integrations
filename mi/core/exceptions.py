@@ -11,22 +11,30 @@ in the driver code.
 __author__ = 'Edward Hunter'
 __license__ = 'Apache 2.0'
 
-from mi.core.common import InstErrorCode
-import traceback
+from mi.core.common import BaseEnum
+from ooi.exception import ApplicationException
 
-class InstrumentException(Exception):
+BadRequest = 400
+Timeout = 408
+Conflict = 409
+ResourceError = 700
+ServerError = 500
+
+class InstrumentException(ApplicationException):
     """Base class for an exception related to physical instruments or their
     representation in ION.
     """
-    
-    def __init__ (self, msg=None, error_code=None):
+    def __init__ (self, msg=None, error_code=ResourceError):
         self.args = (error_code, msg)
         self.error_code = error_code
         self.msg = msg
+
+    def get_triple(self):
+        """ get exception info without depending on MI exception classes """
+        return ( self.error_code, self.__class__.__name__ + ': ' + self.msg, self._stacks )
     
 class InstrumentConnectionException(InstrumentException):
     """Exception related to connection with a physical instrument"""
-    pass
 
 class InstrumentProtocolException(InstrumentException):
     """Exception related to an instrument protocol problem
@@ -35,60 +43,41 @@ class InstrumentProtocolException(InstrumentException):
     to happen when talking at the lowest layer protocol to a device.
     @todo Add partial result property?
     """
-    pass
 
 class InstrumentStateException(InstrumentException):
     """Exception related to an instrument state of any sort"""
-    pass
+    error_code = Conflict
 
 class InstrumentTimeoutException(InstrumentException):
     """Exception related to a command, request, or communication timing out"""
-    def __init__(self, error_code=InstErrorCode.TIMEOUT, msg=None):
-        InstrumentException.__init__(self, msg=msg, error_code=error_code)
-    
+    error_code = Timeout
+
 class InstrumentDataException(InstrumentException):
     """Exception related to the data returned by an instrument or developed
     along the path of handling that data"""
-    pass
 
 class TestModeException(InstrumentException):
     """Attempt to run a test command while not in test mode"""
-    pass
 
 class InstrumentCommandException(InstrumentException):
     """A problem with the command sent toward the instrument"""
-    pass
-    
+
 class InstrumentParameterException(InstrumentException):
     """A required parameter is not supplied"""
-    def __init__(self, msg=None, error_code=None):
-        if error_code == None:
-            error_code = InstErrorCode.REQUIRED_PARAMETER
-        if msg == None:
-            msg = ""
-            
-        InstrumentException.__init__(self, error_code, msg)
+    error_code = BadRequest
 
 class NotImplementedException(InstrumentException):
-    """
-    A driver function is not implemented.
-    """
-    pass
+    """ A driver function is not implemented. """
 
 class ReadOnlyException(InstrumentException):
-    """
-    A driver function is not implemented.
-    """
     pass
 
 class SampleException(InstrumentException):
-    """
-    An expected sample could not be extracted.
-    """
-    pass
+    """ An expected sample could not be extracted. """
 
 class SchedulerException(InstrumentException):
-    """
-    An error occurred in the scheduler
-    """
-    pass
+    """ An error occurred in the scheduler """
+
+class UnexpectedError(InstrumentException):
+    """ wrapper to send non-MI exceptions over zmq """
+    error_code = ServerError

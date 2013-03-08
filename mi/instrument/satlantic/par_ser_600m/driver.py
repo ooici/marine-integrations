@@ -58,13 +58,16 @@ RETRY = 3
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    PARSED = 'parsed'
+    PARSED = 'parad_sa_sampled'
 
 class PARSpecificDriverEvents(BaseEnum):
     START_POLL = 'DRIVER_EVENT_START_POLL'
     STOP_POLL = 'DRIVER_EVENT_STOP_POLL'
     RESET = "DRIVER_EVENT_RESET"
-        
+
+class ScheduledJob(BaseEnum):
+    CLOCK_SYNC = 'clock_sync'
+
 ####################################################################
 # Static enumerations for this class
 ####################################################################
@@ -120,7 +123,7 @@ class PARCapability(BaseEnum):
     GET = PARProtocolEvent.GET
     SET = PARProtocolEvent.SET
 
-class Parameter(BaseEnum):
+class Parameter(DriverParameter):
     MAXRATE = 'maxrate'
     FIRMWARE = 'firmware'
     SERIAL = 'serial'
@@ -164,8 +167,8 @@ class SatlanticPARInstrumentDriver(SingleConnectionInstrumentDriver):
         self._protocol = SatlanticPARInstrumentProtocol(self._driver_event)
 
 class SatlanticPARDataParticleKey(BaseEnum):
-    SERIAL_NUM = "serial_num"
-    COUNTS = "counts"
+    SERIAL_NUM = "serial_number"
+    COUNTS = "par"
     TIMER = "elapsed_time"
     CHECKSUM = "checksum"
     
@@ -190,7 +193,7 @@ class SatlanticPARDataParticle(DataParticle):
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.decoded_raw)
             
-        sernum = str(match.group(1))
+        sernum = int(match.group(1))
         timer = float(match.group(2))
         counts = int(match.group(3))
         checksum = int(match.group(4))
@@ -204,7 +207,6 @@ class SatlanticPARDataParticle(DataParticle):
         if not checksum:
             raise SampleException("No checksum value parsed")
         
-        #TODO:  Get 'temp', 'cond', and 'depth' from a paramdict
         result = [{DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.SERIAL_NUM,
                    DataParticleKey.VALUE: sernum},
                   {DataParticleKey.VALUE_ID: SatlanticPARDataParticleKey.TIMER,
@@ -1122,12 +1124,12 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
                 break  
 
 
-    def _got_chunk(self, chunk):
+    def _got_chunk(self, chunk, timestamp):
         '''
         extract samples from a chunk of data
         @param chunk: bytes to parse into a sample.
         '''
-        self._extract_sample(SatlanticPARDataParticle, SAMPLE_REGEX, chunk)
+        self._extract_sample(SatlanticPARDataParticle, SAMPLE_REGEX, chunk, timestamp)
         self._extract_header(chunk)
 
 

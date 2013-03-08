@@ -5,4 +5,4 @@ driver_metadata:
   driver_name: ooicore
   email: daeverett@ucsd.edu
   release_notes: SBE Driver
-  version: 0
+  version: 0.0.2

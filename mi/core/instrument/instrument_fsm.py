@@ -10,12 +10,14 @@
 __author__ = 'Edward Hunter'
 __license__ = 'Apache 2.0'
 
+from threading import RLock
+
 from mi.core.exceptions import InstrumentStateException
 
 from mi.core.log import get_logger,LoggerManager
 log = get_logger()
 
-class InstrumentFSM():
+class InstrumentFSM(object):
     """
     Simple state mahcine for driver and agent classes.
     """
@@ -152,3 +154,39 @@ class InstrumentFSM():
                     if event not in events:
                         events.append(event)
         return events
+
+
+class ThreadSafeFSM(InstrumentFSM):
+    """
+    A FSM class that provides thread locking in on_event to
+    prevent simultaneous thread reentry.
+    """
+    
+    def __init__(self, states, events, enter_event, exit_event):
+        """
+        """
+        super(ThreadSafeFSM, self).__init__(states, events, enter_event,
+                                            exit_event)
+        self._lock = RLock()
+    
+    def on_event(self, event, *args, **kwargs):
+        """
+        """
+        
+        self._lock.acquire(True)
+        ex = None
+        
+        try:
+            result = super(ThreadSafeFSM, self).on_event(event, *args, **kwargs)
+        
+        except Exception as ex:
+            pass
+        
+        finally:
+            self._lock.release()
+        
+        if ex:
+            raise ex
+        
+        return result
+    
