@@ -784,7 +784,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         }
 
         self.assert_initialize_driver()
-        #self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
+        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
         # Start autosample and try again
         self.assert_set_bulk(new_values)
