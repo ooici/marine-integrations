@@ -530,11 +530,13 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
-        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.GET, self._handler_get)
+        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.CLOCK_SYNC, self._handler_clock_sync)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -962,34 +964,6 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         
         return (next_state, (next_agent_state, result))
 
-    def _handler_command_clock_sync(self, *args, **kwargs):
-        """
-        sync clock close to a second edge 
-        @retval (next_state, result) tuple, (None, None) if successful.
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command could not be built or misunderstood.
-        """
-
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        self._clock_sync()
-        
-        return (next_state, (next_agent_state, result))
-
-    def _handler_command_acquire_status(self, *args, **kwargs):
-        """
-        Get device status
-        """
-        next_state = None
-        next_agent_state = None
-        result = None
-        
-        self._generate_status_event()
-    
-        return (next_state, (next_agent_state, result))
-
     ########################################################################
     # Autosample handlers.
     ########################################################################
@@ -1076,6 +1050,34 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # general handlers.
     ########################################################################
+
+    def _handler_clock_sync(self, *args, **kwargs):
+        """
+        sync clock close to a second edge 
+        @retval (next_state, result) tuple, (None, None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        self._clock_sync()
+        
+        return (next_state, (next_agent_state, result))
+
+    def _handler_acquire_status(self, *args, **kwargs):
+        """
+        Get device status
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+        
+        self._generate_status_event()
+    
+        return (next_state, (next_agent_state, result))
 
     def _handler_get(self, *args, **kwargs):
         """

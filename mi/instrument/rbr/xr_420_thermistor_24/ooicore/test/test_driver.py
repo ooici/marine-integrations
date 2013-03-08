@@ -629,7 +629,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         reply = self.driver_client.cmd_dvr('get_resource', DriverParameter.ALL)
         self.assert_parameters(reply, self._driver_parameters, True)
 
-    @unittest.skip("skip until working")
     def test_commands(self):
         """
         Run instrument commands from both command and streaming mode.
@@ -640,16 +639,17 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         # First test in command mode
         ####
         self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolStates.AUTOSAMPLE, delay=1)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolStates.COMMAND, delay=1)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'serial sync mode')
 
         ####
         # Test in streaming mode
         ####
         # Put us in streaming
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolStates.AUTOSAMPLE, delay=1)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'serial sync mode')
+        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolStates.COMMAND, delay=1)
 
         ####
