@@ -1,0 +1,6 @@
+comm:
+  command_port: 5113
+  data_port: 5112
+  device_addr: 10.180.80.169
+  device_port: 2101
+  method: ethernet
