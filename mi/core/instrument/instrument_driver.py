@@ -860,7 +860,8 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         
         self._build_protocol()
         self._connection.init_comms(self._protocol.got_data, 
-                                    self._protocol.got_raw)
+                                    self._protocol.got_raw,
+                                    self._lost_connection)
         self._protocol._connection = self._connection
         next_state = DriverConnectionState.CONNECTED
         
@@ -991,6 +992,13 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         except (TypeError, KeyError):
             raise InstrumentParameterException('Invalid comms config dict.')
 
+    def _lost_connection(self):
+        """
+        A callback invoked by the port agent client when it looses
+        connectivity to the port agent.
+        """
+        pass
+    
     def _build_protocol(self):
         """
         Construct device specific single connection protocol FSM.
