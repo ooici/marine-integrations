@@ -593,7 +593,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_23)
         self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_24)
     
-    @unittest.skip("skip until working")
     def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
