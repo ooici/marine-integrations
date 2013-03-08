@@ -112,29 +112,23 @@ InstrumentDriverTestCase.initialize(
     }
 )
 
-# 'will echo' command sequence to be sent from DA telnet server
-# see RFCs 854 & 857
-WILL_ECHO_CMD = '\xff\xfd\x03\xff\xfb\x03\xff\xfb\x01'
-# 'do echo' command sequence to be sent back from telnet client
-DO_ECHO_CMD   = '\xff\xfb\x03\xff\xfd\x03\xff\xfd\x01'
-
-# Create some short names for the parameter test config
-TYPE = ParameterTestConfigKey.TYPE
-READONLY = ParameterTestConfigKey.READONLY
-STARTUP = ParameterTestConfigKey.STARTUP
-DA = ParameterTestConfigKey.DIRECT_ACCESS
-VALUE = ParameterTestConfigKey.VALUE
-REQUIRED = ParameterTestConfigKey.REQUIRED
-DEFAULT = ParameterTestConfigKey.DEFAULT
-    
 class UtilMixin(DriverTestMixin):
     '''
     Mixin class used for storing data particle constants and common data assertion methods.
     '''
     
-    TIME_TO_SET1 = '21 Feb 2002 11:18:42'
-    TIME_TO_SET2 = '01 Jan 2000 12:23:00'
-    TIME_TO_SET3 = '27 Dec 2023 01:10:59'
+    # Create some short names for the parameter test config
+    TYPE = ParameterTestConfigKey.TYPE
+    READONLY = ParameterTestConfigKey.READONLY
+    STARTUP = ParameterTestConfigKey.STARTUP
+    DA = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE = ParameterTestConfigKey.VALUE
+    REQUIRED = ParameterTestConfigKey.REQUIRED
+    DEFAULT = ParameterTestConfigKey.DEFAULT
+    
+    CLOCK_SYNC_TIME = '21 Feb 2002 11:18:42'
+    TIME_IN_PAST    = '01 Jan 2000 12:23:00'
+    TIME_IN_FUTURE  = '27 Dec 2023 01:10:59'
 
     ###
     #  Parameter and Type Definitions
@@ -182,18 +176,18 @@ class UtilMixin(DriverTestMixin):
     }
 
     # parameter values to test.
-    paramter_values = {InstrumentParameters.START_DATE_AND_TIME : TIME_TO_SET2,
-                       InstrumentParameters.END_DATE_AND_TIME : TIME_TO_SET3,
-                       InstrumentParameters.SAMPLE_INTERVAL : '00:00:15',
-                       InstrumentParameters.POWER_ALWAYS_ON : 1,
-                       InstrumentParameters.SIX_HZ_PROFILING_MODE : 0,
-                       InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER : 1,
-                       InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE : 1,
-                       InstrumentParameters.SAMPLING_LED : 0,
-                       InstrumentParameters.ENGINEERING_UNITS_OUTPUT : 1,
-                       InstrumentParameters.AUTO_RUN : 1,
-                       InstrumentParameters.INHIBIT_DATA_STORAGE : 1,
-                       }
+    paramter_test_values = {InstrumentParameters.START_DATE_AND_TIME : TIME_IN_PAST,
+                            InstrumentParameters.END_DATE_AND_TIME : TIME_IN_FUTURE,
+                            InstrumentParameters.SAMPLE_INTERVAL : '00:00:15',
+                            InstrumentParameters.POWER_ALWAYS_ON : 1,
+                            InstrumentParameters.SIX_HZ_PROFILING_MODE : 0,
+                            InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER : 1,
+                            InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE : 1,
+                            InstrumentParameters.SAMPLING_LED : 0,
+                            InstrumentParameters.ENGINEERING_UNITS_OUTPUT : 1,
+                            InstrumentParameters.AUTO_RUN : 1,
+                            InstrumentParameters.INHIBIT_DATA_STORAGE : 1,
+                            }
     
     _engineering_parameters = {
         XR_420EngineeringDataParticleKey.BATTERY_VOLTAGE: {TYPE: float, REQUIRED: False},
@@ -413,8 +407,8 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         # load the engineering parameter values
         pd = driver._protocol._param_dict
         for name in self._engineering_parameters.keys():
-            if self._engineering_parameters[name].has_key(VALUE):
-                pd.set_value(name, self._engineering_parameters[name][VALUE])
+            if self._engineering_parameters[name].has_key(self.VALUE):
+                pd.set_value(name, self._engineering_parameters[name][self.VALUE])
             
         # clear out any old events
         self.clear_data_particle_queue()
@@ -509,15 +503,12 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
     """Integration Test Container"""
     
-    @staticmethod
-    def driver_module():
-        return 'mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver'
-        
-    @staticmethod
-    def driver_class():
-        return 'mavs4InstrumentDriver'    
+    def _assert_parameters_on_initialization(self):
+        self.assert_initialize_driver()
+        reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
+        self.assert_parameters(reply, self._driver_parameters, True)
+        return reply
     
-
     def test_instrument_wakeup(self):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' state
@@ -531,18 +522,19 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         value.  This test confirms that parameters are being read/converted properly and that
         the startup has been applied.
         """
-        self.assert_initialize_driver()
-        reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
-        self.assert_parameters(reply, self._driver_parameters, True)
+        reply = self._assert_parameters_on_initialization()
         for (name, value) in reply.iteritems():
-            print "test_get_parameters: name=%s, value=%s" %(name, str(value))
+            log.debug("test_get_parameters: name=%s, value=%s" %(name, str(value)))
 
 
     def test_set_clock(self):
+        """
+        Test device clock, needs to be close but not an exact match.
+        """
         self.assert_initialize_driver()
 
         new_parameter_values = {}
-        new_parameter_values[InstrumentParameters.LOGGER_DATE_AND_TIME] = self.TIME_TO_SET1
+        new_parameter_values[InstrumentParameters.LOGGER_DATE_AND_TIME] = self.CLOCK_SYNC_TIME
         new_parameter_list = []
         new_parameter_list.append(InstrumentParameters.LOGGER_DATE_AND_TIME)
         
@@ -551,20 +543,20 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         reply = self.driver_client.cmd_dvr('get_resource', new_parameter_list)
         
         rcvd_time = reply[InstrumentParameters.LOGGER_DATE_AND_TIME]
-        self.assert_clock_set(self.TIME_TO_SET1, rcvd_time)
+        self.assert_clock_set(self.CLOCK_SYNC_TIME, rcvd_time)
 
 
     def test_set(self):
         """
-        Test device parameter access.
+        Test device parameter access, needs to be an exact match.
         """
         self.assert_initialize_driver()
 
         # construct values dynamically to get time stamp for notes
         new_parameter_values = {}
 
-        for key in self.paramter_values.iterkeys():
-            new_parameter_values[key] = self.paramter_values[key]
+        for key in self.paramter_test_values.iterkeys():
+            new_parameter_values[key] = self.paramter_test_values[key]
                
         # Set parameters and verify.
         self.assert_set_bulk(new_parameter_values)
@@ -601,6 +593,68 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_23)
         self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_24)
     
+    def test_startup_params(self):
+        """
+        Verify that startup parameters are applied correctly. Generally this
+        happens in the driver discovery method.
+        """
+
+        # Change the values of these parameters to something before the
+        # driver is re-initialized.  They should be blown away with startup values.
+        new_values = {
+            InstrumentParameters.SAMPLE_INTERVAL: '00:00:20',
+            InstrumentParameters.START_DATE_AND_TIME: '10 Jan 2000 00:00:00',
+            InstrumentParameters.END_DATE_AND_TIME: '10 Jan 2050 00:00:00',
+            InstrumentParameters.POWER_ALWAYS_ON: 0,
+            InstrumentParameters.SIX_HZ_PROFILING_MODE: 0,
+            InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER: 0,
+            InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE: 0,
+            InstrumentParameters.SAMPLING_LED: 1,
+            InstrumentParameters.ENGINEERING_UNITS_OUTPUT: 0,
+            InstrumentParameters.AUTO_RUN: 0,
+            InstrumentParameters.INHIBIT_DATA_STORAGE: 0,
+        }
+
+        # test in command mode
+        self._assert_parameters_on_initialization()
+
+        # test in autosample mode
+        # set parameters to something other than startup values
+        self.assert_set_bulk(new_values)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolStates.AUTOSAMPLE, delay=1)
+        # Force a re-apply startup parameters
+        reply = self.driver_client.cmd_dvr('apply_startup_params')
+        # Should be back to our startup parameters.
+        reply = self.driver_client.cmd_dvr('get_resource', DriverParameter.ALL)
+        self.assert_parameters(reply, self._driver_parameters, True)
+
+    def test_commands(self):
+        """
+        Run instrument commands from both command and streaming mode.
+        """
+        self.assert_initialize_driver()
+
+        ####
+        # First test in command mode
+        ####
+        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolStates.AUTOSAMPLE, delay=1)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolStates.COMMAND, delay=1)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'serial sync mode')
+
+        ####
+        # Test in streaming mode
+        ####
+        # Put us in streaming
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolStates.AUTOSAMPLE, delay=1)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'serial sync mode')
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolStates.COMMAND, delay=1)
+
+        ####
+        # Test a bad command
+        ####
+        self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
+
     def test_instrumment_start_stop_autosample(self):
         """
         @brief Test for start/stop of instrument autosample, puts instrument in 'command' state first

@@ -1324,14 +1324,14 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              submenu_read=InstrumentCmds.GET_IDENTIFICATION)
 
         self._param_dict.add(InstrumentParameters.LOGGER_DATE_AND_TIME,
-                             r'(.*)CTD\r\n', 
+                             r'(\d{12})CTD\r\n', 
                              lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
                              submenu_read=InstrumentCmds.GET_LOGGER_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_LOGGER_DATE_AND_TIME)
 
         self._param_dict.add(InstrumentParameters.SAMPLE_INTERVAL,
-                             r'(.*)CSP\r\n', 
+                             r'(\d{6})CSP\r\n', 
                              lambda match : self._convert_xr_420_time(match.group(1)),
                              lambda string : str(string),
                              startup_param=True,
@@ -1340,7 +1340,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              submenu_write=InstrumentCmds.SET_SAMPLE_INTERVAL)
 
         self._param_dict.add(InstrumentParameters.START_DATE_AND_TIME,
-                             r'(.*)CST\r\n', 
+                             r'(\d{12})CST\r\n', 
                              lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
                              startup_param=True,
@@ -1349,7 +1349,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              submenu_write=InstrumentCmds.SET_START_DATE_AND_TIME)
 
         self._param_dict.add(InstrumentParameters.END_DATE_AND_TIME,
-                             r'(.*)CET\r\n', 
+                             r'(\d{12})CET\r\n', 
                              lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
                              startup_param=True,
@@ -1358,175 +1358,175 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              submenu_write=InstrumentCmds.SET_END_DATE_AND_TIME)
 
         self._param_dict.add(InstrumentParameters.BATTERY_VOLTAGE,
-                             r'(.*)BAT\r\n', 
+                             r'(\w{2})BAT\r\n', 
                              lambda match : self._convert_battery_voltage(match.group(1)),
                              self._float_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_BATTERY_VOLTAGE)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_2,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_3,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_4,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_5,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_6,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_7,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_8,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_9,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_10,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_11,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_12,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_13,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_14,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_15,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_16,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_17,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_18,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_19,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_20,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_21,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_22,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_23,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
         self._param_dict.add(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_24,
-                             r'(.*)CAL\r\n', 
+                             r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
@@ -1671,7 +1671,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                     value = value | self.advanced_functions_bits[name]
                 log.debug("_build_set_advanved_functions_command: value=%x, a_f[%s]=%x" %(value, name, self.advanced_functions_bits[name]))
             value *= 0x10000
-            value_str = '%8x' %value
+            value_str = '%08x' %value
             command = cmd + value_str
             log.debug('_build_set_advanved_functions_command: command=%s' %command)
             return command
@@ -1855,11 +1855,11 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     
     def _parse_advanced_functions_response(self, response, prompt, **kwargs):
         log.debug("_parse_advanced_functions_response: response=%s" %response.rstrip())
-        if InstrumentResponses.GET_ADVANCED_FUNCTIONS in response:
+        match = re.search('(\d{4})\d{4}STC', response)
+        if match != None:
             # got advanced functions response, so save it
-            hex_str = response.rstrip('0000STC\r\n')
-            hex_value = int(hex_str, 16)
-            log.debug("_parse_advanced_functions_response: hex_str=%s, hex_value=%x" %(hex_str, hex_value))
+            hex_value = int(match.group(1), 16)
+            log.debug("_parse_advanced_functions_response: hex_str=%s, hex_value=%x" %(match.group(1), hex_value))
             for name in AdvancedFunctionsParameters.list():
                 self._param_dict.set_value(name, self._get_bit_value(name, hex_value))
         else:
@@ -1867,9 +1867,10 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
   
     def _parse_start_sampling_response(self, response, prompt, **kwargs):
         log.debug("_parse_start_sampling_response: response=%s" %response.rstrip())
-        if InstrumentResponses.START_SAMPLING in response:
+        match = re.search('Logger started in mode (\d{2})', response)
+        if match != None:
             # got start sampling response, so parse out the status
-            return response.rstrip()[-2:]
+            return match.group(1)
         else:
             raise InstrumentParameterException('Start sampling response not correct: %s.' %response)
                          
