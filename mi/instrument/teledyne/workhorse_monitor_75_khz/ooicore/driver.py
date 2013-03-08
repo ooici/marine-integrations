@@ -15,7 +15,7 @@ import re
 import time as time
 import string
 import ntplib
-import datetime
+import datetime as dt
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
@@ -129,7 +129,7 @@ class InstrumentCmds(BaseEnum):
     GET_INSTRUMENT_TRANSFORM_MATRIX = 'PS3'
     RUN_TEST = 'PT'
     SET = ' '  # leading spaces are OK. set is just PARAM_NAME next to VALUE
-    DISPLAY_STATUS = 'DISPLAY_STATUS_MACRO'
+    GET = '  '
 
 class ProtocolState(BaseEnum):
     """
@@ -433,15 +433,19 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND,
                                        ProtocolEvent.EXIT,
                                        self._handler_command_exit)
+        
+        
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
+                                       ProtocolEvent.GET,
+                                       self._handler_command_autosample_test_get)
+        
+        
         self._protocol_fsm.add_handler(ProtocolState.COMMAND,
                                        ProtocolEvent.ACQUIRE_SAMPLE,
                                        self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND,
                                        ProtocolEvent.START_AUTOSAMPLE,
                                        self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.GET,
-                                       self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND,
                                        ProtocolEvent.SET,
                                        self._handler_command_set)
@@ -463,6 +467,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND,
                                        ProtocolEvent.START_DIRECT,
                                        self._handler_command_start_direct)
+
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
                                        ProtocolEvent.ENTER,
@@ -574,8 +579,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.SET,
                                 self._build_set_command)
 
-        self._add_build_handler(InstrumentCmds.DISPLAY_STATUS,
-                                self._build_display_status_command)
+        self._add_build_handler(InstrumentCmds.GET,
+                                self._build_get_command)
+
+
+
         #
         # Response handlers
         #
@@ -641,10 +649,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                                 self._parse_test_response)
         self._add_response_handler(InstrumentCmds.SET,
                                 self._parse_set_response)
-
-
-        self._add_response_handler(Parameter.TIME,
-                                   self._parse_time_response)
+        
+        self._add_response_handler(InstrumentCmds.GET,
+                                self._parse_get_response)
 
 
         # State state machine in UNKNOWN state.
@@ -723,8 +730,10 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.TIME_PER_BURST,
             r'TB (\d+:\d+:\d+.\d+) \-+ Time per Burst \(hrs:min:sec.sec/100\)',
-            lambda match: datetime.strptime(match.group(1), '%H:%M:%S.%f'),
-            self._datetime_with_milis_to_time_string_with_milis)
+            lambda match: str(match.group(1)),
+            self._string_to_string)
+            #dt.datetime.strptime(match.group(1), '%H:%M:%S.%f'),
+            #self._datetime_with_milis_to_time_string_with_milis)
 
         self._param_dict.add(Parameter.ENSEMBLES_PER_BURST,
             r'TC (\d+) \-+ Ensembles Per Burst \(0\-65535\)',
@@ -733,8 +742,10 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.TIME_PER_ENSEMBLE,
             r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble \(hrs:min:sec.sec/100\)',
-            lambda match: datetime.strptime(match.group(1), '%H:%M:%S.%f'),
-            self._datetime_with_milis_to_time_string_with_milis)
+            lambda match: str(match.group(1)),
+            self._string_to_string)
+            #dt.datetime.strptime(match.group(1), '%H:%M:%S.%f'),
+            #self._datetime_with_milis_to_time_string_with_milis)
 
         self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
             r'TF (../../..,..:..:..) --- Time of First Ping \(yr/mon/day,hour:min:sec\)',
@@ -761,14 +772,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         #    lambda match: time.strptime(match.group(1), "%Y/%m/%d,%H:%M:%S"),
         #    self._datetime_YYYY_to_string)
 
+
+        #time.strftime("%d %b %Y  %H:%M:%S", time.strptime(match.group(1), "%Y/%m/%d,%H:%M:%S")),
+        #
+
         self._param_dict.add(Parameter.TIME,
-            r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set \(CCYY/MM/DD,hh:mm:ss\)',
+            r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set',
             lambda match: time.strftime("%d %b %Y  %H:%M:%S", time.strptime(match.group(1), "%Y/%m/%d,%H:%M:%S")),
             self._datetime_to_TT_datetime_string)
 
         self._param_dict.add(Parameter.BUFFERED_OUTPUT_PERIOD,
             r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period: \(hh:mm:ss\)',
-            lambda match: time.strptime(match.group(1), "%H:%M:%S"),
+            lambda match: str(match.group(1)), # time.strptime(match.group(1), "%H:%M:%S"),
             self._time_to_string)
 
         self._param_dict.add(Parameter.FALSE_TARGET_THRESHOLD,
@@ -1015,7 +1030,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._string_to_string)
 
         self._param_dict.add(Parameter.BANDWIDTH_CONTROL,
-            r'WB 1 \-+ Bandwidth Control \(0=Wid,1=Nar\)',
+            r'WB (\d) \-+ Bandwidth Control \(0=Wid,1=Nar\)',
             lambda match: int(match.group(1)),
             self._int_to_string)
 
@@ -1176,7 +1191,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
 
-
     def _send_wakeup(self):
         """
         Send a newline to attempt to wake the sbe26plus device.
@@ -1191,20 +1205,48 @@ class Protocol(CommandResponseInstrumentProtocol):
         the new data to be updated in param dict.
         """
         # Get old param dict config.
-        log.debug("IN _update_params")
+        log.debug("IN _update_params" + str(args) + str(kwargs))
         old_config = self._param_dict.get_config()
 
         # Issue display commands and parse results.
-        timeout = kwargs.get('timeout', TIMEOUT)
-        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, timeout=timeout)
 
-        self._build_param_dict()
+        kwargs['expected_prompt'] = Prompt.COMMAND
+        cmds = dir(Parameter)
+
+        log.debug("CMDS = %s", str(cmds))
+        for attr in cmds:
+            log.debug("attr = %s",str(attr))
+            if attr not in ['dict', 'has', 'list', 'ALL']:
+                if not attr.startswith("_"):
+                    key = getattr(Parameter, attr)
+                    log.debug("YES!!!!! ######################### KEY = " + str(key))
+                    result = self._do_cmd_resp(InstrumentCmds.GET, key, **kwargs)
+                    log.debug("RESULT OF GET WAS %s", result)
+        
+        #response = self._do_cmd_resp(InstrumentCmds.GET, Parameter.TIME, **kwargs)
+        #log.debug("GOT A ANSWER BACK OF %s", response)
+
+
+
+        #for line in response.split(NEWLINE):
+        #    self._param_dict.update(line)
+        #self._build_param_dict()
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
-        new_config = self._param_dict.get_config()
-        if new_config != old_config:
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        #new_config = self._param_dict.get_config()
+        #if new_config != old_config:
+        #    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
+
+
+
+
+
+
+
+
+
 
     def _got_chunk(self, chunk, timestamp):
         """
@@ -1245,6 +1287,18 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     ### Not sure if these are needed, since I'm creating data particles
     ### for the information.
+
+    def _parse_get_response(self, response, prompt):
+
+        log.debug("in _parse_get_response RESPONSE = %s", response)
+        if prompt == Prompt.ERR:
+            raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
+
+        self._param_dict.update(response)
+        for line in response.split(NEWLINE):
+            log.debug("Scanning line through param_dict -> %s", line)
+            self._param_dict.update(line)
+
 
     def _parse_set_response(self, response, prompt):
         """
@@ -1384,6 +1438,9 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _parse_time_response(self, response, prompt):
         """
         """
+        log.debug("_parse_time_response RESPONSE = %s", response)
+        for line in response.split(NEWLINE):
+            hit_count = self._param_dict.multi_match_update(line)
     ########################################################################
     # handlers.
     ########################################################################
@@ -1399,7 +1456,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Command device to update parameters and send a config change event.
 
         log.debug("*** IN _handler_command_enter(), updating params")
-        #self._update_params()
+        #self._update_params() #errors when enabled
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -1420,6 +1477,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentStateException if the device response does not correspond to
         an expected state.
         """
+        log.debug("IN _handler_unknown_discover")
 
         timeout = kwargs.get('timeout', TIMEOUT)
 
@@ -1434,6 +1492,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         #    next_state = ProtocolState.AUTOSAMPLE
         #    result = ResourceAgentState.STREAMING
         #elif logging == False:
+        log.debug("THIS IS RIGGED!")
         next_state = ProtocolState.COMMAND
         result = ResourceAgentState.IDLE
         #else:
@@ -1526,6 +1585,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
         @throws InstrumentParameterException if missing or invalid parameter.
         """
+        log.debug("IN _handler_command_autosample_test_get " + str(args) + " <>" + str(kwargs))
         next_state = None
         result = None
 
@@ -1665,12 +1725,21 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param kwargs:
         @return:
         """
+        log.debug("IN _handler_command_acquire_status - DOING NOTHING I GUESS")
         next_state = None
         next_agent_state = None
         kwargs['timeout'] = 30
-        result = self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, *args, **kwargs)
+
+        #cmds = [Parameter.TIME, Parameter.INSTRUMENT_ID]
+
+        #for key in cmds:
+        #    self._do_cmd_resp(InstrumentCmds.GET, key, **kwargs)
+
+
+
 
         return (next_state, (next_agent_state, result))
+
 
     def _handler_command_acquire_configuration(self, *args, **kwargs):
         """
@@ -1787,19 +1856,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         return (next_state, (next_agent_state, result))
 
 
-
-
-
-
-
-
-
-    def _build_display_status_command(self, cmd):
-        display_status_cmd = Parameter.TIME + "?" + NEWLINE
-        log.debug("IN _build_display_status_command CMD = %s", display_status_cmd)
-        return display_status_cmd
-
-    #REDONE#
     def _build_set_command(self, cmd, param, val):
         """
         Build handler for set commands. param=val followed by newline.
@@ -1823,6 +1879,30 @@ class Protocol(CommandResponseInstrumentProtocol):
 
 
 
+
+
+
+
+    def _build_get_command(self, cmd, param, **kwargs):
+        """
+        Build handler for set commands. param=val followed by newline.
+        String val constructed by param dict formatting function.
+        @param param the parameter key to set.
+        @param val the parameter value to set.
+        @ retval The set command to be sent to the device.
+        @ retval The set command to be sent to the device.
+        @throws InstrumentProtocolException if the parameter is not valid or
+        if the formatting function could not accept the value passed.
+        """
+
+        log.debug("in _build_get_command")
+        try:
+            get_cmd = param + '?' + NEWLINE
+            log.debug("IN _build_get_command CMD = '%s'", get_cmd)
+        except KeyError:
+            raise InstrumentParameterException('Unknown driver parameter %s' % param)
+
+        return get_cmd
 
 
 
