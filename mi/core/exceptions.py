@@ -25,6 +25,7 @@ class InstrumentException(ApplicationException):
     representation in ION.
     """
     def __init__ (self, msg=None, error_code=ResourceError):
+        super(InstrumentException,self).__init__()
         self.args = (error_code, msg)
         self.error_code = error_code
         self.msg = msg
@@ -46,11 +47,13 @@ class InstrumentProtocolException(InstrumentException):
 
 class InstrumentStateException(InstrumentException):
     """Exception related to an instrument state of any sort"""
-    error_code = Conflict
+    def __init__ (self, msg=None):
+        super(InstrumentStateException,self).__init__(msg=msg, error_code=Conflict)
 
 class InstrumentTimeoutException(InstrumentException):
     """Exception related to a command, request, or communication timing out"""
-    error_code = Timeout
+    def __init__ (self, msg=None):
+        super(InstrumentTimeoutException,self).__init__(msg=msg, error_code=Timeout)
 
 class InstrumentDataException(InstrumentException):
     """Exception related to the data returned by an instrument or developed
@@ -64,7 +67,8 @@ class InstrumentCommandException(InstrumentException):
 
 class InstrumentParameterException(InstrumentException):
     """A required parameter is not supplied"""
-    error_code = BadRequest
+    def __init__ (self, msg=None):
+        super(InstrumentParameterException,self).__init__(msg=msg, error_code=BadRequest)
 
 class NotImplementedException(InstrumentException):
     """ A driver function is not implemented. """
@@ -80,4 +84,5 @@ class SchedulerException(InstrumentException):
 
 class UnexpectedError(InstrumentException):
     """ wrapper to send non-MI exceptions over zmq """
-    error_code = ServerError
+    def __init__ (self, msg=None):
+        super(UnexpectedError,self).__init__(msg=msg, error_code=ServerError)

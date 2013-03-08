@@ -34,7 +34,7 @@ import mi.core.instrument.driver_process as driver_process
 from mi.core.log import get_logger
 log = get_logger()
 
-def _encode_exception(self, reply):
+def _encode_exception(reply):
     if isinstance(reply, InstrumentException):
         # InstrumentExceptions have corresponding IonException error code built-in
         return reply.get_triple()
