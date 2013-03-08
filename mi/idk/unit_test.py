@@ -1477,6 +1477,34 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             with self.assertRaises(exception_class):
                 reply = self.driver_client.cmd_dvr('set_resource', {param: value})
 
+    def assertRaises(self, excClass, callableObj=None, *args, **kwargs):
+        def __exit__(self, exc_type, exc_value, tb):
+            if exc_type is None:
+                try:
+                    exc_name = self.expected.__name__
+                except AttributeError:
+                    exc_name = str(self.expected)
+                raise self.failureException("{0} not raised".format(exc_name))
+            # for now, assert an exception was thrown -- not necessarily the type
+#            if not issubclass(exc_type, self.expected):
+#                # let unexpected exceptions pass through
+#                return False
+            self.exception = exc_value # store for later retrieval
+            if self.expected_regexp is None:
+                return True
+
+            expected_regexp = self.expected_regexp
+            if isinstance(expected_regexp, basestring):
+                expected_regexp = re.compile(expected_regexp)
+            if not expected_regexp.search(str(exc_value)):
+                raise self.failureException('"%s" does not match "%s"' %
+                                            (expected_regexp.pattern, str(exc_value)))
+            return True
+
+        out = super(InstrumentDriverIntegrationTestCase,self).assertRaises(excClass, callableObj=None, *args, **kwargs)
+        out.__exit__ = __exit__
+        return out
+
     def assert_driver_command(self, command, expected=None, regex=None, value_function=None, state=None, delay=0):
         """
         Verify that we can run a command and that the reply matches if we have
