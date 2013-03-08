@@ -10,7 +10,7 @@
 __author__ = 'Edward Hunter'
 __license__ = 'Apache 2.0'
 
-from threading import Lock
+from threading import RLock
 
 from mi.core.exceptions import InstrumentStateException
 
@@ -167,7 +167,7 @@ class ThreadSafeFSM(InstrumentFSM):
         """
         super(ThreadSafeFSM, self).__init__(states, events, enter_event,
                                             exit_event)
-        self._lock = Lock()
+        self._lock = RLock()
     
     def on_event(self, event, *args, **kwargs):
         """
