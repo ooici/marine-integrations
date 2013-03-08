@@ -84,6 +84,7 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 from ion.agents.port.port_agent_process import PortAgentProcess
 
 from pyon.core.exception import Conflict
+from pyon.core.exception import ResourceError
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 
@@ -1687,7 +1688,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         self.assertEqual(self.events, events)
 
         # Test the exception mechanism.
-        with self.assertRaises(InstrumentException):
+        with self.assertRaises(ResourceError):
             exception_str = 'Oh no, something bad happened!'
             reply = self.driver_client.cmd_dvr('test_exceptions', exception_str)
 
