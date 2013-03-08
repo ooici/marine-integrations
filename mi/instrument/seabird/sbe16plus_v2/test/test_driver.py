@@ -34,6 +34,7 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.chunker import StringChunker
+from interface.objects import AgentCommand
 
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
@@ -42,6 +43,7 @@ from mi.idk.unit_test import AgentCapabilityType
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentCommandException
+from mi.core.exceptions import InstrumentTimeoutException
 
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16Protocol
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16InstrumentDriver
@@ -65,7 +67,12 @@ from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
 from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
 from mi.instrument.seabird.test.test_driver import SeaBirdPublicationTest
 
+from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverProtocolState
 from pyon.agent.agent import ResourceAgentState
+from pyon.agent.agent import ResourceAgentEvent
+from pyon.core.exception import ServerError
+from pyon.core.exception import Conflict
 
 ###
 # Test Inputs
@@ -476,7 +483,7 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
         driver = SBE16InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
-        #self.assert_raw_particle_published(driver, True)
+        self.assert_raw_particle_published(driver, True)
 
         # Start validating data particles
         self.assert_particle_published(driver, VALID_SAMPLE, self.assert_particle_sample, True)
@@ -931,6 +938,23 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         self.assert_clock_set(Parameter.DATE_TIME, sync_clock_cmd=ProtocolEvent.GET_CONFIGURATION, timeout=timeout, tolerance=10)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
+    def test_discover_timeout(self):
+        """
+        We are timing out during discover, but it seems somewhere along the
+        way we are changing the state.  This test is used to track it down
+        and verify it is fixed.
+
+        It appears that
+        """
+        try:
+            self.assert_initialize_driver()
+        except Exception as e:
+            self.assertIsInstance(e, InstrumentTimeoutException)
+            reply = self.driver_client.cmd_dvr('disconnect')
+
+        reply = self.driver_client.cmd_dvr('discover_state')
+        self.assert_current_state(ProtocolState.UNKNOWN)
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -1065,6 +1089,29 @@ class SBEQualTestCase(SeaBirdQualificationTest, SeaBird16plusMixin):
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
+
+    def test_discover_timeout(self):
+        """
+        @brief In the UI we were seeing odd behavior when the discover timed out.
+        the go_active would be sent, and discover would timeout.  A subsequent
+        go_active command would result in a "command not allowed in current state"
+        error.  This test will demonstrate this behavior.
+        """
+        self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
+
+        # INACTIVE
+        self.assert_agent_command(ResourceAgentEvent.INITIALIZE)
+        self.assert_agent_state(ResourceAgentState.INACTIVE)
+
+        # IDLE
+        try:
+            self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
+        except Exception as e:
+            log.error("Exception type: %s value: %s", type(e), e)
+
+        # Now let's try again. Should get same results.
+        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
+
 
 ###############################################################################
 #                             PUBLICATION TESTS                               #

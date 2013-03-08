@@ -1861,7 +1861,7 @@ class SBE16Protocol(SeaBirdProtocol):
         self._param_dict.add(Parameter.OUTPUT_FORMAT,
                              r'output format = (raw HEX)',
                              self._output_format_string_2_int,
-                             self._output_format_int_2_string,
+                             int,
                              startup_param = True,
                              direct_access = True,
                              default_value = 0,
