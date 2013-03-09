@@ -790,7 +790,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         self.assert_set_bulk(new_values)
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         self.assert_startup_parameters(self.assert_driver_parameters)
-        self.assert_current_state(ProtocolEvent.START_AUTOSAMPLE)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
     def test_commands(self):
         """
@@ -938,23 +938,6 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         self.assert_clock_set(Parameter.DATE_TIME, sync_clock_cmd=ProtocolEvent.GET_CONFIGURATION, timeout=timeout, tolerance=10)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
-    def test_discover_timeout(self):
-        """
-        We are timing out during discover, but it seems somewhere along the
-        way we are changing the state.  This test is used to track it down
-        and verify it is fixed.
-
-        It appears that
-        """
-        try:
-            self.assert_initialize_driver()
-        except Exception as e:
-            self.assertIsInstance(e, InstrumentTimeoutException)
-            reply = self.driver_client.cmd_dvr('disconnect')
-
-        reply = self.driver_client.cmd_dvr('discover_state')
-        self.assert_current_state(ProtocolState.UNKNOWN)
-
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -1089,29 +1072,6 @@ class SBEQualTestCase(SeaBirdQualificationTest, SeaBird16plusMixin):
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
-
-    def test_discover_timeout(self):
-        """
-        @brief In the UI we were seeing odd behavior when the discover timed out.
-        the go_active would be sent, and discover would timeout.  A subsequent
-        go_active command would result in a "command not allowed in current state"
-        error.  This test will demonstrate this behavior.
-        """
-        self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
-
-        # INACTIVE
-        self.assert_agent_command(ResourceAgentEvent.INITIALIZE)
-        self.assert_agent_state(ResourceAgentState.INACTIVE)
-
-        # IDLE
-        try:
-            self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
-        except Exception as e:
-            log.error("Exception type: %s value: %s", type(e), e)
-
-        # Now let's try again. Should get same results.
-        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
-
 
 ###############################################################################
 #                             PUBLICATION TESTS                               #
