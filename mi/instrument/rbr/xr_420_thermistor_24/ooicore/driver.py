@@ -619,18 +619,24 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                 break
 
         if instrument_configured:
+            log.debug("apply_startup_params: instrument already correctly configured.")
             return
         
+        log.debug("apply_startup_params: instrument needs startup parameters applied.")
+
         if current_state == ProtocolStates.AUTOSAMPLE:
             # this call will return if reset is successful or raise an exception otherwise
+            log.debug("apply_startup_params: instrument in autosample mode, need to reset it to apply startup parameters.")
             self._reset_instrument()
             
         config = self.get_startup_config()
         # this call will set the parameters on the instrument and then update their values in the param_dict
+        log.debug("apply_startup_params: applying startup parameters.")
         self._handler_command_set(config)
 
         if current_state == ProtocolStates.AUTOSAMPLE:
             # this call will return if start is successful or raise an exception otherwise
+            log.debug("apply_startup_params: restarting autosample mode after applying startup parameters.")
             self._start_sampling()
 
     ########################################################################
@@ -806,11 +812,11 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             # didn't get status response, so indicate that there is trouble with the instrument
             raise InstrumentStateException('Unknown state.')
         
-        if InstrumentResponses.GET_STATUS in self._promptbuf:
+        match = re.search('Logger status (\d{2})', self._promptbuf)
+        if match != None:
             # got status response, so determine what mode the instrument is in
-            parsed = self._promptbuf.split() 
-            status = int(parsed[2], 16)
-            log.debug("_handler_unknown_discover: parsed=%s, status=%d" %(parsed, status))
+            status = int(match.group(1), 16)
+            log.debug("_handler_unknown_discover: parsed=%s, status=%d" %(match.group(1), status))
             if status > Status.DATA_MEMORY_ERASE_FAILED:
                 status = Status.STOPPED_SAMPLING
             if status in [Status.STARTED_SAMPLING,
@@ -1153,7 +1159,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             
     def _reset_instrument(self):
         ENABLING_SEQUENCE = '!U01N'
-        TIMEOUT = 60
+        ERASE_TIMEOUT = 60
         # Issue reset command and return if successful.
         for i in range(2):
             # Wakeup the device, pass up exception if timeout    
@@ -1172,19 +1178,19 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                 if status_as_int == Status.NOT_ENABLED_FOR_SAMPLING:
                     # instrument is reset and ready
                     return
-                if status_as_int == Status.ERASING_DATA_MEMORY:
+                elif status_as_int == Status.ERASING_DATA_MEMORY:
                     # instrument is still busy
                     time.sleep(1)
-                    continue
-                if status_as_int == Status.DATA_MEMORY_ERASE_FAILED:
+                elif status_as_int == Status.DATA_MEMORY_ERASE_FAILED:
                     # serious instrument failure
                     raise InstrumentCommandException("_reset_instrument: " +
                                                      "SERIOUS FAILURE to reset instrument! status=%s" 
                                                      %Status.DATA_MEMORY_ERASE_FAILED)
-                if time.time() > starttime + TIMEOUT:
-                    raise InstrumentCommandException("_reset_instrument: " +
-                                                     "Failed to reset instrument in %d seconds, status=%s" 
-                                                     %(TIMEOUT, self._param_dict.get(InstrumentParameters.STATUS)))
+                if time.time() > starttime + ERASE_TIMEOUT:
+                    break
+        raise InstrumentCommandException("_reset_instrument: " +
+                                         "Failed to reset instrument after 2 tries of %d seconds each, status=%s" 
+                                         %(ERASE_TIMEOUT, self._param_dict.get(InstrumentParameters.STATUS)))
             
     def _float_list_to_string(self, float_list):
         float_str = ''
