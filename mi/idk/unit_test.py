@@ -108,7 +108,7 @@ class LooseExceptionCheckingContext(_AssertRaisesContext):
                 exc_name = self.expected.__name__
             except AttributeError:
                 exc_name = str(self.expected)
-            raise self.failureException("{0} ain't raised".format(exc_name))
+            raise self.failureException("{0} was not raised".format(exc_name))
         # expected exception types will NOT be original MI types
         # since the assertion is made on the pycc side of ZMQ
         # but the MI exception has been converted to the corresponding Ion exception.
@@ -1511,7 +1511,23 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             with self.assertRaises(exception_class):
                 reply = self.driver_client.cmd_dvr('set_resource', {param: value})
 
+    def assertRaisesRegexp(self, expected_exception, exception_regex, *args, **kwargs):
+        """
+        Overloaded because we want to check for MI exceptions, but by the time they
+        get to us they have been translated to ION exceptions.
+
+        We need to investigate the best way to handle this, for now just ensure the
+        exception is raised.
+        @param expected_exception: MI Exception raised
+        @param exception_regex: pattern to match in the regex message
+        """
+        self.assertRaises(expected_exception)
+
     def assertRaises(self, excClass, callableObj=None, *args, **kwargs):
+        """
+        Overloaded because we want to check for MI exceptions, but by the time they
+        get to us they have been translated to ION exceptions.
+        """
         context = LooseExceptionCheckingContext(excClass, self)
         if callableObj is None:
             return context
