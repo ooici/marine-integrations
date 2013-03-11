@@ -909,7 +909,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         """
         next_state = None
         result = None
-
+        
         self._connection.stop_comms()
         self._protocol = None
         
@@ -997,18 +997,19 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         except (TypeError, KeyError):
             raise InstrumentParameterException('Invalid comms config dict.')
 
-    def _lost_connection(self):
+    def _lost_connection(self, error_string):
         """
         A callback invoked by the port agent client when it looses
         connectivity to the port agent.
         """
+        
         if not self._connection_lost:
             self._connection_lost = True
-            lost_comms_thread = Thread(                
-                target=self._handle_lost_connection,
-                args=(DriverEvent.CONNECTION_LOST))
+            lost_comms_thread = Thread(
+                target=self._connection_fsm.on_event,
+                args=(DriverEvent.CONNECTION_LOST, ))
             lost_comms_thread.start()
-    
+            
     def _build_protocol(self):
         """
         Construct device specific single connection protocol FSM.

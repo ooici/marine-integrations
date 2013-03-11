@@ -136,6 +136,7 @@ DEFAULT = ParameterTestConfigKey.DEFAULT
 # bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:SBEIntTestCase.test_test
 # bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:SBEIntTestCase.test_errors
 # bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:SBEIntTestCase.test_discover_autosample
+# bin/nosetests -s -v mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py:SBEIntTestCase.test_lost_connection
 
 
 ## Initialize the test parameters
@@ -1191,6 +1192,55 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         self.assert_particle_generation(SBE37ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_device_status)
         self.assert_particle_generation(SBE37ProtocolEvent.ACQUIRE_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_device_calibration)
 
+    def test_lost_connection(self):
+        """
+        Test that the driver responds correctly to lost connections.
+        """
+        
+        # Test the driver is in state unconfigured.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('discover_state')
+
+        # Test the driver is in command mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, SBE37ProtocolState.COMMAND)
+        
+        # Make sure the device parameters are set to sample frequently.
+        params = {
+            SBE37Parameter.NAVG : 1,
+            SBE37Parameter.INTERVAL : 5
+        }
+        reply = self.driver_client.cmd_dvr('set_resource', params)
+        
+        # Acquire a sample to know we're cooking with gas.
+        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
+                
+        # Stop the port agent out from under the driver.
+        self.stop_port_agent()
+
+        # Loop until we see the state change. This will cause the test
+        # to timeout if it never happens.
+        while True:
+            state = self.driver_client.cmd_dvr('get_resource_state')
+            if state == DriverConnectionState.DISCONNECTED: break
+            
 #self._dvr_proc = self.driver_process
 #self._pagent = self.port_agent
 #self._dvr_client = self.driver_client
