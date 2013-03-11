@@ -1239,8 +1239,11 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         # to timeout if it never happens.
         while True:
             state = self.driver_client.cmd_dvr('get_resource_state')
-            if state == DriverConnectionState.DISCONNECTED: break
-            
+            if state == DriverConnectionState.DISCONNECTED:
+                break
+            else:
+                gevent.sleep(1)
+                
 #self._dvr_proc = self.driver_process
 #self._pagent = self.port_agent
 #self._dvr_client = self.driver_client
