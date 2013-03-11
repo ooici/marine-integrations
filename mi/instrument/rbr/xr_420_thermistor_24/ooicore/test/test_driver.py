@@ -67,6 +67,7 @@ from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentProt
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentParameters
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentCmds
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import Capability
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import ScheduledJob
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentResponses
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import AdvancedFunctionsParameters
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import AdvancedFuntionsBits
@@ -254,9 +255,8 @@ class UtilMixin(DriverTestMixin):
         "21.0069 21.5426 21.3204 21.2402 21.3968 21.4371 21.0411 21.4361 " + \
         "BV: 11.5916 SN: 021968 FET"
              
-    def assert_clock_set(self, sent_time, rcvd_time):
+    def assert_clock_set_correctly(self, sent_time, rcvd_time):
         # verify that the dates match
-        print("sts=%s, rts=%s" %(sent_time, rcvd_time))
         self.assertTrue(sent_time[:12].upper() in rcvd_time.upper())
            
         sent_timestamp = time.strptime(sent_time, "%d %b %Y %H:%M:%S")
@@ -264,9 +264,22 @@ class UtilMixin(DriverTestMixin):
         rcvd_timestamp = time.strptime(rcvd_time, "%d %b %Y %H:%M:%S")
         ntp_rcvd_timestamp = ntplib.system_to_ntp_time(time.mktime(rcvd_timestamp))
         # verify that the times match closely
-        print("sts=%d, rts=%d" %(ntp_sent_timestamp, ntp_rcvd_timestamp))
         if ntp_rcvd_timestamp - ntp_sent_timestamp > 3:
             self.fail("time delta too large after clock sync")        
+    
+    def assert_set_clock(self, time):
+        new_parameter_values = {}
+        new_parameter_values[InstrumentParameters.LOGGER_DATE_AND_TIME] = time
+        new_parameter_list = []
+        new_parameter_list.append(InstrumentParameters.LOGGER_DATE_AND_TIME)
+        
+        # Set parameter and verify.
+        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
+        reply = self.driver_client.cmd_dvr('get_resource', new_parameter_list)
+        
+        rcvd_time = reply[InstrumentParameters.LOGGER_DATE_AND_TIME]
+        self.assert_clock_set_correctly(time, rcvd_time)
+
     
     def assert_particle_sample(self, data_particle, verify_values = False):
         '''
@@ -362,6 +375,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         Verify that all driver enumerations have no duplicate values that might cause confusion.  Also
         do a little extra validation for the Capabilites
         """
+        self.assert_enum_has_no_duplicates(ScheduledJob())
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(InstrumentResponses())
         self.assert_enum_has_no_duplicates(InstrumentCmds())
@@ -505,6 +519,53 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
     """Integration Test Container"""
     
+    def _is_time_set(self, time_param, expected_time, time_format = "%d %b %Y %H:%M:%S", tolerance=3):
+        """
+        Verify is what we expect it to be within a given tolerance
+        @param time_param: driver parameter
+        @param expected_time: what the time should be in seconds since unix epoch or formatted time string
+        @param time_format: date time format
+        @param tolerance: how close to the set time should the get be?
+        """
+
+        result_time = self.assert_get(time_param)
+        result_time_struct = time.strptime(result_time, time_format)
+        converted_time = time.mktime(result_time_struct)
+
+        if(isinstance(expected_time, float)):
+            expected_time_struct = time.localtime(expected_time)
+        else:
+            # convert time struct to string and back again to get around DST issue so that
+            # time is interpreted the same for both the instrument and test
+            expected_time_struct = time.strptime(time.strftime(time_format, expected_time), time_format)
+        
+        log.debug("Current Time: %s, Expected Time: %s", time.strftime("%d %b %y %H:%M:%S", result_time_struct),
+                  time.strftime("%d %b %y %H:%M:%S", expected_time_struct))
+
+        log.debug("Current Time: %s, Expected Time: %s, Tolerance: %s",
+                  converted_time, time.mktime(expected_time_struct), tolerance)
+
+        # Verify the clock is set within the tolerance
+        return abs(converted_time - time.mktime(expected_time_struct)) <= tolerance
+
+    def assert_clock_set(self, time_param, sync_clock_cmd = DriverEvent.CLOCK_SYNC, timeout = 20, tolerance=3):
+        """
+        Verify the clock is set to at least the current date
+        """
+        log.debug("verify clock is set to the current time")
+
+        timeout_time = time.time() + timeout
+        
+        while(not self._is_time_set(time_param, time.gmtime(), tolerance=tolerance)):
+            log.debug("time isn't current. sleep for a bit")
+            time.sleep(2)
+
+            # Run acquire status command to set clock parameter
+            self.assert_driver_command(sync_clock_cmd)
+
+            log.debug("T: %s T: %s", time.time(), timeout_time)
+            self.assertLess(time.time(), timeout_time, msg="Timeout waiting for clock sync event")
+
     def assert_initialize_driver_unspecific(self):
         """
         Walk an uninitialized driver through it's initialize process.  
@@ -557,19 +618,8 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         Test device clock, needs to be close but not an exact match.
         """
         self.assert_initialize_driver()
-
-        new_parameter_values = {}
-        new_parameter_values[InstrumentParameters.LOGGER_DATE_AND_TIME] = self.CLOCK_SYNC_TIME
-        new_parameter_list = []
-        new_parameter_list.append(InstrumentParameters.LOGGER_DATE_AND_TIME)
         
-        # Set parameter and verify.
-        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
-        reply = self.driver_client.cmd_dvr('get_resource', new_parameter_list)
-        
-        rcvd_time = reply[InstrumentParameters.LOGGER_DATE_AND_TIME]
-        self.assert_clock_set(self.CLOCK_SYNC_TIME, rcvd_time)
-
+        self.assert_set_clock(self.CLOCK_SYNC_TIME)
 
     def test_set(self):
         """
@@ -653,7 +703,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         reply = self.driver_client.cmd_dvr('get_resource', DriverParameter.ALL)
         self.assert_parameters(reply, self._driver_parameters, True)
 
-    @unittest.skip("skip until exceptions are working")
     def test_commands(self):
         """
         Run instrument commands from both command and streaming mode.
@@ -750,6 +799,63 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
 
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.ENGINEERING, self.assert_particle_engineering, delay=10)
         
+    ###
+    #   Test scheduled events
+    ###
+
+    def assert_acquire_status(self):
+        """
+        Verify a status particle was generated
+        """
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.ENGINEERING, self.assert_particle_engineering, timeout=120)
+
+    def test_scheduled_device_status_command(self):
+        """
+        Verify the device status command can be triggered and run in command
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status, delay=30)
+        self.assert_current_state(ProtocolStates.COMMAND)
+
+    def test_scheduled_device_status_autosample(self):
+        """
+        Verify the device status command can be triggered and run in autosample
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status,
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=60)
+        self.assert_current_state(ProtocolStates.AUTOSAMPLE)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+
+    def test_scheduled_clock_sync_command(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        timeout = 85
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=timeout)
+        self.assert_current_state(ProtocolStates.COMMAND)
+
+        # Set the clock to some time in the past
+        self.assert_set_clock(self.CLOCK_SYNC_TIME)
+
+        # Check the clock until it is set correctly (by a schedued event)
+        self.assert_clock_set(InstrumentParameters.LOGGER_DATE_AND_TIME)
+
+    def test_scheduled_clock_sync_autosample(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        timeout = 240
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=timeout)
+        self.assert_current_state(ProtocolStates.COMMAND)
+
+        # Set the clock to some time in the past
+        self.assert_set_clock(self.CLOCK_SYNC_TIME)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
+
+        # Check the clock until it is set correctly (by a scheduled event)
+        self.assert_clock_set(InstrumentParameters.LOGGER_DATE_AND_TIME)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -891,7 +997,9 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+            DriverEvent.CLOCK_SYNC,
             DriverEvent.GET,
+            DriverEvent.ACQUIRE_STATUS,
             DriverEvent.STOP_AUTOSAMPLE,
         ]
 

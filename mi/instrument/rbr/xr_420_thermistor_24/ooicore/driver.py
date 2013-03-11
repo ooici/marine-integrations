@@ -76,6 +76,10 @@ SAMPLE_DATA_PATTERN = (r'TIM (\d+)' +          # timestamp
 
 SAMPLE_DATA_REGEX = re.compile(SAMPLE_DATA_PATTERN)
 
+class ScheduledJob(BaseEnum):
+    ACQUIRE_STATUS = 'acquire_status'
+    CLOCK_SYNC = 'clock_sync'
+
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
     SAMPLE      = 'sample'
@@ -555,6 +559,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         # create chunker for processing instrument samples.
         self._chunker = StringChunker(InstrumentProtocol.chunker_sieve_function)
 
+        self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
+        self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.CLOCK_SYNC)
 
     @staticmethod
     def chunker_sieve_function(raw_data):
