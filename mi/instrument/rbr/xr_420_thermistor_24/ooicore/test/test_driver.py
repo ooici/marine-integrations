@@ -1033,7 +1033,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         reply = self.instrument_agent_client.get_resource(params)
         rcvd_time = reply[InstrumentParameters.LOGGER_DATE_AND_TIME]
         lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
-        self.assert_clock_set(lt, rcvd_time)
+        self.assert_clock_set_correctly(lt, rcvd_time)
 
     def test_reset(self):
         """
