@@ -1229,7 +1229,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
                             match = match + 1
                             log.debug(str(i) + " == " + j + " (Looking for reused values)")
 
-        # If this assert fails, then two of the enumerations have an identical value...
+        # If this assert fails, then two of tte enumerations have an identical value...
         return match == outer_match
 
     @unittest.skip("da currently broken for this instrument")

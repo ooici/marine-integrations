@@ -11,13 +11,9 @@ with individual instruments in the system.
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
-print '#########################'
-print '#########################'
-print '#########################'
-print 'importing from external repo'
-
-
 import time
+
+from threading import Thread
 
 from mi.core.common import BaseEnum
 from mi.core.exceptions import TestModeException
@@ -78,6 +74,7 @@ class ResourceAgentEvent(BaseEnum):
     GET_RESOURCE_STATE = 'RESOURCE_AGENT_EVENT_GET_RESOURCE_STATE'
     GET_RESOURCE_CAPABILITIES = 'RESOURCE_AGENT_EVENT_GET_RESOURCE_CAPABILITIES'
     DONE = 'RESOURCE_AGENT_EVENT_DONE'    
+    LOST_CONNECTION = 'RESROUCE_AGENT_EVENT_LOST_CONNECTION'
     
 class DriverState(BaseEnum):
     """Common driver state enum"""
@@ -448,7 +445,9 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         
         self._pre_da_config = {}
         self._startup_config = {}
-                
+        
+        self._connection_lost = False
+        
     #############################################################
     # Device connection interface.
     #############################################################
@@ -876,6 +875,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         Enter connected state.
         """
         # Send state change event to agent.
+        self._connection_lost = False
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_connected_exit(self, *args, **kwargs):
@@ -912,6 +912,11 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
 
         self._connection.stop_comms()
         self._protocol = None
+        
+        # Send async agent state change event.
+        self._driver_event(DriverAsyncEvent.AGENT_EVENT,
+                           ResourceAgentEvent.LOST_CONNECTION)
+         
         next_state = DriverConnectionState.DISCONNECTED
         
         return (next_state, result)
@@ -997,7 +1002,12 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         A callback invoked by the port agent client when it looses
         connectivity to the port agent.
         """
-        pass
+        if not self._connection_lost:
+            self._connection_lost = True
+            lost_comms_thread = Thread(                
+                target=self._handle_lost_connection,
+                args=(DriverEvent.CONNECTION_LOST))
+            lost_comms_thread.start()
     
     def _build_protocol(self):
         """
@@ -1005,3 +1015,5 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         Overridden in device specific subclasses.
         """
         pass
+                
+            

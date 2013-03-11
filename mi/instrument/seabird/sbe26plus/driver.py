@@ -1361,6 +1361,8 @@ class Protocol(SeaBirdProtocol):
         """
         next_state = None
         result = None
+        startup = False
+
         # Retrieve required parameter.
         # Raise if no parameter provided, or not a dict.
         try:
@@ -1371,10 +1373,15 @@ class Protocol(SeaBirdProtocol):
         if not isinstance(params, dict):
             raise InstrumentParameterException('Set parameters not a dict.')
 
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
-            self._set_params(params)
+            self._set_params(params, startup)
 
         return (next_state, result)
 
@@ -1382,29 +1389,14 @@ class Protocol(SeaBirdProtocol):
         """
         Issue commands to the instrument to set various parameters
         """
+        SeaBirdProtocol._set_params(self, *args, **kwargs)
+
         # Retrieve required parameter.
         # Raise if no parameter provided, or not a dict.
-        startup = False
         try:
             params = args[0]
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
-
-        try:
-            startup = args[1]
-        except IndexError:
-            pass
-
-        # Only check for readonly parameters if we are not setting them from startup
-        if not startup:
-            readonly = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
-
-            log.debug("set param, but check visibility first")
-            log.debug("Read only keys: %s" % readonly)
-
-            for (key, val) in params.iteritems():
-                if key in readonly:
-                    raise InstrumentParameterException("Attempt to set read only parameter (%s)" % key)
 
         (set_params, ss_params) = self._split_params(**params)
         log.debug("SetSampling Params: %s" % ss_params)
@@ -2490,6 +2482,10 @@ class Protocol(SeaBirdProtocol):
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()
+
+        # We ignore the data time parameter diffs
+        new_config[Parameter.DS_DEVICE_DATE_TIME] = old_config.get(Parameter.DS_DEVICE_DATE_TIME)
+
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
