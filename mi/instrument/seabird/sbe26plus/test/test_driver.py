@@ -519,6 +519,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         """
         self.assert_initialize_driver()
 
+
         # Verify we can set the clock
         self.assert_set_clock(Parameter.DS_DEVICE_DATE_TIME, tolerance=5)
 
@@ -532,12 +533,11 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
 
         self.assert_set(Parameter.TXREALTIME, True)
         self.assert_set(Parameter.TXREALTIME, False)
-
-        # Not catching the exception, but it is being raised
         self.assert_set_exception(Parameter.TXREALTIME, 'boom')
 
         self.assert_set(Parameter.TXWAVEBURST, True)
         self.assert_set(Parameter.TXWAVEBURST, False)
+        self.assert_set_exception(Parameter.TXREALTIME, 'boom')
 
         # Not catching the exception, but it is being raised
         self.assert_set_exception(Parameter.TXWAVEBURST, 'boom')
