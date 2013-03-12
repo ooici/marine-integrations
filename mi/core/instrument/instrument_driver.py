@@ -447,7 +447,10 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._pre_da_config = {}
         self._startup_config = {}
         
-        self._connection_lost = False
+        # Idempotency flag for lost connections.
+        # This set to false when a connection is established to
+        # allow for lost callback to become activated.
+        self._connection_lost = True
         
     #############################################################
     # Device connection interface.
@@ -797,6 +800,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         Enter disconnected state.
         """
         # Send state change event to agent.
+        self._lost_connection = True
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_disconnected_exit(self, *args, **kwargs):
