@@ -800,7 +800,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         Enter disconnected state.
         """
         # Send state change event to agent.
-        self._lost_connection = True
+        self._connection_lost = True
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_disconnected_exit(self, *args, **kwargs):
@@ -865,7 +865,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._build_protocol()
         self._connection.init_comms(self._protocol.got_data, 
                                     self._protocol.got_raw,
-                                    self._lost_connection)
+                                    self._lost_connection_callback)
         self._protocol._connection = self._connection
         next_state = DriverConnectionState.CONNECTED
         
@@ -1002,7 +1002,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         except (TypeError, KeyError):
             raise InstrumentParameterException('Invalid comms config dict.')
 
-    def _lost_connection(self, error_string):
+    def _lost_connection_callback(self, error_string):
         """
         A callback invoked by the port agent client when it looses
         connectivity to the port agent.
