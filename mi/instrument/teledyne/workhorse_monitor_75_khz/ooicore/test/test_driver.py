@@ -73,6 +73,9 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.test.test_data impo
 
 from random import randint
 
+
+tolerance = 500
+
 # Globals
 raw_stream_received = False
 parsed_stream_received = False
@@ -136,508 +139,45 @@ class ADCPTMixin(DriverTestMixin):
     ###
     # Parameter and Type Definitions
     ###
-
+    # Is DEFAULT the DEFAULT STARTUP VALUE?
     _driver_parameters = {
-        Parameter.INSTRUMENT_ID: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.POLLED_MODE: {
-            TYPE: bool,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: False},
-        Parameter.XMIT_POWER: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 255},
-        Parameter.TIME_PER_BURST: {
-            TYPE: dt.datetime,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: dt.datetime.strptime('00:00:00.00', '%H:%M:%S.%f')},
-        Parameter.ENSEMBLES_PER_BURST: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 2},
-        Parameter.TIME_PER_ENSEMBLE: {
-            TYPE: dt.datetime,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: dt.datetime.strptime('01:00:00.00', '%H:%M:%S.%f')},
-        Parameter.TIME_OF_FIRST_PING: {
-            TYPE: str,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: '**/**/**,**:**:**'},
-        Parameter.TIME_OF_FIRST_PING_Y2K: {
-            TYPE: str,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: '****/**/**,**:**:**'},
-        Parameter.TIME_PER_PING: {
-            TYPE: str,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: '01:20.00'},
-        #Parameter.TIME: {
-        #    TYPE: time,
-        #    READONLY: False,
-        #    DA: False,
-        #    STARTUP: False,
-        #    DEFAULT: False,
-        #    VALUE: time.strptime('13/03/01,08:20:29', "%y/%m/%d,%H:%M:%S")},
-        Parameter.TIME: {
-            TYPE: time,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: time.strptime('2013/03/01,08:20:29', "%Y/%m/%d,%H:%M:%S")},
-        Parameter.BUFFERED_OUTPUT_PERIOD: {
-            TYPE: time,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: time.strptime('00:00:00', "%H:%M:%S")},
-        Parameter.FALSE_TARGET_THRESHOLD: {
-            TYPE: str,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: '255,001'},
-        Parameter.CORRELATION_THRESHOLD: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 64},
-        Parameter.SERIAL_OUT_FW_SWITCHES: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 111100000},
-        Parameter.ERROR_VELOCITY_THRESHOLD: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 5000},
-        Parameter.BLANK_AFTER_TRANSMIT: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 88},
-        Parameter.CLIP_DATA_PAST_BOTTOM: {
-            TYPE: bool,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: False},
-        Parameter.RECEIVER_GAIN_SELECT: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 1},
-        Parameter.WATER_REFERENCE_LAYER: {
-            TYPE: str,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: '001,005'},
-        Parameter.WATER_PROFILING_MODE: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 1},
-        Parameter.NUMBER_OF_DEPTH_CELLS: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 30},
-        Parameter.PINGS_PER_ENSEMBLE: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 45},
-        Parameter.DEPTH_CELL_SIZE: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 800},
-        Parameter.TRANSMIT_LENGTH: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.PING_WEIGHT: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.AMBIGUITY_VELOCITY: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 175},
-        Parameter.CHOOSE_EXTERNAL_DEVICE: {
-            TYPE: str,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: '000 000 000'},
-        Parameter.BANNER: {
-            TYPE: bool,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: False},
-        Parameter.IMM_OUTPUT_ENABLE: {
-            TYPE: bool,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: False},
-        Parameter.SLEEP_ENABLE: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.SERIAL_SYNC_MASTER: {
-            TYPE: bool,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: False},
-        Parameter.SAVE_NVRAM_TO_RECORDER: {
-            TYPE: bool,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: True},
-        Parameter.TRIGGER_TIMEOUT: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 250},
-        Parameter.LOW_LATENCY_TRIGGER_ENABLE: {
-            TYPE: bool,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: True},
-        Parameter.HEADING_ALIGNMENT: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.HEADING_BIAS: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.SPEED_OF_SOUND: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 1500},
-        Parameter.TRANSDUCER_DEPTH: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.HEADING: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.PITCH: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.ROLL: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.SALINITY: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 35},
-        Parameter.TEMPERATURE: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 2500},
-        Parameter.COORDINATE_TRANSFORMATION: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.SENSOR_SOURCE: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 1111101},
-        Parameter.OUTPUT_BIN_SELECTION: {
-            TYPE: str,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: '001,000,1'},
-        Parameter.DATA_STREAM_SELECT: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.ENSEMBLE_SELECT: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 1},
-        Parameter.VELOCITY_COMPONENT_SELECT: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 1111},
-        Parameter.SYNCHRONIZE: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 1},
-        Parameter.BREAK_INTERUPTS: {
-            TYPE: bool,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: True},
-        Parameter.SYNC_INTERVAL: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.MODE_SELECT: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 1},
-        Parameter.RDS3_SLEEP_MODE: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.SLAVE_TIMEOUT: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.SYNC_DELAY: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 100},
-        Parameter.DEVICE_485_ID: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.DEPLOYMENT_AUTO_INCRIMENT: {
-            TYPE: bool,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: True},
-        Parameter.DEPLOYMENT_NAME: {
-            TYPE: str,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: '_RDI_'},
-        Parameter.BANDWIDTH_CONTROL: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 1},
-        Parameter.WANTED_GOOD_PERCENT: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
-        Parameter.SAMPLE_AMBIENT_SOUND: {
-            TYPE: bool,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: False},
-        Parameter.PINGS_BEFORE_REAQUIRE: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 4},
-        Parameter.MODE_5_AMBIGUITY_VELOCITY: {
-            TYPE: int,
-            READONLY: False,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 010},
-        Parameter.ZERO_PRESSURE_READING: {
-            TYPE: float,
-            READONLY: True,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 13.386345},
-        Parameter.SERIAL_PORT_CONTROL: {
-            TYPE: int,
-            READONLY: True,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 411},
-        Parameter.SERIAL_DATA_OUT: {
-            TYPE: str,
-            READONLY: True,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: '000 000 000'},
-        Parameter.SERIAL_FLOW_CONTROL: {
-            TYPE: int,
-            READONLY: True,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 11110},
-        Parameter.SERIAL_485_BAUD: {
-            TYPE: int,
-            READONLY: True,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 411},
-        Parameter.DEPLOYMENTS_RECORDED: {
-            TYPE: int,
-            READONLY: True,
-            DA: False,
-            STARTUP: False,
-            DEFAULT: False,
-            VALUE: 0},
+        Parameter.SERIAL_DATA_OUT: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
+        Parameter.SERIAL_FLOW_CONTROL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 11110},
+        Parameter.BANNER: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.INSTRUMENT_ID: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
+        Parameter.SLEEP_ENABLE: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.SAVE_NVRAM_TO_RECORDER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True, VALUE: True},
+        Parameter.POLLED_MODE: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.XMIT_POWER: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 255, VALUE: 255},
+        Parameter.SPEED_OF_SOUND: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1485, VALUE: 1485},
+        Parameter.PITCH: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        Parameter.ROLL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        Parameter.SALINITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 35, VALUE: 35},
+        Parameter.SENSOR_SOURCE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
+        Parameter.TIME_PER_ENSEMBLE: {TYPE: dt.datetime, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00.00'},
+        Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
+        Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:01.00'},
+        Parameter.TIME: {TYPE: time, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
+        Parameter.FALSE_TARGET_THRESHOLD: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '050,001'},
+        Parameter.BANDWIDTH_CONTROL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
+        Parameter.CORRELATION_THRESHOLD: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 64},
+        Parameter.SERIAL_OUT_FW_SWITCHES: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '111 100 000'},
+        Parameter.ERROR_VELOCITY_THRESHOLD: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 2000},
+        Parameter.BLANK_AFTER_TRANSMIT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0704},
+        Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
+        Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
+        Parameter.WATER_REFERENCE_LAYER: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '001,005'},
+        Parameter.WATER_PROFILING_MODE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
+        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 100},
+        Parameter.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
+        Parameter.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 800},
+        Parameter.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
+        Parameter.PING_WEIGHT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
+        Parameter.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 175},
+        Parameter.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 175}
         }
 
-
+    # below are particle mixin values... no mystery here.
     """
     _header_sample_parameters = {
         ADCPT_EnsembleDataParticleKey.NUM_BYTES_IN_ENSEMBLE: {'type': int, 'value': 752 },
@@ -767,6 +307,8 @@ class ADCPTMixin(DriverTestMixin):
             [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], 
             [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0]]}
         }
+                  
+                          
     EF_CHAR = '?'
     _calibration_data_parameters = {
         ADCPT_CalibrationDataParticleKey.CALIBRATION_DATA: {'type': unicode, 'value': \
@@ -816,7 +358,7 @@ class ADCPTMixin(DriverTestMixin):
         }
 
 
-
+    
 
     _fd_parameters = {
         ADCPT_FDDataParticleKey.FD_DATA: {'type': unicode, 'value': 
@@ -1234,13 +776,12 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         # The clock in this instrument is a little odd.  It looks like if you wait until the edge of a second
         # to set it, it immediately ticks after the set, making it off by 1.  For now we will accept this
         # behavior, but we need to check this behavior on all SBE instruments.
-        set_time = get_timestamp_delayed("%d %b %Y  %H:%M:%S")
-        # One second later
 
-        expected_time = get_timestamp_delayed("%d %b %Y  %H:%M:%S")
+        time_format = "%Y/%m/%d,%H:%M:%S"
+        set_time = get_timestamp_delayed(time_format)
 
-        self.assert_set(Parameter.TIME, set_time, no_get=True)
-        #self.assert_get(Parameter.TIME, expected_time) # TODO: re-eneable this once its better understood.
+        self.assert_set(Parameter.TIME, set_time, no_get=True, startup=True)
+        self.assertTrue(self._is_time_set(Parameter.TIME, set_time, time_format, tolerance))
 
         #
         # look at 16 for tolerance, within 5 minutes.
@@ -1249,155 +790,135 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         ###
         #   Instrument Parameteres
         ###
+
+        self.assert_set_readonly(Parameter.SERIAL_DATA_OUT)
+        self.assert_set_readonly(Parameter.SERIAL_FLOW_CONTROL)
+        self.assert_set_readonly(Parameter.SAVE_NVRAM_TO_RECORDER)
+        self.assert_set_readonly(Parameter.WATER_PROFILING_MODE)
+        self.assert_set_readonly(Parameter.SERIAL_OUT_FW_SWITCHES)
+
+        self.assert_set(Parameter.BANNER, False)
         self.assert_set(Parameter.INSTRUMENT_ID, 0)
-        self.assert_set(Parameter.POLLED_MODE, False)
+        self.assert_set(Parameter.SLEEP_ENABLE, 0)
+        self.assert_set(Parameter.POLLED_MODE, True)
         self.assert_set(Parameter.XMIT_POWER, 255)
-        self.assert_set(Parameter.TIME_PER_BURST, '00:00:00.00')
-        self.assert_set(Parameter.ENSEMBLES_PER_BURST, 2)
+        self.assert_set(Parameter.SPEED_OF_SOUND, 1485)
+        self.assert_set(Parameter.PITCH, 0)
+        self.assert_set(Parameter.ROLL, 0)
+        self.assert_set(Parameter.SALINITY, 35)
+        self.assert_set(Parameter.SENSOR_SOURCE, 1111101)
         self.assert_set(Parameter.TIME_PER_ENSEMBLE, '01:00:00.00')
         self.assert_set(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
-        self.assert_set(Parameter.TIME_OF_FIRST_PING_Y2K, '****/**/**,**:**:**')
-        self.assert_set(Parameter.TIME_PER_PING, '01:20.00')
-        self.assert_set(Parameter.BUFFERED_OUTPUT_PERIOD, '00:00:00')
-        self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, '255,001')
+        self.assert_set(Parameter.TIME_PER_PING, '00:01.00')
+        self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, '050,001')
+        self.assert_set(Parameter.BANDWIDTH_CONTROL, False)
         self.assert_set(Parameter.CORRELATION_THRESHOLD, 064)
-        self.assert_set(Parameter.SERIAL_OUT_FW_SWITCHES, 111100000)
-        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 5000)
-        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 88)
+        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 2000)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 704)
         self.assert_set(Parameter.CLIP_DATA_PAST_BOTTOM, False)
         self.assert_set(Parameter.RECEIVER_GAIN_SELECT, 1)
         self.assert_set(Parameter.WATER_REFERENCE_LAYER, '001,005')
-        self.assert_set(Parameter.WATER_PROFILING_MODE, 1)
-        self.assert_set(Parameter.NUMBER_OF_DEPTH_CELLS, 030)
-        self.assert_set(Parameter.PINGS_PER_ENSEMBLE, 45)
+        self.assert_set(Parameter.NUMBER_OF_DEPTH_CELLS, 100)
+        self.assert_set(Parameter.PINGS_PER_ENSEMBLE, 1)
         self.assert_set(Parameter.DEPTH_CELL_SIZE, 800)
         self.assert_set(Parameter.TRANSMIT_LENGTH, 0)
         self.assert_set(Parameter.PING_WEIGHT, 0)
         self.assert_set(Parameter.AMBIGUITY_VELOCITY, 175)
-        self.assert_set(Parameter.CHOOSE_EXTERNAL_DEVICE, '000 000 000')
-        self.assert_set(Parameter.BANNER, False)
-        self.assert_set(Parameter.IMM_OUTPUT_ENABLE, False)
-        self.assert_set(Parameter.SLEEP_ENABLE, 0)
-        self.assert_set(Parameter.SERIAL_SYNC_MASTER, False)
-        self.assert_set(Parameter.SAVE_NVRAM_TO_RECORDER, False)
-        self.assert_set(Parameter.TRIGGER_TIMEOUT, 250)
-        self.assert_set(Parameter.LOW_LATENCY_TRIGGER_ENABLE, 1)
-        self.assert_set(Parameter.HEADING_ALIGNMENT, 0)
-        self.assert_set(Parameter.HEADING_BIAS, 0)
-        self.assert_set(Parameter.SPEED_OF_SOUND, 1500)
-        self.assert_set(Parameter.TRANSDUCER_DEPTH, 0)
-        self.assert_set(Parameter.HEADING, 0)
-        self.assert_set(Parameter.PITCH, 0)
-        self.assert_set(Parameter.ROLL, 0)
-        self.assert_set(Parameter.SALINITY, 35)
-        self.assert_set(Parameter.TEMPERATURE, 2500)
-        self.assert_set(Parameter.COORDINATE_TRANSFORMATION, 0)
-        self.assert_set(Parameter.SENSOR_SOURCE, 1111101)
-        self.assert_set(Parameter.OUTPUT_BIN_SELECTION, '001,000,1')
-        self.assert_set(Parameter.DATA_STREAM_SELECT, 0)
-        self.assert_set(Parameter.ENSEMBLE_SELECT, 1)
-        self.assert_set(Parameter.VELOCITY_COMPONENT_SELECT, 1111)
-        self.assert_set(Parameter.SYNCHRONIZE, 1)
-        self.assert_set(Parameter.BREAK_INTERUPTS, True)
-        self.assert_set(Parameter.SYNC_INTERVAL, 0)
-        self.assert_set(Parameter.MODE_SELECT, 1)
-        self.assert_set(Parameter.RDS3_SLEEP_MODE, 0)
-        self.assert_set(Parameter.SLAVE_TIMEOUT, 0)
-        self.assert_set(Parameter.SYNC_DELAY, 100)
-        self.assert_set(Parameter.DEVICE_485_ID, 0)
-        self.assert_set(Parameter.DEPLOYMENT_AUTO_INCRIMENT, True)
-        self.assert_set(Parameter.DEPLOYMENT_NAME, '_RDI_')
-        self.assert_set(Parameter.BANDWIDTH_CONTROL, 1)
-        self.assert_set(Parameter.WANTED_GOOD_PERCENT, 0)
-        self.assert_set(Parameter.SAMPLE_AMBIENT_SOUND, False)
-        self.assert_set(Parameter.PINGS_BEFORE_REAQUIRE, 4)
-        self.assert_set(Parameter.MODE_5_AMBIGUITY_VELOCITY, 10)
-
-
-        ###
-        #   Read only parameters
-        ###
-        self.assert_set_readonly(Parameter.ZERO_PRESSURE_READING)
-        self.assert_set_readonly(Parameter.SERIAL_PORT_CONTROL)
-        self.assert_set_readonly(Parameter.SERIAL_DATA_OUT)
-        self.assert_set_readonly(Parameter.SERIAL_FLOW_CONTROL)
-        self.assert_set_readonly(Parameter.SERIAL_485_BAUD)
-        self.assert_set_readonly(Parameter.DEPLOYMENTS_RECORDED)
 
     def set_baseline(self):
         params = {
-            Parameter.INSTRUMENT_ID: 'xxx',
-            Parameter.POLLED_MODE: 'xxx',
-            Parameter.XMIT_POWER: 'xxx',
-            Parameter.TIME_PER_BURST: 'xxx',
-            Parameter.ENSEMBLES_PER_BURST: 'xxx',
-            Parameter.TIME_PER_ENSEMBLE: 'xxx',
-            Parameter.TIME_OF_FIRST_PING: 'xxx',
-            Parameter.TIME_OF_FIRST_PING_Y2K: 'xxx',
-            Parameter.TIME_PER_PING: 'xxx',
-            #Parameter.TIME: 'xxx',
-            Parameter.BUFFERED_OUTPUT_PERIOD: 'xxx',
-            Parameter.FALSE_TARGET_THRESHOLD: 'xxx',
-            Parameter.CORRELATION_THRESHOLD: 'xxx',
-            Parameter.SERIAL_OUT_FW_SWITCHES: 'xxx',
-            Parameter.ERROR_VELOCITY_THRESHOLD: 'xxx',
-            Parameter.BLANK_AFTER_TRANSMIT: 'xxx',
-            Parameter.CLIP_DATA_PAST_BOTTOM: 'xxx',
-            Parameter.RECEIVER_GAIN_SELECT: 'xxx',
-            Parameter.WATER_REFERENCE_LAYER: 'xxx',
-            Parameter.WATER_PROFILING_MODE: 'xxx',
-            Parameter.NUMBER_OF_DEPTH_CELLS: 'xxx',
-            Parameter.PINGS_PER_ENSEMBLE: 'xxx',
-            Parameter.DEPTH_CELL_SIZE: 'xxx',
-            Parameter.TRANSMIT_LENGTH: 'xxx',
-            Parameter.PING_WEIGHT: 'xxx',
-            Parameter.AMBIGUITY_VELOCITY: 'xxx',
-            Parameter.CHOOSE_EXTERNAL_DEVICE: 'xxx',
-            Parameter.BANNER: 'xxx',
-            Parameter.IMM_OUTPUT_ENABLE: 'xxx',
-            Parameter.SLEEP_ENABLE: 'xxx',
-            Parameter.SERIAL_SYNC_MASTER: 'xxx',
-            Parameter.SAVE_NVRAM_TO_RECORDER: 'xxx',
-            Parameter.TRIGGER_TIMEOUT: 'xxx',
-            Parameter.LOW_LATENCY_TRIGGER_ENABLE: 'xxx',
-            Parameter.HEADING_ALIGNMENT: 'xxx',
-            Parameter.HEADING_BIAS: 'xxx',
-            Parameter.SPEED_OF_SOUND: 'xxx',
-            Parameter.TRANSDUCER_DEPTH: 'xxx',
-            Parameter.HEADING: 'xxx',
-            Parameter.PITCH: 'xxx',
-            Parameter.ROLL: 'xxx',
-            Parameter.SALINITY: 'xxx',
-            Parameter.TEMPERATURE: 'xxx',
-            Parameter.COORDINATE_TRANSFORMATION: 'xxx',
-            Parameter.SENSOR_SOURCE: 'xxx',
-            Parameter.OUTPUT_BIN_SELECTION: 'xxx',
-            Parameter.DATA_STREAM_SELECT: 'xxx',
-            Parameter.ENSEMBLE_SELECT: 'xxx',
-            Parameter.VELOCITY_COMPONENT_SELECT: 'xxx',
-            Parameter.SYNCHRONIZE: 'xxx',
-            Parameter.BREAK_INTERUPTS: 'xxx',
-            Parameter.SYNC_INTERVAL: 'xxx',
-            Parameter.MODE_SELECT: 'xxx',
-            Parameter.RDS3_SLEEP_MODE: 'xxx',
-            Parameter.SLAVE_TIMEOUT: 'xxx',
-            Parameter.SYNC_DELAY: 'xxx',
-            Parameter.DEVICE_485_ID: 'xxx',
-            Parameter.DEPLOYMENT_AUTO_INCRIMENT: 'xxx',
-            Parameter.DEPLOYMENT_NAME: 'xxx',
-            Parameter.BANDWIDTH_CONTROL: 'xxx',
-            Parameter.WANTED_GOOD_PERCENT: 'xxx',
-            Parameter.SAMPLE_AMBIENT_SOUND: 'xxx',
-            Parameter.PINGS_BEFORE_REAQUIRE: 'xxx',
-            Parameter.MODE_5_AMBIGUITY_VELOCITY: 'xxx',
+            Parameter.BANNER: False,
+            Parameter.INSTRUMENT_ID: 0,
+            Parameter.SLEEP_ENABLE: 0,
+            Parameter.POLLED_MODE: True,
+            Parameter.XMIT_POWER: 255,
+            Parameter.SPEED_OF_SOUND: 1485,
+            Parameter.PITCH: 0,
+            Parameter.ROLL: 0,
+            Parameter.SALINITY: 35,
+            Parameter.SENSOR_SOURCE: 1111101,
+            Parameter.TIME_PER_ENSEMBLE: '01:00:00.00',
+            Parameter.TIME_OF_FIRST_PING: '****/**/**,**:**:**',
+            Parameter.TIME_PER_PING: '00:01.00',
+            Parameter.FALSE_TARGET_THRESHOLD: '050,001',
+            Parameter.BANDWIDTH_CONTROL: False,
+            Parameter.CORRELATION_THRESHOLD: 064,
+            Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
+            Parameter.BLANK_AFTER_TRANSMIT: 704,
+            Parameter.CLIP_DATA_PAST_BOTTOM: False,
+            Parameter.RECEIVER_GAIN_SELECT: 1,
+            Parameter.WATER_REFERENCE_LAYER: '001,005',
+            Parameter.NUMBER_OF_DEPTH_CELLS: 100,
+            Parameter.PINGS_PER_ENSEMBLE: 1,
+            Parameter.DEPTH_CELL_SIZE: 800,
+            Parameter.TRANSMIT_LENGTH: 0,
+            Parameter.PING_WEIGHT: 0,
+            Parameter.AMBIGUITY_VELOCITY: 175,
         }
         # Set all parameters to a known ground state
         self.assert_set_bulk(params)
         return params
 
+    def test_set_ranges(self):
+        """
+        @Brief test a variety of paramater ranges.
+        """
+        self.assert_initialize_driver()
+
+        params = self.set_baseline()
+
+        #Parameter.BANNER: False,
+        params[Parameter.BANNER] = True
+        self.assert_set_bulk(params)
+        params[Parameter.BANNER] = "LEROY JENKINS!"
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.BANNER] = False
+        self.assert_set_bulk(params)
+
+        #Parameter.INSTRUMENT_ID: 0,
+        params[Parameter.INSTRUMENT_ID] = "LEROY JENKINS!"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.INSTRUMENT_ID] = -1
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.INSTRUMENT_ID] = 0
+        self.assert_set_bulk(params)
+        
+        
+        #Parameter.SLEEP_ENABLE: 0,
+        #Parameter.POLLED_MODE: True,
+        #Parameter.XMIT_POWER: 255,
+        #Parameter.SPEED_OF_SOUND: 1485,
+        #Parameter.PITCH: 0,
+        #Parameter.ROLL: 0,
+        #Parameter.SALINITY: 35,
+        #Parameter.SENSOR_SOURCE: 1111101,
+        #Parameter.TIME_PER_ENSEMBLE: '01:00:00.00',
+        #Parameter.TIME_OF_FIRST_PING: '****/**/**,**:**:**',
+        #Parameter.TIME_PER_PING: '00:01.00',
+        #Parameter.FALSE_TARGET_THRESHOLD: '050,001',
+        #Parameter.BANDWIDTH_CONTROL: False,
+        #Parameter.CORRELATION_THRESHOLD: 064,
+        #Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
+        #Parameter.BLANK_AFTER_TRANSMIT: 704,
+        #Parameter.CLIP_DATA_PAST_BOTTOM: False,
+        #Parameter.RECEIVER_GAIN_SELECT: 1,
+        #Parameter.WATER_REFERENCE_LAYER: '001,005',
+        #Parameter.NUMBER_OF_DEPTH_CELLS: 100,
+        #Parameter.PINGS_PER_ENSEMBLE: 1,
+        #Parameter.DEPTH_CELL_SIZE: 800,
+        #Parameter.TRANSMIT_LENGTH: 0,
+        #Parameter.PING_WEIGHT: 0,
+        #Parameter.AMBIGUITY_VELOCITY: 175,
+
     def assert_set_sampling_no_txwavestats(self):
         log.debug("setsampling Test 1 - TXWAVESTATS = N.")
-        
+
         # First tests to verify we can set all parameters properly
         sampling_params = self.set_baseline_no_txwavestats()
 
