@@ -40,7 +40,7 @@ def _encode_exception(reply):
         return reply.get_triple()
     else:
         # all others are wrapped to capture stack and appropriate code
-        ex = UnexpectedError(reply.__class__.__name__,reply)
+        ex = UnexpectedError(reply.message)
         return ex.get_triple()
 
 class ZmqDriverProcess(driver_process.DriverProcess):
