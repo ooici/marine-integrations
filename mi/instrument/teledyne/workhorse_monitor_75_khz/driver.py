@@ -41,6 +41,7 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentStateException
+from struct import *
 
 # newline.
 NEWLINE = '\n'
@@ -390,7 +391,153 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
     def _build_parsed_values(self):
 
         data_stream = self.raw_data
-        m = re.search(PT200_REGEX, data_stream)
+        # uint8 = B
+        # int8 = b
+        # uint16 = H
+        # int16 = h
+        # int32 = l
+        # uint32 = L
+        # float32 = f
+        # float64 = d
+        result = {}
+        result[ADCP_PD0_PARSED_KEY.PART_000_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_001_uint8], 
+        result[ADCP_PD0_PARSED_KEY.PART_002_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_003_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_004_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_005_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_006_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_007_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_008_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_009_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_010_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_011_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_012_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_013_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_014_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_015_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_016_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_017_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_018_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_019_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_020_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_021_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_022_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_023_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_024_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_025_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_026_float32],
+        result[ADCP_PD0_PARSED_KEY.PART_027_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_028_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_029_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_030_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_031_int16],
+        result[ADCP_PD0_PARSED_KEY.PART_032_int16],
+        result[ADCP_PD0_PARSED_KEY.PART_033_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_034_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_035_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_036_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_037_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_038_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_039_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_040_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_041_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_042_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_043_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_044_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_045_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_046_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_047_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_048_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_049_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_050_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_051_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_052_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_053_uint64],
+        result[ADCP_PD0_PARSED_KEY.PART_054_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_055_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_056_uint32],
+        result[ADCP_PD0_PARSED_KEY.PART_057_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_058_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_059_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_060_float64],
+        result[ADCP_PD0_PARSED_KEY.PART_061_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_062_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_063_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_064_int8],
+        result[ADCP_PD0_PARSED_KEY.PART_065_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_066_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_067_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_068_int16],
+        result[ADCP_PD0_PARSED_KEY.PART_069_int16],
+        result[ADCP_PD0_PARSED_KEY.PART_070_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_071_int16],
+        result[ADCP_PD0_PARSED_KEY.PART_072_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_073_float32],
+        result[ADCP_PD0_PARSED_KEY.PART_074_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_075_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_076_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_077_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_078_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_079_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_080_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_081_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_082_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_083_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_084_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_085_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_086_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_087_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_088_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_089_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_090_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_091_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_092_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_093_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_094_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_095_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_096_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_097_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_098_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_099_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_100_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_101_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_102_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_103_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_104_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_105_uint32],
+        result[ADCP_PD0_PARSED_KEY.PART_106_uint32],
+        result[ADCP_PD0_PARSED_KEY.PART_107_float64],
+        result[ADCP_PD0_PARSED_KEY.PART_108_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_109_int16],
+        result[ADCP_PD0_PARSED_KEY.PART_110_int16],
+        result[ADCP_PD0_PARSED_KEY.PART_111_int16],
+        result[ADCP_PD0_PARSED_KEY.PART_112_int16],
+        result[ADCP_PD0_PARSED_KEY.PART_113_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_114_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_115_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_116_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_117_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_118_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_119_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_120_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_121_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_122_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_123_uint16],
+        result[ADCP_PD0_PARSED_KEY.PART_124_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_125_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_126_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_127_uint8],
+        result[ADCP_PD0_PARSED_KEY.PART_128_uint16] \
+        = unpack('BBHHHHBBHbBbbBBBBHHHBBBBHBfBbbbh' + \
+                 'hbbbbbbbbbbbbbHHHHHbHdBBLBHHdBbb' + \
+                 'bHHHhhHhBfBBBBBBBBBBBBBBBBBBBBBB' + \
+                 'BBBBBBBBBLLdHhhhhHBBBBHBBBBHBBBBH', data_stream)
+
+        #
+        # Left Off Here
+        #
+
         if m is not None:
             # don't put the '>' in the data particle
             value = m.group()[:-1]
@@ -1848,134 +1995,5 @@ class TeledyneProtocol(ADCPProtocol):
             self._param_dict.update(line)
 
 
-
-
-
-    ########################################################################
-    # Static helpers to format set commands.
-    ########################################################################
-
-    @staticmethod
-    def _string_to_string(v):
-        return v
-
-    @staticmethod
-    def _bool_to_int(v):
-        """
-        Write a bool value to string as an int.
-        @param v A bool val.
-        @retval a int string.
-        @throws InstrumentParameterException if value is not a float.
-        """
-
-        if not isinstance(v, int):
-            raise InstrumentParameterException('Value %s is not a float.' % v)
-        else:
-            if v:
-                return 1
-            else:
-                return 0
-
-    @staticmethod
-    def _reverse_bool_to_int(v):
-        """
-        Write a inverse-bool value to string as an int.
-        @param v A bool val.
-        @retval a int string.
-        @throws InstrumentParameterException if value is not a float.
-        """
-
-        if not isinstance(v, int):
-            raise InstrumentParameterException('Value %s is not a float.' % v)
-        else:
-            if v:
-                log.debug("RETURNING 0")
-                return 0
-            else:
-                log.debug("RETURNING 1")
-                return 1
-
-    @staticmethod
-    def _float_to_string(v):
-        """
-        Write a float value to string.
-        @param v a float val.
-        @retval a float string formatted.
-        @throws InstrumentParameterException if value is not a float.
-        """
-
-        if not isinstance(v, float):
-            raise InstrumentParameterException('Value %s is not a float.' % v)
-        else:
-            return str(v)  # return a simple float
-
-    @staticmethod
-    def _time_to_string(v):
-        """
-        Write a time value to string.
-        @param v a time val.
-        @retval a time string formatted.
-        @throws InstrumentParameterException if value is not a time.
-        """
-
-        if not isinstance(v, time):
-            raise InstrumentParameterException('Value %s is not a time.' % v)
-        else:
-            return time.strftime("%H:%M:%S", v)
-
-    @staticmethod
-    def _datetime_with_milis_to_time_string_with_milis(v):
-        """
-        Write a datetime value to string.
-        @param v a datetime val.
-        @retval a time w/milis string formatted.
-        @throws InstrumentParameterException if value is not a datetime.
-        """
-        log.debug("IN _datetime_with_milis_to_time_string_with_milis")
-        if not isinstance(v, dt.datetime):
-            raise InstrumentParameterException('Value %s is not a datetime.' % v)
-        else:
-            return dt.datetime.strftime(v, '%H:%M:%S.%f')
-
-    @staticmethod
-    def _datetime_to_TT_datetime_string(v):
-        """
-        Write a datetime string value to string.
-        @param v a datetime string val.
-        @retval a time with date string formatted.
-        @throws InstrumentParameterException if value is not a datetime.
-        """
-
-        if not isinstance(v, str):
-            raise InstrumentParameterException('Value %s is not a datetime.' % v)
-        else:
-            return time.strftime("%Y/%m/%d,%H:%M:%S", time.strptime(v, "%d %b %Y  %H:%M:%S"))
-
-    @staticmethod
-    def _datetime_YY_to_string(v):
-        """
-        Write a time value to string.
-        @param v a time val.
-        @retval a time with date string formatted.
-        @throws InstrumentParameterException if value is not a datetime.
-        """
-
-        if not isinstance(v, time):
-            raise InstrumentParameterException('Value %s is not a datetime.' % v)
-        else:
-            return time.strftime("%y/%m/%d,%H:%M:%S", v)
-    @staticmethod
-    def _datetime_YYYY_to_string(v):
-        """
-        Write a time value to string.
-        @param v a time val.
-        @retval a time with date string formatted.
-        @throws InstrumentParameterException if value is not a datetime.
-        """
-
-        if not isinstance(v, time):
-            raise InstrumentParameterException('Value %s is not a datetime.' % v)
-        else:
-            return time.strftime("%Y/%m/%d,%H:%M:%S", v)
 
 
