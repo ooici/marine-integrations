@@ -39,30 +39,26 @@ from mi.instrument.teledyne.test.test_driver import TeledyneQualificationTest
 from mi.instrument.teledyne.test.test_driver import TeledynePublicationTest
 
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import InstrumentDriver
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import DataParticleType
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import InstrumentCmds
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ProtocolState
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ProtocolEvent
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import Capability
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import Parameter
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import DataParticleType
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import InstrumentCmds
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolState
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolEvent
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Capability
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Parameter
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import Protocol
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ScheduledJob
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import Prompt
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PT200DataParticleKey
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PT200DataParticle
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PS3DataParticleKey
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PS3DataParticle
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PS0DataParticleKey
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_PS0DataParticle
 
-#from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_EnsembleDataParticleKey
-#from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_EnsembleDataParticle
-#from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_CalibrationDataParticleKey
-#from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_CalibrationDataParticle
-#from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_FDDataParticleKey
-#from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import ADCPT_FDDataParticle
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ScheduledJob
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import NEWLINE
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_KEY
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_SYSTEM_CONFIGURATION_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_CALIBRATION_KEY
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_CALIBRATION_DataParticle
+
+
 
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.test.test_data import SAMPLE_RAW_DATA 
 from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.test.test_data import CALIBRATION_RAW_DATA
@@ -173,337 +169,187 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 800},
         Parameter.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.PING_WEIGHT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
-        Parameter.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 175},
         Parameter.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 175}
-        }
-
-    # below are particle mixin values... no mystery here.
-    """
-    _header_sample_parameters = {
-        ADCPT_EnsembleDataParticleKey.NUM_BYTES_IN_ENSEMBLE: {'type': int, 'value': 752 },
-        ADCPT_EnsembleDataParticleKey.NUM_DATA_TYPES: {'type': int, 'value': 6 },
-        ADCPT_EnsembleDataParticleKey.CPU_FW_VER: {'type': int, 'value': 50 },
-        ADCPT_EnsembleDataParticleKey.CPU_FW_REV: {'type': int, 'value': 40 },
-        ADCPT_EnsembleDataParticleKey.SYS_CONFIG: {'type': int, 'value': 16841 },
-        ADCPT_EnsembleDataParticleKey.LAG_LEN: {'type': int, 'value': 13 },
-        ADCPT_EnsembleDataParticleKey.NUM_BEAMS: {'type': int, 'value': 4 },
-        ADCPT_EnsembleDataParticleKey.NUM_CELLS: {'type': int, 'value': 30 },
-        ADCPT_EnsembleDataParticleKey.PINGS_PER_ENSEMBLE: {'type': int, 'value': 45 },
-        ADCPT_EnsembleDataParticleKey.DEPTH_CELL_LEN: {'type': int, 'value': 800},
-        ADCPT_EnsembleDataParticleKey.BLANK_AFTER_TX: {'type': int, 'value': 352},
-        ADCPT_EnsembleDataParticleKey.PROFILING_MODE: {'type': int, 'value': 1},
-        ADCPT_EnsembleDataParticleKey.LOW_CORR_THRESH: {'type': int, 'value': 64},
-        ADCPT_EnsembleDataParticleKey.NUM_CODE_REPS: {'type': int, 'value': 9},
-        ADCPT_EnsembleDataParticleKey.PERCENT_GD_MIN: {'type': int, 'value': 0},
-        ADCPT_EnsembleDataParticleKey.ERR_VEL_MAX: {'type': int, 'value': 2000},
-        ADCPT_EnsembleDataParticleKey.TIME_BETWEEN_PINGS: {'type': list, 'value': [1,20,0]},
-        ADCPT_EnsembleDataParticleKey.COORD_XFRM: {'type': int, 'value': 31},
-        ADCPT_EnsembleDataParticleKey.HEAD_ALIGN: {'type': int, 'value': 0},
-        ADCPT_EnsembleDataParticleKey.HEAD_BIAS: {'type': int, 'value': 0},
-        ADCPT_EnsembleDataParticleKey.CALC_SPD_SND_FROM_DATA : {TYPE: bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.USE_DEPTH_FROM_SENSOR : {TYPE: bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.USE_HEADING_FROM_SENSOR : {TYPE: bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.USE_PITCH_FROM_SENSOR : {TYPE: bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.USE_ROLL_FROM_SENSOR : {TYPE: bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.USE_SALINITY_FROM_SENSOR : {TYPE: bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.USE_TEMPERATURE_FROM_SENSOR : {TYPE: bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.DEPTH_SENSOR_AVAIL : {TYPE: bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.HEADING_SENSOR_AVAIL : {TYPE: bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.PITCH_SENSOR_AVAIL : {TYPE: bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.ROLL_SENSOR_AVAIL : {TYPE: bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.SALINITY_SENSOR_AVAIL : {TYPE: bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.TEMPERATURE_SENSOR_AVAIL : {TYPE: bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.BIN1_DIST: {'type': int, 'value': 1233},
-        ADCPT_EnsembleDataParticleKey.XMIT_PULSE_LEN: {'type': int, 'value': 865},
-        ADCPT_EnsembleDataParticleKey.WP_REF_LAYER_AVG: {'type': int, 'value': 1281},
-        ADCPT_EnsembleDataParticleKey.FALSE_TARGET_THRESH: {'type': int, 'value': 50},
-        ADCPT_EnsembleDataParticleKey.XMIT_LAG_DIST: {'type': int, 'value': 98},
-        ADCPT_EnsembleDataParticleKey.CPU_SN: {'type': unicode, 'value': '28000006FED0FC09'},
-        ADCPT_EnsembleDataParticleKey.SYS_BW: {'type': int, 'value': 1},
-        ADCPT_EnsembleDataParticleKey.SYS_PWR: {'type': int, 'value': 255},
-        ADCPT_EnsembleDataParticleKey.INST_SN: {'type': unicode, 'value': 'A1480000'},
-        ADCPT_EnsembleDataParticleKey.BEAM_ANGLE: {'type': int, 'value': 20},
-###---------now for the var leader data
-        ADCPT_EnsembleDataParticleKey.ENSEMBLE_NUMBER: {'type': int, 'value': 1},
-        ADCPT_EnsembleDataParticleKey.RTC_DATE_TIME: {'type': list, 'value': [12,12,13,13,50,56,98]},
-        ADCPT_EnsembleDataParticleKey.ENSEMBLE_NUM_MSB: {'type': int, 'value': 0},
-        ADCPT_EnsembleDataParticleKey.TIMESTAMP: {'type': float, 'value': 3564424256.98},
-        ADCPT_EnsembleDataParticleKey.BIT_RESULT: {'type': int, 'value': 0},
-        ADCPT_EnsembleDataParticleKey.SPEED_OF_SOUND: {'type': int, 'value': 1535},
-        ADCPT_EnsembleDataParticleKey.DEPTH_OF_XDUCER: {'type': int, 'value': 8},
-        ADCPT_EnsembleDataParticleKey.HEADING: {'type': int, 'value': 224},
-        ADCPT_EnsembleDataParticleKey.PITCH: {'type': int, 'value': 61125},
-        ADCPT_EnsembleDataParticleKey.ROLL: {'type': int, 'value': 61075},
-        ADCPT_EnsembleDataParticleKey.SALINITY: {'type': int, 'value': 35},
-        ADCPT_EnsembleDataParticleKey.TEMPERATURE: {'type': int, 'value': 2564},
-        ADCPT_EnsembleDataParticleKey.MIN_PRE_PING_WAIT_TIME: {'type': list, 'value': [0,0,0]},
-        ADCPT_EnsembleDataParticleKey.HDG_DEV: {'type': int, 'value': 0},
-        ADCPT_EnsembleDataParticleKey.PITCH_DEV: {'type': int, 'value': 0},
-        ADCPT_EnsembleDataParticleKey.ROLL_DEV: {'type': int, 'value': 0},
-        ADCPT_EnsembleDataParticleKey.XMIT_CURRENT: {'type': int, 'value': 69},
-        ADCPT_EnsembleDataParticleKey.XMIT_VOLTAGE: {'type': int, 'value': 74},
-        ADCPT_EnsembleDataParticleKey.AMBIENT_TEMP: {'type': int, 'value': 79},
-        ADCPT_EnsembleDataParticleKey.PRESSURE_POS: {'type': int, 'value': 75},
-        ADCPT_EnsembleDataParticleKey.PRESSURE_NEG: {'type': int, 'value': 74},
-        ADCPT_EnsembleDataParticleKey.ATTITUDE_TEMP: {'type': int, 'value': 78},
-        ADCPT_EnsembleDataParticleKey.ATTITUDE: {'type': int, 'value': 130},
-        ADCPT_EnsembleDataParticleKey.CONTAMINATION_SENSOR: {'type': int, 'value': 159},
-        ADCPT_EnsembleDataParticleKey.BUS_ERR: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.ADDR_ERR: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.ILLEGAL_INSTR: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.ZERO_DIV: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.EMUL_EXCEP: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.UNASS_EXCEP: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.WATCHDOG: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.BATT_SAVE_PWR: {'type': bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.PINGING: {'type': bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.COLD_WAKEUP: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.UNKNOWN_WAKEUP: {'type': bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.CLOCK_RD_ERR: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.UNEXP_ALARM: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.CLOCK_JMP_FWD: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.CLOCK_JMP_BKWRD: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.PWR_FAIL: {'type': bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.SPUR_4_INTR: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.SPUR_5_INTR: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.SPUR_6_INTR: {'type': bool, 'value': False},
-        ADCPT_EnsembleDataParticleKey.LEV_7_INTR: {'type': bool, 'value': True},
-        ADCPT_EnsembleDataParticleKey.PRESSURE: {'type': int, 'value': 4294967197},
-        ADCPT_EnsembleDataParticleKey.PRESSURE_VAR: {'type': int, 'value': 2194},
-        ADCPT_EnsembleDataParticleKey.RTCY2K_DATE_TIME: {'type': list, 'value': [20,12,12,13,13,50,56,98]},
-###------------Velocity data
-        ADCPT_EnsembleDataParticleKey.VELOCITY_DATA: {'type': list, 'value': 
-            [[-224, 87, 137, -241],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],
-            [-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768],[-32768, -32768, -32768, -32768]]},
-###------------Correlation magnitude data
-        ADCPT_EnsembleDataParticleKey.CORR_MAG_DATA: {'type': list, 'value': 
-            [[93, 88, 80, 104],[101, 13, 13, 44],[12, 13, 12, 14],[12, 14, 12, 13], [12, 14, 13, 12],
-            [12, 14, 14, 11], [13, 14, 13, 13], [13, 12, 12, 12], [12, 14, 15, 14],
-            [12, 13, 15, 12], [13, 14, 15, 13], [12, 12, 13, 13], [13, 0, 0, 14], [13, 0, 0, 13], [11, 0, 0, 13],
-            [12, 0, 0, 12], [12, 0, 0, 12], [11, 0, 0, 14], [12, 0, 0, 13],[12, 0, 0, 13], [12, 0, 0, 13],
-            [12, 0, 0, 12], [12, 0, 0, 13],
-            [12, 0, 0, 12], [0 ,0 , 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0],[0, 0, 0, 0]]},
-###------------Echo intensity data
-        ADCPT_EnsembleDataParticleKey.ECHO_INTENSITY_DATA: {'type': list, 'value': 
-            [[90, 82, 103, 81], [80, 67, 75, 69], [67, 65, 72, 65],[66, 65, 72, 65], [66, 65, 72, 65], 
-            [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], 
-            [66, 65, 72, 65], [66, 65, 71, 65], [66, 65, 72, 65], [66, 65, 71, 65], [66, 65, 72, 65], 
-            [67, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], 
-            [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 71, 65], 
-            [66, 65, 72, 65], [66, 65, 72, 65], [66, 65, 71, 65], [66, 65, 72, 65], [66, 65, 72, 65]]},
-###------------Percent good data
-        ADCPT_EnsembleDataParticleKey.PERCENT_GOOD_DATA: {'type': list, 'value': 
-            [[4, 0, 0, 95], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], 
-            [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], 
-            [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], 
-            [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], 
-            [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0], [0, 0, 100, 0]]}
-        }
-                  
-                          
-    EF_CHAR = '?'
-    _calibration_data_parameters = {
-        ADCPT_CalibrationDataParticleKey.CALIBRATION_DATA: {'type': unicode, 'value': \
-            "ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM" + NEWLINE + \
-            "               Calibration date and time: 9/14/2012  09:25:32" + NEWLINE + \
-            "                             S inverse" + NEWLINE + \
-            "          " + EF_CHAR + "                                                  " + EF_CHAR + "" + NEWLINE + \
-            "     Bx   " + EF_CHAR + "   3.9218e-01  3.9660e-01 -3.1681e-02  6.4332e-03 " + EF_CHAR + "" + NEWLINE + \
-            "     By   " + EF_CHAR + "  -2.4320e-02 -1.0376e-02 -2.2428e-03 -6.0628e-01 " + EF_CHAR + "" + NEWLINE + \
-            "     Bz   " + EF_CHAR + "   2.2453e-01 -2.1972e-01 -2.7990e-01 -2.4339e-03 " + EF_CHAR + "" + NEWLINE + \
-            "     Err  " + EF_CHAR + "   4.6514e-01 -4.0455e-01  6.9083e-01 -1.4291e-02 " + EF_CHAR + "" + NEWLINE + \
-            "          " + EF_CHAR + "                                                  " + EF_CHAR + "" + NEWLINE + \
-            "                             Coil Offset" + NEWLINE + \
-            "                         " + EF_CHAR + "                " + EF_CHAR + "" + NEWLINE + \
-            "                         " + EF_CHAR + "   3.4233e+04   " + EF_CHAR + "" + NEWLINE + \
-            "                         " + EF_CHAR + "   3.4449e+04   " + EF_CHAR + "" + NEWLINE + \
-            "                         " + EF_CHAR + "   3.4389e+04   " + EF_CHAR + "" + NEWLINE + \
-            "                         " + EF_CHAR + "   3.4698e+04   " + EF_CHAR + "" + NEWLINE + \
-            "                         " + EF_CHAR + "                " + EF_CHAR + "" + NEWLINE + \
-            "                             Electrical Null" + NEWLINE + \
-            "                              " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
-            "                              " + EF_CHAR + " 34285 " + EF_CHAR + "" + NEWLINE + \
-            "                              " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
-            "                    TILT CALIBRATION MATRICES in NVRAM" + NEWLINE + \
-            "                Calibration date and time: 9/14/2012  09:14:45" + NEWLINE + \
-            "              Average Temperature During Calibration was   24.4 " + EF_CHAR + "C" + NEWLINE + \
-            NEWLINE + \
-            "                   Up                              Down" + NEWLINE + \
-            NEWLINE + \
-            "        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
-            " Roll   " + EF_CHAR + "   7.4612e-07  -3.1727e-05 " + EF_CHAR + "     " + EF_CHAR + "  -3.0054e-07   3.2190e-05 " + EF_CHAR + "" + NEWLINE + \
-            " Pitch  " + EF_CHAR + "  -3.1639e-05  -6.3505e-07 " + EF_CHAR + "     " + EF_CHAR + "  -3.1965e-05  -1.4881e-07 " + EF_CHAR + "" + NEWLINE + \
-            "        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
-            NEWLINE + \
-            "        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
-            " Offset " + EF_CHAR + "   3.2808e+04   3.2568e+04 " + EF_CHAR + "     " + EF_CHAR + "   3.2279e+04   3.3047e+04 " + EF_CHAR + "" + NEWLINE + \
-            "        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
-            NEWLINE + \
-            "                             " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
-            "                      Null   " + EF_CHAR + " 33500 " + EF_CHAR + "" + NEWLINE + \
-            "                             " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
-            NEWLINE + \
-            NEWLINE + \
-            NEWLINE + \
-            NEWLINE + \
-            NEWLINE}
-        }
-
-
-    
-
-    _fd_parameters = {
-        ADCPT_FDDataParticleKey.FD_DATA: {'type': unicode, 'value': 
-            "Total Unique Faults   =     2" + NEWLINE +\
-            "Overflow Count        =     0" + NEWLINE +\
-            "Time of first fault:    13/02/11,10:05:43.29" + NEWLINE +\
-            "Time of last fault:     13/02/22,12:59:26.80" + NEWLINE +\
-            NEWLINE +\
-            "Fault Log:" + NEWLINE +\
-            "Entry #  0 Code=0a08h  Count=    5  Delta=7679898 Time=13/02/22,12:59:26.66" + NEWLINE +\
-            " Parameter = 00000000h" + NEWLINE +\
-            "  Tilt axis X over range." + NEWLINE +\
-            "Entry #  1 Code=0a09h  Count=    5  Delta=7679899 Time=13/02/22,12:59:26.80" + NEWLINE +\
-            " Parameter = 00000000h" + NEWLINE +\
-            "  Tilt axis Y over range." + NEWLINE +\
-            "End of fault log." + NEWLINE + NEWLINE}
-        }
-    """
-
-    _ps0_parameters = {
-        ADCPT_PS0DataParticleKey.PS0_DATA: {'type': unicode, 'value': 
-            "Instrument S/N:  18444" + NEWLINE +\
-            "       Frequency:  76800 HZ" + NEWLINE +\
-            "   Configuration:  4 BEAM, JANUS" + NEWLINE +\
-            "     Match Layer:  10" + NEWLINE +\
-            "      Beam Angle:  20 DEGREES" + NEWLINE +\
-            "    Beam Pattern:  CONVEX" + NEWLINE +\
-            "     Orientation:  UP" + NEWLINE +\
-            "       Sensor(s):  HEADING  TILT 1  TILT 2  DEPTH  TEMPERATURE  PRESSURE" + NEWLINE +\
-            "Pressure Sens Coefficients:" + NEWLINE +\
-            "              c3 = -1.927850E-11" + NEWLINE +\
-            "              c2 = +1.281892E-06" + NEWLINE +\
-            "              c1 = +1.375793E+00" + NEWLINE +\
-            "          Offset = +2.813725E+00" + NEWLINE +\
-            NEWLINE +\
-            "Temp Sens Offset:  -0.01 degrees C" + NEWLINE +\
-            NEWLINE +\
-            "    CPU Firmware:  50.40 [0]" + NEWLINE +\
-            "   Boot Code Ver:  Required:  1.16   Actual:  1.16" + NEWLINE +\
-            "    DEMOD #1 Ver:  ad48, Type:  1f" + NEWLINE +\
-            "    DEMOD #2 Ver:  ad48, Type:  1f" + NEWLINE +\
-            "    PWRTIMG  Ver:  85d3, Type:   7" + NEWLINE +\
-            NEWLINE +\
-            "Board Serial Number Data:" + NEWLINE +\
-            "   72  00 00 06 FE BC D8  09 HPA727-3009-00B" + NEWLINE +\
-            "   81  00 00 06 F5 CD 9E  09 REC727-1004-06A" + NEWLINE +\
-            "   A5  00 00 06 FF 1C 79  09 HPI727-3007-00A" + NEWLINE +\
-            "   82  00 00 06 FF 23 E5  09 CPU727-2011-00E" + NEWLINE +\
-            "   07  00 00 06 F6 05 15  09 TUN727-1005-06A" + NEWLINE +\
-            "   DB  00 00 06 F5 CB 5D  09 DSP727-2001-06H" + NEWLINE }
-        }
-
-    _ps3_parameters = {
-        ADCPT_PS3DataParticleKey.PS3_DATA: {'type': unicode, 'value': 
-            "Beam Width:   3.7 degrees" + NEWLINE +\
-            NEWLINE +\
-            "Beam     Elevation     Azimuth" + NEWLINE +\
-            "  1         -70.00      270.00" + NEWLINE +\
-            "  2         -70.00       90.00" + NEWLINE +\
-            "  3         -70.00        0.01" + NEWLINE +\
-            "  4         -70.00      180.00" + NEWLINE +\
-            NEWLINE +\
-            "Beam Directional Matrix (Down):" + NEWLINE +\
-            "  0.3420    0.0000    0.9397    0.2419" + NEWLINE +\
-            " -0.3420    0.0000    0.9397    0.2419" + NEWLINE +\
-            "  0.0000   -0.3420    0.9397   -0.2419" + NEWLINE +\
-            "  0.0000    0.3420    0.9397   -0.2419" + NEWLINE +\
-            NEWLINE +\
-            "Instrument Transformation Matrix (Down):    Q14:" + NEWLINE +\
-            "  1.4619   -1.4619    0.0000    0.0000       23952  -23952       0       0" + NEWLINE +\
-            "  0.0000    0.0000   -1.4619    1.4619           0       0  -23952   23952" + NEWLINE +\
-            "  0.2661    0.2661    0.2661    0.2661        4359    4359    4359    4359" + NEWLINE +\
-            "  1.0337    1.0337   -1.0337   -1.0337       16936   16936  -16936  -16936" + NEWLINE +\
-            "Beam Angle Corrections Are Loaded." + NEWLINE  }
     }
 
-    _pt200_parameters = {
-        ADCPT_PT200DataParticleKey.PT200_DATA: {'type': unicode, 'value': 
-            "Ambient  Temperature =    18.44 Degrees C" + NEWLINE +\
-            "  Attitude Temperature =    21.55 Degrees C" + NEWLINE +\
-            "  Internal Moisture    = 8F26h" + NEWLINE +\
-            "" + NEWLINE +\
-            "Correlation Magnitude: Narrow Bandwidth" + NEWLINE +\
-            "" + NEWLINE +\
-            "               Lag  Bm1  Bm2  Bm3  Bm4" + NEWLINE +\
-            "                 0  255  255  255  255" + NEWLINE +\
-            "                 1  153  136  134  164" + NEWLINE +\
-            "                 2   66   39   77   48" + NEWLINE +\
-            "                 3   54    3   43   43" + NEWLINE +\
-            "                 4   43   15   21   62" + NEWLINE +\
-            "                 5   29   17    8   38" + NEWLINE +\
-            "                 6   24    7    3   63" + NEWLINE +\
-            "                 7   15    7   12   83" + NEWLINE +\
-            "" + NEWLINE +\
-            "  High Gain RSSI:    63   58   74   73" + NEWLINE +\
-            "   Low Gain RSSI:     6    7   10    8" + NEWLINE +\
-            "" + NEWLINE +\
-            "  SIN Duty Cycle:    49   49   50   49" + NEWLINE +\
-            "  COS Duty Cycle:    50   48   50   49" + NEWLINE +\
-            "" + NEWLINE +\
-            "Receive Test Results = $00020000 ... FAIL" + NEWLINE +\
-            "" + NEWLINE +\
-            "IXMT    =      5.4 Amps rms  [Data=7bh]" + NEWLINE +\
-            "VXMT    =    387.2 Volts rms [Data=b9h]" + NEWLINE +\
-            "   Z    =     71.8 Ohms" + NEWLINE +\
-            "Transmit Test Results = $0 ... PASS" + NEWLINE +\
-            "" + NEWLINE +\
-            "    0    0    0    0" + NEWLINE +\
-            "    0    0    0    0" + NEWLINE +\
-            "    0    0    0    0" + NEWLINE +\
-            "   12   12   12   12" + NEWLINE +\
-            "  255  255  255  255" + NEWLINE +\
-            "    0    0    0    0" + NEWLINE +\
-            "   12   12   12   12" + NEWLINE +\
-            "  255  255  255  255" + NEWLINE +\
-            "    0    0    0    0" + NEWLINE +\
-            "    0    0    0    0" + NEWLINE +\
-            "   12   12   12   12" + NEWLINE +\
-            "  255  255  255  255" + NEWLINE +\
-            "Electronics Test Results = $00000000" + NEWLINE +\
-            "Receive Bandwidth:" + NEWLINE +\
-            "    Sample      bw    bw    bw    bw    bw" + NEWLINE +\
-            "      rate  expect   Bm1   Bm2   Bm3   Bm4" + NEWLINE +\
-            "        19       7     4     6     5     3 Khz" + NEWLINE +\
-            "   results          PASS  PASS  PASS  FAIL" + NEWLINE +\
-            "RSSI Time Constant:" + NEWLINE +\
-            "" + NEWLINE +\
-            "RSSI Filter Strobe 1 =   38400 Hz" + NEWLINE +\
-            "  time   Bm1   Bm2   Bm3   Bm4" + NEWLINE +\
-            "  msec  cnts  cnts  cnts  cnts" + NEWLINE +\
-            "     1     7     8     8     8" + NEWLINE +\
-            "     2    12    15    14    15" + NEWLINE +\
-            "     3    16    20    20    22" + NEWLINE +\
-            "     4    21    25    25    27" + NEWLINE +\
-            "     5    24    29    29    31" + NEWLINE +\
-            "     6    27    32    33    35" + NEWLINE +\
-            "     7    30    35    36    38" + NEWLINE +\
-            "     8    32    37    39    41" + NEWLINE +\
-            "     9    34    39    41    43" + NEWLINE +\
-            "    10    35    41    43    45" + NEWLINE +\
-            "   nom    45    49    54    55" + NEWLINE +\
-            "result    PASS  PASS  PASS  PASS" + NEWLINE}
-        }
+    #name, type done, value pending
+    EF_CHAR = '\xef'
+    _calibration_data_parameters = {
+        ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP: {'type': float, 'value': 752 },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BX: {'type': float, 'value': 752 },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BY: {'type': float, 'value': 752 },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BZ: {'type': float, 'value': 752 },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_ERR: {'type': float, 'value': 752 },
+        ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET: {'type': float, 'value': 752 },
+        ADCP_COMPASS_CALIBRATION_KEY.ELECTRICAL_NULL: {'type': float, 'value': 752 },
+        ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP: {'type': float, 'value': 752 },
+        ADCP_COMPASS_CALIBRATION_KEY.ROLL_UP_DOWN: {'type': float, 'value': 752 },
+        ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN: {'type': float, 'value': 752 },
+        ADCP_COMPASS_CALIBRATION_KEY.OFFSET_UP_DOWN: {'type': float, 'value': 752 },
+        ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL: {'type': float, 'value': 752 }
+    }
 
-# Driver Parameter Methods
+    #name, type done, value pending
+    _ps0_parameters = {
+        ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER: {'type': str, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY: {'type': int, 'value': 752 }, 
+        ADCP_SYSTEM_CONFIGURATION_KEY.CONFIGURATION: {'type': str, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.MATCH_LAYER: {'type': str, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_ANGLE: {'type': int, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_PATTERN: {'type': str, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.ORIENTATION: {'type': str, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.SENSORS: {'type': str, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c3: {'type': float, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c2: {'type': float, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c1: {'type': float, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_OFFSET: {'type': float, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET: {'type': float, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.CPU_FIRMWARE: {'type': str, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_REQUIRED: {'type': str, 'value': 752 }, 
+        ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_ACTUAL: {'type': str, 'value': 752 }, 
+        ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_1_VERSION: {'type': str, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_1_TYPE: {'type': str, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_VERSION: {'type': str, 'value': 752 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_TYPE: {'type': str, 'value': 752 }, 
+        ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_VERSION: {'type': str, 'value': 752 }, 
+        ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE: {'type': str, 'value': 752 }, 
+        ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS: {'type': str, 'value': 752 }
+    }
+
+    #name, type done, value pending
+    _pd0_parameters = {
+        ADCP_PD0_PARSED_KEY.PART_000_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_001_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_002_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_003_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_004_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_005_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_006_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_007_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_008_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_009_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_010_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_011_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_012_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_013_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_014_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_015_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_016_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_017_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_018_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_019_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_020_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_021_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_022_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_023_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_024_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_025_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_026_float32: {'type': float, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_027_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_028_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_029_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_030_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_031_int16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_032_int16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_033_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_034_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_035_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_036_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_037_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_038_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_039_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_040_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_041_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_042_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_043_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_044_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_045_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_046_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_047_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_048_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_049_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_050_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_051_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_052_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_053_uint64: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_054_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_055_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_056_uint32: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_057_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_058_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_059_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_060_float64: {'type': float, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_061_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_062_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_063_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_064_int8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_065_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_066_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_067_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_068_int16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_069_int16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_070_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_071_int16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_072_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_073_float32: {'type': float, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_074_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_075_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_076_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_077_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_078_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_079_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_080_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_081_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_082_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_083_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_084_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_085_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_086_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_087_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_088_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_089_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_090_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_091_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_092_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_093_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_094_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_095_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_096_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_097_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_098_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_099_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_100_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_101_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_102_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_103_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_104_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_105_uint32: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_106_uint32: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_107_float64: {'type': float, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_108_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_109_int16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_110_int16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_111_int16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_112_int16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_113_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_114_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_115_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_116_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_117_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_118_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_119_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_120_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_121_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_122_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_123_uint16: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_124_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_125_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_126_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_127_uint8: {'type': int, 'value': 752 },
+        ADCP_PD0_PARSED_KEY.PART_128_uint16: {'type': int, 'value': 752 }
+    }
+
+    # Driver Parameter Methods
     ###
     def assert_driver_parameters(self, current_parameters, verify_values = False):
         """
@@ -521,84 +367,43 @@ class ADCPTMixin(DriverTestMixin):
         Verify a particle is a know particle to this driver and verify the particle is  correct
         @param data_particle: Data particle of unkown type produced by the driver
         '''
-        """
-        if (isinstance(data_particle, ADCPT_EnsembleDataParticle)):
-            self.assert_particle_header_sample(data_particle)
-        elif (isinstance(data_particle, ADCPT_CalibrationDataParticle)):
-            self.assert_particle_calibration_data(data_particle)
-        elif (isinstance(data_particle, ADCPT_FDDataParticle)):
-            self.assert_particle_fd_data(data_particle)
-        el
-        """
-        if (isinstance(data_particle, ADCPT_PS0DataParticle)):
-            self.assert_particle_ps0_data(data_particle)
-        elif (isinstance(data_particle, ADCPT_PS3DataParticle)):
-            self.assert_particle_ps3_data(data_particle)
-        elif (isinstance(data_particle, ADCPT_PT200DataParticle)):
-            self.assert_particle_py200_data(data_particle)
+
+        if (isinstance(data_particle, DataParticleType.ADCP_PD0_PARSED)):
+            self.assert_particle_pd0_data(data_particle)
+        elif (isinstance(data_particle, DataParticleType.ADCP_SYSTEM_CONFIGURATION)):
+            self.assert_particle_system_configuration(data_particle)
+        elif (isinstance(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)):
+            self.assert_particle_compass_calibration(data_particle)
         else:
             log.error("Unknown Particle Detected: %s" % data_particle)
             self.assertFalse(True)
 
-    def assert_particle_header_sample(self, data_particle, verify_values = False):
-        '''
-        Verify an adcpt ensemble data particle
-        @param data_particle: ADCPT_EnsembleDataParticle data particle
-        @param verify_values: bool, should we verify parameter values
-        '''
-        self.assert_data_particle_header(data_particle, DataParticleType.ENSEMBLE_PARSED)
-        self.assert_data_particle_parameters(data_particle, self._header_sample_parameters, verify_values)
-
-    def assert_particle_calibration_data(self, data_particle, verify_values = False):
+    def assert_particle_compass_calibration(self, data_particle, verify_values = True):
         '''
         Verify an adcpt calibration data particle
         @param data_particle: ADCPT_CalibrationDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, DataParticleType.CALIBRATION_PARSED)
+        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_data_parameters, verify_values)
 
-    def assert_particle_fd_data(self, data_particle, verify_values = False):
+    def assert_particle_system_configuration(self, data_particle, verify_values = True):
         '''
         Verify an adcpt fd data particle
         @param data_particle: ADCPT_FDDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, DataParticleType.FD_PARSED)
-        self.assert_data_particle_parameters(data_particle, self._fd_parameters, verify_values)
+        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_SYSTEM_CONFIGURATION)
+        self.assert_data_particle_parameters(data_particle, self._ps0_parameters, verify_values)
 
-
-
-    def assert_particle_ps0_data(self, data_particle, verify_values = False):
+    def assert_particle_pd0_data(self, data_particle, verify_values = True):
         '''
         Verify an adcpt ps0 data particle
         @param data_particle: ADCPT_PS0DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, DataParticleType.PS0_PARSED)
-        self.assert_data_particle_parameters(data_particle, self._ps0_parameters, verify_values)
-
-    def assert_particle_ps3_data(self, data_particle, verify_values = False):
-        '''
-        Verify an adcpt ps3 data particle
-        @param data_particle: ADCPT_PS3DataParticle data particle
-        @param verify_values: bool, should we verify parameter values
-        '''
-        self.assert_data_particle_header(data_particle, DataParticleType.PS3_PARSED)
-        self.assert_data_particle_parameters(data_particle, self._ps3_parameters, verify_values)
-
-    def assert_particle_pt200_data(self, data_particle, verify_values = False):
-        '''
-        Verify an adcpt pt200 data particle
-        @param data_particle: ADCPT_PT200DataParticle data particle
-        @param verify_values: bool, should we verify parameter values
-        '''
-        self.assert_data_particle_header(data_particle, DataParticleType.PT200_PARSED)
-        self.assert_data_particle_parameters(data_particle, self._pt200_parameters, verify_values)
-
-
-
-
+        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED)
+        self.assert_data_particle_parameters(data_particle, self._pd0_parameters, verify_values)
 
 
 ###############################################################################
@@ -673,13 +478,11 @@ class DriverUnitTest(TeledyneUnitTest, ADCPTMixin):
         self.assert_raw_particle_published(driver, True)
 
         # Start validating data particles
-        self.assert_particle_published(driver, PT200_RAW_DATA, self.assert_particle_pt200_data, True)
-        #self.assert_particle_published(driver, SAMPLE_TIDE_DATA, self.assert_particle_tide_sample, True)
-        #self.assert_particle_published(driver, SAMPLE_TIDE_DATA_POLLED, self.assert_particle_tide_sample, True)
-        #self.assert_particle_published(driver, SAMPLE_WAVE_BURST, self.assert_particle_wave_burst, True)
-        #self.assert_particle_published(driver, SAMPLE_STATISTICS, self.assert_particle_statistics, True)
-        #self.assert_particle_published(driver, SAMPLE_DEVICE_CALIBRATION, self.assert_particle_device_calibration, True)
-        #self.assert_particle_published(driver, SAMPLE_DEVICE_STATUS, self.assert_particle_device_status, True)
+
+        self.assert_particle_published(driver, CALIBRATION_RAW_DATA, self.assert_particle_compass_calibration, True)
+        self.assert_particle_published(driver, PS0_RAW_DATA, self.assert_particle_system_configuration, True)
+        self.assert_particle_published(driver, SAMPLE_RAW_DATA, self.assert_particle_pd0_data, True)
+
 
     def test_protocol_filter_capabilities(self):
         """

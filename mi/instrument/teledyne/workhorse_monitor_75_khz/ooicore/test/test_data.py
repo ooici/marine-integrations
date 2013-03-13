@@ -1,4 +1,4 @@
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import NEWLINE
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
 
 # From Lytle
 SAMPLE_RAW_DATA = "7F7FF002000612004D008E008001FA01740200003228C941000D041E2D002003600101400900D0070\
