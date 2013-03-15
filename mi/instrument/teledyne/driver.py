@@ -166,4 +166,3 @@ class ADCPProtocol(CommandResponseInstrumentProtocol):
         else:
             return time.strftime("%Y/%m/%d,%H:%M:%S", v)
 
-

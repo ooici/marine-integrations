@@ -534,17 +534,11 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                  'bHHHhhHhBfBBBBBBBBBBBBBBBBBBBBBB' + \
                  'BBBBBBBBBLLdHhhhhHBBBBHBBBBHBBBBH', data_stream)
 
-        #
-        # Left Off Here
-        #
+        final_result = []
+        for (key, value) in result.iteritems():
+            final_result.append({DataParticleKey.VALUE_ID: key,
+                                 DataParticleKey.VALUE: value})
 
-        if m is not None:
-            # don't put the '>' in the data particle
-            value = m.group()[:-1]
-        else:
-            value = None
-        result = [{DataParticleKey.VALUE_ID: ADCPT_PT200DataParticleKey.PT200_DATA,
-                   DataParticleKey.VALUE: value}]
         return result
 
 
@@ -579,17 +573,102 @@ class ADCP_SYSTEM_CONFIGURATION_KEY(BaseEnum):
 class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
     _data_particle_type = DataParticleType.ADCP_SYSTEM_CONFIGURATION
 
-    def _build_parsed_values(self):
+    RE00 = re.compile(r'Instrument S/N: +(\d+)')
+    RE01 = re.compile(r'       Frequency: +(\d+) HZ')
+    RE02 = re.compile(r'   Configuration: +([a-zA-Z0-9, ]+)')
+    RE03 = re.compile(r'     Match Layer: +(\d+)')
+    RE04 = re.compile(r'      Beam Angle:  ([0-9.]+) DEGREES')
+    RE05 = re.compile(r'    Beam Pattern:  ([a-zA-Z]+)')
+    RE06 = re.compile(r'     Orientation:  ([a-zA-Z]+)')
+    RE07 = re.compile(r'       Sensor(s):  ([a-zA-Z0-9 ]+)')
 
-        data_stream = self.raw_data
-        m = re.search(PS0_REGEX, data_stream)
-        if m is not None:
-            # don't put the '>' in the data particle
-            value = m.group()[:-1]
-        else:
-            value = None
-        result = [{DataParticleKey.VALUE_ID: ADCPT_PS0DataParticleKey.PS0_DATA,
-                   DataParticleKey.VALUE: value}]
+    RE09 = re.compile(r'              c3 = ([+-0-9.E]+)')
+    RE10 = re.compile(r'              c2 = ([+-0-9.E]+)')
+    RE11 = re.compile(r'              c1 = ([+-0-9.E]+)')
+    RE12 = re.compile(r'          Offset = ([+-0-9.E]+)')
+
+    RE14 = re.compile(r'Temp Sens Offset: +([+-0-9.]+) degrees C')
+
+    RE16 = re.compile(r'    CPU Firmware:  ([0-9.\[\] ]+)')
+    RE17 = re.compile(r'   Boot Code Ver:  Required: +([0-9.]+) +Actual: +([0-9.]+)')
+    RE18 = re.compile(r'    DEMOD #1 Ver: +([a-zA-Z0-9]+), Type: +([a-zA-Z0-9]+)')
+    RE19 = re.compile(r'    DEMOD #2 Ver: +([a-zA-Z0-9]+), Type: +([a-zA-Z0-9]+)')
+    RE20 = re.compile(r'    PWRTIMG  Ver: +([a-zA-Z0-9]+), Type: +([a-zA-Z0-9]+)')
+
+    RE23 = re.compile(r' +([0-9a-zA-Z\- ]+)')
+    RE24 = re.compile(r' +([0-9a-zA-Z\- ]+)')
+    RE25 = re.compile(r' +([0-9a-zA-Z\- ]+)')
+    RE26 = re.compile(r' +([0-9a-zA-Z\- ]+)')
+    RE27 = re.compile(r' +([0-9a-zA-Z\- ]+)')
+    RE28 = re.compile(r' +([0-9a-zA-Z\- ]+)')
+
+    def _build_parsed_values(self):
+        """
+        """
+        # Initialize
+        matches = {}
+
+        lines = self.raw_data.split(NEWLINE)
+
+        match = self.RE00.match(lines[0])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER] = match.group(1)
+        match = self.RE01.match(lines[1])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY] = match.group(1)
+        match = self.RE02.match(lines[2])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.CONFIGURATION] = match.group(1)
+        match = self.RE03.match(lines[3])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.MATCH_LAYER] = match.group(1)
+        match = self.RE04.match(lines[4])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_ANGLE] = match.group(1)
+        match = self.RE05.match(lines[5])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_PATTERN] = match.group(1)
+        match = self.RE06.match(lines[6])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.ORIENTATION] = match.group(1)
+        match = self.RE07.match(lines[7])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.SENSORS] = match.group(1)
+        match = self.RE09.match(lines[9])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c3] = match.group(1)
+        match = self.RE10.match(lines[10])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c2] = match.group(1)
+        match = self.RE11.match(lines[11])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c1] = match.group(1)
+        match = self.RE12.match(lines[12])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_OFFSET] = match.group(1)
+        match = self.RE14.match(lines[14])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET] = match.group(1)
+        match = self.RE16.match(lines[16])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.CPU_FIRMWARE] = match.group(1)
+        match = self.RE17.match(lines[17])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_REQUIRED] = match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_ACTUAL] = match.group(2)
+        match = self.RE18.match(lines[18])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_1_VERSION] = match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_1_TYPE] = match.group(2)
+        match = self.RE19.match(lines[19])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_VERSION] = match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_TYPE] = match.group(2)
+        match = self.RE20.match(lines[20])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_VERSION] = match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE] = match.group(2)
+
+        match = self.RE23.match(lines[23])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] = match.group(1)
+        match = self.RE24.match(lines[24])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += match.group(1)
+        match = self.RE25.match(lines[25])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += match.group(1)
+        match = self.RE26.match(lines[26])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += match.group(1)
+        match = self.RE27.match(lines[27])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += match.group(1)
+        match = self.RE28.match(lines[28])
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += match.group(1)
+
+        result = []
+        for (key, value) in matches.iteritems():
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: value})
+
         return result
 
 
@@ -603,76 +682,90 @@ class ADCP_COMPASS_CALIBRATION_KEY(BaseEnum):
     COIL_OFFSET = "coil_offset"
     ELECTRICAL_NULL = "electrical_null"
     TILT_CALIBRATION_TIMESTAMP = "tilt_calibration_timestamp"
+    CALIBRATION_TEMP = "calibration_temp"
     ROLL_UP_DOWN = "roll_up_down"
     PITCH_UP_DOWN = "pitch_up_down"
     OFFSET_UP_DOWN = "offset_up_down"
     TILT_NULL = "tilt_null"
 
-"""
-CALIBRATION_RAW_DATA = \
-"" + NEWLINE +\
-"              ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM" + NEWLINE + \
-"               Calibration date and time: 9/14/2012  09:25:32" + NEWLINE + \
-"                             S inverse" + NEWLINE + \
-"          " + EF_CHAR + "                                                  " + EF_CHAR + "" + NEWLINE + \
-"     Bx   " + EF_CHAR + "   3.9218e-01  3.9660e-01 -3.1681e-02  6.4332e-03 " + EF_CHAR + "" + NEWLINE + \
-"     By   " + EF_CHAR + "  -2.4320e-02 -1.0376e-02 -2.2428e-03 -6.0628e-01 " + EF_CHAR + "" + NEWLINE + \
-"     Bz   " + EF_CHAR + "   2.2453e-01 -2.1972e-01 -2.7990e-01 -2.4339e-03 " + EF_CHAR + "" + NEWLINE + \
-"     Err  " + EF_CHAR + "   4.6514e-01 -4.0455e-01  6.9083e-01 -1.4291e-02 " + EF_CHAR + "" + NEWLINE + \
-"          " + EF_CHAR + "                                                  " + EF_CHAR + "" + NEWLINE + \
-"                             Coil Offset" + NEWLINE + \
-"                         " + EF_CHAR + "                " + EF_CHAR + "" + NEWLINE + \
-"                         " + EF_CHAR + "   3.4233e+04   " + EF_CHAR + "" + NEWLINE + \
-"                         " + EF_CHAR + "   3.4449e+04   " + EF_CHAR + "" + NEWLINE + \
-"                         " + EF_CHAR + "   3.4389e+04   " + EF_CHAR + "" + NEWLINE + \
-"                         " + EF_CHAR + "   3.4698e+04   " + EF_CHAR + "" + NEWLINE + \
-"                         " + EF_CHAR + "                " + EF_CHAR + "" + NEWLINE + \
-"                             Electrical Null" + NEWLINE + \
-"                              " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
-"                              " + EF_CHAR + " 34285 " + EF_CHAR + "" + NEWLINE + \
-"                              " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
-"                    TILT CALIBRATION MATRICES in NVRAM" + NEWLINE + \
-"                Calibration date and time: 9/14/2012  09:14:45" + NEWLINE + \
-"              Average Temperature During Calibration was   24.4 " + EF_CHAR + "C" + NEWLINE + \
-"" + NEWLINE + \
-"                   Up                              Down" + NEWLINE + \
-"" + NEWLINE + \
-"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
-" Roll   " + EF_CHAR + "   7.4612e-07  -3.1727e-05 " + EF_CHAR + "     " + EF_CHAR + "  -3.0054e-07   3.2190e-05 " + EF_CHAR + "" + NEWLINE + \
-" Pitch  " + EF_CHAR + "  -3.1639e-05  -6.3505e-07 " + EF_CHAR + "     " + EF_CHAR + "  -3.1965e-05  -1.4881e-07 " + EF_CHAR + "" + NEWLINE + \
-"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
-"" + NEWLINE + \
-"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
-" Offset " + EF_CHAR + "   3.2808e+04   3.2568e+04 " + EF_CHAR + "     " + EF_CHAR + "   3.2279e+04   3.3047e+04 " + EF_CHAR + "" + NEWLINE + \
-"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
-"" + NEWLINE + \
-"                             " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
-"                      Null   " + EF_CHAR + " 33500 " + EF_CHAR + "" + NEWLINE + \
-"                             " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
-"" + NEWLINE + \
-"" + NEWLINE + \
-"" + NEWLINE + \
-"" + NEWLINE + \
-"" + NEWLINE + \
-">"
-
-"""
-
 
 class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
     _data_particle_type = DataParticleType.ADCP_COMPASS_CALIBRATION
 
-    def _build_parsed_values(self):
+    EF_CHAR = '\xef'
 
-        data_stream = self.raw_data
-        m = re.search(PS3_REGEX, data_stream)
-        if m is not None:
-            # don't put the '>' in the data particle
-            value = m.group()[:-1]
-        else:
-            value = None
-        result = [{DataParticleKey.VALUE_ID: ADCPT_PS3DataParticleKey.PS3_DATA,
-                   DataParticleKey.VALUE: value}]
+    RE00 = re.compile(r' +Calibration date and time: ([/0-9: ]+)')
+    RE03 = re.compile(r' +Bx +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
+    RE04 = re.compile(r' +By +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
+    RE05 = re.compile(r' +Bz +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
+    RE06 = re.compile(r' +Err +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
+
+    RE10 = re.compile(r' +# +([0-9e+-.]+) +#')
+    RE11 = re.compile(r' +# +([0-9e+-.]+) +#')
+    RE12 = re.compile(r' +# +([0-9e+-.]+) +#')
+    RE13 = re.compile(r' +# +([0-9e+-.]+) +#')
+
+    RE17 = re.compile(r' +# 34285 #')
+    RE20 = re.compile(r' +Calibration date and time: ([/0-9: ]+)')
+    RE21 = re.compile(r' +Average Temperature During Calibration was +([0-9.]+) #')
+    RE26 = re.compile(r' Roll +# +([0-9e+-.]+) +([0-9e+-.]+) +# +# +([0-9e+-.]+) +([0-9e+-.]+) +#')
+    RE27 = re.compile(r' Pitch +# +([0-9e+-.]+) +([0-9e+-.]+) +# +# +([0-9e+-.]+) +([0-9e+-.]+) +#')
+    RE31 = re.compile(r' Offset # +([0-9e+-.]+) +([0-9e+-.]+) +# +# +([0-9e+-.]+) +([0-9e+-.]+) +#')
+    RE35 = re.compile(r' +Null +# (\d+) +#')
+
+    def _build_parsed_values(self):
+        """
+        """
+        # Initialize
+        matches = {}
+
+        lines = self.raw_data.replace(self.EF_CHAR,'#').split(NEWLINE)
+
+        match = self.RE00.match(lines[0])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP] = match.group(1)
+
+        match = self.RE03.match(lines[3])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BX] = [match.group(1), match.group(2), match.group(3), match.group(4)]
+        match = self.RE04.match(lines[4])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BY] = [match.group(1), match.group(2), match.group(3), match.group(4)]
+        match = self.RE05.match(lines[5])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BZ] = [match.group(1), match.group(2), match.group(3), match.group(4)]
+        match = self.RE06.match(lines[6])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_ERR] = [match.group(1), match.group(2), match.group(3), match.group(4)]
+
+        match = self.RE10.match(lines[10])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET] = [match.group(1)]
+        match = self.RE11.match(lines[11])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(match.group(1))
+        match = self.RE12.match(lines[12])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(match.group(1))
+        match = self.RE13.match(lines[13])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(match.group(1))
+
+        match = self.RE17.match(lines[17])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.ELECTRICAL_NULL] = match.group(1)
+
+        match = self.RE20.match(lines[20])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP] = match.group(1)
+
+        match = self.RE21.match(lines[21])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.CALIBRATION_TEMP] = match.group(1)
+
+        match = self.RE26.match(lines[26])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.ROLL_UP_DOWN] = [match.group(1), match.group(2), match.group(3), match.group(4)]
+        match = self.RE27.match(lines[27])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN] = [match.group(1), match.group(2), match.group(3), match.group(4)]
+        match = self.RE31.match(lines[31])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN] = [match.group(1), match.group(2), match.group(3), match.group(4)]
+
+        match = self.RE35.match(lines[35])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL] = match.group(1)
+
+        result = []
+        for (key, value) in matches.iteritems():
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: value})
+
         return result
 
 
@@ -974,103 +1067,103 @@ class TeledyneProtocol(ADCPProtocol):
         """
 
         self._param_dict.add(Parameter.SERIAL_DATA_OUT,
-            r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out \(Vel;Cor;Amp  PG;St;P0  P1;P2;P3\)',
+            r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out ',
             lambda match: str(match.group(1)),
             self._string_to_string,
             visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.SERIAL_FLOW_CONTROL,
-            r'CF = (\d+) \-+ Flow Ctrl \(EnsCyc;PngCyc;Binry;Ser;Rec\)',
-            lambda match: int(match.group(1)),
+            r'CF = (\d+) \-+ Flow Ctrl ',
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=11110)
 
         self._param_dict.add(Parameter.BANNER,
             r'CH = (\d) \-+ Suppress Banner',
-            lambda match: not bool(int(match.group(1))),
+            lambda match: not bool(int(match.group(1), base=10)),
             self._reverse_bool_to_int,
             startup_param=True,
             default_value=True)
 
         self._param_dict.add(Parameter.INSTRUMENT_ID,
-            r'CI = (\d+) \-+ Instrument ID \(0-255\)',
-            lambda match: int(match.group(1)),
+            r'CI = (\d+) \-+ Instrument ID ',
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True)
 
         self._param_dict.add(Parameter.SLEEP_ENABLE,
             r'CL = (\d) \-+ Sleep Enable',
-            lambda match: bool(int(match.group(1))),
-            self._bool_to_int,
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
             startup_param=True,
             default_value=False)
 
         self._param_dict.add(Parameter.SAVE_NVRAM_TO_RECORDER,
             r'CN = (\d) \-+ Save NVRAM to recorder',
-            lambda match: bool(int(match.group(1))),
+            lambda match: bool(int(match.group(1), base=10)),
             self._bool_to_int,
             startup_param=True,
             default_value=True,
             visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.POLLED_MODE,
-            r'CP = (\d) \-+ PolledMode \(1=ON, 0=OFF;  BREAK resets\)',
-            lambda match: bool(int(match.group(1))),
+            r'CP = (\d) \-+ PolledMode ',
+            lambda match: bool(int(match.group(1), base=10)),
             self._bool_to_int,
             startup_param=True,
             default_value=False)
 
         self._param_dict.add(Parameter.XMIT_POWER,
-            r'CQ = (\d+) \-+ Xmt Power \(0=Low, 255=High\)',
-            lambda match: int(match.group(1)),
+            r'CQ = (\d+) \-+ Xmt Power ',
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=255)
 
         self._param_dict.add(Parameter.SPEED_OF_SOUND,
             r'EC = (\d+) \-+ Speed Of Sound',
-            lambda match: int(match.group(1)),
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=1485)
 
         self._param_dict.add(Parameter.PITCH,
-            r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor \(1/100 deg\)',
-            lambda match: int(match.group(1)),
+            r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=0)
 
         self._param_dict.add(Parameter.ROLL,
-            r'ER = ([\+\-\d]+) \-+ Tilt 2 Sensor \(1/100 deg\)',
-            lambda match: int(match.group(1)),
+            r'ER = ([\+\-\d]+) \-+ Tilt 2 Sensor ',
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=0)
 
         self._param_dict.add(Parameter.SALINITY,
-            r'ES = (\d+) \-+ Salinity \(0-40 pp thousand\)',
-            lambda match: int(match.group(1)),
+            r'ES = (\d+) \-+ Salinity ',
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=35)
 
         self._param_dict.add(Parameter.SENSOR_SOURCE,
-            r'EZ = (\d+) \-+ Sensor Source \(C;D;H;P;R;S;T\)',
-            lambda match: int(match.group(1)),
-            self._int_to_string,
+            r'EZ = (\d+) \-+ Sensor Source ',
+            lambda match: str(match.group(1)),
+            self._string_to_string,
             startup_param=True)
 
         self._param_dict.add(Parameter.TIME_PER_ENSEMBLE,
-            r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble \(hrs:min:sec.sec/100\)',
+            r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble ',
             lambda match: str(match.group(1)),
             self._string_to_string,
             startup_param=True,
-            default_value='00:00.00')
+            default_value='00:00:00.00')
 
         self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
-            r'TG (..../../..,..:..:..) - Time of First Ping \(CCYY/MM/DD,hh:mm:ss\)',
+            r'TG (..../../..,..:..:..) - Time of First Ping ',
             lambda match: str(match.group(1)),
             self._string_to_string,
             startup_param=True)
@@ -1089,72 +1182,72 @@ class TeledyneProtocol(ADCPProtocol):
             startup_param=True)
 
         self._param_dict.add(Parameter.FALSE_TARGET_THRESHOLD,
-            r'WA (\d+,\d+) \-+ False Target Threshold \(Max\)\(0-255\),\[Start Bin\]',
+            r'WA (\d+,\d+) \-+ False Target Threshold ',
             lambda match: str(match.group(1)),
             self._string_to_string,
             startup_param=True,
             default_value='050,001')
 
         self._param_dict.add(Parameter.BANDWIDTH_CONTROL,
-            r'WB (\d) \-+ Bandwidth Control \(0=Wid,1=Nar\)',
-            lambda match: int(match.group(1)),
+            r'WB (\d) \-+ Bandwidth Control ',
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=0)
 
         self._param_dict.add(Parameter.CORRELATION_THRESHOLD,
             r'WC (\d+) \-+ Correlation Threshold',
-            lambda match: int(match.group(1)),
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=64)
 
         self._param_dict.add(Parameter.SERIAL_OUT_FW_SWITCHES,
-            r'WD (\s+) \-+ Data Out \(Vel;Cor;Amp  PG;St;P0  P1;P2;P3\)',
-            lambda match: str(match.group(1)),
-            self._string_to_string,
+            r'WD ([\d ]+) \-+ Data Out ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
             visibility=ParameterDictVisibility.READ_ONLY,
             startup_param=True,
-            default_value='111 100 000')
+            default_value='111100000')
 
         self._param_dict.add(Parameter.ERROR_VELOCITY_THRESHOLD,
             r'WE (\d+) \-+ Error Velocity Threshold',
-            lambda match: int(match.group(1)),
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=2000)
 
         self._param_dict.add(Parameter.BLANK_AFTER_TRANSMIT,
             r'WF (\d+) \-+ Blank After Transmit',
-            lambda match: int(match.group(1)),
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=704)
 
         self._param_dict.add(Parameter.CLIP_DATA_PAST_BOTTOM,
             r'WI (\d) \-+ Clip Data Past Bottom',
-            lambda match: bool(int(match.group(1))),
+            lambda match: bool(int(match.group(1), base=10)),
             self._bool_to_int,
             startup_param=True,
             default_value=False)
 
         self._param_dict.add(Parameter.RECEIVER_GAIN_SELECT,
             r'WJ (\d) \-+ Rcvr Gain Select \(0=Low,1=High\)',
-            lambda match: int(match.group(1)),
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=1)
 
         self._param_dict.add(Parameter.WATER_REFERENCE_LAYER,
-            r'WL (\d+,\d+) \-+ Water Reference Layer:  Begin Cell \(0=OFF\), End Cell',
+            r'WL (\d+,\d+) \-+ Water Reference Layer:  ',
             lambda match: str(match.group(1)),
             self._string_to_string,
             startup_param=True,
             default_value='001,005')
 
         self._param_dict.add(Parameter.WATER_PROFILING_MODE,
-            r'WM (\d+) \-+ Profiling Mode \(1\-15\)',
-            lambda match: int(match.group(1)),
+            r'WM (\d+) \-+ Profiling Mode ',
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             visibility=ParameterDictVisibility.READ_ONLY,
             startup_param=True,
@@ -1162,42 +1255,42 @@ class TeledyneProtocol(ADCPProtocol):
 
         self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
             r'WN (\d+) \-+ Number of depth cells',
-            lambda match: int(match.group(1)),
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=100)
 
         self._param_dict.add(Parameter.PINGS_PER_ENSEMBLE,
             r'WP (\d+) \-+ Pings per Ensemble ',
-            lambda match: int(match.group(1)),
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=1)
 
         self._param_dict.add(Parameter.DEPTH_CELL_SIZE,
             r'WS (\d+) \-+ Depth Cell Size \(cm\)',
-            lambda match: int(match.group(1)),
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=800)
 
         self._param_dict.add(Parameter.TRANSMIT_LENGTH,
-            r'WT (\d+) \-+ Transmit Length \(cm\) \[0 = Bin Length\]',
-            lambda match: int(match.group(1)),
+            r'WT (\d+) \-+ Transmit Length ',
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=0)
 
         self._param_dict.add(Parameter.PING_WEIGHT,
-            r'WU (\d) \-+ Ping Weighting \(0=Box,1=Triangle\)',
-            lambda match: int(match.group(1)),
+            r'WU (\d) \-+ Ping Weighting ',
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=0)
 
         self._param_dict.add(Parameter.AMBIGUITY_VELOCITY,
-            r'WV (\d+) \-+ Mode 1 Ambiguity Vel \(cm/s radial\)',
-            lambda match: int(match.group(1)),
+            r'WV (\d+) \-+ Mode 1 Ambiguity Vel ',
+            lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
             default_value=175)
@@ -1949,6 +2042,8 @@ class TeledyneProtocol(ADCPProtocol):
         if prompt == Prompt.ERR:
             raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
 
+        if " ERR" in response:
+            raise InstrumentParameterException('Protocol._parse_set_response : Set command failed: %s' % response)
 
 
 
@@ -1966,7 +2061,7 @@ class TeledyneProtocol(ADCPProtocol):
         @throws InstrumentProtocolException if the parameter is not valid or
         if the formatting function could not accept the value passed.
         """
-        
+
         log.debug("in _build_get_command")
         try:
             get_cmd = param + '?' + NEWLINE
@@ -1976,19 +2071,11 @@ class TeledyneProtocol(ADCPProtocol):
 
         return get_cmd
 
-
-
-
-
-
     def _parse_get_response(self, response, prompt):
         log.debug("in _parse_get_response RESPONSE = %s", str(response) + str(prompt) )
         if prompt == Prompt.ERR:
             raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
 
-        if " ERR " in response:
-            raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
-        
         self._param_dict.update(response)
         for line in response.split(NEWLINE):
             log.debug("Scanning line through param_dict -> %s", line)

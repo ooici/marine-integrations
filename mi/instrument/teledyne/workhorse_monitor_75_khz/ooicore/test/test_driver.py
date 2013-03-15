@@ -141,7 +141,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.SERIAL_FLOW_CONTROL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 11110},
         Parameter.BANNER: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.INSTRUMENT_ID: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
-        Parameter.SLEEP_ENABLE: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.SLEEP_ENABLE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.SAVE_NVRAM_TO_RECORDER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.POLLED_MODE: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.XMIT_POWER: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 255, VALUE: 255},
@@ -149,17 +149,17 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.PITCH: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.ROLL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.SALINITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 35, VALUE: 35},
-        Parameter.SENSOR_SOURCE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
-        Parameter.TIME_PER_ENSEMBLE: {TYPE: dt.datetime, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00.00'},
+        Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
+        Parameter.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
         Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
         Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:01.00'},
-        Parameter.TIME: {TYPE: time, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
+        Parameter.TIME: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
         Parameter.FALSE_TARGET_THRESHOLD: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '050,001'},
         Parameter.BANDWIDTH_CONTROL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.CORRELATION_THRESHOLD: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 64},
-        Parameter.SERIAL_OUT_FW_SWITCHES: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '111 100 000'},
+        Parameter.SERIAL_OUT_FW_SWITCHES: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 111100000},
         Parameter.ERROR_VELOCITY_THRESHOLD: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 2000},
-        Parameter.BLANK_AFTER_TRANSMIT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0704},
+        Parameter.BLANK_AFTER_TRANSMIT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 704},
         Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
         Parameter.WATER_REFERENCE_LAYER: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '001,005'},
@@ -435,37 +435,21 @@ class DriverUnitTest(TeledyneUnitTest, ADCPTMixin):
         Test the chunker and verify the particles created.
         """
         chunker = StringChunker(Protocol.sieve_function)
-        """
-        self.assert_chunker_sample(chunker, SAMPLE_TIDE_DATA_POLLED)
-        self.assert_chunker_sample_with_noise(chunker, SAMPLE_TIDE_DATA_POLLED)
-        self.assert_chunker_fragmented_sample(chunker, SAMPLE_TIDE_DATA_POLLED)
-        self.assert_chunker_combined_sample(chunker, SAMPLE_TIDE_DATA_POLLED)
 
-        self.assert_chunker_sample(chunker, SAMPLE_TIDE_DATA)
-        self.assert_chunker_sample_with_noise(chunker, SAMPLE_TIDE_DATA)
-        self.assert_chunker_fragmented_sample(chunker, SAMPLE_TIDE_DATA)
-        self.assert_chunker_combined_sample(chunker, SAMPLE_TIDE_DATA)
+        self.assert_chunker_sample(chunker, CALIBRATION_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, CALIBRATION_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, CALIBRATION_RAW_DATA, 32)
+        self.assert_chunker_combined_sample(chunker, CALIBRATION_RAW_DATA)
 
-        self.assert_chunker_sample(chunker, SAMPLE_WAVE_BURST)
-        self.assert_chunker_sample_with_noise(chunker, SAMPLE_WAVE_BURST)
-        self.assert_chunker_fragmented_sample(chunker, SAMPLE_WAVE_BURST, 1024)
-        self.assert_chunker_combined_sample(chunker, SAMPLE_WAVE_BURST)
+        self.assert_chunker_sample(chunker, SAMPLE_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, SAMPLE_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, SAMPLE_RAW_DATA, 32)
+        self.assert_chunker_combined_sample(chunker, SAMPLE_RAW_DATA)
 
-        self.assert_chunker_sample(chunker, SAMPLE_STATISTICS)
-        self.assert_chunker_sample_with_noise(chunker, SAMPLE_STATISTICS)
-        self.assert_chunker_fragmented_sample(chunker, SAMPLE_STATISTICS, 512)
-        self.assert_chunker_combined_sample(chunker, SAMPLE_STATISTICS)
-
-        self.assert_chunker_sample(chunker, SAMPLE_DEVICE_CALIBRATION)
-        self.assert_chunker_sample_with_noise(chunker, SAMPLE_DEVICE_CALIBRATION)
-        self.assert_chunker_fragmented_sample(chunker, SAMPLE_DEVICE_CALIBRATION, 512)
-        self.assert_chunker_combined_sample(chunker, SAMPLE_DEVICE_CALIBRATION)
-
-        self.assert_chunker_sample(chunker, SAMPLE_DEVICE_STATUS) 
-        self.assert_chunker_sample_with_noise(chunker, SAMPLE_DEVICE_STATUS)
-        self.assert_chunker_fragmented_sample(chunker, SAMPLE_DEVICE_STATUS, 512)
-        self.assert_chunker_combined_sample(chunker, SAMPLE_DEVICE_STATUS)
-        """
+        self.assert_chunker_sample(chunker, PS0_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, PS0_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, PS0_RAW_DATA, 32)
+        self.assert_chunker_combined_sample(chunker, PS0_RAW_DATA)
 
     def test_got_data(self):
         """
@@ -482,7 +466,6 @@ class DriverUnitTest(TeledyneUnitTest, ADCPTMixin):
         self.assert_particle_published(driver, CALIBRATION_RAW_DATA, self.assert_particle_compass_calibration, True)
         self.assert_particle_published(driver, PS0_RAW_DATA, self.assert_particle_system_configuration, True)
         self.assert_particle_published(driver, SAMPLE_RAW_DATA, self.assert_particle_pd0_data, True)
-
 
     def test_protocol_filter_capabilities(self):
         """
@@ -568,6 +551,7 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         """
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        log.debug("REPLY = " + str(reply))
         self.assert_driver_parameters(reply, True)
 
     def test_set(self):
@@ -600,22 +584,22 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_set_readonly(Parameter.WATER_PROFILING_MODE)
         self.assert_set_readonly(Parameter.SERIAL_OUT_FW_SWITCHES)
 
+        self.assert_set(Parameter.CORRELATION_THRESHOLD, 64)
+        self.assert_set(Parameter.TIME_PER_ENSEMBLE, '00:00:00.00')
         self.assert_set(Parameter.BANNER, False)
         self.assert_set(Parameter.INSTRUMENT_ID, 0)
         self.assert_set(Parameter.SLEEP_ENABLE, 0)
-        self.assert_set(Parameter.POLLED_MODE, True)
+        self.assert_set(Parameter.POLLED_MODE, False)
         self.assert_set(Parameter.XMIT_POWER, 255)
         self.assert_set(Parameter.SPEED_OF_SOUND, 1485)
         self.assert_set(Parameter.PITCH, 0)
         self.assert_set(Parameter.ROLL, 0)
         self.assert_set(Parameter.SALINITY, 35)
         self.assert_set(Parameter.SENSOR_SOURCE, 1111101)
-        self.assert_set(Parameter.TIME_PER_ENSEMBLE, '01:00:00.00')
         self.assert_set(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
         self.assert_set(Parameter.TIME_PER_PING, '00:01.00')
         self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, '050,001')
-        self.assert_set(Parameter.BANDWIDTH_CONTROL, False)
-        self.assert_set(Parameter.CORRELATION_THRESHOLD, 064)
+        self.assert_set(Parameter.BANDWIDTH_CONTROL, 0)
         self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 2000)
         self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 704)
         self.assert_set(Parameter.CLIP_DATA_PAST_BOTTOM, False)
@@ -633,19 +617,19 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
             Parameter.BANNER: False,
             Parameter.INSTRUMENT_ID: 0,
             Parameter.SLEEP_ENABLE: 0,
-            Parameter.POLLED_MODE: True,
+            Parameter.POLLED_MODE: False,
             Parameter.XMIT_POWER: 255,
             Parameter.SPEED_OF_SOUND: 1485,
             Parameter.PITCH: 0,
             Parameter.ROLL: 0,
             Parameter.SALINITY: 35,
-            Parameter.SENSOR_SOURCE: 1111101,
-            Parameter.TIME_PER_ENSEMBLE: '01:00:00.00',
-            Parameter.TIME_OF_FIRST_PING: '****/**/**,**:**:**',
+            Parameter.SENSOR_SOURCE: "1111101",
+            Parameter.TIME_PER_ENSEMBLE: '00:00:00.00',
+            #Parameter.TIME_OF_FIRST_PING: '****/**/**,**:**:**',
             Parameter.TIME_PER_PING: '00:01.00',
             Parameter.FALSE_TARGET_THRESHOLD: '050,001',
-            Parameter.BANDWIDTH_CONTROL: False,
-            Parameter.CORRELATION_THRESHOLD: 064,
+            Parameter.BANDWIDTH_CONTROL: 0,
+            Parameter.CORRELATION_THRESHOLD: 64,
             Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
             Parameter.BLANK_AFTER_TRANSMIT: 704,
             Parameter.CLIP_DATA_PAST_BOTTOM: False,
@@ -670,20 +654,31 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
 
         params = self.set_baseline()
 
-        #Parameter.BANNER: False,
+        params = {}
+
+        # BANNER -- (True/False)
         params[Parameter.BANNER] = True
         self.assert_set_bulk(params)
-        params[Parameter.BANNER] = "LEROY JENKINS!"
+        params[Parameter.BANNER] = "LEROY JENKINS"
         self.assert_set_bulk_exception(params)
+        # @TODO why does 5 get turned to boolean
+        #params[Parameter.BANNER] = 5
+        #self.assert_set_bulk_exception(params)
+        # @TODO why does 5 get turned to boolean
+        #params[Parameter.BANNER] = -1
+        #self.assert_set_bulk_exception(params)
         #
         # Reset to good value.
         #
         params[Parameter.BANNER] = False
         self.assert_set_bulk(params)
 
-        #Parameter.INSTRUMENT_ID: 0,
-        params[Parameter.INSTRUMENT_ID] = "LEROY JENKINS!"
+        params = {}
+
+        # INSTRUMENT_ID -- Int 0-255
+        params[Parameter.INSTRUMENT_ID] = "LEROY JENKINS"
         self.assert_set_bulk_exception(params)
+
         params[Parameter.INSTRUMENT_ID] = -1
         self.assert_set_bulk_exception(params)
         #
@@ -691,485 +686,726 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         #
         params[Parameter.INSTRUMENT_ID] = 0
         self.assert_set_bulk(params)
-        
-        
-        #Parameter.SLEEP_ENABLE: 0,
-        #Parameter.POLLED_MODE: True,
-        #Parameter.XMIT_POWER: 255,
-        #Parameter.SPEED_OF_SOUND: 1485,
-        #Parameter.PITCH: 0,
-        #Parameter.ROLL: 0,
-        #Parameter.SALINITY: 35,
-        #Parameter.SENSOR_SOURCE: 1111101,
-        #Parameter.TIME_PER_ENSEMBLE: '01:00:00.00',
-        #Parameter.TIME_OF_FIRST_PING: '****/**/**,**:**:**',
-        #Parameter.TIME_PER_PING: '00:01.00',
-        #Parameter.FALSE_TARGET_THRESHOLD: '050,001',
-        #Parameter.BANDWIDTH_CONTROL: False,
-        #Parameter.CORRELATION_THRESHOLD: 064,
-        #Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
-        #Parameter.BLANK_AFTER_TRANSMIT: 704,
-        #Parameter.CLIP_DATA_PAST_BOTTOM: False,
-        #Parameter.RECEIVER_GAIN_SELECT: 1,
-        #Parameter.WATER_REFERENCE_LAYER: '001,005',
-        #Parameter.NUMBER_OF_DEPTH_CELLS: 100,
-        #Parameter.PINGS_PER_ENSEMBLE: 1,
-        #Parameter.DEPTH_CELL_SIZE: 800,
-        #Parameter.TRANSMIT_LENGTH: 0,
-        #Parameter.PING_WEIGHT: 0,
-        #Parameter.AMBIGUITY_VELOCITY: 175,
 
-    def assert_set_sampling_no_txwavestats(self):
-        log.debug("setsampling Test 1 - TXWAVESTATS = N.")
+        params = {}
 
-        # First tests to verify we can set all parameters properly
-        sampling_params = self.set_baseline_no_txwavestats()
+        # SLEEP_ENABLE:  -- (0,1,2)
+        params[Parameter.SLEEP_ENABLE] = 1
+        self.assert_set_bulk(params)
+        params[Parameter.SLEEP_ENABLE] = 2
+        self.assert_set_bulk(params)
 
-        # Tide interval parameter.  Check edges, out of range and invalid data
-        #    * Tide interval (integer minutes)
-        #        - Range 7 - 720
-        sampling_params[Parameter.TIDE_INTERVAL] = 17
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 720
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 7
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 721
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 18
-        
-        # set to known good
-        sampling_params = self.set_baseline_no_txwavestats()
-        
-        # Tide measurement duration.  Check edges, out of range and invalid data
-        #    * Tide measurement duration (seconds)
-        #        - Range: 10 - 1020 sec
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1020
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 9
-        self.assert_set_bulk_exception(sampling_params)
-        # apparently NOT and edge case...
-        #sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1021
-        #self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 60
-        
-        # set to known good
-        sampling_params = self.set_baseline_no_txwavestats()
+        params[Parameter.SLEEP_ENABLE] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SLEEP_ENABLE] = 3
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SLEEP_ENABLE] = "LEROY JENKINS"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SLEEP_ENABLE] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.SLEEP_ENABLE] = 0
+        self.assert_set_bulk(params)
 
-        # Tide samples between wave bursts.  Check edges, out of range and invalid data
-        #   * Measure wave burst after every N tide samples
-        #       - Range 1 - 10,000
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 1
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10000
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 0
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10001
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 6000
-        
-        # Wave samples per burst.  Check edges, out of range and invalid data
-        #   * Number of wave samples per burst
-        #       - Range 4 - 60,000 *MUST BE MULTIPLE OF 4*
-        # Test a good value
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 1000
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43200   # If we set this this high
-        sampling_params[Parameter.TIDE_INTERVAL] = 181              # ... we need to set
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10860# ... we need to set
-        self.assert_set_bulk(sampling_params)
+        params = {}
 
-        # set to known good
-        sampling_params = self.set_baseline_no_txwavestats()
+        # POLLED_MODE:  -- (True/False)
+        params[Parameter.POLLED_MODE] = True
+        self.assert_set_bulk(params)
+        params[Parameter.POLLED_MODE] = "LEROY JENKINS"
+        self.assert_set_bulk_exception(params)
+        # @TODO why does 5 get turned to boolean
+        #params[Parameter.POLLED_MODE] = 5
+        #self.assert_set_bulk_exception(params)
+        #params[Parameter.POLLED_MODE] = -1
+        #self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.POLLED_MODE] = False
+        self.assert_set_bulk(params)
 
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 9
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43201
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = -1
-        self.assert_set_bulk_exception(sampling_params)
+        params = {}
 
-        #    * wave scans per second
-        #        - Range [4, 2, 1.33, 1]
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 4
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 2.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1.33
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1.0
-        self.assert_set_bulk(sampling_params)
+        # XMIT_POWER:  -- Int 0-255
+        params[Parameter.XMIT_POWER] = 0
+        self.assert_set_bulk(params)
+        params[Parameter.XMIT_POWER] = 128
+        self.assert_set_bulk(params)
+        params[Parameter.XMIT_POWER] = 254
+        self.assert_set_bulk(params)
 
-        # test bad values
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 3
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 0
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = -1
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 5
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 4
-        self.assert_set_bulk_exception(sampling_params)
-           
-    def set_baseline_txwavestats_dont_use_conductivity(self):
-        sampling_params = {
-            Parameter.TIDE_INTERVAL: 18,
-            Parameter.TIDE_MEASUREMENT_DURATION: 60,
-            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: 8,
-            Parameter.WAVE_SAMPLES_PER_BURST: 512,
-            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND: 4.0,
-            Parameter.TXWAVESTATS: True,
-            Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC: False,
-            Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR: 15.0,
-            Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR: 35.0,        
-            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS: 512,
-            Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: 10.0,
-            Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND: 1,
-            Parameter.MIN_ALLOWABLE_ATTENUATION: 1.0000,
-            Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM: 0.0,
-            Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM: 1.0,
-            Parameter.HANNING_WINDOW_CUTOFF: 1.0
-        }
-        # Set all parameters to a known ground state
-        self.assert_set_bulk(sampling_params)
-        return sampling_params
-    
-    def assert_set_sampling_txwavestats_dont_use_conductivity(self):
-        log.debug("setsampling Test 2 - TXWAVESTATS = Y. CONDUCTIVITY = N")
-        
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
+        params[Parameter.XMIT_POWER] = "LEROY JENKINS"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.XMIT_POWER] = 256
+        self.assert_set_bulk_exception(params)
+        params[Parameter.XMIT_POWER] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.XMIT_POWER] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.XMIT_POWER] = 255
+        self.assert_set_bulk(params)
 
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -274.0 # -1 Kelvin?
-        self.assert_set_bulk(sampling_params)    
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -273.0 # 0 Kelvin?
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -100.0 
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -30.0 
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = -1.0 
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 0.0 
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 30.0 
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 100.0 # if it gets hotter than this, we are likely all dead...
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 500.0 # 500 C getting warmer
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = 32767.0 # 32767 C, it's a dry heat
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = True
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR] = int(1)
-        self.assert_set_bulk_exception(sampling_params)
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
-        
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = -1000.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = -100.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = -10.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 0.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 35.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 100.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = 1000.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = True
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR] = int(1)
-        self.assert_set_bulk_exception(sampling_params)
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
-        
-        # Tide interval parameter.  Check edges, out of range and invalid data
-        #    * Tide interval (integer minutes)
-        #        - Range 3 - 720
-        sampling_params[Parameter.TIDE_INTERVAL] = 3
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 720
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 2
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = 721
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_INTERVAL] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
-        
-        # Tide measurement duration.  Check edges, out of range and invalid data
-        #    * Tide measurement duration (seconds)
-        #        - Range: 10 - 1020 sec
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10 # <--- was 60, should have been 10
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1020
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 9
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 1021
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
-        
-        # Tide samples between wave bursts.  Check edges, out of range and invalid data
-        #   * Measure wave burst after every N tide samples
-        #       - Range 1 - 10,000
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 1
-        self.assert_set_bulk(sampling_params) # in wakeup.
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10000
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 0
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 10001
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS] = 6000
+        params = {}
 
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
-        
-        # Test a good value
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 1000
-        self.assert_set_bulk(sampling_params)
+        # SPEED_OF_SOUND:  -- Int 1485 (1400 - 1600)
+        params[Parameter.SPEED_OF_SOUND] = 1400
+        self.assert_set_bulk(params)
+        params[Parameter.SPEED_OF_SOUND] = 1450
+        self.assert_set_bulk(params)
+        params[Parameter.SPEED_OF_SOUND] = 1500
+        self.assert_set_bulk(params)
+        params[Parameter.SPEED_OF_SOUND] = 1550
+        self.assert_set_bulk(params)
+        params[Parameter.SPEED_OF_SOUND] = 1600
+        self.assert_set_bulk(params)
 
-        # Wave samples per burst.  Check edges, out of range and invalid data
-        #   * Number of wave samples per burst
-        #       - Range 4 - 60,000 *MUST BE MULTIPLE OF 4*
-        sampling_params[Parameter.TIDE_INTERVAL] = 720              # required for 60000
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 60000
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 10
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 36000   # If we set this this high
-        sampling_params[Parameter.TIDE_INTERVAL] = 720              # ... we need to set <--- was 1001
-        sampling_params[Parameter.TIDE_MEASUREMENT_DURATION] = 10860# ... we need to set
-        self.assert_set_bulk(sampling_params)
+        params[Parameter.SPEED_OF_SOUND] = 0
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SPEED_OF_SOUND] = 1399
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SPEED_OF_SOUND] = 1601
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SPEED_OF_SOUND] = "LEROY JENKINS"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SPEED_OF_SOUND] = -256
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SPEED_OF_SOUND] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SPEED_OF_SOUND] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.SPEED_OF_SOUND] = 1485
+        self.assert_set_bulk(params)
 
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
+        params = {}
 
-        # 512 - 60,000 in multiple of 4
-        
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = -1
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 3
-        self.assert_set_bulk_exception(sampling_params)     
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 4      
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 508      
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 511     
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 43201
-        self.assert_set_bulk_exception(sampling_params)
-        
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = 60001
-        self.assert_set_bulk_exception(sampling_params)           
-        sampling_params[Parameter.WAVE_SAMPLES_PER_BURST] = "bar"
-        self.assert_set_bulk_exception(sampling_params)
-        
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
+        # PITCH:  -- Int -6000 to 6000
+        params[Parameter.PITCH] = -6000
+        self.assert_set_bulk(params)
+        params[Parameter.PITCH] = -4000
+        self.assert_set_bulk(params)
+        params[Parameter.PITCH] = -2000
+        self.assert_set_bulk(params)
+        params[Parameter.PITCH] = -1
+        self.assert_set_bulk(params)
+        params[Parameter.PITCH] = 0
+        self.assert_set_bulk(params)
+        params[Parameter.PITCH] = 1
+        self.assert_set_bulk(params)
+        params[Parameter.PITCH] = 2000
+        self.assert_set_bulk(params)
+        params[Parameter.PITCH] = 4000
+        self.assert_set_bulk(params)
+        params[Parameter.PITCH] = 6000
+        self.assert_set_bulk(params)
 
-        
-        # Wave samples per burst.  Check edges, out of range and invalid data
-        #    * wave sample duration=
-        #        - Range [0.25, 0.5, 0.75, 1.0]
-        
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 2.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1.33
-        self.assert_set_bulk(sampling_params)                           
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 1.0
-        self.assert_set_bulk(sampling_params)
-        
-        # test bad values
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 3
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 0
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = -1
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = 5
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.WAVE_SAMPLES_SCANS_PER_SECOND] = False
-        self.assert_set_bulk_exception(sampling_params)
-       
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
-        
-        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = False
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = True
-        self.assert_set_bulk(sampling_params)
-        
-        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = 1
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = float(1.0)
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC] = "bar"
-        self.assert_set_bulk_exception(sampling_params)
-        
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
-        
-        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = 0
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = 1000.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = 100000.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = -1.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = "foo"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM] = True
-        self.assert_set_bulk_exception(sampling_params)
-        
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
-        
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = -1
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 0
-        self.assert_set_bulk(sampling_params)
-        
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 10
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 100000
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = 10.0
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = "car"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND] = True
-        self.assert_set_bulk_exception(sampling_params)
-        
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
-        
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 0.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 0.0025
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 10.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 100.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 1000.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 10000.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 100000.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = 100
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = "tar"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.MIN_ALLOWABLE_ATTENUATION] = True
-        self.assert_set_bulk_exception(sampling_params)
+        params[Parameter.PITCH] = "LEROY JENKINS"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.PITCH] = -6001
+        self.assert_set_bulk_exception(params)
+        params[Parameter.PITCH] = 6001
+        self.assert_set_bulk_exception(params)
+        params[Parameter.PITCH] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.PITCH] = 0
+        self.assert_set_bulk(params)
 
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
+        params = {}
 
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = -1
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 0
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 0.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = float(0.0001)
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 1.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 10.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 100.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 1000.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = 10000.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM] = 100000.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = "far"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM] = True
-        self.assert_set_bulk_exception(sampling_params)
+        # ROLL:  -- Int -6000 to 6000
+        params[Parameter.ROLL] = -6000
+        self.assert_set_bulk(params)
+        params[Parameter.ROLL] = -4000
+        self.assert_set_bulk(params)
+        params[Parameter.ROLL] = -2000
+        self.assert_set_bulk(params)
+        params[Parameter.ROLL] = -1
+        self.assert_set_bulk(params)
+        params[Parameter.ROLL] = 0
+        self.assert_set_bulk(params)
+        params[Parameter.ROLL] = 1
+        self.assert_set_bulk(params)
+        params[Parameter.ROLL] = 2000
+        self.assert_set_bulk(params)
+        params[Parameter.ROLL] = 4000
+        self.assert_set_bulk(params)
+        params[Parameter.ROLL] = 6000
+        self.assert_set_bulk(params)
+
+        params[Parameter.ROLL] = "LEROY JENKINS"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.ROLL] = -6001
+        self.assert_set_bulk_exception(params)
+        params[Parameter.ROLL] = 6001
+        self.assert_set_bulk_exception(params)
+        params[Parameter.ROLL] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.ROLL] = 0
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # SALINITY:  -- Int (0 - 40)
+        params[Parameter.SALINITY] = 0
+        self.assert_set_bulk(params)
+        params[Parameter.SALINITY] = 10
+        self.assert_set_bulk(params)
+        params[Parameter.SALINITY] = 20
+        self.assert_set_bulk(params)
+        params[Parameter.SALINITY] = 30
+        self.assert_set_bulk(params)
+        params[Parameter.SALINITY] = 40
+        self.assert_set_bulk(params)
+
+        params[Parameter.SALINITY] = "LEROY JENKINS"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SALINITY] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SALINITY] = 41
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SALINITY] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.SALINITY] = 35
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # SENSOR_SOURCE:  -- (0/1) for 7 positions.
+        # note it lacks capability to have a 1 in the #6 position
+        params[Parameter.SENSOR_SOURCE] = "0000000"
+        self.assert_set_bulk(params)
+        params[Parameter.SENSOR_SOURCE] = "1111101"
+        self.assert_set_bulk(params)
+        params[Parameter.SENSOR_SOURCE] = "1010101"
+        self.assert_set_bulk(params)
+        params[Parameter.SENSOR_SOURCE] = "0101000"
+        self.assert_set_bulk(params)
+        params[Parameter.SENSOR_SOURCE] = "1100100"
+        self.assert_set_bulk(params)
+
+        params[Parameter.SENSOR_SOURCE] = "LEROY JENKINS"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SENSOR_SOURCE] = 2
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SENSOR_SOURCE] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SENSOR_SOURCE] = "1111112"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SENSOR_SOURCE] = "11111112"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.SENSOR_SOURCE] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.SENSOR_SOURCE] = "1111101"
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # TIME_PER_ENSEMBLE:  -- String 01:00:00.00 (hrs:min:sec.sec/100)
+        params[Parameter.TIME_PER_ENSEMBLE] = '00:00:00.00'
+        self.assert_set_bulk(params)
+        params[Parameter.TIME_PER_ENSEMBLE] = '00:00:01.00'
+        self.assert_set_bulk(params)
+        params[Parameter.TIME_PER_ENSEMBLE] = '00:01:00.00'
+        self.assert_set_bulk(params)
+
+        params[Parameter.TIME_PER_ENSEMBLE] = '30:30:30.30'
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_PER_ENSEMBLE] = '59:59:59.99'
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_PER_ENSEMBLE] = "LEROY JENKINS"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_PER_ENSEMBLE] = 2
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_PER_ENSEMBLE] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_PER_ENSEMBLE] = '99:99:99.99'
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_PER_ENSEMBLE] = '-1:-1:-1.+1'
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_PER_ENSEMBLE] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.TIME_PER_ENSEMBLE] = '00:00:00.00'
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # TIME_OF_FIRST_PING:  -- str ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
+
+        params[Parameter.TIME_OF_FIRST_PING] = '2013/04/01,01:01:01'
+        self.assert_set_bulk(params)
+        params[Parameter.TIME_OF_FIRST_PING] = '2013/12/12,12:12:12'
+        self.assert_set_bulk(params)
+        params[Parameter.TIME_OF_FIRST_PING] = '2013/06/06,06:06:06'
+        self.assert_set_bulk(params)
+
+        params[Parameter.TIME_OF_FIRST_PING] = "LEROY JENKINS"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_OF_FIRST_PING] = 2
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_OF_FIRST_PING] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_OF_FIRST_PING] = '99:99.99'
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_OF_FIRST_PING] = '-1:-1.+1'
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_OF_FIRST_PING] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value. TODO add a break here to reset to a good value
+        #
+        #params[Parameter.TIME_OF_FIRST_PING] = '****/**/**,**:**:**'
+        #self.assert_set_bulk(params)
+
+        params = {}
+
+        # TIME_PER_PING: '00:01.00'
+        params[Parameter.TIME_PER_PING] = '01:00.00'
+        self.assert_set_bulk(params)
+        params[Parameter.TIME_PER_PING] = '59:59.99'
+        self.assert_set_bulk(params)
+        params[Parameter.TIME_PER_PING] = '30:30.30'
+        self.assert_set_bulk(params)
+
+        params[Parameter.TIME_PER_PING] = "LEROY JENKINS"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_PER_PING] = 2
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_PER_PING] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_PER_PING] = '99:99.99'
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_PER_PING] = '-1:-1.+1'
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TIME_PER_PING] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.TIME_PER_PING] = '00:01.00'
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # FALSE_TARGET_THRESHOLD: string of 0-255,0-255
+        params[Parameter.FALSE_TARGET_THRESHOLD] = "000,000"
+        self.assert_set_bulk(params)
+        params[Parameter.FALSE_TARGET_THRESHOLD] = "255,000"
+        self.assert_set_bulk(params)
+        params[Parameter.FALSE_TARGET_THRESHOLD] = "000,255"
+        self.assert_set_bulk(params)
+        params[Parameter.FALSE_TARGET_THRESHOLD] = "255,255"
+        self.assert_set_bulk(params)
+
+        params[Parameter.FALSE_TARGET_THRESHOLD] = "256,000"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.FALSE_TARGET_THRESHOLD] = "256,255"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.FALSE_TARGET_THRESHOLD] = "000,256"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.FALSE_TARGET_THRESHOLD] = "255,256"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.FALSE_TARGET_THRESHOLD] = -1
+        self.assert_set_bulk_exception(params)
+        #TODO below fails.  need to think of a better fix for it.
+        #params[Parameter.FALSE_TARGET_THRESHOLD] = 2
+        #self.assert_set_bulk_exception(params)
+        params[Parameter.FALSE_TARGET_THRESHOLD] = "LEROY JENKINS"
+        self.assert_set_bulk_exception(params)
+        #TODO below fails.  need to think of a better fix for it.
+        #params[Parameter.FALSE_TARGET_THRESHOLD] = 3.1415926
+        #self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.FALSE_TARGET_THRESHOLD] = "050,001"
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # BANDWIDTH_CONTROL: 0/1,
+        params[Parameter.BANDWIDTH_CONTROL] = 0
+        self.assert_set_bulk(params)
+        params[Parameter.BANDWIDTH_CONTROL] = 1
+        self.assert_set_bulk(params)
+
+        params[Parameter.BANDWIDTH_CONTROL] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.BANDWIDTH_CONTROL] = 2
+        self.assert_set_bulk_exception(params)
+        params[Parameter.BANDWIDTH_CONTROL] = "LEROY JENKINS"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.BANDWIDTH_CONTROL] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.BANDWIDTH_CONTROL] = 0
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # CORRELATION_THRESHOLD: int 064, 0 - 255
+        params[Parameter.CORRELATION_THRESHOLD] = 0
+        self.assert_set_bulk(params)
+        params[Parameter.CORRELATION_THRESHOLD] = 50
+        self.assert_set_bulk(params)
+        params[Parameter.CORRELATION_THRESHOLD] = 100
+        self.assert_set_bulk(params)
+        params[Parameter.CORRELATION_THRESHOLD] = 150
+        self.assert_set_bulk(params)
+        params[Parameter.CORRELATION_THRESHOLD] = 200
+        self.assert_set_bulk(params)
+        params[Parameter.CORRELATION_THRESHOLD] = 255
+        self.assert_set_bulk(params)
+
+        params[Parameter.CORRELATION_THRESHOLD] = "LEROY JENKINS!"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.CORRELATION_THRESHOLD] = -256
+        self.assert_set_bulk_exception(params)
+        params[Parameter.CORRELATION_THRESHOLD] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.CORRELATION_THRESHOLD] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.CORRELATION_THRESHOLD] = 64
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # ERROR_VELOCITY_THRESHOLD: int (0-5000 mm/s) NOTE it enforces 0-9999
+        # decimals are truncated to ints
+        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 0
+        self.assert_set_bulk(params)
+        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 128
+        self.assert_set_bulk(params)
+        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 1000
+        self.assert_set_bulk(params)
+        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 2000
+        self.assert_set_bulk(params)
+        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 3000
+        self.assert_set_bulk(params)
+        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 4000
+        self.assert_set_bulk(params)
+        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 5000
+        self.assert_set_bulk(params)
+
+        params[Parameter.ERROR_VELOCITY_THRESHOLD] = "LEROY JENKINS!"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.ERROR_VELOCITY_THRESHOLD] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 10000
+        self.assert_set_bulk_exception(params)
+        params[Parameter.ERROR_VELOCITY_THRESHOLD] = -3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 2000
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # BLANK_AFTER_TRANSMIT: int 704, (0 - 9999)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 0
+        self.assert_set_bulk(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 128
+        self.assert_set_bulk(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 1000
+        self.assert_set_bulk(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 2000
+        self.assert_set_bulk(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 3000
+        self.assert_set_bulk(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 4000
+        self.assert_set_bulk(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 5000
+        self.assert_set_bulk(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 5000
+        self.assert_set_bulk(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 6000
+        self.assert_set_bulk(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 7000
+        self.assert_set_bulk(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 8000
+        self.assert_set_bulk(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 9000
+        self.assert_set_bulk(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 9999
+        self.assert_set_bulk(params)
+
+        params[Parameter.BLANK_AFTER_TRANSMIT] = "LEROY JENKINS!"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 10000
+        self.assert_set_bulk_exception(params)
+        params[Parameter.BLANK_AFTER_TRANSMIT] = -3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.BLANK_AFTER_TRANSMIT] = 704
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # CLIP_DATA_PAST_BOTTOM: True/False,
+        params[Parameter.CLIP_DATA_PAST_BOTTOM] = True
+        self.assert_set_bulk(params)
+        params[Parameter.CLIP_DATA_PAST_BOTTOM] = "LEROY JENKINS!"
+        self.assert_set_bulk_exception(params)
+        # @TODO why does 5 get turned to boolean
+        # ints get turned into true.
+        #params[Parameter.CLIP_DATA_PAST_BOTTOM] = 5
+        #self.assert_set_bulk_exception(params)
+        #params[Parameter.CLIP_DATA_PAST_BOTTOM] = -1
+        #self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.CLIP_DATA_PAST_BOTTOM] = False
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # RECEIVER_GAIN_SELECT: (0/1),
+        params[Parameter.RECEIVER_GAIN_SELECT] = 0
+        self.assert_set_bulk(params)
+        params[Parameter.RECEIVER_GAIN_SELECT] = 1
+        self.assert_set_bulk(params)
+
+        params[Parameter.RECEIVER_GAIN_SELECT] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.RECEIVER_GAIN_SELECT] = 2
+        self.assert_set_bulk_exception(params)
+        params[Parameter.RECEIVER_GAIN_SELECT] = "LEROY JENKINS!"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.RECEIVER_GAIN_SELECT] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.RECEIVER_GAIN_SELECT] = 1
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # WATER_REFERENCE_LAYER:  -- int Begin Cell (0=OFF), End Cell  (0-100)
+
+        params[Parameter.WATER_REFERENCE_LAYER] = "000,001"
+        self.assert_set_bulk(params)
+        params[Parameter.WATER_REFERENCE_LAYER] = "000,100"
+        self.assert_set_bulk(params)
+        params[Parameter.WATER_REFERENCE_LAYER] = "000,100"
+        self.assert_set_bulk(params)
+
+        params[Parameter.WATER_REFERENCE_LAYER] = "255,000"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.WATER_REFERENCE_LAYER] = "000,000"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.WATER_REFERENCE_LAYER] = "001,000"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.WATER_REFERENCE_LAYER] = "100,000"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.WATER_REFERENCE_LAYER] = "000,101"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.WATER_REFERENCE_LAYER] = "100,101"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.WATER_REFERENCE_LAYER] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.WATER_REFERENCE_LAYER] = 2
+        self.assert_set_bulk_exception(params)
+        params[Parameter.WATER_REFERENCE_LAYER] = "LEROY JENKINS"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.WATER_REFERENCE_LAYER] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.WATER_REFERENCE_LAYER] = "001,005"
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # NUMBER_OF_DEPTH_CELLS:  -- int (1-255) 100,
+        params[Parameter.NUMBER_OF_DEPTH_CELLS] = 1
+        self.assert_set_bulk(params)
+        params[Parameter.NUMBER_OF_DEPTH_CELLS] = 128
+        self.assert_set_bulk(params)
+        params[Parameter.NUMBER_OF_DEPTH_CELLS] = 254
+        self.assert_set_bulk(params)
+
+        params[Parameter.NUMBER_OF_DEPTH_CELLS] = "LEROY JENKINS!"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.NUMBER_OF_DEPTH_CELLS] = 256
+        self.assert_set_bulk_exception(params)
+        params[Parameter.NUMBER_OF_DEPTH_CELLS] = 0
+        self.assert_set_bulk_exception(params)
+        params[Parameter.NUMBER_OF_DEPTH_CELLS] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.NUMBER_OF_DEPTH_CELLS] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.NUMBER_OF_DEPTH_CELLS] = 100
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # PINGS_PER_ENSEMBLE: -- int  (0-16384) 1,
+        params[Parameter.PINGS_PER_ENSEMBLE] = 0
+        self.assert_set_bulk(params)
+        params[Parameter.PINGS_PER_ENSEMBLE] = 16384
+        self.assert_set_bulk(params)
+
+        params[Parameter.PINGS_PER_ENSEMBLE] = 16385
+        self.assert_set_bulk_exception(params)
+        params[Parameter.PINGS_PER_ENSEMBLE] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.PINGS_PER_ENSEMBLE] = 32767
+        self.assert_set_bulk_exception(params)
+        params[Parameter.PINGS_PER_ENSEMBLE] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        params[Parameter.PINGS_PER_ENSEMBLE] = "LEROY JENKINS!"
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.PINGS_PER_ENSEMBLE] = 1
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # DEPTH_CELL_SIZE: int 80 - 3200
+        params[Parameter.DEPTH_CELL_SIZE] = 80
+        self.assert_set_bulk(params)
+        params[Parameter.DEPTH_CELL_SIZE] = 3200
+        self.assert_set_bulk(params)
+
+        params[Parameter.PING_WEIGHT] = 3201
+        self.assert_set_bulk_exception(params)
+        params[Parameter.PING_WEIGHT] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.PING_WEIGHT] = 2
+        self.assert_set_bulk_exception(params)
+        params[Parameter.PING_WEIGHT] = "LEROY JENKINS!"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.PING_WEIGHT] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.PING_WEIGHT] = 0
+        self.assert_set_bulk(params)
         
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
-        
-        # The manual only shows 0.10 as a value (assert float)
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 1.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = -1
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 0
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 0.0
-        self.assert_set_bulk(sampling_params)
-        # Rounds to 0.00
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = float(0.0001) 
-        self.assert_set_bulk_exception(sampling_params)
-        # Rounds to 0.01
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = float(0.006) 
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 1.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 10.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 100.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 1000.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 10000.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = 100000.0
-        self.assert_set_bulk(sampling_params)
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = "far"
-        self.assert_set_bulk_exception(sampling_params)
-        sampling_params[Parameter.HANNING_WINDOW_CUTOFF] = False
-        self.assert_set_bulk_exception(sampling_params)
-        
-        # set to known good
-        sampling_params = self.set_baseline_txwavestats_dont_use_conductivity()
+        params = {}
+
+        # TRANSMIT_LENGTH: int 0 to 3200
+        params[Parameter.TRANSMIT_LENGTH] = 80
+        self.assert_set_bulk(params)
+        params[Parameter.TRANSMIT_LENGTH] = 3200
+        self.assert_set_bulk(params)
+
+        params[Parameter.TRANSMIT_LENGTH] = 3201
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TRANSMIT_LENGTH] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TRANSMIT_LENGTH] = "LEROY JENKINS!"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.TRANSMIT_LENGTH] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.TRANSMIT_LENGTH] = 0
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # PING_WEIGHT: (0/1),
+        params[Parameter.PING_WEIGHT] = 0
+        self.assert_set_bulk(params)
+        params[Parameter.PING_WEIGHT] = 1
+        self.assert_set_bulk(params)
+
+        params[Parameter.PING_WEIGHT] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.PING_WEIGHT] = 2
+        self.assert_set_bulk_exception(params)
+        params[Parameter.PING_WEIGHT] = "LEROY JENKINS!"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.PING_WEIGHT] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.PING_WEIGHT] = 0
+        self.assert_set_bulk(params)
+
+        params = {}
+
+        # AMBIGUITY_VELOCITY: int 2 - 700
+        params[Parameter.AMBIGUITY_VELOCITY] = 2
+        self.assert_set_bulk(params)
+        params[Parameter.AMBIGUITY_VELOCITY] = 111
+        self.assert_set_bulk(params)
+        params[Parameter.AMBIGUITY_VELOCITY] = 222
+        self.assert_set_bulk(params)
+        params[Parameter.AMBIGUITY_VELOCITY] = 333
+        self.assert_set_bulk(params)
+        params[Parameter.AMBIGUITY_VELOCITY] = 444
+        self.assert_set_bulk(params)
+        params[Parameter.AMBIGUITY_VELOCITY] = 555
+        self.assert_set_bulk(params)
+        params[Parameter.AMBIGUITY_VELOCITY] = 666
+        self.assert_set_bulk(params)
+        params[Parameter.AMBIGUITY_VELOCITY] = 700
+        self.assert_set_bulk(params)
+
+        params[Parameter.AMBIGUITY_VELOCITY] = 0
+        self.assert_set_bulk_exception(params)
+        params[Parameter.AMBIGUITY_VELOCITY] = 1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.AMBIGUITY_VELOCITY] = "LEROY JENKINS!"
+        self.assert_set_bulk_exception(params)
+        params[Parameter.AMBIGUITY_VELOCITY] = -1
+        self.assert_set_bulk_exception(params)
+        params[Parameter.AMBIGUITY_VELOCITY] = 3.1415926
+        self.assert_set_bulk_exception(params)
+        #
+        # Reset to good value.
+        #
+        params[Parameter.AMBIGUITY_VELOCITY] = 175
+        self.assert_set_bulk(params)
+
+        params = {}
+
 
     def test_commands(self):
         """
@@ -1583,7 +1819,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         self.assert_set_parameter(Parameter.TXWAVESTATS, True)
         self.assetert_set_parameter(Parameter.TXREALTIME, False)
         self.assetert_set_parameter(Parameter.TXWAVEBURST, True)
-        
+
 
 ###############################################################################
 #                             PUBLICATION TESTS                               #
