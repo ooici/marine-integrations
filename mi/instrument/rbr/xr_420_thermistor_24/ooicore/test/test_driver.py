@@ -1129,3 +1129,12 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         self.assert_start_autosample()
 
         self.assert_sample_async(self.assert_particle_sample, DataParticleType.SAMPLE, timeout=30, sample_count=1)
+        
+    def test_poll(self):
+        '''
+        Verify that we can poll for an engineering particle.
+        '''
+        self.assert_enter_command_mode()
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_engineering, DataParticleType.ENGINEERING, timeout=30)
+
