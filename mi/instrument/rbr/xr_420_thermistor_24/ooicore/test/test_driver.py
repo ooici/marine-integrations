@@ -595,6 +595,26 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         self.assert_parameters(reply, self._driver_parameters, True)
         return reply
     
+    def assert_set_exception(self, param, value='dummyvalue', error_regex=None, exception_class=InstrumentParameterException):
+        """
+        over-ridden to output exception to manually check that it is the right one
+        Verify that a set command raises an exception on set.
+        @param param: parameter to set
+        @param value: what to set the parameter too
+        @param error_regex: error message pattern to match
+        @param exception_class: class of the exception raised
+        """
+        if(error_regex):
+            with self.assertRaisesRegexp(exception_class, error_regex):
+                reply = self.driver_client.cmd_dvr('set_resource', {param: value})
+        else:
+            with self.assertRaises(exception_class):
+                try:
+                    reply = self.driver_client.cmd_dvr('set_resource', {param: value})
+                except Exception as ex:
+                    log.debug('assert_set_exception: exception=%s' %ex)
+                    raise ex
+
     def test_instrument_wakeup(self):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' state
@@ -633,9 +653,82 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         for key in self.paramter_test_values.iterkeys():
             new_parameter_values[key] = self.paramter_test_values[key]
                
-        # Set parameters and verify.
+        # Set parameters in bulk and verify.
         self.assert_set_bulk(new_parameter_values)
         
+        # Set parameters individually and verify.
+        for key in self.paramter_test_values.iterkeys():
+            self.assert_set(key, self.paramter_test_values[key])
+        
+    def test_set_errors(self):
+        """
+        Test error device parameter access.
+        """
+        self.assert_initialize_driver()
+
+        """
+        # try a parameter that shouldn't exist
+        self.assert_set_exception('bogus', 'nada')
+
+        # try values that are not legitimate for each parameter
+        self.assert_set_exception(InstrumentParameters.POWER_ALWAYS_ON, 'bad')
+        self.assert_set_exception(InstrumentParameters.POWER_ALWAYS_ON, 2)
+        
+        """
+        self.assert_set_exception(InstrumentParameters.ENGINEERING_UNITS_OUTPUT, 'bad')
+        self.assert_set_exception(InstrumentParameters.ENGINEERING_UNITS_OUTPUT, 255)
+        
+        self.assert_set_exception(InstrumentParameters.INHIBIT_DATA_STORAGE, 'bad')
+        self.assert_set_exception(InstrumentParameters.INHIBIT_DATA_STORAGE, -1)
+        
+        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE, 'bad')
+        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE, 2090)
+        
+        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER, 'bad')
+        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER, 4.3)
+        
+        self.assert_set_exception(InstrumentParameters.SAMPLING_LED, 'bad')
+        self.assert_set_exception(InstrumentParameters.SAMPLING_LED, 10)
+        
+        self.assert_set_exception(InstrumentParameters.SIX_HZ_PROFILING_MODE, 'really bad')
+        self.assert_set_exception(InstrumentParameters.SIX_HZ_PROFILING_MODE, -20)
+        
+        self.assert_set_exception(InstrumentParameters.AUTO_RUN, 'dumb')
+        self.assert_set_exception(InstrumentParameters.AUTO_RUN, -2000)
+        
+        """
+        self.assert_set_exception(InstrumentParameters.AUTO_RUN, 'bad')
+        self.assert_set_exception(InstrumentParameters.AUTO_RUN, -1)
+        
+        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, 1)
+        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '40 Feb 2002 11:18:42')
+        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 fab 2002 11:18:42')
+        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2O02 11:18:42')
+        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2002 25:18:42')
+        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2002 11:65:42')
+        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2002 11:18:61')
+
+        self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, '11:18:61')
+        self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, '25:18:61')
+        self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, '11:118:61')
+        self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, 3)
+        
+        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, 'junk')
+        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '40 Feb 2002 11:18:42')
+        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 fab 2002 11:18:42')
+        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2O02 11:18:42')
+        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2002 25:18:42')
+        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2002 11:65:42')
+        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2002 11:18:61')
+
+        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, 4.6)
+        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '40 Feb 2002 11:18:42')
+        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 fab 2002 11:18:42')
+        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2O02 11:18:42')
+        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2002 25:18:42')
+        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2002 11:65:42')
+        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2002 11:18:61')
+        """
 
     def test_read_only_parameters(self):
         self.assert_initialize_driver()

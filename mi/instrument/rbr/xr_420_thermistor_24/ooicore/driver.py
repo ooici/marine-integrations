@@ -265,7 +265,11 @@ class ListProtocolParameterDict(ProtocolParameterDict):
         @raises KeyError if the name is invalid.
         """
         log.debug("setting " + name + " to " + str(value))
-        self._param_dict[name].value = value
+        try:
+            val = self._param_dict[name]
+            val.value = val.f_getval(value)
+        except Exception as ex:
+            raise InstrumentParameterException('ERROR: parameter %s value %s - %s.' %(name, str(value), repr(ex)))
         
         
 ###############################################################################
@@ -916,6 +920,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         if len(not_settable) > 0:
             raise InstrumentParameterException("Attempt to set read only parameter(s) (%s)" %not_settable)
 
+        params_to_check = params_to_set
+        
         self._set_advanced_functions_parameters(params_to_set)
                 
         for (key, val) in params_to_set.iteritems():
@@ -923,11 +929,16 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                 # coming from apply_startup_params, so sync clock
                 self._clock_sync()
                 continue
-            command = self._param_dict.get_submenu_write(key)
+            try:
+                command = self._param_dict.get_submenu_write(key)
+            except KeyError:
+                raise InstrumentParameterException('Unknown driver parameter %s' %key)
             log.debug('_handler_command_set: cmd=%s, name=%s, value=%s' %(command, key, val))
             self._do_cmd_no_resp(command, key, val, timeout=5)
 
         self._update_params(called_from_set=True)
+        
+        self._check_for_set_failures(params_to_check)
             
         return (next_state, result)
 
@@ -1131,6 +1142,14 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
         
+
+    def _check_for_set_failures(self, params_to_check):
+            device_parameters = self._param_dict.get_config()
+            for key in params_to_check.keys():
+                if params_to_check[key] != device_parameters[key]:
+                    log.debug("_check_for_set_failures: SET FAILURE: " + str(key) + " is " + str(device_parameters[key]) + " and should have been set to " + str(params_to_check[key]))
+                    raise InstrumentParameterException("SET FAILURE: " + str(key) + " is " + str(device_parameters[key]) + " and should have been set to " + str(params_to_check[key]))
+
     def _clock_sync(self):
         # get time in ION format so command builder method can convert it correctly
         str_time = get_timestamp_delayed("%d %b %Y %H:%M:%S")
@@ -1252,11 +1271,18 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             float_list.append(float_value[0])
         return float_list
     
+    def _check_bit_value(self, value):
+        if value in [0, 1]:
+            log.debug('_check_bit_value: value <%s> is binary' %value)
+            return value
+        else:
+            log.debug('_check_bit_value: value <%s> is not binary - raising exception' %value)
+            raise InstrumentParameterException('not a binary value.')
+            
+    
     def _update_params(self, *args, **kwargs):
         """
-        Update the parameter dictionary. Issue the upload command. The response
-        needs to be iterated through a line at a time and valuse saved.
-        @throws InstrumentTimeoutException if device cannot be timely woken.
+        Update the parameter dictionary. 
         """
         called_from_set = kwargs.get('called_from_set', False)
 
@@ -1286,9 +1312,16 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()
+        
+        # We ignore the data-time parameter difference which should always be different
+        new_config[InstrumentParameters.LOGGER_DATE_AND_TIME] = old_config.get(InstrumentParameters.LOGGER_DATE_AND_TIME)
+        
         if new_config != old_config:
             for (name, value) in new_config.iteritems():
                 log.debug("_update_params: %s = %s" %(name, value))
+                if old_config[name] != value:
+                    val = old_config[name] if old_config[name] != None else 'not-set-yet'
+                    log.debug('_update_params: %s: o=%s, n=%s' %(name, val, value))
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     def _generate_status_event(self):
@@ -1548,7 +1581,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.POWER_ALWAYS_ON,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=1,          # 1 = True
@@ -1557,7 +1590,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.SIX_HZ_PROFILING_MODE,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=0,          # 0 = False
@@ -1566,7 +1599,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=1,          # 1 = True
@@ -1575,7 +1608,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=1,          # 1 = True
@@ -1584,7 +1617,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.SAMPLING_LED,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=0,          # 0 = False
@@ -1593,7 +1626,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.ENGINEERING_UNITS_OUTPUT,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=1,          # 1 = True
@@ -1602,7 +1635,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.AUTO_RUN,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=1,          # 1 = True
@@ -1611,7 +1644,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.INHIBIT_DATA_STORAGE,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=1,          # 1 = True
