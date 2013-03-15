@@ -1571,12 +1571,17 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         @param error_regex: error message pattern to match
         @param exception_class: class of the exception raised
         """
-        if(error_regex):
-            with self.assertRaisesRegexp(exception_class, error_regex):
-                self.driver_client.cmd_dvr(command)
-        else:
-            with self.assertRaises(exception_class):
-                self.driver_client.cmd_dvr(command)
+        try:
+            self.driver_client.cmd_dvr(command)
+        except Exception as e:
+            if(self._driver_exception_match(e, exception_class, error_regex)):
+                log.debug("Expected exception raised: %s", e)
+                return
+            else:
+                self.fail("Unexpected exception: %s" % e)
+
+        # If we have made it this far then no exception was raised
+        self.fail("No exception raised")
 
     def assert_particle_generation(self, command, particle_type, particle_callback, delay=1, timeout=None):
         """

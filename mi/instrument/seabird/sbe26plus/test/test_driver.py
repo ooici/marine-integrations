@@ -20,6 +20,16 @@ USAGE:
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
+#test_startup_params
+#test_scheduled_clock_sync_autosample
+#test_commands
+#test_set_sampling
+#test_set
+#test_scheduled_device_status_autosample
+#test_scheduled_device_configuration_autosample
+#test_autosample_particle_generation
+
+
 import unittest
 from gevent import monkey; monkey.patch_all()
 import time
@@ -519,7 +529,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         """
         self.assert_initialize_driver()
 
-
         # Verify we can set the clock
         self.assert_set_clock(Parameter.DS_DEVICE_DATE_TIME, tolerance=5)
 
@@ -539,8 +548,16 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_set(Parameter.TXWAVEBURST, False)
         self.assert_set_exception(Parameter.TXREALTIME, 'boom')
 
-        # Not catching the exception, but it is being raised
-        self.assert_set_exception(Parameter.TXWAVEBURST, 'boom')
+        self.assert_set(Parameter.TXWAVESTATS, True)
+        self.assert_set(Parameter.TXWAVESTATS, False)
+        self.assert_set_exception(Parameter.TXWAVESTATS, 'boom')
+
+        new_values = {
+            Parameter.TXWAVESTATS: True,
+            Parameter.TXREALTIME: True,
+            Parameter.TXWAVEBURST: True,
+        }
+        self.assert_set_bulk(new_values)
 
         ###
         #   Set Sample Parameters
@@ -1183,11 +1200,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         self.assert_startup_parameters(self.assert_driver_parameters)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
-
-        # Now change them so they are caught and see if they are caught
-        # on the second pass.
-        self.assert_set(Parameter.TXWAVESTATS, True)
-        self.assert_set(Parameter.TXREALTIME, False)
         self.assert_set(Parameter.TXWAVEBURST, True)
 
     ###
@@ -1243,13 +1255,13 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         """
         Verify the clock is set to at least the current date
         """
-        self.assert_set_clock(Parameter.DS_DEVICE_DATE_TIME)
+        #self._is_time_set(Parameter.DS_DEVICE_DATE_TIME)
 
     def test_scheduled_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=45)
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=60)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_clock_sync_autosample(self):
@@ -1257,7 +1269,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         Verify the scheduled clock sync is triggered and functions as expected
         """
         self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=60)
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=90)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
