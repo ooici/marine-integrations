@@ -33,6 +33,9 @@ from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 from mi.core.instrument.chunker import StringChunker
 
+from mi.idk.unit_test import DriverTestMixin
+from mi.idk.unit_test import ParameterTestConfigKey
+
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentDataException
 from mi.core.exceptions import InstrumentCommandException
@@ -49,11 +52,14 @@ from mi.instrument.satlantic.par_ser_600m.driver import DataParticleType
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARInstrumentProtocol
 from mi.instrument.satlantic.par_ser_600m.driver import PARProtocolState
 from mi.instrument.satlantic.par_ser_600m.driver import PARProtocolEvent
+from mi.instrument.satlantic.par_ser_600m.driver import PARCapability
+from mi.instrument.satlantic.par_ser_600m.driver import ScheduledJob
 from mi.instrument.satlantic.par_ser_600m.driver import Parameter
 from mi.instrument.satlantic.par_ser_600m.driver import Command
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticChecksumDecorator
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticle
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticleKey
+from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARInstrumentDriver
 
 from interface.objects import AgentCommand
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
@@ -77,230 +83,76 @@ VALID_FIRMWARE = "1.0.0"
 VALID_SERIAL = "0226"
 VALID_INSTRUMENT = "SATPAR"
 
+class PARMixin(DriverTestMixin):
+    '''
+    Mixin class used for storing data particle constance and common data assertion methods.
+    '''
+    # Create some short names for the parameter test config
+    TYPE      = ParameterTestConfigKey.TYPE
+    READONLY  = ParameterTestConfigKey.READONLY
+    STARTUP   = ParameterTestConfigKey.STARTUP
+    DA        = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE     = ParameterTestConfigKey.VALUE
+    REQUIRED  = ParameterTestConfigKey.REQUIRED
+    DEFAULT   = ParameterTestConfigKey.DEFAULT
+
+    ###
+    #  Parameter and Type Definitions
+    ###
+    _driver_parameters = {
+        # Parameters defined in the IOS
+        Parameter.MAXRATE : {TYPE: bool, READONLY: False, DA: True, STARTUP: True, VALUE: 2},
+        Parameter.FIRMWARE : {TYPE: bool, READONLY: True, DA: False, STARTUP: False, VALUE: '1.0.0'},
+        Parameter.SERIAL : {TYPE: bool, READONLY: True, DA: False, STARTUP: False, VALUE: 229},
+        Parameter.INSTRUMENT : {TYPE: bool, READONLY: True, DA: False, STARTUP: False, VALUE: 'SATPAR'},
+    }
+
+    _sample_parameters = {
+        SatlanticPARDataParticleKey.SERIAL_NUM: {TYPE: int, VALUE: 229, REQUIRED: True },
+        SatlanticPARDataParticleKey.COUNTS: {TYPE: int, VALUE: 2206748544, REQUIRED: True },
+        SatlanticPARDataParticleKey.TIMER: {TYPE: float, VALUE: 10.01, REQUIRED: True },
+        SatlanticPARDataParticleKey.CHECKSUM: {TYPE: int, VALUE: 234, REQUIRED: True },
+    }
+
+    ###
+    #   Driver Parameter Methods
+    ###
+    def assert_driver_parameters(self, current_parameters, verify_values = False):
+        """
+        Verify that all driver parameters are correct and potentially verify values.
+        @param current_parameters: driver parameters read from the driver instance
+        @param verify_values: should we verify values against definition?
+        """
+        self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
+
+    def assert_particle_sample(self, data_particle, verify_values = False):
+        '''
+        Verify sample particle
+        @param data_particle:  SBE16DataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(SatlanticPARDataParticleKey, self._sample_parameters)
+        self.assert_data_particle_header(data_particle, DataParticleType.PARSED)
+        self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
+
+
 @attr('UNIT', group='mi')
-class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
-    """
-    @todo test timeout exceptions while transitioning states and handling commands
-    """
-        
-    #def setUp(self):
-    """
-    Mocked up stuff
-    
-    def response_side_effect(*args, **kwargs):
-        if args[0] == Command.SAMPLE:
-            mi_logger.debug("Side effecting!")
-            return "SATPAR0229,10.01,2206748544,234"
-        else:
-            return DEFAULT
-        
-    self.mock_callback = Mock(name='callback')
-    self.mock_logger = Mock(name='logger')
-    self.mock_logger_client = Mock(name='logger_client')
-    self.mock_fsm = Mock(name='fsm')
-#        self.mock_logger_client.send = Mock()
-    self.par_proto = SatlanticPARInstrumentProtocol(self.mock_callback)
-    self.config_params = {'device_addr':'1.1.1.1',
-                          'device_port':1,
-                          'server_addr':'2.2.2.2',
-                          'server_port':2}
-    self.par_proto._fsm = self.mock_fsm
-    self.par_proto.configure(self.config_params)
-    self.par_proto.initialize()
-    self.par_proto._logger = self.mock_logger 
-    self.par_proto._logger_client = self.mock_logger_client
-    self.par_proto._get_response = Mock(return_value=('$', None))
-    # Quick sanity check to make sure the logger got mocked properly
-    self.assertEquals(self.par_proto._logger, self.mock_logger)
-    self.assertEquals(self.par_proto._logger_client, self.mock_logger_client)
-    self.assertEquals(self.par_proto._fsm, self.mock_fsm)
-    self.mock_logger_client.reset_mock()
-    """
-    
-
-    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
-    def test_get_param(self):
-        # try single
-        result = self.par_proto.get([Parameter.MAXRATE])
-        self.mock_logger_client.send.assert_called_with("show %s\n" %
-                                                        Parameter.MAXRATE)
-        
-        # try group
-        result = self.par_proto.get(Parameter.list())
-        
-        # try empty set
-        self.mock_logger_client.reset_mock()
-        result = self.par_proto.get([])
-        self.assertEquals(result, {})
-        self.assertEquals(self.mock_logger_client.send.call_count, 0)
-        
-        # try bad param
-        self.assertRaises(InstrumentProtocolException, self.par_proto.get, None)
-        self.assertRaises(InstrumentProtocolException,
-                          self.par_proto.get,['bad_param'])
-
-    @unittest.skip("Need better mocking of FSM or smaller testing chunks")    
-    def test_set_param(self):
-        #@todo deal with success/fail flag or catch everywhere?
-        #@todo add save checks?
-        self.par_proto.set({Parameter.TELBAUD:9600})
-        self.mock_logger_client.send.assert_called_with("set %s 9600\n" %
-                                                        Parameter.TELBAUD)
-        self.mock_logger_client.send.assert_called_with("save")
-        
-        self.par_proto.set({Parameter.MAXRATE:10})
-        self.mock_logger_client.send.assert_called_with("set %s 10\n" %
-                                                        Parameter.MAXRATE)
-        self.mock_logger_client.send.assert_called_with("save")
-        
-        # try group
-        self.mock_logger_client.reset_mock()
-        self.par_proto.set({Parameter.TELBAUD:4800,Parameter.MAXRATE:9})
-        self.assertEquals(self.mock_logger_client.send.call_count, 3)
-
-        # try empty set
-        self.mock_logger_client.reset_mock()
-        result = self.par_proto.set({})
-        self.assertEquals(self.mock_logger_client.send.call_count, 0)
-        self.assertEquals(result, {})
-        
-        # some error cases
-        self.assertRaises(InstrumentProtocolException, self.par_proto.set, [])
-        self.assertRaises(InstrumentProtocolException, self.par_proto.set, None)
-        self.assertRaises(InstrumentProtocolException, self.par_proto.set, ['foo'])
-        
-        # try bad param
-        self.assertRaises(InstrumentProtocolException,
-                          self.par_proto.set,{'bad_param':0})
-    
-    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
-    def test_get_config(self):
-        fetched_config = {}
-        fetched_config = self.par_proto.get_config()
-        self.assert_(isinstance(fetched_config, dict))
-        calls = [call("show %s\n" % Parameter.TELBAUD),
-                 call("show %s\n" % Parameter.MAXRATE)]
-        self.mock_logger_client.send.assert_has_calls(calls, any_order=True)
-        
-        self.assertEquals(len(fetched_config), 2)
-        self.assertTrue(fetched_config.has_key(Parameter.TELBAUD))
-        self.assertTrue(fetched_config.has_key(Parameter.MAXRATE))
-    
-    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
-    def test_restore_config(self):
-        self.assertRaises(InstrumentProtocolException,
-                          self.par_proto.restore_config, None)    
-     
-        self.assertRaises(InstrumentProtocolException,
-                          self.par_proto.restore_config, {})
-        
-        self.assertRaises(InstrumentProtocolException,
-                          self.par_proto.restore_config, {'bad_param':0})
-
-        test_config = {Parameter.TELBAUD:19200, Parameter.MAXRATE:2}
-        restore_result = self.par_proto.restore_config(test_config)
-        calls = [call("set %s %s\n" % (Parameter.TELBAUD, 19200)),
-                 call("set %s %s\n" % (Parameter.MAXRATE, 2))]
-        self.mock_logger_client.send.assert_has_calls(calls, any_order=True)
-        
-    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
-    def test_get_single_value(self):
-        result = self.par_proto.execute_poll()
-        calls = [call("%s\n" % Command.EXIT),
-                 call(Command.STOP),
-                 call(Command.SAMPLE),
-                 call(Command.AUTOSAMPLE),
-                 call(Command.BREAK)]
-        self.mock_logger_client.send.assert_has_calls(calls, any_order=False)
-        
-    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
-    def test_breaks(self):
-        # test kick to autosample, then back
-        result = self.par_proto.execute_exit()        
-        self.mock_callback.reset_mock()
-        result = self.par_proto.execute_break()
-        self.mock_logger_client.send.assert_called_with(Command.BREAK)        
-        self.assertEqual(self.mock_callback.call_count, 1)
-
-        # test autosample to poll change
-        result = self.par_proto.execute_exit()
-        self.mock_callback.reset_mock()
-        result = self.par_proto.execute_stop()
-        self.mock_logger_client.send.assert_called_with(Command.STOP)
-        self.assertEqual(self.mock_callback.call_count, 1)
-
-        result = self.par_proto.execute_autosample()
-        self.mock_callback.reset_mock()
-        result = self.par_proto.execute_reset()
-        self.mock_logger_client.send.assert_called_with(Command.RESET)
-        self.assertEqual(self.mock_callback.call_count, 1)
-
-        self.mock_callback.reset_mock()
-        result = self.par_proto.execute_break()
-        self.mock_logger_client.send.assert_called_with(Command.BREAK)
-        self.assertEqual(self.mock_callback.call_count, 1)
-  
-    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
-    def test_got_data(self):
-        # Cant trigger easily since the async command/response, so short circut
-        # the test early.
-        self.mock_callback.reset_mock()
-        result = self.par_proto.execute_exit()
-        self.assertEqual(self.mock_callback.call_count, 1)
-        self.assert_(result)
-        self.mock_callback.reset_mock()
-        result = self.par_proto._got_data("SATPAR0229,10.01,2206748544,234\n")
-        # check for publish
-        self.assertEqual(self.mock_callback.call_count, 2)
-
-        # check for correct parse
-        
-    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
-    def test_connect_disconnect(self):
-        pass
-    
-    @unittest.skip("Need better mocking of FSM or smaller testing chunks")
-    def test_get_status(self):
-        pass
-    
-    def test_sample_format(self):
+class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase, PARMixin):
+    def test_driver_enums(self):
         """
-        Test to make sure we can get sample data out in a reasonable format.
-        Parsed is all we care about...raw is tested in the base DataParticle tests
-        VALID_SAMPLE = "SATPAR0229,10.01,2206748544,234"
+        Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
+        do a little extra validation for the Capabilites
         """
-        
-        port_timestamp = 3555423720.711772
-        internal_timestamp = 3555423721.711772
-        driver_timestamp = 3555423722.711772
-        particle = SatlanticPARDataParticle(VALID_SAMPLE,
-                                            port_timestamp=port_timestamp,
-                                            internal_timestamp=internal_timestamp)
-        # perform the extraction into a structure for parsed
-        sample_parsed_particle = {
-            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
-            DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.STREAM_NAME: DataParticleType.PARSED,
-            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
-            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
-            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
-            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: [
-                {DataParticleKey.VALUE_ID:SatlanticPARDataParticleKey.SERIAL_NUM,
-                 DataParticleKey.VALUE:"0229"},
-                {DataParticleKey.VALUE_ID:SatlanticPARDataParticleKey.TIMER,
-                 DataParticleKey.VALUE:10.01},
-                {DataParticleKey.VALUE_ID:SatlanticPARDataParticleKey.COUNTS,
-                 DataParticleKey.VALUE: 2206748544},
-                {DataParticleKey.VALUE_ID:SatlanticPARDataParticleKey.CHECKSUM,
-                 DataParticleKey.VALUE: 234}
-                ]
-            }
-        
-        self.compare_parsed_data_particle(SatlanticPARDataParticle,
-                                         VALID_SAMPLE,
-                                         sample_parsed_particle)
+        self.assert_enum_has_no_duplicates(Command())
+        self.assert_enum_has_no_duplicates(ScheduledJob())
+        self.assert_enum_has_no_duplicates(DataParticleType())
+        self.assert_enum_has_no_duplicates(PARProtocolState())
+        self.assert_enum_has_no_duplicates(PARProtocolEvent())
+        self.assert_enum_has_no_duplicates(Parameter())
 
+        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
+        self.assert_enum_has_no_duplicates(PARCapability())
+        self.assert_enum_complete(PARCapability(), PARProtocolEvent())
 
     def test_chunker(self):
         """
@@ -321,6 +173,19 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
         self.assert_chunker_sample_with_noise(chunker, VALID_SAMPLE)
         self.assert_chunker_sample_with_noise(chunker, VALID_HEADER)
 
+    def test_got_data(self):
+        """
+        Verify sample data passed through the got data method produces the correct data particles
+        """
+        # Create and initialize the instrument driver with a mock port agent
+        driver = SatlanticPARInstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        self.assert_raw_particle_published(driver, True)
+
+        # Start validating data particles
+        self.assert_particle_published(driver, VALID_SAMPLE, self.assert_particle_sample, True)
+
     def test_extract_header(self):
         '''
         Test if we can extract the firmware, serial number and instrument label
@@ -336,6 +201,24 @@ class SatlanticParProtocolUnitTest(InstrumentDriverUnitTestCase):
         self.assertEqual(protocol._serial, VALID_SERIAL)
         self.assertEqual(protocol._instrument, VALID_INSTRUMENT)
 
+    @unittest.skip("broken")
+    def test_driver_parameters(self):
+        """
+        Verify the set of parameters known by the driver
+        """
+        driver = SatlanticPARInstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver, PARProtocolState.COMMAND)
+
+        expected_parameters = sorted(self._driver_parameters.keys())
+        reported_parameters = sorted(driver.get_resource(Parameter.ALL))
+
+        log.debug("Reported Parameters: %s" % reported_parameters)
+        log.debug("Expected Parameters: %s" % expected_parameters)
+
+        self.assertEqual(reported_parameters, expected_parameters)
+
+        # Verify the parameter definitions
+        self.assert_driver_parameter_definition(driver, self._driver_parameters)
 
 #@unittest.skip("Need a VPN setup to test against RSN installation")
 @attr('INT', group='mi')

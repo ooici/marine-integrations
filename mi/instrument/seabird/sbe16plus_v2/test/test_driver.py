@@ -34,6 +34,7 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.chunker import StringChunker
+from interface.objects import AgentCommand
 
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
@@ -42,6 +43,7 @@ from mi.idk.unit_test import AgentCapabilityType
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentCommandException
+from mi.core.exceptions import InstrumentTimeoutException
 
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16Protocol
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16InstrumentDriver
@@ -65,7 +67,12 @@ from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
 from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
 from mi.instrument.seabird.test.test_driver import SeaBirdPublicationTest
 
+from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverProtocolState
 from pyon.agent.agent import ResourceAgentState
+from pyon.agent.agent import ResourceAgentEvent
+from pyon.core.exception import ServerError
+from pyon.core.exception import Conflict
 
 ###
 # Test Inputs
@@ -476,7 +483,7 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
         driver = SBE16InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
-        #self.assert_raw_particle_published(driver, True)
+        self.assert_raw_particle_published(driver, True)
 
         # Start validating data particles
         self.assert_particle_published(driver, VALID_SAMPLE, self.assert_particle_sample, True)
@@ -777,13 +784,13 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         }
 
         self.assert_initialize_driver()
-        #self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
+        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
         # Start autosample and try again
         self.assert_set_bulk(new_values)
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         self.assert_startup_parameters(self.assert_driver_parameters)
-        self.assert_current_state(ProtocolEvent.START_AUTOSAMPLE)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
     def test_commands(self):
         """

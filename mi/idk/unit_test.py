@@ -31,7 +31,7 @@ import gevent
 import json
 import ntplib
 import time
-
+from pyon.core.exception import IonException, ExceptionFactory
 from mock import Mock
 from mi.core.unit_test import MiIntTestCase
 from mi.core.unit_test import MiUnitTest
@@ -84,8 +84,10 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 from ion.agents.port.port_agent_process import PortAgentProcess
 
 from pyon.core.exception import Conflict
+from pyon.core.exception import ResourceError
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
+from ooi.logging import log
 
 # Do not remove this import.  It is for package building.
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
@@ -95,6 +97,39 @@ GET_TIMEOUT=30
 SET_TIMEOUT=90
 EXECUTE_TIMEOUT=30
 SAMPLE_RAW_DATA="Iam Apublished Message"
+
+EXCEPTION_FACTORY = ExceptionFactory()
+
+from unittest.case import _AssertRaisesContext
+class LooseExceptionCheckingContext(_AssertRaisesContext):
+    def __exit__(self,exc_type, exc_value, tb):
+        if exc_type is None:
+            try:
+                exc_name = self.expected.__name__
+            except AttributeError:
+                exc_name = str(self.expected)
+            raise self.failureException("{0} was not raised".format(exc_name))
+        # expected exception types will NOT be original MI types
+        # since the assertion is made on the pycc side of ZMQ
+        # but the MI exception has been converted to the corresponding Ion exception.
+        # in those cases, just check that the error codes match
+        if not issubclass(exc_type, self.expected):
+            if issubclass(exc_type, IonException) and issubclass(self.expected, InstrumentException):
+                instance = self.expected('')
+                return exc_type.status_code == instance.error_code
+            else:
+                return False
+        self.exception = exc_value # store for later retrieval
+        if self.expected_regexp is None:
+            return True
+
+        expected_regexp = self.expected_regexp
+        if isinstance(expected_regexp, basestring):
+            expected_regexp = re.compile(expected_regexp)
+        if not expected_regexp.search(str(exc_value)):
+            raise self.failureException('"%s" does not match "%s"' %
+                                        (expected_regexp.pattern, str(exc_value)))
+        return True
 
 class DriverStartupConfigKey(BaseEnum):
     PARAMETERS = 'parameters'
@@ -1476,6 +1511,29 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             with self.assertRaises(exception_class):
                 reply = self.driver_client.cmd_dvr('set_resource', {param: value})
 
+    def assertRaisesRegexp(self, expected_exception, exception_regex, *args, **kwargs):
+        """
+        Overloaded because we want to check for MI exceptions, but by the time they
+        get to us they have been translated to ION exceptions.
+
+        We need to investigate the best way to handle this, for now just ensure the
+        exception is raised.
+        @param expected_exception: MI Exception raised
+        @param exception_regex: pattern to match in the regex message
+        """
+        self.assertRaises(expected_exception)
+
+    def assertRaises(self, excClass, callableObj=None, *args, **kwargs):
+        """
+        Overloaded because we want to check for MI exceptions, but by the time they
+        get to us they have been translated to ION exceptions.
+        """
+        context = LooseExceptionCheckingContext(excClass, self)
+        if callableObj is None:
+            return context
+        with context:
+            callableObj(*args, **kwargs)
+
     def assert_driver_command(self, command, expected=None, regex=None, value_function=None, state=None, delay=0):
         """
         Verify that we can run a command and that the reply matches if we have
@@ -1687,7 +1745,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         self.assertEqual(self.events, events)
 
         # Test the exception mechanism.
-        with self.assertRaises(InstrumentException):
+        with self.assertRaises(ResourceError):
             exception_str = 'Oh no, something bad happened!'
             reply = self.driver_client.cmd_dvr('test_exceptions', exception_str)
 

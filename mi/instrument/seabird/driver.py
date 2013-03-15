@@ -36,7 +36,7 @@ NEWLINE = '\r\n'
 SBE_EPOCH = 946713600 # Unix time for SBE epoch 2000-01-01 00:00:00
 
 # default timeout.
-TIMEOUT = 10
+TIMEOUT = 20
 DEFAULT_ENCODER_KEY = '__default__'
 
 ###############################################################################

@@ -519,19 +519,28 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         """
         self.assert_initialize_driver()
 
-        # The clock in this instrument is a little odd.  It looks like if you wait until the edge of a second
-        # to set it, it immediately ticks after the set, making it off by 1.  For now we will accept this
-        # behavior, but we need to check this behavior on all SBE instruments.
-        set_time = get_timestamp_delayed("%d %b %Y  %H:%M:%S")
-        # One second later
-        expected_time = get_timestamp_delayed("%d %b %Y  %H:%M:%S")
-        self.assert_set(Parameter.DS_DEVICE_DATE_TIME, set_time, no_get=True)
-        self.assert_get(Parameter.DS_DEVICE_DATE_TIME, expected_time.upper())
+        # Verify we can set the clock
+        self.assert_set_clock(Parameter.DS_DEVICE_DATE_TIME, tolerance=5)
 
         ###
         #   Instrument Parameteres
         ###
         self.assert_set(Parameter.USER_INFO, 'iontest'.upper())
+
+        # Set it to something else, this should raise a config change event
+        self.assert_set(Parameter.USER_INFO, 'iontest2'.upper())
+
+        self.assert_set(Parameter.TXREALTIME, True)
+        self.assert_set(Parameter.TXREALTIME, False)
+
+        # Not catching the exception, but it is being raised
+        self.assert_set_exception(Parameter.TXREALTIME, 'boom')
+
+        self.assert_set(Parameter.TXWAVEBURST, True)
+        self.assert_set(Parameter.TXWAVEBURST, False)
+
+        # Not catching the exception, but it is being raised
+        self.assert_set_exception(Parameter.TXWAVEBURST, 'boom')
 
         ###
         #   Set Sample Parameters
@@ -553,13 +562,10 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_set_readonly(Parameter.LAST_SAMPLE_P)
         self.assert_set_readonly(Parameter.LAST_SAMPLE_T)
         self.assert_set_readonly(Parameter.LAST_SAMPLE_S)
-        self.assert_set_readonly(Parameter.TXREALTIME)
-        self.assert_set_readonly(Parameter.TXWAVEBURST)
         self.assert_set_readonly(Parameter.SHOW_PROGRESS_MESSAGES)
         self.assert_set_readonly(Parameter.STATUS)
         self.assert_set_readonly(Parameter.LOGGING)
 
-    @unittest.skip("damn long test")
     def test_set_sampling(self):
         """
         @brief Test device setsampling.
@@ -1149,66 +1155,40 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_async_particle_generation(DataParticleType.WAVE_BURST, self.assert_particle_wave_burst, timeout=300)
         self.assert_async_particle_generation(DataParticleType.STATISTICS, self.assert_particle_statistics, timeout=300)
 
-    def test_startup_params_first_pass(self):
+    def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
-        happens in the driver discovery method.  We have two identical versions
-        of this test so it is run twice.  First time to check and CHANGE, then
-        the second time to check again.
-
-        since nose orders the tests by ascii value this should run first.
+        happens in the driver discovery method.
         """
-        self.assert_initialize_driver()
 
-        self.assert_get(Parameter.TXWAVESTATS, False)
-        self.assert_get(Parameter.TXREALTIME, True)
-        self.assert_get(Parameter.TXWAVEBURST, False)
+        # Explicitly verify these values after discover.  They should match
+        # what the startup values should be
+        startup_values = {
+            Parameter.TXWAVESTATS: False,
+            Parameter.TXREALTIME: True,
+            Parameter.TXWAVEBURST: False,
+            }
+
+        new_values = {
+            Parameter.TXWAVESTATS: True,
+            Parameter.TXREALTIME: False,
+            Parameter.TXWAVEBURST: True,
+        }
+
+        self.assert_initialize_driver()
+        self.assert_startup_parameters(self.assert_driver_parameters, new_values, startup_values)
+
+        # Start autosample and try again
+        self.assert_set_bulk(new_values)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_startup_parameters(self.assert_driver_parameters)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
         # Now change them so they are caught and see if they are caught
         # on the second pass.
         self.assert_set(Parameter.TXWAVESTATS, True)
         self.assert_set(Parameter.TXREALTIME, False)
         self.assert_set(Parameter.TXWAVEBURST, True)
-
-    def test_startup_params_second_pass(self):
-        """
-        Verify that startup parameters are applied correctly. Generally this
-        happens in the driver discovery method.  We have two identical versions
-        of this test so it is run twice.  First time to check and CHANGE, then
-        the second time to check again.
-
-        since nose orders the tests by ascii value this should run second.
-        """
-        self.assert_initialize_driver()
-
-        self.assert_get(Parameter.TXWAVESTATS, False)
-        self.assert_get(Parameter.TXREALTIME, True)
-        self.assert_get(Parameter.TXWAVEBURST, False)
-
-        # Change these values anyway just in case it ran first.
-        self.assert_set(Parameter.TXWAVESTATS, True)
-        self.assert_set(Parameter.TXREALTIME, False)
-        self.assert_set(Parameter.TXWAVEBURST, True)
-
-    def test_apply_startup_params(self):
-        """
-        This test verifies that we can set the startup params
-        from autosample mode.  It only verifies one parameter
-        change because all parameters are tested above.
-        """
-        # Apply autosample happens for free when the driver fires up
-        self.assert_initialize_driver()
-
-        # Change something
-        self.assert_set(Parameter.TXWAVEBURST, True)
-
-        # Now try to apply params in Streaming
-        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE)
-        self.driver_client.cmd_dvr('apply_startup_params')
-
-        # All done.  Verify the startup parameter has been reset
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND)
-        self.assert_get(Parameter.TXWAVEBURST, False)
 
     ###
     #   Test scheduled events
