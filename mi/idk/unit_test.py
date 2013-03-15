@@ -183,8 +183,34 @@ class InstrumentDriverTestConfig(Singleton):
 
         if kwargs.get('driver_startup_config'):
             self.driver_startup_config = kwargs.get('driver_startup_config')
+   
+        log.info("Startup Config: %s", self.driver_startup_config)
+        log.info("Preload Startup Config: %s", self.config_for_preload(self.driver_startup_config))
 
         self.initialized = True
+
+    def config_for_preload(self,adict):
+        def helper(prefix, dict):
+            buffer = ""
+            if 0 == len(dict):
+                return "%s: {}," % ".".join(prefix)
+    
+            newprefix = prefix[:]
+    
+            for k, v in dict.iteritems():
+                if type(v) == type({}):
+                    buffer += helper(newprefix + [k], v)
+                elif type(v) == type([]):
+                    # can't handle lists
+                    assert 0 == len(v)
+                    buffer += "%s: []," % ".".join(newprefix)
+                else:
+                    newprefix.append(k)
+                    buffer += "%s: %s," % (".".join(newprefix), v)
+
+            return buffer
+
+        return helper([], adict)
 
     def _build_packet_config(self, param_config):
         """
