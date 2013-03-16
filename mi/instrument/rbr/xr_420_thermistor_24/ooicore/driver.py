@@ -1146,6 +1146,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     def _check_for_set_failures(self, params_to_check):
             device_parameters = self._param_dict.get_config()
             for key in params_to_check.keys():
+                if key == InstrumentParameters.LOGGER_DATE_AND_TIME:
+                    # time-date will always not match, so ignore it
+                    continue
                 if params_to_check[key] != device_parameters[key]:
                     log.debug("_check_for_set_failures: SET FAILURE: " + str(key) + " is " + str(device_parameters[key]) + " and should have been set to " + str(params_to_check[key]))
                     raise InstrumentParameterException("SET FAILURE: " + str(key) + " is " + str(device_parameters[key]) + " and should have been set to " + str(params_to_check[key]))

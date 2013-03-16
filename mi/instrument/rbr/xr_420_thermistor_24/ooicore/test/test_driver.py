@@ -750,7 +750,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2O02 11:18:42')
         self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2002 25:18:42')
         self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2002 11:65:42')
-        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2002 11:18:61')
 
     def test_read_only_parameters(self):
         self.assert_initialize_driver()
