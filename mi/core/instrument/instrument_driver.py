@@ -49,6 +49,7 @@ class ResourceAgentState(BaseEnum):
     CALIBRATE = 'RESOURCE_AGENT_STATE_CALIBRATE'
     DIRECT_ACCESS = 'RESOUCE_AGENT_STATE_DIRECT_ACCESS'
     BUSY = 'RESOURCE_AGENT_STATE_BUSY'
+    LOST_CONNECTION = 'RESOURCE_AGENT_STATE_LOST_CONNECTION'
     
 class ResourceAgentEvent(BaseEnum):
     """
@@ -74,7 +75,7 @@ class ResourceAgentEvent(BaseEnum):
     GET_RESOURCE_STATE = 'RESOURCE_AGENT_EVENT_GET_RESOURCE_STATE'
     GET_RESOURCE_CAPABILITIES = 'RESOURCE_AGENT_EVENT_GET_RESOURCE_CAPABILITIES'
     DONE = 'RESOURCE_AGENT_EVENT_DONE'    
-    LOST_CONNECTION = 'RESROUCE_AGENT_EVENT_LOST_CONNECTION'
+    LOST_CONNECTION = 'RESOURCE_AGENT_EVENT_LOST_CONNECTION'
     
 class DriverState(BaseEnum):
     """Common driver state enum"""
@@ -446,7 +447,10 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._pre_da_config = {}
         self._startup_config = {}
         
-        self._connection_lost = False
+        # Idempotency flag for lost connections.
+        # This set to false when a connection is established to
+        # allow for lost callback to become activated.
+        self._connection_lost = True
         
     #############################################################
     # Device connection interface.
@@ -796,6 +800,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         Enter disconnected state.
         """
         # Send state change event to agent.
+        self._connection_lost = True
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_disconnected_exit(self, *args, **kwargs):
@@ -860,7 +865,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._build_protocol()
         self._connection.init_comms(self._protocol.got_data, 
                                     self._protocol.got_raw,
-                                    self._lost_connection)
+                                    self._lost_connection_callback)
         self._protocol._connection = self._connection
         next_state = DriverConnectionState.CONNECTED
         
@@ -909,7 +914,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         """
         next_state = None
         result = None
-
+        
         self._connection.stop_comms()
         self._protocol = None
         
@@ -997,18 +1002,19 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         except (TypeError, KeyError):
             raise InstrumentParameterException('Invalid comms config dict.')
 
-    def _lost_connection(self):
+    def _lost_connection_callback(self, error_string):
         """
         A callback invoked by the port agent client when it looses
         connectivity to the port agent.
         """
+        
         if not self._connection_lost:
             self._connection_lost = True
-            lost_comms_thread = Thread(                
-                target=self._handle_lost_connection,
-                args=(DriverEvent.CONNECTION_LOST))
+            lost_comms_thread = Thread(
+                target=self._connection_fsm.on_event,
+                args=(DriverEvent.CONNECTION_LOST, ))
             lost_comms_thread.start()
-    
+            
     def _build_protocol(self):
         """
         Construct device specific single connection protocol FSM.
