@@ -32,6 +32,12 @@ from mi.idk.exceptions import CommConfigReadFail
 from mi.idk.exceptions import InvalidCommType
 
 #
+# Common
+#
+HOST = 'localhost'
+SNIFFER_PORT = 6003
+
+#
 # Ethernet
 #
 INSTRUMENT_ADDR = 'localhost'
@@ -80,6 +86,8 @@ class TestCommConfig(MiUnitTest):
                "  data_port: %d\n" % (DATA_PORT) + \
                "  device_addr: %s\n" % (INSTRUMENT_ADDR) + \
                "  device_port: %d\n" % (INSTRUMENT_PORT) + \
+               "  host: %s\n" % (HOST) + \
+               "  sniffer_port: %d\n" % (SNIFFER_PORT) + \
                "  method: ethernet\n"
 
     def config_serial_content(self):
@@ -92,6 +100,8 @@ class TestCommConfig(MiUnitTest):
                "  device_parity: %d\n" % (DEVICE_PARITY) + \
                "  device_stop_bits: %d\n" % (DEVICE_STOP_BITS) + \
                "  device_flow_control: %d\n" % (DEVICE_FLOW_CONTROL) + \
+               "  host: %s\n" % (HOST) + \
+               "  sniffer_port: %d\n" % (SNIFFER_PORT) + \
                "  method: serial\n"
 
     def write_ethernet_config(self):

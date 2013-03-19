@@ -98,39 +98,6 @@ SET_TIMEOUT=90
 EXECUTE_TIMEOUT=30
 SAMPLE_RAW_DATA="Iam Apublished Message"
 
-EXCEPTION_FACTORY = ExceptionFactory()
-
-from unittest.case import _AssertRaisesContext
-class LooseExceptionCheckingContext(_AssertRaisesContext):
-    def __exit__(self,exc_type, exc_value, tb):
-        if exc_type is None:
-            try:
-                exc_name = self.expected.__name__
-            except AttributeError:
-                exc_name = str(self.expected)
-            raise self.failureException("{0} was not raised".format(exc_name))
-        # expected exception types will NOT be original MI types
-        # since the assertion is made on the pycc side of ZMQ
-        # but the MI exception has been converted to the corresponding Ion exception.
-        # in those cases, just check that the error codes match
-        if not issubclass(exc_type, self.expected):
-            if issubclass(exc_type, IonException) and issubclass(self.expected, InstrumentException):
-                instance = self.expected('')
-                return exc_type.status_code == instance.error_code
-            else:
-                return False
-        self.exception = exc_value # store for later retrieval
-        if self.expected_regexp is None:
-            return True
-
-        expected_regexp = self.expected_regexp
-        if isinstance(expected_regexp, basestring):
-            expected_regexp = re.compile(expected_regexp)
-        if not expected_regexp.search(str(exc_value)):
-            raise self.failureException('"%s" does not match "%s"' %
-                                        (expected_regexp.pattern, str(exc_value)))
-        return True
-
 class DriverStartupConfigKey(BaseEnum):
     PARAMETERS = 'parameters'
     SCHEDULER = 'scheduler'
@@ -216,8 +183,34 @@ class InstrumentDriverTestConfig(Singleton):
 
         if kwargs.get('driver_startup_config'):
             self.driver_startup_config = kwargs.get('driver_startup_config')
+   
+        log.info("Startup Config: %s", self.driver_startup_config)
+        log.info("Preload Startup Config: %s", self.config_for_preload(self.driver_startup_config))
 
         self.initialized = True
+
+    def config_for_preload(self,adict):
+        def helper(prefix, dict):
+            buffer = ""
+            if 0 == len(dict):
+                return "%s: {}," % ".".join(prefix)
+    
+            newprefix = prefix[:]
+    
+            for k, v in dict.iteritems():
+                if type(v) == type({}):
+                    buffer += helper(newprefix + [k], v)
+                elif type(v) == type([]):
+                    # can't handle lists
+                    assert 0 == len(v)
+                    buffer += "%s: []," % ".".join(newprefix)
+                else:
+                    newprefix.append(k)
+                    buffer += "%s: %s," % (".".join(newprefix), v)
+
+            return buffer
+
+        return helper([], adict)
 
     def _build_packet_config(self, param_config):
         """
@@ -766,9 +759,14 @@ class InstrumentDriverTestCase(MiIntTestCase):
             'command_port': comm_config.command_port,
             'data_port': comm_config.data_port,
 
+            'telnet_sniffer_port': comm_config.sniffer_port,
+
             'process_type': PortAgentProcessType.UNIX,
             'log_level': 5,
             }
+
+        if(comm_config.sniffer_prefix): config['telnet_sniffer_prefix'] = comm_config.sniffer_prefix
+        if(comm_config.sniffer_suffix): config['telnet_sniffer_suffix'] = comm_config.sniffer_suffix
 
         return config
 
@@ -1481,20 +1479,17 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         @param error_regex: error message pattern to match
         @param exception_class: class of the exception raised
         """
-        if(error_regex):
-            with self.assertRaisesRegexp(exception_class, error_regex):
-                self.assert_set_bulk(param_dict)
-        else:
-            with self.assertRaises(exception_class):
-                self.assert_set_bulk(param_dict)
+        try:
+            self.assert_set_bulk(param_dict)
+        except Exception as e:
+            if(self._driver_exception_match(e, exception_class, error_regex)):
+                log.debug("Expected exception raised: %s", e)
+                return
+            else:
+                self.fail("Unexpected exception: %s" % e)
 
-    def assert_set_readonly(self, param, value='dummyvalue', exception_class=InstrumentParameterException):
-        """
-        Verify that a set command raises an exception on set.
-        @param param: parameter to set
-        @param value: what to set the parameter too
-        """
-        self.assert_set_exception(param, value, exception_class=exception_class)
+        # If we have made it this far then no exception was raised
+        self.fail("No exception raised")
 
     def assert_set_exception(self, param, value='dummyvalue', error_regex=None, exception_class=InstrumentParameterException):
         """
@@ -1504,35 +1499,61 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         @param error_regex: error message pattern to match
         @param exception_class: class of the exception raised
         """
-        if(error_regex):
-            with self.assertRaisesRegexp(exception_class, error_regex):
-                reply = self.driver_client.cmd_dvr('set_resource', {param: value})
+        try:
+            reply = self.driver_client.cmd_dvr('set_resource', {param: value})
+            self.assert_set(param, value)
+        except Exception as e:
+            if(self._driver_exception_match(e, exception_class, error_regex)):
+                log.debug("Expected exception raised: %s", e)
+                return
+            else:
+                self.fail("Unexpected exception: %s" % e)
+
+        # If we have made it this far then no exception was raised
+        self.fail("No exception raised")
+
+    def _driver_exception_match(self, ion_exception, expected_exception, error_regex=None):
+        """
+        This will attempt to verify the ion exception raised was generated from the
+        instrument driver exception we expected to see.  We do this by examining the
+        value of the exception and attempt to parse it.  The format should be:
+        code - DriverExceptionName: error message
+        @param ion_exception: The ion exception that was raised
+        @param expected_exception:  The instrument driver exception we should see
+        @param regex: regular express to match the error message
+        @return: True if a match otherwise False
+        """
+        pattern = r'(\d{3}) - (\w+): (.*)'
+        matcher = re.compile(pattern)
+        match = re.search(matcher, str(ion_exception))
+
+        if(match):
+            log.debug("Exception code: %s, type: %s, value: %s", match.group(1), match.group(2), match.group(3))
+            log.debug("Expected exception type: %s", expected_exception.__name__)
+
+            if(expected_exception.__name__ != match.group(2)):
+                log.error("Exception type mismatch %s != %s", expected_exception.__name__, match.group(2))
+                return False
+
+            if(error_regex != None):
+                log.debug("Checking for a value match: %s", error_regex)
+                matcher = re.compile(error_regex)
+                if(not matcher.search(match.group(3))):
+                    log.error("value pattern mismatch %s", match.group(3))
+                    return False
         else:
-            with self.assertRaises(exception_class):
-                reply = self.driver_client.cmd_dvr('set_resource', {param: value})
+            log.error("Failed to match driver exception pattern")
+            return False
 
-    def assertRaisesRegexp(self, expected_exception, exception_regex, *args, **kwargs):
-        """
-        Overloaded because we want to check for MI exceptions, but by the time they
-        get to us they have been translated to ION exceptions.
+        return True
 
-        We need to investigate the best way to handle this, for now just ensure the
-        exception is raised.
-        @param expected_exception: MI Exception raised
-        @param exception_regex: pattern to match in the regex message
+    def assert_set_readonly(self, param, value='dummyvalue', exception_class=InstrumentParameterException):
         """
-        self.assertRaises(expected_exception)
-
-    def assertRaises(self, excClass, callableObj=None, *args, **kwargs):
+        Verify that a set command raises an exception on set.
+        @param param: parameter to set
+        @param value: what to set the parameter too
         """
-        Overloaded because we want to check for MI exceptions, but by the time they
-        get to us they have been translated to ION exceptions.
-        """
-        context = LooseExceptionCheckingContext(excClass, self)
-        if callableObj is None:
-            return context
-        with context:
-            callableObj(*args, **kwargs)
+        self.assert_set_exception(param, value, exception_class=exception_class)
 
     def assert_driver_command(self, command, expected=None, regex=None, value_function=None, state=None, delay=0):
         """
@@ -1581,12 +1602,17 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         @param error_regex: error message pattern to match
         @param exception_class: class of the exception raised
         """
-        if(error_regex):
-            with self.assertRaisesRegexp(exception_class, error_regex):
-                self.driver_client.cmd_dvr(command)
-        else:
-            with self.assertRaises(exception_class):
-                self.driver_client.cmd_dvr(command)
+        try:
+            self.driver_client.cmd_dvr(command)
+        except Exception as e:
+            if(self._driver_exception_match(e, exception_class, error_regex)):
+                log.debug("Expected exception raised: %s", e)
+                return
+            else:
+                self.fail("Unexpected exception: %s" % e)
+
+        # If we have made it this far then no exception was raised
+        self.fail("No exception raised")
 
     def assert_particle_generation(self, command, particle_type, particle_callback, delay=1, timeout=None):
         """
