@@ -759,9 +759,14 @@ class InstrumentDriverTestCase(MiIntTestCase):
             'command_port': comm_config.command_port,
             'data_port': comm_config.data_port,
 
+            'telnet_sniffer_port': comm_config.sniffer_port,
+
             'process_type': PortAgentProcessType.UNIX,
             'log_level': 5,
             }
+
+        if(comm_config.sniffer_prefix): config['telnet_sniffer_prefix'] = comm_config.sniffer_prefix
+        if(comm_config.sniffer_suffix): config['telnet_sniffer_suffix'] = comm_config.sniffer_suffix
 
         return config
 

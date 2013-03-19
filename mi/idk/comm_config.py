@@ -40,8 +40,10 @@ from mi.idk.exceptions import CommConfigReadFail
 from mi.idk.exceptions import InvalidCommType
 from mi.core.common import BaseEnum
 
+DEFAULT_HOST = 'localhost'
 DEFAULT_DATA_PORT = 6001
 DEFAULT_CMD_PORT = 6002
+DEFAULT_SNIFFER_PORT = 6003
 
 class ConfigTypes(BaseEnum):
     ETHERNET = 'ethernet'
@@ -59,6 +61,11 @@ class CommConfig(object):
         self.config_file_path = None
         self.data_port = None
         self.command_port = None
+        self.host = DEFAULT_HOST
+        self.sniffer_port = DEFAULT_SNIFFER_PORT
+        self.sniffer_prefix = None
+        self.sniffer_suffix = None
+
         if config_file_path:
             self.read_from_file(config_file_path)
 
@@ -73,8 +80,13 @@ class CommConfig(object):
         if( yamlInput ):
             self.config_type = yamlInput['comm'].get('method')
 
+            self.host = yamlInput['comm'].get('host')
             self.data_port = yamlInput['comm'].get('data_port')
             self.command_port = yamlInput['comm'].get('command_port')
+
+            self.sniffer_port = yamlInput['comm'].get('sniffer_port')
+            self.sniffer_prefix = yamlInput['comm'].get('sniffer_prefix')
+            self.sniffer_suffix = yamlInput['comm'].get('sniffer_suffix')
 
             if(self.data_port): self.data_port = int(self.data_port)
             if(self.command_port): self.command_port = int(self.command_port)
@@ -87,11 +99,19 @@ class CommConfig(object):
         
         if(self.data_port): self.data_port = int(self.data_port)
         if(self.command_port): self.command_port = int(self.command_port)
+        if(self.sniffer_port): self.sniffer_port = int(self.sniffer_port)
 
-        return { 'method': self.method(),
+        result = { 'method': self.method(),
                  'data_port': self.data_port,
-                 'command_port': self.command_port }
+                 'command_port': self.command_port,
+                 'host': self.host,
+                 'sniffer_port': self.sniffer_port,
+        }
 
+        if(self.sniffer_prefix): result['sniffer_prefix'] = self.sniffer_prefix
+        if(self.sniffer_suffix): result['sniffer_suffix'] = self.sniffer_suffix
+
+        return result
 
     ###
     #   Public Methods
@@ -160,11 +180,17 @@ class CommConfig(object):
         """
         @brief Read comm config from the console.  This should be overloaded in a sub class.
         """
+        if(not self.host): self.host = DEFAULT_HOST
         if(not self.data_port): self.data_port = DEFAULT_DATA_PORT
         if(not self.command_port): self.command_port = DEFAULT_CMD_PORT
+        if(not self.sniffer_port): self.sniffer_port = DEFAULT_SNIFFER_PORT
 
+        self.host = prompt.text( 'Port Agent Host', self.host )
         self.data_port = prompt.text( 'Port Agent Data Port', self.data_port )
         self.command_port = prompt.text( 'Port Agent Command Port', self.command_port )
+        self.sniffer_port = prompt.text( 'Port Agent Sniffer Port', self.sniffer_port )
+        #self.sniffer_prefix = prompt.text( 'Port Agent Sniffer Prefix', self.sniffer_prefix )
+        #self.sniffer_suffix = prompt.text( 'Port Agent Sniffer Suffix', self.sniffer_suffix )
 
         if( self.confirm_config() ):
             self.store_to_file()
