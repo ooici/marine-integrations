@@ -620,26 +620,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
         self.assert_parameters(reply, self._driver_parameters, True)
         return reply
-    
-    def assert_set_exception(self, param, value='dummyvalue', error_regex=None, exception_class=InstrumentParameterException):
-        """
-        over-ridden to output exception to manually check that it is the right one
-        Verify that a set command raises an exception on set.
-        @param param: parameter to set
-        @param value: what to set the parameter too
-        @param error_regex: error message pattern to match
-        @param exception_class: class of the exception raised
-        """
-        if(error_regex):
-            with self.assertRaisesRegexp(exception_class, error_regex):
-                reply = self.driver_client.cmd_dvr('set_resource', {param: value})
-        else:
-            with self.assertRaises(exception_class):
-                try:
-                    reply = self.driver_client.cmd_dvr('set_resource', {param: value})
-                except Exception as ex:
-                    log.debug('assert_set_exception: exception=%s' %ex)
-                    raise ex
 
     def test_instrument_wakeup(self):
         """
@@ -647,7 +627,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         """
         self.assert_initialize_driver()
                 
-               
     def test_get_parameters(self):
         """
         Test driver parameters and verify their type.  Startup parameters also verify the parameter
@@ -657,7 +636,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         reply = self._assert_parameters_on_initialization()
         for (name, value) in reply.iteritems():
             log.debug("test_get_parameters: name=%s, value=%s" %(name, str(value)))
-
 
     def test_set_clock(self):
         """
