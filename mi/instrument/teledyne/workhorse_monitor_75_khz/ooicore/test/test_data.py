@@ -108,8 +108,7 @@ break_alarm_str = NEWLINE + "[ALARM Wakeup A]" + NEWLINE +\
 EF_CHAR = '\xef'
 
 CALIBRATION_RAW_DATA = \
-"" + NEWLINE +\
-"              ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM" + NEWLINE + \
+"ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM" + NEWLINE + \
 "               Calibration date and time: 9/14/2012  09:25:32" + NEWLINE + \
 "                             S inverse" + NEWLINE + \
 "          " + EF_CHAR + "                                                  " + EF_CHAR + "" + NEWLINE + \

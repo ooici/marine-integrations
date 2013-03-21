@@ -42,6 +42,7 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentStateException
 from struct import *
+from mi.core.exceptions import SampleException
 
 # newline.
 NEWLINE = '\n'
@@ -64,10 +65,10 @@ DATA_TYPE_LOC_INDEX_BASE = 12
 ADCP_PD0_PARSED_REGEX = r'\x7f\x7f(.*)' #(.{230})' #2152 total...
 ADCP_PD0_PARSED_REGEX_MATCHER = re.compile(ADCP_PD0_PARSED_REGEX, re.DOTALL)
 
-ADCP_SYSTEM_CONFIGURATION_REGEX = r'(Instrument S/N.*)\>'
+ADCP_SYSTEM_CONFIGURATION_REGEX = r'(Instrument S/N.*?)\>'
 ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER = re.compile(ADCP_SYSTEM_CONFIGURATION_REGEX, re.DOTALL)
 
-ADCP_COMPASS_CALIBRATION_REGEX = r'(ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM.*)\>'
+ADCP_COMPASS_CALIBRATION_REGEX = r'(ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM.*?)\>'
 ADCP_COMPASS_CALIBRATION_REGEX_MATCHER = re.compile(ADCP_COMPASS_CALIBRATION_REGEX, re.DOTALL)
 
 """
@@ -475,6 +476,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
     def parse_fixed_chunk(self, chunk):
         """
+        @throws SampleException If there is a problem with sample creation
         """
         (fixed_leader_id, firmware_version, firmware_revision, sysconfig_frequency, data_flag, lag_length, num_beams, num_cells, pings_per_ensemble,
          depth_cell_length, blank_after_transmit, signal_processing_mode, low_corr_threshold, num_code_repetitions, percent_good_min, error_vel_threshold,
@@ -485,7 +487,8 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         = unpack('!HBBHbBBBHHHBBBBHBBBBhhBBHHBBBBHQHBBIB', chunk[0:59])
 
         if 0 != fixed_leader_id:
-            raise Exception
+            raise SampleException("fixed_leader_id was not equal to 0")
+
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.FIXED_LEADER_ID,
                                   DataParticleKey.VALUE: fixed_leader_id})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.FIRMWARE_VERSION,
@@ -507,7 +510,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                   DataParticleKey.VALUE: 1 if sysconfig_frequency & 0b10000000 else 0})
 
         if 0 != data_flag:
-            raise Exception
+            raise SampleException("data_flag was not equal to 0")
 
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.DATA_FLAG,
                                   DataParticleKey.VALUE: data_flag})
@@ -525,7 +528,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                   DataParticleKey.VALUE: blank_after_transmit})
 
         if 1 != signal_processing_mode:
-            raise Exception
+            raise SampleException("signal_processing_mode was not equal to 1")
 
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SIGNAL_PROCESSING_MODE,
                                   DataParticleKey.VALUE: signal_processing_mode})
@@ -611,6 +614,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
     def parse_variable_chunk(self, chunk):
         """
+        @throws SampleException If there is a problem with sample creation
         """
         rtc = {}
         rtc2k = {}
@@ -629,7 +633,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         = unpack('<HHBBBBBBBBBBHHHhhHhBBBBBBBBBBBBBBBBBBBBLBLBBBBBBBB', chunk[0:65])
 
         if 128 != variable_leader_id:
-            raise Exception
+            raise SampleException("variable_leader_id was not equal to 128")
 
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.VARIABLE_LEADER_ID,
                                   DataParticleKey.VALUE: variable_leader_id})
@@ -742,13 +746,14 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
     def parse_velocity_chunk(self, chunk):
         """
+        @throws SampleException If there is a problem with sample creation
         """
         N = (len(chunk) - 2) / 2 /4
         offset = 0
 
         velocity_data_id = unpack("!H", chunk[0:2])[0]
         if 1 != velocity_data_id:
-            raise Exception
+            raise SampleException("velocity_data_id was not equal to 1")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.VELOCITY_DATA_ID,
                                       DataParticleKey.VALUE: velocity_data_id})
 
@@ -772,6 +777,16 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: beam_3_velocity})
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_4_VELOCITY,
                                       DataParticleKey.VALUE: beam_4_velocity})
+            # place holders
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.WATER_VELOCITY_EAST,
+                                      DataParticleKey.VALUE: []})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.WATER_VELOCITY_NORTH,
+                                      DataParticleKey.VALUE: []})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.WATER_VELOCITY_UP,
+                                      DataParticleKey.VALUE: []})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ERROR_VELOCITY,
+                                      DataParticleKey.VALUE: []})
+
 
         elif 3 == self.coord_transform_type: # Earth Coordinates
             water_velocity_east = []
@@ -793,18 +808,28 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: water_velocity_up})
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ERROR_VELOCITY,
                                       DataParticleKey.VALUE: error_velocity})
+            # place holders
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_1_VELOCITY,
+                                      DataParticleKey.VALUE: []})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_2_VELOCITY,
+                                      DataParticleKey.VALUE: []})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_3_VELOCITY,
+                                      DataParticleKey.VALUE: []})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_4_VELOCITY,
+                                      DataParticleKey.VALUE: []})
         else:
-            raise Exception
+            raise SampleException("coord_transform_type not coded for.")
 
     def parse_corelation_magnitude_chunk(self, chunk):
         """
+        @throws SampleException If there is a problem with sample creation
         """
         N = (len(chunk) - 2) / 2 /4
         offset = 0
 
         correlation_magnitude_id = unpack("!H", chunk[0:2])[0]
         if 2 != correlation_magnitude_id:
-            raise Exception
+            raise SampleException("correlation_magnitude_id was not equal to 2")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CORRELATION_MAGNITUDE_ID,
                                       DataParticleKey.VALUE: correlation_magnitude_id})
 
@@ -831,13 +856,14 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
     def parse_echo_intensity_chunk(self, chunk):
         """
+        @throws SampleException If there is a problem with sample creation
         """
         N = (len(chunk) - 2) / 2 /4
         offset = 0
 
         echo_intensity_id = unpack("!H", chunk[0:2])[0]
         if 3 != echo_intensity_id:
-            raise Exception
+            raise SampleException("echo_intensity_id was not equal to 3")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ECHO_INTENSITY_ID,
                                       DataParticleKey.VALUE: echo_intensity_id})
 
@@ -864,6 +890,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
     def parse_percent_good_chunk(self, chunk):
         """
+        @throws SampleException If there is a problem with sample creation
         """
         N = (len(chunk) - 2) / 2 /4
         offset = 0
@@ -874,7 +901,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
         percent_good_id = unpack("!H", chunk[0:2])[0]
         if 4 != percent_good_id:
-            raise Exception
+            raise SampleException("percent_good_id was not equal to 4")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_ID,
                                       DataParticleKey.VALUE: percent_good_id})
 
@@ -898,6 +925,16 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: percent_good_beam3})
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM4,
                                       DataParticleKey.VALUE: percent_good_beam4})
+            # unused place holders
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_3BEAM,
+                                      DataParticleKey.VALUE: []})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_TRANSFORMS_REJECT,
+                                      DataParticleKey.VALUE: []})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_BAD_BEAMS,
+                                      DataParticleKey.VALUE: []})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_4BEAM,
+                                      DataParticleKey.VALUE: []})
+
         elif 3 == self.coord_transform_type: # Earth Coordinates
             percent_good_3beam = []
             percent_transforms_reject = []
@@ -918,8 +955,17 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: percent_bad_beams})
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_4BEAM,
                                       DataParticleKey.VALUE: percent_good_4beam})
+            # unused place holders
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM1,
+                                      DataParticleKey.VALUE: []})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM2,
+                                      DataParticleKey.VALUE: []})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM3,
+                                      DataParticleKey.VALUE: []})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM4,
+                                      DataParticleKey.VALUE: []})
         else:
-            raise Exception
+            raise SampleException("coord_transform_type not coded for.")
 
 class ADCP_SYSTEM_CONFIGURATION_KEY(BaseEnum):
     # https://confluence.oceanobservatories.org/display/instruments/ADCP+Driver
@@ -1444,11 +1490,22 @@ class TeledyneProtocol(ADCPProtocol):
                 for match in matcher.finditer(raw_data):
                     l = unpack("H", match.group(1))
                     log.debug("LEN IS = %s", str(l[0]))
+                    outer_pos = match.start()
+                    log.debug("MATCH START = " + str(outer_pos))
                     ADCP_PD0_PARSED_TRUE_MATCHER = re.compile(r'\x7f\x7f(.{' + str(l[0]) + '})', re.DOTALL)
 
-                    for match in ADCP_PD0_PARSED_TRUE_MATCHER.finditer(raw_data):
-                        # and lets append the true variant binary record.
-                        return_list.append((match.start(), match.end()))
+
+                    for match in ADCP_PD0_PARSED_TRUE_MATCHER.finditer(raw_data, outer_pos):
+                        inner_pos = match.start()
+                        log.debug("INNER MATCH START = " + str(inner_pos))
+                        if (outer_pos == inner_pos):
+                            return_list.append((match.start(), match.end()))
+                    """
+                    match_iter = ADCP_PD0_PARSED_TRUE_MATCHER.finditer(raw_data, pos)
+                    match_iter.
+                    match = match_iter.next()
+                    return_list.append((match.start(), match.end()))
+                    """
             else:
                 for match in matcher.finditer(raw_data):
                     log.debug("MATCHED!!!!! %d .. %d", match.start(), match.end())
