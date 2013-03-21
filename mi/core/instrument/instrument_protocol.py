@@ -1134,7 +1134,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
 
         """
-        Because the output of the instrument does not generate events, do_cmd_rsp 
+        Because the output of the instrument does not generate events, do_cmd_resp 
         jumps right in here looking for a response, and often it is before the 
         complete response has arrived, so we can miss it.  The read delay
         is to alleviate that problem.

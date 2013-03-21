@@ -161,15 +161,15 @@ class Mavs4Mixin(DriverTestMixin):
         InstrumentParameters.BURST_INTERVAL_MINUTES : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
         InstrumentParameters.BURST_INTERVAL_SECONDS : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
         InstrumentParameters.SI_CONVERSION : {TYPE: float, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.WARM_UP_INTERVAL : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'fast'},
-        InstrumentParameters.THREE_AXIS_COMPASS : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'y'},
-        InstrumentParameters.SOLID_STATE_TILT : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'y'},
-        InstrumentParameters.THERMISTOR : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'y'},
-        InstrumentParameters.PRESSURE : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'n'},
-        InstrumentParameters.AUXILIARY_1 : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'n'},
-        InstrumentParameters.AUXILIARY_2 : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'n'},
-        InstrumentParameters.AUXILIARY_3 : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'n'},
-        InstrumentParameters.SENSOR_ORIENTATION : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: '2'},
+        InstrumentParameters.WARM_UP_INTERVAL : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'f'},
+        InstrumentParameters.THREE_AXIS_COMPASS : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'y'},
+        InstrumentParameters.SOLID_STATE_TILT : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'y'},
+        InstrumentParameters.THERMISTOR : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'y'},
+        InstrumentParameters.PRESSURE : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'n'},
+        InstrumentParameters.AUXILIARY_1 : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'n'},
+        InstrumentParameters.AUXILIARY_2 : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'n'},
+        InstrumentParameters.AUXILIARY_3 : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'n'},
+        InstrumentParameters.SENSOR_ORIENTATION : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '2'},
         InstrumentParameters.SERIAL_NUMBER : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.VELOCITY_OFFSET_PATH_A : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.VELOCITY_OFFSET_PATH_B : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
@@ -186,34 +186,25 @@ class Mavs4Mixin(DriverTestMixin):
     }
 
     # parameter values to test.
-    paramter_values = {InstrumentParameters.NOTE1 : 'New note1 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                       InstrumentParameters.NOTE2 : 'New note2 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                       InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                       InstrumentParameters.VELOCITY_FRAME : '3',
-                       InstrumentParameters.MONITOR : 'y',
-                       InstrumentParameters.LOG_DISPLAY_TIME : 'y',
-                       InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : 'y',
-                       InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'HEX',
-                       InstrumentParameters.QUERY_MODE : 'n',
-                       InstrumentParameters.FREQUENCY : 2.0,
-                       InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
-                       InstrumentParameters.SAMPLE_PERIOD : 5.0,
-                       InstrumentParameters.SAMPLES_PER_BURST : 2,
-                       InstrumentParameters.BURST_INTERVAL_DAYS : 0,
-                       InstrumentParameters.BURST_INTERVAL_HOURS : 0,
-                       InstrumentParameters.BURST_INTERVAL_MINUTES : 0,
-                       InstrumentParameters.BURST_INTERVAL_SECONDS : 0,
-                       InstrumentParameters.SI_CONVERSION : .00231,
-                       InstrumentParameters.WARM_UP_INTERVAL : 'Fast',
-                       InstrumentParameters.THREE_AXIS_COMPASS : 'y',
-                       InstrumentParameters.SOLID_STATE_TILT : 'y',
-                       InstrumentParameters.THERMISTOR : 'y',
-                       InstrumentParameters.PRESSURE : 'n',
-                       InstrumentParameters.AUXILIARY_1 : 'n',
-                       InstrumentParameters.AUXILIARY_2 : 'n',
-                       InstrumentParameters.AUXILIARY_3 : 'n',
-                       InstrumentParameters.SENSOR_ORIENTATION : '2'
-                       }
+    parameter_values = {
+        InstrumentParameters.NOTE1 : 'New note1 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        InstrumentParameters.NOTE2 : 'New note2 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        InstrumentParameters.MONITOR : 'y',
+        InstrumentParameters.LOG_DISPLAY_TIME : 'y',
+        InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : 'y',
+        InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'HEX',
+        InstrumentParameters.QUERY_MODE : 'n',
+        InstrumentParameters.FREQUENCY : 2.0,
+        InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
+        InstrumentParameters.SAMPLE_PERIOD : 5.0,
+        InstrumentParameters.SAMPLES_PER_BURST : 2,
+        InstrumentParameters.BURST_INTERVAL_DAYS : 0,
+        InstrumentParameters.BURST_INTERVAL_HOURS : 0,
+        InstrumentParameters.BURST_INTERVAL_MINUTES : 0,
+        InstrumentParameters.BURST_INTERVAL_SECONDS : 0,
+        InstrumentParameters.SI_CONVERSION : .00231,
+    }
         
     _status_parameters = {
         Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_A: {TYPE: int, VALUE: 1 },
@@ -369,7 +360,6 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(InstrumentPrompts())
-        self.assert_enum_has_no_duplicates(InstrumentCmds())
         self.assert_enum_has_no_duplicates(ProtocolStates())
         self.assert_enum_has_no_duplicates(ProtocolEvent())
         self.assert_enum_has_no_duplicates(InstrumentParameters())
@@ -546,8 +536,8 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
 
         # construct values dynamically to get time stamp for notes
         new_parameter_values = {}
-        for key in self.paramter_values.iterkeys():
-            new_parameter_values[key] = self.paramter_values[key]
+        for key in self.parameter_values.iterkeys():
+            new_parameter_values[key] = self.parameter_values[key]
                
         # Set parameters and verify.
         self.assert_set_bulk(new_parameter_values)

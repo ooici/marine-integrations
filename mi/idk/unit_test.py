@@ -1070,7 +1070,6 @@ class InstrumentDriverTestCase(MiIntTestCase):
         """
         Assert that every item in subset is in superset
         """
-
         # use assertTrue here intentionally because it's easier to unit test
         # this method.
         if len(superset):
@@ -1092,7 +1091,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
 
         for k in occurances:
             if occurances[k] > 1:
-                log.error(str(obj) + " has ambigous duplicate values for '" + str(k) + "'")
+                log.error(str(obj) + " has ambiguous duplicate values for '" + str(k) + "'")
                 self.assertEqual(1, occurances[k])
 
     def assert_chunker_sample(self, chunker, sample):

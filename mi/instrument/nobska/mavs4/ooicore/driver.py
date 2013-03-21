@@ -176,6 +176,7 @@ class InstrumentCmds(BaseEnum):   # these all must be unique for the fsm and dic
     SET_THERMISTOR                             = ' 3'                          # make different from CALIBRATION_MENU with leading space                 
     ENTER_THERMISTOR                           = 'enter_thermistor'
     ANSWER_THERMISTOR_NO                       = 'n'
+    ANSWER_THERMISTOR_YES                      = 'y'
     SET_PRESSURE                               = ' 4'                          # make different from SET_FREQUENCY with leading space                         
     ENTER_PRESSURE                             = 'enter_pressure'
     SET_AUXILIARY                              = 'set_auxiliary'                          
@@ -348,7 +349,6 @@ class SubMenues(BaseEnum):
     CONFIGURATION = 'configuration'
     PICO_DOS      = 'pico_dos'
     DUMMY         = 'dummy'
-    
 
 class Mavs4ProtocolParameterDict(ProtocolParameterDict):
     
@@ -394,7 +394,8 @@ class Mavs4ProtocolParameterDict(ProtocolParameterDict):
         ProtocolParameterDict.add_parameter(self, val)
                 
     def update(self, name, response):
-        #log.debug('Mavs4ProtocolParameterDict.update(): set %s from \n%s' %(name, response))
+        #log.debug('Mavs4ProtocolParameterDict.update(): set %s from \n%s',
+        # name, response)
         response = self._param_dict[name].update(response)
         return response
 
@@ -406,7 +407,7 @@ class Mavs4ProtocolParameterDict(ProtocolParameterDict):
         @param value The parameter value.
         @raises KeyError if the name is invalid.
         """
-        log.debug("setting " + name + " to " + str(value))
+        log.debug("setting %s to %s", name, str(value))
         self._param_dict[name].value = value
         
 ###
@@ -476,7 +477,7 @@ class Mavs4SampleDataParticle(DataParticle):
         if not match:
             raise SampleException("Mavs4SampleDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
         
-        #log.debug('_build_parsed_values: match=%s' %match.group(0))
+        #log.debug('_build_parsed_values: match=%s', match.group(0))
                 
         try:
             datetime = match.group(1) + ' ' + match.group(2)
@@ -528,7 +529,7 @@ class Mavs4SampleDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.ROLL,
                    DataParticleKey.VALUE: roll}]
  
-        log.debug('Mavs4SampleDataParticle: particle=%s' %result)
+        log.debug('Mavs4SampleDataParticle: particle=%s', result)
         return result
     
 class Mavs4StatusDataParticleKey(BaseEnum):
@@ -570,14 +571,14 @@ class Mavs4StatusDataParticle(DataParticle):
         if not isinstance(self.raw_data, dict):
             raise SampleException("Error: raw_data is not a dictionary")
                      
-        log.debug('Mavs4StatusDataParticle: raw_data=%s' %self.raw_data)
+        log.debug('Mavs4StatusDataParticle: raw_data=%s', self.raw_data)
 
         result = []
         for key, value in self.raw_data.items():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
              
-        log.debug('Mavs4StatusDataParticle: particle=%s' %result)
+        log.debug('Mavs4StatusDataParticle: particle=%s', result)
         return result
     
 ###
@@ -823,7 +824,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                     return (item, self._linebuf)
 
             if time.time() > starttime + timeout:
-                log.debug("_get_response: promptbuf=%s (%s)" %(self._promptbuf, self._promptbuf.encode("hex")))
+                log.debug("_get_response: promptbuf=%s (%s), prompt_list: %s",
+                          self._promptbuf, self._promptbuf.encode("hex"), prompt_list)
                 raise InstrumentTimeoutException("in InstrumentProtocol._get_response()")
 
             time.sleep(.1)
@@ -856,7 +858,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # Get dest_submenu 
         dest_submenu = kwargs.pop('dest_submenu', None)
         if dest_submenu == None:
-            raise InstrumentProtocolException('_navigate_and_execute(): dest_submenu parameter missing')
+            raise InstrumentParameterException('_navigate_and_execute(): dest_submenu parameter missing')
 
         # save timeout and expected_prompt for the execution of the actual command after any traversing of the menu
         cmd_timeout = kwargs.pop('timeout', None)
@@ -865,19 +867,23 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # iterate through the menu traversing directions 
         directions_list = self._menu.get_directions(dest_submenu)
         for directions in directions_list:
-            log.debug('_navigate_and_execute: directions: %s' %(directions))
+            log.debug('_navigate_and_execute: directions: %s', directions)
             command = directions.get_command()
+            log.debug("*** command: %s", command)
             response = directions.get_response()
+            log.debug("*** response: %s", response)
             timeout = directions.get_timeout()
+            log.debug("*** timeout: %s", timeout)
             self._do_cmd_resp(command, expected_prompt = response, timeout = timeout, **kwargs)
+            log.debug("*** FINISHED!")
 
         # restore timeout and expected_prompt for the execution of the actual command 
         kwargs['timeout'] = cmd_timeout
         kwargs['expected_prompt'] = cmd_expected_prompt
         command = cmd
         while command != None:
-            log.debug('_navigate_and_execute: sending cmd:%s, kwargs: %s to _do_cmd_resp.' 
-                      %(command, kwargs))
+            log.debug('_navigate_and_execute: sending cmd:%s, kwargs: %s to _do_cmd_resp.', 
+                      command, kwargs)
             command = self._do_cmd_resp(command, **kwargs)
 
     def _do_cmd_resp(self, cmd, *args, **kwargs):
@@ -907,13 +913,13 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             expected_prompt = expected_response
             
         # Send command.
-        log.debug('mavs4InstrumentProtocol._do_cmd_resp: <%s> (%s), timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,' 
-                  %(cmd_line, cmd_line.encode("hex"), timeout, expected_prompt, 
-                    expected_prompt.encode("hex") if expected_prompt != None else ''))
+        log.debug('mavs4InstrumentProtocol._do_cmd_resp: <%s> (%s), timeout=%s, expected_prompt=%s, expected_prompt(hex)=%s,', 
+                  cmd_line, cmd_line.encode("hex"), timeout, expected_prompt, 
+                    expected_prompt.encode("hex") if expected_prompt != None else '')
         for char in cmd_line:       
             self._linebuf = ''      # Clear line and prompt buffers for result.
             self._promptbuf = ''
-            log.debug('mavs4InstrumentProtocol._do_cmd_resp: sending char <%s>' %char)
+            log.debug('mavs4InstrumentProtocol._do_cmd_resp: sending char <%s>', char)
             self._connection.send(char)
             # Wait for the character to be echoed, timeout exception
             self._get_response(timeout, expected_prompt='%s'%char)
@@ -983,14 +989,14 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @raise: InstrumentProtocolException if not in command or streaming
         """
 
-        log.debug("apply_startup_params: CURRENT STATE = %s" % self.get_current_state())
+        log.debug("apply_startup_params: CURRENT STATE = %s", self.get_current_state())
         if (self.get_current_state() != ProtocolStates.COMMAND):
             raise InstrumentProtocolException("Not in command state. Unable to apply startup parameters")
 
         # If our configuration on the instrument matches what we think it should be then 
         # we don't need to do anything.
         startup_params = self._param_dict.get_startup_list()
-        log.debug("Startup Parameters: %s" % startup_params)
+        log.debug("Startup Parameters: %s", startup_params)
         instrument_configured = True
         for param in startup_params:
             if (self._param_dict.get(param) != self._param_dict.get_config_value(param)):
@@ -1000,7 +1006,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             return
         
         config = self.get_startup_config()
-        self._handler_command_set(config)
+        self._handler_command_set(config, startup=True)
 
 
     ########################################################################
@@ -1058,7 +1064,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # Command device to update parameters and send a config change event.
         self._update_params()
         
-        log.debug("parameters values are: %s" %str(self._param_dict.get_config()))
+        log.debug("parameters values are: %s", str(self._param_dict.get_config()))
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -1082,13 +1088,15 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 # if there isn't a set for enabling the monitor parameter then force a set so sub-parameters will be set
                 dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.MONITOR)
                 command = self._param_dict.get_submenu_write(InstrumentParameters.MONITOR)
-                self._navigate_and_execute(command, name=key, value='y', dest_submenu=dest_submenu, timeout=5)
+                self._navigate_and_execute(command, name=key, value='y',
+                                           dest_submenu=dest_submenu, timeout=5)
                 # check to see if the monitor parameter needs to be reset from the 'enabled' value
                 monitor = self._param_dict.get(InstrumentParameters.MONITOR)
                 if monitor != 'y':
                     dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.MONITOR)
                     command = self._param_dict.get_submenu_write(InstrumentParameters.MONITOR)
-                    self._navigate_and_execute(command, name=key, value=monitor, dest_submenu=dest_submenu, timeout=5)
+                    self._navigate_and_execute(command, name=key, value=monitor,
+                                               dest_submenu=dest_submenu, timeout=5)
             # remove the sub-parameters from the params_to_set dictionary
             for parameter in parameters_dict:
                 del params_to_set[parameter]
@@ -1101,7 +1109,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 self._param_dict.set(key, value)
             dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.BURST_INTERVAL_DAYS)
             command = self._param_dict.get_submenu_write(InstrumentParameters.BURST_INTERVAL_DAYS)
-            self._navigate_and_execute(command, name=key, dest_submenu=dest_submenu, timeout=5)
+            self._navigate_and_execute(command, name=key,
+                                       dest_submenu=dest_submenu, timeout=5)
             # remove the sub-parameters from the params_to_set dictionary
             for parameter in parameters_dict:
                 del params_to_set[parameter]
@@ -1110,16 +1119,23 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _handler_command_set(self, *args, **kwargs):
         """
         Perform a set command.
-        @param args[0] parameter : value dict.
+        @param args[0] parameter : value dict configuration
+        @param kwargs['startup'] startup boolean: True if we are starting up,
+            false otherwise
         @retval (next_state, result) tuple, (None, None).
-        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
-        not a dict, or if paramter can't be properly formatted.
-        @throws InstrumentTimeoutException if device cannot be woken for set command.
-        @throws InstrumentProtocolException if set command could not be built or misunderstood.
+        @throws InstrumentParameterException if missing set parameters, if set
+        parameters not ALL and not a dict, or if paramter can't be properly
+        formatted.
+        @throws InstrumentTimeoutException if device cannot be woken for set
+        command.
+        @throws InstrumentProtocolException if set command could not be built
+        or misunderstood.
         """
         next_state = None
         result = None
 
+        log.debug("*** Entering _handler_command_set with args: %s", args)
+        log.debug("*** Entering _handler_command_set with kwargs: %s", kwargs)
         # Retrieve required parameter from args.
         # Raise exception if no parameter provided, or not a dict.
         try:
@@ -1130,12 +1146,24 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             if not isinstance(params_to_set, dict):
                 raise InstrumentParameterException('Set parameters not a dict.')
         
+        startup = kwargs.get('startup', False)
+        log.debug("*** startup is %s", startup)
+        if not startup:
+            readonly = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
+            log.debug("*** Read only keys during non startup: %s", readonly)
+            #log.trace("Read only keys during non startup: %s", readonly)
+
+            for (key, val) in params_to_set.iteritems():
+                if key in readonly:
+                    raise InstrumentParameterException("Attempt to set read only parameter (%s)" % key)
+
         self._set_parameter_sub_parameters(params_to_set)
                 
         for (key, val) in params_to_set.iteritems():
             dest_submenu = self._param_dict.get_menu_path_write(key)
             command = self._param_dict.get_submenu_write(key)
-            self._navigate_and_execute(command, name=key, value=val, dest_submenu=dest_submenu, timeout=5)
+            self._navigate_and_execute(command, name=key, value=val,
+                                       dest_submenu=dest_submenu, timeout=5)
 
         self._update_params()
             
@@ -1238,7 +1266,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         log.info("_handler_command_clock_sync: time set to %s" %str_time)
         dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.SYS_CLOCK)
         command = self._param_dict.get_submenu_write(InstrumentParameters.SYS_CLOCK)
-        self._navigate_and_execute(command, name=InstrumentParameters.SYS_CLOCK, value=str_time, dest_submenu=dest_submenu, timeout=5)
+        self._navigate_and_execute(command,
+                                   name=InstrumentParameters.SYS_CLOCK,
+                                   value=str_time,
+                                   dest_submenu=dest_submenu,
+                                   timeout=5)
 
         return (next_state, (next_agent_state, result))
 
@@ -1353,48 +1385,56 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             # can't send events, so don't bother creating the particle
             return
         
-        # update parameters so param_dict values used for status are latest and greatest.
+        # update parameters so param_dict values used for status are latest
+        # and greatest.
         self._update_params()
 
-        # build a dictionary of the parameters that are to be returned in the status data particle
+        # build a dictionary of the parameters that are to be returned in the
+        # status data particle
         status_params = {}
         for name in Mavs4StatusDataParticleKey.list():
             status_params[name] = self._param_dict.get(name)
             
-        # Create status data particle, but pass in a reference to the dictionary just created as first parameter instead of the 'line'.
-        # The status data particle class will use the 'raw_data' variable as a reference to a dictionary object to get
-        # access to parameter values (see the Mavs4StatusDataParticle class).
-        particle = Mavs4StatusDataParticle(status_params, preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
+        # Create status data particle, but pass in a reference to the
+        # dictionary just created as first parameter instead of the 'line'.
+        # The status data particle class will use the 'raw_data' variable as a
+        # reference to a dictionary object to get access to parameter values
+        # (see the Mavs4StatusDataParticle class).
+        particle = Mavs4StatusDataParticle(status_params,
+                                           preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP)
         status = particle.generate()
 
         # send particle as an event
         self._driver_event(DriverAsyncEvent.SAMPLE, status)
     
     def _send_control_c(self, count):
-        # spoon feed the control-c characters so instrument doesn't drop them if they are sent too fast
+        # spoon feed the control-c characters so instrument doesn't drop them
+        # if they are sent too fast
         for n in range(count):
             self._connection.send(InstrumentCmds.CONTROL_C)
             time.sleep(.1)            
     
     def _go_to_root_menu(self):
-        # try to get root menu presuming the instrument is not sleeping by sending single control-c
+        # try to get root menu presuming the instrument is not sleeping by
+        # sending single control-c
         for attempt in range(0,2):
             self._linebuf = ''
             self._promptbuf = ''
             self._connection.send(InstrumentCmds.CONTROL_C)
             try:
-                (prompt, result) = self._get_response(timeout= 4, expected_prompt=[InstrumentPrompts.MAIN_MENU,
-                                                                                   InstrumentPrompts.SLEEPING])
+                (prompt, result) = self._get_response(timeout= 4,
+                                                      expected_prompt=[InstrumentPrompts.MAIN_MENU,
+                                                                       InstrumentPrompts.SLEEPING])
             except:
-                log.debug('_go_to_root_menu: TIMED_OUT WAITING FOR ROOT MENU FROM ONE CONTROL-C !!!!!!!!!!!!!!!')
+                log.trace('_go_to_root_menu: TIMED_OUT WAITING FOR ROOT MENU FROM ONE CONTROL-C !')
                 pass
             else:
                 if prompt == InstrumentPrompts.MAIN_MENU:
-                    log.debug("_go_to_root_menu: got root menu prompt")
+                    log.trace("_go_to_root_menu: got root menu prompt")
                     return
                 if prompt == InstrumentPrompts.SLEEPING:
                     # instrument says it is sleeping, so try to wake it up
-                    log.debug("_go_to_root_menu: GOT SLEEPING PROMPT !!!!!!!!!!!!!!!!!!!!!!!")
+                    log.trace("_go_to_root_menu: GOT SLEEPING PROMPT !")
                     break
         # instrument acts like it's asleep, so try to wake it up and get to root menu
         count = 3   # send 3 control-c characters to get the instruments attention
@@ -1402,27 +1442,31 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             self._linebuf = ''
             self._promptbuf = ''
             prompt = 'no prompt received'
-            log.debug("_go_to_root_menu: sending %d control-c characters to wake up sleeping instrument" %count)
+            log.debug("_go_to_root_menu: sending %d control-c characters to wake up sleeping instrument", count)
             self._send_control_c(count)
             try:
-                (prompt, result) = self._get_response(timeout= 4, expected_prompt=[InstrumentPrompts.MAIN_MENU,
-                                                                                   InstrumentPrompts.SLEEP_WAKEUP,
-                                                                                   InstrumentPrompts.SLEEPING])
+                (prompt, result) = self._get_response(timeout= 4,
+                                                      expected_prompt=[InstrumentPrompts.MAIN_MENU,
+                                                                       InstrumentPrompts.SLEEP_WAKEUP,
+                                                                       InstrumentPrompts.SLEEPING])
             except:
-                log.debug('_go_to_root_menu: TIMED_OUT WAITING FOR PROMPT FROM 3 CONTROL-Cs !!!!!!!!!!!!!!!')
+                log.debug('_go_to_root_menu: TIMED_OUT WAITING FOR PROMPT FROM 3 CONTROL-Cs !')
                 pass
-            log.debug("_go_to_root_menu: prompt after sending %d control-c characters = <%s>" %(count, prompt))
+            log.debug("_go_to_root_menu: prompt after sending %d control-c characters = <%s>",
+                      count, prompt)
             if prompt == InstrumentPrompts.MAIN_MENU:
                 return
             if prompt == InstrumentPrompts.SLEEP_WAKEUP:
                 count = 1    # send 1 control=c to get the root menu
             if prompt == InstrumentPrompts.SLEEPING:
-                count = 3    # send 3 control-c characters to get the instruments attention
-        log.debug("_go_to_root_menu: failed to get to root menu, prompt=%s (%s)" %(prompt, prompt.encode("hex")))
+                count = 3    # send 3 control-c chars to get the instruments attention
+        log.debug("_go_to_root_menu: failed to get to root menu, prompt=%s (%s)",
+                  prompt, prompt.encode("hex"))
         raise InstrumentTimeoutException("failed to get to root menu.")
                 
     def _parse_sensor_orientation(self, sensor_orientation):
-        #log.debug('_parse_sensor_orientation: vf=%s (%s)' %(sensor_orientation, sensor_orientation.encode('hex')))
+        #log.debug('_parse_sensor_orientation: vf=%s (%s)',
+        #   sensor_orientation, sensor_orientation.encode('hex'))
         if 'Vertical/Down' in sensor_orientation:
             return '1'
         if 'Vertical/Up' in sensor_orientation:
@@ -1441,7 +1485,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             return ''
     
     def _parse_velocity_frame(self, velocity_frame):
-        #log.debug('_parse_velocity_frame: vf=%s (%s)' %(velocity_frame, velocity_frame.encode('hex')))
+        #log.debug('_parse_velocity_frame: vf=%s (%s)',
+        #   velocity_frame, velocity_frame.encode('hex'))
         if 'No Velocity Frame' in velocity_frame:
             return '1'
         if '(U, V, W)' in velocity_frame:
@@ -1454,7 +1499,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             return '0'
     
     def _parse_enable_disable(self, input):
-        #log.debug('_parse_enable_disable: input=%s (%s)' %(input, input.encode('hex')))
+        #log.debug('_parse_enable_disable: input=%s (%s)', input, input.encode('hex'))
         if 'Enabled' in input:
             return 'y'
         if 'Disabled' in input:
@@ -1463,7 +1508,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             return 'unknown_state'
     
     def _parse_on_off(self, input):
-        #log.debug('_parse_on_off: input=%s (%s)' %(input, input.encode('hex')))
+        #log.debug('_parse_on_off: input=%s (%s)', input, input.encode('hex'))
         if 'Off' in input:
             return 'n'
         if 'On' in input:
@@ -1643,10 +1688,12 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              submenu_write=InstrumentCmds.SET_SI_CONVERSION)
 
         self._param_dict.add(InstrumentParameters.WARM_UP_INTERVAL,
-                             r'.*<W> Warm up interval\s+(\w+)\s+.*', 
+                             r'.*<W> Warm up interval\s+(\w)\w*\s+.*', 
                              lambda match : match.group(1),
                              lambda string : str(string),
-                             default_value='fast',
+                             startup_param=True,
+                             default_value='f',
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
@@ -1657,6 +1704,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : self._parse_enable_disable(match.group(1)),
                              lambda string : str(string),
                              default_value='y',
+                             startup_param=True,
+                             visibility=ParameterDictVisibility.READ_ONLY,                             
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
@@ -1667,6 +1716,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : self._parse_enable_disable(match.group(1)),
                              lambda string : str(string),
                              default_value='y',
+                             startup_param=True,
+                             visibility=ParameterDictVisibility.READ_ONLY,                             
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
@@ -1677,6 +1728,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : self._parse_enable_disable(match.group(1)),
                              lambda string : str(string),
                              default_value='y',
+                             startup_param=True,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
@@ -1688,6 +1741,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda string : str(string),
                              default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
                                                            # support for setting it to 'y' has not been implemented
+                             startup_param=True,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
@@ -1699,6 +1754,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda string : str(string),
                              default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
                                                            # support for setting it to 'y' has not been implemented
+                             startup_param=True,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
@@ -1710,6 +1767,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda string : str(string),
                              default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
                                                            # support for setting it to 'y' has not been implemented
+                             startup_param=True,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
@@ -1721,6 +1780,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda string : str(string),
                              default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
                                                            # support for setting it to 'y' has not been implemented
+                             startup_param=True,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
@@ -1731,6 +1792,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              lambda match : self._parse_sensor_orientation(match.group(1)),
                              lambda string : str(string),
                              default_value='2',
+                             startup_param=True,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              menu_path_read=SubMenues.CONFIGURATION,
                              submenu_read=None,
                              menu_path_write=SubMenues.CONFIGURATION,
@@ -1885,6 +1948,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.ENTER_PRESSURE, self._build_simple_enter_command)
         self._add_build_handler(InstrumentCmds.SET_PRESSURE, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ANSWER_THERMISTOR_NO, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.ANSWER_THERMISTOR_YES, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ENTER_THERMISTOR, self._build_enter_thermistor_command)
         self._add_build_handler(InstrumentCmds.SET_THERMISTOR, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.ANSWER_SOLID_STATE_TILT_YES, self._build_simple_command)
@@ -1953,8 +2017,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # THIS PARAMETER ONLY SUPPORTS THE 'n' VALUE IN THIS IMPLEMENTATION
         # THE 'y' VALUE WOULD REQUIRE MORE DIALOG WITH INSTRUMENT
         cmd = "%s" %(self._param_dict.format(name, 'n'))
-        log.debug("_build_enter_auxiliary_command: cmd=%s" %cmd)
-        return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
+        log.debug("_build_enter_auxiliary_command: cmd=%s", cmd)
+        return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU,
+                InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
 
     def _build_set_auxiliary_command(self, **kwargs):
         """
@@ -1969,7 +2034,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             raise InstrumentParameterException('set auxiliary command requires a name.')
         cmd = "%s" %(int(name[-1]) + 4)
         response = InstrumentPrompts.AUXILIARY.replace("*", name[-1])
-        log.debug("_build_set_auxiliary_command: cmd=%s" %cmd)
+        log.debug("_build_set_auxiliary_command: cmd=%s", cmd)
         return (cmd, response, InstrumentCmds.ENTER_AUXILIARY)
 
     def _build_enter_solid_state_tilt_command(self, **kwargs):
@@ -1987,11 +2052,13 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if value == None:
             raise InstrumentParameterException('solid state tilt  enter command requires a value.')
         cmd = "%s" %(self._param_dict.format(name, value)[0])
-        log.debug("_build_enter_solid_state_tilt_command: cmd=%s" %cmd)
+        log.debug("_build_enter_solid_state_tilt_command: cmd=%s", cmd)
         if cmd != InstrumentCmds.ANSWER_SOLID_STATE_TILT_YES:
-            return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
+            return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU,
+                    InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
         else:
-            return (cmd, InstrumentPrompts.LOAD_DEFAULT_TILT, InstrumentCmds.ANSWER_SOLID_STATE_TILT_YES)
+            return (cmd, InstrumentPrompts.LOAD_DEFAULT_TILT,
+                    InstrumentCmds.ANSWER_SOLID_STATE_TILT_YES)
 
     def _build_enter_thermistor_command(self, **kwargs):
         """
@@ -2008,11 +2075,14 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if value == None:
             raise InstrumentParameterException('thermistor enter command requires a value.')
         cmd = "%s" %(self._param_dict.format(name, value)[0])
-        log.debug("_build_enter_thermistor_command: cmd=%s" %cmd)
+        log.debug("_build_enter_thermistor_command: cmd=%s", cmd)
         if cmd == InstrumentCmds.ANSWER_THERMISTOR_NO:
-            return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
+            return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU,
+                    InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
         else:
-            return (cmd, InstrumentPrompts.THERMISTOR_OFFSET, InstrumentCmds.ANSWER_THERMISTOR_NO)
+            return (InstrumentCmds.ANSWER_THERMISTOR_YES,
+                    InstrumentPrompts.THERMISTOR_OFFSET,
+                    InstrumentCmds.ANSWER_THERMISTOR_NO)
 
     def _build_enter_warm_up_interval_command(self, **kwargs):
         """
@@ -2029,8 +2099,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if value == None:
             raise InstrumentParameterException('warm up interval enter command requires a value.')
         cmd = "%s" %(self._param_dict.format(name, value)[0])
-        log.debug("_build_enter_warm_up_interval_command: cmd=%s" %cmd)
-        return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
+        return (cmd, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU,
+                InstrumentCmds.SYSTEM_CONFIGURATION_EXIT)
 
     def _build_enter_log_display_acoustic_axis_velocity_format_command(self, **kwargs):
         """
@@ -2041,7 +2111,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The next command to be sent to device (set to None to indicate there isn't one) 
         """
         cmd = "%s" %(self._param_dict.get(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES)[0])
-        log.debug("_build_enter_log_display_acoustic_axis_velocity_format_command: cmd=%s" %cmd)
+        log.debug("_build_enter_log_display_acoustic_axis_velocity_format_command: cmd=%s", cmd)
         return (cmd, InstrumentPrompts.DEPLOY_MENU, None)
 
     def _build_enter_log_display_acoustic_axis_velocities_command(self, **kwargs):
@@ -2053,10 +2123,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             The next command to be sent to device (set to None to indicate there isn't one for the 'n' cmd) 
         """
         cmd = self._param_dict.get(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES)
-        log.debug("_build_enter_log_display_acoustic_axis_velocities_command: cmd=%s" %cmd)
+        log.debug("_build_enter_log_display_acoustic_axis_velocities_command: cmd=%s", cmd)
         if cmd == 'n':
             return (cmd, InstrumentPrompts.DEPLOY_MENU, None)
-        return ('y', InstrumentPrompts.VELOCITY_FORMAT, InstrumentCmds.ENTER_ACOUSTIC_AXIS_VELOCITY_FORMAT)
+        return ('y', InstrumentPrompts.VELOCITY_FORMAT,
+                InstrumentCmds.ENTER_ACOUSTIC_AXIS_VELOCITY_FORMAT)
 
     def _build_simple_sub_parameter_enter_command(self, **kwargs):
         """
@@ -2076,7 +2147,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         cmd = self._param_dict.format(parameter_name)
         response = self.Command_Response[cmd_name][0]
         next_cmd = self.Command_Response[cmd_name][1]
-        log.debug("_build_simple_sub_parameter_enter_command: cmd=%s" %cmd)
+        log.debug("_build_simple_sub_parameter_enter_command: cmd=%s", cmd)
         return (cmd, response, next_cmd)
 
     def _build_enter_monitor_command(self, **kwargs):
@@ -2094,7 +2165,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if value == None:
             raise InstrumentParameterException('enter monitor command requires a value.')
         cmd = self._param_dict.format(name, value)
-        log.debug("_build_enter_monitor_command: cmd=%s" %cmd)
+        log.debug("_build_enter_monitor_command: cmd=%s", cmd)
         if value == 'n':
             return (cmd, InstrumentPrompts.DEPLOY_MENU, None)            
         return (cmd, InstrumentPrompts.LOG_DISPLAY, InstrumentCmds.ENTER_LOG_DISPLAY_TIME)
@@ -2114,10 +2185,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if value == None:
             raise InstrumentParameterException('enter velocity frame command requires a value.')
         cmd = self._param_dict.format(name, value)
-        log.debug("_build_enter_velocity_frame_command: cmd=%s" %cmd)
+        log.debug("_build_enter_velocity_frame_command: cmd=%s", cmd)
         if value == 1:
             return (cmd, InstrumentPrompts.DISPLAY_FORMAT, None)            
-        return (cmd, InstrumentPrompts.DEPLOY_MENU, None)
+        return (cmd, InstrumentPrompts.SELECTION, None)
+        #return (cmd, InstrumentPrompts.DEPLOY_MENU, None)
 
     def _build_set_note_command(self, **kwargs):
         """
@@ -2131,7 +2203,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if name == None:
             raise InstrumentParameterException('set note command requires a name.')
         cmd = "%s" %(name[-1])
-        log.debug("_build_set_note_command: cmd=%s" %cmd)
+        log.debug("_build_set_note_command: cmd=%s", cmd)
         return (cmd, InstrumentPrompts.NOTE_INPUT, InstrumentCmds.ENTER_NOTE)
 
     def _build_simple_enter_command(self, **kwargs):
@@ -2155,7 +2227,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         cmd = self._param_dict.format(name, value)
         response = self.Command_Response[cmd_name][0]
         next_cmd = self.Command_Response[cmd_name][1]
-        log.debug("_build_simple_enter_command: cmd=%s" %cmd)
+        log.debug("_build_simple_enter_command: cmd=%s", cmd)
         return (cmd, response, next_cmd)
 
     def _build_simple_command(self, **kwargs):
@@ -2176,7 +2248,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         else:
             response = None
             next_cmd = None
-        log.debug("_build_simple_command: cmd=%s" %cmd)
+        log.debug("_build_simple_command: cmd=%s", cmd)
         return (cmd, response, next_cmd)
 
     def _parse_time_response(self, response, prompt, **kwargs):
@@ -2190,10 +2262,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if not InstrumentPrompts.GET_TIME in response:
             raise InstrumentProtocolException('get time command not recognized by instrument: %s.' % response)
         
-        log.debug("_parse_time_response: response=%s" %response)
+        log.debug("_parse_time_response: response=%s", response)
 
         if not self._param_dict.update(InstrumentParameters.SYS_CLOCK, response.splitlines()[-1]):
-            log.debug('_parse_time_response: Failed to parse %s' %InstrumentParameters.SYS_CLOCK)
+            log.debug('_parse_time_response: Failed to parse %s', InstrumentParameters.SYS_CLOCK)
         return None
               
     def _parse_deploy_menu_response(self, response, prompt, **kwargs):
@@ -2212,9 +2284,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             # only get the parameter values if called from _update_params()
             return None
         for parameter in DeployMenuParameters.list():
-            #log.debug('_parse_deploy_menu_response: name=%s, response=%s' %(parameter, response))
+            #log.debug('_parse_deploy_menu_response: name=%s, response=%s', parameter, response)
             if not self._param_dict.update(parameter, response):
-                log.debug('_parse_deploy_menu_response: Failed to parse %s' %parameter)
+                log.debug('_parse_deploy_menu_response: Failed to parse %s', parameter)
         return None
               
     def _parse_system_configuration_menu_response(self, response, prompt, **kwargs):
@@ -2233,9 +2305,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             # only get the parameter values if called from _update_params()
             return None
         for parameter in SystemConfigurationMenuParameters.list():
-            #log.debug('_parse_system_configuration_menu_response: name=%s, response=%s' %(parameter, response))
+            #log.debug('_parse_system_configuration_menu_response: name=%s, response=%s'
+            #   parameter, response)
             if not self._param_dict.update(parameter, response):
-                log.debug('_parse_system_configuration_menu_response: Failed to parse %s' %parameter)
+                log.debug('_parse_system_configuration_menu_response: Failed to parse %s', parameter)
         return None
               
     def _parse_velocity_offset_set_response(self, response, prompt, **kwargs):
@@ -2247,16 +2320,16 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @ retval The next command to be sent to device (set to None to indicate there isn't one)
         """
         if not InstrumentPrompts.VELOCITY_OFFSETS_SET in response:
-            raise InstrumentProtocolException('velocity offset set command not recognized by instrument: %s.' %response)
+            raise InstrumentProtocolException('velocity offset set command not recognized by instrument: %s.', response)
         
         name = kwargs.get('name', None)
         if name != InstrumentParameters.ALL:
             # only get the parameter values if called from _update_params()
             return None
         for parameter in VelocityOffsetParameters.list():
-            #log.debug('_parse_velocity_offset_set_response: name=%s, response=%s' %(parameter, response))
+            #log.debug('_parse_velocity_offset_set_response: name=%s, response=%s', parameter, response)
             if not self._param_dict.update(parameter, response):
-                log.debug('_parse_velocity_offset_set_response: Failed to parse %s' %parameter)
+                log.debug('_parse_velocity_offset_set_response: Failed to parse %s', parameter)
         # don't leave instrument in calibration menu because it doesn't wakeup from sleeping correctly
         self._go_to_root_menu()
         return None
@@ -2277,7 +2350,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             # only get the parameter values if called from _update_params()
             return None
         for parameter in CompassOffsetParameters.list():
-            #log.debug('_parse_compass_offset_set_response: name=%s, response=%s' %(parameter, response))
+            #log.debug('_parse_compass_offset_set_response: name=%s, response=%s', parameter, response)
             if not self._param_dict.update(parameter, response):
                 log.debug('_parse_compass_offset_set_response: Failed to parse %s' %parameter)
         # don't leave instrument in calibration menu because it doesn't wakeup from sleeping correctly
@@ -2300,9 +2373,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             # only get the parameter values if called from _update_params()
             return None
         for parameter in CompassScaleFactorsParameters.list():
-            #log.debug('_parse_compass_scale_factors_set_response: name=%s, response=%s' %(parameter, response))
+            #log.debug('_parse_compass_scale_factors_set_response: name=%s, response=%s',
+            #   parameter, response)
             if not self._param_dict.update(parameter, response):
-                log.debug('_parse_compass_scale_factors_set_response: Failed to parse %s' %parameter)
+                log.debug('_parse_compass_scale_factors_set_response: Failed to parse %s', parameter)
         # don't leave instrument in calibration menu because it doesn't wakeup from sleeping correctly
         self._go_to_root_menu()
         return None
@@ -2323,9 +2397,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             # only get the parameter values if called from _update_params()
             return None
         for parameter in TiltOffsetParameters.list():
-            #log.debug('_parse_tilt_offset_set_response: name=%s, response=%s' %(parameter, response))
+            #log.debug('_parse_tilt_offset_set_response: name=%s, response=%s', parameter, response)
             if not self._param_dict.update(parameter, response):
-                log.debug('_parse_tilt_offset_set_response: Failed to parse %s' %parameter)
+                log.debug('_parse_tilt_offset_set_response: Failed to parse %s', parameter)
         # don't leave instrument in calibration menu because it doesn't wakeup from sleeping correctly
         self._go_to_root_menu()
         return None
@@ -2347,7 +2421,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         
         # get longest prompt to match by sorting the prompts longest to shortest
         prompts = self._sorted_longest_to_shortest(self._prompts.list())
-        log.debug("prompts=%s" %prompts)
+        log.debug("prompts=%s", prompts)
         
         while True:
             # Clear the prompt buffer.
@@ -2360,7 +2434,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             
             for item in prompts:
                 if item in self._promptbuf:
-                    log.debug('_get_prompt got prompt: %s' % repr(item))
+                    log.debug('_get_prompt got prompt: %s', repr(item))
                     return item
 
             if time.time() > starttime + timeout:
@@ -2386,8 +2460,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         compass_scale_factors_set_prameters_parsed = False
         tilt_offset_set_prameters_parsed = False
         
-        # sort the list so that the solid_state_tilt parameter will be updated and accurate before the tilt_offset
-        # parameters are updated, so that the check of the solid_state_tilt param value reflects what's on the instrument
+        # sort the list so that the solid_state_tilt parameter will be updated
+        # and accurate before the tilt_offset parameters are updated, so that
+        # the check of the solid_state_tilt param value reflects what's on the
+        # instrument
         for key in sorted(InstrumentParameters.list()):
             if key == InstrumentParameters.ALL:
                 # this is not the name of any parameter
@@ -2465,5 +2541,5 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             
     def _sorted_longest_to_shortest(self, list):
         sorted_list = sorted(list, key=len, reverse=True)
-        #log.debug("list=%s \nsorted=%s" %(list, sorted_list))
+        #log.debug("list=%s \nsorted=%s", list, sorted_list)
         return sorted_list
