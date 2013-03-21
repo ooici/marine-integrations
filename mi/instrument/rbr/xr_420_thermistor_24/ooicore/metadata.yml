@@ -1,7 +1,7 @@
 driver_metadata:
   author: Bill Bollenbacher
   driver_make: rbr
-  driver_model: xr-420_thermistor_24
+  driver_model: xr_420_thermistor_24
   driver_name: ooicore
   email: wcbollenbacher@ucsd.edu
   release_notes: .
