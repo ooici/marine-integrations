@@ -108,7 +108,7 @@ from pyon.agent.agent import ResourceAgentEvent
 
 from pyon.core.exception import BadRequest
 from pyon.core.exception import Conflict
-
+from pyon.core.exception import ResourceError
 
 from interface.objects import CapabilityType
 from interface.objects import AgentCapability
@@ -884,30 +884,30 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
         # Assert for an unknown driver command.
-        with self.assertRaises(InstrumentCommandException):
+        with self.assertRaises(ResourceError):
             reply = self.driver_client.cmd_dvr('bogus_command')
 
         # Assert for a known command, invalid state.
-        with self.assertRaises(InstrumentStateException):
+        with self.assertRaises(Conflict):
             reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
 
         # Assert we forgot the comms parameter.
-        with self.assertRaises(InstrumentParameterException):
+        with self.assertRaises(BadRequest):
             reply = self.driver_client.cmd_dvr('configure')
 
         # Assert we send a bad config object (not a dict).
-        with self.assertRaises(InstrumentParameterException):
+        with self.assertRaises(BadRequest):
             BOGUS_CONFIG = 'not a config dict'            
             reply = self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
             
         # Assert we send a bad config object (missing addr value).
-        with self.assertRaises(InstrumentParameterException):
+        with self.assertRaises(BadRequest):
             BOGUS_CONFIG = self.port_agent_comm_config().copy()
             BOGUS_CONFIG.pop('addr')
             reply = self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
 
         # Assert we send a bad config object (bad addr value).
-        with self.assertRaises(InstrumentParameterException):
+        with self.assertRaises(BadRequest):
             BOGUS_CONFIG = self.port_agent_comm_config().copy()
             BOGUS_CONFIG['addr'] = ''
             reply = self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
@@ -920,7 +920,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         self.assertEqual(state, DriverConnectionState.DISCONNECTED)
 
         # Assert for a known command, invalid state.
-        with self.assertRaises(InstrumentStateException):
+        with self.assertRaises(Conflict):
             reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
 
         reply = self.driver_client.cmd_dvr('connect')
@@ -930,7 +930,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
 
         # Assert for a known command, invalid state.
-        with self.assertRaises(InstrumentStateException):
+        with self.assertRaises(Conflict):
             reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.ACQUIRE_SAMPLE)
                 
         reply = self.driver_client.cmd_dvr('discover_state')
@@ -944,11 +944,11 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         self.assertIsNotNone(reply)
 
         # Assert for a known command, invalid state.
-        with self.assertRaises(InstrumentStateException):
+        with self.assertRaises(Conflict):
             reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.STOP_AUTOSAMPLE)
         
         # Assert for a known command, invalid state.
-        with self.assertRaises(InstrumentStateException):
+        with self.assertRaises(Conflict):
             reply = self.driver_client.cmd_dvr('connect')
 
         # Get all device parameters. Confirm all expected keys are retrived
@@ -957,17 +957,17 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         self.assertParamDict(reply, True)
         
         # Assert get fails without a parameter.
-        with self.assertRaises(InstrumentParameterException):
+        with self.assertRaises(BadRequest):
             reply = self.driver_client.cmd_dvr('get_resource')
             
         # Assert get fails without a bad parameter (not ALL or a list).
-        with self.assertRaises(InstrumentParameterException):
+        with self.assertRaises(BadRequest):
             bogus_params = 'I am a bogus param list.'
             reply = self.driver_client.cmd_dvr('get_resource', bogus_params)
             
         # Assert get fails without a bad parameter (not ALL or a list).
         #with self.assertRaises(InvalidParameterValueError):
-        with self.assertRaises(InstrumentParameterException):
+        with self.assertRaises(BadRequest):
             bogus_params = [
                 'a bogus parameter name',
                 SBE37Parameter.INTERVAL,
@@ -977,14 +977,14 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
             reply = self.driver_client.cmd_dvr('get_resource', bogus_params)        
         
         # Assert we cannot set a bogus parameter.
-        with self.assertRaises(InstrumentParameterException):
+        with self.assertRaises(BadRequest):
             bogus_params = {
                 'a bogus parameter name' : 'bogus value'
             }
             reply = self.driver_client.cmd_dvr('set_resource', bogus_params)
             
         # Assert we cannot set a real parameter to a bogus value.
-        with self.assertRaises(InstrumentParameterException):
+        with self.assertRaises(BadRequest):
             bogus_params = {
                 SBE37Parameter.INTERVAL : 'bogus value'
             }
