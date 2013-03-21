@@ -76,6 +76,10 @@ SAMPLE_DATA_PATTERN = (r'TIM (\d+)' +          # timestamp
 
 SAMPLE_DATA_REGEX = re.compile(SAMPLE_DATA_PATTERN)
 
+class ScheduledJob(BaseEnum):
+    ACQUIRE_STATUS = 'acquire_status'
+    CLOCK_SYNC = 'clock_sync'
+
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
     SAMPLE      = 'sample'
@@ -261,7 +265,11 @@ class ListProtocolParameterDict(ProtocolParameterDict):
         @raises KeyError if the name is invalid.
         """
         log.debug("setting " + name + " to " + str(value))
-        self._param_dict[name].value = value
+        try:
+            val = self._param_dict[name]
+            val.value = val.f_getval(value)
+        except Exception as ex:
+            raise InstrumentParameterException('ERROR: parameter %s value %s - %s.' %(name, str(value), repr(ex)))
         
         
 ###############################################################################
@@ -530,11 +538,13 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
-        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolStates.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.GET, self._handler_get)
+        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.CLOCK_SYNC, self._handler_clock_sync)
         self._protocol_fsm.add_handler(ProtocolStates.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolStates.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -553,6 +563,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         # create chunker for processing instrument samples.
         self._chunker = StringChunker(InstrumentProtocol.chunker_sieve_function)
 
+        self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
+        self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.CLOCK_SYNC)
 
     @staticmethod
     def chunker_sieve_function(raw_data):
@@ -617,18 +629,24 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                 break
 
         if instrument_configured:
+            log.debug("apply_startup_params: instrument already correctly configured.")
             return
         
+        log.debug("apply_startup_params: instrument needs startup parameters applied.")
+
         if current_state == ProtocolStates.AUTOSAMPLE:
             # this call will return if reset is successful or raise an exception otherwise
+            log.debug("apply_startup_params: instrument in autosample mode, need to reset it to apply startup parameters.")
             self._reset_instrument()
             
         config = self.get_startup_config()
         # this call will set the parameters on the instrument and then update their values in the param_dict
+        log.debug("apply_startup_params: applying startup parameters.")
         self._handler_command_set(config)
 
         if current_state == ProtocolStates.AUTOSAMPLE:
             # this call will return if start is successful or raise an exception otherwise
+            log.debug("apply_startup_params: restarting autosample mode after applying startup parameters.")
             self._start_sampling()
 
     ########################################################################
@@ -804,11 +822,11 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             # didn't get status response, so indicate that there is trouble with the instrument
             raise InstrumentStateException('Unknown state.')
         
-        if InstrumentResponses.GET_STATUS in self._promptbuf:
+        match = re.search('Logger status (\d{2})', self._promptbuf)
+        if match != None:
             # got status response, so determine what mode the instrument is in
-            parsed = self._promptbuf.split() 
-            status = int(parsed[2], 16)
-            log.debug("_handler_unknown_discover: parsed=%s, status=%d" %(parsed, status))
+            status = int(match.group(1), 16)
+            log.debug("_handler_unknown_discover: parsed=%s, status=%d" %(match.group(1), status))
             if status > Status.DATA_MEMORY_ERASE_FAILED:
                 status = Status.STOPPED_SAMPLING
             if status in [Status.STARTED_SAMPLING,
@@ -902,6 +920,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         if len(not_settable) > 0:
             raise InstrumentParameterException("Attempt to set read only parameter(s) (%s)" %not_settable)
 
+        params_to_check = params_to_set
+        
         self._set_advanced_functions_parameters(params_to_set)
                 
         for (key, val) in params_to_set.iteritems():
@@ -909,11 +929,16 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                 # coming from apply_startup_params, so sync clock
                 self._clock_sync()
                 continue
-            command = self._param_dict.get_submenu_write(key)
+            try:
+                command = self._param_dict.get_submenu_write(key)
+            except KeyError:
+                raise InstrumentParameterException('Unknown driver parameter %s' %key)
             log.debug('_handler_command_set: cmd=%s, name=%s, value=%s' %(command, key, val))
             self._do_cmd_no_resp(command, key, val, timeout=5)
 
         self._update_params(called_from_set=True)
+        
+        self._check_for_set_failures(params_to_check)
             
         return (next_state, result)
 
@@ -960,34 +985,6 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolStates.DIRECT_ACCESS
         next_agent_state = ResourceAgentState.DIRECT_ACCESS
         
-        return (next_state, (next_agent_state, result))
-
-    def _handler_command_clock_sync(self, *args, **kwargs):
-        """
-        sync clock close to a second edge 
-        @retval (next_state, result) tuple, (None, None) if successful.
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command could not be built or misunderstood.
-        """
-
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        self._clock_sync()
-        
-        return (next_state, (next_agent_state, result))
-
-    def _handler_command_acquire_status(self, *args, **kwargs):
-        """
-        Get device status
-        """
-        next_state = None
-        next_agent_state = None
-        result = None
-        
-        self._generate_status_event()
-    
         return (next_state, (next_agent_state, result))
 
     ########################################################################
@@ -1077,6 +1074,34 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     # general handlers.
     ########################################################################
 
+    def _handler_clock_sync(self, *args, **kwargs):
+        """
+        sync clock close to a second edge 
+        @retval (next_state, result) tuple, (None, None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        self._clock_sync()
+        
+        return (next_state, (next_agent_state, result))
+
+    def _handler_acquire_status(self, *args, **kwargs):
+        """
+        Get device status
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+        
+        self._generate_status_event()
+    
+        return (next_state, (next_agent_state, result))
+
     def _handler_get(self, *args, **kwargs):
         """
         Get device parameters from the parameter dict.
@@ -1117,6 +1142,17 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
         
+
+    def _check_for_set_failures(self, params_to_check):
+            device_parameters = self._param_dict.get_config()
+            for key in params_to_check.keys():
+                if key == InstrumentParameters.LOGGER_DATE_AND_TIME:
+                    # time-date will always not match, so ignore it
+                    continue
+                if params_to_check[key] != device_parameters[key]:
+                    log.debug("_check_for_set_failures: SET FAILURE: " + str(key) + " is " + str(device_parameters[key]) + " and should have been set to " + str(params_to_check[key]))
+                    raise InstrumentParameterException("SET FAILURE: " + str(key) + " is " + str(device_parameters[key]) + " and should have been set to " + str(params_to_check[key]))
+
     def _clock_sync(self):
         # get time in ION format so command builder method can convert it correctly
         str_time = get_timestamp_delayed("%d %b %Y %H:%M:%S")
@@ -1151,7 +1187,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             
     def _reset_instrument(self):
         ENABLING_SEQUENCE = '!U01N'
-        TIMEOUT = 60
+        ERASE_TIMEOUT = 60
         # Issue reset command and return if successful.
         for i in range(2):
             # Wakeup the device, pass up exception if timeout    
@@ -1170,19 +1206,19 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                 if status_as_int == Status.NOT_ENABLED_FOR_SAMPLING:
                     # instrument is reset and ready
                     return
-                if status_as_int == Status.ERASING_DATA_MEMORY:
+                elif status_as_int == Status.ERASING_DATA_MEMORY:
                     # instrument is still busy
                     time.sleep(1)
-                    continue
-                if status_as_int == Status.DATA_MEMORY_ERASE_FAILED:
+                elif status_as_int == Status.DATA_MEMORY_ERASE_FAILED:
                     # serious instrument failure
                     raise InstrumentCommandException("_reset_instrument: " +
                                                      "SERIOUS FAILURE to reset instrument! status=%s" 
                                                      %Status.DATA_MEMORY_ERASE_FAILED)
-                if time.time() > starttime + TIMEOUT:
-                    raise InstrumentCommandException("_reset_instrument: " +
-                                                     "Failed to reset instrument in %d seconds, status=%s" 
-                                                     %(TIMEOUT, self._param_dict.get(InstrumentParameters.STATUS)))
+                if time.time() > starttime + ERASE_TIMEOUT:
+                    break
+        raise InstrumentCommandException("_reset_instrument: " +
+                                         "Failed to reset instrument after 2 tries of %d seconds each, status=%s" 
+                                         %(ERASE_TIMEOUT, self._param_dict.get(InstrumentParameters.STATUS)))
             
     def _float_list_to_string(self, float_list):
         float_str = ''
@@ -1238,11 +1274,18 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             float_list.append(float_value[0])
         return float_list
     
+    def _check_bit_value(self, value):
+        if value in [0, 1]:
+            log.debug('_check_bit_value: value <%s> is binary' %value)
+            return value
+        else:
+            log.debug('_check_bit_value: value <%s> is not binary - raising exception' %value)
+            raise InstrumentParameterException('not a binary value.')
+            
+    
     def _update_params(self, *args, **kwargs):
         """
-        Update the parameter dictionary. Issue the upload command. The response
-        needs to be iterated through a line at a time and valuse saved.
-        @throws InstrumentTimeoutException if device cannot be timely woken.
+        Update the parameter dictionary. 
         """
         called_from_set = kwargs.get('called_from_set', False)
 
@@ -1272,9 +1315,16 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()
+        
+        # We ignore the data-time parameter difference which should always be different
+        new_config[InstrumentParameters.LOGGER_DATE_AND_TIME] = old_config.get(InstrumentParameters.LOGGER_DATE_AND_TIME)
+        
         if new_config != old_config:
             for (name, value) in new_config.iteritems():
                 log.debug("_update_params: %s = %s" %(name, value))
+                if old_config[name] != value:
+                    val = old_config[name] if old_config[name] != None else 'not-set-yet'
+                    log.debug('_update_params: %s: o=%s, n=%s' %(name, val, value))
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     def _generate_status_event(self):
@@ -1534,7 +1584,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.POWER_ALWAYS_ON,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=1,          # 1 = True
@@ -1543,7 +1593,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.SIX_HZ_PROFILING_MODE,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=0,          # 0 = False
@@ -1552,7 +1602,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=1,          # 1 = True
@@ -1561,7 +1611,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=1,          # 1 = True
@@ -1570,7 +1620,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.SAMPLING_LED,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=0,          # 0 = False
@@ -1579,7 +1629,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.ENGINEERING_UNITS_OUTPUT,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=1,          # 1 = True
@@ -1588,7 +1638,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.AUTO_RUN,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=1,          # 1 = True
@@ -1597,7 +1647,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(InstrumentParameters.INHIBIT_DATA_STORAGE,
                              r'$^', 
-                             None,
+                             lambda value : self._check_bit_value(value),
                              None,
                              startup_param=True,
                              default_value=1,          # 1 = True
