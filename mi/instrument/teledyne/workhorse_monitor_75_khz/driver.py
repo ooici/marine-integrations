@@ -400,12 +400,12 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
 
     def _build_parsed_values(self):
-        log.debug("IN ADCP_PD0_PARSED_DataParticle _build_parsed_values")
-
+        """
+        Parse the base portion of the particle
+        """
         self.final_result = []
 
         length = unpack("H", self.raw_data[2:4])[0]
-        log.debug("LENGTH %s, %s ..", str(length), str(len(self.raw_data[2:])))
 
         data = str(self.raw_data)
         #
@@ -476,6 +476,8 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
     def parse_fixed_chunk(self, chunk):
         """
+        Parse the fixed portion of the particle
+
         @throws SampleException If there is a problem with sample creation
         """
         (fixed_leader_id, firmware_version, firmware_revision, sysconfig_frequency, data_flag, lag_length, num_beams, num_cells, pings_per_ensemble,
@@ -614,6 +616,8 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
     def parse_variable_chunk(self, chunk):
         """
+        Parse the variable portion of the particle
+
         @throws SampleException If there is a problem with sample creation
         """
         rtc = {}
@@ -746,6 +750,8 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
     def parse_velocity_chunk(self, chunk):
         """
+        Parse the velocity portion of the particle
+
         @throws SampleException If there is a problem with sample creation
         """
         N = (len(chunk) - 2) / 2 /4
@@ -787,7 +793,6 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ERROR_VELOCITY,
                                       DataParticleKey.VALUE: []})
 
-
         elif 3 == self.coord_transform_type: # Earth Coordinates
             water_velocity_east = []
             water_velocity_north = []
@@ -822,6 +827,8 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
     def parse_corelation_magnitude_chunk(self, chunk):
         """
+        Parse the corelation magnitude portion of the particle
+
         @throws SampleException If there is a problem with sample creation
         """
         N = (len(chunk) - 2) / 2 /4
@@ -856,6 +863,8 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
     def parse_echo_intensity_chunk(self, chunk):
         """
+        Parse the echo intensity portion of the particle
+
         @throws SampleException If there is a problem with sample creation
         """
         N = (len(chunk) - 2) / 2 /4
@@ -890,6 +899,8 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
     def parse_percent_good_chunk(self, chunk):
         """
+        Parse the percent good portion of the particle
+
         @throws SampleException If there is a problem with sample creation
         """
         N = (len(chunk) - 2) / 2 /4
