@@ -67,6 +67,7 @@ from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentProt
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentParameters
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentCmds
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import Capability
+from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import ScheduledJob
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import InstrumentResponses
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import AdvancedFunctionsParameters
 from mi.instrument.rbr.xr_420_thermistor_24.ooicore.driver import AdvancedFuntionsBits
@@ -189,6 +190,33 @@ class UtilMixin(DriverTestMixin):
                             InstrumentParameters.INHIBIT_DATA_STORAGE : 1,
                             }
     
+    _raw_coefficients = {
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_1:  '4C02E5F8338B6C3F2EE9CCCCA56F30BF22757E403EB0C43EFF5CF27A032669BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_2:  'BE6B421617B56C3FD5784086847630BF905452AD92CCC43E085570CAF14B70BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_3:  '242263F451486C3F5AF6B89F195C30BFB79BE3E59B53C43EB008321DA84F71BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_4:  '891826C0BBE16C3FF6BCCDDAD77030BFEF6D8EAAA735C53EEAD71EBC6CB671BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_5:  'DB2BA620129C6C3FC06A17A5CE6830BF5EBF4750E2ACC43ED9C08996BF8671BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_6:  '9832B7EB936E6C3F97A33505556630BFC4C17691D551C43E28FAC2E315E467BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_7:  '9E067E30B5BE6C3FF579E335BB7B30BFA90F629A9910C53EBB2346D1E28467BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_8:  '05881C51EBB86C3FC7465FC2E47030BFED17ABD188B2C43E5927D2EC910671BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_9:  '056122D77F6A6C3FEB3E4825ED6030BFB79071014685C43E493A8785B48C70BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_10: 'CAF90420DD8C6C3FF05473B3867330BF46F93CFC3A71C43E8F029EDCE8A470BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_11: 'A718DC5CBD776C3F3499D9E3555F30BF6898FE4C1FC0C43E498718800D4D6BBECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_12: 'FCAC137DCC5C6C3FE784F5DBC46130BFD3725AB17844C43EA0421314BF4771BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_13: '0D618D51A16A6C3F428D6D7DAA6E30BF2957DF907903C43EFF89ED2B0C296FBECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_14: '53550E2075C36C3F87A2176B7F7330BF664CD355581CC53EE54C1B4B7A4E6DBECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_15: '194554FC74456C3F3BE7497C9E5630BFCEF5601309A9C43E64C9B4A15A766CBECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_16: 'E677D71494646C3F3C2B90A7136830BF5C9E8FE502D6C43EAF0199BE495667BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_17: '04C6AF97FEE46C3F2C51B20CD37630BF06EAFA626607C53EB8CD64294E5070BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_18: 'A571169A43FB6C3FFFAEE8F3097C30BF86E1E8BCCF27C53E832EC500513472BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_19: 'AB31AF4315F46C3F83F6A77BB88330BF4A91C3CAB7FCC43EC21A809AA3436CBECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_20: '1257746962BD6C3F86B89412DC7630BFEA35F6B9C3B3C43E9270885A3A2D70BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_21: 'C3B12A617B066D3FC455D033A87530BF70459B83A260C53EAFEA58B2FBB670BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_22: '306A248B2E726C3FEB9788E93F5C30BFB08D70B2ADDFC43E7F8FFA4D5AC96CBECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_23: 'A8A8D23B47876C3F08CCD99F676330BF849601A38FB8C43E3DCF7A08A8EA67BECAL\r\n',
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_24: '13ED538DBED06C3F73B8DB10687030BF1014A4477326C53E8B9E285D3F586CBECAL\r\n',
+    }
+    
     _engineering_parameters = {
         XR_420EngineeringDataParticleKey.BATTERY_VOLTAGE: {TYPE: float, REQUIRED: False},
         XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_1: {TYPE: list, VALUE: [0.00348434592083916, -0.00025079534389118, 2.46625541318206e-06, -4.68427140350704e-08]},
@@ -254,9 +282,8 @@ class UtilMixin(DriverTestMixin):
         "21.0069 21.5426 21.3204 21.2402 21.3968 21.4371 21.0411 21.4361 " + \
         "BV: 11.5916 SN: 021968 FET"
              
-    def assert_clock_set(self, sent_time, rcvd_time):
+    def assert_clock_set_correctly(self, sent_time, rcvd_time):
         # verify that the dates match
-        print("sts=%s, rts=%s" %(sent_time, rcvd_time))
         self.assertTrue(sent_time[:12].upper() in rcvd_time.upper())
            
         sent_timestamp = time.strptime(sent_time, "%d %b %Y %H:%M:%S")
@@ -264,9 +291,22 @@ class UtilMixin(DriverTestMixin):
         rcvd_timestamp = time.strptime(rcvd_time, "%d %b %Y %H:%M:%S")
         ntp_rcvd_timestamp = ntplib.system_to_ntp_time(time.mktime(rcvd_timestamp))
         # verify that the times match closely
-        print("sts=%d, rts=%d" %(ntp_sent_timestamp, ntp_rcvd_timestamp))
         if ntp_rcvd_timestamp - ntp_sent_timestamp > 3:
             self.fail("time delta too large after clock sync")        
+    
+    def assert_set_clock(self, time):
+        new_parameter_values = {}
+        new_parameter_values[InstrumentParameters.LOGGER_DATE_AND_TIME] = time
+        new_parameter_list = []
+        new_parameter_list.append(InstrumentParameters.LOGGER_DATE_AND_TIME)
+        
+        # Set parameter and verify.
+        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
+        reply = self.driver_client.cmd_dvr('get_resource', new_parameter_list)
+        
+        rcvd_time = reply[InstrumentParameters.LOGGER_DATE_AND_TIME]
+        self.assert_clock_set_correctly(time, rcvd_time)
+
     
     def assert_particle_sample(self, data_particle, verify_values = False):
         '''
@@ -362,6 +402,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         Verify that all driver enumerations have no duplicate values that might cause confusion.  Also
         do a little extra validation for the Capabilites
         """
+        self.assert_enum_has_no_duplicates(ScheduledJob())
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(InstrumentResponses())
         self.assert_enum_has_no_duplicates(InstrumentCmds())
@@ -406,9 +447,8 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 
         # load the engineering parameter values
         pd = driver._protocol._param_dict
-        for name in self._engineering_parameters.keys():
-            if self._engineering_parameters[name].has_key(self.VALUE):
-                pd.set_value(name, self._engineering_parameters[name][self.VALUE])
+        for name in self._raw_coefficients.keys():
+            pd.update_specific(name, self._raw_coefficients[name])
             
         # clear out any old events
         self.clear_data_particle_queue()
@@ -482,6 +522,8 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
                                      'DRIVER_EVENT_START_AUTOSAMPLE',
                                      'DRIVER_EVENT_START_DIRECT'],
             ProtocolStates.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                        'DRIVER_EVENT_ACQUIRE_STATUS',
+                                        'DRIVER_EVENT_CLOCK_SYNC',
                                         'DRIVER_EVENT_GET'],
             ProtocolStates.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 
                                            'EXECUTE_DIRECT']
@@ -503,19 +545,88 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
     """Integration Test Container"""
     
+    def _is_time_set(self, time_param, expected_time, time_format = "%d %b %Y %H:%M:%S", tolerance=3):
+        """
+        Verify is what we expect it to be within a given tolerance
+        @param time_param: driver parameter
+        @param expected_time: what the time should be in seconds since unix epoch or formatted time string
+        @param time_format: date time format
+        @param tolerance: how close to the set time should the get be?
+        """
+
+        result_time = self.assert_get(time_param)
+        result_time_struct = time.strptime(result_time, time_format)
+        converted_time = time.mktime(result_time_struct)
+
+        if(isinstance(expected_time, float)):
+            expected_time_struct = time.localtime(expected_time)
+        else:
+            # convert time struct to string and back again to get around DST issue so that
+            # time is interpreted the same for both the instrument and test
+            expected_time_struct = time.strptime(time.strftime(time_format, expected_time), time_format)
+        
+        log.debug("Current Time: %s, Expected Time: %s", time.strftime("%d %b %y %H:%M:%S", result_time_struct),
+                  time.strftime("%d %b %y %H:%M:%S", expected_time_struct))
+
+        log.debug("Current Time: %s, Expected Time: %s, Tolerance: %s",
+                  converted_time, time.mktime(expected_time_struct), tolerance)
+
+        # Verify the clock is set within the tolerance
+        return abs(converted_time - time.mktime(expected_time_struct)) <= tolerance
+
+    def assert_clock_set(self, time_param, sync_clock_cmd = DriverEvent.CLOCK_SYNC, timeout = 20, tolerance=3):
+        """
+        Verify the clock is set to at least the current date
+        """
+        log.debug("verify clock is set to the current time")
+
+        timeout_time = time.time() + timeout
+        
+        while(not self._is_time_set(time_param, time.gmtime(), tolerance=tolerance)):
+            log.debug("time isn't current. sleep for a bit")
+            time.sleep(2)
+
+            # Run acquire status command to set clock parameter
+            self.assert_driver_command(sync_clock_cmd)
+
+            log.debug("T: %s T: %s", time.time(), timeout_time)
+            self.assertLess(time.time(), timeout_time, msg="Timeout waiting for clock sync event")
+
+    def assert_initialize_driver_unspecific(self):
+        """
+        Walk an uninitialized driver through it's initialize process.  
+        """
+        # Test the driver is in state unconfigured.
+        self.assert_current_state(DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms.
+        self.assert_current_state(DriverConnectionState.DISCONNECTED)
+
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        self.assert_current_state(DriverProtocolState.UNKNOWN)
+
+        reply = self.driver_client.cmd_dvr('discover_state')
+
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        log.debug("initialize final state: %s" % state)
+        
     def _assert_parameters_on_initialization(self):
-        self.assert_initialize_driver()
+        self.assert_initialize_driver_unspecific()
         reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
         self.assert_parameters(reply, self._driver_parameters, True)
         return reply
-    
+
     def test_instrument_wakeup(self):
         """
         @brief Test for instrument wakeup, expects instrument to be in 'command' state
         """
         self.assert_initialize_driver()
                 
-               
     def test_get_parameters(self):
         """
         Test driver parameters and verify their type.  Startup parameters also verify the parameter
@@ -526,25 +637,13 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         for (name, value) in reply.iteritems():
             log.debug("test_get_parameters: name=%s, value=%s" %(name, str(value)))
 
-
     def test_set_clock(self):
         """
         Test device clock, needs to be close but not an exact match.
         """
         self.assert_initialize_driver()
-
-        new_parameter_values = {}
-        new_parameter_values[InstrumentParameters.LOGGER_DATE_AND_TIME] = self.CLOCK_SYNC_TIME
-        new_parameter_list = []
-        new_parameter_list.append(InstrumentParameters.LOGGER_DATE_AND_TIME)
         
-        # Set parameter and verify.
-        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
-        reply = self.driver_client.cmd_dvr('get_resource', new_parameter_list)
-        
-        rcvd_time = reply[InstrumentParameters.LOGGER_DATE_AND_TIME]
-        self.assert_clock_set(self.CLOCK_SYNC_TIME, rcvd_time)
-
+        self.assert_set_clock(self.CLOCK_SYNC_TIME)
 
     def test_set(self):
         """
@@ -558,9 +657,77 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         for key in self.paramter_test_values.iterkeys():
             new_parameter_values[key] = self.paramter_test_values[key]
                
-        # Set parameters and verify.
+        # Set parameters in bulk and verify.
         self.assert_set_bulk(new_parameter_values)
         
+        # Set parameters individually and verify.
+        for key in self.paramter_test_values.iterkeys():
+            self.assert_set(key, self.paramter_test_values[key])
+        
+    def test_set_errors(self):
+        """
+        Test error device parameter access.
+        """
+        self.assert_initialize_driver()
+
+        # try a parameter that shouldn't exist
+        self.assert_set_exception('bogus', 'nada')
+
+        # try values that are not legitimate for each parameter
+        self.assert_set_exception(InstrumentParameters.POWER_ALWAYS_ON, 'bad')
+        self.assert_set_exception(InstrumentParameters.POWER_ALWAYS_ON, 2)
+        
+        self.assert_set_exception(InstrumentParameters.ENGINEERING_UNITS_OUTPUT, 'bad')
+        self.assert_set_exception(InstrumentParameters.ENGINEERING_UNITS_OUTPUT, 255)
+        
+        self.assert_set_exception(InstrumentParameters.INHIBIT_DATA_STORAGE, 'bad')
+        self.assert_set_exception(InstrumentParameters.INHIBIT_DATA_STORAGE, -1)
+        
+        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE, 'bad')
+        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE, 2090)
+        
+        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER, 'stupid')
+        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER, 4.3)
+        
+        self.assert_set_exception(InstrumentParameters.SAMPLING_LED, 'bad')
+        self.assert_set_exception(InstrumentParameters.SAMPLING_LED, 10)
+        
+        self.assert_set_exception(InstrumentParameters.SIX_HZ_PROFILING_MODE, 'really bad')
+        self.assert_set_exception(InstrumentParameters.SIX_HZ_PROFILING_MODE, -20)
+        
+        self.assert_set_exception(InstrumentParameters.AUTO_RUN, 'dumb')
+        self.assert_set_exception(InstrumentParameters.AUTO_RUN, -2000)
+        
+        self.assert_set_exception(InstrumentParameters.AUTO_RUN, 'bad')
+        self.assert_set_exception(InstrumentParameters.AUTO_RUN, -1)
+        
+        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, 1)
+        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '40 Feb 2002 11:18:42')
+        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 fab 2002 11:18:42')
+        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2O02 11:18:42')
+        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2002 25:18:42')
+        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2002 11:65:42')
+        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2002 11:18:61')
+
+        self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, '11:18:61')
+        self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, '25:18:61')
+        self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, '11:118:61')
+        self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, 3)
+        
+        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, 'junk')
+        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '40 Feb 2002 11:18:42')
+        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 fab 2002 11:18:42')
+        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2O02 11:18:42')
+        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2002 25:18:42')
+        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2002 11:65:42')
+        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2002 11:18:61')
+
+        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, 4.6)
+        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '40 Feb 2002 11:18:42')
+        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 fab 2002 11:18:42')
+        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2O02 11:18:42')
+        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2002 25:18:42')
+        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2002 11:65:42')
 
     def test_read_only_parameters(self):
         self.assert_initialize_driver()
@@ -593,7 +760,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_23)
         self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_24)
     
-    @unittest.skip("skip until working")
     def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -629,7 +795,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         reply = self.driver_client.cmd_dvr('get_resource', DriverParameter.ALL)
         self.assert_parameters(reply, self._driver_parameters, True)
 
-    @unittest.skip("skip until working")
     def test_commands(self):
         """
         Run instrument commands from both command and streaming mode.
@@ -640,18 +805,19 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         # First test in command mode
         ####
         self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolStates.AUTOSAMPLE, delay=1)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolStates.COMMAND, delay=1)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'serial sync mode')
 
         ####
         # Test in streaming mode
         ####
         # Put us in streaming
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolStates.AUTOSAMPLE, delay=1)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'serial sync mode')
+        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolStates.COMMAND, delay=1)
-
+        
         ####
         # Test a bad command
         ####
@@ -725,6 +891,63 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
 
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.ENGINEERING, self.assert_particle_engineering, delay=10)
         
+    ###
+    #   Test scheduled events
+    ###
+
+    def assert_acquire_status(self):
+        """
+        Verify a status particle was generated
+        """
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.ENGINEERING, self.assert_particle_engineering, timeout=120)
+
+    def test_scheduled_device_status_command(self):
+        """
+        Verify the device status command can be triggered and run in command
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status, delay=30)
+        self.assert_current_state(ProtocolStates.COMMAND)
+
+    def test_scheduled_device_status_autosample(self):
+        """
+        Verify the device status command can be triggered and run in autosample
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status,
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=60)
+        self.assert_current_state(ProtocolStates.AUTOSAMPLE)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+
+    def test_scheduled_clock_sync_command(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        timeout = 85
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=timeout)
+        self.assert_current_state(ProtocolStates.COMMAND)
+
+        # Set the clock to some time in the past
+        self.assert_set_clock(self.CLOCK_SYNC_TIME)
+
+        # Check the clock until it is set correctly (by a schedued event)
+        self.assert_clock_set(InstrumentParameters.LOGGER_DATE_AND_TIME)
+
+    def test_scheduled_clock_sync_autosample(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        timeout = 240
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=timeout)
+        self.assert_current_state(ProtocolStates.COMMAND)
+
+        # Set the clock to some time in the past
+        self.assert_set_clock(self.CLOCK_SYNC_TIME)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
+
+        # Check the clock until it is set correctly (by a scheduled event)
+        self.assert_clock_set(InstrumentParameters.LOGGER_DATE_AND_TIME)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -866,7 +1089,9 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+            DriverEvent.CLOCK_SYNC,
             DriverEvent.GET,
+            DriverEvent.ACQUIRE_STATUS,
             DriverEvent.STOP_AUTOSAMPLE,
         ]
 
@@ -900,21 +1125,19 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         reply = self.instrument_agent_client.get_resource(params)
         rcvd_time = reply[InstrumentParameters.LOGGER_DATE_AND_TIME]
         lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
-        self.assert_clock_set(lt, rcvd_time)
-
-    def test_reset(self):
-        """
-        Overload base test because we are having issue with coming out of DA
-        """
-        self.assert_enter_command_mode()
-        self.assert_reset()
-
-        self.assert_enter_command_mode()
-        self.assert_start_autosample()
-        self.assert_reset()
+        self.assert_clock_set_correctly(lt, rcvd_time)
 
     def test_sample_autosample(self):
         self.assert_enter_command_mode()
         self.assert_start_autosample()
 
         self.assert_sample_async(self.assert_particle_sample, DataParticleType.SAMPLE, timeout=30, sample_count=1)
+        
+    def test_poll(self):
+        '''
+        Verify that we can poll for an engineering particle.
+        '''
+        self.assert_enter_command_mode()
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_engineering, DataParticleType.ENGINEERING, timeout=30)
+

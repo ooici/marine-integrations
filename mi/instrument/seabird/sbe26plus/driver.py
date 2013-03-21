@@ -1378,10 +1378,7 @@ class Protocol(SeaBirdProtocol):
         except IndexError:
             pass
 
-        # For each key, val in the dict, issue set command to device.
-        # Raise if the command not understood.
-        else:
-            self._set_params(params, startup)
+        self._set_params(params, startup)
 
         return (next_state, result)
 
