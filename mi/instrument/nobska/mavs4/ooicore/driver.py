@@ -954,7 +954,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_keypress_command(self, **kwargs):
         """
         Builder for simple, non-EOLN-terminated commands
-        over-ridden to return dictionary expected by this classes _do_cmd_resp() method
+        over-ridden to return dictionary expected by this classes
+        _do_cmd_resp() method
 
         @param cmd The command to build
         @param args Unused arguments
@@ -989,7 +990,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @raise: InstrumentProtocolException if not in command or streaming
         """
 
-        log.debug("apply_startup_params: CURRENT STATE = %s", self.get_current_state())
+        log.debug("apply_startup_params: CURRENT STATE = %s",
+                  self.get_current_state())
         if (self.get_current_state() != ProtocolStates.COMMAND):
             raise InstrumentProtocolException("Not in command state. Unable to apply startup parameters")
 
@@ -1029,19 +1031,22 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
-        Discover current state; can be COMMAND or AUTOSAMPLE.  If the instrument is sleeping
-        consider that to be in command state.
-        @retval (next_state, result), (ProtocolStates.COMMAND or ProtocolStates.AUTOSAMPLE, None) if successful.
+        Discover current state; can be COMMAND or AUTOSAMPLE.  If the
+        instrument is sleeping consider that to be in command state.
+        @retval (next_state, result), (ProtocolStates.COMMAND or ProtocolStates.AUTOSAMPLE, None)
+        if successful.
         """
         next_state = None
         result = None
         
         # try to get root menu prompt from the device using timeout if passed.
-        # NOTE: this driver always tries to put instrument into command mode so that parameters can be initialized
+        # NOTE: this driver always tries to put instrument into command mode
+        # so that parameters can be initialized
         try:
             prompt = self._go_to_root_menu()
         except InstrumentTimeoutException:
-            # didn't get root menu prompt, so indicate that there is trouble with the instrument
+            # didn't get root menu prompt, so indicate that there is trouble
+            # with the instrument
             raise InstrumentStateException('Unknown state.')
         else:
             # got root menu prompt, so device is in command mode           
