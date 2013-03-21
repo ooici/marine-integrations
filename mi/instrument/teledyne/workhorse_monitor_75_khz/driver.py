@@ -61,16 +61,14 @@ DATA_TYPE_LOC_INDEX_BASE = 12
 # Particle Regex's'
 #
 # TODO: add the regex to make this work
-ADCP_PD0_PARSED_REGEX = r'7F7F'
-ADCP_PD0_PARSED_REGEX_MATCHER = re.compile(ADCP_PD0_PARSED_REGEX)
+ADCP_PD0_PARSED_REGEX = r'\x7f\x7f(.*)' #(.{230})' #2152 total...
+ADCP_PD0_PARSED_REGEX_MATCHER = re.compile(ADCP_PD0_PARSED_REGEX, re.DOTALL)
 
-# TODO: add the regex to make this work
-ADCP_SYSTEM_CONFIGURATION_REGEX = r''
-ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER = re.compile(ADCP_SYSTEM_CONFIGURATION_REGEX)
+ADCP_SYSTEM_CONFIGURATION_REGEX = r'(Instrument S/N.*)\>'
+ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER = re.compile(ADCP_SYSTEM_CONFIGURATION_REGEX, re.DOTALL)
 
-
-ADCP_COMPASS_CALIBRATION_REGEX = r'(ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM.*)>'
-ADCP_COMPASS_CALIBRATION_REGEX_MATCHER = re.compile(ADCP_COMPASS_CALIBRATION_REGEX)
+ADCP_COMPASS_CALIBRATION_REGEX = r'(ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM.*)\>'
+ADCP_COMPASS_CALIBRATION_REGEX_MATCHER = re.compile(ADCP_COMPASS_CALIBRATION_REGEX, re.DOTALL)
 
 """
 ENSEMBLE_HEADER_ID = '7F7F'
@@ -254,293 +252,674 @@ class DataParticleType(BaseEnum):
 
 
 class ADCP_PD0_PARSED_KEY(BaseEnum):
-    PART_000_uint8 = "header_id"
-    PART_001_uint8 = "data_source_id"
-    PART_002_uint16 = "num_bytes"
-    PART_003_uint16 = "num_data_types"
-    PART_004_uint16 = "offset_data_types"
-    PART_005_uint16 = "fixed_leader_id"
-    PART_006_uint8 = "firmware_version"
-    PART_007_uint8 = "firmware_revision"
-    PART_008_uint16 = "sysconfig_frequency"
-    PART_009_int8 = "sysconfig_beam_pattern"
-    PART_010_uint8 = "sysconfig_sensor_config"
-    PART_011_int8 = "sysconfig_head_attached"
-    PART_012_int8 = "sysconfig_vertical_orientation"
-    PART_013_uint8 = "data_flag"
-    PART_014_uint8 = "lag_length"
-    PART_015_uint8 = "num_beams"
-    PART_016_uint8 = "num_cells"
-    PART_017_uint16 = "pings_per_ensemble"
-    PART_018_uint16 = "depth_cell_length"
-    PART_019_uint16 = "blank_after_transmit"
-    PART_020_uint8 = "signal_processing_mode"
-    PART_021_uint8 = "low_corr_threshold"
-    PART_022_uint8 = "num_code_repetitions"
-    PART_023_uint8 = "percent_good_min"
-    PART_024_uint16 = "error_vel_threshold"
-    PART_025_uint8 = "time_per_ping_minutes"
-    PART_026_float32 = "time_per_ping_seconds"
-    PART_027_uint8 = "coord_transform_type"
-    PART_028_int8 = "coord_transform_tilts"
-    PART_029_int8 = "coord_transform_beams"
-    PART_030_int8 = "coord_transform_mapping"
-    PART_031_int16 = "heading_alignment"
-    PART_032_int16 = "heading_bias"
-    PART_033_int8 = "sensor_source_speed"
-    PART_034_int8 = "sensor_source_depth"
-    PART_035_int8 = "sensor_source_heading"
-    PART_036_int8 = "sensor_source_pitch"
-    PART_037_int8 = "sensor_source_roll"
-    PART_038_int8 = "sensor_source_conductivity"
-    PART_039_int8 = "sensor_source_temperature"
-    PART_040_int8 = "sensor_available_depth"
-    PART_041_int8 = "sensor_available_heading"
-    PART_042_int8 = "sensor_available_pitch"
-    PART_043_int8 = "sensor_available_roll"
-    PART_044_int8 = "sensor_available_conductivity"
-    PART_045_int8 = "sensor_available_temperature"
-    PART_046_uint16 = "bin_1_distance"
-    PART_047_uint16 = "transmit_pulse_length"
-    PART_048_uint16 = "reference_layer_start"
-    PART_049_uint16 = "reference_layer_stop"
-    PART_050_uint16 = "false_target_threshold"
-    PART_051_int8 = "low_latency_trigger"
-    PART_052_uint16 = "transmit_lag_distance"
-    PART_053_uint64 = "cpu_board_serial_number"
-    PART_054_uint8 = "system_bandwidth"
-    PART_055_uint8 = "system_power"
-    PART_056_uint32 = "serial_number"
-    PART_057_uint8 = "beam_angle"
-    PART_058_uint16 = "variable_leader_id"
-    PART_059_uint16 = "ensemble_number"
-    PART_060_float64 = "internal_timestamp"
-    PART_061_uint8 = "ensemble_number_increment"
-    PART_062_int8 = "bit_result_demod_1"
-    PART_063_int8 = "bit_result_demod_2"
-    PART_064_int8 = "bit_result_timing"
-    PART_065_uint16 = "speed_of_sound"
-    PART_066_uint16 = "transducer_depth"
-    PART_067_uint16 = "heading"
-    PART_068_int16 = "pitch"
-    PART_069_int16 = "roll"
-    PART_070_uint16 = "salinity"
-    PART_071_int16 = "temperature"
-    PART_072_uint8 = "mpt_minutes"
-    PART_073_float32 = "mpt_seconds"
-    PART_074_uint8 = "heading_stdev"
-    PART_075_uint8 = "pitch_stdev"
-    PART_076_uint8 = "roll_stdev"
-    PART_077_uint8 = "adc_transmit_current"
-    PART_078_uint8 = "adc_transmit_voltage"
-    PART_079_uint8 = "adc_ambient_temp"
-    PART_080_uint8 = "adc_pressure_plus"
-    PART_081_uint8 = "adc_pressure_minus"
-    PART_082_uint8 = "adc_attitude_temp"
-    PART_083_uint8 = "adc_attitiude"
-    PART_084_uint8 = "adc_contamination_sensor"
-    PART_085_uint8 = "bus_error_exception"
-    PART_086_uint8 = "address_error_exception"
-    PART_087_uint8 = "illegal_instruction_exception"
-    PART_088_uint8 = "zero_divide_instruction"
-    PART_089_uint8 = "emulator_exception"
-    PART_090_uint8 = "unassigned_exception"
-    PART_091_uint8 = "watchdog_restart_occurred"
-    PART_092_uint8 = "battery_saver_power"
-    PART_093_uint8 = "pinging"
-    PART_094_uint8 = "cold_wakeup_occurred"
-    PART_095_uint8 = "unknown_wakeup_occurred"
-    PART_096_uint8 = "clock_read_error"
-    PART_097_uint8 = "unexpected_alarm"
-    PART_098_uint8 = "clock_jump_forward"
-    PART_099_uint8 = "clock_jump_backward"
-    PART_100_uint8 = "power_fail"
-    PART_101_uint8 = "spurious_dsp_interrupt"
-    PART_102_uint8 = "spurious_uart_interrupt"
-    PART_103_uint8 = "spurious_clock_interrupt"
-    PART_104_uint8 = "level_7_interrupt"
-    PART_105_uint32 = "absolute_pressure"
-    PART_106_uint32 = "pressure_variance"
-    PART_107_float64 = "internal_timestamp"
-    PART_108_uint16 = "velocity_data_id"
-    PART_109_int16 = "water_velocity_east"
-    PART_110_int16 = "water_velocity_north"
-    PART_111_int16 = "water_velocity_up"
-    PART_112_int16 = "error_velocity"
-    PART_113_uint16 = "correlation_magnitude_id"
-    PART_114_uint8 = "correlation_magnitude_beam1"
-    PART_115_uint8 = "correlation_magnitude_beam2"
-    PART_116_uint8 = "correlation_magnitude_beam3"
-    PART_117_uint8 = "correlation_magnitude_beam4"
-    PART_118_uint16 = "echo_intensity_id"
-    PART_119_uint8 = "echo_intesity_beam1"
-    PART_120_uint8 = "echo_intesity_beam2"
-    PART_121_uint8 = "echo_intesity_beam3"
-    PART_122_uint8 = "echo_intesity_beam4"
-    PART_123_uint16 = "percent_good_id"
-    PART_124_uint8 = "percent_good_3beam"
-    PART_125_uint8 = "percent_transforms_reject"
-    PART_126_uint8 = "percent_bad_beams"
-    PART_127_uint8 = "percent_good_4beam"
-    PART_128_uint16 = "checksum"
+    HEADER_ID = "header_id"
+    DATA_SOURCE_ID = "data_source_id"
+    NUM_BYTES = "num_bytes"
+    NUM_DATA_TYPES = "num_data_types"
+    OFFSET_DATA_TYPES = "offset_data_types"
+    FIXED_LEADER_ID = "fixed_leader_id"
+    FIRMWARE_VERSION = "firmware_version"
+    FIRMWARE_REVISION = "firmware_revision"
+    SYSCONFIG_FREQUENCY = "sysconfig_frequency"
+    SYSCONFIG_BEAM_PATTERN = "sysconfig_beam_pattern"
+    SYSCONFIG_SENSOR_CONFIG = "sysconfig_sensor_config"
+    SYSCONFIG_HEAD_ATTACHED = "sysconfig_head_attached"
+    SYSCONFIG_VERTICAL_ORIENTATION = "sysconfig_vertical_orientation"
+    DATA_FLAG = "data_flag"
+    LAG_LENGTH = "lag_length"
+    NUM_BEAMS = "num_beams"
+    NUM_CELLS = "num_cells"
+    PINGS_PER_ENSEMBLE = "pings_per_ensemble"
+    DEPTH_CELL_LENGTH = "depth_cell_length"
+    BLANK_AFTER_TRANSMIT = "blank_after_transmit"
+    SIGNAL_PROCESSING_MODE = "signal_processing_mode"
+    LOW_CORR_THRESHOLD = "low_corr_threshold"
+    NUM_CODE_REPETITIONS = "num_code_repetitions"
+    PERCENT_GOOD_MIN = "percent_good_min"
+    ERROR_VEL_THRESHOLD = "error_vel_threshold"
+    TIME_PER_PING_MINUTES = "time_per_ping_minutes"
+    TIME_PER_PING_SECONDS = "time_per_ping_seconds"
+    COORD_TRANSFORM_TYPE = "coord_transform_type"
+    COORD_TRANSFORM_TILTS = "coord_transform_tilts"
+    COORD_TRANSFORM_BEAMS = "coord_transform_beams"
+    COORD_TRANSFORM_MAPPING = "coord_transform_mapping"
+    HEADING_ALIGNMENT = "heading_alignment"
+    HEADING_BIAS = "heading_bias"
+
+    SENSOR_SOURCE_SPEED = "sensor_source_speed"
+    SENSOR_SOURCE_DEPTH = "sensor_source_depth"
+    SENSOR_SOURCE_HEADING = "sensor_source_heading"
+    SENSOR_SOURCE_PITCH = "sensor_source_pitch"
+    SENSOR_SOURCE_ROLL = "sensor_source_roll"
+    SENSOR_SOURCE_CONDUCTIVITY = "sensor_source_conductivity"
+    SENSOR_SOURCE_TEMPERATURE = "sensor_source_temperature"
+    SENSOR_AVAILABLE_DEPTH = "sensor_available_depth"
+    SENSOR_AVAILABLE_HEADING = "sensor_available_heading"
+    SENSOR_AVAILABLE_PITCH = "sensor_available_pitch"
+    SENSOR_AVAILABLE_ROLL = "sensor_available_roll"
+    SENSOR_AVAILABLE_CONDUCTIVITY = "sensor_available_conductivity"
+    SENSOR_AVAILABLE_TEMPERATURE = "sensor_available_temperature"
+
+    BIN_1_DISTANCE = "bin_1_distance"
+    TRANSMIT_PULSE_LENGTH = "transmit_pulse_length"
+    REFERENCE_LAYER_START = "reference_layer_start"
+    REFERENCE_LAYER_STOP = "reference_layer_stop"
+    FALSE_TARGET_THRESHOLD = "false_target_threshold"
+    LOW_LATENCY_TRIGGER = "low_latency_trigger"
+    TRANSMIT_LAG_DISTANCE = "transmit_lag_distance"
+    CPU_BOARD_SERIAL_NUMBER = "cpu_board_serial_number"
+    SYSTEM_BANDWIDTH = "system_bandwidth"
+    SYSTEM_POWER = "system_power"
+    SERIAL_NUMBER = "serial_number"
+    BEAM_ANGLE = "beam_angle"
+    VARIABLE_LEADER_ID = "variable_leader_id"
+    ENSEMBLE_NUMBER = "ensemble_number"
+    INTERNAL_TIMESTAMP = "internal_timestamp"
+    ENSEMBLE_NUMBER_INCREMENT = "ensemble_number_increment"
+    BIT_RESULT_DEMOD_1 = "bit_result_demod_1"
+    BIT_RESULT_DEMOD_2 = "bit_result_demod_2"
+    BIT_RESULT_TIMING = "bit_result_timing"
+    SPEED_OF_SOUND = "speed_of_sound"
+    TRANSDUCER_DEPTH = "transducer_depth"
+    HEADING = "heading"
+    PITCH = "pitch"
+    ROLL = "roll"
+    SALINITY = "salinity"
+    TEMPERATURE = "temperature"
+    MPT_MINUTES = "mpt_minutes"
+    MPT_SECONDS = "mpt_seconds"
+    HEADING_STDEV = "heading_stdev"
+    PITCH_STDEV = "pitch_stdev"
+    ROLL_STDEV = "roll_stdev"
+    ADC_TRANSMIT_CURRENT = "adc_transmit_current"
+    ADC_TRANSMIT_VOLTAGE = "adc_transmit_voltage"
+    ADC_AMBIENT_TEMP = "adc_ambient_temp"
+    ADC_PRESSURE_PLUS = "adc_pressure_plus"
+    ADC_PRESSURE_MINUS = "adc_pressure_minus"
+    ADC_ATTITUDE_TEMP = "adc_attitude_temp"
+    ADC_ATTITUDE = "adc_attitiude"
+    ADC_CONTAMINATION_SENSOR = "adc_contamination_sensor"
+    BUS_ERROR_EXCEPTION = "bus_error_exception"
+    ADDRESS_ERROR_EXCEPTION = "address_error_exception"
+    ILLEGAL_INSTRUCTION_EXCEPTION = "illegal_instruction_exception"
+    ZERO_DIVIDE_INSTRUCTION = "zero_divide_instruction"
+    EMULATOR_EXCEPTION = "emulator_exception"
+    UNASSIGNED_EXCEPTION = "unassigned_exception"
+    WATCHDOG_RESTART_OCCURED = "watchdog_restart_occurred"
+    BATTERY_SAVER_POWER = "battery_saver_power"
+    PINGING = "pinging"
+    COLD_WAKEUP_OCCURED = "cold_wakeup_occurred"
+    UNKNOWN_WAKEUP_OCCURED = "unknown_wakeup_occurred"
+    CLOCK_READ_ERROR = "clock_read_error"
+    UNEXPECTED_ALARM = "unexpected_alarm"
+    CLOCK_JUMP_FORWARD = "clock_jump_forward"
+    CLOCK_JUMP_BACKWARD = "clock_jump_backward"
+    POWER_FAIL = "power_fail"
+    SPURIOUS_DSP_INTERRUPT = "spurious_dsp_interrupt"
+    SPURIOUS_UART_INTERRUPT = "spurious_uart_interrupt"
+    SPURIOUS_CLOCK_INTERRUPT = "spurious_clock_interrupt"
+    LEVEL_7_INTERRUPT = "level_7_interrupt"
+    ABSOLUTE_PRESSURE = "absolute_pressure"
+    PRESSURE_VARIANCE = "pressure_variance"
+    INTERNAL_TIMESTAMP = "internal_timestamp"
+    VELOCITY_DATA_ID = "velocity_data_id"
+    BEAM_1_VELOCITY = "beam_1_velocity" # These may live in OOICORE driver as a extension
+    BEAM_2_VELOCITY = "beam_2_velocity" # These may live in OOICORE driver as a extension
+    BEAM_3_VELOCITY = "beam_3_velocity" # These may live in OOICORE driver as a extension
+    BEAM_4_VELOCITY = "beam_4_velocity" # These may live in OOICORE driver as a extension
+    WATER_VELOCITY_EAST = "water_velocity_east" # These may live in OOICORE driver as a extension
+    WATER_VELOCITY_NORTH = "water_velocity_north" # These may live in OOICORE driver as a extension
+    WATER_VELOCITY_UP = "water_velocity_up" # These may live in OOICORE driver as a extension
+    ERROR_VELOCITY = "error_velocity" # These may live in OOICORE driver as a extension
+    CORRELATION_MAGNITUDE_ID = "correlation_magnitude_id"
+    CORRELATION_MAGNITUDE_BEAM1 = "correlation_magnitude_beam1"
+    CORRELATION_MAGNITUDE_BEAM2 = "correlation_magnitude_beam2"
+    CORRELATION_MAGNITUDE_BEAM3 = "correlation_magnitude_beam3"
+    CORRELATION_MAGNITUDE_BEAM4 = "correlation_magnitude_beam4"
+    ECHO_INTENSITY_ID = "echo_intensity_id"
+    ECHO_INTENSITY_BEAM1 = "echo_intesity_beam1"
+    ECHO_INTENSITY_BEAM2 = "echo_intesity_beam2"
+    ECHO_INTENSITY_BEAM3 = "echo_intesity_beam3"
+    ECHO_INTENSITY_BEAM4 = "echo_intesity_beam4"
+    PERCENT_GOOD_BEAM1 = "percent_good_beam1"# These may live in OOICORE driver as a extension
+    PERCENT_GOOD_BEAM2 = "percent_good_beam2"# These may live in OOICORE driver as a extension
+    PERCENT_GOOD_BEAM3 = "percent_good_beam3"# These may live in OOICORE driver as a extension
+    PERCENT_GOOD_BEAM4 = "percent_good_beam4"# These may live in OOICORE driver as a extension
+    PERCENT_GOOD_ID = "percent_good_id"
+    PERCENT_GOOD_3BEAM = "percent_good_3beam"
+    PERCENT_TRANSFORMS_REJECT = "percent_transforms_reject"
+    PERCENT_BAD_BEAMS = "percent_bad_beams"
+    PERCENT_GOOD_4BEAM = "percent_good_4beam"
+    CHECKSUM = "checksum"
 
 
 class ADCP_PD0_PARSED_DataParticle(DataParticle):
     _data_particle_type = DataParticleType.ADCP_PD0_PARSED
 
+
+
     def _build_parsed_values(self):
+        log.debug("IN ADCP_PD0_PARSED_DataParticle _build_parsed_values")
 
-        data_stream = self.raw_data
-        # uint8 = B
-        # int8 = b
-        # uint16 = H
-        # int16 = h
-        # int32 = l
-        # uint32 = L
-        # float32 = f
-        # float64 = d
-        result = {}
-        result[ADCP_PD0_PARSED_KEY.PART_000_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_001_uint8], 
-        result[ADCP_PD0_PARSED_KEY.PART_002_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_003_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_004_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_005_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_006_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_007_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_008_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_009_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_010_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_011_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_012_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_013_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_014_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_015_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_016_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_017_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_018_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_019_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_020_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_021_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_022_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_023_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_024_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_025_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_026_float32],
-        result[ADCP_PD0_PARSED_KEY.PART_027_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_028_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_029_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_030_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_031_int16],
-        result[ADCP_PD0_PARSED_KEY.PART_032_int16],
-        result[ADCP_PD0_PARSED_KEY.PART_033_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_034_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_035_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_036_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_037_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_038_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_039_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_040_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_041_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_042_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_043_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_044_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_045_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_046_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_047_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_048_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_049_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_050_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_051_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_052_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_053_uint64],
-        result[ADCP_PD0_PARSED_KEY.PART_054_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_055_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_056_uint32],
-        result[ADCP_PD0_PARSED_KEY.PART_057_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_058_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_059_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_060_float64],
-        result[ADCP_PD0_PARSED_KEY.PART_061_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_062_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_063_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_064_int8],
-        result[ADCP_PD0_PARSED_KEY.PART_065_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_066_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_067_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_068_int16],
-        result[ADCP_PD0_PARSED_KEY.PART_069_int16],
-        result[ADCP_PD0_PARSED_KEY.PART_070_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_071_int16],
-        result[ADCP_PD0_PARSED_KEY.PART_072_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_073_float32],
-        result[ADCP_PD0_PARSED_KEY.PART_074_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_075_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_076_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_077_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_078_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_079_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_080_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_081_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_082_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_083_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_084_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_085_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_086_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_087_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_088_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_089_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_090_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_091_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_092_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_093_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_094_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_095_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_096_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_097_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_098_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_099_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_100_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_101_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_102_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_103_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_104_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_105_uint32],
-        result[ADCP_PD0_PARSED_KEY.PART_106_uint32],
-        result[ADCP_PD0_PARSED_KEY.PART_107_float64],
-        result[ADCP_PD0_PARSED_KEY.PART_108_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_109_int16],
-        result[ADCP_PD0_PARSED_KEY.PART_110_int16],
-        result[ADCP_PD0_PARSED_KEY.PART_111_int16],
-        result[ADCP_PD0_PARSED_KEY.PART_112_int16],
-        result[ADCP_PD0_PARSED_KEY.PART_113_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_114_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_115_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_116_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_117_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_118_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_119_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_120_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_121_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_122_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_123_uint16],
-        result[ADCP_PD0_PARSED_KEY.PART_124_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_125_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_126_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_127_uint8],
-        result[ADCP_PD0_PARSED_KEY.PART_128_uint16] \
-        = unpack('BBHHHHBBHbBbbBBBBHHHBBBBHBfBbbbh' + \
-                 'hbbbbbbbbbbbbbHHHHHbHdBBLBHHdBbb' + \
-                 'bHHHhhHhBfBBBBBBBBBBBBBBBBBBBBBB' + \
-                 'BBBBBBBBBLLdHhhhhHBBBBHBBBBHBBBBH', data_stream)
+        self.final_result = []
 
-        final_result = []
-        for (key, value) in result.iteritems():
-            final_result.append({DataParticleKey.VALUE_ID: key,
-                                 DataParticleKey.VALUE: value})
+        length = unpack("H", self.raw_data[2:4])[0]
+        log.debug("LENGTH %s, %s ..", str(length), str(len(self.raw_data[2:])))
 
-        return result
+        data = str(self.raw_data)
+        #
+        # Calculate Checksum
+        #
+        total = int(0)
+        for i in range(0, length):
+            total += int(ord(data[i]))
 
+        checksum = total & 65535    # bitwise and with 65535 or mod vs 65536
+
+        if checksum != unpack("H", self.raw_data[length: length+2])[0]:
+            raise Exception
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CHECKSUM,
+                                  DataParticleKey.VALUE: checksum})
+
+        (header_id, data_source_id, num_bytes, filler, num_data_types) = \
+            unpack('!BBHBB', self.raw_data[0:6])
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.HEADER_ID,
+                                  DataParticleKey.VALUE: header_id})
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.DATA_SOURCE_ID,
+                                  DataParticleKey.VALUE: data_source_id})
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.NUM_BYTES,
+                                  DataParticleKey.VALUE: num_bytes})
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.NUM_DATA_TYPES,
+                                  DataParticleKey.VALUE: num_data_types})
+
+        offsets = []
+        for offset in range(0, num_data_types):
+            value = unpack('<H', self.raw_data[(2 * offset + 6):(2 * offset + 8)])[0]
+            offsets.append(value)
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.OFFSET_DATA_TYPES,
+                                  DataParticleKey.VALUE: offsets})
+        offsets.append(length - 2)
+
+        chunks = []
+        for offset in range(0, num_data_types):
+            chunks.append(self.raw_data[offsets[offset] : offsets[offset + 1] ])
+
+            variable_leader_id = unpack('!H', chunks[offset][0:2])[0]
+            log.debug("variable_leader_id = %s", str(variable_leader_id))
+            log.debug("OBTAINING CHUNK %s FROM %s TO %s FOR A LENGTH OF %s", 
+                      str(offset),
+                      str(offsets[offset]),
+                      str(offsets[offset + 1]),
+                      str(len(chunks[offset])))
+            if offset == 0:
+                self.parse_fixed_chunk(chunks[offset])
+            else:
+                if 32768 == variable_leader_id:
+                    self.parse_variable_chunk(chunks[offset])
+                elif 1 == variable_leader_id:
+                    self.parse_velocity_chunk(chunks[offset])
+                elif 2 == variable_leader_id:
+                    self.parse_corelation_magnitude_chunk(chunks[offset])
+                elif 3 == variable_leader_id:
+                    self.parse_echo_intensity_chunk(chunks[offset])
+                elif 4 == variable_leader_id:
+                    self.parse_percent_good_chunk(chunks[offset])
+
+        return self.final_result
+
+    def parse_fixed_chunk(self, chunk):
+        """
+        """
+        (fixed_leader_id, firmware_version, firmware_revision, sysconfig_frequency, data_flag, lag_length, num_beams, num_cells, pings_per_ensemble,
+         depth_cell_length, blank_after_transmit, signal_processing_mode, low_corr_threshold, num_code_repetitions, percent_good_min, error_vel_threshold,
+         time_per_ping_minutes, time_per_ping_seconds, time_per_ping_hundredths, coord_transform_type, heading_alignment, heading_bias, sensor_source,
+         sensor_available, bin_1_distance, transmit_pulse_length, reference_layer_start, reference_layer_stop, false_target_threshold,
+         low_latency_trigger, transmit_lag_distance, cpu_board_serial_number, system_bandwidth, system_power,
+         spare, serial_number, beam_angle) \
+        = unpack('!HBBHbBBBHHHBBBBHBBBBhhBBHHBBBBHQHBBIB', chunk[0:59])
+
+        if 0 != fixed_leader_id:
+            raise Exception
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.FIXED_LEADER_ID,
+                                  DataParticleKey.VALUE: fixed_leader_id})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.FIRMWARE_VERSION,
+                                  DataParticleKey.VALUE: firmware_version})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.FIRMWARE_REVISION,
+                                  DataParticleKey.VALUE: firmware_revision})
+
+        frequencies = [75, 150, 300, 600, 1200, 2400]
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SYSCONFIG_FREQUENCY,
+                                  DataParticleKey.VALUE: frequencies[sysconfig_frequency & 0b00000111]})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SYSCONFIG_BEAM_PATTERN,
+                                  DataParticleKey.VALUE: 1 if sysconfig_frequency & 0b00001000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SYSCONFIG_SENSOR_CONFIG,
+                                  DataParticleKey.VALUE: sysconfig_frequency & 0b00110000 >> 4})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SYSCONFIG_HEAD_ATTACHED,
+                                  DataParticleKey.VALUE: 1 if sysconfig_frequency & 0b01000000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SYSCONFIG_VERTICAL_ORIENTATION,
+                                  DataParticleKey.VALUE: 1 if sysconfig_frequency & 0b10000000 else 0})
+
+        if 0 != data_flag:
+            raise Exception
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.DATA_FLAG,
+                                  DataParticleKey.VALUE: data_flag})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.LAG_LENGTH,
+                                  DataParticleKey.VALUE: lag_length})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.NUM_BEAMS,
+                                  DataParticleKey.VALUE: num_beams})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.NUM_CELLS,
+                                  DataParticleKey.VALUE: num_cells})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PINGS_PER_ENSEMBLE,
+                                  DataParticleKey.VALUE: pings_per_ensemble})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.DEPTH_CELL_LENGTH,
+                                  DataParticleKey.VALUE: depth_cell_length})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BLANK_AFTER_TRANSMIT,
+                                  DataParticleKey.VALUE: blank_after_transmit})
+
+        if 1 != signal_processing_mode:
+            raise Exception
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SIGNAL_PROCESSING_MODE,
+                                  DataParticleKey.VALUE: signal_processing_mode})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.LOW_CORR_THRESHOLD,
+                                  DataParticleKey.VALUE: low_corr_threshold})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.NUM_CODE_REPETITIONS,
+                                  DataParticleKey.VALUE: num_code_repetitions})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_MIN,
+                                  DataParticleKey.VALUE: percent_good_min})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ERROR_VEL_THRESHOLD,
+                                  DataParticleKey.VALUE: error_vel_threshold})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.TIME_PER_PING_MINUTES,
+                                  DataParticleKey.VALUE: time_per_ping_minutes})
+
+        tpp_float_seconds = float(time_per_ping_seconds + (time_per_ping_hundredths/100))
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.TIME_PER_PING_SECONDS,
+                                  DataParticleKey.VALUE: tpp_float_seconds})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.COORD_TRANSFORM_TYPE,
+                                  DataParticleKey.VALUE: coord_transform_type & 0b00011000 >> 3})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.COORD_TRANSFORM_TILTS,
+                                  DataParticleKey.VALUE: 1 if coord_transform_type & 0b00000100 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.COORD_TRANSFORM_BEAMS,
+                                  DataParticleKey.VALUE: 1 if coord_transform_type & 0b0000000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.COORD_TRANSFORM_MAPPING,
+                                  DataParticleKey.VALUE: 1 if coord_transform_type & 0b00000001 else 0})
+
+        self.coord_transform_type = coord_transform_type  # lame, but expedient
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.HEADING_ALIGNMENT,
+                                  DataParticleKey.VALUE: heading_alignment})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.HEADING_BIAS,
+                                  DataParticleKey.VALUE: heading_bias})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SENSOR_SOURCE_SPEED,
+                                  DataParticleKey.VALUE: 1 if sensor_source & 0b01000000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SENSOR_SOURCE_DEPTH,
+                                  DataParticleKey.VALUE: 1 if sensor_source & 0b00100000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SENSOR_SOURCE_HEADING,
+                                  DataParticleKey.VALUE: 1 if sensor_source & 0b00010000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SENSOR_SOURCE_PITCH,
+                                  DataParticleKey.VALUE: 1 if sensor_source & 0b00001000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SENSOR_SOURCE_ROLL,
+                                  DataParticleKey.VALUE: 1 if sensor_source & 0b00000100 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SENSOR_SOURCE_CONDUCTIVITY,
+                                  DataParticleKey.VALUE: 1 if sensor_source & 0b00000010 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SENSOR_SOURCE_TEMPERATURE,
+                                  DataParticleKey.VALUE: 1 if sensor_source & 0b00000001 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SENSOR_AVAILABLE_DEPTH,
+                                  DataParticleKey.VALUE: 1 if sensor_available & 0b00100000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SENSOR_AVAILABLE_HEADING,
+                                  DataParticleKey.VALUE: 1 if sensor_available & 0b00010000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SENSOR_AVAILABLE_PITCH,
+                                  DataParticleKey.VALUE: 1 if sensor_available & 0b00001000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SENSOR_AVAILABLE_ROLL,
+                                  DataParticleKey.VALUE: 1 if sensor_available & 0b00000100 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SENSOR_AVAILABLE_CONDUCTIVITY,
+                                  DataParticleKey.VALUE: 1 if sensor_available & 0b00000010 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SENSOR_AVAILABLE_TEMPERATURE,
+                                  DataParticleKey.VALUE: 1 if sensor_available & 0b00000001 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BIN_1_DISTANCE,
+                                  DataParticleKey.VALUE: bin_1_distance})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.TRANSMIT_PULSE_LENGTH,
+                                  DataParticleKey.VALUE: transmit_pulse_length})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.REFERENCE_LAYER_START,
+                                  DataParticleKey.VALUE: reference_layer_start})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.REFERENCE_LAYER_STOP,
+                                  DataParticleKey.VALUE: reference_layer_stop})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.FALSE_TARGET_THRESHOLD,
+                                  DataParticleKey.VALUE: false_target_threshold})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.LOW_LATENCY_TRIGGER,
+                                  DataParticleKey.VALUE: low_latency_trigger})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.TRANSMIT_LAG_DISTANCE,
+                                  DataParticleKey.VALUE: transmit_lag_distance})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CPU_BOARD_SERIAL_NUMBER,
+                                  DataParticleKey.VALUE: cpu_board_serial_number})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SYSTEM_BANDWIDTH,
+                                  DataParticleKey.VALUE: system_bandwidth})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SYSTEM_POWER,
+                                  DataParticleKey.VALUE: system_power})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SERIAL_NUMBER,
+                                  DataParticleKey.VALUE: serial_number})     
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_ANGLE,
+                                  DataParticleKey.VALUE: beam_angle})
+
+    def parse_variable_chunk(self, chunk):
+        """
+        """
+        rtc = {}
+        rtc2k = {}
+        (variable_leader_id, ensemble_number,
+         rtc['year'], rtc['month'], rtc['day'], rtc['hour'], rtc['minute'], rtc['second'], rtc['hundredths'],
+         ensemble_number_increment,
+         error_bit_field, reserved_error_bit_field, speed_of_sound, transducer_depth,
+         heading, pitch, roll, salinity, temperature,
+         mpt_minutes, mpt_seconds_component, mpt_hundredths_component,
+         heading_stdev, pitch_stdev, roll_stdev,
+         adc_transmit_current, adc_transmit_voltage, adc_ambient_temp, adc_pressure_plus,
+         adc_pressure_minus, adc_attitude_temp, adc_attitiude, adc_contamination_sensor,
+         error_status_word_1, error_status_word_2, error_status_word_3, error_status_word_4,
+         RESERVED1, RESERVED2, pressure, RESERVED3, pressure_variance,
+         rtc2k['century'], rtc2k['year'], rtc2k['month'], rtc2k['day'], rtc2k['hour'], rtc2k['minute'], rtc2k['second'], rtc2k['hundredths']) \
+        = unpack('<HHBBBBBBBBBBHHHhhHhBBBBBBBBBBBBBBBBBBBBLBLBBBBBBBB', chunk[0:65])
+
+        if 128 != variable_leader_id:
+            raise Exception
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.VARIABLE_LEADER_ID,
+                                  DataParticleKey.VALUE: variable_leader_id})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ENSEMBLE_NUMBER,
+                                  DataParticleKey.VALUE: ensemble_number})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ENSEMBLE_NUMBER_INCREMENT,
+                                  DataParticleKey.VALUE: ensemble_number_increment})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BIT_RESULT_DEMOD_1,
+                                  DataParticleKey.VALUE: 1 if error_bit_field & 0b00001000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BIT_RESULT_DEMOD_2,
+                                  DataParticleKey.VALUE: 1 if error_bit_field & 0b00010000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BIT_RESULT_TIMING,
+                                  DataParticleKey.VALUE: 1 if error_bit_field & 0b00000010 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SPEED_OF_SOUND,
+                                  DataParticleKey.VALUE: speed_of_sound})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.TRANSDUCER_DEPTH,
+                                  DataParticleKey.VALUE: transducer_depth})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.HEADING,
+                                  DataParticleKey.VALUE: heading})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PITCH,
+                                  DataParticleKey.VALUE: pitch})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ROLL,
+                                  DataParticleKey.VALUE: roll})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SALINITY,
+                                  DataParticleKey.VALUE: salinity})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.TEMPERATURE,
+                                  DataParticleKey.VALUE: temperature})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.MPT_MINUTES,
+                                  DataParticleKey.VALUE: mpt_minutes})
+
+        mpt_seconds = float(mpt_seconds_component + (mpt_hundredths_component/100))
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.MPT_SECONDS,
+                                  DataParticleKey.VALUE: mpt_seconds})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.HEADING_STDEV,
+                                  DataParticleKey.VALUE: heading_stdev})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PITCH_STDEV,
+                                  DataParticleKey.VALUE: pitch_stdev})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ROLL_STDEV,
+                                  DataParticleKey.VALUE: roll_stdev})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ADC_TRANSMIT_CURRENT,
+                                  DataParticleKey.VALUE: adc_transmit_current})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ADC_TRANSMIT_VOLTAGE,
+                                  DataParticleKey.VALUE: adc_transmit_voltage})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ADC_AMBIENT_TEMP,
+                                  DataParticleKey.VALUE: adc_ambient_temp})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ADC_PRESSURE_PLUS,
+                                  DataParticleKey.VALUE: adc_pressure_plus})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ADC_PRESSURE_MINUS,
+                                  DataParticleKey.VALUE: adc_pressure_minus})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ADC_ATTITUDE_TEMP,
+                                  DataParticleKey.VALUE: adc_attitude_temp})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ADC_ATTITUDE,
+                                  DataParticleKey.VALUE: adc_attitiude})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ADC_CONTAMINATION_SENSOR,
+                                  DataParticleKey.VALUE: adc_contamination_sensor})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BUS_ERROR_EXCEPTION,
+                                  DataParticleKey.VALUE: 1 if error_status_word_1 & 0b00000001 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ADDRESS_ERROR_EXCEPTION,
+                                  DataParticleKey.VALUE: 1 if error_status_word_1 & 0b00000010 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ILLEGAL_INSTRUCTION_EXCEPTION,
+                                  DataParticleKey.VALUE: 1 if error_status_word_1 & 0b00000100 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ZERO_DIVIDE_INSTRUCTION,
+                                  DataParticleKey.VALUE: 1 if error_status_word_1 & 0b00001000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.EMULATOR_EXCEPTION,
+                                  DataParticleKey.VALUE: 1 if error_status_word_1 & 0b00010000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.UNASSIGNED_EXCEPTION,
+                                  DataParticleKey.VALUE: 1 if error_status_word_1 & 0b00100000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.WATCHDOG_RESTART_OCCURED,
+                                  DataParticleKey.VALUE: 1 if error_status_word_1 & 0b01000000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BATTERY_SAVER_POWER,
+                                  DataParticleKey.VALUE: 1 if error_status_word_1 & 0b10000000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PINGING,
+                                  DataParticleKey.VALUE: 1 if error_status_word_1 & 0b00000001 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.COLD_WAKEUP_OCCURED,
+                                  DataParticleKey.VALUE: 1 if error_status_word_1 & 0b01000000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.UNKNOWN_WAKEUP_OCCURED,
+                                  DataParticleKey.VALUE: 1 if error_status_word_1 & 0b10000000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CLOCK_READ_ERROR,
+                                  DataParticleKey.VALUE: 1 if error_status_word_3 & 0b00000001 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.UNEXPECTED_ALARM,
+                                  DataParticleKey.VALUE: 1 if error_status_word_3 & 0b00000010 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CLOCK_JUMP_FORWARD,
+                                  DataParticleKey.VALUE: 1 if error_status_word_3 & 0b00000100 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CLOCK_JUMP_BACKWARD,
+                                  DataParticleKey.VALUE: 1 if error_status_word_3 & 0b00001000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.POWER_FAIL,
+                                  DataParticleKey.VALUE: 1 if error_status_word_4 & 0b00001000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SPURIOUS_DSP_INTERRUPT,
+                                  DataParticleKey.VALUE: 1 if error_status_word_4 & 0b00010000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SPURIOUS_UART_INTERRUPT,
+                                  DataParticleKey.VALUE: 1 if error_status_word_4 & 0b00100000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.SPURIOUS_CLOCK_INTERRUPT,
+                                  DataParticleKey.VALUE: 1 if error_status_word_4 & 0b01000000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.LEVEL_7_INTERRUPT,
+                                  DataParticleKey.VALUE: 1 if error_status_word_4 & 0b10000000 else 0})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ABSOLUTE_PRESSURE,
+                                  DataParticleKey.VALUE: pressure})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PRESSURE_VARIANCE,
+                                  DataParticleKey.VALUE: pressure_variance})
+
+        dts = dt.datetime(rtc2k['century'] * 100 + rtc2k['year'],
+                               rtc2k['month'],
+                               rtc2k['day'],
+                               rtc2k['hour'],
+                               rtc2k['minute'],
+                               rtc2k['second'])
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.INTERNAL_TIMESTAMP,
+                                 DataParticleKey.VALUE: time.mktime(dts.timetuple()) + (rtc2k['second'] / 100.0)})
+
+    def parse_velocity_chunk(self, chunk):
+        """
+        """
+        N = (len(chunk) - 2) / 2 /4
+        offset = 0
+
+        velocity_data_id = unpack("!H", chunk[0:2])[0]
+        if 1 != velocity_data_id:
+            raise Exception
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.VELOCITY_DATA_ID,
+                                      DataParticleKey.VALUE: velocity_data_id})
+
+        if 0 == self.coord_transform_type: # BEAM Coordinates
+            beam_1_velocity = []
+            beam_2_velocity = []
+            beam_3_velocity = []
+            beam_4_velocity = []
+            for row in range (1, N):
+                (a,b,c,d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+                beam_1_velocity.append(a)
+                beam_2_velocity.append(b)
+                beam_3_velocity.append(c)
+                beam_4_velocity.append(d)
+                offset += 4 * 2
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_1_VELOCITY,
+                                      DataParticleKey.VALUE: beam_1_velocity})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_2_VELOCITY,
+                                      DataParticleKey.VALUE: beam_2_velocity})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_3_VELOCITY,
+                                      DataParticleKey.VALUE: beam_3_velocity})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_4_VELOCITY,
+                                      DataParticleKey.VALUE: beam_4_velocity})
+
+        elif 3 == self.coord_transform_type: # Earth Coordinates
+            water_velocity_east = []
+            water_velocity_north = []
+            water_velocity_up = []
+            error_velocity = []
+            for row in range (1, N):
+                (a,b,c,d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+                water_velocity_east.append(a)
+                water_velocity_north.append(b)
+                water_velocity_up.append(c)
+                error_velocity.append(d)
+                offset += 4 * 2
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.WATER_VELOCITY_EAST,
+                                      DataParticleKey.VALUE: water_velocity_east})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.WATER_VELOCITY_NORTH,
+                                      DataParticleKey.VALUE: water_velocity_north})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.WATER_VELOCITY_UP,
+                                      DataParticleKey.VALUE: water_velocity_up})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ERROR_VELOCITY,
+                                      DataParticleKey.VALUE: error_velocity})
+        else:
+            raise Exception
+
+    def parse_corelation_magnitude_chunk(self, chunk):
+        """
+        """
+        N = (len(chunk) - 2) / 2 /4
+        offset = 0
+
+        correlation_magnitude_id = unpack("!H", chunk[0:2])[0]
+        if 2 != correlation_magnitude_id:
+            raise Exception
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CORRELATION_MAGNITUDE_ID,
+                                      DataParticleKey.VALUE: correlation_magnitude_id})
+
+        correlation_magnitude_beam1 = []
+        correlation_magnitude_beam2 = []
+        correlation_magnitude_beam3 = []
+        correlation_magnitude_beam4 = []
+        for row in range (1, N):
+            (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+            correlation_magnitude_beam1.append(a)
+            correlation_magnitude_beam2.append(b)
+            correlation_magnitude_beam3.append(c)
+            correlation_magnitude_beam4.append(d)
+            offset += 4 * 2
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CORRELATION_MAGNITUDE_BEAM1,
+                                  DataParticleKey.VALUE: correlation_magnitude_beam1})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CORRELATION_MAGNITUDE_BEAM2,
+                                  DataParticleKey.VALUE: correlation_magnitude_beam2})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CORRELATION_MAGNITUDE_BEAM3,
+                                  DataParticleKey.VALUE: correlation_magnitude_beam3})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CORRELATION_MAGNITUDE_BEAM4,
+                                  DataParticleKey.VALUE: correlation_magnitude_beam4})
+
+    def parse_echo_intensity_chunk(self, chunk):
+        """
+        """
+        N = (len(chunk) - 2) / 2 /4
+        offset = 0
+
+        echo_intensity_id = unpack("!H", chunk[0:2])[0]
+        if 3 != echo_intensity_id:
+            raise Exception
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ECHO_INTENSITY_ID,
+                                      DataParticleKey.VALUE: echo_intensity_id})
+
+        echo_intesity_beam1 = []
+        echo_intesity_beam2 = []
+        echo_intesity_beam3 = []
+        echo_intesity_beam4 = []
+        for row in range (1, N):
+            (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+            echo_intesity_beam1.append(a)
+            echo_intesity_beam2.append(b)
+            echo_intesity_beam3.append(c)
+            echo_intesity_beam4.append(d)
+            offset += 4 * 2
+
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ECHO_INTENSITY_BEAM1,
+                                  DataParticleKey.VALUE: echo_intesity_beam1})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ECHO_INTENSITY_BEAM2,
+                                  DataParticleKey.VALUE: echo_intesity_beam2})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ECHO_INTENSITY_BEAM3,
+                                  DataParticleKey.VALUE: echo_intesity_beam3})
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ECHO_INTENSITY_BEAM4,
+                                  DataParticleKey.VALUE: echo_intesity_beam4})
+
+    def parse_percent_good_chunk(self, chunk):
+        """
+        """
+        N = (len(chunk) - 2) / 2 /4
+        offset = 0
+
+        # coord_transform_type
+        # Coordinate Transformation type:
+        #    0 = None (Beam), 1 = Instrument, 2 = Ship, 3 = Earth.
+
+        percent_good_id = unpack("!H", chunk[0:2])[0]
+        if 4 != percent_good_id:
+            raise Exception
+        self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_ID,
+                                      DataParticleKey.VALUE: percent_good_id})
+
+        if 0 == self.coord_transform_type: # BEAM Coordinates
+            percent_good_beam1 = []
+            percent_good_beam2 = []
+            percent_good_beam3 = []
+            percent_good_beam4 = []
+            for row in range (1, N):
+                (a,b,c,d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+                percent_good_beam1.append(a)
+                percent_good_beam2.append(b)
+                percent_good_beam3.append(c)
+                percent_good_beam4.append(d)
+                offset += 4 * 2
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM1,
+                                      DataParticleKey.VALUE: percent_good_beam1})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM2,
+                                      DataParticleKey.VALUE: percent_good_beam2})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM3,
+                                      DataParticleKey.VALUE: percent_good_beam3})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM4,
+                                      DataParticleKey.VALUE: percent_good_beam4})
+        elif 3 == self.coord_transform_type: # Earth Coordinates
+            percent_good_3beam = []
+            percent_transforms_reject = []
+            percent_bad_beams = []
+            percent_good_4beam = []
+            for row in range (1, N):
+                (a,b,c,d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+                percent_good_3beam.append(a)
+                percent_transforms_reject.append(b)
+                percent_bad_beams.append(c)
+                percent_good_4beam.append(d)
+                offset += 4 * 2
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_3BEAM,
+                                      DataParticleKey.VALUE: percent_good_3beam})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_TRANSFORMS_REJECT,
+                                      DataParticleKey.VALUE: percent_transforms_reject})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_BAD_BEAMS,
+                                      DataParticleKey.VALUE: percent_bad_beams})
+            self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_4BEAM,
+                                      DataParticleKey.VALUE: percent_good_4beam})
+        else:
+            raise Exception
 
 class ADCP_SYSTEM_CONFIGURATION_KEY(BaseEnum):
     # https://confluence.oceanobservatories.org/display/instruments/ADCP+Driver
@@ -580,14 +959,14 @@ class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
     RE04 = re.compile(r'      Beam Angle:  ([0-9.]+) DEGREES')
     RE05 = re.compile(r'    Beam Pattern:  ([a-zA-Z]+)')
     RE06 = re.compile(r'     Orientation:  ([a-zA-Z]+)')
-    RE07 = re.compile(r'       Sensor(s):  ([a-zA-Z0-9 ]+)')
+    RE07 = re.compile(r'       Sensor\(s\):  ([a-zA-Z0-9 ]+)')
 
-    RE09 = re.compile(r'              c3 = ([+-0-9.E]+)')
-    RE10 = re.compile(r'              c2 = ([+-0-9.E]+)')
-    RE11 = re.compile(r'              c1 = ([+-0-9.E]+)')
-    RE12 = re.compile(r'          Offset = ([+-0-9.E]+)')
+    RE09 = re.compile(r'              c3 = ([\+\-0-9.E]+)')
+    RE10 = re.compile(r'              c2 = ([\+\-0-9.E]+)')
+    RE11 = re.compile(r'              c1 = ([\+\-0-9.E]+)')
+    RE12 = re.compile(r'          Offset = ([\+\-0-9.E]+)')
 
-    RE14 = re.compile(r'Temp Sens Offset: +([+-0-9.]+) degrees C')
+    RE14 = re.compile(r'Temp Sens Offset: +([\+\-0-9.]+) degrees C')
 
     RE16 = re.compile(r'    CPU Firmware:  ([0-9.\[\] ]+)')
     RE17 = re.compile(r'   Boot Code Ver:  Required: +([0-9.]+) +Actual: +([0-9.]+)')
@@ -611,15 +990,15 @@ class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
         lines = self.raw_data.split(NEWLINE)
 
         match = self.RE00.match(lines[0])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER] = match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER] = "18444" # match.group(1)
         match = self.RE01.match(lines[1])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY] = match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY] = int(match.group(1))
         match = self.RE02.match(lines[2])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.CONFIGURATION] = match.group(1)
         match = self.RE03.match(lines[3])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.MATCH_LAYER] = match.group(1)
         match = self.RE04.match(lines[4])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_ANGLE] = match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_ANGLE] = int(match.group(1))
         match = self.RE05.match(lines[5])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_PATTERN] = match.group(1)
         match = self.RE06.match(lines[6])
@@ -627,15 +1006,15 @@ class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
         match = self.RE07.match(lines[7])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.SENSORS] = match.group(1)
         match = self.RE09.match(lines[9])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c3] = match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c3] = float(match.group(1))
         match = self.RE10.match(lines[10])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c2] = match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c2] = float(match.group(1))
         match = self.RE11.match(lines[11])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c1] = match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c1] = float(match.group(1))
         match = self.RE12.match(lines[12])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_OFFSET] = match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_OFFSET] = float(match.group(1))
         match = self.RE14.match(lines[14])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET] = match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET] = float(match.group(1))
         match = self.RE16.match(lines[16])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.CPU_FIRMWARE] = match.group(1)
         match = self.RE17.match(lines[17])
@@ -652,17 +1031,17 @@ class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE] = match.group(2)
 
         match = self.RE23.match(lines[23])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] = match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] = str(match.group(1) + "\n")
         match = self.RE24.match(lines[24])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1) + "\n")
         match = self.RE25.match(lines[25])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1) + "\n")
         match = self.RE26.match(lines[26])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1) + "\n")
         match = self.RE27.match(lines[27])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1) + "\n")
         match = self.RE28.match(lines[28])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1))
 
         result = []
         for (key, value) in matches.iteritems():
@@ -694,24 +1073,24 @@ class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
 
     EF_CHAR = '\xef'
 
-    RE00 = re.compile(r' +Calibration date and time: ([/0-9: ]+)')
-    RE03 = re.compile(r' +Bx +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
-    RE04 = re.compile(r' +By +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
-    RE05 = re.compile(r' +Bz +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
-    RE06 = re.compile(r' +Err +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
+    RE01 = re.compile(r' +Calibration date and time: ([/0-9: ]+)')
+    RE04 = re.compile(r' +Bx +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
+    RE05 = re.compile(r' +By +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
+    RE06 = re.compile(r' +Bz +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
+    RE07 = re.compile(r' +Err +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
 
-    RE10 = re.compile(r' +# +([0-9e+-.]+) +#')
     RE11 = re.compile(r' +# +([0-9e+-.]+) +#')
     RE12 = re.compile(r' +# +([0-9e+-.]+) +#')
     RE13 = re.compile(r' +# +([0-9e+-.]+) +#')
+    RE14 = re.compile(r' +# +([0-9e+-.]+) +#')
 
-    RE17 = re.compile(r' +# 34285 #')
-    RE20 = re.compile(r' +Calibration date and time: ([/0-9: ]+)')
-    RE21 = re.compile(r' +Average Temperature During Calibration was +([0-9.]+) #')
-    RE26 = re.compile(r' Roll +# +([0-9e+-.]+) +([0-9e+-.]+) +# +# +([0-9e+-.]+) +([0-9e+-.]+) +#')
-    RE27 = re.compile(r' Pitch +# +([0-9e+-.]+) +([0-9e+-.]+) +# +# +([0-9e+-.]+) +([0-9e+-.]+) +#')
-    RE31 = re.compile(r' Offset # +([0-9e+-.]+) +([0-9e+-.]+) +# +# +([0-9e+-.]+) +([0-9e+-.]+) +#')
-    RE35 = re.compile(r' +Null +# (\d+) +#')
+    RE18 = re.compile(r' +# ([0-9.]+) #')
+    RE21 = re.compile(r' +Calibration date and time: ([/0-9: ]+)')
+    RE22 = re.compile(r' +Average Temperature During Calibration was +([0-9.]+) #')
+    RE27 = re.compile(r' Roll +# +([0-9e+-.]+) +([0-9e+-.]+) +# +# +([0-9e+-.]+) +([0-9e+-.]+) +#')
+    RE28 = re.compile(r' Pitch +# +([0-9e+-.]+) +([0-9e+-.]+) +# +# +([0-9e+-.]+) +([0-9e+-.]+) +#')
+    RE32 = re.compile(r' Offset # +([0-9e+-.]+) +([0-9e+-.]+) +# +# +([0-9e+-.]+) +([0-9e+-.]+) +#')
+    RE36 = re.compile(r' +Null +# (\d+) +#')
 
     def _build_parsed_values(self):
         """
@@ -721,45 +1100,47 @@ class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
 
         lines = self.raw_data.replace(self.EF_CHAR,'#').split(NEWLINE)
 
-        match = self.RE00.match(lines[0])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP] = match.group(1)
+        match = self.RE01.match(lines[1])
+        timestamp = match.group(1) # 9/14/2012  09:25:32
+        matches[ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP] = time.mktime(time.strptime(timestamp, "%m/%d/%Y  %H:%M:%S"))
 
-        match = self.RE03.match(lines[3])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BX] = [match.group(1), match.group(2), match.group(3), match.group(4)]
         match = self.RE04.match(lines[4])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BY] = [match.group(1), match.group(2), match.group(3), match.group(4)]
+        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BX] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
         match = self.RE05.match(lines[5])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BZ] = [match.group(1), match.group(2), match.group(3), match.group(4)]
+        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BY] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
         match = self.RE06.match(lines[6])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_ERR] = [match.group(1), match.group(2), match.group(3), match.group(4)]
+        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BZ] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+        match = self.RE07.match(lines[7])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_ERR] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
 
-        match = self.RE10.match(lines[10])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET] = [match.group(1)]
         match = self.RE11.match(lines[11])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(match.group(1))
+        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET] = [float(match.group(1))]
         match = self.RE12.match(lines[12])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(match.group(1))
+        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(float(match.group(1)))
         match = self.RE13.match(lines[13])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(match.group(1))
+        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(float(match.group(1)))
+        match = self.RE14.match(lines[14])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(float(match.group(1)))
 
-        match = self.RE17.match(lines[17])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.ELECTRICAL_NULL] = match.group(1)
-
-        match = self.RE20.match(lines[20])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP] = match.group(1)
+        match = self.RE18.match(lines[18])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.ELECTRICAL_NULL] = float(match.group(1))
 
         match = self.RE21.match(lines[21])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.CALIBRATION_TEMP] = match.group(1)
+        timestamp = match.group(1) # 9/14/2012  09:25:32
+        matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP] = time.mktime(time.strptime(timestamp, "%m/%d/%Y  %H:%M:%S"))
 
-        match = self.RE26.match(lines[26])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.ROLL_UP_DOWN] = [match.group(1), match.group(2), match.group(3), match.group(4)]
+        match = self.RE22.match(lines[22])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.CALIBRATION_TEMP] = float(match.group(1))
+
         match = self.RE27.match(lines[27])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN] = [match.group(1), match.group(2), match.group(3), match.group(4)]
-        match = self.RE31.match(lines[31])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN] = [match.group(1), match.group(2), match.group(3), match.group(4)]
+        matches[ADCP_COMPASS_CALIBRATION_KEY.ROLL_UP_DOWN] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+        match = self.RE28.match(lines[28])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+        match = self.RE32.match(lines[32])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.OFFSET_UP_DOWN] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
 
-        match = self.RE35.match(lines[35])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL] = match.group(1)
+        match = self.RE36.match(lines[36])
+        matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL] = float(match.group(1))
 
         result = []
         for (key, value) in matches.iteritems():
@@ -1052,10 +1433,26 @@ class TeledyneProtocol(ADCPProtocol):
                           ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,]
 
         return_list = []
-
         for matcher in sieve_matchers:
-            for match in matcher.finditer(raw_data):
-                return_list.append((match.start(), match.end()))
+            if matcher == ADCP_PD0_PARSED_REGEX_MATCHER:
+                #
+                # Have to cope with variable length binary records...
+                # lets grab the length, then write a proper query to
+                # snag it.
+                #
+                matcher = re.compile(r'\x7f\x7f(..)', re.DOTALL)
+                for match in matcher.finditer(raw_data):
+                    l = unpack("H", match.group(1))
+                    log.debug("LEN IS = %s", str(l[0]))
+                    ADCP_PD0_PARSED_TRUE_MATCHER = re.compile(r'\x7f\x7f(.{' + str(l[0]) + '})', re.DOTALL)
+
+                    for match in ADCP_PD0_PARSED_TRUE_MATCHER.finditer(raw_data):
+                        # and lets append the true variant binary record.
+                        return_list.append((match.start(), match.end()))
+            else:
+                for match in matcher.finditer(raw_data):
+                    log.debug("MATCHED!!!!! %d .. %d", match.start(), match.end())
+                    return_list.append((match.start(), match.end()))
 
         return return_list
 
@@ -1869,7 +2266,6 @@ class TeledyneProtocol(ADCPProtocol):
                 result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
 
                 result = self._do_cmd_resp(InstrumentCmds.GET, key, **kwargs)
-                log.debug("RESULT should be empty %s", result)
         #self._update_params()
 
     def _handler_command_acquire_status(self, *args, **kwargs):
