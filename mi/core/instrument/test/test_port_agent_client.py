@@ -32,6 +32,7 @@ from mi.core.port_agent_simulator import TCPSimulatorServer
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacket, Listener
+from mi.core.exceptions import InstrumentConnectionException
 
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
@@ -428,7 +429,7 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
 
     def myGotError(self, errorString = "No error string passed in."):
         self.errorCallbackCalled = True
-        print "Got error: " +  errorString + "\r\n"
+        log.error("myGotError got error: %s" % errorString)
                        
     def init_instrument_simulator(self):
         """
@@ -504,35 +505,133 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
 
         print "port agent client test begin"
 
+        self.resetTestVars()
+        
         paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
         
-        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
+        try:
+            paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
+ 
+        except InstrumentConnectionException as e:
+            log.info("Exception caught as expected: %r" % (e))
+            exceptionCaught = True
+            
+        else:
+            exceptionCaught = False
         
-        self.assertTrue(self.errorCallbackCalled)
+        """
+        Assert that the error_callback was not called, and that an exception
+        was caught.
+        """
+        self.assertFalse(self.errorCallbackCalled)
+        self.assertTrue(exceptionCaught)
     
-    #@unittest.skip('Need to add instrument simulator (listener or instrument port')
     def test_start_paClient_with_port_agent(self):
 
+        self.resetTestVars()
+        
         self.init_instrument_simulator()
         self.startPortAgent()
 
         paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
-        
-        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
-        
-        data = "this is a great big test"
-        paClient.send(data)
-        
-        time.sleep(1)
 
-        self._instrument_simulator.send(data)
+        try:        
+            paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
         
-        time.sleep(5)
-
+        except InstrumentConnectionException as e:
+            log.error("Exception caught: %r" % (e))
+            exceptionCaught = True
+            
+        else:
+            exceptionCaught = False
+        
+            data = "this is a great big test"
+            paClient.send(data)
+        
+            time.sleep(1)
+    
+            self._instrument_simulator.send(data)
+            
+            time.sleep(5)
+    
         paClient.stop_comms()
-        
+
+        """
+        Assert that the error_callback was not called, that an exception was not
+        caught, and that the data and raw callbacks were called.
+        """
+        self.assertFalse(self.errorCallbackCalled)        
+        self.assertFalse(exceptionCaught)
         self.assertTrue(self.rawCallbackCalled)
         self.assertTrue(self.dataCallbackCalled)
     
+    def test_start_paClient_lost_port_agent(self):
+
+        self.resetTestVars()
+        
+        self.init_instrument_simulator()
+        self.startPortAgent()
+
+        paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
+
+        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
+        
+        try:
+            data = "this is a great big test"
+            paClient.send(data)
+        
+            time.sleep(1)
     
+            self._instrument_simulator.send(data)
+            
+        except InstrumentConnectionException as e:
+            log.error("Exception caught: %r" % (e))
+            exceptionCaught = True
+            
+        else:
+            exceptionCaught = False
+        
+        time.sleep(1)
+    
+        """
+        Assert that the error_callback was not called, that an exception was not
+        caught, and that the data and raw callbacks were called.
+        """
+        self.assertFalse(self.errorCallbackCalled)        
+        self.assertFalse(exceptionCaught)
+        self.assertTrue(self.rawCallbackCalled)
+        self.assertTrue(self.dataCallbackCalled)
+
+        """
+        Now reset the test variables and try again; this time after stopping
+        the port agent
+        """
+        
+        self.resetTestVars()
+
+        try:
+            self.stop_port_agent()    
+            data = "this is another great big test"
+            paClient.send(data)
+        
+            time.sleep(1)
+    
+            self._instrument_simulator.send(data)
+            
+        except InstrumentConnectionException as e:
+            log.error("Exception caught: %r" % (e))
+            exceptionCaught = True
+            
+        else:
+            exceptionCaught = False
+        
+        time.sleep(5)
+    
+        """
+        Assert that the error_callback was called.  At this moment the listener
+        is seeing the error first, and that does not call the exception, so
+        don't test for that yet.
+        """
+        self.assertTrue(self.errorCallbackCalled)        
+        #self.assertTrue(exceptionCaught)
     
