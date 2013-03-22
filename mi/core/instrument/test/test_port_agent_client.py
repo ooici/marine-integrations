@@ -565,7 +565,12 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         self.assertTrue(self.rawCallbackCalled)
         self.assertTrue(self.dataCallbackCalled)
     
-    def test_start_paClient_lost_port_agent(self):
+    def test_start_paClient_lost_port_agent_tx_rx(self):
+        """
+        This test starts the port agent and the instrument_simulator and
+        tests that data is sent and received first; then it stops the port
+        agent and tests that the error_callback was called.
+        """
 
         self.resetTestVars()
         
@@ -574,8 +579,15 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
 
         paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
 
+        """
+        Give the port agent time to initialize
+        """
+        time.sleep(2)
         paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
         
+        """
+        Now send some data; there should be no errors.
+        """
         try:
             data = "this is a great big test"
             paClient.send(data)
@@ -594,8 +606,8 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         time.sleep(1)
     
         """
-        Assert that the error_callback was not called, that an exception was not
-        caught, and that the data and raw callbacks were called.
+        Assert that the error_callback was NOT called, that an exception was NOT
+        caught, and that the data and raw callbacks WERE called.
         """
         self.assertFalse(self.errorCallbackCalled)        
         self.assertFalse(exceptionCaught)
@@ -604,7 +616,7 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
 
         """
         Now reset the test variables and try again; this time after stopping
-        the port agent
+        the port agent.  Should be errors
         """
         
         self.resetTestVars()
@@ -628,10 +640,97 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         time.sleep(5)
     
         """
+        Assert that the error_callback WAS called.  The listener usually 
+        is seeing the error first, and that does not call the exception, so
+        only assert that the error callback was called.
+        """
+        self.assertTrue(self.errorCallbackCalled)        
+    
+    def test_start_paClient_lost_port_agent_rx(self):
+        """
+        This test starts the port agent and then stops the port agent and
+        verifies that the error callback was called (because the listener
+        is the only one that will see the error, since there is no send
+        operation).
+        """
+
+        self.resetTestVars()
+        
+        self.init_instrument_simulator()
+        self.startPortAgent()
+
+        paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
+
+        """
+        Give the port agent time to initialize
+        """
+        time.sleep(2)
+        
+        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
+        
+        try:
+            self.stop_port_agent()    
+
+        except InstrumentConnectionException as e:
+            log.error("Exception caught: %r" % (e))
+            exceptionCaught = True
+            
+        else:
+            exceptionCaught = False
+        
+        time.sleep(5)
+    
+        """
         Assert that the error_callback was called.  At this moment the listener
         is seeing the error first, and that does not call the exception, so
         don't test for that yet.
         """
         self.assertTrue(self.errorCallbackCalled)        
-        #self.assertTrue(exceptionCaught)
+
     
+    @unittest.skip('Skip; this test does not work consistently.')
+    def test_start_paClient_lost_port_agent_tx(self):
+        """
+        This test starts the port agent and then starts the port agent client
+        in a special way that will not start the listener thread.  This will
+        guarantee that the send context is the one the sees the error.
+        """
+
+        self.resetTestVars()
+
+        self.init_instrument_simulator()
+        self.startPortAgent()
+
+        paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
+
+        """
+        Give the port agent time to initialize
+        """
+        time.sleep(5)
+        
+        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError, start_listener = False)
+        
+        try:
+            self.stop_port_agent()    
+            data = "this big ol' test should cause send context to fail"
+            paClient.send(data)
+        
+            time.sleep(1)
+
+        except InstrumentConnectionException as e:
+            log.error("Exception caught: %r" % (e))
+            exceptionCaught = True
+            
+        else:
+            exceptionCaught = False
+        
+        time.sleep(5)
+    
+        """
+        Assert that the error_callback was called.  For this test the listener
+        should not be running, so the send context should see the error, and that
+        should throw an exception.  Assert that the callback WAS called and that
+        an exception WAS thrown.
+        """
+        self.assertTrue(self.errorCallbackCalled)        
+        self.assertTrue(exceptionCaught)
