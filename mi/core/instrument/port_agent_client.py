@@ -255,6 +255,7 @@ class PortAgentClient(object):
         self.user_callback_data = None
         self.user_callback_raw = None
         self.user_callback_error = None
+        self.listener_callback_error = None
         self.recovery_mutex = threading.Lock()
         self.recovery_attempts = 0
         
@@ -281,8 +282,9 @@ class PortAgentClient(object):
                                                 self.delim, self.heartbeat, 
                                                 self.max_missed_heartbeats, 
                                                 self.callback_data,
-                                                self.callback_raw, 
-                                                self.callback_error, 
+                                                self.callback_raw,
+                                                self.listener_callback_error,
+                                                self.callback_error,
                                                 self.user_callback_error)
                 self.listener_thread.start()
 
@@ -321,12 +323,14 @@ class PortAgentClient(object):
             self.sock = None
             log.info('Port agent data socket closed.')
                         
-    def init_comms(self, user_callback_data = None, user_callback_raw = None, 
-                   user_callback_error = None, heartbeat = 0, 
+    def init_comms(self, user_callback_data = None, user_callback_raw = None,
+                   listener_callback_error = None,
+                   user_callback_error = None, heartbeat = 0,
                    max_missed_heartbeats = None, start_listener = True):
         
         self.user_callback_data = user_callback_data        
-        self.user_callback_raw = user_callback_raw        
+        self.user_callback_raw = user_callback_raw
+        self.listener_callback_error = listener_callback_error
         self.user_callback_error = user_callback_error
         self.heartbeat = heartbeat
         self.max_missed_heartbeats = max_missed_heartbeats
@@ -550,8 +554,9 @@ class Listener(threading.Thread):
     def __init__(self, sock, recovery_attempt, 
                  delim = None, heartbeat = 0, 
                  max_missed_heartbeats = None, 
-                 callback_data = None, callback_raw = None, 
-                 local_callback_error = None,  
+                 callback_data = None, callback_raw = None,
+                 default_callback_error = None,
+                 local_callback_error = None,
                  user_callback_error = None):
         """
         Listener thread constructor.
@@ -564,6 +569,7 @@ class Listener(threading.Thread):
         before attempting recovery.
         @param callback_data The callback on data arrival.
         @param callback_raw The callback for raw.
+        @param default_callback_data A callback to handle non-network exceptions
         @param local_callback_data The local callback when error encountered.
         @param user_callback_data The user callback on error_encountered.
         """
@@ -586,13 +592,19 @@ class Listener(threading.Thread):
             if callback_data:
                 callback_data(paPacket)
             else:
-                log.error("No callback_data function has been registered")            
+                log.error("No callback_data function has been registered")
 
         def fn_callback_raw(paPacket):
             if callback_raw:
                 callback_raw(paPacket)
             else:
-                log.error("No callback_raw function has been registered")            
+                log.error("No callback_raw function has been registered")
+
+        def fn_callback_error(exception):
+            if default_callback_error:
+                default_callback_error(exception)
+            else:
+                log.error("No default_callback_error function has been registered")
                             
         def fn_local_callback_error(errorString = "No error string passed."):
             """
@@ -605,7 +617,7 @@ class Listener(threading.Thread):
             else:
                 log.error("No local_callback_error function has been registered")            
 
-                            
+
         def fn_user_callback_error(errorString = "No error string passed."):
             """
             User error callback; 
@@ -624,6 +636,7 @@ class Listener(threading.Thread):
         self.callback_raw = fn_callback_raw
         self.local_callback_error = fn_local_callback_error
         self.user_callback_error = fn_user_callback_error
+        self.default_callback_error = fn_callback_error
 
     def heartbeat_timeout(self):
         log.error('heartbeat timeout')
@@ -705,8 +718,8 @@ class Listener(threading.Thread):
                 self.start_heartbeat_timer()
                 
             self.heartbeat_missed_count = self.max_missed_heartbeats
-            
-                
+
+
     def run(self):
         """
         Listener thread processing loop. Block on receive from port agent.
@@ -781,6 +794,8 @@ class Listener(threading.Thread):
                     log.error(errorString)
                     self._invoke_error_callback(self.recovery_attempt, errorString)
 
+            except Exception as e:
+                self.default_callback_error(e)
 
         log.info('Port_agent_client thread done listening; going away.')
 

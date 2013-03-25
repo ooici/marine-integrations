@@ -957,23 +957,6 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         self.assert_initialize_driver()
         self.assert_cycle()
         self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
-        self.assert_cycle()
 
 
 
