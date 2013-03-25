@@ -92,6 +92,7 @@ from ooi.logging import log
 # Do not remove this import.  It is for package building.
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
+AGENT_DISCOVER_TIMEOUT=120
 GO_ACTIVE_TIMEOUT=180
 GET_TIMEOUT=30
 SET_TIMEOUT=90
@@ -147,7 +148,7 @@ class InstrumentDriverTestConfig(Singleton):
 
     driver_startup_config = {}
 
-    container_deploy_file = 'res/deploy/r2deploy.yml'
+    container_deploy_file = 'res/deploy/r2idk.yml'
     publisher_deploy_file = 'res/deploy/r2idk.yml'
 
     initialized   = False
@@ -1638,7 +1639,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         particle_callback(particle)
 
-    def assert_async_particle_generation(self, particle_type, particle_callback, timeout=10):
+    def assert_async_particle_generation(self, particle_type, particle_callback, particle_count = 1, timeout=10):
         """
         Watch the event queue for a published data particles.
         @param particle_type: particle type we are looking for
@@ -1647,11 +1648,12 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         """
         end_time = time.time() + timeout
         samples = []
+        count = 0
 
-        while(len(samples) == 0):
+        while(count < particle_count):
             samples = self.get_sample_events(particle_type)
-            log.debug("Found %d samples" % len(samples))
-            if(len(samples) > 1):
+            log.debug("Found %d samples, seen %d", len(samples), count)
+            if(len(samples) >= 1):
                 sample = samples.pop()
                 self.assertIsNotNone(sample)
 
@@ -1663,7 +1665,8 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
                 # So we have found one particle and verified it.  We are done here!
                 particle_callback(particle)
-                return
+
+                count += 1
 
             self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
             time.sleep(.3)
@@ -1901,7 +1904,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         list of common agent parameters
         @return: list of agent parameters
         '''
-        return ['alarms', 'example', 'pubfreq', 'streams']
+        return ['alerts', 'example', 'pubrate', 'streams']
 
     def assert_agent_state(self, target_state):
         """
@@ -2107,26 +2110,36 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         then you will need to call this method more than once or use a
         different test.
         """
-        self.data_subscribers.start_data_subscribers()
-        self.addCleanup(self.data_subscribers.stop_data_subscribers)
-
         self.assert_enter_command_mode()
-
-        self.data_subscribers.clear_sample_queue(sample_queue)
 
         # Begin streaming.
         self.assert_start_autosample()
 
-        # Assert we got 3 samples.
-        samples = self.data_subscribers.get_samples(sample_queue, sample_count, timeout = timeout)
-        self.assertGreaterEqual(len(samples), sample_count)
-
-        for sample in samples:
-            log.debug("SAMPLE: %s" % sample)
-            sample_data_assert(sample)
+        self.assert_particle_async(sample_queue, sample_data_assert, sample_count, timeout)
 
         # Halt streaming.
         self.assert_stop_autosample()
+
+    def assert_particle_async(self, particle_type, particle_callback, particle_count = 1, timeout=10):
+        """
+        verify that a particle is generated
+        @param particle_type: the queue to watch for samples
+        @param particle_callback: method to verify the particle
+        @param particle_count: how many samples to read
+        @param timeout: how long to wait for the samples to complete
+        """
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        self.data_subscribers.clear_sample_queue(particle_type)
+
+        samples = self.data_subscribers.get_samples(particle_type, particle_count, timeout=timeout)
+        self.assertGreaterEqual(len(samples), particle_count)
+
+        # Assert we got 3 samples.
+        for sample in samples:
+            log.debug("SAMPLE: %s" % sample)
+            particle_callback(sample)
 
     def assert_sample_async(self, sampleDataAssert, sampleQueue,
                                   timeout=GO_ACTIVE_TIMEOUT, sample_count=1):
@@ -2207,19 +2220,25 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         #result = self.instrument_agent_client.get_resource(getParams)
         #self.assertEqual(result[name], value)
 
+    def assert_agent_state(self, expected_state):
+        '''
+        Verify that the agent state is what we expect
+        @param expected_state: the state we think the agent is in
+        '''
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, expected_state)
+
     def assert_stop_autosample(self, timeout=GO_ACTIVE_TIMEOUT):
         '''
         Enter autosample mode from command
         '''
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.STREAMING)
+        self.assert_agent_state(ResourceAgentState.STREAMING)
 
         # Stop streaming.
         cmd = AgentCommand(command=DriverEvent.STOP_AUTOSAMPLE)
         retval = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.assert_agent_state(ResourceAgentState.COMMAND)
 
     def assert_start_autosample(self, timeout=GO_ACTIVE_TIMEOUT):
         '''
@@ -2244,7 +2263,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
             with self.assertRaises(Conflict):
                 res_state = self.instrument_agent_client.get_resource_state()
-    
+
             cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
             retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
             state = self.instrument_agent_client.get_agent_state()
@@ -2331,6 +2350,85 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, result_state)
+
+    def assert_switch_state(self, command, expected_agent_state, expected_resource_state=None, timeout=GO_ACTIVE_TIMEOUT):
+        """
+        Command the agent to do something, then verify the agent state ofter the command completes.
+        If a resource state is sent in then verify that as well.
+        @param command: command to execute
+        @param expected_agent_state: either an element or list of agent states
+        @param expected_resource_state: optional resource state
+        """
+        cmd = AgentCommand(command=command)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
+
+        if(isinstance(expected_agent_state, list)):
+            expected_state = expected_agent_state
+        else:
+            expected_state = [expected_agent_state]
+
+        agent_state = self.instrument_agent_client.get_agent_state()
+        self.assertIn(agent_state, expected_state)
+
+        if(expected_resource_state != None):
+            res_state = self.instrument_agent_client.get_resource_state()
+            self.assertEqual(res_state, expected_resource_state)
+
+    def assert_discover(self, expected_agent_state, expected_resource_state=None):
+        """
+        Walk an agent through go active and verify the resource state.
+        @return:
+        """
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+        self.assert_switch_state(ResourceAgentEvent.INITIALIZE, ResourceAgentState.INACTIVE, DriverConnectionState.UNCONFIGURED)
+
+        # Looks like some drivers go directly to streaming after a run.  Is this correct behavior.
+        self.assert_switch_state(ResourceAgentEvent.GO_ACTIVE, [ResourceAgentState.IDLE, ResourceAgentState.STREAMING])
+
+        if(self.instrument_agent_client.get_agent_state() == ResourceAgentState.IDLE):
+            self.assert_switch_state(ResourceAgentEvent.RUN, expected_agent_state, expected_resource_state)
+
+    def test_discover(self):
+        """
+        verify we can discover our instrument state from streaming and autosample.  This
+        method assumes that the instrument has a command and streaming mode. If not you will
+        need to explicitly overload this test in your driver tests.
+        """
+        # Verify the agent is in command mode
+        self.assert_enter_command_mode()
+
+        # Now reset and try to discover.  This will stop the driver which holds the current
+        # instrument state.
+        self.assert_reset()
+        self.assert_discover(ResourceAgentState.COMMAND)
+
+        # Now put the instrument in streaming and reset the driver again.
+        self.assert_start_autosample()
+        self.assert_reset()
+
+        # When the driver reconnects it should be streaming
+        self.assert_discover(ResourceAgentState.STREAMING)
+        self.assert_reset()
+
+        # Now check the retry logic by trying to discover with the port agent down
+        # This did't work.  We need a good way to test the rediscover
+        #self.stop_port_agent()
+        #self.assert_discover(ResourceAgentState.ACTIVE_UNKNOWN)
+
+        #self.init_port_agent()
+        #timeout = time.time() + AGENT_DISCOVER_TIMEOUT
+        #state = self.instrument_agent_client.get_agent_state()
+
+        #while(state == ResourceAgentState.ACTIVE_UNKNOWN):
+        #    if(timeout > time.time()):
+        #        self.fail("TIMEOUT: Failed to re-discover instrument state")
+        #    state = self.instrument_agent_client.get_agent_state()
+        #    log.trace("Agent state still ACTIVE_UNKNOWN, sleep a bit.")
+        #    time.sleep(1)
+
+        #self.assert_agent_state(ResourceAgentState.STREAMING)
 
     def test_instrument_agent_common_state_model_lifecycle(self,  timeout=GO_ACTIVE_TIMEOUT):
         """

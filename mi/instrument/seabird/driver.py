@@ -278,7 +278,7 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
 
-    def _sync_clock(self, date_time_param, prompts, timeout, delay=1, time_format="%d %b %Y %H:%M:%S"):
+    def _sync_clock(self, date_time_param, prompts, timeout=TIMEOUT, delay=1, time_format="%d %b %Y %H:%M:%S"):
         """
         Send the command to the instrument to syncronize the clock
         @param date_time_param: date time parameter that we want to set

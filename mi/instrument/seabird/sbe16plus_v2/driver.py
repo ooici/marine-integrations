@@ -859,9 +859,8 @@ class SBE16Protocol(SeaBirdProtocol):
         next_agent_state = None
 
         log.debug("_handler_unknown_discover")
-        timeout = kwargs.get('timeout', TIMEOUT)
 
-        logging = self._is_logging(timeout=timeout)
+        logging = self._is_logging(*args, **kwargs)
         log.debug("are we logging? %s", logging)
 
         if(logging == None):
@@ -1010,6 +1009,7 @@ class SBE16Protocol(SeaBirdProtocol):
         next_agent_state = None
         result = None
 
+        kwargs['timeout'] = TIMEOUT
         result = self._do_cmd_resp(Command.DCAL, *args, **kwargs)
 
         return (next_state, (next_agent_state, result))
@@ -1027,9 +1027,10 @@ class SBE16Protocol(SeaBirdProtocol):
         result = None
 
         # When in autosample this command requires two wakeups to get to the right prompt
-        prompt = self._wakeup(timeout=10, delay=0.3)
-        prompt = self._wakeup(timeout=10, delay=0.3)
+        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
 
+        kwargs['timeout'] = TIMEOUT
         result = self._do_cmd_resp(Command.DCAL, *args, **kwargs)
 
         log.debug("quit session, restart sampling")
@@ -1096,10 +1097,9 @@ class SBE16Protocol(SeaBirdProtocol):
         next_agent_state = None
         result = None
 
-        timeout = kwargs.get('timeout', TIMEOUT)
-        prompt = self._wakeup(timeout=timeout)
+        prompt = self._wakeup(timeout=TIMEOUT)
 
-        self._sync_clock(Parameter.DATE_TIME, Prompt.COMMAND, timeout)
+        self._sync_clock(Parameter.DATE_TIME, Prompt.COMMAND)
 
         return (next_state, (next_agent_state, result))
 
@@ -1127,11 +1127,10 @@ class SBE16Protocol(SeaBirdProtocol):
 
         try:
             # Switch to command mode,
-            self._stop_logging()
+            self._stop_logging(*args, **kwargs)
 
             # Sync the clock
-            timeout = kwargs.get('timeout', TIMEOUT)
-            self._sync_clock(Parameter.DATE_TIME, Prompt.COMMAND, timeout, time_format="%d %b %Y %H:%M:%S")
+            self._sync_clock(Parameter.DATE_TIME, Prompt.COMMAND, TIMEOUT, time_format="%d %b %Y %H:%M:%S")
 
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
@@ -1173,28 +1172,8 @@ class SBE16Protocol(SeaBirdProtocol):
         next_state = None
         result = None
 
-        # Wake up the device, continuing until autosample prompt seen.
-        timeout = kwargs.get('timeout', TIMEOUT)
-        tries = kwargs.get('tries',5)
-        notries = 0
-        try:
-            # DHE: there should really be a tuple of expected prompts
-            #self._wakeup_until(timeout, Prompt.AUTOSAMPLE)
-            self._wakeup_until(timeout, Prompt.EXECUTED)
-        
-        except InstrumentTimeoutException:
-            notries = notries + 1
-            if notries >= tries:
-                raise
+        self._stop_logging(*args, **kwargs)
 
-        # Issue the stop command.
-        self._do_cmd_resp(Command.STOP, *args, **kwargs)        
-        
-        # Prompt device until command prompt is seen.
-        # DHE: there should really be a tuple of expected prompts
-        #self._wakeup_until(timeout, Prompt.COMMAND)
-        self._wakeup_until(timeout, Prompt.EXECUTED)
-        
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
@@ -1250,8 +1229,7 @@ class SBE16Protocol(SeaBirdProtocol):
         result = None
         log.debug("_handler_command_acquire_status")
 
-        kwargs['timeout'] = 30
-        result = self._do_cmd_resp(Command.DS, *args, **kwargs)
+        result = self._do_cmd_resp(Command.DS, timeout=TIMEOUT)
 
         log.debug("DS Response: %s", result)
 
@@ -1266,11 +1244,11 @@ class SBE16Protocol(SeaBirdProtocol):
         result = None
 
         # When in autosample this command requires two wakeups to get to the right prompt
-        prompt = self._wakeup(timeout=10, delay=0.3)
-        prompt = self._wakeup(timeout=10, delay=0.3)
+        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
 
-        kwargs['timeout'] = 30
-        result = self._do_cmd_resp(Command.DS, *args, **kwargs)
+        log.debug("_handler_autosample_acquire_status")
+        result = self._do_cmd_resp(Command.DS, timeout=TIMEOUT)
 
         log.debug("DS Response: %s", result)
 
@@ -1398,7 +1376,7 @@ class SBE16Protocol(SeaBirdProtocol):
     # Private helpers.
     ########################################################################
 
-    def _is_logging(self, timeout=TIMEOUT):
+    def _is_logging(self, *args, **kwargs):
         """
         Wake up the instrument and inspect the prompt to determine if we
         are in streaming
@@ -1407,7 +1385,7 @@ class SBE16Protocol(SeaBirdProtocol):
                  None - unknown logging state
         @raise: InstrumentProtocolException if we can't identify the prompt
         """
-        self._update_params(timeout=TIMEOUT)
+        self._update_params(*args, **kwargs)
         pd = self._param_dict.get_config()
         return pd.get(Parameter.LOGGING)
 
@@ -1430,7 +1408,7 @@ class SBE16Protocol(SeaBirdProtocol):
 
         return True
 
-    def _stop_logging(self, timeout=TIMEOUT):
+    def _stop_logging(self, *args, **kwargs):
         """
         Command the instrument to stop logging
         @param timeout: how long to wait for a prompt
@@ -1440,13 +1418,18 @@ class SBE16Protocol(SeaBirdProtocol):
         """
         log.debug("Stop Logging!")
 
-        if not self._is_logging():
-            return True
+        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
 
         # Issue the stop command.
-        self._do_cmd_resp(Command.STOP)
+        if(self.get_current_state() == ProtocolState.AUTOSAMPLE):
+            log.debug("sending stop logging command")
+            kwargs['timeout'] = TIMEOUT
+            self._do_cmd_resp(Command.STOP, *args, **kwargs)
+        else:
+            log.debug("Instrument not logging, current state %s", self.get_current_state())
 
-        if self._is_logging(timeout):
+        if self._is_logging(*args, **kwargs):
             raise InstrumentProtocolException("failed to stop logging")
 
         return True
@@ -1474,17 +1457,17 @@ class SBE16Protocol(SeaBirdProtocol):
         @throws InstrumentTimeoutException if device cannot be timely woken.
         @throws InstrumentProtocolException if ds/dc misunderstood.
         """
-        timeout = kwargs.get('timeout', TIMEOUT)
-        prompt = self._wakeup(timeout=timeout, delay=0.3)
+        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
 
         # For some reason when in streaming we require a second wakeup
-        prompt = self._wakeup(timeout=timeout, delay=0.3)
+        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
 
         # Get old param dict config.
         old_config = self._param_dict.get_config()
         
         # Issue display commands and parse results.
-        self._do_cmd_resp(Command.DS, timeout=timeout)
+        log.debug("device status from _update_params")
+        self._do_cmd_resp(Command.DS, timeout=TIMEOUT)
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
@@ -1498,7 +1481,7 @@ class SBE16Protocol(SeaBirdProtocol):
         # temporarily stops sampling. Autonomous sampling resumes when it
         ###
         if(new_config.get(Parameter.LOGGING)):
-            self._do_cmd_no_resp(Command.QS, timeout=timeout)
+            self._do_cmd_no_resp(Command.QS, timeout=TIMEOUT)
 
         # We ignore the data time parameter diffs
         new_config[Parameter.DATE_TIME] = old_config.get(Parameter.DATE_TIME)
@@ -2037,6 +2020,9 @@ class SBE16Protocol(SeaBirdProtocol):
             return "raw decimal"
         elif(format_int == 3):
             return "converted decimal"
+        # Uncomment once we figure out the thread locking issue
+        #elif(format_int == 5):
+        #    return "converted XML UVIC"
         else:
             raise InstrumentParameterException("output format out of range: %s" % format_int)
 
