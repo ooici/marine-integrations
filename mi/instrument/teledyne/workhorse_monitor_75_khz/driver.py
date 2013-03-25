@@ -196,6 +196,7 @@ class Parameter(DriverParameter):
     PITCH = 'EP'                        # Tilt 1 Sensor (1/100 deg) -6000 to 6000 (-60.00 to +60.00 degrees)
     ROLL = 'ER'                         # Tilt 2 Sensor (1/100 deg) -6000 to 6000 (-60.00 to +60.00 degrees)
     SALINITY = 'ES'                     # 35 (0-40 pp thousand)
+    COORDINATE_TRANSFORMATION = 'EX'    #
     SENSOR_SOURCE = 'EZ'                # Sensor Source (C;D;H;P;R;S;T)
 
     TIME_PER_ENSEMBLE = 'TE'            # 01:00:00.00 (hrs:min:sec.sec/100)
@@ -1275,93 +1276,30 @@ class TeledyneProtocol(ADCPProtocol):
                             ProtocolEvent.ENTER, ProtocolEvent.EXIT)
         log.debug("ASSIGNED self._protocol_fsm")
         # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN,
-                                       ProtocolEvent.ENTER,
-                                       self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN,
-                                       ProtocolEvent.EXIT,
-                                       self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN,
-                                       ProtocolEvent.DISCOVER,
-                                       self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
 
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.ENTER,
-                                       self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.EXIT,
-                                       self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_command_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION, self._handler_command_acquire_configuration)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION, self._handler_command_quit_session)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
 
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.GET,
-                                       self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
 
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.ACQUIRE_SAMPLE,
-                                       self._handler_command_acquire_sample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.START_AUTOSAMPLE,
-                                       self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.SET,
-                                       self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.CLOCK_SYNC,
-                                       self._handler_command_clock_sync)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.SCHEDULED_CLOCK_SYNC,
-                                       self._handler_command_clock_sync)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.ACQUIRE_STATUS,
-                                       self._handler_command_acquire_status)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.ACQUIRE_CONFIGURATION,
-                                       self._handler_command_acquire_configuration)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.QUIT_SESSION,
-                                       self._handler_command_quit_session)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.START_DIRECT,
-                                       self._handler_command_start_direct)
-
-
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
-                                       ProtocolEvent.ENTER,
-                                       self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
-                                       ProtocolEvent.EXIT,
-                                       self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
-                                       ProtocolEvent.GET,
-                                       self._handler_command_autosample_test_get)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
-                                       ProtocolEvent.ACQUIRE_STATUS,
-                                       self._handler_command_acquire_status)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
-                                       ProtocolEvent.ACQUIRE_CONFIGURATION,
-                                       self._handler_command_acquire_configuration)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
-                                       ProtocolEvent.STOP_AUTOSAMPLE,
-                                       self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
-                                       ProtocolEvent.SEND_LAST_SAMPLE,
-                                       self._handler_command_send_last_sample)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE,
-                                       ProtocolEvent.SCHEDULED_CLOCK_SYNC,
-                                       self._handler_autosample_clock_sync)
-
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS,
-                                       ProtocolEvent.ENTER,
-                                       self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS,
-                                       ProtocolEvent.EXIT,
-                                       self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS,
-                                       ProtocolEvent.EXECUTE_DIRECT,
-                                       self._handler_direct_access_execute_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS,
-                                       ProtocolEvent.STOP_DIRECT,
-                                       self._handler_direct_access_stop_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -1372,76 +1310,42 @@ class TeledyneProtocol(ADCPProtocol):
         # parameters to the commands
         #
 
-        self._add_build_handler(InstrumentCmds.BREAK,
-                                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.EXPERT_ON,
-                                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.EXPERT_OFF,
-                                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.OUTPUT_CALIBRATION_DATA,
-                                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.SEND_LAST_DATA_ENSEMBLE,
-                                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.SAVE_SETUP_TO_RAM,
-                                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.START_DEPLOYMENT,
-                                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.CLEAR_ERROR_STATUS_WORD,
-                                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.DISPLAY_ERROR_STATUS_WORD,
-                                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.CLEAR_FAULT_LOG,
-                                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.DISPLAY_FAULT_LOG,
-                                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.GET_SYSTEM_CONFIGURATION,
-                                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX,
-                                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.RUN_TEST_200,
-                                self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.SET,
-                                self._build_set_command)
-        self._add_build_handler(InstrumentCmds.GET,
-                                self._build_get_command)
-
-
+        self._add_build_handler(InstrumentCmds.BREAK, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.EXPERT_ON, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.EXPERT_OFF, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.OUTPUT_CALIBRATION_DATA, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SEND_LAST_DATA_ENSEMBLE, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SAVE_SETUP_TO_RAM, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.START_DEPLOYMENT, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.CLEAR_ERROR_STATUS_WORD, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DISPLAY_ERROR_STATUS_WORD, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.CLEAR_FAULT_LOG, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.DISPLAY_FAULT_LOG, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.GET_SYSTEM_CONFIGURATION, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.RUN_TEST_200, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SET, self._build_set_command)
+        self._add_build_handler(InstrumentCmds.GET, self._build_get_command)
 
         #
         # Response handlers
         #
-        self._add_response_handler(InstrumentCmds.BREAK,
-                                self._parse_break_response)
-        self._add_response_handler(InstrumentCmds.EXPERT_ON,
-                                self._parse_expert_on_response)
-        self._add_response_handler(InstrumentCmds.EXPERT_OFF,
-                                self._parse_expert_off_response)
-        self._add_response_handler(InstrumentCmds.OUTPUT_CALIBRATION_DATA,
-                                self._parse_output_calibration_data_response)
-        self._add_response_handler(InstrumentCmds.SEND_LAST_DATA_ENSEMBLE,
-                                self._parse_send_last_data_ensemble_response)
-        self._add_response_handler(InstrumentCmds.SAVE_SETUP_TO_RAM,
-                                self._parse_save_setup_to_ram_response)
-        self._add_response_handler(InstrumentCmds.START_DEPLOYMENT,
-                                self._parse_start_deployment_response)
-        self._add_response_handler(InstrumentCmds.CLEAR_ERROR_STATUS_WORD,
-                                self._parse_clear_error_status_response)
-        self._add_response_handler(InstrumentCmds.DISPLAY_ERROR_STATUS_WORD,
-                                self._parse_error_status_response)
-        self._add_response_handler(InstrumentCmds.CLEAR_FAULT_LOG,
-                                self._parse_clear_fault_log_response)
-        self._add_response_handler(InstrumentCmds.DISPLAY_FAULT_LOG,
-                                self._parse_fault_log_response)
-        self._add_response_handler(InstrumentCmds.GET_SYSTEM_CONFIGURATION,
-                                self._parse_system_configuration_response)
-        self._add_response_handler(InstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX,
-                                self._parse_instrument_transform_matrix_response)
-        self._add_response_handler(InstrumentCmds.RUN_TEST_200,
-                                self._parse_test_response)
-        self._add_response_handler(InstrumentCmds.SET,
-                                self._parse_set_response)
-        self._add_response_handler(InstrumentCmds.GET,
-                                self._parse_get_response)
+        self._add_response_handler(InstrumentCmds.BREAK, self._parse_break_response)
+        self._add_response_handler(InstrumentCmds.EXPERT_ON, self._parse_expert_on_response)
+        self._add_response_handler(InstrumentCmds.EXPERT_OFF, self._parse_expert_off_response)
+        self._add_response_handler(InstrumentCmds.OUTPUT_CALIBRATION_DATA, self._parse_output_calibration_data_response)
+        self._add_response_handler(InstrumentCmds.SEND_LAST_DATA_ENSEMBLE, self._parse_send_last_data_ensemble_response)
+        self._add_response_handler(InstrumentCmds.SAVE_SETUP_TO_RAM, self._parse_save_setup_to_ram_response)
+        self._add_response_handler(InstrumentCmds.START_DEPLOYMENT, self._parse_start_deployment_response)
+        self._add_response_handler(InstrumentCmds.CLEAR_ERROR_STATUS_WORD, self._parse_clear_error_status_response)
+        self._add_response_handler(InstrumentCmds.DISPLAY_ERROR_STATUS_WORD, self._parse_error_status_response)
+        self._add_response_handler(InstrumentCmds.CLEAR_FAULT_LOG, self._parse_clear_fault_log_response)
+        self._add_response_handler(InstrumentCmds.DISPLAY_FAULT_LOG, self._parse_fault_log_response)
+        self._add_response_handler(InstrumentCmds.GET_SYSTEM_CONFIGURATION, self._parse_system_configuration_response)
+        self._add_response_handler(InstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, self._parse_instrument_transform_matrix_response)
+        self._add_response_handler(InstrumentCmds.RUN_TEST_200, self._parse_test_response)
+        self._add_response_handler(InstrumentCmds.SET, self._parse_set_response)
+        self._add_response_handler(InstrumentCmds.GET, self._parse_get_response)
 
 
         # State state machine in UNKNOWN state.
@@ -1542,12 +1446,14 @@ class TeledyneProtocol(ADCPProtocol):
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             startup_param=True,
+            direct_access=False,
+            visibility=ParameterDictVisibility.READ_ONLY,
             default_value=11110)
 
         self._param_dict.add(Parameter.BANNER,
             r'CH = (\d) \-+ Suppress Banner',
-            lambda match: not bool(int(match.group(1), base=10)),
-            self._reverse_bool_to_int,
+            lambda match:  bool(int(match.group(1), base=10)), # not
+            self._bool_to_int, # _reverse_bool_to_int
             startup_param=True,
             default_value=True)
 
@@ -1614,11 +1520,17 @@ class TeledyneProtocol(ADCPProtocol):
             startup_param=True,
             default_value=35)
 
+        self._param_dict.add(Parameter.COORDINATE_TRANSFORMATION,
+            r'EX = (\d+) \-+ Coord Transform ',
+            lambda match: str(match.group(1)),
+            self._string_to_string,
+            startup_param=True,
+            default_value='00111')
+
         self._param_dict.add(Parameter.SENSOR_SOURCE,
             r'EZ = (\d+) \-+ Sensor Source ',
             lambda match: str(match.group(1)),
-            self._string_to_string,
-            startup_param=True)
+            self._string_to_string)
 
         self._param_dict.add(Parameter.TIME_PER_ENSEMBLE,
             r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble ',
@@ -1631,7 +1543,8 @@ class TeledyneProtocol(ADCPProtocol):
             r'TG (..../../..,..:..:..) - Time of First Ping ',
             lambda match: str(match.group(1)),
             self._string_to_string,
-            startup_param=True)
+            startup_param=True,
+            default_value='****/**/**,**:**:**')
 
         self._param_dict.add(Parameter.TIME_PER_PING,
             r'TP (\d\d:\d\d.\d\d) \-+ Time per Ping',
@@ -1854,18 +1767,13 @@ class TeledyneProtocol(ADCPProtocol):
 
     def _update_params(self, *args, **kwargs):
         """
-        Update the parameter dictionary. Send a CE (send last data ensemble)
-        command to the adcpt; this causes the chunker to extract last data
-        and put in adcpt_cache_dict.  Then calling _build_param_dict() causes
-        the new data to be updated in param dict.
+        Update the parameter dictionary. 
         """
         # Get old param dict config.
         log.debug("IN _update_params" + str(args) + str(kwargs))
         old_config = self._param_dict.get_config()
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
-        new_config = self._param_dict.get_config()
-        # Issue display commands and parse results.
 
         kwargs['expected_prompt'] = Prompt.COMMAND
         cmds = dir(Parameter)
@@ -1876,9 +1784,10 @@ class TeledyneProtocol(ADCPProtocol):
             if attr not in ['dict', 'has', 'list', 'ALL']:
                 if not attr.startswith("_"):
                     key = getattr(Parameter, attr)
-                    log.debug("YES!!!!! ######################### KEY = " + str(key))
                     result = self._do_cmd_resp(InstrumentCmds.GET, key, **kwargs)
-                    log.debug("RESULT OF GET WAS %s", result)
+
+        new_config = self._param_dict.get_config()
+        # Issue display commands and parse results.
 
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
@@ -1925,14 +1834,7 @@ class TeledyneProtocol(ADCPProtocol):
 
     def _parse_break_response(self, response, prompt):
         """
-        """
-
-    def _parse_zero_pressure_reading_response(self, response, prompt):
-        """
-        """
-
-    def _parse_fault_debug_response(self, response, prompt):
-        """
+        x
         """
 
     def _parse_expert_on_response(self, response, prompt):
@@ -1943,116 +1845,61 @@ class TeledyneProtocol(ADCPProtocol):
         """
         """
 
-    def _parse_list_firmware_upgrades_response(self, response, prompt):
-        """
-        """
-
     def _parse_output_calibration_data_response(self, response, prompt):
         """
-        """
-
-    def _parse_output_factory_calibration_data_response(self, response, prompt):
-        """
-        """
-
-    def _parse_field_calibrate_compas_response(self, response, prompt):
-        """
-        """
-
-    def _parse_load_factory_calibration_response(self, response, prompt):
-        """
-        """
-
-    def _parse_choose_external_devices_response(self, response, prompt):
-        """
+        x
         """
 
     def _parse_send_last_data_ensemble_response(self, response, prompt):
         """
+        x
         """
 
     def _parse_save_setup_to_ram_response(self, response, prompt):
         """
-        """
-
-    def _parse_retrieve_parameters_response(self, response, prompt):
-        """
+        x
         """
 
     def _parse_start_deployment_response(self, response, prompt):
         """
+        x
         """
 
     def _parse_clear_error_status_response(self, response, prompt):
         """
+        x
         """
 
     def _parse_error_status_response(self, response, prompt):
         """
-        """
-
-    def _parse_power_down_response(self, response, prompt):
-        """
-        """
-
-    def _parse_load_speed_of_sound_response(self, response, prompt):
-        """
-        """
-
-    def _parse_raw_mode_response(self, response, prompt):
-        """
-        """
-
-    def _parse_real_mode_response(self, response, prompt):
-        """
-        """
-
-    def _parse_single_scan_response(self, response, prompt):
-        """
+        x
         """
 
     def _parse_clear_fault_log_response(self, response, prompt):
         """
+        x
         """
 
     def _parse_fault_log_response(self, response, prompt):
         """
-        """
-
-    def _parse_fault_log_toggle_response(self, response, prompt):
-        """
-        """
-
-    def _parse_depolyment_tests(self, response, prompt):
-        """
-        """
-
-    def _parse_beam_continuity_test(self, response, prompt):
-        """
-        """
-
-    def _parse_heading_pitch_roll_orientation_test_results(self, response, prompt):
-        """
+        x
         """
 
     def _parse_system_configuration_response(self, response, prompt):
         """
+        x
         """
 
     def _parse_instrument_transform_matrix_response(self, response, prompt):
         """
+        x
         """
 
     def _parse_test_response(self, response, prompt):
         """
+        x
         """
 
-    def _parse_time_response(self, response, prompt):
-        """
-        """
-        log.debug("_parse_time_response RESPONSE = %s", response)
-        for line in response.split(NEWLINE):
-            hit_count = self._param_dict.multi_match_update(line)
     ########################################################################
     # handlers.
     ########################################################################
@@ -2089,29 +1936,26 @@ class TeledyneProtocol(ADCPProtocol):
         @throws InstrumentStateException if the device response does not correspond to
         an expected state.
         """
-        log.debug("IN _handler_unknown_discover")
-
         timeout = kwargs.get('timeout', TIMEOUT)
 
+        log.debug("_handler_unknown_discover");
         next_state = None
-        result = None
+        next_agent_state = None
 
-        current_state = self._protocol_fsm.get_current_state()
+        logging = False  # TODO: implement an actual test.
+        log.debug("RIGGING discover to go to COMMAND STATE.")
 
-        #logging = self._is_logging(timeout=timeout)
+        if(logging == None):
+            raise InstrumentProtocolException('_handler_unknown_discover - unable to to determine state')
 
-        #if logging == True:
-        #    next_state = ProtocolState.AUTOSAMPLE
-        #    result = ResourceAgentState.STREAMING
-        #elif logging == False:
-        log.debug("THIS IS RIGGED!")
-        next_state = ProtocolState.COMMAND
-        result = ResourceAgentState.IDLE
-        #else:
-        #    raise InstrumentStateException('Unknown state.')
+        elif(logging):
+            next_state = ProtocolState.AUTOSAMPLE
+            next_agent_state = ResourceAgentState.STREAMING
 
-        self._update_params()
-        return (next_state, result)
+        else:
+            next_state = ProtocolState.COMMAND
+            next_agent_state = ResourceAgentState.IDLE
+        return (next_state, next_agent_state)
 
     def _handler_command_acquire_sample(self, *args, **kwargs):
         """
@@ -2278,12 +2122,17 @@ class TeledyneProtocol(ADCPProtocol):
         """
         next_state = None
         result = None
-        # Retrieve required parameter.
-        # Raise if no parameter provided, or not a dict.
+        startup = False
+
         try:
             params = args[0]
         except IndexError:
-            raise InstrumentParameterException('Set command requires a parameter dict.')
+            raise InstrumentParameterException('_handler_command_set Set command requires a parameter dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
 
         if not isinstance(params, dict):
             raise InstrumentParameterException('Set parameters not a dict.')
@@ -2291,7 +2140,7 @@ class TeledyneProtocol(ADCPProtocol):
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
-            self._set_params(params)
+            self._set_params(params, startup)
 
         return (next_state, result)
 
@@ -2352,7 +2201,7 @@ class TeledyneProtocol(ADCPProtocol):
         #for key in cmds:
         #    self._do_cmd_resp(InstrumentCmds.GET, key, **kwargs)
 
-
+        result = None # ???
 
 
         return (next_state, (next_agent_state, result))
@@ -2508,11 +2357,6 @@ class TeledyneProtocol(ADCPProtocol):
 
         if " ERR" in response:
             raise InstrumentParameterException('Protocol._parse_set_response : Set command failed: %s' % response)
-
-
-
-
-
 
     def _build_get_command(self, cmd, param, **kwargs):
         """
