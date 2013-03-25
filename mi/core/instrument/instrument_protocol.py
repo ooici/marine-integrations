@@ -35,6 +35,9 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import NotImplementedException
 
+DEFAULT_CMD_TIMEOUT=20
+DEFAULT_WRITE_DELAY=0
+
 class InterfaceType(BaseEnum):
     """The methods of connecting to a device"""
     ETHERNET = 'ethernet'
@@ -591,9 +594,9 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         """
 
         # Get timeout and initialize response.
-        timeout = kwargs.get('timeout', 10)
+        timeout = kwargs.get('timeout', DEFAULT_CMD_TIMEOUT)
         expected_prompt = kwargs.get('expected_prompt', None)
-        write_delay = kwargs.get('write_delay', 0)
+        write_delay = kwargs.get('write_delay', DEFAULT_WRITE_DELAY)
         retval = None
         
         # Get the build handler.
@@ -648,8 +651,8 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @raises InstrumentProtocolException if command could not be built.        
         """
 
-        timeout = kwargs.get('timeout', 10)
-        write_delay = kwargs.get('write_delay', 0)
+        timeout = kwargs.get('timeout', DEFAULT_CMD_TIMEOUT)
+        write_delay = kwargs.get('write_delay', DEFAULT_WRITE_DELAY)
         
         build_handler = self._build_handlers.get(cmd, None)
         if not build_handler:
