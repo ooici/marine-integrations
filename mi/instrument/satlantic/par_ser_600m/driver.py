@@ -422,6 +422,8 @@ class SatlanticPARInstrumentProtocol(CommandResponseInstrumentProtocol):
         next_state = PARProtocolState.COMMAND            
         result = ResourceAgentState.IDLE
 
+        log.debug("_handler_unknown_discover complete")
+
         return (next_state, result)
 
     ########################################################################
