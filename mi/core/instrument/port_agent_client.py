@@ -273,9 +273,9 @@ class PortAgentClient(object):
             self.send_config_parameter(self.HEARTBEAT_INTERVAL_COMMAND, 
                                        heartbeat_string)
             
-            """
-            start the listener thread if instructed to
-            """
+            ###
+            # start the listener thread if instructed to
+            ###
             if self.start_listener:
                 self.listener_thread = Listener(self.sock,  
                                                 self.recovery_attempts,
@@ -288,11 +288,11 @@ class PortAgentClient(object):
                                                 self.user_callback_error)
                 self.listener_thread.start()
 
-            """
-            Reset recovery_attempts because we were successful; hopefully
-            the link doesn't oscillate (up and down).  If it does, take this
-            out.
-            """
+            ###
+            # Reset recovery_attempts because we were successful; hopefully
+            # the link doesn't oscillate (up and down).  If it does, take this
+            # out.
+            ###
             self.recovery_attempts = 0
             log.info('PortAgentClient._init_comms(): connected to port agent at %s:%i.'
                            % (self.host, self.port))

@@ -37,7 +37,10 @@ from mi.core.exceptions import InstrumentConnectionException
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
 
-#@unittest.skip('BROKEN - Useful in past, likely in future, but not just now')
+SYSTEM_EPOCH = datetime.date(*time.gmtime(0)[0:3])
+NTP_EPOCH = datetime.date(1900, 1, 1)
+NTP_DELTA = (SYSTEM_EPOCH - NTP_EPOCH).days * 24 * 3600
+
 @attr('UNIT', group='mi')
 class PAClientUnitTestCase(MiUnitTest):
     def setUp(self):
@@ -49,7 +52,8 @@ class PAClientUnitTestCase(MiUnitTest):
         self.rawCallbackCalled = False
         self.dataCallbackCalled = False
         self.errorCallbackCalled = False
-            
+        self.listenerCallbackCalled = False
+
     def myGotData(self, paPacket):
         self.dataCallbackCalled = True
         if paPacket.is_valid():
@@ -57,7 +61,7 @@ class PAClientUnitTestCase(MiUnitTest):
         else:
             validity = "invalid"
             
-        print "Got " + validity + " port agent data packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
+        log.info("Got %s port agent data packet with data length %d: %s", validity, paPacket.get_data_size(), paPacket.get_data())
 
     def myGotRaw(self, paPacket):
         self.rawCallbackCalled = True
@@ -66,19 +70,25 @@ class PAClientUnitTestCase(MiUnitTest):
         else:
             validity = "invalid"
             
-        print "Got " + validity + " port agent raw packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
+        log.info("Got %s port agent raw packet with data length %d: %s", validity, paPacket.get_data_size(), paPacket.get_data())
 
     def myGotError(self, errorString = "No error string passed in."):
         self.errorCallbackCalled = True
-        print "Got error: " +  errorString + "\r\n"
-                       
-    def test_handle_packet(self):
+        log.info("Got error: %s", errorString)
 
+    def myGotListenerError(self, exception):
+        self.listenerCallbackCalled = True
+        log.info("Got listener exception: %s", exception)
+
+    def raiseException(self, packet):
+        raise Exception("Boom")
+
+    def test_handle_packet(self):
         """
         Test that a default PortAgentPacket creates a DATA_FROM_DRIVER packet,
         and that the handle_packet method invokes the raw callback
         """
-        paListener = Listener(None, None, 0, 5, self.myGotData, self.myGotRaw, self.myGotError)
+        paListener = Listener(None, None, 0, 0, 5, self.myGotData, self.myGotRaw, self.myGotListenerError, self.myGotError)
         
         test_data = "This is a great big test"
         self.resetTestVars()
@@ -91,10 +101,10 @@ class PAClientUnitTestCase(MiUnitTest):
         
         self.assertTrue(self.rawCallbackCalled)
 
-        """
-        Test DATA_FROM_INSTRUMENT; handle_packet should invoke data and raw
-        callbacks.
-        """
+        ###
+        # Test DATA_FROM_INSTRUMENT; handle_packet should invoke data and raw
+        # callbacks.
+        ###
         self.resetTestVars()
         paPacket = PortAgentPacket(PortAgentPacket.DATA_FROM_INSTRUMENT)         
         paPacket.attach_data(test_data)
@@ -106,10 +116,11 @@ class PAClientUnitTestCase(MiUnitTest):
         self.assertTrue(self.rawCallbackCalled)
         self.assertTrue(self.dataCallbackCalled)
         self.assertFalse(self.errorCallbackCalled)
+        self.assertFalse(self.listenerCallbackCalled)
 
-        """
-        Test PORT_AGENT_COMMAND; handle_packet should invoke raw callback.
-        """
+        ###
+        # Test PORT_AGENT_COMMAND; handle_packet should invoke raw callback.
+        ###
         self.resetTestVars()
         paPacket = PortAgentPacket(PortAgentPacket.PORT_AGENT_COMMAND)         
         paPacket.attach_data(test_data)
@@ -121,10 +132,11 @@ class PAClientUnitTestCase(MiUnitTest):
         self.assertTrue(self.rawCallbackCalled)
         self.assertFalse(self.dataCallbackCalled)
         self.assertFalse(self.errorCallbackCalled)
-        
-        """
-        Test PORT_AGENT_STATUS; handle_packet should invoke raw callback.
-        """
+        self.assertFalse(self.listenerCallbackCalled)
+
+        ###
+        # Test PORT_AGENT_STATUS; handle_packet should invoke raw callback.
+        ###
         self.resetTestVars()
         paPacket = PortAgentPacket(PortAgentPacket.PORT_AGENT_STATUS)         
         paPacket.attach_data(test_data)
@@ -136,10 +148,11 @@ class PAClientUnitTestCase(MiUnitTest):
         self.assertTrue(self.rawCallbackCalled)
         self.assertFalse(self.dataCallbackCalled)
         self.assertFalse(self.errorCallbackCalled)
-        
-        """
-        Test PORT_AGENT_FAULT; handle_packet should invoke raw callback.
-        """
+        self.assertFalse(self.listenerCallbackCalled)
+
+        ###
+        # Test PORT_AGENT_FAULT; handle_packet should invoke raw callback.
+        ###
         self.resetTestVars()
         paPacket = PortAgentPacket(PortAgentPacket.PORT_AGENT_FAULT)         
         paPacket.attach_data(test_data)
@@ -151,10 +164,11 @@ class PAClientUnitTestCase(MiUnitTest):
         self.assertTrue(self.rawCallbackCalled)
         self.assertFalse(self.dataCallbackCalled)
         self.assertFalse(self.errorCallbackCalled)
-        
-        """
-        Test INSTRUMENT_COMMAND; handle_packet should invoke raw callback.
-        """
+        self.assertFalse(self.listenerCallbackCalled)
+
+        ###
+        # Test INSTRUMENT_COMMAND; handle_packet should invoke raw callback.
+        ###
         self.resetTestVars()
         paPacket = PortAgentPacket(PortAgentPacket.INSTRUMENT_COMMAND)         
         paPacket.attach_data(test_data)
@@ -166,10 +180,11 @@ class PAClientUnitTestCase(MiUnitTest):
         self.assertTrue(self.rawCallbackCalled)
         self.assertFalse(self.dataCallbackCalled)
         self.assertFalse(self.errorCallbackCalled)
-        
-        """
-        Test HEARTBEAT; handle_packet should not invoke any callback.
-        """
+        self.assertFalse(self.listenerCallbackCalled)
+
+        ###
+        # Test HEARTBEAT; handle_packet should not invoke any callback.
+        ###
         self.resetTestVars()
         paPacket = PortAgentPacket(PortAgentPacket.HEARTBEAT)         
         paPacket.attach_data(test_data)
@@ -181,7 +196,8 @@ class PAClientUnitTestCase(MiUnitTest):
         self.assertFalse(self.rawCallbackCalled)
         self.assertFalse(self.dataCallbackCalled)
         self.assertFalse(self.errorCallbackCalled)
-        
+        self.assertFalse(self.listenerCallbackCalled)
+
     def test_heartbeat_timeout(self):
         """
         Initialize the Listener with a heartbeat value, then
@@ -191,10 +207,11 @@ class PAClientUnitTestCase(MiUnitTest):
         """
         
         self.resetTestVars()
+        test_recovery_attempts = 1
         test_heartbeat = 1
         test_max_missed_heartbeats = 5
-        paListener = Listener(None, None, test_heartbeat, test_max_missed_heartbeats,
-                              self.myGotData, self.myGotRaw, self.myGotError)
+        paListener = Listener(None, test_recovery_attempts, None, test_heartbeat, test_max_missed_heartbeats,
+                              self.myGotData, self.myGotRaw, self.myGotListenerError, None, self.myGotError)
         
         paListener.start_heartbeat_timer()
         
@@ -203,7 +220,8 @@ class PAClientUnitTestCase(MiUnitTest):
         self.assertFalse(self.rawCallbackCalled)
         self.assertFalse(self.dataCallbackCalled)
         self.assertTrue(self.errorCallbackCalled)
-        
+        self.assertFalse(self.listenerCallbackCalled)
+
     def test_set_heartbeat(self):
         """
         Test the set_heart_beat function; make sure it returns False when 
@@ -211,14 +229,15 @@ class PAClientUnitTestCase(MiUnitTest):
         adds the HEARTBEAT_FUDGE
         """
         self.resetTestVars()
+        test_recovery_attempts = 1
         test_heartbeat = 0
         test_max_missed_heartbeats = 5
-        paListener = Listener(None, None, test_heartbeat, test_max_missed_heartbeats,
-                              self.myGotData, self.myGotRaw, self.myGotError)
+        paListener = Listener(None, test_recovery_attempts, None, test_heartbeat, test_max_missed_heartbeats,
+                              self.myGotData, self.myGotRaw, self.myGotListenerError, None, self.myGotError)
 
-        """ 
-        Test valid values
-        """        
+        ###
+        # Test valid values
+        ###
         test_heartbeat = 1
         retValue = paListener.set_heartbeat(test_heartbeat)
         self.assertTrue(retValue)
@@ -229,18 +248,18 @@ class PAClientUnitTestCase(MiUnitTest):
         self.assertTrue(retValue)
         self.assertTrue(paListener.heartbeat == test_heartbeat + paListener.HEARTBEAT_FUDGE)
         
-        """
-        Test that a heartbeat value of zero results in the listener.heartbeat being zero 
-        (and doesn't include HEARTBEAT_FUDGE)
-        """
+        ###
+        # Test that a heartbeat value of zero results in the listener.heartbeat being zero
+        # (and doesn't include HEARTBEAT_FUDGE)
+        ###
         test_heartbeat = 0
         retValue = paListener.set_heartbeat(test_heartbeat)
         self.assertTrue(retValue)
         self.assertTrue(paListener.heartbeat == test_heartbeat)
-                
-        """
-        Test invalid values
-        """
+
+        ###
+        # Test invalid values
+        ###
         test_heartbeat = -1
         retValue = paListener.set_heartbeat(test_heartbeat)
         self.assertFalse(retValue)
@@ -248,69 +267,6 @@ class PAClientUnitTestCase(MiUnitTest):
         test_heartbeat = paListener.MAX_HEARTBEAT_INTERVAL + 1
         retValue = paListener.set_heartbeat(test_heartbeat)
         self.assertFalse(retValue)
-
-    def test_callback_error(self):
-        paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
-        
-        """
-        Mock up the init_comms method; the callback_error will try to invoke
-        it, which will try to connect to the port_agent
-        """
-        mock_init_comms = Mock(spec = "init_comms")
-        paClient.init_comms = mock_init_comms
-        
-        """
-        Test that True is returned because the callback will try a recovery, 
-        and it doesn't matter at that point that there is no higher-level
-        callback registered.  Also assert that mock_init_comms was called.
-        """
-        retValue = paClient.callback_error("This is a great big error")
-        self.assertTrue(retValue)
-        self.assertTrue(len(mock_init_comms.mock_calls) == 1)
-
-        """
-        Now call callback_error again.  This time it should return False
-        because no higher-level callback has been registered.  Also assert
-        that mock_init_calls hasn't been called again (still is 1).
-        """
-        retValue = paClient.callback_error("This is a big boo boo")
-        self.assertFalse(retValue)
-        self.assertTrue(len(mock_init_comms.mock_calls) == 1)
-
-        """
-        Now call again with a callback registered; assert that the retValue
-        is True (callback registered), that mock_init_comms is still 1, and
-        that the higher-level callback was called.
-        """
-        self.resetTestVars()
-        paClient.user_callback_error = self.myGotError
-        retValue = paClient.callback_error("Another big boo boo")
-        self.assertTrue(retValue)
-        self.assertTrue(len(mock_init_comms.mock_calls) == 1)
-        self.assertTrue(self.errorCallbackCalled == 1)
-        
-    @unittest.skip('not finished yet')
-    def test_port_agent_client_receive(self):
-        ipaddr = "67.58.49.194"
-        port  = 4000
-        paClient = PortAgentClient(self.ipaddr, self.port)
-        #paClient = PortAgentClient(ipaddr, port)
-        paClient.init_comms(self.myGotData)
-        
-    @unittest.skip('not finished yet')
-    def test_port_agent_client_send(self):
-        ipaddr = "67.58.49.194"
-        port  = 4000
-        paClient = PortAgentClient(self.ipaddr, self.port)
-        #paClient = PortAgentClient(ipaddr, port)
-        paClient.init_comms(self.myGotData)
-        
-        paClient.send('this is a test\n')
-
-
-SYSTEM_EPOCH = datetime.date(*time.gmtime(0)[0:3])
-NTP_EPOCH = datetime.date(1900, 1, 1)
-NTP_DELTA = (SYSTEM_EPOCH - NTP_EPOCH).days * 24 * 3600
 
 class TestPortAgentPacket(MiUnitTest):
     # time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.localtime(time.time()))
@@ -371,8 +327,6 @@ class TestPortAgentPacket(MiUnitTest):
 
 @attr('INT', group='mi')
 class PAClientIntTestCase(InstrumentDriverTestCase):
-#class PAClientIntTestCase(MiIntTestCase):
-
     def initialize(cls, *args, **kwargs):
         print "initialize"
         
