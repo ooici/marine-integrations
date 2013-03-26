@@ -115,8 +115,8 @@ class PortAgentPacket():
             """
             if self.__type == None:
                 self.__type = self.DATA_FROM_DRIVER
-            self.__length = len(self.__data)
-            self.__port_agent_timestamp = time.time() + NTP_DELTA
+            self.set_data_length(len(self.__data))
+            self.set_timestamp()
 
 
             variable_tuple = (0xa3, 0x9d, 0x7a, self.__type, 
@@ -155,9 +155,6 @@ class PortAgentPacket():
     def attach_data(self, data):
         self.__data = data
 
-    def attach_timestamp(self, timestamp):
-        self.__port_agent_timestamp = timestamp
-
     def calculate_checksum(self):
         checksum = 0
         for i in range(HEADER_SIZE):
@@ -186,11 +183,16 @@ class PortAgentPacket():
             
         #log.debug('checksum: %i.' %(checksum))
 
-    def get_data_size(self):
-        return self.__length
-    
     def get_header(self):
         return self.__header
+
+    
+    def set_header(self, header):
+        """
+        This method is used for testing only; we want to test the checksum so
+        this is one of the hoops we jump through to do that.
+        """
+        self.__header = header
 
     def get_data(self):
         return self.__data
@@ -198,8 +200,14 @@ class PortAgentPacket():
     def get_timestamp(self):
         return self.__port_agent_timestamp
 
-    def get_header_length(self):
+    def set_timestamp(self):
+        self.__port_agent_timestamp = time.time() + NTP_DELTA
+
+    def get_data_length(self):
         return self.__length
+
+    def set_data_length(self, length):
+        self.__length = length
 
     def get_header_type(self):
         return self.__type
@@ -750,7 +758,7 @@ class Listener(threading.Thread):
                         received_header = True
                         paPacket = PortAgentPacket()         
                         paPacket.unpack_header(header)         
-                        data_size = paPacket.get_data_size()
+                        data_size = paPacket.get_data_length()
                         bytes_left = data_size
                     elif len(header) == 0:
                         errorString = 'Zero bytes received from port_agent socket'
