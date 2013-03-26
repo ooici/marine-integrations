@@ -4,6 +4,7 @@
 @package ion.services.mi.protocol_param_dict
 @file ion/services/mi/protocol_param_dict.py
 @author Edward Hunter
+@author Steve Foley
 @brief A dictionary class that manages, matches and formats device parameters.
 """
 
@@ -11,19 +12,123 @@ __author__ = 'Edward Hunter'
 __license__ = 'Apache 2.0'
 
 import re
+import ntplib
+import time
+import json
 from mi.core.common import BaseEnum
 from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import InstrumentParameterExpirationException
 
 from mi.core.log import get_logger ; log = get_logger()
+
+class ParameterDictType(BaseEnum):
+    INT = "int"
+    STRING = "string"
+    FLOAT = "float"
+    LIST = "list"
 
 class ParameterDictVisibility(BaseEnum):
     READ_ONLY = "READ_ONLY"
     READ_WRITE = "READ_WRITE"
     DIRECT_ACCESS = "DIRECT_ACCESS"
-
-class ParameterDictVal(object):
+    
+class ParameterDictKeys(BaseEnum):
+    GET_TIMEOUT = "get_timeout"
+    SET_TIMEOUT = "set_timeout"
+    WRITABLE = "writable"
+    STARTUP = "startup"
+    DIRECT_ACCESS = "direct_access"
+    DISPLAY_NAME = "display_name"
+    DESCRIPTION = "description"
+    VALUE = "value"
+    TYPE = "type"
+    DEFAULT = "default"
+    UNITS = "units"
+    PARAMETERS = "parameters"
+    COMMANDS = "commands"
+    
+class ParameterDescription(object):
     """
-    A parameter dictionary value.
+    An object handling the descriptive (and largely staticly defined in code)
+    qualities of a parameter.
+    """
+    def __init__(self,
+                 name,
+                 visibility=ParameterDictVisibility.READ_WRITE,
+                 direct_access=False,
+                 startup_param=False,
+                 default_value=None,
+                 init_value=None,
+                 menu_path_read=None,
+                 submenu_read=None,
+                 menu_path_write=None,
+                 submenu_write=None,
+                 multi_match=None,
+                 get_timeout=10,
+                 set_timeout=10,
+                 display_name=None,
+                 description=None,
+                 type=None,
+                 units=None,
+                 value_description=None):
+        self.name = name
+        self.visibility = visibility
+        self.direct_access = direct_access
+        self.startup_param = startup_param
+        self.default_value = default_value
+        self.init_value = init_value
+        self.menu_path_read = menu_path_read
+        self.submenu_read = submenu_read
+        self.menu_path_write = menu_path_write
+        self.submenu_write = submenu_write
+        self.multi_match = multi_match
+        self.get_timeout = get_timeout
+        self.set_timeout = set_timeout
+        self.display_name = display_name
+        self.description = description
+        if ParameterDictType.has(type) or type == None:
+            self.type = type
+        else:
+            raise InstrumentParameterException("Invalid type specified!")
+        self.units = units
+        self.value_description = value_description
+
+class ParameterValue(object):
+    """
+    A parameter's actual value and the information required for updating it
+    """
+    def __init__(self, name, f_format, value=None, expiration=None):
+        self.name = name
+        self.value = value
+        self.f_format = f_format
+        self.expiration = expiration
+        self.timestamp = ntplib.system_to_ntp_time(time.time())
+                
+    def set_value(self, new_val):
+        """
+        Set the stored value to the new value
+        @param new_val The new value to set for the parameter
+        """
+        self.value = new_val
+        self.timestamp = ntplib.system_to_ntp_time(time.time())
+    
+    def get_value(self):
+        """
+        Get the value from this structure, do whatever checks are necessary
+        @raises InstrumentParameterExpirationException when a parameter is
+        too old to work with. Original value is in exception.
+        """
+        if (self.expiration != None) and \
+            ntplib.system_to_ntp_time(time.time()) > (self.timestamp + self.expiration):
+            raise InstrumentParameterExpirationException("Value for %s expired!" % self.name,
+                                                         self.value)
+        else:
+            return self.value
+        
+        
+class Parameter(object):
+    """
+    A parameter dictionary item.
     """
     def __init__(self, name, f_format, value=None,
                  visibility=ParameterDictVisibility.READ_WRITE,
@@ -35,7 +140,15 @@ class ParameterDictVal(object):
                  direct_access=False,
                  startup_param=False,
                  default_value=None,
-                 init_value=None):
+                 init_value=None,
+                 expiration=None,
+                 get_timeout=10,
+                 set_timeout=10,
+                 display_name=None,
+                 description=None,
+                 type=None,
+                 units=None,
+                 value_description=None):
         """
         Parameter value constructor.
         @param name The parameter name.
@@ -46,20 +159,29 @@ class ParameterDictVal(object):
         value display when presented in a menu-based instrument
         @param value The parameter value (initializes to None).
         """
+        self.description = ParameterDescription(name,
+                                                menu_path_read=menu_path_read,
+                                                submenu_read=submenu_read,
+                                                menu_path_write=menu_path_write,
+                                                submenu_write=submenu_write,
+                                                multi_match=multi_match,
+                                                visibility=visibility,
+                                                direct_access=direct_access,
+                                                startup_param=startup_param,
+                                                default_value=default_value,
+                                                init_value=init_value,
+                                                get_timeout=get_timeout,
+                                                set_timeout=set_timeout,
+                                                display_name=display_name,
+                                                description=description,
+                                                type=type,
+                                                units=units,
+                                                value_description=value_description)
+        
+        self.value = ParameterValue(name, f_format, value=value,
+                                    expiration=expiration)
         self.name = name
-        self.f_format = f_format
-        self.value = value
-        self.menu_path_read = menu_path_read
-        self.submenu_read = submenu_read
-        self.menu_path_write = menu_path_write
-        self.submenu_write = submenu_write
-        self.visibility = visibility
-        self.multi_match = multi_match
-        self.direct_access = direct_access
-        self.startup_param = startup_param
-        self.default_value = default_value
-        self.init_value = init_value
-
+        
     def update(self, input):
         """
         Attempt to udpate a parameter value. By default, this assumes the input
@@ -68,10 +190,19 @@ class ParameterDictVal(object):
         @param input A string that is the parameter value.
         @retval True if an update was successful, False otherwise.
         """
-        self.value = input
+        self.value.set_value(input)
         return True
     
-class RegexParamDictVal(ParameterDictVal):
+    def get_value(self):
+        """
+        Get the value of the parameter that has been stored in the ParameterValue
+        object.
+        @retval The actual data value if it is valid
+        @raises InstrumentParameterExpirationException If the value has expired
+        """
+        return self.value.get_value()
+    
+class RegexParameter(Parameter):
     def __init__(self, name, pattern, f_getval, f_format, value=None,
                  visibility=ParameterDictVisibility.READ_WRITE,
                  menu_path_read=None,
@@ -82,7 +213,15 @@ class RegexParamDictVal(ParameterDictVal):
                  direct_access=False,
                  startup_param=False,
                  default_value=None,
-                 init_value=None):
+                 init_value=None,
+                 expiration=None,
+                 get_timeout=10,
+                 set_timeout=10,
+                 display_name=None,
+                 description=None,
+                 type=None,
+                 units=None,
+                 value_description=None):
         """
         Parameter value constructor.
         @param name The parameter name.
@@ -95,20 +234,28 @@ class RegexParamDictVal(ParameterDictVal):
         value display when presented in a menu-based instrument
         @param value The parameter value (initializes to None).
         """
-        ParameterDictVal.__init__(self,
-                                  name,
-                                  f_format,
-                                  value=value,
-                                  visibility=visibility,
-                                  menu_path_read=menu_path_read,
-                                  submenu_read=submenu_read,
-                                  menu_path_write=menu_path_write,
-                                  submenu_write=submenu_write,
-                                  multi_match=multi_match,
-                                  direct_access=direct_access,
-                                  startup_param=startup_param,
-                                  default_value=default_value,
-                                  init_value=init_value)
+        Parameter.__init__(self,
+                           name,
+                           f_format,
+                           value=value,
+                           visibility=visibility,
+                           menu_path_read=menu_path_read,
+                           submenu_read=submenu_read,
+                           menu_path_write=menu_path_write,
+                           submenu_write=submenu_write,
+                           multi_match=multi_match,
+                           direct_access=direct_access,
+                           startup_param=startup_param,
+                           default_value=default_value,
+                           init_value=init_value,
+                           expiration=expiration,
+                           get_timeout=get_timeout,
+                           set_timeout=set_timeout,
+                           display_name=display_name,
+                           description=description,
+                           type=type,
+                           units=units,
+                           value_description=value_description)
 
         self.pattern = pattern
         self.regex = re.compile(pattern)
@@ -127,14 +274,14 @@ class RegexParamDictVal(ParameterDictVal):
             match = self.regex.search(input)
 
         if match:
-            self.value = self.f_getval(match)
-            log.trace('Updated parameter %s=%s', self.name, str(self.value))
+            self.value.set_value(self.f_getval(match))
+            log.trace('Updated parameter %s=%s', self.name, self.value.get_value())
 
             return True
         else:
             return False
         
-class FunctionParamDictVal(ParameterDictVal):
+class FunctionParameter(Parameter):
     def __init__(self, name, f_getval, f_format, value=None,
                  visibility=ParameterDictVisibility.READ_WRITE,
                  menu_path_read=None,
@@ -145,7 +292,15 @@ class FunctionParamDictVal(ParameterDictVal):
                  direct_access=False,
                  startup_param=False,
                  default_value=None,
-                 init_value=None):
+                 init_value=None,
+                 expiration=None,
+                 get_timeout=10,
+                 set_timeout=10,
+                 display_name=None,
+                 description=None,
+                 type=None,
+                 units=None,
+                 value_description=None):
         """
         Parameter value constructor.
         @param name The parameter name.
@@ -159,20 +314,28 @@ class FunctionParamDictVal(ParameterDictVal):
         value display when presented in a menu-based instrument
         @param value The parameter value (initializes to None).
         """
-        ParameterDictVal.__init__(self,
-                                  name,
-                                  f_format,
-                                  value=value,
-                                  visibility=visibility,
-                                  menu_path_read=menu_path_read,
-                                  submenu_read=submenu_read,
-                                  menu_path_write=menu_path_write,
-                                  submenu_write=submenu_write,
-                                  multi_match=multi_match,
-                                  direct_access=direct_access,
-                                  startup_param=startup_param,
-                                  default_value=default_value,
-                                  init_value=init_value)
+        Parameter.__init__(self,
+                           name,
+                           f_format,
+                           value=value,
+                           visibility=visibility,
+                           menu_path_read=menu_path_read,
+                           submenu_read=submenu_read,
+                           menu_path_write=menu_path_write,
+                           submenu_write=submenu_write,
+                           multi_match=multi_match,
+                           direct_access=direct_access,
+                           startup_param=startup_param,
+                           default_value=default_value,
+                           init_value=init_value,
+                           expiration=expiration,
+                           get_timeout=get_timeout,
+                           set_timeout=set_timeout,
+                           display_name=display_name,
+                           description=description,
+                           type=type,
+                           units=units,
+                           value_description=value_description)
 
         self.f_getval = f_getval
 
@@ -188,12 +351,11 @@ class FunctionParamDictVal(ParameterDictVal):
         success or failure of the match...all update methods run. The result
         is a change flag.
         """
-        orig_value = self.value
+        orig_value = self.value.get_value()
         result = self.f_getval(input)
         if result != orig_value:
-            self.value = result
-            log.trace('self.value = ' + str(self.value))
-            log.trace('Updated parameter %s=%s', self.name, str(self.value))
+            self.value.set_value(result)
+            log.trace('Updated parameter %s=%s', self.name, self.value.get_value())
             return True
         else:
             return False
@@ -209,12 +371,30 @@ class ProtocolParameterDict(object):
         """
         self._param_dict = {}
         
-    def add(self, name, pattern, f_getval, f_format, value=None,
+    def add(self,
+            name,
+            pattern,
+            f_getval,
+            f_format,
+            value=None,
             visibility=ParameterDictVisibility.READ_WRITE,
-            menu_path_read=None, submenu_read=None,
-            menu_path_write=None, submenu_write=None,
-            multi_match=False, direct_access=False, startup_param=False,
-            default_value=None, init_value=None):
+            menu_path_read=None,
+            submenu_read=None,
+            menu_path_write=None,
+            submenu_write=None,
+            multi_match=False,
+            direct_access=False,
+            startup_param=False,
+            default_value=None,
+            init_value=None,
+            get_timeout=10,
+            set_timeout=10,
+            display_name=None,
+            description=None,
+            type=None,
+            units=None,
+            value_description=None,
+            expiration=None):
         """
         Add a parameter object to the dictionary using a regex for extraction.
         @param name The parameter name.
@@ -233,35 +413,59 @@ class ProtocolParameterDict(object):
         a value is needed, but no other instructions have been provided.
         @param init_value The value that a parameter should be set to during
         initialization or re-initialization
-        @param value The parameter value (initializes to None).        
+        @param value The parameter value (initializes to None).
+        @param get_timeout The number of seconds that should be used as a timeout
+        when getting the value from the instrument
+        @param set_timeout The number of seconds that should be used as a timeout
+        when setting the value to the instrument
+        @param display_name The string to use for displaying the parameter
+        or a prompt for the parameter value
+        @param description The description of what the parameter is
+        @param type The type of the parameter (int, float, etc.) Should be a
+        ParameterDictType object
+        @param units The units of the value (ie "Hz" or "cm")
+        @param value_description The description of what values are valid
+        for the parameter
+        @param expiration The amount of time in seconds before the value
+        expires and should not be used. If set to None, the value is always
+        valid. If set to 0, the value is never valid from the store.
         """
-        val = RegexParamDictVal(name, pattern, f_getval, f_format,
-                               value=value,
-                               visibility=visibility,
-                               menu_path_read=menu_path_read,
-                               submenu_read=submenu_read,
-                               menu_path_write=menu_path_write,
-                               submenu_write=submenu_write,
-                               multi_match=multi_match,
-                               direct_access=direct_access,
-                               startup_param=startup_param,
-                               default_value=default_value,
-                               init_value=init_value)
+        val = RegexParameter(name, pattern, f_getval, f_format,
+                             value=value,
+                             visibility=visibility,
+                             menu_path_read=menu_path_read,
+                             submenu_read=submenu_read,
+                             menu_path_write=menu_path_write,
+                             submenu_write=submenu_write,
+                             multi_match=multi_match,
+                             direct_access=direct_access,
+                             startup_param=startup_param,
+                             default_value=default_value,
+                             init_value=init_value,
+                             expiration=expiration,
+                             get_timeout=get_timeout,
+                             set_timeout=set_timeout,
+                             display_name=display_name,
+                             description=description,
+                             type=type,
+                             units=units,
+                             value_description=value_description)
+
         self._param_dict[name] = val
 
-    def add_paramdictval(self, pdv):
+    def add_parameter(self, parameter):
         """
-        Add a ParameterDictVal object to the dictionary. The value can be
-        any object that is an instance of the ParameterDictVal class or
-        subclasses. This is the preferred method for adding these entries as
-        they allow the user to choose the type of param dict val to be used
+        Add a Parameter object to the dictionary or replace an existing one.
+        The value can be any object that is an instance of the Parameter class
+        or subclasses. This is the preferred method for adding these entries as
+        they allow the user to choose the type of parameter to be used
         and make testing more straightforward.
-        @param pdv The ParameterDictVal to use
+        @param parameter The Parameter object to use
         """
-        if not (isinstance(pdv, ParameterDictVal)):
+        if not (isinstance(parameter, Parameter)):
             raise InstrumentParameterException(
-                "Invalid ParameterDictVal added! Attempting to add: %s" % pdv)
-        self._param_dict[pdv.name] = pdv
+                "Invalid Parameter added! Attempting to add: %s" % parameter)
+        self._param_dict[parameter.name] = parameter
         
     def get(self, name):
         """
@@ -269,7 +473,7 @@ class ProtocolParameterDict(object):
         @param name Name of the value to be retrieved.
         @raises KeyError if the name is invalid.
         """
-        return self._param_dict[name].value
+        return self._param_dict[name].get_value()
 
     def get_config_value(self, name):
         """
@@ -310,35 +514,54 @@ class ProtocolParameterDict(object):
         Get a parameter's init value from the dictionary.
         @param name Name of the value to be retrieved.
         @raises KeyError if the name is invalid.
+        @raises InstrumentParameterException if the description is missing
         """
-        return self._param_dict[name].init_value
+        if not self._param_dict[name].description:
+            raise InstrumentParameterException("No description present!")
+            
+        return self._param_dict[name].description.init_value            
 
     def get_default_value(self, name):
         """
         Get a parameter's default value from the dictionary.
         @param name Name of the value to be retrieved.
         @raises KeyError if the name is invalid.
+        @raises InstrumentParameterException if the description is missing        
         """
-        return self._param_dict[name].default_value
+        if not self._param_dict[name].description:
+            raise InstrumentParameterException("No description present!")
+
+        return self._param_dict[name].description.default_value
     
-    def set(self, name, value):
+    def set_value(self, name, value):
         """
-        Set a parameter value in the dictionary.
-        @param name The parameter name.
-        @param value The parameter value.
-        @raises KeyError if the name is invalid.
-        """
-        log.debug("setting " + name + " to " + str(value))
-        self._param_dict[name] = value
+        Set a parameter's value in the dictionary. While this is a simple,
+        straight forward way of setting things, the update routine might be
+        a more graceful (and possibly more robust) way to automatically
+        handling strings directly from an instrument. Consider using update()
+        wherever it makes sense.
         
+        @param name The parameter name.
+        @param value The parameter object to insert (and possibly overwrite)
+        into the parameter dictionary.
+        @raises KeyError if the name is invalid.
+        @see ProtocolParameterDict.update()
+        """        
+        log.debug("Setting parameter dict name: %s to value: %s", name, value)
+        self._param_dict[name].value.set_value(value)
+    
     def set_default(self, name):
         """
         Set the value to the default value stored in the param dict
         @raise KeyError if the name is invalid
         @raise ValueError if the default_value is missing
+        @raises InstrumentParameterException if the description is missing        
         """
-        if self._param_dict[name].default_value:
-            self._param_dict[name].value = self._param_dict[name].default_value
+        if not self._param_dict[name].description:
+            raise InstrumentParameterException("No description present!")
+
+        if self._param_dict[name].description.default_value:
+            self._param_dict[name].value.set_value(self._param_dict[name].description.default_value)
         else:
             raise ValueError("Missing default value")
             
@@ -348,46 +571,60 @@ class ProtocolParameterDict(object):
         @param The parameter name to add to
         @param The value to set for the initialization variable
         @raise KeyError if the name is invalid
+        @raises InstrumentParameterException if the description is missing        
         """
-        self._param_dict[name].init_value = value
+        if not self._param_dict[name].description:
+            raise InstrumentParameterException("No description present!")
+
+        self._param_dict[name].description.init_value = value
         
-    # DHE Added
     def get_menu_path_read(self, name):
         """
-        Get a parameter value from the dictionary.
+        Get the read menu path parameter value from the dictionary.
         @param name Name of the value to be retrieved.
         @raises KeyError if the name is invalid.
+        @raises InstrumentParameterException if the description is missing        
         """
-        return self._param_dict[name].menu_path_read
+        if not self._param_dict[name].description:
+            raise InstrumentParameterException("No description present!")
+
+        return self._param_dict[name].description.menu_path_read
         
-    # DHE Added
-    # This is the final destination submenu
     def get_submenu_read(self, name):
         """
-        Get a parameter value from the dictionary.
+        Get the read final destination submenu parameter value from the dictionary.
         @param name Name of the value to be retrieved.
         @raises KeyError if the name is invalid.
+        @raises InstrumentParameterException if the description is missing                
         """
-        return self._param_dict[name].submenu_read
+        if not self._param_dict[name].description:
+            raise InstrumentParameterException("No description present!")
+
+        return self._param_dict[name].description.submenu_read
         
-    # DHE Added
     def get_menu_path_write(self, name):
         """
-        Get a parameter value from the dictionary.
+        Get the write menu path parameter value from the dictionary.
         @param name Name of the value to be retrieved.
         @raises KeyError if the name is invalid.
+        @raises InstrumentParameterException if the description is missing                
         """
-        return self._param_dict[name].menu_path_write
+        if not self._param_dict[name].description:
+            raise InstrumentParameterException("No description present!")
+
+        return self._param_dict[name].description.menu_path_write
         
-    # DHE Added
-    # This is the final destination submenu
     def get_submenu_write(self, name):
         """
-        Get a parameter value from the dictionary.
+        Get the write final destination parameter value from the dictionary.
         @param name Name of the value to be retrieved.
         @raises KeyError if the name is invalid.
+        @raises InstrumentParameterException if the description is missing                
         """
-        return self._param_dict[name].submenu_write
+        if not self._param_dict[name].description:
+            raise InstrumentParameterException("No description present!")
+
+        return self._param_dict[name].description.submenu_write
 
     # RAU Added
     def multi_match_update(self, input):
@@ -410,7 +647,7 @@ class ProtocolParameterDict(object):
                     multi_mode = True
 
         if False == multi_mode and input <> "":
-            log.debug("protocol_param_dict.py UNMATCHCHED ***************************** " + input)
+            log.debug("protocol_param_dict.py UNMATCHCHED ***************************** %s", input)
         return hit_count
 
     def update_many(self, input):
@@ -434,10 +671,10 @@ class ProtocolParameterDict(object):
         @param input A string to match to a dictionary object.
         @retval The name that was successfully updated, None if not updated
         """
-        log.debug("update input: %s" % input)
+        log.debug("update input: %s", input)
         found = False
         for (name, val) in self._param_dict.iteritems():
-            log.trace("update param dict name: %s" % name)
+            log.trace("update param dict name: %s", name)
             if val.update(input):
                 found = True
         return found
@@ -449,7 +686,7 @@ class ProtocolParameterDict(object):
         """
         config = {}
         for (key, val) in self._param_dict.iteritems():
-            config[key] = val.value
+            config[key] = val.get_value()
         return config
 
     def format(self, name, val):
@@ -458,10 +695,14 @@ class ProtocolParameterDict(object):
         @param name The name of the parameter.
         @param val The parameter value.
         @retval The value formatted as a string for writing to the device.
-        @raises InstrumentProtocolException if the value could not be formatted.
+        @raises InstrumentProtocolException if the value could not be formatted
+        or value object is missing.
         @raises KeyError if the parameter name is invalid.
         """
-        return self._param_dict[name].f_format(val)
+        if not self._param_dict[name].value:
+            raise InstrumentParameterException("No value present!")
+
+        return self._param_dict[name].value.f_format(val)
         
     def get_keys(self):
         """
@@ -475,10 +716,16 @@ class ProtocolParameterDict(object):
         parameters
         
         @retval A list of parameter names, possibly empty
+        @raises InstrumentParameterException if the description is missing                
         """
+
         return_val = []
         for key in self._param_dict.keys():
-            if self._param_dict[key].direct_access == True:
+
+            if not self._param_dict[key].description:
+                raise InstrumentParameterException("No description present!")
+
+            if self._param_dict[key].description.direct_access == True:
                 return_val.append(key)
         
         return return_val
@@ -486,11 +733,15 @@ class ProtocolParameterDict(object):
     def is_startup_param(self, name):
         """
         Return true if a parameter name references a startup parameter
-        @param name: name of a parameter
-        @return: True if the parameter is flagged as a startup param
-        @raise: KeyError if parameter doesn't exist
+        @param name name of a parameter
+        @retval True if the parameter is flagged as a startup param
+        @raises KeyError if parameter doesn't exist
+        @raises InstrumentParameterException if the description is missing                
         """
-        return self._param_dict[name].startup_param == True
+        if not self._param_dict[name].description:
+            raise InstrumentParameterException("No description present!")
+
+        return self._param_dict[name].description.startup_param == True
 
     def get_startup_list(self):
         """
@@ -516,8 +767,61 @@ class ProtocolParameterDict(object):
         return_val = []
         
         for key in self._param_dict.keys():
-            if self._param_dict[key].visibility == visibility:
+            if self._param_dict[key].description.visibility == visibility:
                 return_val.append(key)
         
         return return_val
     
+    def generate_schema(self):
+        """
+        Generate a JSON metadata schema that describes the parameters. This could
+        be passed up toward the agent for ultimate handing to the UI.
+        This method only handles the parameter block of the schema.
+        """
+        all_param_struct = {}
+        return_struct = {}
+        
+        for param_key in self._param_dict.keys():
+            param_struct = {}
+            value_struct = {}
+            if self._param_dict[param_key] != None:
+                param_obj = self._param_dict[param_key].description
+                
+            # Description objects
+            if param_obj.get_timeout != None:
+                param_struct[ParameterDictKeys.GET_TIMEOUT] = param_obj.get_timeout
+            if param_obj.set_timeout != None:
+                param_struct[ParameterDictKeys.SET_TIMEOUT] = param_obj.set_timeout
+            if param_obj.visibility != None:
+                param_struct[ParameterDictKeys.WRITABLE] = \
+                    (param_obj.visibility == ParameterDictVisibility.READ_WRITE)
+            if param_obj.startup_param != None:
+                param_struct[ParameterDictKeys.STARTUP] = param_obj.startup_param
+            if param_obj.direct_access != None:
+                param_struct[ParameterDictKeys.DIRECT_ACCESS] = param_obj.direct_access
+            if param_obj.display_name != None:
+                param_struct[ParameterDictKeys.DISPLAY_NAME] = param_obj.display_name
+            if param_obj.description != None:
+                param_struct[ParameterDictKeys.DESCRIPTION] = param_obj.description
+            
+            # Value objects
+            if param_obj.type != None:
+                value_struct[ParameterDictKeys.TYPE] = param_obj.type
+            if param_obj.default_value != None:
+                value_struct[ParameterDictKeys.DEFAULT] = param_obj.default_value
+            if param_obj.units != None:
+                value_struct[ParameterDictKeys.UNITS] = param_obj.units
+            if param_obj.description != None:
+                value_struct[ParameterDictKeys.DESCRIPTION] = param_obj.value_description
+            
+            param_struct[ParameterDictKeys.VALUE] = value_struct            
+            all_param_struct[param_key] = param_struct
+
+        
+        return_struct[ParameterDictKeys.PARAMETERS] = all_param_struct
+        
+        #log.debug("*** JSON: %s", json.dumps(return_struct, indent=4, sort_keys=True))
+        return json.dumps(return_struct, indent=4, sort_keys=True)
+            
+        
+        
