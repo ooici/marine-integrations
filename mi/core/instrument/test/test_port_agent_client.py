@@ -20,6 +20,8 @@ import re
 import time
 import datetime
 import array
+import struct
+import ctypes
 from nose.plugins.attrib import attr
 from mock import Mock
 
@@ -32,6 +34,7 @@ from mi.core.port_agent_simulator import TCPSimulatorServer
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacket, Listener
+from mi.core.instrument.port_agent_client import HEADER_SIZE
 from mi.core.exceptions import InstrumentConnectionException
 
 # MI logger
@@ -61,7 +64,7 @@ class PAClientUnitTestCase(MiUnitTest):
         else:
             validity = "invalid"
             
-        log.info("Got %s port agent data packet with data length %d: %s", validity, paPacket.get_data_size(), paPacket.get_data())
+        log.info("Got %s port agent data packet with data length %d: %s", validity, paPacket.get_data_length(), paPacket.get_data())
 
     def myGotRaw(self, paPacket):
         self.rawCallbackCalled = True
@@ -70,7 +73,7 @@ class PAClientUnitTestCase(MiUnitTest):
         else:
             validity = "invalid"
             
-        log.info("Got %s port agent raw packet with data length %d: %s", validity, paPacket.get_data_size(), paPacket.get_data())
+        log.info("Got %s port agent raw packet with data length %d: %s", validity, paPacket.get_data_length(), paPacket.get_data())
 
     def myGotError(self, errorString = "No error string passed in."):
         self.errorCallbackCalled = True
@@ -268,7 +271,8 @@ class PAClientUnitTestCase(MiUnitTest):
         retValue = paListener.set_heartbeat(test_heartbeat)
         self.assertFalse(retValue)
 
-class TestPortAgentPacket(MiUnitTest):
+@attr('UNIT', group='mi')
+class PAClientTestPortAgentPacket(MiUnitTest):
     # time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.localtime(time.time()))
     #
 
@@ -289,46 +293,72 @@ class TestPortAgentPacket(MiUnitTest):
 
         #self.pap.set_timestamp(self.ntp_time)
 
-
     def test_pack_header(self):
-        self.pap.attach_data("Only the length of this matters?") # 32 chars
-        #self.pap.set_timestamp(3564425404.85)
+        test_data = "Only the length of this matters?"
+        test_data_length = len(test_data)
+        self.pap.attach_data(test_data)
         self.pap.pack_header()
         header = self.pap.get_header()
-        self.assertEqual(header, array.array('B', [163, 157, 122, 2, 0, 48, 14, 145, 65, 234, 142, 154, 23, 155, 51, 51]))
-        pass
+        self.assertEqual(self.pap.get_data_length(), test_data_length)
+
+    def test_get_length(self):
+        test_length = 100
+        self.pap.set_data_length(test_length)
+        got_length = self.pap.get_data_length()
+        self.assertEqual(got_length, test_length)
+        
+    def test_checksum(self):
+        """
+        This tests the checksum algorithm; if somebody changes the algorithm
+        this test should catch it.  Had to jump through some hoops to do this;
+        needed to add set_data_length and set_header because we're building our 
+        own header here (the one in PortAgentPacket includes the timestamp
+        so the checksum is not consistent).
+        """
+        test_data = "This tests the checksum algorithm."
+        test_length = len(test_data)
+        self.pap.attach_data(test_data)
+        
+        """
+        Now build a header
+        """
+        variable_tuple = (0xa3, 0x9d, 0x7a, self.pap.DATA_FROM_DRIVER, 
+                          test_length + HEADER_SIZE, 0x0000, 
+                          0)
+        self.pap.set_data_length(test_length)
+        
+        format = '>BBBBHHd'
+        size = struct.calcsize(format)
+        temp_header = ctypes.create_string_buffer(size)
+        struct.pack_into(format, temp_header, 0, *variable_tuple)
+        
+        """
+        Now set the header member in PortAgentPacket to the header
+        we built
+        """
+        self.pap.set_header(temp_header.raw)
+        
+        """
+        Now get the checksum and verify it is what we expect it to be.
+        """
+        checksum = self.pap.calculate_checksum()
+        self.assertEqual(checksum, 2)
 
     def test_unpack_header(self):
         self.pap = PortAgentPacket()
-        data = self.pap.unpack_header(array.array('B', [163, 157, 122, 2, 0, 48, 14, 145, 65, 234, 142, 154, 23, 155, 51, 51]))
+        data_length = 32
+        data = self.pap.unpack_header(array.array('B', [163, 157, 122, 2, 0, data_length + HEADER_SIZE, 14, 145, 65, 234, 142, 154, 23, 155, 51, 51]))
+        got_timestamp = self.pap.get_timestamp()
 
-        self.assertEqual(self.pap.get_header_type(), 2)
-        self.assertEqual(self.pap.get_header_length(), 32)
-        self.assertEqual(time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.localtime(self.ntp_to_system_time(self.pap.get_timestamp()))), "Thu, 13 Dec 2012 14:10:04 +0000")
-        self.assertEqual(self.pap.get_header_recv_checksum(), 3729) #@TODO Probably should wire in one of these checksums.
-        self.assertEqual(self.pap.get_header_checksum(), None)
-        pass
-
-
-    def test_get_time_stamp(self):
-        result = self.pap.get_timestamp()
-        self.assertEqual(self.ntp_time, result)
-        pass
-
-    def test_pack_unpack_header_timestamp(self):
-        self.pap.attach_data("sweet polly purebread")
-        self.pap.pack_header()
-        header = self.pap.get_header()
-        self.pap.unpack_header(header)
-
-        result = self.pap.get_timestamp()
-        self.assertEqual(self.ntp_time, result)
-        pass
+        self.assertEqual(self.pap.get_header_type(), self.pap.DATA_FROM_DRIVER)
+        self.assertEqual(self.pap.get_data_length(), data_length)
+        self.assertEqual(got_timestamp, 1105890970.110589)
+        self.assertEqual(self.pap.get_header_recv_checksum(), 3729) 
 
 @attr('INT', group='mi')
 class PAClientIntTestCase(InstrumentDriverTestCase):
     def initialize(cls, *args, **kwargs):
-        print "initialize"
+        log.debug("initialize")
         
     def setUp(self):
         #InstrumentDriverIntegrationTestCase.setUp(self)
@@ -356,12 +386,13 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
 
     def startPortAgent(self):
         pa_port = self.init_port_agent()
-        print "port_agent started on port: " + str(pa_port)
+        log.debug("port_agent started on port: %d" % (pa_port))
 
     def resetTestVars(self):
         self.rawCallbackCalled = False
         self.dataCallbackCalled = False
         self.errorCallbackCalled = False
+        self.listenerCallbackCalled = False
             
     def myGotData(self, paPacket):
         self.dataCallbackCalled = True
@@ -370,7 +401,7 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         else:
             validity = "invalid"
             
-        print "Got " + validity + " port agent data packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
+        log.debug("Got %s port agent data packet with data length %s: %s", validity, paPacket.get_data_length(), paPacket.get_data())
 
     def myGotRaw(self, paPacket):
         self.rawCallbackCalled = True
@@ -379,11 +410,15 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         else:
             validity = "invalid"
             
-        print "Got " + validity + " port agent raw packet with data length " + str(paPacket.get_data_size()) + ": " + str(paPacket.get_data())
+        log.debug("Got %s port agent raw packet with data length %s: %s", validity, paPacket.get_data_length(), paPacket.get_data())
+
+    def myGotListenerError(self, exception):
+        self.listenerCallbackCalled = True
+        log.info("Got listener exception: %s", exception)
 
     def myGotError(self, errorString = "No error string passed in."):
         self.errorCallbackCalled = True
-        log.error("myGotError got error: %s" % errorString)
+        log.info("myGotError got error: %s", errorString)
                        
     def init_instrument_simulator(self):
         """
@@ -457,14 +492,12 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
     
     def test_start_paClient_no_port_agent(self):
 
-        print "port agent client test begin"
-
         self.resetTestVars()
         
         paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
         
         try:
-            paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
+            paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotListenerError, self.myGotError)
  
         except InstrumentConnectionException as e:
             log.info("Exception caught as expected: %r" % (e))
@@ -490,7 +523,7 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
 
         try:        
-            paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
+            paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotListenerError, self.myGotError)
         
         except InstrumentConnectionException as e:
             log.error("Exception caught: %r" % (e))
@@ -537,7 +570,7 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         Give the port agent time to initialize
         """
         time.sleep(2)
-        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
+        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotListenerError, self.myGotError)
         
         """
         Now send some data; there should be no errors.
@@ -620,7 +653,7 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         """
         time.sleep(2)
         
-        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError)
+        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotListenerError, self.myGotError)
         
         try:
             self.stop_port_agent()    
@@ -662,7 +695,7 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         """
         time.sleep(5)
         
-        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError, start_listener = False)
+        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotError, self.myGotListenerError, start_listener = False)
         
         try:
             self.stop_port_agent()    
