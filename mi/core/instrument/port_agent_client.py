@@ -200,8 +200,11 @@ class PortAgentPacket():
     def get_timestamp(self):
         return self.__port_agent_timestamp
 
+    def attach_timestamp(self, timestamp):
+        self.__port_agent_timestamp = timestamp
+
     def set_timestamp(self):
-        self.__port_agent_timestamp = time.time() + NTP_DELTA
+        self.attach_timestamp(time.time())
 
     def get_data_length(self):
         return self.__length

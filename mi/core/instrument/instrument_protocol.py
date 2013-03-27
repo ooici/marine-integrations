@@ -701,7 +701,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         to publish results.
         """
 
-        data_length = port_agent_packet.get_data_size()
+        data_length = port_agent_packet.get_data_length()
         data = port_agent_packet.get_data()
         timestamp = port_agent_packet.get_timestamp()
 
