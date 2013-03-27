@@ -3,8 +3,11 @@ from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProt
 
 import time
 import datetime as dt
+from mi.core.time import get_timestamp_delayed
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.log import get_logger ; log = get_logger()
+from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverEvent
 
 class ADCPInstrumentDriver(SingleConnectionInstrumentDriver):
     """
@@ -17,6 +20,17 @@ class ADCPInstrumentDriver(SingleConnectionInstrumentDriver):
         """
         #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,
+            DriverEvent.DISCOVER,
+            self._handler_connected_discover)
+
+    def _handler_connected_discover(self, event, *args, **kwargs):
+        # Redefine discover handler so that we can apply startup params
+        # when we discover. Gotta get into command mode first though.
+        log.debug("in _handler_connected_discover")
+        result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
+        self.apply_startup_params()
+        return result
 
 class ADCPProtocol(CommandResponseInstrumentProtocol):
     """
@@ -34,10 +48,39 @@ class ADCPProtocol(CommandResponseInstrumentProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
 
+    def _sync_clock(self, date_time_param, prompts, timeout, delay=1, time_format="%Y/%m/%dT, %H:%M:%S"):
+        """
+        Send the command to the instrument to syncronize the clock
+        @param date_time_param: date time parameter that we want to set
+        @param prompts: expected prompt
+        @param timeout: command timeout
+        @param delay: wakeup delay
+        @param time_format: time format string for set command
+        @return: true if the command is successful
+        @raise: InstrumentProtocolException if command fails
+        """
+        prompt = self._wakeup(timeout=timeout, delay=delay)
+
+        # lets clear out any past data so it doesnt confuse the command
+        self._linebuf = ''
+        self._promptbuf = ''
+
+        log.debug("Set time format(%s) '%s''", time_format, date_time_param)
+        str_val = get_timestamp_delayed(time_format)
+        log.debug("Set time value == '%s'", str_val)
+        self._set_params({date_time_param: str_val}, True)
+
+        return True
 
 
-
-
+    def _apply_params(self):
+        """
+        apply startup parameters to the instrument.
+        @raise: InstrumentProtocolException if in wrong mode.
+        """
+        config = self.get_startup_config()
+        # Pass true to _set_params so we know these are startup values
+        self._set_params(config, True)
 
     ########################################################################
     # Static helpers to format set commands.

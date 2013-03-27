@@ -16,6 +16,7 @@ import time as time
 import string
 import ntplib
 import datetime as dt
+from mi.core.time import get_timestamp_delayed
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
@@ -43,6 +44,8 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentStateException
 from struct import *
 from mi.core.exceptions import SampleException
+
+from mi.instrument.teledyne.workhorse_monitor_75_khz.particles import *
 
 # newline.
 NEWLINE = '\n'
@@ -1276,8 +1279,8 @@ class TeledyneProtocol(ADCPProtocol):
                             ProtocolEvent.ENTER, ProtocolEvent.EXIT)
         log.debug("ASSIGNED self._protocol_fsm")
         # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
@@ -1287,14 +1290,15 @@ class TeledyneProtocol(ADCPProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION, self._handler_command_acquire_configuration)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION, self._handler_command_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -1443,12 +1447,12 @@ class TeledyneProtocol(ADCPProtocol):
 
         self._param_dict.add(Parameter.SERIAL_FLOW_CONTROL,
             r'CF = (\d+) \-+ Flow Ctrl ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
+            lambda match: str(match.group(1)),
+            self._string_to_string,
             startup_param=True,
             direct_access=False,
             visibility=ParameterDictVisibility.READ_ONLY,
-            default_value=11110)
+            default_value='11110')
 
         self._param_dict.add(Parameter.BANNER,
             r'CH = (\d) \-+ Suppress Banner',
@@ -1461,7 +1465,8 @@ class TeledyneProtocol(ADCPProtocol):
             r'CI = (\d+) \-+ Instrument ID ',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
-            startup_param=True)
+            startup_param=True,
+            default_value=0)
 
         self._param_dict.add(Parameter.SLEEP_ENABLE,
             r'CL = (\d) \-+ Sleep Enable',
@@ -1542,9 +1547,9 @@ class TeledyneProtocol(ADCPProtocol):
         self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
             r'TG (..../../..,..:..:..) - Time of First Ping ',
             lambda match: str(match.group(1)),
-            self._string_to_string,
-            startup_param=True,
-            default_value='****/**/**,**:**:**')
+            self._string_to_string) #,
+            #startup_param=True,
+            #default_value='****/**/**,**:**:**')
 
         self._param_dict.add(Parameter.TIME_PER_PING,
             r'TP (\d\d:\d\d.\d\d) \-+ Time per Ping',
@@ -1556,8 +1561,8 @@ class TeledyneProtocol(ADCPProtocol):
         self._param_dict.add(Parameter.TIME,
             r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
             lambda match: str(match.group(1)), #time.strptime(match.group(1), "%Y/%m/%d,%H:%M:%S"),
-            self._string_to_string,
-            startup_param=True)
+            self._string_to_string) #,
+            #startup_param=True)
 
         self._param_dict.add(Parameter.FALSE_TARGET_THRESHOLD,
             r'WA (\d+,\d+) \-+ False Target Threshold ',
@@ -1582,8 +1587,8 @@ class TeledyneProtocol(ADCPProtocol):
 
         self._param_dict.add(Parameter.SERIAL_OUT_FW_SWITCHES,
             r'WD ([\d ]+) \-+ Data Out ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
+            lambda match: str(match.group(1)),
+            self._string_to_string,
             visibility=ParameterDictVisibility.READ_ONLY,
             startup_param=True,
             default_value='111100000')
@@ -1698,7 +1703,7 @@ class TeledyneProtocol(ADCPProtocol):
             self.get_current_state() != ProtocolState.AUTOSAMPLE):
             raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
 
-        logging = self._is_logging()
+        #logging = self._is_logging()
 
         # If we are in streaming mode and our configuration on the
         # instrument matches what we think it should be then we
@@ -1709,10 +1714,11 @@ class TeledyneProtocol(ADCPProtocol):
         error = None
 
         try:
+            """
             if(logging):
                 # Switch to command mode,
                 self._stop_logging()
-
+            """
             self._apply_params()
 
         # Catch all error so we can put ourself back into
@@ -1722,9 +1728,10 @@ class TeledyneProtocol(ADCPProtocol):
 
         finally:
             # Switch back to streaming
+            """
             if(logging):
                 self._start_logging()
-
+            """
         if(error):
             raise error
 
@@ -1739,7 +1746,8 @@ class TeledyneProtocol(ADCPProtocol):
 
         # Let's assume we have already run this command recently
         #self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS)
-        self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION)
+        #self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION)
+        self._update_params()
 
         startup_params = self._param_dict.get_startup_list()
         log.debug("Startup Parameters: %s" % startup_params)
@@ -1915,7 +1923,7 @@ class TeledyneProtocol(ADCPProtocol):
         # Command device to update parameters and send a config change event.
 
         log.debug("*** IN _handler_command_enter(), updating params")
-        #self._update_params() #errors when enabled
+        self._update_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -1926,7 +1934,12 @@ class TeledyneProtocol(ADCPProtocol):
         Exit command state.
         """
         pass
-
+    def _handler_unknown_enter(self, *args, **kwargs):
+        """
+        """
+    def _handler_unknown_exit(self, *args, **kwargs):
+        """
+        """
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state; can be COMMAND or AUTOSAMPLE.
@@ -1955,6 +1968,7 @@ class TeledyneProtocol(ADCPProtocol):
         else:
             next_state = ProtocolState.COMMAND
             next_agent_state = ResourceAgentState.IDLE
+
         return (next_state, next_agent_state)
 
     def _handler_command_acquire_sample(self, *args, **kwargs):
@@ -1989,6 +2003,8 @@ class TeledyneProtocol(ADCPProtocol):
         """
         Exit autosample state.
         """
+        log.debug("%%% IN _handler_autosample_exit")
+
         pass
 
     def _handler_command_start_autosample(self, *args, **kwargs):
@@ -2002,11 +2018,14 @@ class TeledyneProtocol(ADCPProtocol):
         kwargs['expected_prompt'] = Prompt.COMMAND
         kwargs['timeout'] = 30
 
+        log.info("SYNCING TIME WITH SENSOR")
+        self._do_cmd_resp(InstrumentCmds.SET, Parameter.TIME, get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
+
         next_state = None
         result = None
 
         # Issue start command and switch to autosample if successful.
-        self._start_logging()
+        self._do_cmd_no_resp(InstrumentCmds.START_DEPLOYMENT, *args, **kwargs)
 
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -2094,7 +2113,7 @@ class TeledyneProtocol(ADCPProtocol):
 
             # Sync the clock
             timeout = kwargs.get('timeout', TIMEOUT)
-            self._sync_clock(Parameter.DS_DEVICE_DATE_TIME, Prompt.COMMAND, timeout)
+            self._sync_clock(Parameter.TIME, Prompt.COMMAND, timeout, time_format="%Y/%m/%dT, %H:%M:%S")
 
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
@@ -2155,7 +2174,7 @@ class TeledyneProtocol(ADCPProtocol):
 
         startup = False
         try:
-            set_params = args[0]
+            params = args[0]
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
@@ -2171,19 +2190,15 @@ class TeledyneProtocol(ADCPProtocol):
             log.debug("set param, but check visibility first")
             log.debug("Read only keys: %s" % readonly)
 
-            for (key, val) in set_params.iteritems():
+            for (key, val) in params.iteritems():
                 if key in readonly:
                     raise InstrumentParameterException("Attempt to set read only parameter (%s)" % key)
 
-        log.debug("General Set Params: %s" % set_params)
+        for (key, val) in params.iteritems():
+            log.debug("KEY = " + str(key) + " VALUE = " + str(val))
+            result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
 
-        if set_params != {}:
-            for (key, val) in set_params.iteritems():
-                log.debug("KEY = " + str(key) + " VALUE = " + str(val))
-                result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
-
-                result = self._do_cmd_resp(InstrumentCmds.GET, key, **kwargs)
-        #self._update_params()
+        self._update_params()
 
     def _handler_command_acquire_status(self, *args, **kwargs):
         """
@@ -2194,18 +2209,13 @@ class TeledyneProtocol(ADCPProtocol):
         log.debug("IN _handler_command_acquire_status - DOING NOTHING I GUESS")
         next_state = None
         next_agent_state = None
+        result = None
+
         kwargs['timeout'] = 30
 
-        #cmds = [Parameter.TIME, Parameter.INSTRUMENT_ID]
-
-        #for key in cmds:
-        #    self._do_cmd_resp(InstrumentCmds.GET, key, **kwargs)
-
-        result = None # ???
-
+        self._update_params()  # TODO: are we after another status??
 
         return (next_state, (next_agent_state, result))
-
 
     def _handler_command_acquire_configuration(self, *args, **kwargs):
         """
@@ -2215,9 +2225,11 @@ class TeledyneProtocol(ADCPProtocol):
         """
         next_state = None
         next_agent_state = None
-        kwargs['timeout'] = 30
-        result = self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION, *args, **kwargs)
+        result = None
 
+        kwargs['timeout'] = 120  # long time to get params.
+        #result = self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION, *args, **kwargs)
+        self._update_params()
         return (next_state, (next_agent_state, result))
 
     def _handler_command_quit_session(self, *args, **kwargs):
@@ -2251,7 +2263,7 @@ class TeledyneProtocol(ADCPProtocol):
         result = None
 
         timeout = kwargs.get('timeout', TIMEOUT)
-        self._sync_clock(Parameter.DS_DEVICE_DATE_TIME, Prompt.COMMAND, timeout)
+        self._sync_clock(Parameter.TIME, Prompt.COMMAND, timeout, time_format="%Y/%m/%d, %H:%M:%S")
 
         return (next_state, (next_agent_state, result))
 
@@ -2276,7 +2288,7 @@ class TeledyneProtocol(ADCPProtocol):
 
         next_state = ProtocolState.DIRECT_ACCESS
         next_agent_state = ResourceAgentState.DIRECT_ACCESS
-
+        log.debug("_handler_command_start_direct: entering DA mode")
         return (next_state, (next_agent_state, result))
 
     def _handler_direct_access_enter(self, *args, **kwargs):
@@ -2285,6 +2297,8 @@ class TeledyneProtocol(ADCPProtocol):
         """
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
+        log.debug("IN _handler_direct_access_enter")
+
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._sent_cmds = []
 
@@ -2292,11 +2306,13 @@ class TeledyneProtocol(ADCPProtocol):
         """
         Exit direct access state.
         """
+        log.debug("%%% IN _handler_direct_access_exit")
         pass
 
     def _handler_direct_access_execute_direct(self, data):
         """
         """
+        log.debug("IN _handler_direct_access_execute_direct")
         next_state = None
         result = None
         next_agent_state = None
@@ -2333,6 +2349,9 @@ class TeledyneProtocol(ADCPProtocol):
         @throws InstrumentProtocolException if the parameter is not valid or
         if the formatting function could not accept the value passed.
         """
+        log.debug("in _build_set_command")
+        my_state = self._protocol_fsm.get_current_state()
+        log.debug("current_state = %s", my_state)
         try:
             str_val = self._param_dict.format(param, val)
             set_cmd = '%s%s' % (param, str_val)
@@ -2351,6 +2370,9 @@ class TeledyneProtocol(ADCPProtocol):
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if set command misunderstood.
         """
+        log.debug("in _parse_set_response")
+        my_state = self._protocol_fsm.get_current_state()
+        log.debug("current_state = %s", my_state)
 
         if prompt == Prompt.ERR:
             raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
@@ -2371,6 +2393,9 @@ class TeledyneProtocol(ADCPProtocol):
         """
 
         log.debug("in _build_get_command")
+        my_state = self._protocol_fsm.get_current_state()
+        log.debug("current_state = %s", my_state)
+
         try:
             get_cmd = param + '?' + NEWLINE
             log.debug("IN _build_get_command CMD = '%s'", get_cmd)
@@ -2381,6 +2406,8 @@ class TeledyneProtocol(ADCPProtocol):
 
     def _parse_get_response(self, response, prompt):
         log.debug("in _parse_get_response RESPONSE = %s", str(response) + str(prompt) )
+        my_state = self._protocol_fsm.get_current_state()
+        log.debug("current_state = %s", my_state)
         if prompt == Prompt.ERR:
             raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
 

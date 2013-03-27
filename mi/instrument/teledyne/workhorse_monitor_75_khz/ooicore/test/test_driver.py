@@ -1,7 +1,7 @@
 """
 @package mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.test.test_driver
 @file marine-integrations/mi/instrument/teledyne/workhorse_monitor_75_khz/ooicore/driver.py
-@author Lytle Johnson
+@author Roger Unwin
 @brief Test cases for ooicore driver
 
 USAGE:
@@ -13,7 +13,7 @@ USAGE:
        $ bin/test_driver -q [-t testname]
 """
 
-__author__ = 'Lytle Johnson'
+__author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
 import unittest
@@ -33,6 +33,8 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
+from mi.idk.unit_test import DriverStartupConfigKey
+
 from mi.instrument.teledyne.test.test_driver import TeledyneUnitTest
 from mi.instrument.teledyne.test.test_driver import TeledyneIntegrationTest
 from mi.instrument.teledyne.test.test_driver import TeledyneQualificationTest
@@ -81,14 +83,63 @@ parsed_stream_received = False
 ###
 #   Driver parameters for tests
 ###
+
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver ',
+    driver_module='mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver',
     driver_class="InstrumentDriver",
     instrument_agent_resource_id = 'HTWZMW',
+    instrument_agent_preload_id = 'IA7',
     instrument_agent_name = 'teledyne_workhorse_monitor_75_khz_ooicore',
     instrument_agent_packet_config = DataParticleType(),
-    driver_startup_config = {}
+
+    driver_startup_config = {
+        DriverStartupConfigKey.PARAMETERS: {
+            Parameter.SERIAL_FLOW_CONTROL: '11110',
+            Parameter.BANNER: False,
+            Parameter.INSTRUMENT_ID: 0,
+            Parameter.SLEEP_ENABLE: 0,
+            Parameter.SAVE_NVRAM_TO_RECORDER: True,
+            Parameter.POLLED_MODE: False,
+            Parameter.XMIT_POWER: 255,
+            Parameter.SPEED_OF_SOUND: 1485,
+            Parameter.PITCH: 0,
+            Parameter.ROLL: 0,
+            Parameter.SALINITY: 35,
+            Parameter.COORDINATE_TRANSFORMATION: '00111',
+            Parameter.TIME_PER_ENSEMBLE: '00:00:00.00',
+            #Parameter.TIME_OF_FIRST_PING: '****/**/**,**:**:**',
+            Parameter.TIME_PER_PING: '00:01.00',
+            #Parameter.TIME: ,
+            Parameter.FALSE_TARGET_THRESHOLD: '050,001',
+            Parameter.BANDWIDTH_CONTROL: 0,
+            Parameter.CORRELATION_THRESHOLD: 64,
+            Parameter.SERIAL_OUT_FW_SWITCHES: '111100000',
+            Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
+            Parameter.BLANK_AFTER_TRANSMIT: 704,
+            Parameter.CLIP_DATA_PAST_BOTTOM: 0,
+            Parameter.RECEIVER_GAIN_SELECT: 1,
+            Parameter.WATER_REFERENCE_LAYER: '001,005',
+            Parameter.WATER_PROFILING_MODE: 1,
+            Parameter.NUMBER_OF_DEPTH_CELLS: 100,
+            Parameter.PINGS_PER_ENSEMBLE: 1,
+            Parameter.DEPTH_CELL_SIZE: 800,
+            Parameter.TRANSMIT_LENGTH: 0,
+            Parameter.PING_WEIGHT: 0,
+            Parameter.AMBIGUITY_VELOCITY: 175,
+        },
+        #DriverStartupConfigKey.SCHEDULER: {
+            #ScheduledJob.ACQUIRE_STATUS: {},
+            #ScheduledJob.STATUS_DATA: {},
+            #ScheduledJob.HARDWARE_DATA: {},
+            #ScheduledJob.EVENT_COUNTER_DATA: {},
+            #ScheduledJob.CONFIGURATION_DATA: {},
+            #ScheduledJob.CLOCK_SYNC: {}
+        #}
+    }
 )
+
+
+
 
 # Create some short names for the parameter test config
 TYPE = ParameterTestConfigKey.TYPE
@@ -140,9 +191,9 @@ class ADCPTMixin(DriverTestMixin):
     # Is DEFAULT the DEFAULT STARTUP VALUE?
     _driver_parameters = {
         Parameter.SERIAL_DATA_OUT: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
-        Parameter.SERIAL_FLOW_CONTROL: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 11110},
+        Parameter.SERIAL_FLOW_CONTROL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '11110'},
         Parameter.BANNER: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
-        Parameter.INSTRUMENT_ID: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
+        Parameter.INSTRUMENT_ID: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.SLEEP_ENABLE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.SAVE_NVRAM_TO_RECORDER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.POLLED_MODE: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
@@ -152,15 +203,15 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.ROLL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.SALINITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 35, VALUE: 35},
         Parameter.COORDINATE_TRANSFORMATION: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00111', VALUE: '00111'},
-        Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "00111"},
+        Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "1111101"},
         Parameter.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
-        Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '****/**/**,**:**:**'},
+        Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
         Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:01.00'},
-        Parameter.TIME: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
+        Parameter.TIME: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False},
         Parameter.FALSE_TARGET_THRESHOLD: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '050,001'},
         Parameter.BANDWIDTH_CONTROL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.CORRELATION_THRESHOLD: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 64},
-        Parameter.SERIAL_OUT_FW_SWITCHES: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 111100000},
+        Parameter.SERIAL_OUT_FW_SWITCHES: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '111100000'},
         Parameter.ERROR_VELOCITY_THRESHOLD: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 2000},
         Parameter.BLANK_AFTER_TRANSMIT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 704},
         Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
@@ -556,22 +607,17 @@ class DriverUnitTest(TeledyneUnitTest, ADCPTMixin):
         """
         capabilities = {
             ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
-            ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                    'DRIVER_EVENT_ACQUIRE_STATUS',
-                                    'DRIVER_EVENT_CLOCK_SYNC',
-                                    'DRIVER_EVENT_GET',
-                                    'DRIVER_EVENT_SET',
+            ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
-                                    'DRIVER_EVENT_START_DIRECT',
+                                    'DRIVER_EVENT_SET',
+                                    'DRIVER_EVENT_CLOCK_SYNC',
+                                    'DRIVER_EVENT_ACQUIRE_STATUS',
                                     'PROTOCOL_EVENT_ACQUIRE_CONFIGURATION',
+                                    'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
                                     'PROTOCOL_EVENT_QUIT_SESSION',
-                                    'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
-            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
-                                       'DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                       'PROTOCOL_EVENT_SEND_LAST_SAMPLE',
-                                       'PROTOCOL_EVENT_ACQUIRE_CONFIGURATION',
-                                       'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
-                                       'DRIVER_EVENT_ACQUIRE_STATUS'],
+                                    'DRIVER_EVENT_START_DIRECT'],
+            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
 
@@ -658,8 +704,8 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         #   Instrument Parameteres
         ###
 
-        #self.assert_set_readonly(Parameter.SERIAL_DATA_OUT, exception_class=InstrumentParameterException)
-        self.assert_set_readonly(Parameter.SERIAL_FLOW_CONTROL)
+        self.assert_set_readonly(Parameter.SERIAL_DATA_OUT, exception_class='InstrumentParameterException')
+        self.assert_set_readonly(Parameter.SERIAL_FLOW_CONTROL, )
         self.assert_set_readonly(Parameter.SAVE_NVRAM_TO_RECORDER)
         self.assert_set_readonly(Parameter.WATER_PROFILING_MODE)
         self.assert_set_readonly(Parameter.SERIAL_OUT_FW_SWITCHES)
@@ -741,7 +787,7 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         params[Parameter.BANNER] = True
         self.assert_set_bulk(params)
         params[Parameter.BANNER] = "LEROY JENKINS"
-      
+
         self.assert_set_bulk_exception(params)
         # @TODO why does 5 get turned to boolean
         #params[Parameter.BANNER] = 5
@@ -1405,7 +1451,7 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         #
         params[Parameter.PING_WEIGHT] = 0
         self.assert_set_bulk(params)
-        
+
         params = {}
 
         # TRANSMIT_LENGTH: int 0 to 3200
@@ -1498,6 +1544,7 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         ####
         # First test in command mode
         ####
+        log.debug("Try to enter autosample.")
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, regex=r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)')
@@ -1545,152 +1592,128 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_initialize_driver()
 
         params = {
-            Parameter.TIDE_INTERVAL: 3,
-            Parameter.TIDE_MEASUREMENT_DURATION: 60,
-            Parameter.WAVE_SAMPLES_PER_BURST: 512,
-            Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS: 2,
-            Parameter.TXWAVEBURST: True,
-            Parameter.TXWAVESTATS: True,
-            Parameter.WAVE_SAMPLES_SCANS_PER_SECOND: 4.0,
-            Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC: False,
-            Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR: 15.0,
-            Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR: 35.0,
-            Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS: 512,
-            Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM: 10.0,
-            Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND: 1,
-            Parameter.MIN_ALLOWABLE_ATTENUATION: 0.0025,
-            Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM: 0.0,
-            Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM: 1.00e+06,
-            Parameter.HANNING_WINDOW_CUTOFF: 0.1
+            Parameter.SERIAL_FLOW_CONTROL: '11110',
+            Parameter.BANNER: False,
+            Parameter.INSTRUMENT_ID: 0,
+            Parameter.SLEEP_ENABLE: 0,
+            Parameter.SAVE_NVRAM_TO_RECORDER: True,
+            Parameter.POLLED_MODE: False,
+            Parameter.XMIT_POWER: 255,
+            Parameter.SPEED_OF_SOUND: 1485,
+            Parameter.PITCH: 0,
+            Parameter.ROLL: 0,
+            Parameter.SALINITY: 35,
+            Parameter.TIME_PER_ENSEMBLE: '00:00:00.00',
+            #self.assert_get(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
+            Parameter.TIME_PER_PING: '00:01.00',
+            #self.assert_get(Parameter.TIME, 'SRSLY')
+            Parameter.FALSE_TARGET_THRESHOLD: '050,001',
+            Parameter.BANDWIDTH_CONTROL: 0,
+            Parameter.CORRELATION_THRESHOLD: 64,
+            Parameter.SERIAL_OUT_FW_SWITCHES: '111100000',
+            Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
+            Parameter.BLANK_AFTER_TRANSMIT: 704,
+            Parameter.CLIP_DATA_PAST_BOTTOM: 0,
+            Parameter.RECEIVER_GAIN_SELECT: 1,
+            Parameter.WATER_REFERENCE_LAYER: '001,005',
+            Parameter.WATER_PROFILING_MODE: 1,
+            Parameter.NUMBER_OF_DEPTH_CELLS: 100,
+            Parameter.PINGS_PER_ENSEMBLE: 1,
+            Parameter.DEPTH_CELL_SIZE: 800,
+            Parameter.TRANSMIT_LENGTH: 0,
+            Parameter.PING_WEIGHT: 0,
+            Parameter.AMBIGUITY_VELOCITY: 175,
         }
         self.assert_set_bulk(params)
 
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
 
-        self.assert_async_particle_generation(DataParticleType.TIDE_PARSED, self.assert_particle_tide_sample, timeout=120)
-        self.assert_async_particle_generation(DataParticleType.WAVE_BURST, self.assert_particle_wave_burst, timeout=300)
-        self.assert_async_particle_generation(DataParticleType.STATISTICS, self.assert_particle_statistics, timeout=300)
+        self.assert_async_particle_generation(DataParticleType.ADCP_PD0_PARSED, self.assert_particle_pd0_data(data_particle, verify_values), timeout=120)
 
-    def test_startup_params_first_pass(self):
+    def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
-        happens in the driver discovery method.  We have two identical versions
-        of this test so it is run twice.  First time to check and CHANGE, then
-        the second time to check again.
+        happens in the driver discovery method.  
 
         since nose orders the tests by ascii value this should run first.
         """
         self.assert_initialize_driver()
 
-        # currently set to the startup value.  is this correct?
-        self.assert_get(Parameter.SERIAL_FLOW_CONTROL, 11110)
-        self.assert_get(Parameter.BANNER, False)
-        self.assert_get(Parameter.INSTRUMENT_ID, False)
-        self.assert_get(Parameter.SLEEP_ENABLE, 0)
-        self.assert_get(Parameter.SAVE_NVRAM_TO_RECORDER, True)
-        self.assert_get(Parameter.POLLED_MODE, False)
-        self.assert_get(Parameter.XMIT_POWER, 255)
-        self.assert_get(Parameter.SPEED_OF_SOUND, 1485)
-        self.assert_get(Parameter.PITCH, 0)
-        self.assert_get(Parameter.ROLL, 0)
-        self.assert_get(Parameter.SALINITY, 35)
-        self.assert_get(Parameter.TIME_PER_ENSEMBLE, '00:00:00.00')
-        self.assert_get(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
-        self.assert_get(Parameter.TIME_PER_PING, '00:01.00')
-        #self.assert_get(Parameter.TIME, 'SRSLY')
-        self.assert_get(Parameter.FALSE_TARGET_THRESHOLD, '050,001')
-        self.assert_get(Parameter.BANDWIDTH_CONTROL, 0)
-        self.assert_get(Parameter.CORRELATION_THRESHOLD, 64)
-        self.assert_get(Parameter.SERIAL_OUT_FW_SWITCHES, 111100000)
-        self.assert_get(Parameter.ERROR_VELOCITY_THRESHOLD, 2000)
-        self.assert_get(Parameter.BLANK_AFTER_TRANSMIT, 704)
-        self.assert_get(Parameter.CLIP_DATA_PAST_BOTTOM, 0)
-        self.assert_get(Parameter.RECEIVER_GAIN_SELECT, 1)
-        self.assert_get(Parameter.WATER_REFERENCE_LAYER, '001,005')
-        self.assert_get(Parameter.WATER_PROFILING_MODE, 1)
-        self.assert_get(Parameter.NUMBER_OF_DEPTH_CELLS, 100)
-        self.assert_get(Parameter.PINGS_PER_ENSEMBLE, 1)
-        self.assert_get(Parameter.DEPTH_CELL_SIZE, 800)
-        self.assert_get(Parameter.TRANSMIT_LENGTH, 0)
-        self.assert_get(Parameter.PING_WEIGHT, 0)
-        self.assert_get(Parameter.AMBIGUITY_VELOCITY, 175)
-        
 
-        # Now change them so they are caught and see if they are caught
-        # on the second pass.
-        #self.assert_set_exception(Parameter.SERIAL_FLOW_CONTROL, 10010, r'400', InstrumentParameterException)
-   
-        self.assert_set(Parameter.BANNER, True)
-        self.assert_set(Parameter.INSTRUMENT_ID, True)
-        self.assert_set(Parameter.SLEEP_ENABLE, 1)
-        self.assert_set(Parameter.SAVE_NVRAM_TO_RECORDER, False)
-        self.assert_set(Parameter.POLLED_MODE, True)
-        self.assert_set(Parameter.XMIT_POWER, 15)
-        self.assert_set(Parameter.SPEED_OF_SOUND, 25)
-        self.assert_set(Parameter.PITCH, 1)
-        self.assert_set(Parameter.ROLL, 1)
-        self.assert_set(Parameter.SALINITY, 45)
-        
-        self.assert_set(Parameter.TIME_PER_ENSEMBLE, '00:00:30.00')
-        self.assert_set(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
-        self.assert_set(Parameter.TIME_PER_PING, '00:03.00')
-        #self.assert_set(Parameter.TIME, 'SRSLY')
-        self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, '049,002')
-        self.assert_set(Parameter.BANDWIDTH_CONTROL, 1)
-        self.assert_set(Parameter.CORRELATION_THRESHOLD, 32)
-        self.assert_set(Parameter.SERIAL_OUT_FW_SWITCHES, 110100100)
-        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 1800)
-        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 350)
-        self.assert_set(Parameter.CLIP_DATA_PAST_BOTTOM, 1)
-        self.assert_set(Parameter.RECEIVER_GAIN_SELECT, 0)
-        self.assert_set(Parameter.WATER_REFERENCE_LAYER, '003,008')
-        self.assert_set(Parameter.WATER_PROFILING_MODE, 0)
-        self.assert_set(Parameter.NUMBER_OF_DEPTH_CELLS, 90)
-        self.assert_set(Parameter.PINGS_PER_ENSEMBLE, 2)
-        self.assert_set(Parameter.DEPTH_CELL_SIZE, 400)
-        self.assert_set(Parameter.TRANSMIT_LENGTH, 1)
-        self.assert_set(Parameter.PING_WEIGHT, 1)
-        self.assert_set(Parameter.AMBIGUITY_VELOCITY, 160)
+        get_values = {
+            Parameter.SERIAL_FLOW_CONTROL: '11110',
+            Parameter.BANNER: False,
+            Parameter.INSTRUMENT_ID: 0,
+            Parameter.SLEEP_ENABLE: 0,
+            Parameter.SAVE_NVRAM_TO_RECORDER: True,
+            Parameter.POLLED_MODE: False,
+            Parameter.XMIT_POWER: 255,
+            Parameter.SPEED_OF_SOUND: 1485,
+            Parameter.PITCH: 0,
+            Parameter.ROLL: 0,
+            Parameter.SALINITY: 35,
+            Parameter.TIME_PER_ENSEMBLE: '00:00:00.00',
+            #self.assert_get(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
+            Parameter.TIME_PER_PING: '00:01.00',
+            #self.assert_get(Parameter.TIME, 'SRSLY')
+            Parameter.FALSE_TARGET_THRESHOLD: '050,001',
+            Parameter.BANDWIDTH_CONTROL: 0,
+            Parameter.CORRELATION_THRESHOLD: 64,
+            Parameter.SERIAL_OUT_FW_SWITCHES: '111100000',
+            Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
+            Parameter.BLANK_AFTER_TRANSMIT: 704,
+            Parameter.CLIP_DATA_PAST_BOTTOM: 0,
+            Parameter.RECEIVER_GAIN_SELECT: 1,
+            Parameter.WATER_REFERENCE_LAYER: '001,005',
+            Parameter.WATER_PROFILING_MODE: 1,
+            Parameter.NUMBER_OF_DEPTH_CELLS: 100,
+            Parameter.PINGS_PER_ENSEMBLE: 1,
+            Parameter.DEPTH_CELL_SIZE: 800,
+            Parameter.TRANSMIT_LENGTH: 0,
+            Parameter.PING_WEIGHT: 0,
+            Parameter.AMBIGUITY_VELOCITY: 175,
+        }
 
-    def test_startup_params_second_pass(self):
-        """
-        Verify that startup parameters are applied correctly. Generally this
-        happens in the driver discovery method.  We have two identical versions
-        of this test so it is run twice.  First time to check and CHANGE, then
-        the second time to check again.
+        # Change the values of these parameters to something before the
+        # driver is reinitalized.  They should be blown away on reinit.
+        new_values = {
+            Parameter.BANNER: True,
+            Parameter.INSTRUMENT_ID: 1,
+            Parameter.SLEEP_ENABLE: 1,
+            Parameter.POLLED_MODE: True,
+            Parameter.XMIT_POWER: 250,
+            Parameter.SPEED_OF_SOUND: 1400,
+            Parameter.PITCH: 1,
+            Parameter.ROLL: 1,
+            Parameter.SALINITY: 37,
+            Parameter.TIME_PER_ENSEMBLE: '00:01:00.00',
+            #self.assert_get(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
+            Parameter.TIME_PER_PING: '00:02.00',
+            #self.assert_get(Parameter.TIME, 'SRSLY')
+            Parameter.FALSE_TARGET_THRESHOLD: '051,001',
+            Parameter.BANDWIDTH_CONTROL: 1,
+            Parameter.CORRELATION_THRESHOLD: 60,
+            Parameter.ERROR_VELOCITY_THRESHOLD: 1900,
+            Parameter.BLANK_AFTER_TRANSMIT: 710,
+            Parameter.CLIP_DATA_PAST_BOTTOM: 1,
+            Parameter.RECEIVER_GAIN_SELECT: 0,
+            Parameter.WATER_REFERENCE_LAYER: '002,006',
+            Parameter.NUMBER_OF_DEPTH_CELLS: 80,
+            Parameter.PINGS_PER_ENSEMBLE: 2,
+            Parameter.DEPTH_CELL_SIZE: 600,
+            Parameter.TRANSMIT_LENGTH: 1,
+            Parameter.PING_WEIGHT: 1,
+            Parameter.AMBIGUITY_VELOCITY: 100,
+        }
 
-        since nose orders the tests by ascii value this should run second.
-        """
-        self.assert_initialize_driver()
+        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
-        self.assert_get(Parameter.TXWAVESTATS, False)
-        self.assert_get(Parameter.TXREALTIME, True)
-        self.assert_get(Parameter.TXWAVEBURST, False)
-
-        # Change these values anyway just in case it ran first.
-        self.assert_set(Parameter.TXWAVESTATS, True)
-        self.assert_set(Parameter.TXREALTIME, False)
-        self.assert_set(Parameter.TXWAVEBURST, True)
-
-    def test_apply_startup_params(self):
-        """
-        This test verifies that we can set the startup params
-        from autosample mode.  It only verifies one parameter
-        change because all parameters are tested above.
-        """
-        # Apply autosample happens for free when the driver fires up
-        self.assert_initialize_driver()
-
-        # Change something
-        self.assert_set(Parameter.TXWAVEBURST, True)
-
-        # Now try to apply params in Streaming
-        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE)
-        self.driver_client.cmd_dvr('apply_startup_params')
-
-        # All done.  Verify the startup parameter has been reset
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND)
-        self.assert_get(Parameter.TXWAVEBURST, False)
+        #read only
+        self.assert_set_exception(Parameter.SERIAL_DATA_OUT, '000 000 111')
+        self.assert_set_exception(Parameter.SERIAL_FLOW_CONTROL, '10110')
+        self.assert_set_exception(Parameter.SAVE_NVRAM_TO_RECORDER, False)
+        self.assert_set_exception(Parameter.SERIAL_OUT_FW_SWITCHES, '110100100')
+        self.assert_set_exception(Parameter.WATER_PROFILING_MODE, 0)
 
     ###
     #   Test scheduled events
@@ -1746,7 +1769,7 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         Verify the clock is set to at least the current date
         """
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-        dt = self.assert_get(Parameter.DS_DEVICE_DATE_TIME)
+        dt = self.assert_get(Parameter.TIME)
         lt = time.strftime("%d %b %Y  %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:12].upper() in dt.upper())
 
@@ -1774,7 +1797,7 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class DriverQualificationTest(InstrumentDriverQualificationTestCase):
+class DriverQualificationTest(TeledyneQualificationTest):
     def setUp(self):
         TeledyneQualificationTest.setUp(self)
 
@@ -1910,17 +1933,17 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         time.sleep(1)
 
         # Set the clock to something in the past
-        self.assert_set_parameter(Parameter.DS_DEVICE_DATE_TIME, "01 Jan 2001 01:01:01", verify=False)
+        self.assert_set_parameter(Parameter.TIME, "2001/01/01, 01:01:01", verify=False)
 
-        self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
+        self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC, timeout=200) # lots of get setting
         self.assert_execute_resource(ProtocolEvent.ACQUIRE_STATUS)
 
         # Now verify that at least the date matches
-        params = [Parameter.DS_DEVICE_DATE_TIME]
+        params = [Parameter.TIME]
         check_new_params = self.instrument_agent_client.get_resource(params)
         lt = time.strftime("%d %b %Y  %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
-        log.debug("TIME: %s && %s" % (lt, check_new_params[Parameter.DS_DEVICE_DATE_TIME]))
-        self.assertTrue(lt[:12].upper() in check_new_params[Parameter.DS_DEVICE_DATE_TIME].upper())
+        log.debug("TIME: %s && %s" % (lt, check_new_params[Parameter.TIME]))
+        self.assertTrue(lt[:12].upper() in check_new_params[Parameter.TIME].upper())
 
     def test_startup_params_first_pass(self):
         """
