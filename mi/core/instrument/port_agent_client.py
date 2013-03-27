@@ -115,8 +115,8 @@ class PortAgentPacket():
             """
             if self.__type == None:
                 self.__type = self.DATA_FROM_DRIVER
-            self.__length = len(self.__data)
-            self.__port_agent_timestamp = time.time() + NTP_DELTA
+            self.set_data_length(len(self.__data))
+            self.set_timestamp()
 
 
             variable_tuple = (0xa3, 0x9d, 0x7a, self.__type, 
@@ -155,9 +155,6 @@ class PortAgentPacket():
     def attach_data(self, data):
         self.__data = data
 
-    def attach_timestamp(self, timestamp):
-        self.__port_agent_timestamp = timestamp
-
     def calculate_checksum(self):
         checksum = 0
         for i in range(HEADER_SIZE):
@@ -186,11 +183,16 @@ class PortAgentPacket():
             
         #log.debug('checksum: %i.' %(checksum))
 
-    def get_data_size(self):
-        return self.__length
-    
     def get_header(self):
         return self.__header
+
+    
+    def set_header(self, header):
+        """
+        This method is used for testing only; we want to test the checksum so
+        this is one of the hoops we jump through to do that.
+        """
+        self.__header = header
 
     def get_data(self):
         return self.__data
@@ -198,8 +200,17 @@ class PortAgentPacket():
     def get_timestamp(self):
         return self.__port_agent_timestamp
 
-    def get_header_length(self):
+    def attach_timestamp(self, timestamp):
+        self.__port_agent_timestamp = timestamp
+
+    def set_timestamp(self):
+        self.attach_timestamp(time.time())
+
+    def get_data_length(self):
         return self.__length
+
+    def set_data_length(self, length):
+        self.__length = length
 
     def get_header_type(self):
         return self.__type
@@ -255,6 +266,7 @@ class PortAgentClient(object):
         self.user_callback_data = None
         self.user_callback_raw = None
         self.user_callback_error = None
+        self.listener_callback_error = None
         self.recovery_mutex = threading.Lock()
         self.recovery_attempts = 0
         
@@ -272,25 +284,26 @@ class PortAgentClient(object):
             self.send_config_parameter(self.HEARTBEAT_INTERVAL_COMMAND, 
                                        heartbeat_string)
             
-            """
-            start the listener thread if instructed to
-            """
+            ###
+            # start the listener thread if instructed to
+            ###
             if self.start_listener:
                 self.listener_thread = Listener(self.sock,  
                                                 self.recovery_attempts,
                                                 self.delim, self.heartbeat, 
                                                 self.max_missed_heartbeats, 
                                                 self.callback_data,
-                                                self.callback_raw, 
-                                                self.callback_error, 
+                                                self.callback_raw,
+                                                self.listener_callback_error,
+                                                self.callback_error,
                                                 self.user_callback_error)
                 self.listener_thread.start()
 
-            """
-            Reset recovery_attempts because we were successful; hopefully
-            the link doesn't oscillate (up and down).  If it does, take this
-            out.
-            """
+            ###
+            # Reset recovery_attempts because we were successful; hopefully
+            # the link doesn't oscillate (up and down).  If it does, take this
+            # out.
+            ###
             self.recovery_attempts = 0
             log.info('PortAgentClient._init_comms(): connected to port agent at %s:%i.'
                            % (self.host, self.port))
@@ -321,12 +334,14 @@ class PortAgentClient(object):
             self.sock = None
             log.info('Port agent data socket closed.')
                         
-    def init_comms(self, user_callback_data = None, user_callback_raw = None, 
-                   user_callback_error = None, heartbeat = 0, 
+    def init_comms(self, user_callback_data = None, user_callback_raw = None,
+                   listener_callback_error = None,
+                   user_callback_error = None, heartbeat = 0,
                    max_missed_heartbeats = None, start_listener = True):
         
         self.user_callback_data = user_callback_data        
-        self.user_callback_raw = user_callback_raw        
+        self.user_callback_raw = user_callback_raw
+        self.listener_callback_error = listener_callback_error
         self.user_callback_error = user_callback_error
         self.heartbeat = heartbeat
         self.max_missed_heartbeats = max_missed_heartbeats
@@ -550,8 +565,9 @@ class Listener(threading.Thread):
     def __init__(self, sock, recovery_attempt, 
                  delim = None, heartbeat = 0, 
                  max_missed_heartbeats = None, 
-                 callback_data = None, callback_raw = None, 
-                 local_callback_error = None,  
+                 callback_data = None, callback_raw = None,
+                 default_callback_error = None,
+                 local_callback_error = None,
                  user_callback_error = None):
         """
         Listener thread constructor.
@@ -564,6 +580,7 @@ class Listener(threading.Thread):
         before attempting recovery.
         @param callback_data The callback on data arrival.
         @param callback_raw The callback for raw.
+        @param default_callback_data A callback to handle non-network exceptions
         @param local_callback_data The local callback when error encountered.
         @param user_callback_data The user callback on error_encountered.
         """
@@ -586,13 +603,19 @@ class Listener(threading.Thread):
             if callback_data:
                 callback_data(paPacket)
             else:
-                log.error("No callback_data function has been registered")            
+                log.error("No callback_data function has been registered")
 
         def fn_callback_raw(paPacket):
             if callback_raw:
                 callback_raw(paPacket)
             else:
-                log.error("No callback_raw function has been registered")            
+                log.error("No callback_raw function has been registered")
+
+        def fn_callback_error(exception):
+            if default_callback_error:
+                default_callback_error(exception)
+            else:
+                log.error("No default_callback_error function has been registered")
                             
         def fn_local_callback_error(errorString = "No error string passed."):
             """
@@ -605,7 +628,7 @@ class Listener(threading.Thread):
             else:
                 log.error("No local_callback_error function has been registered")            
 
-                            
+
         def fn_user_callback_error(errorString = "No error string passed."):
             """
             User error callback; 
@@ -624,6 +647,7 @@ class Listener(threading.Thread):
         self.callback_raw = fn_callback_raw
         self.local_callback_error = fn_local_callback_error
         self.user_callback_error = fn_user_callback_error
+        self.default_callback_error = fn_callback_error
 
     def heartbeat_timeout(self):
         log.error('heartbeat timeout')
@@ -705,8 +729,8 @@ class Listener(threading.Thread):
                 self.start_heartbeat_timer()
                 
             self.heartbeat_missed_count = self.max_missed_heartbeats
-            
-                
+
+
     def run(self):
         """
         Listener thread processing loop. Block on receive from port agent.
@@ -737,7 +761,7 @@ class Listener(threading.Thread):
                         received_header = True
                         paPacket = PortAgentPacket()         
                         paPacket.unpack_header(header)         
-                        data_size = paPacket.get_data_size()
+                        data_size = paPacket.get_data_length()
                         bytes_left = data_size
                     elif len(header) == 0:
                         errorString = 'Zero bytes received from port_agent socket'
@@ -781,6 +805,8 @@ class Listener(threading.Thread):
                     log.error(errorString)
                     self._invoke_error_callback(self.recovery_attempt, errorString)
 
+            except Exception as e:
+                self.default_callback_error(e)
 
         log.info('Port_agent_client thread done listening; going away.')
 

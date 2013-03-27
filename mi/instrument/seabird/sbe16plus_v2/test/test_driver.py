@@ -938,6 +938,28 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         self.assert_clock_set(Parameter.DATE_TIME, sync_clock_cmd=ProtocolEvent.GET_CONFIGURATION, timeout=timeout, tolerance=10)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
+    def assert_cycle(self):
+        self.assert_current_state(ProtocolState.COMMAND)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+
+        self.assert_async_particle_generation(DataParticleType.CTD_PARSED, self.assert_particle_sample, particle_count = 6, timeout=60)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_status)
+        self.assert_particle_generation(ProtocolEvent.GET_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration_strain)
+
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+        self.assert_current_state(ProtocolState.COMMAND)
+
+    def test_discover(self):
+        """
+        Verify we can discover from both command and auto sample modes
+        """
+        self.assert_initialize_driver()
+        self.assert_cycle()
+        self.assert_cycle()
+
+
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -955,10 +977,44 @@ class SBEQualTestCase(SeaBirdQualificationTest, SeaBird16plusMixin):
         self.assert_enter_command_mode()
         self.assert_set_parameter(Parameter.INTERVAL, 10)
 
-        self.assert_sample_autosample(self.assert_particle_sample, DataParticleType.CTD_PARSED)
+        self.assert_start_autosample()
+        self.assert_particle_async(DataParticleType.CTD_PARSED, self.assert_particle_sample)
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status, DataParticleType.DEVICE_STATUS, sample_count=1, timeout=20)
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration_strain, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=20)
+
+        # Stop autosample and do run a couple commands.
+        self.assert_stop_autosample()
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status, DataParticleType.DEVICE_STATUS, sample_count=1)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration_strain, DataParticleType.DEVICE_CALIBRATION, sample_count=1)
+
+        # Restart autosample and gather a couple samples
+        self.assert_sample_autosample(self.assert_particle_sample, DataParticleType.CTD_PARSED)
+
+    def assert_cycle(self):
+        self.assert_start_autosample()
+
+        self.assert_particle_async(DataParticleType.CTD_PARSED, self.assert_particle_sample)
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status, DataParticleType.DEVICE_STATUS, sample_count=1, timeout=20)
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration_strain, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=20)
+
+        self.assert_stop_autosample()
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status, DataParticleType.DEVICE_STATUS, sample_count=1)
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration_strain, DataParticleType.DEVICE_CALIBRATION, sample_count=1)
+
+    def test_cycle(self):
+        """
+        Verify we can bounce between command and streaming.  We try it a few times to see if we can find a timeout.
+        """
+        self.assert_enter_command_mode()
+
+        self.assert_cycle()
+        self.assert_cycle()
+        self.assert_cycle()
+        self.assert_cycle()
 
     def test_poll(self):
         '''

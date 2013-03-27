@@ -11,6 +11,9 @@ in the driver code.
 __author__ = 'Edward Hunter'
 __license__ = 'Apache 2.0'
 
+from mi.core.log import get_logger
+log = get_logger()
+
 from mi.core.common import BaseEnum
 from ooi.exception import ApplicationException
 
@@ -32,7 +35,7 @@ class InstrumentException(ApplicationException):
 
     def get_triple(self):
         """ get exception info without depending on MI exception classes """
-        return ( self.error_code, self.__class__.__name__ + ': ' + self.msg, self._stacks )
+        return ( self.error_code, "%s: %s" % (self.__class__.__name__, self.msg), self._stacks )
     
 class InstrumentConnectionException(InstrumentException):
     """Exception related to connection with a physical instrument"""

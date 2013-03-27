@@ -33,7 +33,7 @@ def _write_packet(record):
     if(record.get_header_type() == PortAgentPacket.DATA_FROM_INSTRUMENT):
         sys.stdout.write(record.get_data())
     elif(record.get_header_type() == PortAgentPacket.DATA_FROM_DRIVER):
-        sys.stdout.write(">>> %s" % record.get_data())
+        #sys.stdout.write(">>> %s" % record.get_data())
         pass
 
 def _get_file():
@@ -106,20 +106,20 @@ def _get_header(buffer):
     header = buffer[0:HEADER_SIZE]
     packet.unpack_header(header)
 
-    if(packet.get_data_size() < 0): return None
+    if(packet.get_data_length() < 0): return None
 
     return packet
 
 def _read_data(buffer, packet):
-    if(len(buffer) < HEADER_SIZE + packet.get_data_size()): return False
-    data = buffer[HEADER_SIZE:HEADER_SIZE+packet.get_data_size()]
+    if(len(buffer) < HEADER_SIZE + packet.get_data_length()): return False
+    data = buffer[HEADER_SIZE:HEADER_SIZE+packet.get_data_length()]
     packet.attach_data(data)
 
     return True
 
 def _get_remaining(buffer, packet):
-    if(len(buffer) == HEADER_SIZE + packet.get_data_size()): return None
-    return buffer[HEADER_SIZE+packet.get_data_size():]
+    if(len(buffer) == HEADER_SIZE + packet.get_data_length()): return None
+    return buffer[HEADER_SIZE+packet.get_data_length():]
 
 
 if __name__ == '__main__':

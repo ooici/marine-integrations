@@ -353,8 +353,8 @@ class InstrumentDriver(object):
             self._send_event(event)
             
         elif type == DriverAsyncEvent.ERROR:
-            # Notify agent of async driver error.
-            pass
+            event['value'] = val
+            self._send_event(event)
 
         elif type == DriverAsyncEvent.RESULT:
             event['value'] = val
@@ -865,6 +865,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         self._build_protocol()
         self._connection.init_comms(self._protocol.got_data, 
                                     self._protocol.got_raw,
+                                    self._got_exception,
                                     self._lost_connection_callback)
         self._protocol._connection = self._connection
         next_state = DriverConnectionState.CONNECTED
@@ -1001,6 +1002,16 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
 
         except (TypeError, KeyError):
             raise InstrumentParameterException('Invalid comms config dict.')
+
+    def _got_exception(self, exception):
+        """
+        Callback for the client for exception handling with async data.  Exceptions
+        are wrapped in an event and sent up to the agent.
+        """
+        try:
+            log.error("ASYNC Data Exception Detected: %s%s", exception.__class__.__name__, exception)
+        finally:
+            self._driver_event(DriverAsyncEvent.ERROR, exception)
 
     def _lost_connection_callback(self, error_string):
         """
