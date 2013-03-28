@@ -22,6 +22,7 @@ import ion.agents.instrument.instrument_agent
 from pyon.public import log
 
 import json
+import uuid
 
 class InstrumentAgent(ion.agents.instrument.instrument_agent.InstrumentAgent):
     """
@@ -69,11 +70,10 @@ class PublisherInstrumentAgent(ion.agents.instrument.instrument_agent.Instrument
     mode.  This is used for publication tests that mock input into the port agent and
     there for have not command/response behavior. It is used for testing publication
     """
-    def __init__(self, *args, **kwargs):
-        ion.agents.instrument.instrument_agent.InstrumentAgent.__init__(self, *args, **kwargs)
-
     def _handler_inactive_go_active(self, *args, **kwargs):
         """
+        Overload the default go active handler so it doesn't do a discover, but instead
+        forces the agent into command mode.
         """
         next_state = ion.agents.instrument.instrument_agent.ResourceAgentState.COMMAND
         result = None
@@ -89,6 +89,10 @@ class PublisherInstrumentAgent(ion.agents.instrument.instrument_agent.Instrument
         dvr_comms = self._dvr_config.get('comms_config', None)
         self._dvr_client.cmd_dvr('configure', dvr_comms)
         self._dvr_client.cmd_dvr('connect')
+
+        # Reset the connection id and index.
+        self._connection_ID = uuid.uuid4()
+        self._connection_index = {key : 0 for key in self.aparam_streams.keys()}
 
         return (next_state, result)
 

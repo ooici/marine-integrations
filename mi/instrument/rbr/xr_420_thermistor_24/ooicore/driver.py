@@ -82,8 +82,8 @@ class ScheduledJob(BaseEnum):
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    SAMPLE      = 'sample'
-    ENGINEERING = 'engineering'
+    SAMPLE      = 'tmpsf_sample'
+    ENGINEERING = 'tmpsf_engineering'
 
 INSTRUMENT_NEWLINE = '\r\n'
 WRITE_DELAY = 0
@@ -308,30 +308,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 
 class XR_420SampleDataParticleKey(BaseEnum):
     TIMESTAMP       = "timestamp"
-    CHANNEL_1       = "channel_1"
-    CHANNEL_2       = "channel_2"
-    CHANNEL_3       = "channel_3"
-    CHANNEL_4       = "channel_4"
-    CHANNEL_5       = "channel_5"
-    CHANNEL_6       = "channel_6"
-    CHANNEL_7       = "channel_7"
-    CHANNEL_8       = "channel_8"
-    CHANNEL_9       = "channel_9"
-    CHANNEL_10       = "channel_10"
-    CHANNEL_11       = "channel_11"
-    CHANNEL_12       = "channel_12"
-    CHANNEL_13       = "channel_13"
-    CHANNEL_14       = "channel_14"
-    CHANNEL_15       = "channel_15"
-    CHANNEL_16       = "channel_16"
-    CHANNEL_17       = "channel_17"
-    CHANNEL_18       = "channel_18"
-    CHANNEL_19       = "channel_19"
-    CHANNEL_20       = "channel_20"
-    CHANNEL_21       = "channel_21"
-    CHANNEL_22       = "channel_22"
-    CHANNEL_23       = "channel_23"
-    CHANNEL_24       = "channel_24"
+    TEMPERATURE     = "temperature"
     BATTERY_VOLTAGE = "battery_voltage"
     SERIAL_NUMBER   = "serial_number"
                 
@@ -347,8 +324,10 @@ class XR_420SampleDataParticle(DataParticle):
         values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
+        temps = []
+
         match = SAMPLE_DATA_REGEX.match(self.raw_data)
-        
+
         if not match:
             raise SampleException("XR_420SampleDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
         
@@ -360,30 +339,10 @@ class XR_420SampleDataParticle(DataParticle):
             log.debug("_build_parsed_values: ts=%s" %str(timestamp))
             self.set_internal_timestamp(unix_time=time.mktime(timestamp))
             ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
-            channel_1 = float(match.group(2))
-            channel_2 = float(match.group(3))
-            channel_3 = float(match.group(4))
-            channel_4 = float(match.group(5))
-            channel_5 = float(match.group(6))
-            channel_6 = float(match.group(7))
-            channel_7 = float(match.group(8))
-            channel_8 = float(match.group(9))
-            channel_9 = float(match.group(10))
-            channel_10 = float(match.group(11))
-            channel_11 = float(match.group(12))
-            channel_12 = float(match.group(13))
-            channel_13 = float(match.group(14))
-            channel_14 = float(match.group(15))
-            channel_15 = float(match.group(16))
-            channel_16 = float(match.group(17))
-            channel_17 = float(match.group(18))
-            channel_18 = float(match.group(19))
-            channel_19 = float(match.group(20))
-            channel_20 = float(match.group(21))
-            channel_21 = float(match.group(22))
-            channel_22 = float(match.group(23))
-            channel_23 = float(match.group(24))
-            channel_24 = float(match.group(25))
+
+            for i in range(2, 26):
+                temps.append(float(match.group(i)))
+
             battery_voltage = float(match.group(26))
             serial_number = match.group(27)
             
@@ -392,54 +351,8 @@ class XR_420SampleDataParticle(DataParticle):
                      
         result = [{DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: ntp_timestamp},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_1,
-                   DataParticleKey.VALUE: channel_1},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_2,
-                   DataParticleKey.VALUE: channel_2},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_3,
-                   DataParticleKey.VALUE: channel_3},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_4,
-                   DataParticleKey.VALUE: channel_4},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_5,
-                   DataParticleKey.VALUE: channel_5},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_6,
-                   DataParticleKey.VALUE: channel_6},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_7,
-                   DataParticleKey.VALUE: channel_7},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_8,
-                   DataParticleKey.VALUE: channel_8},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_9,
-                   DataParticleKey.VALUE: channel_9},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_10,
-                   DataParticleKey.VALUE: channel_10},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_11,
-                   DataParticleKey.VALUE: channel_11},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_12,
-                   DataParticleKey.VALUE: channel_12},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_13,
-                   DataParticleKey.VALUE: channel_13},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_14,
-                   DataParticleKey.VALUE: channel_14},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_15,
-                   DataParticleKey.VALUE: channel_15},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_16,
-                   DataParticleKey.VALUE: channel_16},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_17,
-                   DataParticleKey.VALUE: channel_17},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_18,
-                   DataParticleKey.VALUE: channel_18},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_19,
-                   DataParticleKey.VALUE: channel_19},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_20,
-                   DataParticleKey.VALUE: channel_20},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_21,
-                   DataParticleKey.VALUE: channel_21},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_22,
-                   DataParticleKey.VALUE: channel_22},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_23,
-                   DataParticleKey.VALUE: channel_23},
-                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.CHANNEL_24,
-                   DataParticleKey.VALUE: channel_24},
+                  {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.TEMPERATURE,
+                   DataParticleKey.VALUE: temps},
                   {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.BATTERY_VOLTAGE,
                    DataParticleKey.VALUE: battery_voltage},
                   {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.SERIAL_NUMBER,
@@ -447,38 +360,42 @@ class XR_420SampleDataParticle(DataParticle):
  
         log.debug('XR_420SampleDataParticle: particle=%s' %result)
         return result
-    
+
 class XR_420EngineeringDataParticleKey(BaseEnum):
-    BATTERY_VOLTAGE                     = InstrumentParameters.BATTERY_VOLTAGE
-    CALIBRATION_COEFFICIENTS_CHANNEL_1  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1
-    CALIBRATION_COEFFICIENTS_CHANNEL_2  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_2
-    CALIBRATION_COEFFICIENTS_CHANNEL_3  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_3
-    CALIBRATION_COEFFICIENTS_CHANNEL_4  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_4
-    CALIBRATION_COEFFICIENTS_CHANNEL_5  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_5
-    CALIBRATION_COEFFICIENTS_CHANNEL_6  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_6
-    CALIBRATION_COEFFICIENTS_CHANNEL_7  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_7
-    CALIBRATION_COEFFICIENTS_CHANNEL_8  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_8
-    CALIBRATION_COEFFICIENTS_CHANNEL_9  = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_9
-    CALIBRATION_COEFFICIENTS_CHANNEL_10 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_10
-    CALIBRATION_COEFFICIENTS_CHANNEL_11 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_11
-    CALIBRATION_COEFFICIENTS_CHANNEL_12 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_12
-    CALIBRATION_COEFFICIENTS_CHANNEL_13 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_13
-    CALIBRATION_COEFFICIENTS_CHANNEL_14 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_14
-    CALIBRATION_COEFFICIENTS_CHANNEL_15 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_15
-    CALIBRATION_COEFFICIENTS_CHANNEL_16 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_16
-    CALIBRATION_COEFFICIENTS_CHANNEL_17 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_17
-    CALIBRATION_COEFFICIENTS_CHANNEL_18 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_18
-    CALIBRATION_COEFFICIENTS_CHANNEL_19 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_19
-    CALIBRATION_COEFFICIENTS_CHANNEL_20 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_20
-    CALIBRATION_COEFFICIENTS_CHANNEL_21 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_21
-    CALIBRATION_COEFFICIENTS_CHANNEL_22 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_22
-    CALIBRATION_COEFFICIENTS_CHANNEL_23 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_23
-    CALIBRATION_COEFFICIENTS_CHANNEL_24 = InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_24
-                
+    CALIBRATION_COEFFICIENTS = 'tmpsf_cal_coeffs'
+    BATTERY_VOLTAGE = 'battery_voltage'
+
+CALIBRATION_COEFFICIENTS_PARAMETERS = [
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_2,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_3,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_4,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_5,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_6,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_7,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_8,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_9,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_10,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_11,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_12,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_13,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_14,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_15,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_16,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_17,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_18,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_19,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_20,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_21,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_22,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_23,
+    InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_24
+]
+
 class XR_420EngineeringDataParticle(DataParticle):
     """
-    Class for constructing engineering data into an engineering particle structure for the XR-420 sensor. 
-    The raw_data variable in the DataParticle base class needs to be initialized to a reference to 
+    Class for constructing engineering data into an engineering particle structure for the XR-420 sensor.
+    The raw_data variable in the DataParticle base class needs to be initialized to a reference to
     a dictionary that contains the status parameters.
     """
     _data_particle_type = DataParticleType.ENGINEERING
@@ -489,18 +406,33 @@ class XR_420EngineeringDataParticle(DataParticle):
         NOTE: raw_data references a dictionary with the status parameters, not a line of input
         @throws SampleException If there is a problem with particle creation
         """
-                
+        result = []
+
         if not isinstance(self.raw_data, dict):
             raise SampleException("Error: raw_data is not a dictionary")
-                     
+
         log.debug('XR_420EngineeringDataParticle: raw_data=%s' %self.raw_data)
 
-        result = []
-        for key, value in self.raw_data.items():
-            log.debug('_build_parsed_values: %s = %s' %(key, value))
-            result.append({DataParticleKey.VALUE_ID: key,
-                           DataParticleKey.VALUE: value})
-             
+        voltage = self.raw_data.get(InstrumentParameters.BATTERY_VOLTAGE)
+        if(voltage != None):
+            result.append(
+                {DataParticleKey.VALUE_ID: XR_420SampleDataParticleKey.BATTERY_VOLTAGE,
+                 DataParticleKey.VALUE: voltage}
+            )
+        else:
+            raise SampleException("missing battery voltage")
+
+        cals = []
+        for param in CALIBRATION_COEFFICIENTS_PARAMETERS:
+            value = self.raw_data.get(param)
+            if(value != None):
+                cals.append(value)
+            else:
+                raise SampleException("missing battery voltage")
+
+        result.append({DataParticleKey.VALUE_ID: XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS,
+                       DataParticleKey.VALUE: cals})
+
         log.debug('XR_420EngineeringDataParticle: particle=%s' %result)
         return result
     
@@ -1336,10 +1268,13 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._update_params()
 
         # build a dictionary of the parameters that are to be returned in the status data particle
+        params = [InstrumentParameters.BATTERY_VOLTAGE] + CALIBRATION_COEFFICIENTS_PARAMETERS
         status_params = {}
-        for name in XR_420EngineeringDataParticleKey.list():
+        for name in params:
             status_params[name] = self._param_dict.get(name)
-            
+            log.debug("Add parameter %s: %s", name, status_params[name])
+
+
         # Create status data particle, but pass in a reference to the dictionary just created as first parameter instead of the 'line'.
         # The status data particle class will use the 'raw_data' variable as a reference to a dictionary object to get
         # access to parameter values (see the Mavs4EngineeringDataParticle class).
