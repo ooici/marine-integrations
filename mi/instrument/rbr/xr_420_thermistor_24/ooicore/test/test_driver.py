@@ -120,21 +120,21 @@ class UtilMixin(DriverTestMixin):
     #  Parameter and Type Definitions
     ###
     _driver_parameters = {
-        InstrumentParameters.IDENTIFICATION : {TYPE: str, READONLY: True, DA: False, STARTUP: False},                          
-        InstrumentParameters.LOGGER_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False},
+        InstrumentParameters.IDENTIFICATION : {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: 'RBR XR-420 6.810 021968'},
+        InstrumentParameters.LOGGER_DATE_AND_TIME : {TYPE: str, READONLY: True, STARTUP: False, DA: False},
         InstrumentParameters.SAMPLE_INTERVAL : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:12'},
-        InstrumentParameters.START_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '01 Jan 2000 00:00:00'},
-        InstrumentParameters.END_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '01 Jan 2050 00:00:00'},
+        InstrumentParameters.START_DATE_AND_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '01 Jan 2000 00:00:00', VALUE: '01 Jan 2000 00:00:00'},
+        InstrumentParameters.END_DATE_AND_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '01 Jan 2050 00:00:00', VALUE: '01 Jan 2050 00:00:00'},
         InstrumentParameters.STATUS : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.BATTERY_VOLTAGE : {TYPE: float, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.POWER_ALWAYS_ON : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
-        InstrumentParameters.SIX_HZ_PROFILING_MODE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0},
-        InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
-        InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
-        InstrumentParameters.SAMPLING_LED : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0},
-        InstrumentParameters.ENGINEERING_UNITS_OUTPUT : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
-        InstrumentParameters.AUTO_RUN : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
-        InstrumentParameters.INHIBIT_DATA_STORAGE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
+        InstrumentParameters.POWER_ALWAYS_ON : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1, VALUE: 1},
+        InstrumentParameters.SIX_HZ_PROFILING_MODE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
+        InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
+        InstrumentParameters.SAMPLING_LED : {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        InstrumentParameters.ENGINEERING_UNITS_OUTPUT : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
+        InstrumentParameters.AUTO_RUN : {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: 1, VALUE: 1},
+        InstrumentParameters.INHIBIT_DATA_STORAGE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1, VALUE: 1},
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_2 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_3 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
@@ -161,20 +161,6 @@ class UtilMixin(DriverTestMixin):
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_24 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
     }
 
-    # parameter values to test.
-    paramter_test_values = {InstrumentParameters.START_DATE_AND_TIME : TIME_IN_PAST,
-                            InstrumentParameters.END_DATE_AND_TIME : TIME_IN_FUTURE,
-                            InstrumentParameters.SAMPLE_INTERVAL : '00:00:15',
-                            InstrumentParameters.POWER_ALWAYS_ON : 1,
-                            InstrumentParameters.SIX_HZ_PROFILING_MODE : 0,
-                            InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER : 1,
-                            InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE : 1,
-                            InstrumentParameters.SAMPLING_LED : 0,
-                            InstrumentParameters.ENGINEERING_UNITS_OUTPUT : 1,
-                            InstrumentParameters.AUTO_RUN : 1,
-                            InstrumentParameters.INHIBIT_DATA_STORAGE : 1,
-                            }
-    
     _raw_coefficients = {
         InstrumentParameters.BATTERY_VOLTAGE:  '8ABAT\r\n',
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1:  '4C02E5F8338B6C3F2EE9CCCCA56F30BF22757E403EB0C43EFF5CF27A032669BECAL\r\n',
@@ -623,19 +609,32 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         """
         self.assert_initialize_driver()
 
-        # construct values dynamically to get time stamp for notes
-        new_parameter_values = {}
+        # parameter values to test.
+        test_values = {
+            InstrumentParameters.SAMPLE_INTERVAL : '00:00:15',
+            InstrumentParameters.POWER_ALWAYS_ON : 1,
+            InstrumentParameters.SIX_HZ_PROFILING_MODE : 0,
+            InstrumentParameters.INHIBIT_DATA_STORAGE : 1,
+        }
 
-        for key in self.paramter_test_values.iterkeys():
-            new_parameter_values[key] = self.paramter_test_values[key]
-               
         # Set parameters in bulk and verify.
-        self.assert_set_bulk(new_parameter_values)
-        
-        # Set parameters individually and verify.
-        for key in self.paramter_test_values.iterkeys():
-            self.assert_set(key, self.paramter_test_values[key])
-        
+        #self.assert_set_bulk(test_values)
+
+        # Verify single sets, we first set to the current value to verify
+        # a config update event IS NOT sent.  Then change the value and
+        # watch for an config update event.
+        self.assert_set(InstrumentParameters.SIX_HZ_PROFILING_MODE, 0)
+        self.assert_set(InstrumentParameters.SIX_HZ_PROFILING_MODE, 1)
+
+        self.assert_set(InstrumentParameters.POWER_ALWAYS_ON, 1)
+        self.assert_set(InstrumentParameters.POWER_ALWAYS_ON, 0)
+
+        self.assert_set(InstrumentParameters.INHIBIT_DATA_STORAGE, 1)
+        self.assert_set(InstrumentParameters.INHIBIT_DATA_STORAGE, 0)
+
+        self.assert_set(InstrumentParameters.SAMPLE_INTERVAL, '01:00:15')
+        self.assert_set(InstrumentParameters.SAMPLE_INTERVAL, '01:00:20')
+
     def test_set_errors(self):
         """
         Test error device parameter access.
@@ -648,65 +647,32 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         # try values that are not legitimate for each parameter
         self.assert_set_exception(InstrumentParameters.POWER_ALWAYS_ON, 'bad')
         self.assert_set_exception(InstrumentParameters.POWER_ALWAYS_ON, 2)
-        
-        self.assert_set_exception(InstrumentParameters.ENGINEERING_UNITS_OUTPUT, 'bad')
-        self.assert_set_exception(InstrumentParameters.ENGINEERING_UNITS_OUTPUT, 255)
-        
+
         self.assert_set_exception(InstrumentParameters.INHIBIT_DATA_STORAGE, 'bad')
         self.assert_set_exception(InstrumentParameters.INHIBIT_DATA_STORAGE, -1)
-        
-        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE, 'bad')
-        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE, 2090)
-        
-        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER, 'stupid')
-        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER, 4.3)
-        
-        self.assert_set_exception(InstrumentParameters.SAMPLING_LED, 'bad')
-        self.assert_set_exception(InstrumentParameters.SAMPLING_LED, 10)
-        
+
         self.assert_set_exception(InstrumentParameters.SIX_HZ_PROFILING_MODE, 'really bad')
         self.assert_set_exception(InstrumentParameters.SIX_HZ_PROFILING_MODE, -20)
-        
-        self.assert_set_exception(InstrumentParameters.AUTO_RUN, 'dumb')
-        self.assert_set_exception(InstrumentParameters.AUTO_RUN, -2000)
-        
-        self.assert_set_exception(InstrumentParameters.AUTO_RUN, 'bad')
-        self.assert_set_exception(InstrumentParameters.AUTO_RUN, -1)
-        
-        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, 1)
-        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '40 Feb 2002 11:18:42')
-        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 fab 2002 11:18:42')
-        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2O02 11:18:42')
-        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2002 25:18:42')
-        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2002 11:65:42')
-        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2002 11:18:61')
 
         self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, '11:18:61')
         self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, '25:18:61')
         self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, '11:118:61')
         self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, 3)
-        
-        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, 'junk')
-        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '40 Feb 2002 11:18:42')
-        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 fab 2002 11:18:42')
-        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2O02 11:18:42')
-        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2002 25:18:42')
-        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2002 11:65:42')
-        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2002 11:18:61')
-
-        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, 4.6)
-        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '40 Feb 2002 11:18:42')
-        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 fab 2002 11:18:42')
-        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2O02 11:18:42')
-        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2002 25:18:42')
-        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2002 11:65:42')
 
     def test_read_only_parameters(self):
         self.assert_initialize_driver()
 
         self.assert_set_readonly(InstrumentParameters.STATUS)
+        self.assert_set_readonly(InstrumentParameters.AUTO_RUN)
         self.assert_set_readonly(InstrumentParameters.IDENTIFICATION)
         self.assert_set_readonly(InstrumentParameters.BATTERY_VOLTAGE)
+        self.assert_set_readonly(InstrumentParameters.LOGGER_DATE_AND_TIME)
+        self.assert_set_readonly(InstrumentParameters.START_DATE_AND_TIME)
+        self.assert_set_readonly(InstrumentParameters.END_DATE_AND_TIME)
+        self.assert_set_readonly(InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER)
+        self.assert_set_readonly(InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE)
+        self.assert_set_readonly(InstrumentParameters.SAMPLING_LED)
+        self.assert_set_readonly(InstrumentParameters.ENGINEERING_UNITS_OUTPUT)
         self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1)
         self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_2)
         self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_3)
@@ -742,15 +708,8 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         # driver is re-initialized.  They should be blown away with startup values.
         new_values = {
             InstrumentParameters.SAMPLE_INTERVAL: '00:00:20',
-            InstrumentParameters.START_DATE_AND_TIME: '10 Jan 2000 00:00:00',
-            InstrumentParameters.END_DATE_AND_TIME: '10 Jan 2050 00:00:00',
             InstrumentParameters.POWER_ALWAYS_ON: 0,
             InstrumentParameters.SIX_HZ_PROFILING_MODE: 0,
-            InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER: 0,
-            InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE: 0,
-            InstrumentParameters.SAMPLING_LED: 1,
-            InstrumentParameters.ENGINEERING_UNITS_OUTPUT: 0,
-            InstrumentParameters.AUTO_RUN: 0,
             InstrumentParameters.INHIBIT_DATA_STORAGE: 0,
         }
 

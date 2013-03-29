@@ -37,8 +37,6 @@ from mi.core.exceptions import InstrumentTimeoutException, \
                                InstrumentCommandException
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
-from mi.core.instrument.protocol_param_dict import ParameterDictVal
-from mi.core.common import InstErrorCode
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
 from pyon.agent.agent import ResourceAgentState
@@ -574,7 +572,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         config = self.get_startup_config()
         # this call will set the parameters on the instrument and then update their values in the param_dict
         log.debug("apply_startup_params: applying startup parameters.")
-        self._handler_command_set(config)
+        self._handler_command_set(config, True)
 
         if current_state == ProtocolStates.AUTOSAMPLE:
             # this call will return if start is successful or raise an exception otherwise
@@ -803,18 +801,33 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         pass
     
     def _set_advanced_functions_parameters(self, params_to_set):
-        # handle advanced functions parameters as a single '!1' operation
+        """
+        handle advanced functions parameters as a single '!1' operation.  If something
+        has changed then raise a config change event.
+        @param params_to_set: dict of parameters to change
+        """
+        config_changed = False
+
         parameters_dict = dict([(x, params_to_set[x]) for x in AdvancedFunctionsParameters.list() if x in params_to_set])
+        log.debug("Advanced set function parameters")
         if parameters_dict:
             # set the parameter values so they can be gotten in the command builders
             for (key, value) in parameters_dict.iteritems():
-                self._param_dict.set_value(key, value)
-            command = self._param_dict.get_submenu_write(InstrumentParameters.POWER_ALWAYS_ON)
-            self._do_cmd_no_resp(command, None, None, timeout=5)
+                old_value = self._param_dict.get(key)
+                if old_value != value:
+                    log.debug("Configuration Changed: %s %s => %s", key, old_value, value)
+                    config_changed = True
+                    self._param_dict.set_value(key, value)
+
             # remove the sub-parameters from the params_to_set dictionary
             for parameter in parameters_dict:
                 del params_to_set[parameter]
-        
+
+            if config_changed:
+                command = self._param_dict.get_submenu_write(InstrumentParameters.POWER_ALWAYS_ON)
+                self._do_cmd_no_resp(command, None, None, timeout=5)
+                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
     def _handler_command_set(self, *args, **kwargs):
         """
         Perform a set command.
@@ -839,28 +852,21 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                 raise InstrumentParameterException('Set parameters not a dict.')
             
         log.debug('_handler_command_set: params_to_set = %s' %params_to_set)
-        
+
         if len(params_to_set) == 0:
             return (next_state, result)
-        
-        readonly_params = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
 
-        not_settable = []
-        for (key, val) in params_to_set.iteritems():
-            if key in readonly_params:
-                not_settable.append(key)
-        if len(not_settable) > 0:
-            raise InstrumentParameterException("Attempt to set read only parameter(s) (%s)" %not_settable)
+        self._verify_not_readonly(*args, **kwargs)
 
-        params_to_check = params_to_set
-        
+        # This call circumvents the param dict a bit in that it
+        # sets parameter values directly before update_params has a chance
+        # to detect a configuration change.  So this method will also raise
+        # a config change event.  It is possible now that we will raise two
+        # config change events with one call to set.
+        # This should be looked at some day.
         self._set_advanced_functions_parameters(params_to_set)
-                
+
         for (key, val) in params_to_set.iteritems():
-            if key == InstrumentParameters.LOGGER_DATE_AND_TIME and val == '':
-                # coming from apply_startup_params, so sync clock
-                self._clock_sync()
-                continue
             try:
                 command = self._param_dict.get_submenu_write(key)
             except KeyError:
@@ -869,8 +875,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             self._do_cmd_no_resp(command, key, val, timeout=5)
 
         self._update_params(called_from_set=True)
-        
-        self._check_for_set_failures(params_to_check)
+
+        self._check_for_set_failures(params_to_set)
             
         return (next_state, result)
 
@@ -1250,13 +1256,16 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         
         # We ignore the data-time parameter difference which should always be different
         new_config[InstrumentParameters.LOGGER_DATE_AND_TIME] = old_config.get(InstrumentParameters.LOGGER_DATE_AND_TIME)
-        
+
+        log.debug("Old Configuration: %s", old_config)
+        log.debug("New Configuration: %s", new_config)
         if new_config != old_config:
-            for (name, value) in new_config.iteritems():
-                log.debug("_update_params: %s = %s" %(name, value))
-                if old_config[name] != value:
-                    val = old_config[name] if old_config[name] != None else 'not-set-yet'
-                    log.debug('_update_params: %s: o=%s, n=%s' %(name, val, value))
+            log.debug("Configuration change detected!")
+            #for (name, value) in new_config.iteritems():
+            #    log.debug("_update_params: %s = %s" %(name, value))
+            #    if old_config[name] != value:
+            #        val = old_config[name] if old_config[name] != None else 'not-set-yet'
+            #        log.debug('_update_params: %s: o=%s, n=%s' %(name, val, value))
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     def _generate_status_event(self):
@@ -1312,6 +1321,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\d{12})CTD\r\n', 
                              lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_LOGGER_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_LOGGER_DATE_AND_TIME)
 
@@ -1329,7 +1339,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
                              startup_param=True,
-                             default_value='01 Jan 2000 00:00:00',     
+                             default_value='01 Jan 2000 00:00:00',
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_START_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_START_DATE_AND_TIME)
 
@@ -1337,8 +1349,10 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\d{12})CET\r\n', 
                              lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
+                             default_value='01 Jan 2050 00:00:00',
                              startup_param=True,
-                             default_value='01 Jan 2050 00:00:00',     
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_END_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_END_DATE_AND_TIME)
 
@@ -1521,8 +1535,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              lambda value : self._check_bit_value(value),
                              None,
-                             startup_param=True,
                              default_value=1,          # 1 = True
+                             startup_param=True,
+                             direct_access=False,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1530,8 +1545,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              lambda value : self._check_bit_value(value),
                              None,
-                             startup_param=True,
                              default_value=0,          # 0 = False
+                             startup_param=True,
+                             direct_access=False,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1539,8 +1555,10 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              lambda value : self._check_bit_value(value),
                              None,
-                             startup_param=True,
                              default_value=1,          # 1 = True
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1548,8 +1566,10 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              lambda value : self._check_bit_value(value),
                              None,
-                             startup_param=True,
                              default_value=1,          # 1 = True
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1557,8 +1577,10 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              lambda value : self._check_bit_value(value),
                              None,
-                             startup_param=True,
                              default_value=0,          # 0 = False
+                             startup_param=True,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1566,8 +1588,10 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              lambda value : self._check_bit_value(value),
                              None,
-                             startup_param=True,
                              default_value=1,          # 1 = True
+                             startup_param=True,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1575,8 +1599,10 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              lambda value : self._check_bit_value(value),
                              None,
-                             startup_param=True,
                              default_value=1,          # 1 = True
+                             startup_param=True,
+                             direct_access=False,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1584,8 +1610,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'$^', 
                              lambda value : self._check_bit_value(value),
                              None,
-                             startup_param=True,
                              default_value=1,          # 1 = True
+                             startup_param=True,
+                             direct_access=False,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1600,7 +1627,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.GET_END_DATE_AND_TIME, self._build_get_end_date_and_time_command)
         self._add_build_handler(InstrumentCmds.GET_BATTERY_VOLTAGE, self._build_get_battery_voltage_command)
         self._add_build_handler(InstrumentCmds.GET_CHANNEL_CALIBRATION, self._build_get_channel_calibration_command)
-        self._add_build_handler(InstrumentCmds.GET_ADVANCED_FUNCTIONS, self._build_get_advanved_functions_command)
+        self._add_build_handler(InstrumentCmds.GET_ADVANCED_FUNCTIONS, self._build_get_advanced_functions_command)
         self._add_build_handler(InstrumentCmds.START_SAMPLING, self._build_start_sampling_command)
         
         # Add build handlers for device set commands.
@@ -1608,7 +1635,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.SET_START_DATE_AND_TIME, self._build_set_date_time_command)
         self._add_build_handler(InstrumentCmds.SET_END_DATE_AND_TIME, self._build_set_date_time_command)
         self._add_build_handler(InstrumentCmds.SET_SAMPLE_INTERVAL, self._build_set_time_command)
-        self._add_build_handler(InstrumentCmds.SET_ADVANCED_FUNCTIONS, self._build_set_advanved_functions_command)
+        self._add_build_handler(InstrumentCmds.SET_ADVANCED_FUNCTIONS, self._build_set_advanced_functions_command)
 
         # Add response handlers for device get commands.
         self._add_response_handler(InstrumentCmds.GET_STATUS, self._parse_status_response)
@@ -1648,20 +1675,20 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         except Exception as ex:
             raise InstrumentParameterException('_build_set_time_command: %s.' %repr(ex))
         
-    def _build_set_advanved_functions_command(self, cmd, *args):
+    def _build_set_advanced_functions_command(self, cmd, *args):
         try:
             value = 0
             for name in AdvancedFunctionsParameters.list():
                 if self._param_dict.get(name) == 1:
                     value = value | self.advanced_functions_bits[name]
-                log.debug("_build_set_advanved_functions_command: value=%x, a_f[%s]=%x" %(value, name, self.advanced_functions_bits[name]))
+                log.debug("_build_set_advanced_functions_command: value=%x, a_f[%s]=%x" %(value, name, self.advanced_functions_bits[name]))
             value *= 0x10000
             value_str = '%08x' %value
             command = cmd + value_str
-            log.debug('_build_set_advanved_functions_command: command=%s' %command)
+            log.debug('_build_set_advanced_functions_command: command=%s' %command)
             return command
         except Exception as ex:
-            raise InstrumentParameterException('_build_set_advanved_functions_command: %s.' %repr(ex))
+            raise InstrumentParameterException('_build_set_advanced_functions_command: %s.' %repr(ex))
         
 
 ##################################################################################################
@@ -1744,22 +1771,22 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         log.debug("_build_get_channel_calibration_command: cmd=%s, response=%s" %(cmd, response))
         return (cmd, response)    
     
-    def _build_get_advanved_functions_command(self, **kwargs):
+    def _build_get_advanced_functions_command(self, **kwargs):
         cmd_name = kwargs.get('command', None)
         if cmd_name == None:
-            raise InstrumentParameterException('_build_get_advanved_functions_command requires a command.')
+            raise InstrumentParameterException('_build_get_advanced_functions_command requires a command.')
         cmd = cmd_name
         response = InstrumentResponses.GET_ADVANCED_FUNCTIONS
-        log.debug("_build_get_advanved_functions_command: cmd=%s, response=%s" %(cmd, response))
+        log.debug("_build_get_advanced_functions_command: cmd=%s, response=%s" %(cmd, response))
         return (cmd, response)    
     
     def _build_start_sampling_command(self, **kwargs):
         cmd_name = kwargs.get('command', None)
         if cmd_name == None:
-            raise InstrumentParameterException('_build_get_advanved_functions_command requires a command.')
+            raise InstrumentParameterException('_build_start_sampling_command requires a command.')
         cmd = cmd_name
         response = InstrumentResponses.START_SAMPLING
-        log.debug("_build_get_advanved_functions_command: cmd=%s, response=%s" %(cmd, response))
+        log.debug("_build_start_sampling_command: cmd=%s, response=%s" %(cmd, response))
         return (cmd, response)    
     
 ##################################################################################################

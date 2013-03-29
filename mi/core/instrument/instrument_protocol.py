@@ -19,6 +19,7 @@ from functools import partial
 
 from mi.core.log import get_logger ; log = get_logger()
 
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.common import BaseEnum, InstErrorCode
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import RawDataParticle
@@ -88,6 +89,46 @@ class InstrumentProtocol(object):
         """
         log.error("base got_data.  Who called me?")
         pass
+
+    def _verify_not_readonly(self, *args, **kwargs):
+        """
+        Verify that the parameters we are attempting to set in upstream methods
+        are not readonly.  If they are raise an exception.  However, if startup
+        is passed in and true then we ignore visibility and we can set any
+        parameter we like regardless of visibility.
+        @param args[0]: dictionary containing parameters to set
+        @param args[1]: startup flag, if set don't verify visibility
+        @return: True if we aren't violating visibility
+        @raise: InstrumentParameterException if we violate visibility
+        """
+        startup = False
+        try:
+            params_to_set = args[0]
+        except IndexError:
+            raise InstrumentParameterException('requires a dict.')
+        else:
+            if not isinstance(params_to_set, dict):
+                raise InstrumentParameterException('parameters not a dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
+        if startup:
+            log.debug("startup flag seen, not validating")
+            return True
+
+        readonly_params = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
+
+        not_settable = []
+        for (key, val) in params_to_set.iteritems():
+            if key in readonly_params:
+                not_settable.append(key)
+        if len(not_settable) > 0:
+            raise InstrumentParameterException("Attempt to set read only parameter(s) (%s)" %not_settable)
+
+        return True
 
     def _extract_sample(self, particle_class, regex, line, timestamp, publish=True):
         """
