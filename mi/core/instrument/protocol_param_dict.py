@@ -45,7 +45,6 @@ class ParameterDictKeys(BaseEnum):
     DEFAULT = "default"
     UNITS = "units"
     PARAMETERS = "parameters"
-    COMMANDS = "commands"
     
 class ParameterDescription(object):
     """
