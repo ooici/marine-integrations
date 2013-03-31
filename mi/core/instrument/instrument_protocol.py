@@ -29,8 +29,11 @@ from mi.core.driver_scheduler import DriverSchedulerConfigKey
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import ConfigMetadataKey
 
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
+from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
+from mi.core.instrument.driver_dict import DriverDict
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
@@ -63,9 +66,11 @@ class InstrumentProtocol(object):
         # The protocol state machine.
         self._protocol_fsm = None
         
-        # The parameter dictionary.
+        # The parameter, comamnd, and driver dictionaries.
         self._param_dict = ProtocolParameterDict()
-
+        self._cmd_dict = ProtocolCommandDict()
+        self._driver_dict = DriverDict()
+        
         # The spot to stash a configuration before going into direct access
         # mode
         self._pre_direct_access_config = None
@@ -377,6 +382,21 @@ class InstrumentProtocol(object):
         """
         assert self._param_dict != None
         return self._param_dict.get_config()
+        
+    def get_config_metadata_dict(self):
+        """
+        Return a list of metadata about the protocol's driver support,
+        command formats, and parameter formats. The format should be easily
+        JSONifyable (as will happen in the driver on the way out to the agent)
+        @retval A python dict that represents the metadata
+        @see https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Driver-Agent+parameter+and+command+metadata+exchange
+        """
+        return_dict = {}
+        return_dict[ConfigMetadataKey.DRIVER] = self._driver_dict.generate_dict()
+        return_dict[ConfigMetadataKey.COMMANDS] = self._cmd_dict.generate_dict()
+        return_dict[ConfigMetadataKey.PARAMETERS] = self._param_dict.generate_dict()
+        
+        return return_dict
         
     ########################################################################
     # Command build and response parse handlers.
