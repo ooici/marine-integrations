@@ -14,7 +14,7 @@ import json
 
 from nose.plugins.attrib import attr
 from mi.core.unit_test import MiUnitTestCase
-from mi.core.instrument.driver_dict import DriverDict, DriverDictKeys
+from mi.core.instrument.driver_dict import DriverDict, DriverDictKey
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -30,15 +30,20 @@ class TestUnitProtocolCommandDict(MiUnitTestCase):
     def setUp(self):
         self.driver_dict = DriverDict()
                 
-        self.driver_dict.add(DriverDictKeys.VENDOR_SW_COMPATIBLE, True)
+        self.driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
 
-        self.target_dict = {DriverDictKeys.VENDOR_SW_COMPATIBLE:True}
+        self.target_dict = {DriverDictKey.VENDOR_SW_COMPATIBLE:True}
         self.target_schema = '{"vendor_sw_compatible": true}'
         
     def test_schema_generation(self):
         result = self.driver_dict.generate_dict()
         self.assertEqual(result, self.target_dict)
         self.assertEqual(json.dumps(result), self.target_schema)
+        
+    def test_empty_schema(self):
+        self.driver_dict = DriverDict()
+        result = self.driver_dict.generate_dict()
+        self.assertEqual(result, {})
         
     def test_add_get(self):
         self.assertEquals(self.driver_dict.get_value("vendor_sw_compatible"),

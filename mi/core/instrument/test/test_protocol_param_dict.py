@@ -102,83 +102,81 @@ class TestUnitProtocolParameterDict(MiUnitTestCase):
                              value_description="Should be a 2-10 element list of integers between 2 and 2000")
         
         self.target_schema = """{
-    "parameters": {
-        "bar": {
-            "direct_access": false, 
-            "get_timeout": 10, 
-            "set_timeout": 10, 
-            "startup": true, 
-            "value": {
-                "default": 15
-            }, 
-            "writable": true
+    "bar": {
+        "direct_access": false, 
+        "get_timeout": 10, 
+        "set_timeout": 10, 
+        "startup": true, 
+        "value": {
+            "default": 15
         }, 
-        "bat": {
-            "description": "The bat parameter", 
-            "direct_access": false, 
-            "display_name": "Bat", 
-            "get_timeout": 10, 
-            "set_timeout": 20, 
-            "startup": false, 
-            "value": {
-                "default": 20, 
-                "description": "Should be an integer between 1 and 1000", 
-                "type": "int", 
-                "units": "nano-batbit"
-            }, 
-            "writable": false
+        "writable": true
+    }, 
+    "bat": {
+        "description": "The bat parameter", 
+        "direct_access": false, 
+        "display_name": "Bat", 
+        "get_timeout": 10, 
+        "set_timeout": 20, 
+        "startup": false, 
+        "value": {
+            "default": 20, 
+            "description": "Should be an integer between 1 and 1000", 
+            "type": "int", 
+            "units": "nano-batbit"
         }, 
-        "baz": {
-            "description": "The baz parameter", 
-            "direct_access": true, 
-            "display_name": "Baz", 
-            "get_timeout": 30, 
-            "set_timeout": 40, 
-            "startup": false, 
-            "value": {
-                "default": 20, 
-                "description": "Should be an integer between 2 and 2000", 
-                "type": "int", 
-                "units": "nano-bazers"
-            }, 
-            "writable": false
+        "writable": false
+    }, 
+    "baz": {
+        "description": "The baz parameter", 
+        "direct_access": true, 
+        "display_name": "Baz", 
+        "get_timeout": 30, 
+        "set_timeout": 40, 
+        "startup": false, 
+        "value": {
+            "default": 20, 
+            "description": "Should be an integer between 2 and 2000", 
+            "type": "int", 
+            "units": "nano-bazers"
         }, 
-        "foo": {
-            "direct_access": true, 
-            "get_timeout": 10, 
-            "set_timeout": 10, 
-            "startup": true, 
-            "value": {
-                "default": 10
-            }, 
-            "writable": true
+        "writable": false
+    }, 
+    "foo": {
+        "direct_access": true, 
+        "get_timeout": 10, 
+        "set_timeout": 10, 
+        "startup": true, 
+        "value": {
+            "default": 10
         }, 
-        "qut": {
-            "description": "The qut list parameter", 
-            "direct_access": true, 
-            "display_name": "Qut", 
-            "get_timeout": 10, 
-            "set_timeout": 20, 
-            "startup": false, 
-            "value": {
-                "default": [
-                    10, 
-                    100
-                ], 
-                "description": "Should be a 2-10 element list of integers between 2 and 2000", 
-                "type": "list", 
-                "units": "nano-qutters"
-            }, 
-            "writable": false
+        "writable": true
+    }, 
+    "qut": {
+        "description": "The qut list parameter", 
+        "direct_access": true, 
+        "display_name": "Qut", 
+        "get_timeout": 10, 
+        "set_timeout": 20, 
+        "startup": false, 
+        "value": {
+            "default": [
+                10, 
+                100
+            ], 
+            "description": "Should be a 2-10 element list of integers between 2 and 2000", 
+            "type": "list", 
+            "units": "nano-qutters"
         }, 
-        "qux": {
-            "direct_access": false, 
-            "get_timeout": 10, 
-            "set_timeout": 10, 
-            "startup": false, 
-            "value": {}, 
-            "writable": false
-        }
+        "writable": false
+    }, 
+    "qux": {
+        "direct_access": false, 
+        "get_timeout": 10, 
+        "set_timeout": 10, 
+        "startup": false, 
+        "value": {}, 
+        "writable": false
     }
 }"""
         
@@ -384,11 +382,15 @@ bar=200, baz=300
         self.assertEqual(result, 42)
         
     def test_schema_generation(self):
-        result = self.param_dict.generate_schema()
-        # Make sure we have a reasonable length, first
-        self.assert_(len(result) > 100)
-        self.assertEqual(result, self.target_schema)
+        result = self.param_dict.generate_dict()
+        json_result = json.dumps(result, indent=4, sort_keys=True)
+        self.assertEqual(json_result, self.target_schema)
         
+    def test_empty_schema(self):
+        self.param_dict = ProtocolParameterDict()
+        result = self.param_dict.generate_dict()
+        self.assertEqual(result, {})
+
     def test_bad_descriptions(self):
         self.param_dict._param_dict["foo"].description = None
         self.param_dict._param_dict["foo"].value = None

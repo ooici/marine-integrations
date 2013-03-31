@@ -14,7 +14,6 @@ __license__ = 'Apache 2.0'
 import re
 import ntplib
 import time
-import json
 from mi.core.common import BaseEnum
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentParameterExpirationException
@@ -32,7 +31,7 @@ class ParameterDictVisibility(BaseEnum):
     READ_WRITE = "READ_WRITE"
     DIRECT_ACCESS = "DIRECT_ACCESS"
     
-class ParameterDictKeys(BaseEnum):
+class ParameterDictKey(BaseEnum):
     GET_TIMEOUT = "get_timeout"
     SET_TIMEOUT = "set_timeout"
     WRITABLE = "writable"
@@ -771,13 +770,12 @@ class ProtocolParameterDict(object):
         
         return return_val
     
-    def generate_schema(self):
+    def generate_dict(self):
         """
-        Generate a JSON metadata schema that describes the parameters. This could
-        be passed up toward the agent for ultimate handing to the UI.
+        Generate a JSONifyable metadata schema that describes the parameters.
+        This could be passed up toward the agent for ultimate handing to the UI.
         This method only handles the parameter block of the schema.
         """
-        all_param_struct = {}
         return_struct = {}
         
         for param_key in self._param_dict.keys():
@@ -788,39 +786,32 @@ class ProtocolParameterDict(object):
                 
             # Description objects
             if param_obj.get_timeout != None:
-                param_struct[ParameterDictKeys.GET_TIMEOUT] = param_obj.get_timeout
+                param_struct[ParameterDictKey.GET_TIMEOUT] = param_obj.get_timeout
             if param_obj.set_timeout != None:
-                param_struct[ParameterDictKeys.SET_TIMEOUT] = param_obj.set_timeout
+                param_struct[ParameterDictKey.SET_TIMEOUT] = param_obj.set_timeout
             if param_obj.visibility != None:
-                param_struct[ParameterDictKeys.WRITABLE] = \
+                param_struct[ParameterDictKey.WRITABLE] = \
                     (param_obj.visibility == ParameterDictVisibility.READ_WRITE)
             if param_obj.startup_param != None:
-                param_struct[ParameterDictKeys.STARTUP] = param_obj.startup_param
+                param_struct[ParameterDictKey.STARTUP] = param_obj.startup_param
             if param_obj.direct_access != None:
-                param_struct[ParameterDictKeys.DIRECT_ACCESS] = param_obj.direct_access
+                param_struct[ParameterDictKey.DIRECT_ACCESS] = param_obj.direct_access
             if param_obj.display_name != None:
-                param_struct[ParameterDictKeys.DISPLAY_NAME] = param_obj.display_name
+                param_struct[ParameterDictKey.DISPLAY_NAME] = param_obj.display_name
             if param_obj.description != None:
-                param_struct[ParameterDictKeys.DESCRIPTION] = param_obj.description
+                param_struct[ParameterDictKey.DESCRIPTION] = param_obj.description
             
             # Value objects
             if param_obj.type != None:
-                value_struct[ParameterDictKeys.TYPE] = param_obj.type
+                value_struct[ParameterDictKey.TYPE] = param_obj.type
             if param_obj.default_value != None:
-                value_struct[ParameterDictKeys.DEFAULT] = param_obj.default_value
+                value_struct[ParameterDictKey.DEFAULT] = param_obj.default_value
             if param_obj.units != None:
-                value_struct[ParameterDictKeys.UNITS] = param_obj.units
+                value_struct[ParameterDictKey.UNITS] = param_obj.units
             if param_obj.description != None:
-                value_struct[ParameterDictKeys.DESCRIPTION] = param_obj.value_description
+                value_struct[ParameterDictKey.DESCRIPTION] = param_obj.value_description
             
-            param_struct[ParameterDictKeys.VALUE] = value_struct            
-            all_param_struct[param_key] = param_struct
-
+            param_struct[ParameterDictKey.VALUE] = value_struct            
+            return_struct[param_key] = param_struct
         
-        return_struct[ParameterDictKeys.PARAMETERS] = all_param_struct
-        
-        #log.debug("*** JSON: %s", json.dumps(return_struct, indent=4, sort_keys=True))
-        return json.dumps(return_struct, indent=4, sort_keys=True)
-            
-        
-        
+        return return_struct

@@ -12,6 +12,7 @@ __license__ = 'Apache 2.0'
 
 import time
 import datetime
+import json
 from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
 from pyon.util.containers import DotDict
@@ -26,7 +27,9 @@ from mi.core.exceptions import NotImplementedException
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import ConfigMetadataKey
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
+from mi.core.instrument.driver_dict import DriverDictKey
 
 @attr('UNIT', group='mi')
 class TestUnitInstrumentDriver(MiUnitTestCase):
@@ -79,7 +82,12 @@ class TestUnitInstrumentDriver(MiUnitTestCase):
                              startup_param=False,
                              default_value=40)
         self.driver._protocol._param_dict.set_default("bat")
+        
+        self.driver._protocol._cmd_dict.add("cmd1")
+        self.driver._protocol._cmd_dict.add("cmd2")
 
+        self.driver._protocol._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE,
+                                               True)
                 
     def test_test_mode(self):
         """
@@ -162,6 +170,37 @@ class TestUnitInstrumentDriver(MiUnitTestCase):
         """
         self.assertRaises(NotImplementedException,
                           self.driver.apply_startup_params)
+        
+    def test_config_metadata(self):
+        """
+        Test the metadata structure fetch
+        """
+        json_result = self.driver.get_config_metadata()
+        self.assert_(isinstance(json_result, str))
+        self.assert_(len(json_result) > 100)
+        result = json.loads(json_result)
+        
+        self.assert_(isinstance(result[ConfigMetadataKey.DRIVER], dict))
+        self.assert_(isinstance(result[ConfigMetadataKey.COMMANDS], dict))
+        self.assert_(isinstance(result[ConfigMetadataKey.PARAMETERS], dict))
+        
+        self.assertEquals(len(result[ConfigMetadataKey.DRIVER]), 1)
+        self.assertEquals(result[ConfigMetadataKey.DRIVER],
+                          {DriverDictKey.VENDOR_SW_COMPATIBLE:True})
+
+        # Check a few in the cmd list...the leaves in the structure are
+        # tested in the cmd dict test cases
+        self.assertEquals(len(result[ConfigMetadataKey.COMMANDS]), 2)
+        self.assert_("cmd1" in result[ConfigMetadataKey.COMMANDS].keys())
+        self.assert_("cmd2" in result[ConfigMetadataKey.COMMANDS].keys())
+                
+        # Check a few in the param list...the leaves in the structure are
+        # tested in the param dict test cases
+        self.assertEquals(len(result[ConfigMetadataKey.PARAMETERS]), 4)
+        self.assert_("foo" in result[ConfigMetadataKey.PARAMETERS].keys())
+        self.assert_("bar" in result[ConfigMetadataKey.PARAMETERS].keys())  
+        self.assert_("baz" in result[ConfigMetadataKey.PARAMETERS].keys())  
+        self.assert_("bat" in result[ConfigMetadataKey.PARAMETERS].keys())  
         
     def test_startup_params(self):
         """

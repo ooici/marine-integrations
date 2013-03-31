@@ -11,7 +11,6 @@ by the driver
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
-import json
 from mi.core.common import BaseEnum
 from mi.core.exceptions import InstrumentParameterException
 
@@ -24,7 +23,7 @@ class CommandDictType(BaseEnum):
     LIST = "list"
     BOOLEAN = "bool"
 
-class CommandDictKeys(BaseEnum):
+class CommandDictKey(BaseEnum):
     DISPLAY_NAME = "display_name"
     DESCRIPTION = "description"
     TIMEOUT = "timeout"
@@ -85,23 +84,23 @@ class CommandArgument(object):
         
         # description array
         #if self.name != None:
-        #    return_dict[CommandDictKeys.NAME] = self.name
+        #    return_dict[CommandDictKey.NAME] = self.name
         if self.required != None:
-            return_dict[CommandDictKeys.REQUIRED] = self.required
+            return_dict[CommandDictKey.REQUIRED] = self.required
         if self.display_name != None:
-            return_dict[CommandDictKeys.DISPLAY_NAME] = self.display_name
+            return_dict[CommandDictKey.DISPLAY_NAME] = self.display_name
         if self.description != None:
-            return_dict[CommandDictKeys.DESCRIPTION] = self.description
+            return_dict[CommandDictKey.DESCRIPTION] = self.description
         
         # value array
         if self.units != None:
-            value_dict[CommandDictKeys.UNITS] = self.units
+            value_dict[CommandDictKey.UNITS] = self.units
         if self.type != None:
-            value_dict[CommandDictKeys.TYPE] = self.type
+            value_dict[CommandDictKey.TYPE] = self.type
         if self.value_description != None:
-            value_dict[CommandDictKeys.DESCRIPTION] = self.value_description
+            value_dict[CommandDictKey.DESCRIPTION] = self.value_description
         
-        return_dict[CommandDictKeys.VALUE] = value_dict
+        return_dict[CommandDictKey.VALUE] = value_dict
         return return_dict
         
 class Command(object):
@@ -168,26 +167,26 @@ class Command(object):
         return_dict = {}
         
         if self.timeout != None:
-            return_dict[CommandDictKeys.TIMEOUT] = self.timeout
+            return_dict[CommandDictKey.TIMEOUT] = self.timeout
         if self.display_name != None:
-            return_dict[CommandDictKeys.DISPLAY_NAME] = self.display_name
+            return_dict[CommandDictKey.DISPLAY_NAME] = self.display_name
         if self.description != None:
-            return_dict[CommandDictKeys.DESCRIPTION] = self.description
+            return_dict[CommandDictKey.DESCRIPTION] = self.description
 
         # fill in return value info
         if self.return_type != None:
-            retval_dict[CommandDictKeys.TYPE] = self.return_type
+            retval_dict[CommandDictKey.TYPE] = self.return_type
         if self.return_units != None:
-            retval_dict[CommandDictKeys.UNITS] = self.return_units
+            retval_dict[CommandDictKey.UNITS] = self.return_units
         if self.return_description != None:
-            retval_dict[CommandDictKeys.DESCRIPTION] = self.return_description
+            retval_dict[CommandDictKey.DESCRIPTION] = self.return_description
         
         # fill in the arguments
         for arg in self.arguments:
             args_dict[arg.name] = arg.generate_dict()        
         
-        return_dict[CommandDictKeys.ARGUMENTS] = args_dict
-        return_dict[CommandDictKeys.RETURN] = retval_dict
+        return_dict[CommandDictKey.ARGUMENTS] = args_dict
+        return_dict[CommandDictKey.RETURN] = retval_dict
         
         return return_dict
     
@@ -265,18 +264,18 @@ class ProtocolCommandDict(object):
         
         return self._cmd_dict[name]
         
-    def generate_schema(self):
+    def generate_dict(self):
         """
-        Generate a JSON metadata schema that describes the parameters. This could
-        be passed up toward the agent for ultimate handing to the UI.
-        This method only handles the parameter block of the schema.
+        Generate a JSONifiable metadata dict that describes the parameters.
+        This could ultimately be passed up toward the agent for ultimate
+        handing to the UI. This method only handles the command block of the
+        schema.
         """
         return_struct = {}
         
         for cmd in self._cmd_dict.keys():
             return_struct[cmd] = self._cmd_dict[cmd].generate_dict()
         
-        return json.dumps(return_struct, indent=4, sort_keys=True)
-            
+        return return_struct            
         
         

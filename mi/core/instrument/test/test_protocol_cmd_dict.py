@@ -174,12 +174,19 @@ class TestUnitProtocolCommandDict(MiUnitTestCase):
                          self.target_cmd_schema)            
                                 
         
-    def test_schema_generation(self):
-        result = self.cmd_dict.generate_schema()
-        # Make sure we have a reasonable length, first
-        self.assert_(len(result) > 100)
-        self.assertEqual(result, self.target_schema)
+    def test_schema_dict_generation(self):
+        """
+        Tests that a dict is created that can then be JSONified
+        """
+        result = self.cmd_dict.generate_dict()
+        json_result = json.dumps(result, indent=4, sort_keys=True)
+        self.assertEqual(json_result, self.target_schema)
         
+    def test_empty_schema(self):
+        self.cmd_dict = ProtocolCommandDict()
+        result = self.cmd_dict.generate_dict()
+        self.assertEqual(result, {})
+
     def test_argument_exceptions(self):
         self.assertRaises(InstrumentParameterException,
                           Command,

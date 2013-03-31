@@ -15,7 +15,7 @@ from mi.core.common import BaseEnum
 
 from mi.core.log import get_logger ; log = get_logger()
 
-class DriverDictKeys(BaseEnum):
+class DriverDictKey(BaseEnum):
     DRIVER = "driver"
     VENDOR_SW_COMPATIBLE = "vendor_sw_compatible"
     
