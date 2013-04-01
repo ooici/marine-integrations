@@ -49,6 +49,11 @@ from mi.core.exceptions import SampleException
 # TODO: bring this code back in before delivery.
 from mi.instrument.teledyne.workhorse_monitor_75_khz.particles import *
 
+
+
+import socket
+
+
 # default timeout.
 TIMEOUT = 10
 
@@ -58,11 +63,9 @@ class InstrumentCmds(BaseEnum):
     Represents the commands the driver implements and the string that
     must be sent to the instrument to execute the command.
     """
-    EXPERT_ON = 'EXPERTON'
-    EXPERT_OFF = 'EXPERTOFF'
 
     BREAK = 'break 500'
-    SEND_LAST_DATA_ENSEMBLE = 'CE'
+    SEND_LAST_SAMPLE = 'CE'
     SAVE_SETUP_TO_RAM = 'CK'
     START_DEPLOYMENT = 'CS'
     OUTPUT_CALIBRATION_DATA = 'AC'
@@ -102,6 +105,8 @@ class ProtocolEvent(BaseEnum):
     ACQUIRE_CONFIGURATION = "PROTOCOL_EVENT_ACQUIRE_CONFIGURATION"  # DOES IT HAVE THIS?
     SEND_LAST_SAMPLE = "PROTOCOL_EVENT_SEND_LAST_SAMPLE"
 
+    CLEAR_FAULT_LOG = "PROTOCOL_EVENT_CLEAR_FAULT_LOG"
+
     GET = DriverEvent.GET
     SET = DriverEvent.SET
 
@@ -118,24 +123,19 @@ class ProtocolEvent(BaseEnum):
     # Different event because we don't want to expose this as a capability
     SCHEDULED_CLOCK_SYNC = 'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'
 
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE         # DOES IT HAVE THIS?
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-
-    QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
 
 
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
     ACQUIRE_CONFIGURATION = ProtocolEvent.ACQUIRE_CONFIGURATION
     SEND_LAST_SAMPLE = ProtocolEvent.SEND_LAST_SAMPLE
-    QUIT_SESSION = ProtocolEvent.QUIT_SESSION
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
 
 
@@ -276,15 +276,17 @@ class TeledyneProtocol(ADCPProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_autosample_test_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION, self._handler_command_acquire_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_command_clock_sync)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION, self._handler_command_quit_session)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SEND_LAST_SAMPLE, self._handler_command_send_last_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION, self._handler_command_acquire_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLEAR_FAULT_LOG, self._handler_command_clear_fault_log)
+
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
@@ -305,10 +307,8 @@ class TeledyneProtocol(ADCPProtocol):
         #
 
         self._add_build_handler(InstrumentCmds.BREAK, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.EXPERT_ON, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.EXPERT_OFF, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.OUTPUT_CALIBRATION_DATA, self._build_simple_command)
-        self._add_build_handler(InstrumentCmds.SEND_LAST_DATA_ENSEMBLE, self._build_simple_command)
+        self._add_build_handler(InstrumentCmds.SEND_LAST_SAMPLE, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.SAVE_SETUP_TO_RAM, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.START_DEPLOYMENT, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.CLEAR_ERROR_STATUS_WORD, self._build_simple_command)
@@ -325,10 +325,8 @@ class TeledyneProtocol(ADCPProtocol):
         # Response handlers
         #
         self._add_response_handler(InstrumentCmds.BREAK, self._parse_break_response)
-        self._add_response_handler(InstrumentCmds.EXPERT_ON, self._parse_expert_on_response)
-        self._add_response_handler(InstrumentCmds.EXPERT_OFF, self._parse_expert_off_response)
         self._add_response_handler(InstrumentCmds.OUTPUT_CALIBRATION_DATA, self._parse_output_calibration_data_response)
-        self._add_response_handler(InstrumentCmds.SEND_LAST_DATA_ENSEMBLE, self._parse_send_last_data_ensemble_response)
+        self._add_response_handler(InstrumentCmds.SEND_LAST_SAMPLE, self._parse_send_last_sample_response)
         self._add_response_handler(InstrumentCmds.SAVE_SETUP_TO_RAM, self._parse_save_setup_to_ram_response)
         self._add_response_handler(InstrumentCmds.START_DEPLOYMENT, self._parse_start_deployment_response)
         self._add_response_handler(InstrumentCmds.CLEAR_ERROR_STATUS_WORD, self._parse_clear_error_status_response)
@@ -398,23 +396,17 @@ class TeledyneProtocol(ADCPProtocol):
                 matcher = re.compile(r'\x7f\x7f(..)', re.DOTALL)
                 for match in matcher.finditer(raw_data):
                     l = unpack("H", match.group(1))
-                    log.debug("LEN IS = %s", str(l[0]))
+                    #log.debug("LEN IS = %s", str(l[0]))
                     outer_pos = match.start()
-                    log.debug("MATCH START = " + str(outer_pos))
+                    #log.debug("MATCH START = " + str(outer_pos))
                     ADCP_PD0_PARSED_TRUE_MATCHER = re.compile(r'\x7f\x7f(.{' + str(l[0]) + '})', re.DOTALL)
-
 
                     for match in ADCP_PD0_PARSED_TRUE_MATCHER.finditer(raw_data, outer_pos):
                         inner_pos = match.start()
-                        log.debug("INNER MATCH START = " + str(inner_pos))
+                        #log.debug("INNER MATCH START = " + str(inner_pos))
                         if (outer_pos == inner_pos):
+                            log.debug("MATCHED!!!!! %d .. %d", match.start(), match.end())
                             return_list.append((match.start(), match.end()))
-                    """
-                    match_iter = ADCP_PD0_PARSED_TRUE_MATCHER.finditer(raw_data, pos)
-                    match_iter.
-                    match = match_iter.next()
-                    return_list.append((match.start(), match.end()))
-                    """
             else:
                 for match in matcher.finditer(raw_data):
                     log.debug("MATCHED!!!!! %d .. %d", match.start(), match.end())
@@ -757,38 +749,64 @@ class TeledyneProtocol(ADCPProtocol):
     # Private helpers.
     ########################################################################
 
+    def _send_break(self):
+        """
+        Send a BREAK to attempt to wake the device.
+        """
+        log.debug("IN _send_break")
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        except socket.error, msg:
+            log.debug("WHOOPS! 1")
+
+        try:
+            sock.connect(('10.180.80.178', 2102))
+        except socket.error, msg:
+            log.debug("WHOOPS! 2")
+        sock.send("break 300\r\n")
+        sock.close()
+
     def _send_wakeup(self):
         """
-        Send a newline to attempt to wake the sbe26plus device.
+        Send a newline to attempt to wake the device.
         """
+        log.debug("IN _send_wakeup")
+
         self._connection.send(NEWLINE)
 
     def _update_params(self, *args, **kwargs):
         """
         Update the parameter dictionary. 
         """
+
+        #prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
+
         # Get old param dict config.
         log.debug("IN _update_params" + str(args) + str(kwargs))
         old_config = self._param_dict.get_config()
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
 
-        kwargs['expected_prompt'] = Prompt.COMMAND
-        cmds = dir(Parameter)
+        kwargs['expected_prompt'] = Prompt.COMMAND + NEWLINE + Prompt.COMMAND
 
+        cmds = dir(Parameter)
+        results = ""
         log.debug("CMDS = %s", str(cmds))
-        for attr in cmds:
+        for attr in sorted(cmds):
             log.debug("attr = %s",str(attr))
             if attr not in ['dict', 'has', 'list', 'ALL']:
                 if not attr.startswith("_"):
                     key = getattr(Parameter, attr)
                     result = self._do_cmd_resp(InstrumentCmds.GET, key, **kwargs)
+                    results += result + NEWLINE
 
         new_config = self._param_dict.get_config()
         # Issue display commands and parse results.
 
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        log.debug("RESULTS = %s", results)
+        return results
 
     def _got_chunk(self, chunk, timestamp):
         """
@@ -835,48 +853,54 @@ class TeledyneProtocol(ADCPProtocol):
         x
         """
 
-    def _parse_expert_on_response(self, response, prompt):
-        """
-        """
-
-    def _parse_expert_off_response(self, response, prompt):
-        """
-        """
-
     def _parse_output_calibration_data_response(self, response, prompt):
         """
         x
         """
+        log.debug("parse_output_calibration_data_response = %s", str(response))
+        return response
 
-    def _parse_send_last_data_ensemble_response(self, response, prompt):
+    def _parse_send_last_sample_response(self, response, prompt):
         """
-        x
+        get the response from the CE command.  
+        Remove the >\n> from the end of it.
         """
+        response = re.sub(Prompt.COMMAND + "$", "", response)
+        return response
 
     def _parse_save_setup_to_ram_response(self, response, prompt):
         """
         x
         """
+        log.debug("parse_save_setup_to_ram_response = %s", str(response))
+        return response
 
     def _parse_start_deployment_response(self, response, prompt):
         """
         x
         """
+        pass
 
     def _parse_clear_error_status_response(self, response, prompt):
         """
         x
         """
+        log.debug("clear_error_status_response = %s", str(response))
+        return response
 
     def _parse_error_status_response(self, response, prompt):
         """
         x
         """
+        log.debug("parse_error_status_response = %s", str(response))
+        return response
 
     def _parse_clear_fault_log_response(self, response, prompt):
         """
         x
         """
+        log.debug("clear_fault_log_response = %s", str(response))
+        return response
 
     def _parse_fault_log_response(self, response, prompt):
         """
@@ -902,7 +926,11 @@ class TeledyneProtocol(ADCPProtocol):
     # handlers.
     ########################################################################
 
-
+    def _handler_command_clear_fault_log(self, *args, **kwargs):
+        """
+        clear the error log.
+        """
+        self._do_cmd_no_resp(InstrumentCmds.CLEAR_ERROR_STATUS_WORD, *args, **kwargs)
 
     def _handler_command_enter(self, *args, **kwargs):
         """
@@ -924,12 +952,15 @@ class TeledyneProtocol(ADCPProtocol):
         Exit command state.
         """
         pass
+    
     def _handler_unknown_enter(self, *args, **kwargs):
         """
         """
+        
     def _handler_unknown_exit(self, *args, **kwargs):
         """
         """
+        
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state; can be COMMAND or AUTOSAMPLE.
@@ -947,7 +978,7 @@ class TeledyneProtocol(ADCPProtocol):
 
         logging = False  # TODO: implement an actual test.
         log.debug("RIGGING discover to go to COMMAND STATE.")
-
+        prompt = self._send_break()
         if(logging == None):
             raise InstrumentProtocolException('_handler_unknown_discover - unable to to determine state')
 
@@ -960,25 +991,6 @@ class TeledyneProtocol(ADCPProtocol):
             next_agent_state = ResourceAgentState.IDLE
 
         return (next_state, next_agent_state)
-
-    def _handler_command_acquire_sample(self, *args, **kwargs):
-        """
-        Acquire sample from SBE26 Plus.
-        @retval (next_state, result) tuple, (None, sample dict).
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command could not be built or misunderstood.
-        @throws SampleException if a sample could not be extracted from result.
-        """
-
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        kwargs['timeout'] = 45 # samples can take a long time
-
-        result = self._do_cmd_resp(InstrumentCmds.TAKE_SAMPLE, *args, **kwargs)
-
-        return (next_state, (next_agent_state, result))
 
     def _handler_autosample_enter(self, *args, **kwargs):
         """
@@ -1011,14 +1023,14 @@ class TeledyneProtocol(ADCPProtocol):
         log.info("SYNCING TIME WITH SENSOR")
         self._do_cmd_resp(InstrumentCmds.SET, Parameter.TIME, get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
 
-        next_state = None
-        result = None
-
+        # Save setup to nvram and switch to autosample if successful.
+        self._do_cmd_no_resp(InstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
         # Issue start command and switch to autosample if successful.
         self._do_cmd_no_resp(InstrumentCmds.START_DEPLOYMENT, *args, **kwargs)
 
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
+        result = None
 
         return (next_state, (next_agent_state, result))
 
@@ -1036,10 +1048,10 @@ class TeledyneProtocol(ADCPProtocol):
 
         # Wake up the device, continuing until autosample prompt seen.
         timeout = kwargs.get('timeout', TIMEOUT)
-        self._wakeup_until(timeout, Prompt.AUTOSAMPLE)
+        #self._wakeup_until(timeout, Prompt.AUTOSAMPLE)
 
-        self._stop_logging(timeout)
-
+        #self._stop_logging(timeout)
+        prompt = self._send_break()
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
@@ -1099,7 +1111,7 @@ class TeledyneProtocol(ADCPProtocol):
 
         try:
             # Switch to command mode,
-            self._stop_logging()
+            #self._stop_logging()
 
             # Sync the clock
             timeout = kwargs.get('timeout', TIMEOUT)
@@ -1203,7 +1215,7 @@ class TeledyneProtocol(ADCPProtocol):
 
         kwargs['timeout'] = 30
 
-        self._update_params()  # TODO: are we after another status??
+        result = self._update_params()
 
         return (next_state, (next_agent_state, result))
 
@@ -1218,27 +1230,10 @@ class TeledyneProtocol(ADCPProtocol):
         result = None
 
         kwargs['timeout'] = 120  # long time to get params.
-        #result = self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION, *args, **kwargs)
-        self._update_params()
+
+        result = self._update_params()
+
         return (next_state, (next_agent_state, result))
-
-    def _handler_command_quit_session(self, *args, **kwargs):
-        """
-        Perform a command-response on the device.
-        @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup and command timeout.
-        @retval resp_result The (possibly parsed) response result.
-        @raises InstrumentTimeoutException if the response did not occur in time.
-        @raises InstrumentProtocolException if command could not be built or if response
-        was not recognized.
-        """
-
-        next_state = None
-        result = None
-
-        result = self._do_cmd_no_resp(InstrumentCmds.QUIT_SESSION, *args, **kwargs)
-        return (next_state, result)
 
     def _handler_command_clock_sync(self, *args, **kwargs):
         """
@@ -1253,6 +1248,8 @@ class TeledyneProtocol(ADCPProtocol):
         result = None
 
         timeout = kwargs.get('timeout', TIMEOUT)
+        prompt = self._wakeup(timeout=TIMEOUT)
+
         self._sync_clock(Parameter.TIME, Prompt.COMMAND, timeout, time_format="%Y/%m/%d, %H:%M:%S")
 
         return (next_state, (next_agent_state, result))
@@ -1266,8 +1263,10 @@ class TeledyneProtocol(ADCPProtocol):
         next_state = None
         next_agent_state = None
         kwargs['timeout'] = 30
+        kwargs['expected_prompt'] = Prompt.COMMAND
         result = self._do_cmd_resp(InstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
 
+        return (next_state, result)
         return (next_state, (next_agent_state, result))
 
     def _handler_command_start_direct(self, *args, **kwargs):
@@ -1386,7 +1385,13 @@ class TeledyneProtocol(ADCPProtocol):
         my_state = self._protocol_fsm.get_current_state()
         log.debug("current_state = %s", my_state)
 
+        self._promptbuf = ""
+        self._linebuf = ""
+        time.sleep(0.1)
+
+        kwargs['expected_prompt'] = Prompt.COMMAND
         try:
+            self.get_param = param
             get_cmd = param + '?' + NEWLINE
             log.debug("IN _build_get_command CMD = '%s'", get_cmd)
         except KeyError:
@@ -1395,7 +1400,7 @@ class TeledyneProtocol(ADCPProtocol):
         return get_cmd
 
     def _parse_get_response(self, response, prompt):
-        log.debug("in _parse_get_response RESPONSE = %s", str(response) + str(prompt) )
+        log.debug("in _parse_get_response RESPONSE+prompt = %s", str(response) + str(prompt) )
         my_state = self._protocol_fsm.get_current_state()
         log.debug("current_state = %s", my_state)
         if prompt == Prompt.ERR:
@@ -1405,7 +1410,19 @@ class TeledyneProtocol(ADCPProtocol):
         for line in response.split(NEWLINE):
             log.debug("Scanning line through param_dict -> %s", line)
             self._param_dict.update(line)
+            if not "?" in line and ">" != line:
+                response2 = line
 
+        if self.get_param not in response:
+            self._promptbuf = ""
+            self._linebuf = ""
+            foo = self._get_raw_response(30, Prompt.COMMAND)
+            log.debug("FOO = " + str(foo))
+            foo = self._get_raw_response(30, Prompt.COMMAND)
+            log.debug("FOO = " + str(foo))
+            raise InstrumentParameterException('Failed to get a response for lookup of ' + self.get_param)
 
+        self.get_count = 0
+        return response2
 
 

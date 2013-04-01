@@ -28,7 +28,7 @@ from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.exceptions import SampleException
 
 # newline.
-NEWLINE = '\n'
+NEWLINE = '\r\n'
 # default timeout.
 TIMEOUT = 10
 #
@@ -277,7 +277,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                     self.parse_echo_intensity_chunk(chunks[offset])
                 elif 4 == variable_leader_id:
                     self.parse_percent_good_chunk(chunks[offset])
-
+        log.error("RETURNING PD0 particle")
         return self.final_result
 
     def parse_fixed_chunk(self, chunk):
@@ -363,7 +363,8 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.COORD_TRANSFORM_MAPPING,
                                   DataParticleKey.VALUE: 1 if coord_transform_type & 0b00000001 else 0})
 
-        self.coord_transform_type = coord_transform_type  # lame, but expedient
+        # lame, but expedient - mask off un-needed bits
+        self.coord_transform_type = coord_transform_type & 0b00011000  
 
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.HEADING_ALIGNMENT,
                                   DataParticleKey.VALUE: heading_alignment})
@@ -629,7 +630,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_4_VELOCITY,
                                       DataParticleKey.VALUE: []})
         else:
-            raise SampleException("coord_transform_type not coded for.")
+            raise SampleException("coord_transform_type not coded for. " + str(self.coord_transform_type))
 
     def parse_corelation_magnitude_chunk(self, chunk):
         """
@@ -782,7 +783,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM4,
                                       DataParticleKey.VALUE: []})
         else:
-            raise SampleException("coord_transform_type not coded for.")
+            raise SampleException("coord_transform_type not coded for." + str(self.coord_transform_type))
 
 class ADCP_SYSTEM_CONFIGURATION_KEY(BaseEnum):
     # https://confluence.oceanobservatories.org/display/instruments/ADCP+Driver
