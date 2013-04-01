@@ -20,9 +20,12 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.instrument_driver import ConfigMetadataKey
 from mi.instrument.satlantic.par_ser_600m.driver import SAMPLE_REGEX
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticle
 
+from mi.core.instrument.protocol_cmd_dict import Command, CommandArgument
+from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.driver_scheduler import DriverScheduler
 from mi.core.instrument.instrument_driver import DriverConfigKey
 from mi.core.driver_scheduler import DriverSchedulerConfigKey
@@ -52,7 +55,7 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         self._events = []
 
         self.protocol = InstrumentProtocol(self.event_callback)
-
+                
     def event_callback(self, event, value=None):
         log.debug("Test event callback: %s" % event)
         self._events.append(event)
@@ -182,7 +185,6 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         """
         Test getting and setting the initialization value for a parameter
         """
-        # set an additional value for test
         self.protocol._param_dict.add("foo", r'foo=(.*)',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
@@ -212,6 +214,8 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         self.protocol._param_dict.add("rok", r'rok=(.*)',
                              lambda match : int(match.group(1)),
                              lambda x : str(x))
+
+        # set an additional value for test
         self.protocol._param_dict.update("qux=6666")
         
         # mark init params
@@ -336,6 +340,53 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
 
         ##### Integration tests for test_scheduler in the SBE37 integration suite
 
+    def test_generate_config_metadata_json(self):
+        """ Tests generate of the metadata structure """
+        self.protocol._param_dict.add("foo", r'foo=(.*)',
+                             lambda match : int(match.group(1)),
+                             lambda x : str(x),
+                             direct_access=True,
+                             default_value=10)
+        self.protocol._param_dict.add("bar", r'bar=(.*)',
+                             lambda match : int(match.group(1)),
+                             lambda x : str(x),
+                             direct_access=False,
+                             default_value=15)
+
+        self.protocol._cmd_dict.add("cmd1",
+                                    timeout=60,
+                                    arguments=[CommandArgument("coeff"),
+                                               CommandArgument("delay")
+                                              ]
+                                   )
+        # different way of creating things, possibly more clear in some cases
+        # and allows for testing arg and command later
+        cmd2_arg1 = CommandArgument("trigger")
+        cmd2 = Command("cmd2", arguments=[cmd2_arg1])
+        
+        self.protocol._cmd_dict.add_command(cmd2)
+
+        self.protocol._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
+
+        # Now do the real testing       
+        result = self.protocol.get_config_metadata_dict()
+        
+        self.assert_(isinstance(result[ConfigMetadataKey.DRIVER], dict))
+        self.assert_(isinstance(result[ConfigMetadataKey.COMMANDS], dict))
+        self.assert_(isinstance(result[ConfigMetadataKey.PARAMETERS], dict))
+        
+        self.assertEquals(result[ConfigMetadataKey.DRIVER],
+                          {DriverDictKey.VENDOR_SW_COMPATIBLE:True})
+
+        # Check a few in the cmd list...the leaves in the structure are
+        # tested in the cmd dict test cases
+        self.assert_("cmd1" in result[ConfigMetadataKey.COMMANDS].keys())
+        self.assert_("cmd2" in result[ConfigMetadataKey.COMMANDS].keys())
+                
+        # Check a few in the param list...the leaves in the structure are
+        # tested in the param dict test cases
+        self.assert_("foo" in result[ConfigMetadataKey.PARAMETERS].keys())
+        self.assert_("bar" in result[ConfigMetadataKey.PARAMETERS].keys())        
 
 @attr('UNIT', group='mi')
 class TestUnitMenuInstrumentProtocol(MiUnitTestCase):

@@ -19,6 +19,7 @@ from functools import partial
 
 from mi.core.log import get_logger ; log = get_logger()
 
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.common import BaseEnum, InstErrorCode
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import RawDataParticle
@@ -28,8 +29,11 @@ from mi.core.driver_scheduler import DriverSchedulerConfigKey
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import ConfigMetadataKey
 
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
+from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
+from mi.core.instrument.driver_dict import DriverDict
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
@@ -62,9 +66,11 @@ class InstrumentProtocol(object):
         # The protocol state machine.
         self._protocol_fsm = None
         
-        # The parameter dictionary.
+        # The parameter, comamnd, and driver dictionaries.
         self._param_dict = ProtocolParameterDict()
-
+        self._cmd_dict = ProtocolCommandDict()
+        self._driver_dict = DriverDict()
+        
         # The spot to stash a configuration before going into direct access
         # mode
         self._pre_direct_access_config = None
@@ -88,6 +94,46 @@ class InstrumentProtocol(object):
         """
         log.error("base got_data.  Who called me?")
         pass
+
+    def _verify_not_readonly(self, *args, **kwargs):
+        """
+        Verify that the parameters we are attempting to set in upstream methods
+        are not readonly.  If they are raise an exception.  However, if startup
+        is passed in and true then we ignore visibility and we can set any
+        parameter we like regardless of visibility.
+        @param args[0]: dictionary containing parameters to set
+        @param args[1]: startup flag, if set don't verify visibility
+        @return: True if we aren't violating visibility
+        @raise: InstrumentParameterException if we violate visibility
+        """
+        startup = False
+        try:
+            params_to_set = args[0]
+        except IndexError:
+            raise InstrumentParameterException('requires a dict.')
+        else:
+            if not isinstance(params_to_set, dict):
+                raise InstrumentParameterException('parameters not a dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
+        if startup:
+            log.debug("startup flag seen, not validating")
+            return True
+
+        readonly_params = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
+
+        not_settable = []
+        for (key, val) in params_to_set.iteritems():
+            if key in readonly_params:
+                not_settable.append(key)
+        if len(not_settable) > 0:
+            raise InstrumentParameterException("Attempt to set read only parameter(s) (%s)" %not_settable)
+
+        return True
 
     def _extract_sample(self, particle_class, regex, line, timestamp, publish=True):
         """
@@ -336,6 +382,21 @@ class InstrumentProtocol(object):
         """
         assert self._param_dict != None
         return self._param_dict.get_config()
+        
+    def get_config_metadata_dict(self):
+        """
+        Return a list of metadata about the protocol's driver support,
+        command formats, and parameter formats. The format should be easily
+        JSONifyable (as will happen in the driver on the way out to the agent)
+        @retval A python dict that represents the metadata
+        @see https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Driver-Agent+parameter+and+command+metadata+exchange
+        """
+        return_dict = {}
+        return_dict[ConfigMetadataKey.DRIVER] = self._driver_dict.generate_dict()
+        return_dict[ConfigMetadataKey.COMMANDS] = self._cmd_dict.generate_dict()
+        return_dict[ConfigMetadataKey.PARAMETERS] = self._param_dict.generate_dict()
+        
+        return return_dict
         
     ########################################################################
     # Command build and response parse handlers.

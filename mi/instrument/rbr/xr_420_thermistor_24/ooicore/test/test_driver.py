@@ -26,21 +26,19 @@ __license__ = 'Apache 2.0'
 
 # Ensure the test class is monkey patched for gevent
 from gevent import monkey; monkey.patch_all()
-from gevent.timeout import Timeout
 import gevent
-import socket
 from mock import Mock
 
 # Standard lib imports
 import time
-import unittest
 import ntplib
-import datetime
 import json
 
-# 3rd party imports
+# 3rd party import
 from nose.plugins.attrib import attr
 
+# MI logger
+from mi.core.log import get_logger ; log = get_logger()
 from pyon.agent.agent import ResourceAgentEvent
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -52,10 +50,6 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 
-from mi.core.exceptions import InstrumentException
-from mi.core.exceptions import InstrumentTimeoutException
-from mi.core.exceptions import InstrumentParameterException
-from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
@@ -80,22 +74,13 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import InstrumentDriverPublicationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import DriverStartupConfigKey
 from mi.idk.unit_test import AgentCapabilityType
 
 from mi.core.instrument.chunker import StringChunker
-
-from mi.core.tcp_client import TcpClient
-
-# MI logger
-from mi.core.log import get_logger ; log = get_logger()
-from interface.objects import AgentCommand
-
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 ## Initialize the test configuration
 InstrumentDriverTestCase.initialize(
@@ -135,21 +120,21 @@ class UtilMixin(DriverTestMixin):
     #  Parameter and Type Definitions
     ###
     _driver_parameters = {
-        InstrumentParameters.IDENTIFICATION : {TYPE: str, READONLY: True, DA: False, STARTUP: False},                          
-        InstrumentParameters.LOGGER_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False},
+        InstrumentParameters.IDENTIFICATION : {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: 'RBR XR-420 6.810 021968'},
+        InstrumentParameters.LOGGER_DATE_AND_TIME : {TYPE: str, READONLY: True, STARTUP: False, DA: False},
         InstrumentParameters.SAMPLE_INTERVAL : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:12'},
-        InstrumentParameters.START_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '01 Jan 2000 00:00:00'},
-        InstrumentParameters.END_DATE_AND_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '01 Jan 2050 00:00:00'},
+        InstrumentParameters.START_DATE_AND_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '01 Jan 2000 00:00:00', VALUE: '01 Jan 2000 00:00:00'},
+        InstrumentParameters.END_DATE_AND_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '01 Jan 2050 00:00:00', VALUE: '01 Jan 2050 00:00:00'},
         InstrumentParameters.STATUS : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.BATTERY_VOLTAGE : {TYPE: float, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.POWER_ALWAYS_ON : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
-        InstrumentParameters.SIX_HZ_PROFILING_MODE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0},
-        InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
-        InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
-        InstrumentParameters.SAMPLING_LED : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0},
-        InstrumentParameters.ENGINEERING_UNITS_OUTPUT : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
-        InstrumentParameters.AUTO_RUN : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
-        InstrumentParameters.INHIBIT_DATA_STORAGE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1},
+        InstrumentParameters.POWER_ALWAYS_ON : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1, VALUE: 1},
+        InstrumentParameters.SIX_HZ_PROFILING_MODE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
+        InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
+        InstrumentParameters.SAMPLING_LED : {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        InstrumentParameters.ENGINEERING_UNITS_OUTPUT : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
+        InstrumentParameters.AUTO_RUN : {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: 1, VALUE: 1},
+        InstrumentParameters.INHIBIT_DATA_STORAGE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1, VALUE: 1},
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_2 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_3 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
@@ -176,101 +161,74 @@ class UtilMixin(DriverTestMixin):
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_24 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
     }
 
-    # parameter values to test.
-    paramter_test_values = {InstrumentParameters.START_DATE_AND_TIME : TIME_IN_PAST,
-                            InstrumentParameters.END_DATE_AND_TIME : TIME_IN_FUTURE,
-                            InstrumentParameters.SAMPLE_INTERVAL : '00:00:15',
-                            InstrumentParameters.POWER_ALWAYS_ON : 1,
-                            InstrumentParameters.SIX_HZ_PROFILING_MODE : 0,
-                            InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER : 1,
-                            InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE : 1,
-                            InstrumentParameters.SAMPLING_LED : 0,
-                            InstrumentParameters.ENGINEERING_UNITS_OUTPUT : 1,
-                            InstrumentParameters.AUTO_RUN : 1,
-                            InstrumentParameters.INHIBIT_DATA_STORAGE : 1,
-                            }
-    
     _raw_coefficients = {
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_1:  '4C02E5F8338B6C3F2EE9CCCCA56F30BF22757E403EB0C43EFF5CF27A032669BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_2:  'BE6B421617B56C3FD5784086847630BF905452AD92CCC43E085570CAF14B70BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_3:  '242263F451486C3F5AF6B89F195C30BFB79BE3E59B53C43EB008321DA84F71BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_4:  '891826C0BBE16C3FF6BCCDDAD77030BFEF6D8EAAA735C53EEAD71EBC6CB671BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_5:  'DB2BA620129C6C3FC06A17A5CE6830BF5EBF4750E2ACC43ED9C08996BF8671BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_6:  '9832B7EB936E6C3F97A33505556630BFC4C17691D551C43E28FAC2E315E467BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_7:  '9E067E30B5BE6C3FF579E335BB7B30BFA90F629A9910C53EBB2346D1E28467BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_8:  '05881C51EBB86C3FC7465FC2E47030BFED17ABD188B2C43E5927D2EC910671BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_9:  '056122D77F6A6C3FEB3E4825ED6030BFB79071014685C43E493A8785B48C70BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_10: 'CAF90420DD8C6C3FF05473B3867330BF46F93CFC3A71C43E8F029EDCE8A470BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_11: 'A718DC5CBD776C3F3499D9E3555F30BF6898FE4C1FC0C43E498718800D4D6BBECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_12: 'FCAC137DCC5C6C3FE784F5DBC46130BFD3725AB17844C43EA0421314BF4771BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_13: '0D618D51A16A6C3F428D6D7DAA6E30BF2957DF907903C43EFF89ED2B0C296FBECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_14: '53550E2075C36C3F87A2176B7F7330BF664CD355581CC53EE54C1B4B7A4E6DBECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_15: '194554FC74456C3F3BE7497C9E5630BFCEF5601309A9C43E64C9B4A15A766CBECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_16: 'E677D71494646C3F3C2B90A7136830BF5C9E8FE502D6C43EAF0199BE495667BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_17: '04C6AF97FEE46C3F2C51B20CD37630BF06EAFA626607C53EB8CD64294E5070BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_18: 'A571169A43FB6C3FFFAEE8F3097C30BF86E1E8BCCF27C53E832EC500513472BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_19: 'AB31AF4315F46C3F83F6A77BB88330BF4A91C3CAB7FCC43EC21A809AA3436CBECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_20: '1257746962BD6C3F86B89412DC7630BFEA35F6B9C3B3C43E9270885A3A2D70BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_21: 'C3B12A617B066D3FC455D033A87530BF70459B83A260C53EAFEA58B2FBB670BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_22: '306A248B2E726C3FEB9788E93F5C30BFB08D70B2ADDFC43E7F8FFA4D5AC96CBECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_23: 'A8A8D23B47876C3F08CCD99F676330BF849601A38FB8C43E3DCF7A08A8EA67BECAL\r\n',
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_24: '13ED538DBED06C3F73B8DB10687030BF1014A4477326C53E8B9E285D3F586CBECAL\r\n',
+        InstrumentParameters.BATTERY_VOLTAGE:  '8ABAT\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1:  '4C02E5F8338B6C3F2EE9CCCCA56F30BF22757E403EB0C43EFF5CF27A032669BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_2:  'BE6B421617B56C3FD5784086847630BF905452AD92CCC43E085570CAF14B70BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_3:  '242263F451486C3F5AF6B89F195C30BFB79BE3E59B53C43EB008321DA84F71BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_4:  '891826C0BBE16C3FF6BCCDDAD77030BFEF6D8EAAA735C53EEAD71EBC6CB671BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_5:  'DB2BA620129C6C3FC06A17A5CE6830BF5EBF4750E2ACC43ED9C08996BF8671BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_6:  '9832B7EB936E6C3F97A33505556630BFC4C17691D551C43E28FAC2E315E467BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_7:  '9E067E30B5BE6C3FF579E335BB7B30BFA90F629A9910C53EBB2346D1E28467BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_8:  '05881C51EBB86C3FC7465FC2E47030BFED17ABD188B2C43E5927D2EC910671BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_9:  '056122D77F6A6C3FEB3E4825ED6030BFB79071014685C43E493A8785B48C70BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_10: 'CAF90420DD8C6C3FF05473B3867330BF46F93CFC3A71C43E8F029EDCE8A470BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_11: 'A718DC5CBD776C3F3499D9E3555F30BF6898FE4C1FC0C43E498718800D4D6BBECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_12: 'FCAC137DCC5C6C3FE784F5DBC46130BFD3725AB17844C43EA0421314BF4771BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_13: '0D618D51A16A6C3F428D6D7DAA6E30BF2957DF907903C43EFF89ED2B0C296FBECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_14: '53550E2075C36C3F87A2176B7F7330BF664CD355581CC53EE54C1B4B7A4E6DBECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_15: '194554FC74456C3F3BE7497C9E5630BFCEF5601309A9C43E64C9B4A15A766CBECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_16: 'E677D71494646C3F3C2B90A7136830BF5C9E8FE502D6C43EAF0199BE495667BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_17: '04C6AF97FEE46C3F2C51B20CD37630BF06EAFA626607C53EB8CD64294E5070BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_18: 'A571169A43FB6C3FFFAEE8F3097C30BF86E1E8BCCF27C53E832EC500513472BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_19: 'AB31AF4315F46C3F83F6A77BB88330BF4A91C3CAB7FCC43EC21A809AA3436CBECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_20: '1257746962BD6C3F86B89412DC7630BFEA35F6B9C3B3C43E9270885A3A2D70BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_21: 'C3B12A617B066D3FC455D033A87530BF70459B83A260C53EAFEA58B2FBB670BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_22: '306A248B2E726C3FEB9788E93F5C30BFB08D70B2ADDFC43E7F8FFA4D5AC96CBECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_23: 'A8A8D23B47876C3F08CCD99F676330BF849601A38FB8C43E3DCF7A08A8EA67BECAL\r\n',
+        InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_24: '13ED538DBED06C3F73B8DB10687030BF1014A4477326C53E8B9E285D3F586CBECAL\r\n',
     }
     
     _engineering_parameters = {
         XR_420EngineeringDataParticleKey.BATTERY_VOLTAGE: {TYPE: float, REQUIRED: False},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_1: {TYPE: list, VALUE: [0.00348434592083916, -0.00025079534389118, 2.46625541318206e-06, -4.68427140350704e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_2: {TYPE: list, VALUE: [0.00350431927843206, -0.000251204828829799, 2.47944749760338e-06, -6.07097826319064e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_3: {TYPE: list, VALUE: [0.00345245367779891, -0.000249630218352203, 2.42311925467998e-06, -6.44890925539532e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_4: {TYPE: list, VALUE: [0.00352560682330522, -0.000250866602804003, 2.52838011189997e-06, -6.59845645057904e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_5: {TYPE: list, VALUE: [0.00349238911184589, -0.000250387621319053, 2.46469119446334e-06, -6.52907822336288e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_6: {TYPE: list, VALUE: [0.00347069636129611, -0.000250240094109838, 2.42229283361364e-06, -4.45003789108644e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_7: {TYPE: list, VALUE: [0.00350890530165844, -0.000251515584649114, 2.51112506349963e-06, -4.38077113777949e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_8: {TYPE: list, VALUE: [0.00350614509888292, -0.000250869607382059, 2.4673223724984e-06, -6.34255414457636e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_9: {TYPE: list, VALUE: [0.00346875161001148, -0.000249917885668956, 2.4462460817433e-06, -6.16521743719807e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_10: {TYPE: list, VALUE: [0.00348513782969848, -0.000251026521664712, 2.43691281012686e-06, -6.20043955328834e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_11: {TYPE: list, VALUE: [0.00347506508740299, -0.000249823064086735, 2.47364969392914e-06, -5.08520514692428e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_12: {TYPE: list, VALUE: [0.00346221865821905, -0.000249968110400968, 2.41607029745207e-06, -6.43739826056667e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_13: {TYPE: list, VALUE: [0.00346881396800936, -0.000250736831210758, 2.38580390197586e-06, -5.80406598258295e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_14: {TYPE: list, VALUE: [0.00351117015857009, -0.000251024826040815, 2.51659427750457e-06, -5.45877098086669e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_15: {TYPE: list, VALUE: [0.00345108841668974, -0.000249303524732281, 2.46289905716957e-06, -5.30152030837836e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_16: {TYPE: list, VALUE: [0.00346592828894553, -0.000250344084236676, 2.48384257560737e-06, -4.34686667325137e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_17: {TYPE: list, VALUE: [0.0035271618376036, -0.000251223111896753, 2.50684094979287e-06, -6.07732409715931e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_18: {TYPE: list, VALUE: [0.00353778079506935, -0.000251533918261812, 2.52193374386203e-06, -6.78165294521451e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_19: {TYPE: list, VALUE: [0.00353435662461817, -0.000251991786768581, 2.50186675120244e-06, -5.26462032302453e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_20: {TYPE: list, VALUE: [0.00350827427940715, -0.000251225212724367, 2.46789518571518e-06, -6.02627979813181e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_21: {TYPE: list, VALUE: [0.00354312989778391, -0.000251153531111239, 2.54839417555195e-06, -6.22674006461501e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_22: {TYPE: list, VALUE: [0.0034724148801051, -0.000249639133047429, 2.48834421114212e-06, -5.3619098270147e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_23: {TYPE: list, VALUE: [0.0034824744494318, -0.000250065611772488, 2.47012874159369e-06, -4.45481883026538e-08]},
-        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS_CHANNEL_24: {TYPE: list, VALUE: [0.00351750580977995, -0.000250840574934303, 2.52129990230494e-06, -5.2796149358899e-08]},
+        XR_420EngineeringDataParticleKey.CALIBRATION_COEFFICIENTS: {
+            TYPE: list,
+            VALUE: [
+                [0.00348434592083916, -0.00025079534389118, 2.46625541318206e-06, -4.68427140350704e-08],
+                [0.00350431927843206, -0.000251204828829799, 2.47944749760338e-06, -6.07097826319064e-08],
+                [0.00345245367779891, -0.000249630218352203, 2.42311925467998e-06, -6.44890925539532e-08],
+                [0.00352560682330522, -0.000250866602804003, 2.52838011189997e-06, -6.59845645057904e-08],
+                [0.00349238911184589, -0.000250387621319053, 2.46469119446334e-06, -6.52907822336288e-08],
+                [0.00347069636129611, -0.000250240094109838, 2.42229283361364e-06, -4.45003789108644e-08],
+                [0.00350890530165844, -0.000251515584649114, 2.51112506349963e-06, -4.38077113777949e-08],
+                [0.00350614509888292, -0.000250869607382059, 2.4673223724984e-06, -6.34255414457636e-08],
+                [0.00346875161001148, -0.000249917885668956, 2.4462460817433e-06, -6.16521743719807e-08],
+                [0.00348513782969848, -0.000251026521664712, 2.43691281012686e-06, -6.20043955328834e-08],
+                [0.00347506508740299, -0.000249823064086735, 2.47364969392914e-06, -5.08520514692428e-08],
+                [0.00346221865821905, -0.000249968110400968, 2.41607029745207e-06, -6.43739826056667e-08],
+                [0.00346881396800936, -0.000250736831210758, 2.38580390197586e-06, -5.80406598258295e-08],
+                [0.00351117015857009, -0.000251024826040815, 2.51659427750457e-06, -5.45877098086669e-08],
+                [0.00345108841668974, -0.000249303524732281, 2.46289905716957e-06, -5.30152030837836e-08],
+                [0.00346592828894553, -0.000250344084236676, 2.48384257560737e-06, -4.34686667325137e-08],
+                [0.0035271618376036, -0.000251223111896753, 2.50684094979287e-06, -6.07732409715931e-08],
+                [0.00353778079506935, -0.000251533918261812, 2.52193374386203e-06, -6.78165294521451e-08],
+                [0.00353435662461817, -0.000251991786768581, 2.50186675120244e-06, -5.26462032302453e-08],
+                [0.00350827427940715, -0.000251225212724367, 2.46789518571518e-06, -6.02627979813181e-08],
+                [0.00354312989778391, -0.000251153531111239, 2.54839417555195e-06, -6.22674006461501e-08],
+                [0.0034724148801051, -0.000249639133047429, 2.48834421114212e-06, -5.3619098270147e-08],
+                [0.0034824744494318, -0.000250065611772488, 2.47012874159369e-06, -4.45481883026538e-08],
+                [0.00351750580977995, -0.000250840574934303, 2.52129990230494e-06, -5.2796149358899e-08],
+            ]
+        }
     }
         
     _sample_parameters = {
         XR_420SampleDataParticleKey.TIMESTAMP: {TYPE: float, VALUE: 3223662780.0},
-        XR_420SampleDataParticleKey.CHANNEL_1: {TYPE: float, VALUE: 21.4548},
-        XR_420SampleDataParticleKey.CHANNEL_2: {TYPE: float, VALUE: 21.0132},
-        XR_420SampleDataParticleKey.CHANNEL_3: {TYPE: float, VALUE: 20.9255},
-        XR_420SampleDataParticleKey.CHANNEL_4: {TYPE: float, VALUE: 21.1266},
-        XR_420SampleDataParticleKey.CHANNEL_5: {TYPE: float, VALUE: 21.1341},
-        XR_420SampleDataParticleKey.CHANNEL_6: {TYPE: float, VALUE: 21.5606},
-        XR_420SampleDataParticleKey.CHANNEL_7: {TYPE: float, VALUE: 21.2156},
-        XR_420SampleDataParticleKey.CHANNEL_8: {TYPE: float, VALUE: 21.4749},
-        XR_420SampleDataParticleKey.CHANNEL_9: {TYPE: float, VALUE: 21.3044},
-        XR_420SampleDataParticleKey.CHANNEL_10: {TYPE: float, VALUE: 21.1320},
-        XR_420SampleDataParticleKey.CHANNEL_11: {TYPE: float, VALUE: 21.1798},
-        XR_420SampleDataParticleKey.CHANNEL_12: {TYPE: float, VALUE: 21.2352},
-        XR_420SampleDataParticleKey.CHANNEL_13: {TYPE: float, VALUE: 21.3488},
-        XR_420SampleDataParticleKey.CHANNEL_14: {TYPE: float, VALUE: 21.1214},
-        XR_420SampleDataParticleKey.CHANNEL_15: {TYPE: float, VALUE: 21.6426},
-        XR_420SampleDataParticleKey.CHANNEL_16: {TYPE: float, VALUE: 21.1479},
-        XR_420SampleDataParticleKey.CHANNEL_17: {TYPE: float, VALUE: 21.0069},
-        XR_420SampleDataParticleKey.CHANNEL_18: {TYPE: float, VALUE: 21.5426},
-        XR_420SampleDataParticleKey.CHANNEL_19: {TYPE: float, VALUE: 21.3204},
-        XR_420SampleDataParticleKey.CHANNEL_20: {TYPE: float, VALUE: 21.2402},
-        XR_420SampleDataParticleKey.CHANNEL_21: {TYPE: float, VALUE: 21.3968},
-        XR_420SampleDataParticleKey.CHANNEL_22: {TYPE: float, VALUE: 21.4371},
-        XR_420SampleDataParticleKey.CHANNEL_23: {TYPE: float, VALUE: 21.0411},
-        XR_420SampleDataParticleKey.CHANNEL_24: {TYPE: float, VALUE: 21.4361},
+        XR_420SampleDataParticleKey.TEMPERATURE: {TYPE: list, VALUE:
+            [ 21.4548, 21.0132, 20.9255, 21.1266, 21.1341, 21.5606, 21.2156, 21.4749,
+              21.3044, 21.1320, 21.1798, 21.2352, 21.3488, 21.1214, 21.6426, 21.1479,
+              21.0069, 21.5426, 21.3204, 21.2402, 21.3968, 21.4371, 21.0411, 21.4361 ]
+        },
         XR_420SampleDataParticleKey.BATTERY_VOLTAGE: {TYPE: float, VALUE: 11.5916},
         XR_420SampleDataParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: u"021968"},
     }
@@ -651,19 +609,32 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         """
         self.assert_initialize_driver()
 
-        # construct values dynamically to get time stamp for notes
-        new_parameter_values = {}
+        # parameter values to test.
+        test_values = {
+            InstrumentParameters.SAMPLE_INTERVAL : '00:00:15',
+            InstrumentParameters.POWER_ALWAYS_ON : 1,
+            InstrumentParameters.SIX_HZ_PROFILING_MODE : 0,
+            InstrumentParameters.INHIBIT_DATA_STORAGE : 1,
+        }
 
-        for key in self.paramter_test_values.iterkeys():
-            new_parameter_values[key] = self.paramter_test_values[key]
-               
         # Set parameters in bulk and verify.
-        self.assert_set_bulk(new_parameter_values)
-        
-        # Set parameters individually and verify.
-        for key in self.paramter_test_values.iterkeys():
-            self.assert_set(key, self.paramter_test_values[key])
-        
+        #self.assert_set_bulk(test_values)
+
+        # Verify single sets, we first set to the current value to verify
+        # a config update event IS NOT sent.  Then change the value and
+        # watch for an config update event.
+        self.assert_set(InstrumentParameters.SIX_HZ_PROFILING_MODE, 0)
+        self.assert_set(InstrumentParameters.SIX_HZ_PROFILING_MODE, 1)
+
+        self.assert_set(InstrumentParameters.POWER_ALWAYS_ON, 1)
+        self.assert_set(InstrumentParameters.POWER_ALWAYS_ON, 0)
+
+        self.assert_set(InstrumentParameters.INHIBIT_DATA_STORAGE, 1)
+        self.assert_set(InstrumentParameters.INHIBIT_DATA_STORAGE, 0)
+
+        self.assert_set(InstrumentParameters.SAMPLE_INTERVAL, '01:00:15')
+        self.assert_set(InstrumentParameters.SAMPLE_INTERVAL, '01:00:20')
+
     def test_set_errors(self):
         """
         Test error device parameter access.
@@ -676,65 +647,32 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         # try values that are not legitimate for each parameter
         self.assert_set_exception(InstrumentParameters.POWER_ALWAYS_ON, 'bad')
         self.assert_set_exception(InstrumentParameters.POWER_ALWAYS_ON, 2)
-        
-        self.assert_set_exception(InstrumentParameters.ENGINEERING_UNITS_OUTPUT, 'bad')
-        self.assert_set_exception(InstrumentParameters.ENGINEERING_UNITS_OUTPUT, 255)
-        
+
         self.assert_set_exception(InstrumentParameters.INHIBIT_DATA_STORAGE, 'bad')
         self.assert_set_exception(InstrumentParameters.INHIBIT_DATA_STORAGE, -1)
-        
-        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE, 'bad')
-        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE, 2090)
-        
-        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER, 'stupid')
-        self.assert_set_exception(InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER, 4.3)
-        
-        self.assert_set_exception(InstrumentParameters.SAMPLING_LED, 'bad')
-        self.assert_set_exception(InstrumentParameters.SAMPLING_LED, 10)
-        
+
         self.assert_set_exception(InstrumentParameters.SIX_HZ_PROFILING_MODE, 'really bad')
         self.assert_set_exception(InstrumentParameters.SIX_HZ_PROFILING_MODE, -20)
-        
-        self.assert_set_exception(InstrumentParameters.AUTO_RUN, 'dumb')
-        self.assert_set_exception(InstrumentParameters.AUTO_RUN, -2000)
-        
-        self.assert_set_exception(InstrumentParameters.AUTO_RUN, 'bad')
-        self.assert_set_exception(InstrumentParameters.AUTO_RUN, -1)
-        
-        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, 1)
-        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '40 Feb 2002 11:18:42')
-        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 fab 2002 11:18:42')
-        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2O02 11:18:42')
-        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2002 25:18:42')
-        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2002 11:65:42')
-        self.assert_set_exception(InstrumentParameters.END_DATE_AND_TIME, '21 Feb 2002 11:18:61')
 
         self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, '11:18:61')
         self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, '25:18:61')
         self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, '11:118:61')
         self.assert_set_exception(InstrumentParameters.SAMPLE_INTERVAL, 3)
-        
-        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, 'junk')
-        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '40 Feb 2002 11:18:42')
-        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 fab 2002 11:18:42')
-        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2O02 11:18:42')
-        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2002 25:18:42')
-        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2002 11:65:42')
-        self.assert_set_exception(InstrumentParameters.START_DATE_AND_TIME, '21 Feb 2002 11:18:61')
-
-        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, 4.6)
-        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '40 Feb 2002 11:18:42')
-        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 fab 2002 11:18:42')
-        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2O02 11:18:42')
-        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2002 25:18:42')
-        self.assert_set_exception(InstrumentParameters.LOGGER_DATE_AND_TIME, '21 Feb 2002 11:65:42')
 
     def test_read_only_parameters(self):
         self.assert_initialize_driver()
 
         self.assert_set_readonly(InstrumentParameters.STATUS)
+        self.assert_set_readonly(InstrumentParameters.AUTO_RUN)
         self.assert_set_readonly(InstrumentParameters.IDENTIFICATION)
         self.assert_set_readonly(InstrumentParameters.BATTERY_VOLTAGE)
+        self.assert_set_readonly(InstrumentParameters.LOGGER_DATE_AND_TIME)
+        self.assert_set_readonly(InstrumentParameters.START_DATE_AND_TIME)
+        self.assert_set_readonly(InstrumentParameters.END_DATE_AND_TIME)
+        self.assert_set_readonly(InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER)
+        self.assert_set_readonly(InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE)
+        self.assert_set_readonly(InstrumentParameters.SAMPLING_LED)
+        self.assert_set_readonly(InstrumentParameters.ENGINEERING_UNITS_OUTPUT)
         self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_1)
         self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_2)
         self.assert_set_readonly(InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_3)
@@ -770,15 +708,8 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         # driver is re-initialized.  They should be blown away with startup values.
         new_values = {
             InstrumentParameters.SAMPLE_INTERVAL: '00:00:20',
-            InstrumentParameters.START_DATE_AND_TIME: '10 Jan 2000 00:00:00',
-            InstrumentParameters.END_DATE_AND_TIME: '10 Jan 2050 00:00:00',
             InstrumentParameters.POWER_ALWAYS_ON: 0,
             InstrumentParameters.SIX_HZ_PROFILING_MODE: 0,
-            InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER: 0,
-            InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE: 0,
-            InstrumentParameters.SAMPLING_LED: 1,
-            InstrumentParameters.ENGINEERING_UNITS_OUTPUT: 0,
-            InstrumentParameters.AUTO_RUN: 0,
             InstrumentParameters.INHIBIT_DATA_STORAGE: 0,
         }
 
@@ -823,7 +754,7 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
-    def test_instrumment_start_stop_autosample(self):
+    def test_instrument_start_stop_autosample(self):
         """
         @brief Test for start/stop of instrument autosample, puts instrument in 'command' state first
         """
@@ -963,26 +894,6 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.  
 
-
-    @unittest.skip("skip for automatic tests")
-    def test_direct_access_telnet_mode_manually(self):
-        """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
-        """
-        self.assert_enter_command_mode()
-        
-        # go direct access
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-                           #kwargs={'session_type': DirectAccessTypes.telnet,
-                           kwargs={'session_type':DirectAccessTypes.vsp,
-                                   'session_timeout':600,
-                                   'inactivity_timeout':600})
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.warn("go_direct_access retval=" + str(retval.result))
-        
-        gevent.sleep(600)  # wait for manual telnet session to be run
-
-
     def test_direct_access_telnet_mode(self):
         """
         Test that we can connect to the instrument via direct access.  Also
@@ -1068,7 +979,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
                 ResourceAgentEvent.GO_INACTIVE,
                 ResourceAgentEvent.PAUSE
             ],
-            AgentCapabilityType.AGENT_PARAMETER: ['example', 'pubfreq', 'alarms', 'streams'],
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
             AgentCapabilityType.RESOURCE_COMMAND: [
                 DriverEvent.CLOCK_SYNC,
                 DriverEvent.GET,
@@ -1141,3 +1052,19 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_engineering, DataParticleType.ENGINEERING, timeout=30)
 
+###############################################################################
+#                             PUBLICATION TESTS                               #
+# Device specific pulication tests are for                                    #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('PUB', group='mi')
+class TestPublish(InstrumentDriverPublicationTestCase, UtilMixin):
+    def test_granule_generation(self):
+        self.assert_initialize_driver()
+
+        # Currently these tests only verify that the data granule is generated, but the values
+        # are not tested.  We will eventually need to replace log.debug with a better callback
+        # function that actually tests the granule.
+        self.assert_sample_async("raw data", log.debug, DataParticleType.RAW, timeout=10)
+
+        self.assert_sample_async(self.SAMPLE, log.debug, DataParticleType.SAMPLE, timeout=10)

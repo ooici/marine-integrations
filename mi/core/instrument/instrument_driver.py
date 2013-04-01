@@ -12,6 +12,7 @@ __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
 import time
+import json
 
 from threading import Thread
 
@@ -26,6 +27,15 @@ from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.log import get_logger,LoggerManager
 log = get_logger()
 
+class ConfigMetadataKey(BaseEnum):
+    """
+    Keys used in the metadata structure that describes the driver, commands,
+    and parameters used in the driver and protocol.
+    """
+    DRIVER = 'driver'
+    COMMANDS = 'commands'
+    PARAMETERS = 'parameters'
+    
 class DriverConfigKey(BaseEnum):
     """
     Dictionary keys for driver config objects
@@ -572,6 +582,17 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         if self._protocol:
             return self._protocol.get_cached_config()
                 
+    def get_config_metadata(self):
+        """
+        Return the configuration metadata object in JSON format
+        @retval The description of the parameters, commands, and driver info
+        in a JSON string
+        @see https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Driver-Agent+parameter+and+command+metadata+exchange
+        """
+        if self._protocol:
+            return json.dumps(self._protocol.get_config_metadata_dict(),
+                              sort_keys=True)
+            
     def restore_direct_access_params(self, config):
         """
         Restore the correct values out of the full config that is given when
