@@ -35,7 +35,7 @@ from mi.core.exceptions import InstrumentTimeoutException, \
                                InstrumentStateException
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
-from mi.core.instrument.protocol_param_dict import ParameterValue
+from mi.core.instrument.protocol_param_dict import Parameter, RegexParameter
 from mi.core.common import InstErrorCode
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
@@ -349,64 +349,6 @@ class SubMenues(BaseEnum):
     PICO_DOS      = 'pico_dos'
     DUMMY         = 'dummy'
     
-class MultilineParameterDictVal(ParameterValue):
-    
-    def __init__(self, name, pattern, f_getval, f_format, value=None,
-                 visibility=ParameterDictVisibility.READ_WRITE,
-                 menu_path_read=None,
-                 submenu_read=None,
-                 menu_path_write=None,
-                 submenu_write=None,                 
-                 multi_match=False,
-                 direct_access=False,
-                 startup_param=False,
-                 default_value=None,
-                 init_value=None):
-        """
-        Parameter value constructor.
-        @param name The parameter name.
-        @param pattern The regex that matches the parameter in line output.
-        @param f_getval The fuction that extracts the value from a regex match.
-        @param f_format The function that formats the parameter value for a set command.
-        @param visibility The ParameterDictVisibility value that indicates what
-        the access to this parameter is
-        @param menu_path The path of menu options required to get to the parameter
-        value display when presented in a menu-based instrument
-        @param value The parameter value (initializes to None).
-        """
-        self.name = name
-        self.pattern = pattern
-        #log.debug('BinaryParameterDictVal.__int__(); pattern=%s' %pattern)
-        self.regex = re.compile(pattern, re.DOTALL)
-        self.f_getval = f_getval
-        self.f_format = f_format
-        self.value = value
-        self.menu_path_read = menu_path_read
-        self.submenu_read = submenu_read
-        self.menu_path_write = menu_path_write
-        self.submenu_write = submenu_write
-        self.visibility = visibility
-        self.multi_match = multi_match
-        self.direct_access = direct_access
-        self.startup_param = startup_param
-        self.default_value = default_value
-        self.init_value = init_value        
-
-    def update(self, input):
-        """
-        Attempt to udpate a parameter value. If the input string matches the
-        value regex, extract and update the dictionary value.
-        @param input A string possibly containing the parameter value.
-        @retval True if an update was successful, False otherwise.
-        """
-        match = self.regex.search(input)
-        #log.debug("MultilineParameterDictVal.update: param_name=%s \nmatch=\n<%s> \ninput=\n<%s>" %(self.name, match.group(0), input))
-        if match:
-            self.value = self.f_getval(match)
-            log.debug('MultilineParameterDictVal.update: Updated parameter %s=<%s>', self.name, str(self.value))
-            return True
-        else:
-            return False
 
 class Mavs4ProtocolParameterDict(ProtocolParameterDict):
     
@@ -436,54 +378,21 @@ class Mavs4ProtocolParameterDict(ProtocolParameterDict):
         initialization or re-initialization
         @param value The parameter value (initializes to None).        
         """
-        val = MultilineParameterDictVal(name, pattern, f_getval, f_format,
-                                        value=value,
-                                        visibility=visibility,
-                                        menu_path_read=menu_path_read,
-                                        submenu_read=submenu_read,
-                                        menu_path_write=menu_path_write,
-                                        submenu_write=submenu_write,
-                                        multi_match=multi_match,
-                                        direct_access=direct_access,
-                                        startup_param=startup_param,
-                                        default_value=default_value,
-                                        init_value=init_value)
-        self._param_dict[name] = val
-        
-    def set_from_string(self, name, line):
-        """
-        Set a parameter value in the dictionary.
-        @param name The parameter name.
-        @param line The parameter value as a string.
-        @raises KeyError if the name is invalid.
-        """
-        log.debug("Mavs4ProtocolParameterDict.set_from_string(): name=%s, line=%s" %(name, line))
-        try:
-            param = self._param_dict[name]
-        except:
-            return
-        param.value = param.f_getval(line)
-
-    def set_from_value(self, name, value):
-        """
-        Set a parameter value in the dictionary.
-        @param name The parameter name.
-        @param value The parameter value.
-        @raises KeyError if the name is invalid.
-        """
-        log.debug("Mavs4ProtocolParameterDict.set_from_value(): name=%s, value=%s" %(name, value))
-        self._param_dict[name].value = value
-        
-    def format_parameter(self, name):
-        """
-        Format the parameter for a set command.
-        @param name The name of the parameter.
-        @retval The value formatted as a string for writing to the device.
-        @raises InstrumentProtocolException if the value could not be formatted.
-        @raises KeyError if the parameter name is invalid.
-        """
-        return self._param_dict[name].f_format(self._param_dict[name].value)
-    
+        val = RegexParameter(name, pattern, f_getval, f_format,
+                             value=value,
+                             visibility=visibility,
+                             menu_path_read=menu_path_read,
+                             submenu_read=submenu_read,
+                             menu_path_write=menu_path_write,
+                             submenu_write=submenu_write,
+                             multi_match=multi_match,
+                             direct_access=direct_access,
+                             startup_param=startup_param,
+                             default_value=default_value,
+                             init_value=init_value,
+                             regex_flags=re.DOTALL)
+        ProtocolParameterDict.add_parameter(self, val)
+                
     def update(self, name, response):
         #log.debug('Mavs4ProtocolParameterDict.update(): set %s from \n%s' %(name, response))
         response = self._param_dict[name].update(response)
@@ -2164,7 +2073,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         parameter_name = self.Command_Response[cmd_name][2]
         if parameter_name == None:
             raise InstrumentParameterException('simple sub parameter enter command requires a parameter name.')
-        cmd = self._param_dict.format_parameter(parameter_name)
+        cmd = self._param_dict.format(parameter_name)
         response = self.Command_Response[cmd_name][0]
         next_cmd = self.Command_Response[cmd_name][1]
         log.debug("_build_simple_sub_parameter_enter_command: cmd=%s" %cmd)

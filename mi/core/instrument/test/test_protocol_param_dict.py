@@ -12,6 +12,7 @@ __license__ = 'Apache 2.0'
 
 import json
 import time
+import re
 
 from ooi.logging import log
 from nose.plugins.attrib import attr
@@ -562,5 +563,31 @@ bar=200, baz=300
         # Fail because data is expired (simulated three seconds from now)
         with self.assertRaises(InstrumentParameterExpirationException):
             pd.get('lateexp', futuretime)
-
+    
+    def test_regex_flags(self):
+        pdv = RegexParameter("foo",
+                             r'.*foo=(\d+).*',
+                             lambda match : int(match.group(1)),
+                             lambda x : str(x),
+                             regex_flags=re.DOTALL,
+                             value=12)
+        # Assert something good with dotall update()
+        self.assertTrue(pdv)
+        self.assertRaises(TypeError,
+                          RegexParameter,
+                          "foo",
+                          r'.*foo=(\d+).*',
+                          lambda match : int(match.group(1)),
+                          lambda x : str(x),
+                          regex_flags="bad flag",
+                          value=12)
+    
+    def test_format_current(self):
+        self.param_dict.add("test_format", r'.*foo=(\d+).*',
+                             lambda match : int(match.group(1)),
+                             lambda x : x+5,
+                             value=10)
+        self.assertEqual(self.param_dict.format("test_format", 20), 25)
+        self.assertEqual(self.param_dict.format("test_format"), 15)
+        
 
