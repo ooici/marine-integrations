@@ -35,7 +35,7 @@ from mi.core.exceptions import InstrumentTimeoutException, \
                                SampleException, \
                                ReadOnlyException
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
-from mi.core.instrument.protocol_param_dict import ParameterDictVal
+from mi.core.instrument.protocol_param_dict import ParameterValue
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
@@ -289,7 +289,7 @@ class Parameter(DriverParameter):
     QUAL_CONSTANTS = 'StageMatchFilterConstants'
                    
     
-class BinaryParameterDictVal(ParameterDictVal):
+class BinaryParameterDictVal(ParameterValue):
     
     def __init__(self, name, pattern, f_getval, f_format, value=None,
                  visibility=ParameterDictVisibility.READ_WRITE,

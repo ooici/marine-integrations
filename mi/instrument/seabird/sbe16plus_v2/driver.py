@@ -18,9 +18,7 @@ from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.common import BaseEnum
-from mi.core.time import get_timestamp_delayed
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
-from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -29,13 +27,10 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import ResourceAgentEvent
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
-from mi.core.instrument.protocol_param_dict import ParameterDictVal
+from mi.core.instrument.data_particle import DataParticleKey, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
-from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
 
 from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
