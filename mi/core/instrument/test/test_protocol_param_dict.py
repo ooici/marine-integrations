@@ -22,9 +22,16 @@ from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import Parameter, FunctionParameter, RegexParameter
+from mi.core.util import dict_equal
 
 @attr('UNIT', group='mi')
 class TestUnitProtocolParameterDict(MiUnitTestCase):
+    """
+    Test cases for instrument driver class. Functions in this class provide
+    instrument driver unit tests and provide a tutorial on use of
+    the driver interface.
+    """
+
     @staticmethod
     def pick_byte2(input):
         """ Get the 2nd byte as an example of something tricky and
@@ -33,11 +40,6 @@ class TestUnitProtocolParameterDict(MiUnitTestCase):
         val = val & 255
         return val
     
-    """
-    Test cases for instrument driver class. Functions in this class provide
-    instrument driver unit tests and provide a tutorial on use of
-    the driver interface.
-    """ 
     def setUp(self):
         self.param_dict = ProtocolParameterDict()
                 
@@ -82,10 +84,20 @@ class TestUnitProtocolParameterDict(MiUnitTestCase):
                              units="nano-batbit",
                              value_description="Should be an integer between 1 and 1000")
         self.param_dict.add("qux", r'.*qux=(\d+).*',
+                            lambda match : int(match.group(1)),
+                            lambda x : str(x),
+                            startup_param=False,
+                            visibility=ParameterDictVisibility.READ_ONLY)
+        self.param_dict.add("pho", r'.*qux=(\d+).*',
+                            lambda match : int(match.group(1)),
+                            lambda x : str(x),
+                            startup_param=False,
+                            visibility=ParameterDictVisibility.IMMUTABLE)
+        self.param_dict.add("dil", r'.*qux=(\d+).*',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
                              startup_param=False,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self.param_dict.add("qut", r'.*qut=(\d+).*',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
@@ -101,85 +113,101 @@ class TestUnitProtocolParameterDict(MiUnitTestCase):
                              units="nano-qutters",
                              value_description="Should be a 2-10 element list of integers between 2 and 2000")
         
-        self.target_schema = """{
-    "bar": {
-        "direct_access": false, 
-        "get_timeout": 10, 
-        "set_timeout": 10, 
-        "startup": true, 
-        "value": {
-            "default": 15
-        }, 
-        "writable": true
-    }, 
-    "bat": {
-        "description": "The bat parameter", 
-        "direct_access": false, 
-        "display_name": "Bat", 
-        "get_timeout": 10, 
-        "set_timeout": 20, 
-        "startup": false, 
-        "value": {
-            "default": 20, 
-            "description": "Should be an integer between 1 and 1000", 
-            "type": "int", 
-            "units": "nano-batbit"
-        }, 
-        "writable": false
-    }, 
-    "baz": {
-        "description": "The baz parameter", 
-        "direct_access": true, 
-        "display_name": "Baz", 
-        "get_timeout": 30, 
-        "set_timeout": 40, 
-        "startup": false, 
-        "value": {
-            "default": 20, 
-            "description": "Should be an integer between 2 and 2000", 
-            "type": "int", 
-            "units": "nano-bazers"
-        }, 
-        "writable": false
-    }, 
-    "foo": {
-        "direct_access": true, 
-        "get_timeout": 10, 
-        "set_timeout": 10, 
-        "startup": true, 
-        "value": {
-            "default": 10
-        }, 
-        "writable": true
-    }, 
-    "qut": {
-        "description": "The qut list parameter", 
-        "direct_access": true, 
-        "display_name": "Qut", 
-        "get_timeout": 10, 
-        "set_timeout": 20, 
-        "startup": false, 
-        "value": {
-            "default": [
-                10, 
-                100
-            ], 
-            "description": "Should be a 2-10 element list of integers between 2 and 2000", 
-            "type": "list", 
-            "units": "nano-qutters"
-        }, 
-        "writable": false
-    }, 
-    "qux": {
-        "direct_access": false, 
-        "get_timeout": 10, 
-        "set_timeout": 10, 
-        "startup": false, 
-        "value": {}, 
-        "writable": false
+        self.target_schema = {
+            "bar":  {
+                "direct_access": False,
+                "get_timeout": 10,
+                "set_timeout": 10,
+                "startup": True,
+                "value": {
+                    "default": 15
+                },
+                "visibility": "READ_WRITE"
+            },
+            "bat": {
+                "description": "The bat parameter",
+                "direct_access": False,
+                "display_name": "Bat",
+                "get_timeout": 10,
+                "set_timeout": 20,
+                "startup": False,
+                "value": {
+                    "default": 20,
+                    "description": "Should be an integer between 1 and 1000",
+                    "type": "int",
+                    "units": "nano-batbit"
+                },
+                "visibility": "READ_ONLY"
+            },
+            "baz": {
+                "description": "The baz parameter",
+                "direct_access": True,
+                "display_name": "Baz",
+                "get_timeout": 30,
+                "set_timeout": 40,
+                "startup": False,
+                "value": {
+                    "default": 20,
+                    "description": "Should be an integer between 2 and 2000",
+                    "type": "int",
+                    "units": "nano-bazers"
+                },
+                "visibility": "DIRECT_ACCESS"
+            },
+        "dil": {
+            "direct_access": False,
+            "get_timeout": 10,
+            "set_timeout": 10,
+            "startup": False,
+            "value": {},
+            "visibility": "IMMUTABLE"
+        },
+        "foo": {
+            "direct_access": True,
+            "get_timeout": 10,
+            "set_timeout": 10,
+            "startup": True,
+            "value": {
+                "default": 10
+            },
+            "visibility": "READ_WRITE"
+        },
+        "pho": {
+            "direct_access": False,
+            "get_timeout": 10,
+            "set_timeout": 10,
+            "startup": False,
+            "value": {},
+            "visibility": "IMMUTABLE"
+        },
+        "qut": {
+            "description": "The qut list parameter",
+            "direct_access": True,
+            "display_name": "Qut",
+            "get_timeout": 10,
+            "set_timeout": 20,
+            "startup": False,
+            "value": {
+                "default": [
+                    10,
+                    100
+                ],
+                "description": "Should be a 2-10 element list of integers between 2 and 2000",
+                "type": "list",
+                "units": "nano-qutters"
+            },
+            "visibility": "DIRECT_ACCESS"
+        },
+        "qux": {
+            "direct_access": False,
+            "get_timeout": 10,
+            "set_timeout": 10,
+            "startup": False,
+            "value": {},
+            "visibility": "READ_ONLY"
+        }
     }
-}"""
-        
+
     def test_get_direct_access_list(self):
         """
         Test to see we can get a list of direct access parameters
@@ -246,6 +274,9 @@ bar=200, baz=300
         lst = self.param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
         lst.sort()
         self.assertEquals(lst, ["bat", "qux"])
+        lst = self.param_dict.get_visibility_list(ParameterDictVisibility.IMMUTABLE)
+        lst.sort()
+        self.assertEquals(lst, ["dil", "pho"])
         
     def test_function_values(self):
         """
@@ -382,10 +413,13 @@ bar=200, baz=300
         self.assertEqual(result, 42)
         
     def test_schema_generation(self):
+        self.maxDiff = None
         result = self.param_dict.generate_dict()
         json_result = json.dumps(result, indent=4, sort_keys=True)
-        self.assertEqual(json_result, self.target_schema)
-        
+        log.debug("Expected: %s", self.target_schema)
+        log.debug("Result: %s", json_result)
+        self.assertEqual(result, self.target_schema)
+
     def test_empty_schema(self):
         self.param_dict = ProtocolParameterDict()
         result = self.param_dict.generate_dict()
