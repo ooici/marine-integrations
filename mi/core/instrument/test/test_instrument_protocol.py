@@ -17,6 +17,7 @@ import datetime
 from mock import Mock
 from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
+from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
@@ -109,6 +110,47 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
 
         # Test the format of the result in the individual driver tests. Here,
         # just tests that the result is there.
+
+    def test_get_param_list(self):
+        """
+        verify get_param_list returns correct parameter lists.
+        """
+        params = ['foo', 'bar', 'baz']
+
+        for key in params:
+            self.protocol._param_dict.add(key, r'', None, None)
+
+        # All can be passed in as a string
+        self.assertEqual(sorted(params), sorted(self.protocol._get_param_list(DriverParameter.ALL)))
+
+        # All can be passed in as a single element list
+        self.assertEqual(sorted(params), sorted(self.protocol._get_param_list([DriverParameter.ALL])))
+
+        # All can be in a list anywhere, not just the first element
+        self.assertEqual(sorted(params), sorted(self.protocol._get_param_list(['foo', DriverParameter.ALL])))
+
+        # Bad parameters raise exceptions event when ALL is specified
+        with self.assertRaises(InstrumentParameterException):
+            self.assertEqual(sorted(params), sorted(self.protocol._get_param_list(['noparam', DriverParameter.ALL])))
+
+        # An exception is raised when the param is not a list or string
+        with self.assertRaises(InstrumentParameterException):
+            self.protocol._get_param_list({'other': 'struct'})
+
+        # when a subset is given, the same set is returned.
+        subset = ['bar', 'baz']
+        self.assertEqual(sorted(subset), sorted(self.protocol._get_param_list(subset)))
+
+        # verify we can accept a tuple
+        subset = ['bar', 'baz']
+        self.assertEqual(sorted(subset), sorted(self.protocol._get_param_list(('bar', 'baz'))))
+
+        # An exception is raised when the param is not known
+        with self.assertRaises(InstrumentParameterException):
+            self.protocol._get_param_list(subset + ['boom'])
+
+        # Verify we can send in a single parameter as a string, not ALL
+        self.assertEqual(['bar'], self.protocol._get_param_list('bar'))
 
     @unittest.skip('Not Written')
     def test_publish_raw(self):

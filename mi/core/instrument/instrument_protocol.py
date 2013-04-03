@@ -30,6 +30,7 @@ from mi.core.driver_scheduler import DriverSchedulerConfigKey
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import ConfigMetadataKey
+from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
@@ -517,6 +518,42 @@ class InstrumentProtocol(object):
             raise InstrumentParameterException('Value %s is not a float.' % v)
         else:
             return '%e' % v
+
+    def _get_param_list(self, *args, **kwargs):
+        """
+        returns a list of parameters based on the list passed in.  If the
+        list contains and ALL parameters request then the list will contain
+        all parameters.  Otherwise the original list will be returned. Also
+        check the list for unknown parameters
+        @param args[0] list of parameters to inspect
+        @return: list of parameters.
+        @raises: InstrumentParameterException when the wrong param type is passed
+        in or an unknown parameter is in the list
+        """
+        try:
+            param_list = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Parameter required, none specified')
+
+        if(isinstance(param_list, str)):
+            param_list = [param_list]
+        elif(not isinstance(param_list, (list, tuple))):
+            raise InstrumentParameterException("Expected a list, tuple or a string")
+
+        # Verify all parameters are known parameters
+        bad_params = []
+        known_params = self._param_dict.get_keys() + [DriverParameter.ALL]
+        for param in param_list:
+            if(param not in known_params):
+                bad_params.append(param)
+
+        if(len(bad_params)):
+            raise InstrumentParameterException("Unknown parameters: %s" % bad_params)
+
+        if(DriverParameter.ALL in param_list):
+            return self._param_dict.get_keys()
+        else:
+            return param_list
 
 class CommandResponseInstrumentProtocol(InstrumentProtocol):
     """
