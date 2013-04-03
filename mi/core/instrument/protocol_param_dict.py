@@ -111,16 +111,18 @@ class ParameterValue(object):
         self.value = new_val
         self.timestamp = ntplib.system_to_ntp_time(time.time())
     
-    def get_value(self):
+    def get_value(self, baseline_timestamp=None):
         """
         Get the value from this structure, do whatever checks are necessary
+        @param: baseline_timestamp use this time for expiration calculation, default to current time
         @raises InstrumentParameterExpirationException when a parameter is
         too old to work with. Original value is in exception.
         """
-        if (self.expiration != None) and \
-            ntplib.system_to_ntp_time(time.time()) > (self.timestamp + self.expiration):
-            raise InstrumentParameterExpirationException("Value for %s expired!" % self.name,
-                                                         self.value)
+        if(baseline_timestamp == None):
+            baseline_timestamp = ntplib.system_to_ntp_time(time.time())
+
+        if (self.expiration != None) and  baseline_timestamp > (self.timestamp + self.expiration):
+            raise InstrumentParameterExpirationException("Value for %s expired!" % self.name, self.value)
         else:
             return self.value
         
@@ -192,14 +194,15 @@ class Parameter(object):
         self.value.set_value(input)
         return True
     
-    def get_value(self):
+    def get_value(self, timestamp=None):
         """
         Get the value of the parameter that has been stored in the ParameterValue
         object.
+        @param timestamp timestamp to use for expiration calculation
         @retval The actual data value if it is valid
         @raises InstrumentParameterExpirationException If the value has expired
         """
-        return self.value.get_value()
+        return self.value.get_value(timestamp)
     
 class RegexParameter(Parameter):
     def __init__(self, name, pattern, f_getval, f_format, value=None,
@@ -466,13 +469,24 @@ class ProtocolParameterDict(object):
                 "Invalid Parameter added! Attempting to add: %s" % parameter)
         self._param_dict[parameter.name] = parameter
         
-    def get(self, name):
+    def get(self, name, timestamp=None):
         """
         Get a parameter value from the dictionary.
         @param name Name of the value to be retrieved.
+        @param timestamp Timestamp to use for expiration calculation
         @raises KeyError if the name is invalid.
         """
-        return self._param_dict[name].get_value()
+        return self._param_dict[name].get_value(timestamp)
+
+
+
+    def get_current_timestamp(self, offset=0):
+        """
+        Get the current time in a format suitable for parameter expiration calculation.
+        @param offset: seconds from the current time to offset the timestamp
+        @return: a unix timestamp
+        """
+        return ntplib.system_to_ntp_time(time.time()) + offset
 
     def get_config_value(self, name):
         """

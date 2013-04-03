@@ -77,7 +77,6 @@ class InstrumentParameterExpirationException(InstrumentException):
     """An instrument parameter expired"""
     def __init__(self, msg=None, error_code=None, value=None):
         super(InstrumentParameterExpirationException,self).__init__(msg=msg,
-                                                                    expired_value=value,
                                                                     error_code=error_code)
         self.expired_value = value
 
