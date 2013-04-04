@@ -729,7 +729,7 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_set_readonly(Parameter.SERIAL_OUT_FW_SWITCHES)
 
         # FAILS HERE ON ASSERT SET
-        #self.assert_set(Parameter.CORRELATION_THRESHOLD, 64)
+        self.assert_set(Parameter.CORRELATION_THRESHOLD, 64)
         self.assert_set(Parameter.TIME_PER_ENSEMBLE, '00:00:00.00')
         self.assert_set(Parameter.BANNER, False)
         self.assert_set(Parameter.INSTRUMENT_ID, 0)

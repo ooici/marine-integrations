@@ -577,9 +577,9 @@ class TeledyneProtocol(ADCPProtocol):
 
         self._param_dict.add(Parameter.TIME,
             r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
-            lambda match: str(match.group(1)), #time.strptime(match.group(1), "%Y/%m/%d,%H:%M:%S"),
-            self._string_to_string) #,
-            #startup_param=True)
+            lambda match: str(match.group(1)),
+            self._string_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.FALSE_TARGET_THRESHOLD,
             r'WA (\d+,\d+) \-+ False Target Threshold ',
@@ -823,7 +823,7 @@ class TeledyneProtocol(ADCPProtocol):
         # tell driver superclass to publish a config change event.
 
         kwargs['expected_prompt'] = Prompt.COMMAND + NEWLINE + Prompt.COMMAND
-
+        kwargs['timeout'] = 0  # TODO: may want to remove this...
         cmds = dir(Parameter)
         results = ""
         log.debug("CMDS = %s", str(cmds))
@@ -838,6 +838,14 @@ class TeledyneProtocol(ADCPProtocol):
 
         new_config = self._param_dict.get_config()
         # Issue display commands and parse results.
+
+        log.debug("**********************************")
+        log.debug("OLD_CONFIG = " + repr(old_config))
+        log.debug("NEW_CONFIG = " + repr(new_config))
+        log.debug("**********************************")
+
+        # We ignore the data time parameter diffs [taken from sbe16plus_v2 driver]
+        #new_config[Parameter.TIME] = old_config.get(Parameter.TIME)
 
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
