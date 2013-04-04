@@ -27,14 +27,15 @@ class ParameterDictType(BaseEnum):
     LIST = "list"
 
 class ParameterDictVisibility(BaseEnum):
-    READ_ONLY = "READ_ONLY"
-    READ_WRITE = "READ_WRITE"
+    READ_ONLY = "READ_ONLY"  # Can not be set by the driver at any time
+    READ_WRITE = "READ_WRITE" # Can be set by the driver or the operator
+    IMMUTABLE = "IMMUTABLE" # Can only be set by the driver during startup
     DIRECT_ACCESS = "DIRECT_ACCESS"
     
 class ParameterDictKey(BaseEnum):
     GET_TIMEOUT = "get_timeout"
     SET_TIMEOUT = "set_timeout"
-    WRITABLE = "writable"
+    VISIBILITY = "visibility"
     STARTUP = "startup"
     DIRECT_ACCESS = "direct_access"
     DISPLAY_NAME = "display_name"
@@ -676,7 +677,7 @@ class ProtocolParameterDict(object):
             if val.update(input):
                 found = True
         return found
-    
+
     def get_config(self):
         """
         Retrive the configuration (all key values).
@@ -783,15 +784,13 @@ class ProtocolParameterDict(object):
             value_struct = {}
             if self._param_dict[param_key] != None:
                 param_obj = self._param_dict[param_key].description
-                
             # Description objects
             if param_obj.get_timeout != None:
                 param_struct[ParameterDictKey.GET_TIMEOUT] = param_obj.get_timeout
             if param_obj.set_timeout != None:
                 param_struct[ParameterDictKey.SET_TIMEOUT] = param_obj.set_timeout
             if param_obj.visibility != None:
-                param_struct[ParameterDictKey.WRITABLE] = \
-                    (param_obj.visibility == ParameterDictVisibility.READ_WRITE)
+                param_struct[ParameterDictKey.VISIBILITY] = param_obj.visibility
             if param_obj.startup_param != None:
                 param_struct[ParameterDictKey.STARTUP] = param_obj.startup_param
             if param_obj.direct_access != None:
