@@ -166,7 +166,7 @@ PS0_RAW_DATA = \
 "              c3 = -1.927850E-11" + NEWLINE +\
 "              c2 = +1.281892E-06" + NEWLINE +\
 "              c1 = +1.375793E+00" + NEWLINE +\
-"          Offset = +2.813725E+00" + NEWLINE +\
+"          Offset = +1.338634E+01" + NEWLINE +\
 "" + NEWLINE +\
 "Temp Sens Offset:  -0.01 degrees C" + NEWLINE +\
 "" + NEWLINE +\
@@ -177,7 +177,7 @@ PS0_RAW_DATA = \
 "    PWRTIMG  Ver:  85d3, Type:   7" + NEWLINE +\
 "" + NEWLINE +\
 "Board Serial Number Data:" + NEWLINE +\
-"   72  00 00 06 FE BC D8  09 HPA727-3009-00B" + NEWLINE +\
+"   72  00 00 06 FE BC D8  09 HPA727-3009-00B " + NEWLINE +\
 "   81  00 00 06 F5 CD 9E  09 REC727-1004-06A" + NEWLINE +\
 "   A5  00 00 06 FF 1C 79  09 HPI727-3007-00A" + NEWLINE +\
 "   82  00 00 06 FF 23 E5  09 CPU727-2011-00E" + NEWLINE +\

@@ -935,35 +935,33 @@ class ADCP_COMPASS_CALIBRATION_KEY(BaseEnum):
 class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
     _data_particle_type = DataParticleType.ADCP_COMPASS_CALIBRATION
 
-    EF_CHAR = '\xef'
+    #EF_CHAR = '\xef'
 
     RE01 = re.compile(r' +Calibration date and time: ([/0-9: ]+)')
-    RE04 = re.compile(r' +Bx +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
-    RE05 = re.compile(r' +By +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
-    RE06 = re.compile(r' +Bz +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
-    RE07 = re.compile(r' +Err +# +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) #')
+    RE04 = re.compile(r' +Bx +. +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) .')
+    RE05 = re.compile(r' +By +. +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) .')
+    RE06 = re.compile(r' +Bz +. +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) .')
+    RE07 = re.compile(r' +Err +. +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) .')
 
-    RE11 = re.compile(r' +# +([0-9e+-.]+) +#')
-    RE12 = re.compile(r' +# +([0-9e+-.]+) +#')
-    RE13 = re.compile(r' +# +([0-9e+-.]+) +#')
-    RE14 = re.compile(r' +# +([0-9e+-.]+) +#')
+    RE11 = re.compile(r' +. +([0-9e+-.]+) +.')
+    RE12 = re.compile(r' +. +([0-9e+-.]+) +.')
+    RE13 = re.compile(r' +. +([0-9e+-.]+) +.')
+    RE14 = re.compile(r' +. +([0-9e+-.]+) +.')
 
-    RE18 = re.compile(r' +# ([0-9.]+) #')
+    RE18 = re.compile(r' +. ([0-9.]+) .')
     RE21 = re.compile(r' +Calibration date and time: ([/0-9: ]+)')
-    RE22 = re.compile(r' +Average Temperature During Calibration was +([0-9.]+) #')
-    RE27 = re.compile(r' Roll +# +([0-9e+-.]+) +([0-9e+-.]+) +# +# +([0-9e+-.]+) +([0-9e+-.]+) +#')
-    RE28 = re.compile(r' Pitch +# +([0-9e+-.]+) +([0-9e+-.]+) +# +# +([0-9e+-.]+) +([0-9e+-.]+) +#')
-    RE32 = re.compile(r' Offset # +([0-9e+-.]+) +([0-9e+-.]+) +# +# +([0-9e+-.]+) +([0-9e+-.]+) +#')
-    RE36 = re.compile(r' +Null +# (\d+) +#')
+    RE22 = re.compile(r' +Average Temperature During Calibration was +([0-9.]+) .')
+    RE27 = re.compile(r' Roll +. +([0-9e+-.]+) +([0-9e+-.]+) +. +. +([0-9e+-.]+) +([0-9e+-.]+) +.')
+    RE28 = re.compile(r' Pitch +. +([0-9e+-.]+) +([0-9e+-.]+) +. +. +([0-9e+-.]+) +([0-9e+-.]+) +.')
+    RE32 = re.compile(r' Offset . +([0-9e+-.]+) +([0-9e+-.]+) +. +. +([0-9e+-.]+) +([0-9e+-.]+) +.')
+    RE36 = re.compile(r' +Null +. (\d+) +.')
 
     def _build_parsed_values(self):
         """
         """
         # Initialize
         matches = {}
-
-        lines = self.raw_data.replace(self.EF_CHAR,'#').split(NEWLINE)
-
+        lines = self.raw_data.split(NEWLINE) # .replace(self.EF_CHAR,'#')
         match = self.RE01.match(lines[1])
         timestamp = match.group(1) # 9/14/2012  09:25:32
         matches[ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP] = time.mktime(time.strptime(timestamp, "%m/%d/%Y  %H:%M:%S"))
