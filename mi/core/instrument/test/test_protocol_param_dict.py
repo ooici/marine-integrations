@@ -482,7 +482,52 @@ bar=200, baz=300
                               value=False,
                               type = "bad_type",
                               visibility=ParameterDictVisibility.READ_WRITE)
-        
-        
+
+    def test_get(self):
+        """
+        test getting values with expiration
+        """
+        #from mi.core.exceptions import InstrumentParameterExpirationException
+        pd = ProtocolParameterDict()
+
+        # No expiration, should work just fine
+        pd.add('noexp', r'', None, None, expiration=None)
+        pd.add('zeroexp', r'', None, None, expiration=0)
+        pd.add('lateexp', r'', None, None, expiration=2)
+
+        ###
+        # Set and get with no expire
+        ###
+        pd.set_value('noexp', 1)
+        self.assertEqual(pd.get('noexp'), 1)
+
+        ###
+        # Set and get with a 0 expire
+        ###
+        basetime = pd.get_current_timestamp()
+        pd.set_value('zeroexp', 2)
+
+        # We should fail because we are calculating exp against current time
+        with self.assertRaises(InstrumentParameterExpirationException):
+            pd.get('zeroexp')
+
+        # Should succeed because exp is calculated using basetime
+        self.assertEqual(pd.get('zeroexp', basetime), 2)
+
+        ###
+        # Set and get with a delayed expire
+        ###
+        basetime = pd.get_current_timestamp()
+        futuretime = pd.get_current_timestamp(3)
+        self.assertGreater(futuretime - basetime, 3)
+
+        pd.set_value('lateexp', 2)
+
+        # Success because data is not expired
+        self.assertEqual(pd.get('lateexp', basetime), 2)
+
+        # Fail because data is expired (simulated three seconds from now)
+        with self.assertRaises(InstrumentParameterExpirationException):
+            pd.get('lateexp', futuretime)
 
 
