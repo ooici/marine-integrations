@@ -96,36 +96,23 @@ class InstrumentProtocol(object):
         log.error("base got_data.  Who called me?")
         pass
 
-    def _verify_not_readonly(self, *args, **kwargs):
+    def _verify_not_readonly(self, params_to_set, startup=False):
         """
         Verify that the parameters we are attempting to set in upstream methods
-        are not readonly.  If they are raise an exception.  However, if startup
-        is passed in and true then we ignore visibility and we can set any
-        parameter we like regardless of visibility.
-        @param args[0]: dictionary containing parameters to set
-        @param args[1]: startup flag, if set don't verify visibility
+        are not readonly.  A parameter is considered read only if it is characterized
+        as read-only or immutable.  However, if the startup flag is passed in as true
+        then immutable will be considered settable.
+        @param params_to_set: dictionary containing parameters to set
+        @param startup: startup flag, if set don't verify visibility
         @return: True if we aren't violating visibility
         @raise: InstrumentParameterException if we violate visibility
         """
-        startup = False
-        try:
-            params_to_set = args[0]
-        except IndexError:
-            raise InstrumentParameterException('requires a dict.')
-        else:
-            if not isinstance(params_to_set, dict):
-                raise InstrumentParameterException('parameters not a dict.')
-
-        try:
-            startup = args[1]
-        except IndexError:
-            pass
-
-        if startup:
-            log.debug("startup flag seen, not validating")
-            return True
+        if not isinstance(params_to_set, dict):
+            raise InstrumentParameterException('parameters not a dict.')
 
         readonly_params = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
+        if startup == False:
+            readonly_params.append(self._param_dict.get_visibility_list(ParameterDictVisibility.IMMUTABLE))
 
         not_settable = []
         for (key, val) in params_to_set.iteritems():

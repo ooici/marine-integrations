@@ -21,6 +21,7 @@ from mi.core.exceptions import InstrumentParameterExpirationException
 from mi.core.log import get_logger ; log = get_logger()
 
 class ParameterDictType(BaseEnum):
+    BOOL = "bool"
     INT = "int"
     STRING = "string"
     FLOAT = "float"
@@ -265,7 +266,7 @@ class RegexParameter(Parameter):
 
     def update(self, input):
         """
-        Attempt to udpate a parameter value. If the input string matches the
+        Attempt to update a parameter value. If the input string matches the
         value regex, extract and update the dictionary value.
         @param input A string possibly containing the parameter value.
         @retval True if an update was successful, False otherwise.
@@ -277,8 +278,6 @@ class RegexParameter(Parameter):
 
         if match:
             self.value.set_value(self.f_getval(match))
-            log.trace('Updated parameter %s=%s', self.name, self.value.get_value())
-
             return True
         else:
             return False
@@ -477,8 +476,6 @@ class ProtocolParameterDict(object):
         @raises KeyError if the name is invalid.
         """
         return self._param_dict[name].get_value(timestamp)
-
-
 
     def get_current_timestamp(self, offset=0):
         """
@@ -694,12 +691,13 @@ class ProtocolParameterDict(object):
 
     def get_config(self):
         """
-        Retrive the configuration (all key values).
+        Retrive the configuration (all settable key values).
         @retval name : value configuration dict.
         """
         config = {}
         for (key, val) in self._param_dict.iteritems():
-            config[key] = val.get_value()
+            if(self.is_settable_param(key)):
+               config[key] = val.get_value()
         return config
 
     def format(self, name, val):
@@ -742,6 +740,19 @@ class ProtocolParameterDict(object):
                 return_val.append(key)
         
         return return_val
+
+    def is_settable_param(self, name):
+        """
+        Return true if a parameter is not read only
+        @param name name of a parameter
+        @retval True if the parameter is flagged as not read only
+        @raises KeyError if parameter doesn't exist
+        @raises InstrumentParameterException if the description is missing
+        """
+        if not self._param_dict[name].description:
+            raise InstrumentParameterException("No description present!")
+
+        return not (self._param_dict[name].description.visibility == ParameterDictVisibility.READ_ONLY)
 
     def is_startup_param(self, name):
         """

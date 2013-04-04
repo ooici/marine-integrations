@@ -28,11 +28,13 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import ParameterDictType
+from mi.core.instrument.driver_dict import DriverDictKey
 
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentParameterExpirationException
 
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
@@ -1133,9 +1135,10 @@ class Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT,   self._handler_direct_access_execute_direct)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT,      self._handler_direct_access_stop_direct)
 
-        # Construct the parameter dictionary containing device parameters,
-        # current parameter values, and set formatting functions.
+        # Build dictionaries for driver schema
         self._build_param_dict()
+        self._build_command_dict()
+        self._build_driver_dict()
 
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCmds.SET,                    self._build_set_command)
@@ -1474,50 +1477,6 @@ class Protocol(SeaBirdProtocol):
         result = self._do_cmd_resp(InstrumentCmds.START_LOGGING, *args, **kwargs)
 
         return (next_state, (next_agent_state, result))
-
-    def _handler_command_get(self, *args, **kwargs):
-        """
-        Get device parameters from the parameter dict.
-        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
-        @throws InstrumentParameterException if missing or invalid parameter.
-        """
-        log.debug("%%% IN _handler_command_get")
-
-        next_state = None
-        result = None
-
-        # Retrieve the required parameter, raise if not present.
-        try:
-            params = args[0]
-
-        except IndexError:
-            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
-
-        log.debug("params = " + repr(params))
-
-        # If all params requested, retrieve config.
-        if params == DriverParameter.ALL:
-            result = self._param_dict.get_config()
-            # If all params requested, retrieve config.
-        elif params == [DriverParameter.ALL]:
-            result = self._param_dict.get_config()
-
-        # If not all params, confirm a list or tuple of params to retrieve.
-        # Raise if not a list or tuple.
-        # Retireve each key in the list, raise if any are invalid.
-        else:
-            if not isinstance(params, (list, tuple)):
-                raise InstrumentParameterException('Get argument not a list or tuple.')
-            result = {}
-            for key in params:
-                try:
-                    val = self._param_dict.get(key)
-                    result[key] = val
-
-                except KeyError:
-                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
-
-        return (next_state, result)
 
     def _handler_command_set(self, *args, **kwargs):
         """
@@ -1950,16 +1909,7 @@ class Protocol(SeaBirdProtocol):
         except IndexError:
             pass
 
-        # Only check for readonly parameters if we are not setting them from startup
-        if not startup:
-            readonly = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
-
-            log.debug("set param, but check visibility first")
-            log.debug("Read only keys: %s" % readonly)
-
-            for (key, val) in params.iteritems():
-                if key in readonly:
-                    raise InstrumentParameterException("Attempt to set read only parameter (%s)" % key)
+        self._verify_not_readonly(*args, **kwargs)
 
         for (key, val) in params.iteritems():
             log.debug("KEY = " + str(key) + " VALUE = " + str(val))
@@ -1990,6 +1940,27 @@ class Protocol(SeaBirdProtocol):
 
         return set_cmd
 
+    def _build_driver_dict(self):
+        """
+        Populate the driver dictionary with options
+        """
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
+
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
+        self._cmd_dict.add(Capability.CLOCK_SYNC, display_name="sync clock")
+        self._cmd_dict.add(Capability.GET_CONFIGURATION_DATA, display_name="get configuration data")
+        self._cmd_dict.add(Capability.GET_EVENT_COUNTER, display_name="get event counter")
+        self._cmd_dict.add(Capability.GET_HARDWARE_DATA, display_name="get hardware data")
+        self._cmd_dict.add(Capability.GET_STATUS_DATA, display_name="get status data")
+        self._cmd_dict.add(Capability.SAMPLE_REFERENCE_OSCILLATOR, display_name="sample reference oscillator")
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
+        self._cmd_dict.add(Capability.TEST_EEPROM, display_name="test eeprom")
+
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
@@ -2007,12 +1978,19 @@ class Protocol(SeaBirdProtocol):
         self._param_dict.add(Parameter.TIME,
             SBE54tpsStatusDataParticle.LINE2,
             lambda match : match.group(1),
-            str)
+            str,
+            type=ParameterDictType.STRING,
+            expiration=0,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            display_name="instrument time"
+        )
 
         self._param_dict.add(Parameter.SAMPLE_PERIOD,
                              SBE54tpsConfigurationDataParticle.LINE28,
                              lambda match : int(match.group(1)),
                              self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="sample period",
                              default_value=15,
                              startup_param=True,
                              direct_access=True)
@@ -2021,8 +1999,10 @@ class Protocol(SeaBirdProtocol):
                              SBE54tpsConfigurationDataParticle.LINE24,
                              lambda match : int(match.group(1)),
                              self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="battery type",
                              default_value=1,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True)
 
@@ -2030,8 +2010,10 @@ class Protocol(SeaBirdProtocol):
                              SBE54tpsConfigurationDataParticle.LINE26,
                              lambda match : bool(int(match.group(1))),
                              self._bool_to_int_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="enable alerts",
                              default_value=1,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True)
 

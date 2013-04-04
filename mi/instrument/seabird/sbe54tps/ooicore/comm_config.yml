@@ -3,4 +3,6 @@ comm:
   data_port: 3001
   device_addr: 10.180.80.170
   device_port: 2101
+  host: localhost
   method: ethernet
+  sniffer_port: 6003
