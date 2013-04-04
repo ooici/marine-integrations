@@ -81,6 +81,7 @@ class SeaBird54tpsMixin(DriverTestMixin):
     VALUE     = ParameterTestConfigKey.VALUE
     REQUIRED  = ParameterTestConfigKey.REQUIRED
     DEFAULT   = ParameterTestConfigKey.DEFAULT
+    STATES    = ParameterTestConfigKey.STATES
 
     ###
     #  Parameter and Type Definitions
@@ -88,9 +89,23 @@ class SeaBird54tpsMixin(DriverTestMixin):
     _driver_parameters = {
         # Parameters defined in the IOS
         Parameter.SAMPLE_PERIOD : {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 15, VALUE: 15},
-        Parameter.TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        Parameter.TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
         Parameter.BATTERY_TYPE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.ENABLE_ALERTS : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: 1},
+        }
+
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        Capability.START_AUTOSAMPLE : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.STOP_AUTOSAMPLE : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.CLOCK_SYNC : {STATES: [ProtocolState.COMMAND]},
+        Capability.ACQUIRE_STATUS : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.SAMPLE_REFERENCE_OSCILLATOR : {STATES: [ProtocolState.COMMAND]},
+        Capability.TEST_EEPROM : {STATES: [ProtocolState.COMMAND]},
+        Capability.GET_CONFIGURATION_DATA : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.GET_STATUS_DATA : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.GET_EVENT_COUNTER : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.GET_HARDWARE_DATA : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
     }
 
     _prest_real_time_parameters = {
@@ -280,6 +295,13 @@ class SeaBird54PlusUnitTest(SeaBirdUnitTest, SeaBird54tpsMixin):
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
+    def test_driver_schema(self):
+        """
+        get the driver schema and verify it is configured properly
+        """
+        driver = SBE54PlusInstrumentDriver(self._got_data_event_callback)
+        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
+
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
@@ -351,24 +373,6 @@ class SeaBird54PlusUnitTest(SeaBirdUnitTest, SeaBird54tpsMixin):
         # Verify "BOGUS_CAPABILITY was filtered out
         self.assertEquals(driver_capabilities, protocol._filter_capabilities(test_capabilities))
 
-    def test_driver_parameters(self):
-        """
-        Verify the set of parameters known by the driver
-        """
-        driver = SBE54PlusInstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
-
-        expected_parameters = sorted(self._driver_parameters.keys())
-        reported_parameters = sorted(driver.get_resource(Parameter.ALL))
-
-        log.debug("Reported Parameters: %s" % reported_parameters)
-        log.debug("Expected Parameters: %s" % expected_parameters)
-
-        self.assertEqual(reported_parameters, expected_parameters)
-
-        # Verify the parameter definitions
-        self.assert_driver_parameter_definition(driver, self._driver_parameters)
-
     def test_capabilities(self):
         """
         Verify the FSM reports capabilities as expected.  All states defined in this dict must
@@ -415,16 +419,6 @@ class SeaBird54PlusUnitTest(SeaBirdUnitTest, SeaBird54tpsMixin):
 class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
     def setUp(self):
         SeaBirdIntegrationTest.setUp(self)
-
-    def test_parameters(self):
-        """
-        Test driver parameters and verify their type.  Startup parameters also verify the parameter
-        value.  This test confirms that parameters are being read/converted properly and that
-        the startup has been applied.
-        """
-        self.assert_initialize_driver()
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_driver_parameters(reply, True)
 
     def test_set(self):
         """

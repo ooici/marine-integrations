@@ -38,9 +38,14 @@ from mi.core.unit_test import MiUnitTest
 from mi.core.port_agent_simulator import TCPSimulatorServer
 from mi.core.instrument.instrument_driver import InstrumentDriver
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import ConfigMetadataKey
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import ParameterDictKey
+from mi.core.instrument.protocol_param_dict import ParameterDictType
+from mi.core.instrument.protocol_cmd_dict import CommandDictKey
+from mi.core.instrument.driver_dict import DriverDictKey
 from ion.agents.port.port_agent_process import PortAgentProcessType
 from interface.objects import AgentCapability
 from interface.objects import CapabilityType
@@ -122,6 +127,7 @@ class ParameterTestConfigKey(BaseEnum):
     STARTUP = 'startup'
     READONLY = 'readonly'
     DEFAULT = 'default'
+    STATES = 'states'
 
 class InstrumentDriverTestConfig(Singleton):
     """
@@ -419,7 +425,9 @@ class DriverTestMixin(MiUnitTest):
                 self.assertNotIn(name, pd.get_startup_list(), msg="%s is a startup parameter" % name)
 
             if(readonly == True):
-                self.assertIn(name, pd.get_visibility_list(ParameterDictVisibility.READ_ONLY), msg="%s is not a read only parameter" % name)
+                ro_params = pd.get_visibility_list(ParameterDictVisibility.READ_ONLY) + \
+                            pd.get_visibility_list(ParameterDictVisibility.IMMUTABLE)
+                self.assertIn(name, ro_params, msg="%s is not a read only parameter" % name)
             elif(readonly == False):
                 self.assertIn(name, pd.get_visibility_list(ParameterDictVisibility.READ_WRITE), msg="%s is a read only parameter" % name)
 
@@ -622,7 +630,185 @@ class DriverTestMixin(MiUnitTest):
                 else:
                     self.assertIsInstance(param_value, param_type)
 
+    def assert_driver_schema(self, driver, parameters, capabilities, options=None):
+        """
+        Verify that our driver schema returns the correct values.  If it does not then there is a
+        mismatch in the param dict.
+        @param driver driver object
+        @param parameters dictionary containing information about driver parameters
+        @param capabilities dictionary containing information about driver capabilities
+        @param options dictionary containing information about driver options
+        """
+        # This has to come from the protocol so None is returned until we
+        # initialize
+        self.assertIsNone(driver.get_config_metadata())
+        self.assert_initialize_driver(driver)
+        config_json = driver.get_config_metadata()
+        self.assertIsNotNone(config_json)
+        config = json.loads(config_json)
 
+        log.debug("Config: %s", config)
+
+        self.assert_driver_schema_parameters(config, parameters)
+        self.assert_driver_schema_capabilities(config, capabilities)
+        self.assert_driver_schema_options(config, options)
+
+    def assert_driver_schema_parameters(self, config, parameters):
+        """
+        verify the parameters returned in the config match the expected parameters passed in.
+        @param config driver schema dictionary
+        @param parameters dictionary from test mixin describing expected parameters.
+        """
+        log.debug("Verify driver schema - parameters")
+        parameter_dict = config.get(ConfigMetadataKey.PARAMETERS)
+        self.assertIsNotNone(parameter_dict)
+        self.assertIsInstance(parameters, dict)
+
+        self.assert_driver_schema_parameters_keys(parameter_dict, parameters)
+
+        for key in parameter_dict.keys():
+            log.debug("verify driver parameter %s", key)
+
+            config_parameter = parameter_dict.get(key)
+            expected_parameter = parameters.get(key)
+            self.assertIsNotNone(config_parameter)
+            self.assertIsNotNone(expected_parameter)
+
+            self.assert_schema_parameter_type(key, config_parameter, expected_parameter)
+            self.assert_schema_parameter_read_only(key, config_parameter, expected_parameter)
+            self.assert_schema_parameter_metadata(key, config_parameter)
+            self.assert_schema_value_metadata(key, config_parameter)
+
+    def assert_driver_schema_parameters_keys(self, config, parameters):
+        """
+        verify config returned has the same keys as the expected parameters
+        @param config driver schema dictionary
+        @param parameters dictionary from test mixin describing expected parameters.
+        """
+        log.debug("Verify driver parameter sets match")
+
+        self.assertIsInstance(config, dict)
+        self.assertIsInstance(parameters, dict)
+        self.assertEqual(sorted(config.keys()), sorted(parameters.keys()))
+
+    def assert_schema_parameter_type(self, name, config_parameter, expected_parameter):
+        """
+        verify config returned describes the type properly
+        @param config_parameter parameter as returned from the schema
+        @param expected_parameters dictionary with expected parameter info
+        """
+        log.debug("Verify driver parameter type is defined correctly")
+        value_dict = config_parameter.get(ParameterDictKey.VALUE)
+        self.assertIsNotNone(value_dict)
+
+        value_type = value_dict.get(ParameterDictKey.TYPE)
+        self.assertIsNotNone(value_type, 'value type for %s not define' % name)
+
+        log.debug("parameter '%s' type: %s", name, value_type)
+        if(value_type == ParameterDictType.FLOAT):
+            param_type = float
+        elif(value_type == ParameterDictType.INT):
+            param_type = int
+        elif(value_type == ParameterDictType.LIST):
+            param_type = list
+        elif(value_type == ParameterDictType.STRING):
+            param_type = str
+        elif(value_type == ParameterDictType.BOOL):
+            param_type = bool
+        else:
+            self.fail("Unknown parameter type: %s" % type)
+
+        expected_type = expected_parameter.get(ParameterTestConfigKey.TYPE)
+        self.assertIsNotNone(expected_type)
+
+        self.assertEqual(expected_type, param_type)
+
+    def assert_schema_parameter_read_only(self, name, config_parameter, expected_parameter):
+        """
+        verify config returned describes the read only parameters properly
+        @param name parameter name
+        @param config_parameter parameter as returned from the schema
+        @param expected_parameters dictionary with expected parameter info
+        """
+        param_visibility = config_parameter.get(ParameterDictKey.VISIBILITY)
+        self.assertIsNotNone(param_visibility)
+
+        read_only = expected_parameter.get(ParameterTestConfigKey.READONLY, False)
+
+        log.debug("Key: %s, Expected Read-Only: %s, schema visibility: %s", name, read_only, param_visibility)
+        if(param_visibility == ParameterDictVisibility.READ_ONLY or
+           param_visibility == ParameterDictVisibility.IMMUTABLE):
+            self.assertTrue(read_only, "%s is NOT defined as read-only" % name)
+        else:
+            self.assertFalse(read_only, "%s is defined as read-only" % name)
+
+    def assert_schema_parameter_metadata(self, name, config_parameter):
+        """
+        verify parameter has required metadata
+        @param name parameter name
+        @param config_parameter parameter as returned from the schema
+        @param expected_parameters dictionary with expected parameter info
+        """
+        name = config_parameter.get(ParameterDictKey.DISPLAY_NAME)
+        self.assertIsNotNone(name, "%s has no name defined" % name)
+
+    def assert_schema_value_metadata(self, name, config_parameter):
+        """
+        verify value has required metadata
+        @param name parameter name
+        @param config_parameter parameter as returned from the schema
+        @param expected_parameters dictionary with expected parameter info
+        """
+        value = config_parameter.get(ParameterDictKey.VALUE)
+        self.assertIsNotNone(value, "%s has no value dict defined")
+        self.assertIsInstance(value, dict)
+
+        # nothing more to check here at the moment.  Type has already been verified
+
+    def assert_driver_schema_capabilities(self, config, capabilities):
+        """
+        verify the parameters returned in the config match the expected capabilities passed in.
+        @param config driver schema dictionary
+        @param capabilities dictionary from test mixin describing expected capabilities.
+        """
+        log.debug("Verify driver schema - capabilites")
+        capability_dict = config.get(ConfigMetadataKey.COMMANDS)
+        self.assertIsNotNone(capability_dict)
+
+        self.assertEqual(sorted(capability_dict.keys()), sorted(capabilities.keys()))
+
+        for key in capability_dict.keys():
+            log.debug("verify driver capability %s", key)
+            capability = capability_dict.get(key)
+            self.assertIsInstance(capability, dict)
+            self.assert_driver_schema_capability_metadata(key, capability)
+
+    def assert_driver_schema_capability_metadata(self, name, capability):
+        """
+        verify required values exist in the schema
+        @param name capability name we are checking
+        @param capability schema record
+        """
+        log.debug("Verify capability metadata - %s", name)
+        display_name = capability.get(CommandDictKey.DISPLAY_NAME)
+        self.assertIsNotNone(display_name, "%s display name not defined in the command dict" % name)
+
+        timeout = capability.get(CommandDictKey.TIMEOUT)
+        self.assertIsNotNone(timeout)
+        self.assertIsInstance(timeout, int)
+
+    def assert_driver_schema_options(self, config, options):
+        """
+        verify the parameters returned in the config match the expected options passed in.
+        @param config driver schema dictionary
+        @param options dictionary from test mixin describing expected options
+        """
+        log.debug("Verify driver schema - options")
+        option_dict = config.get(ConfigMetadataKey.DRIVER)
+        self.assertIsNotNone(option_dict)
+
+        vendor_da_support = option_dict.get(DriverDictKey.VENDOR_SW_COMPATIBLE)
+        self.assertIsNotNone(vendor_da_support, "%s not defined in driver options" % DriverDictKey.VENDOR_SW_COMPATIBLE)
 
 class InstrumentDriverTestCase(MiIntTestCase):
     """
@@ -2740,6 +2926,23 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertTrue(num_actual == num_expected)
 
         pass
+
+    def test_agent_save_and_restore(self):
+        """
+        Test to emulate the IMS save and restore instrument configuration.  basic
+        pattern is get all parameters, then use that result to initialize the
+        driver.
+        We aren't verifying that apply_statup_params actually stores the values,
+        but just ensuring it doesn't blow up.  The apply_start_params is actually
+        tested in more detail in another driver specific test.
+        """
+        self.assert_enter_command_mode()
+        config = self.instrument_agent_client.get_resource([DriverParameter.ALL],
+                                                           timeout=GET_TIMEOUT)
+        self.assert_reset()
+
+        self.driver_client.cmd_dvr('set_init_params', config)
+
 
     @unittest.skip("Driver.get_device_signature not yet implemented")
     def test_get_device_signature(self):
