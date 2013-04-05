@@ -342,19 +342,16 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
 
         return result
 
-    def _sync_clock(self, date_time_param, prompts, timeout=TIMEOUT, delay=1, time_format="%d %b %Y %H:%M:%S"):
+    def _sync_clock(self, command, date_time_param, timeout=TIMEOUT, delay=1, time_format="%d %b %Y %H:%M:%S"):
         """
         Send the command to the instrument to syncronize the clock
+        @param command: command to set6 date time
         @param date_time_param: date time parameter that we want to set
-        @param prompts: expected prompt
         @param timeout: command timeout
         @param delay: wakeup delay
         @param time_format: time format string for set command
-        @return: true if the command is successful
         @raise: InstrumentProtocolException if command fails
         """
-        prompt = self._wakeup(timeout=timeout, delay=delay)
-
         # lets clear out any past data so it doesnt confuse the command
         self._linebuf = ''
         self._promptbuf = ''
@@ -362,9 +359,7 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
         log.debug("Set time format(%s) '%s''", time_format, date_time_param)
         str_val = get_timestamp_delayed(time_format)
         log.debug("Set time value == '%s'", str_val)
-        self._set_params({date_time_param: str_val}, True)
-
-        return True
+        self._do_cmd_resp(command, date_time_param, str_val)
 
     ########################################################################
     # Startup parameter handlers

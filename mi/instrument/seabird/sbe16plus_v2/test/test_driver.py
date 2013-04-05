@@ -896,7 +896,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         """
         Verify the device status command can be triggered and run in command
         """
-        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status, delay=100)
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status, delay=120)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_device_status_autosample(self):
@@ -912,7 +912,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        timeout = 85
+        timeout = 120
         self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=timeout)
         self.assert_current_state(ProtocolState.COMMAND)
 
@@ -957,8 +957,6 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         self.assert_initialize_driver()
         self.assert_cycle()
         self.assert_cycle()
-
-
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

@@ -450,10 +450,10 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         ####
         # First test in command mode
         ####
+        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'StatusData DeviceType')
-        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
         self.assert_driver_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
         self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION_DATA, regex=r'ConfigurationData DeviceType')
         self.assert_driver_command(ProtocolEvent.GET_HARDWARE_DATA, regex=r'HardwareData DeviceType')
@@ -535,39 +535,32 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND)
         self.assert_get(Parameter.SAMPLE_PERIOD, 15)
 
-    def test_startup_params_first_pass(self):
+    def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
-        happens in the driver discovery method.  We have two identical versions
-        of this test so it is run twice.  First time to check and CHANGE, then
-        the second time to check again.
-
-        since nose orders the tests by ascii value this should run first.
+        happens in the driver discovery method.
         """
+
+        # Explicitly verify these values after discover.  They should match
+        # what the startup values should be
+        get_values = {
+            Parameter.SAMPLE_PERIOD: 15,
+        }
+
+        # Change the values of these parameters to something before the
+        # driver is reinitalized.  They should be blown away on reinit.
+        new_values = {
+            Parameter.SAMPLE_PERIOD: 5,
+        }
+
         self.assert_initialize_driver()
+        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
-        self.assert_get(Parameter.SAMPLE_PERIOD, 15)
-
-        # Now change them so they are caught and see if they are caught
-        # on the second pass.
-        self.assert_set(Parameter.SAMPLE_PERIOD, 5)
-
-    def test_startup_params_second_pass(self):
-        """
-        Verify that startup parameters are applied correctly. Generally this
-        happens in the driver discovery method.  We have two identical versions
-        of this test so it is run twice.  First time to check and CHANGE, then
-        the second time to check again.
-
-        since nose orders the tests by ascii value this should run second.
-        """
-        self.assert_initialize_driver()
-
-        self.assert_get(Parameter.SAMPLE_PERIOD, 15)
-
-        # Now change them so they are caught and see if they are caught
-        # on the second pass.
-        self.assert_set(Parameter.SAMPLE_PERIOD, 5)
+        # Start autosample and try again
+        self.assert_set_bulk(new_values)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_startup_parameters(self.assert_driver_parameters)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
     def test_autosample_recovery(self):
         """
@@ -601,13 +594,13 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         Verify a calibration particle was generated
         """
         self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.PREST_CONFIGURATION_DATA, self.assert_particle_configuration_data, timeout=30)
+        self.assert_async_particle_generation(DataParticleType.PREST_CONFIGURATION_DATA, self.assert_particle_configuration_data, timeout=90)
 
     def test_scheduled_device_configuration_command(self):
         """
         Verify the device configuration command can be triggered and run in command
         """
-        self.assert_scheduled_event(ScheduledJob.CONFIGURATION_DATA, self.assert_configuration_data, delay=25)
+        self.assert_scheduled_event(ScheduledJob.CONFIGURATION_DATA, self.assert_configuration_data, delay=90)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_device_configuration_autosample(self):
@@ -615,7 +608,7 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         Verify the device configuration command can be triggered and run in autosample
         """
         self.assert_scheduled_event(ScheduledJob.CONFIGURATION_DATA, self.assert_configuration_data,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=30)
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=90)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
@@ -625,13 +618,13 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         Verify a hardware particle was generated
         """
         self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.PREST_HARDWARE_DATA, self.assert_particle_hardware_data, timeout=30)
+        self.assert_async_particle_generation(DataParticleType.PREST_HARDWARE_DATA, self.assert_particle_hardware_data, timeout=90)
 
     def test_scheduled_device_hardware_command(self):
         """
         Verify the device hardware command can be triggered and run in command
         """
-        self.assert_scheduled_event(ScheduledJob.HARDWARE_DATA, self.assert_hardware_data, delay=25)
+        self.assert_scheduled_event(ScheduledJob.HARDWARE_DATA, self.assert_hardware_data, delay=90)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_device_configuration_autosample(self):
@@ -639,7 +632,7 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         Verify the device configuration command can be triggered and run in autosample
         """
         self.assert_scheduled_event(ScheduledJob.HARDWARE_DATA, self.assert_hardware_data,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=30)
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=90)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
@@ -649,13 +642,13 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         Verify a event counter particle was generated
         """
         self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.PREST_EVENT_COUNTER, self.assert_particle_event_counter, timeout=30)
+        self.assert_async_particle_generation(DataParticleType.PREST_EVENT_COUNTER, self.assert_particle_event_counter, timeout=90)
 
     def test_scheduled_device_event_counter_command(self):
         """
         Verify the device event_counter command can be triggered and run in command
         """
-        self.assert_scheduled_event(ScheduledJob.EVENT_COUNTER_DATA, self.assert_event_counter_data, delay=25)
+        self.assert_scheduled_event(ScheduledJob.EVENT_COUNTER_DATA, self.assert_event_counter_data, delay=90)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_device_event_counter_autosample(self):
@@ -663,7 +656,7 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         Verify the device event_counter command can be triggered and run in autosample
         """
         self.assert_scheduled_event(ScheduledJob.EVENT_COUNTER_DATA, self.assert_event_counter_data,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=30)
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=90)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
@@ -673,13 +666,13 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         Verify a device status particle was generated
         """
         self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.PREST_DEVICE_STATUS, self.assert_particle_device_status, timeout=30)
+        self.assert_async_particle_generation(DataParticleType.PREST_DEVICE_STATUS, self.assert_particle_device_status, timeout=90)
 
     def test_scheduled_device_device_status_command(self):
         """
         Verify the device device status command can be triggered and run in command
         """
-        self.assert_scheduled_event(ScheduledJob.STATUS_DATA, self.assert_device_status_data, delay=25)
+        self.assert_scheduled_event(ScheduledJob.STATUS_DATA, self.assert_device_status_data, delay=90)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_device_event_counter_autosample(self):
@@ -687,7 +680,7 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         Verify the device event_counter command can be triggered and run in autosample
         """
         self.assert_scheduled_event(ScheduledJob.STATUS_DATA, self.assert_device_status_data,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=30)
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=90)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
@@ -696,7 +689,7 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         Verify a status particle was generated
         """
         self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.PREST_DEVICE_STATUS, self.assert_particle_device_status, timeout=30)
+        self.assert_async_particle_generation(DataParticleType.PREST_DEVICE_STATUS, self.assert_particle_device_status, timeout=120)
         self.assert_async_particle_generation(DataParticleType.PREST_CONFIGURATION_DATA, self.assert_particle_configuration_data, timeout=3)
         self.assert_async_particle_generation(DataParticleType.PREST_EVENT_COUNTER, self.assert_particle_event_counter, timeout=3)
         self.assert_async_particle_generation(DataParticleType.PREST_HARDWARE_DATA, self.assert_particle_hardware_data, timeout=3)
@@ -705,7 +698,7 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         """
         Verify the device status command can be triggered and run in command
         """
-        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status, delay=25)
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status, delay=120)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_device_status_autosample(self):
@@ -713,7 +706,7 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         Verify the device status command can be triggered and run in autosample
         """
         self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=30)
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=120)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
@@ -730,7 +723,7 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=45)
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=90)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_clock_sync_autosample(self):
@@ -738,10 +731,32 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         Verify the scheduled clock sync is triggered and functions as expected
         """
         self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=45)
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=90)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
+    def assert_cycle(self):
+        self.assert_current_state(ProtocolState.COMMAND)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+
+        self.assert_async_particle_generation(DataParticleType.PREST_REAL_TIME, self.assert_particle_real_time, timeout=120)
+
+        self.assert_particle_generation(ProtocolEvent.GET_CONFIGURATION_DATA, DataParticleType.PREST_CONFIGURATION_DATA, self.assert_particle_configuration_data)
+        self.assert_particle_generation(ProtocolEvent.GET_STATUS_DATA, DataParticleType.PREST_DEVICE_STATUS, self.assert_particle_device_status)
+        self.assert_particle_generation(ProtocolEvent.GET_EVENT_COUNTER, DataParticleType.PREST_EVENT_COUNTER, self.assert_particle_event_counter)
+        self.assert_particle_generation(ProtocolEvent.GET_HARDWARE_DATA, DataParticleType.PREST_HARDWARE_DATA, self.assert_particle_hardware_data)
+
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+        self.assert_current_state(ProtocolState.COMMAND)
+
+    def test_discover(self):
+        """
+        Verify we can discover from both command and auto sample modes
+        """
+        self.assert_initialize_driver()
+        self.assert_cycle()
+        self.assert_cycle()
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

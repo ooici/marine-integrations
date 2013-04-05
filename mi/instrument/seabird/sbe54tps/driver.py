@@ -1142,6 +1142,7 @@ class Protocol(SeaBirdProtocol):
 
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCmds.SET,                    self._build_set_command)
+        self._add_build_handler(InstrumentCmds.SET_TIME,               self._build_set_command)
         self._add_build_handler(InstrumentCmds.GET_CONFIGURATION_DATA, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.GET_STATUS_DATA,        self._build_simple_command)
         self._add_build_handler(InstrumentCmds.GET_EVENT_COUNTER_DATA, self._build_simple_command)
@@ -1155,6 +1156,7 @@ class Protocol(SeaBirdProtocol):
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.SET,                    self._parse_set_response)
+        self._add_response_handler(InstrumentCmds.SET_TIME,               self._parse_set_response)
         self._add_response_handler(InstrumentCmds.GET_CONFIGURATION_DATA, self._parse_gc_response)
         self._add_response_handler(InstrumentCmds.GET_STATUS_DATA,        self._parse_gs_response)
         self._add_response_handler(InstrumentCmds.GET_EVENT_COUNTER_DATA, self._parse_ec_response)
@@ -1658,7 +1660,7 @@ class Protocol(SeaBirdProtocol):
         result = None
 
         timeout = kwargs.get('timeout', TIMEOUT)
-        self._sync_clock(Parameter.TIME, Prompt.COMMAND, timeout, time_format="%Y-%m-%dT%H:%M:%S")
+        self._sync_clock(InstrumentCmds.SET_TIME, Parameter.TIME, timeout, time_format="%Y-%m-%dT%H:%M:%S")
 
         return (next_state, (next_agent_state, result))
 
@@ -1689,7 +1691,7 @@ class Protocol(SeaBirdProtocol):
 
             # Sync the clock
             timeout = kwargs.get('timeout', TIMEOUT)
-            self._sync_clock(Parameter.TIME, Prompt.COMMAND, timeout, time_format="%Y-%m-%dT%H:%M:%S")
+            self._sync_clock(InstrumentCmds.SET_TIME, Parameter.TIME, timeout, time_format="%Y-%m-%dT%H:%M:%S")
 
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
@@ -2038,7 +2040,6 @@ class Protocol(SeaBirdProtocol):
         if(self._extract_sample(SBE54tpsHardwareDataParticle, HARDWARE_DATA_REGEX_MATCHER, chunk, timestamp)) : return
         if(self._extract_sample(SBE54tpsSampleRefOscDataParticle, SAMPLE_REF_OSC_MATCHER, chunk, timestamp)) : return
 
-
     def _send_wakeup(self):
         """
         Send a newline to attempt to wake the sbe26plus device.
@@ -2135,3 +2136,4 @@ class Protocol(SeaBirdProtocol):
             return "0"
         else:
             return None
+
