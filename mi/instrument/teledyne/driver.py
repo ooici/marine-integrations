@@ -72,7 +72,6 @@ class ADCPProtocol(CommandResponseInstrumentProtocol):
 
         return True
 
-
     def _apply_params(self):
         """
         apply startup parameters to the instrument.
@@ -81,6 +80,22 @@ class ADCPProtocol(CommandResponseInstrumentProtocol):
         config = self.get_startup_config()
         # Pass true to _set_params so we know these are startup values
         self._set_params(config, True)
+
+    def _get_param_result(self, param_list, expire_time):
+        """
+        return a dictionary of the parameters and values
+        @param expire_time: baseline time for expiration calculation
+        @return: dictionary of values
+        @raise InstrumentParameterException if missing or invalid parameter
+        @raise InstrumentParameterExpirationException if value is expired.
+        """
+        result = {}
+
+        for param in param_list:
+            val = self._param_dict.get(param, expire_time)
+            result[param] = val
+
+        return result
 
     ########################################################################
     # Static helpers to format set commands.

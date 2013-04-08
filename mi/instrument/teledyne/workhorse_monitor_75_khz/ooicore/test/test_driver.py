@@ -192,10 +192,14 @@ class ADCPTMixin(DriverTestMixin):
     _driver_parameters = {
         Parameter.SERIAL_DATA_OUT: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
         Parameter.SERIAL_FLOW_CONTROL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '11110'},
+        Parameter.SAVE_NVRAM_TO_RECORDER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True, VALUE: True},
+        Parameter.TIME: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
+        Parameter.SERIAL_OUT_FW_SWITCHES: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '111100000'},
+        Parameter.WATER_PROFILING_MODE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
+
         Parameter.BANNER: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.INSTRUMENT_ID: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.SLEEP_ENABLE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.SAVE_NVRAM_TO_RECORDER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.POLLED_MODE: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.XMIT_POWER: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 255, VALUE: 255},
         Parameter.SPEED_OF_SOUND: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1485, VALUE: 1485},
@@ -207,17 +211,14 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
         Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
         Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:01.00'},
-        Parameter.TIME: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False},
         Parameter.FALSE_TARGET_THRESHOLD: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '050,001'},
         Parameter.BANDWIDTH_CONTROL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.CORRELATION_THRESHOLD: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 64},
-        Parameter.SERIAL_OUT_FW_SWITCHES: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '111100000'},
         Parameter.ERROR_VELOCITY_THRESHOLD: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 2000},
         Parameter.BLANK_AFTER_TRANSMIT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 704},
         Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
         Parameter.WATER_REFERENCE_LAYER: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '001,005'},
-        Parameter.WATER_PROFILING_MODE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
         Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 100},
         Parameter.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
         Parameter.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 800},
@@ -454,6 +455,7 @@ class ADCPTMixin(DriverTestMixin):
         @param current_parameters: driver parameters read from the driver instance
         @param verify_values: should we verify values against definition?
         """
+        log.debug("assert_driver_parameters current_parameters = " + str(current_parameters))
         self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
 
     ###
@@ -592,8 +594,8 @@ class DriverUnitTest(TeledyneUnitTest, ADCPTMixin):
         expected_parameters = sorted(self._driver_parameters.keys())
         reported_parameters = sorted(driver.get_resource(Parameter.ALL))
 
-        log.debug("Reported Parameters: %s" % reported_parameters)
-        log.debug("Expected Parameters: %s" % expected_parameters)
+        log.debug("*** Expected Parameters: %s" % expected_parameters)
+        log.debug("*** Reported Parameters: %s" % reported_parameters)
 
         self.assertEqual(reported_parameters, expected_parameters)
 
@@ -665,9 +667,12 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('discover_state')
+        
+        log.error("SHOULD FAIL HERE...")
 
         # If we are in streaming mode then stop streaming
         state = self.driver_client.cmd_dvr('get_resource_state')
+        log.error("BEFORE HERE...")
 
         reply = self.driver_client.cmd_dvr('disconnect')
         self.assertEqual(reply, None)
@@ -721,7 +726,7 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         ###
         #   Instrument Parameteres
         ###
-
+        
         self.assert_set_readonly(Parameter.SERIAL_DATA_OUT)
         self.assert_set_readonly(Parameter.SERIAL_FLOW_CONTROL)
         self.assert_set_readonly(Parameter.SAVE_NVRAM_TO_RECORDER)
@@ -738,15 +743,16 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_set(Parameter.XMIT_POWER, 255)
         self.assert_set(Parameter.SPEED_OF_SOUND, 1485)
         self.assert_set(Parameter.PITCH, 0)
-        self.assert_set(Parameter.ROLL, 0)
+        
+        self.assert_set(Parameter.ROLL, 0) 
         self.assert_set(Parameter.SALINITY, 35)
-        self.assert_set(Parameter.SENSOR_SOURCE, 1111101)
-        self.assert_set(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
+        self.assert_set(Parameter.SENSOR_SOURCE, "1111101")
+        #self.assert_set(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
         self.assert_set(Parameter.TIME_PER_PING, '00:01.00')
         self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, '050,001')
         self.assert_set(Parameter.BANDWIDTH_CONTROL, 0)
-        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 2000)
-        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 704)
+        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 2000) 
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 704) 
         self.assert_set(Parameter.CLIP_DATA_PAST_BOTTOM, False)
         self.assert_set(Parameter.RECEIVER_GAIN_SELECT, 1)
         self.assert_set(Parameter.WATER_REFERENCE_LAYER, '001,005')

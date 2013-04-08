@@ -304,7 +304,7 @@ class TeledyneProtocol(ADCPProtocol):
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
@@ -720,7 +720,7 @@ class TeledyneProtocol(ADCPProtocol):
             self.get_current_state() != ProtocolState.AUTOSAMPLE):
             raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
 
-        #logging = self._is_logging()
+        logging = self._is_logging()
 
         # If we are in streaming mode and our configuration on the
         # instrument matches what we think it should be then we
@@ -731,11 +731,10 @@ class TeledyneProtocol(ADCPProtocol):
         error = None
 
         try:
-            """
-            if(logging):
+            if logging:
                 # Switch to command mode,
                 self._stop_logging()
-            """
+
             self._apply_params()
 
         # Catch all error so we can put ourself back into
@@ -745,10 +744,9 @@ class TeledyneProtocol(ADCPProtocol):
 
         finally:
             # Switch back to streaming
-            """
-            if(logging):
+            if logging:
                 self._start_logging()
-            """
+
         if(error):
             raise error
 
@@ -805,9 +803,9 @@ class TeledyneProtocol(ADCPProtocol):
         """
         Send a newline to attempt to wake the device.
         """
-        log.debug("IN _send_wakeup DISABLED. is it really needed?")
+        log.debug("IN _send_wakeup")
 
-        #self._connection.send(NEWLINE)
+        self._connection.send(NEWLINE)
 
     def _update_params(self, *args, **kwargs):
         """
@@ -823,19 +821,21 @@ class TeledyneProtocol(ADCPProtocol):
         # tell driver superclass to publish a config change event.
 
         kwargs['expected_prompt'] = Prompt.COMMAND + NEWLINE + Prompt.COMMAND
-        kwargs['timeout'] = 0  # TODO: may want to remove this...
+
         cmds = dir(Parameter)
         results = ""
-        log.debug("CMDS = %s", str(cmds))
         for attr in sorted(cmds):
-            log.debug("attr = %s",str(attr))
             if attr not in ['dict', 'has', 'list', 'ALL']:
                 if not attr.startswith("_"):
+                    # clean out prior info so it does not trigger
+                    # a premature return.
+                    self._linebuf = ""
+                    self._promptbuf = ""
                     key = getattr(Parameter, attr)
-                    #kwargs['expected_prompt'] = "[" + NEWLINE + Prompt.COMMAND + "]+"
                     result = self._do_cmd_resp(InstrumentCmds.GET, key, **kwargs)
                     results += result + NEWLINE
 
+        result = self._do_cmd_resp(InstrumentCmds.GET, key, **kwargs)
         new_config = self._param_dict.get_config()
         # Issue display commands and parse results.
 
@@ -844,10 +844,7 @@ class TeledyneProtocol(ADCPProtocol):
         log.debug("NEW_CONFIG = " + repr(new_config))
         log.debug("**********************************")
 
-        # We ignore the data time parameter diffs [taken from sbe16plus_v2 driver]
-        #new_config[Parameter.TIME] = old_config.get(Parameter.TIME)
-
-        if new_config != old_config:
+        if repr(new_config) != repr(old_config):
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
         return results
@@ -1107,6 +1104,12 @@ class TeledyneProtocol(ADCPProtocol):
         """
         """
 
+    ######################################################
+    #                                                    #
+    ######################################################
+
+
+
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state; can be COMMAND or AUTOSAMPLE.
@@ -1116,15 +1119,23 @@ class TeledyneProtocol(ADCPProtocol):
         @throws InstrumentStateException if the device response does not correspond to
         an expected state.
         """
-        timeout = kwargs.get('timeout', TIMEOUT)
 
-        log.debug("_handler_unknown_discover");
+        # do i want to clear out prior io?
+        #self._linebuf = ""
+        #self._promptbuf = ""
+
+        #timeout = kwargs.get('timeout', TIMEOUT)
+        #kwargs['expected_prompt'] = Prompt.COMMAND
+
         next_state = None
         next_agent_state = None
 
-        logging = False  # TODO: implement an actual test.
-        log.debug("RIGGING discover to go to COMMAND STATE.")
-        prompt = self._send_break()
+        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
+        if '>' == prompt:
+            logging = False
+        else:
+            logging = True
+
         if(logging == None):
             raise InstrumentProtocolException('_handler_unknown_discover - unable to to determine state')
 
@@ -1135,8 +1146,12 @@ class TeledyneProtocol(ADCPProtocol):
         else:
             next_state = ProtocolState.COMMAND
             next_agent_state = ResourceAgentState.IDLE
-
         return (next_state, next_agent_state)
+
+    ######################################################
+    #                                                    #
+    ######################################################
+
 
     def _handler_autosample_enter(self, *args, **kwargs):
         """
@@ -1203,13 +1218,13 @@ class TeledyneProtocol(ADCPProtocol):
 
         return (next_state, (next_agent_state, result))
 
-    def _handler_command_autosample_test_get(self, *args, **kwargs):
+    def _handler_command_get(self, *args, **kwargs):
         """
         Get device parameters from the parameter dict.
         @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
         @throws InstrumentParameterException if missing or invalid parameter.
         """
-        log.debug("IN _handler_command_autosample_test_get " + str(args) + " <>" + str(kwargs))
+        log.debug("_handler_command_get args = " + repr(args) + "KWARGS = " + repr(kwargs))
         next_state = None
         result = None
 
@@ -1222,19 +1237,19 @@ class TeledyneProtocol(ADCPProtocol):
 
         # If all params requested, retrieve config.
         if params == DriverParameter.ALL or DriverParameter.ALL in params:
-            result = self._param_dict.get_config()
+            params = self._get_param_list(params, **kwargs)
 
         # If not all params, confirm a list or tuple of params to retrieve.
         # Raise if not a list or tuple.
         # Retireve each key in the list, raise if any are invalid.
 
-        else:
-            if not isinstance(params, (list, tuple)):
-                raise InstrumentParameterException('Get argument not a list or tuple.')
-            result = {}
-            for key in params:
-                val = self._param_dict.get(key)
-                result[key] = val
+        #else:
+        if not isinstance(params, (list, tuple)):
+            raise InstrumentParameterException('Get argument not a list or tuple.')
+        result = {}
+        for key in params:
+            val = self._param_dict.get(key)
+            result[key] = val
 
         return (next_state, result)
 
@@ -1505,9 +1520,6 @@ class TeledyneProtocol(ADCPProtocol):
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if set command misunderstood.
         """
-        log.debug("in _parse_set_response")
-        my_state = self._protocol_fsm.get_current_state()
-        log.debug("current_state = %s", my_state)
 
         if prompt == Prompt.ERR:
             raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
@@ -1527,15 +1539,12 @@ class TeledyneProtocol(ADCPProtocol):
         if the formatting function could not accept the value passed.
         """
 
-        log.debug("in _build_get_command")
-        my_state = self._protocol_fsm.get_current_state()
-        log.debug("current_state = %s", my_state)
-
+        #time.sleep(0.1)
         self._promptbuf = ""
         self._linebuf = ""
-        time.sleep(0.1)
+        #time.sleep(0.1)
 
-        kwargs['expected_prompt'] = Prompt.COMMAND
+        kwargs['expected_prompt'] = Prompt.COMMAND + NEWLINE + Prompt.COMMAND + "HOUSE"
         try:
             self.get_param = param
             get_cmd = param + '?' + NEWLINE
@@ -1546,29 +1555,83 @@ class TeledyneProtocol(ADCPProtocol):
         return get_cmd
 
     def _parse_get_response(self, response, prompt):
-        log.debug("in _parse_get_response RESPONSE+prompt = %s", str(response) + str(prompt) )
-        my_state = self._protocol_fsm.get_current_state()
-        log.debug("current_state = %s", my_state)
+        #log.debug("in _parse_get_response RESPONSE+prompt = %s", str(response) + str(prompt) )
+        #my_state = self._protocol_fsm.get_current_state()
+        #log.debug("current_state = %s", my_state)
         if prompt == Prompt.ERR:
             raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
 
+        while (not response.endswith('\r\n>\r\n>')) or ('?' not in response):
+            (prompt, response) = self._get_raw_response(30, Prompt.COMMAND)
+            time.sleep(1)
+
         self._param_dict.update(response)
+
         for line in response.split(NEWLINE):
-            log.debug("Scanning line through param_dict -> %s", line)
             self._param_dict.update(line)
             if not "?" in line and ">" != line:
                 response2 = line
 
         if self.get_param not in response:
-            self._promptbuf = ""
-            self._linebuf = ""
-            foo = self._get_raw_response(30, Prompt.COMMAND)
-            log.debug("FOO = " + str(foo))
-            foo = self._get_raw_response(30, Prompt.COMMAND)
-            log.debug("FOO = " + str(foo))
             raise InstrumentParameterException('Failed to get a response for lookup of ' + self.get_param)
 
         self.get_count = 0
         return response2
 
+    def _is_logging(self, timeout=TIMEOUT):
+        """
+        Poll the instrument to see if we are in logging mode.  Return True
+        if we are, False if not.
+        @param: timeout - Command timeout
+        @return: True - instrument logging, False - not logging
+        """
+
+        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
+        if '>' == prompt:
+            logging = False
+            log.debug("COMMAND MODE!")
+        else:
+            logging = True
+            log.debug("AUTOSAMPLE MODE!")
+
+        return logging
+
+    def _start_logging(self, timeout=TIMEOUT):
+        """
+        Command the instrument to start logging
+        @param timeout: how long to wait for a prompt
+        @return: True if successful
+        @raise: InstrumentProtocolException if failed to start logging
+        """
+        log.debug("Start Logging!")
+        if(self._is_logging()):
+            return True
+
+        self._do_cmd_no_resp(InstrumentCmds.START_DEPLOYMENT, timeout=timeout)
+        time.sleep(1)
+
+        return True
+
+    def _stop_logging(self, timeout=TIMEOUT):
+        """
+        Command the instrument to stop logging
+        @param timeout: how long to wait for a prompt
+        @return: True if successful
+        @raise: InstrumentTimeoutException if prompt isn't seen
+        @raise: InstrumentProtocolException failed to stop logging
+        """
+        log.debug("Stop Logging!")
+        # Issue the stop command.
+
+        #prompt = self._send_break()
+        self._do_cmd_resp(InstrumentCmds.STOP_LOGGING)
+        time.sleep(1)
+
+        # Prompt device until command prompt is seen.
+        self._wakeup_until(timeout, Prompt.COMMAND)
+
+        if self._is_logging(timeout):
+            raise InstrumentProtocolException("failed to stop logging")
+
+        return True
 
