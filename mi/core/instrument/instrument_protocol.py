@@ -107,12 +107,15 @@ class InstrumentProtocol(object):
         @return: True if we aren't violating visibility
         @raise: InstrumentParameterException if we violate visibility
         """
+        log.debug("Verify parameters are not read only, startup: %s", startup)
         if not isinstance(params_to_set, dict):
             raise InstrumentParameterException('parameters not a dict.')
 
         readonly_params = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
-        if startup == False:
-            readonly_params.append(self._param_dict.get_visibility_list(ParameterDictVisibility.IMMUTABLE))
+        if not startup:
+            readonly_params += self._param_dict.get_visibility_list(ParameterDictVisibility.IMMUTABLE)
+
+        log.debug("Read only params: %s", readonly_params)
 
         not_settable = []
         for (key, val) in params_to_set.iteritems():

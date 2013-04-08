@@ -21,6 +21,7 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.instrument_driver import ConfigMetadataKey
 from mi.instrument.satlantic.par_ser_600m.driver import SAMPLE_REGEX
 from mi.instrument.satlantic.par_ser_600m.driver import SatlanticPARDataParticle
@@ -428,7 +429,28 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         # Check a few in the param list...the leaves in the structure are
         # tested in the param dict test cases
         self.assert_("foo" in result[ConfigMetadataKey.PARAMETERS].keys())
-        self.assert_("bar" in result[ConfigMetadataKey.PARAMETERS].keys())        
+        self.assert_("bar" in result[ConfigMetadataKey.PARAMETERS].keys())
+
+    def test_verify_muttable(self):
+        """
+        Verify the verify_not_read_only works as expected.
+        """
+        self.protocol._param_dict.add('ro', r'', None, None, visibility=ParameterDictVisibility.READ_ONLY)
+        self.protocol._param_dict.add('immutable', r'', None, None, visibility=ParameterDictVisibility.IMMUTABLE)
+        self.protocol._param_dict.add('rw', r'', None, None, visibility=ParameterDictVisibility.READ_WRITE)
+
+        # Happy Path
+        self.protocol._verify_not_readonly({'rw': 1})
+        self.protocol._verify_not_readonly({'rw': 1, 'immutable': 2}, startup=True)
+
+        with self.assertRaises(InstrumentParameterException):
+            self.protocol._verify_not_readonly({'rw': 1, 'immutable': 2})
+
+        with self.assertRaises(InstrumentParameterException):
+            self.protocol._verify_not_readonly({'rw': 1, 'ro': 2})
+
+        with self.assertRaises(InstrumentParameterException):
+            self.protocol._verify_not_readonly({'rw': 1, 'ro': 2}, startup=True)
 
 @attr('UNIT', group='mi')
 class TestUnitMenuInstrumentProtocol(MiUnitTestCase):
