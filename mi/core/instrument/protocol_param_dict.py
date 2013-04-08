@@ -26,6 +26,8 @@ class ParameterDictType(BaseEnum):
     STRING = "string"
     FLOAT = "float"
     LIST = "list"
+    BOOL = "bool"
+    ENUM = "enum"
 
 class ParameterDictVisibility(BaseEnum):
     READ_ONLY = "READ_ONLY"  # Can not be set by the driver at any time
@@ -747,8 +749,9 @@ class ProtocolParameterDict(object):
         or value object is missing.
         @raises KeyError if the parameter name is invalid.
         """
+        log.debug("*** format name: %s, self._param_dict[name]: %s", name, self._param_dict[name])
         if not self._param_dict[name].value:
-            raise InstrumentParameterException("No value present!")
+            raise InstrumentParameterException("No value present for %s!" % name)
 
         if val == None:
             current_value = self._param_dict[name].value.get_value()

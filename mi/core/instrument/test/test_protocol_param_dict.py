@@ -566,13 +566,27 @@ bar=200, baz=300
     
     def test_regex_flags(self):
         pdv = RegexParameter("foo",
-                             r'.*foo=(\d+).*',
+                             r'.+foo=(\d+).+',
                              lambda match : int(match.group(1)),
                              lambda x : str(x),
                              regex_flags=re.DOTALL,
                              value=12)
         # Assert something good with dotall update()
         self.assertTrue(pdv)
+        pdv.update("\n\nfoo=1212\n\n")
+        self.assertEqual(pdv.get_value(), 1212)
+        
+        # negative test with no regex_flags
+        pdv = RegexParameter("foo",
+                             r'.+foo=(\d+).+',
+                             lambda match : int(match.group(1)),
+                             lambda x : str(x),
+                             value=12)
+        # Assert something good with dotall update()
+        self.assertTrue(pdv)
+        pdv.update("\n\nfoo=1212\n\n")
+        self.assertEqual(pdv.get_value(), 12)
+        
         self.assertRaises(TypeError,
                           RegexParameter,
                           "foo",
@@ -581,7 +595,7 @@ bar=200, baz=300
                           lambda x : str(x),
                           regex_flags="bad flag",
                           value=12)
-    
+            
     def test_format_current(self):
         self.param_dict.add("test_format", r'.*foo=(\d+).*',
                              lambda match : int(match.group(1)),
@@ -589,5 +603,5 @@ bar=200, baz=300
                              value=10)
         self.assertEqual(self.param_dict.format("test_format", 20), 25)
         self.assertEqual(self.param_dict.format("test_format"), 15)
-        
-
+        self.assertRaises(InstrumentParameterException,
+                          self.param_dict.format, "bad_name")

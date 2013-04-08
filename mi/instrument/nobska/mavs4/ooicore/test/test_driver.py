@@ -48,6 +48,8 @@ from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.instrument.instrument_driver import ConfigMetadataKey
+from mi.core.instrument.driver_dict import DriverDictKey
 
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
@@ -78,7 +80,6 @@ from mi.instrument.nobska.mavs4.ooicore.driver import CompassOffsetParameters
 from mi.instrument.nobska.mavs4.ooicore.driver import CompassScaleFactorsParameters
 from mi.instrument.nobska.mavs4.ooicore.driver import TiltOffsetParameters
 from mi.instrument.nobska.mavs4.ooicore.driver import SubMenues
-from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentPrompts
 from mi.instrument.nobska.mavs4.ooicore.driver import INSTRUMENT_NEWLINE
 
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -649,6 +650,37 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         self.assert_initialize_driver()
 
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.STATUS, self.assert_particle_status, delay=20)
+        
+    def test_metadata_generation(self):
+        """
+        Test that we can generate metadata information for the driver,
+        commands, and parameters.
+        """
+        self.assert_initialize_driver()
+
+        json_result = self.driver_client.cmd_dvr("get_config_metadata")
+        self.assert_(json_result != None)
+        self.assert_(len(json_result) > 100) # just make sure we have something...
+        log.debug("*** json result: %s", json_result)
+        result = json.loads(json_result)
+        log.debug("*** result: %s", result)
+        self.assert_(result != None)
+        self.assert_(isinstance(result, dict))
+        self.assertFalse(result[ConfigMetadataKey.COMMANDS])
+
+        self.assertTrue(result[ConfigMetadataKey.DRIVER])
+        self.assertTrue(result[ConfigMetadataKey.DRIVER][DriverDictKey.VENDOR_SW_COMPATIBLE])
+
+        self.assertTrue(result[ConfigMetadataKey.PARAMETERS])        
+        keys = result[ConfigMetadataKey.PARAMETERS].keys()
+        keys.append(DriverParameter.ALL)
+        keys.sort()
+        enum_list = InstrumentParameters.list()
+        enum_list.sort()
+        log.debug("*** keys: %s\nenum_list: %s", keys, enum_list)
+        self.assertEqual(keys, enum_list)
+        
+        
         
 
 ###############################################################################

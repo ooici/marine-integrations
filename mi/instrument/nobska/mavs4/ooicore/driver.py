@@ -14,14 +14,14 @@ __license__ = 'Apache 2.0'
 
 import time
 import re
-import datetime
 import ntplib
 
 from mi.core.common import BaseEnum
 from mi.core.time import get_timestamp_delayed
-from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.driver_dict import DriverDict, DriverDictKey
 
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
+from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_fsm import InstrumentFSM
@@ -33,12 +33,13 @@ from mi.core.exceptions import InstrumentTimeoutException, \
                                InstrumentProtocolException, \
                                SampleException, \
                                InstrumentStateException
+from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
-from mi.core.instrument.protocol_param_dict import Parameter, RegexParameter
+from mi.core.instrument.protocol_param_dict import RegexParameter
 from mi.core.common import InstErrorCode
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from pyon.agent.agent import ResourceAgentState
 
 from mi.core.log import get_logger
@@ -351,64 +352,23 @@ class SubMenues(BaseEnum):
     DUMMY         = 'dummy'
 
 class Mavs4ProtocolParameterDict(ProtocolParameterDict):
-    
-    def add(self, name, pattern, f_getval, f_format, value=None,
-            visibility=ParameterDictVisibility.READ_WRITE,
-            menu_path_read=None, submenu_read=None,
-            menu_path_write=None, submenu_write=None,
-            multi_match=False, direct_access=False, startup_param=False,
-            default_value=None, init_value=None):
-        """
-        Add a parameter object to the dictionary.
-        @param name The parameter name.
-        @param pattern The regex that matches the parameter in line output.
-        @param f_getval The function that extracts the value from a regex match.
-        @param f_format The function that formats the parameter value for a set command.
-        @param visibility The ParameterDictVisibility value that indicates what
-        the access to this parameter is
-        @param menu_path The path of menu options required to get to the parameter
-        value display when presented in a menu-based instrument
-        @param direct_access T/F for tagging this as a direct access parameter
-        to be saved and restored in and out of direct access
-        @param startup_param T/F for tagging this as a startup parameter to be
-        applied when the instrument is first configured
-        @param default_value The default value to use for this parameter when
-        a value is needed, but no other instructions have been provided.
-        @param init_value The value that a parameter should be set to during
-        initialization or re-initialization
-        @param value The parameter value (initializes to None).        
-        """
-        val = RegexParameter(name, pattern, f_getval, f_format,
-                             value=value,
-                             visibility=visibility,
-                             menu_path_read=menu_path_read,
-                             submenu_read=submenu_read,
-                             menu_path_write=menu_path_write,
-                             submenu_write=submenu_write,
-                             multi_match=multi_match,
-                             direct_access=direct_access,
-                             startup_param=startup_param,
-                             default_value=default_value,
-                             init_value=init_value,
-                             regex_flags=re.DOTALL)
-        ProtocolParameterDict.add_parameter(self, val)
-                
+          
     def update(self, name, response):
         #log.debug('Mavs4ProtocolParameterDict.update(): set %s from \n%s',
         # name, response)
         response = self._param_dict[name].update(response)
         return response
 
-    def set(self, name, value):
-        """
-        Over-ridden to avoid bug in base class
-        Set a parameter value in the dictionary.
-        @param name The parameter name.
-        @param value The parameter value.
-        @raises KeyError if the name is invalid.
-        """
-        log.debug("setting %s to %s", name, str(value))
-        self._param_dict[name].value = value
+    #def set(self, name, value):
+#        """
+#        Over-ridden to avoid bug in base class
+#        Set a parameter value in the dictionary.
+#        @param name The parameter name.
+#        @param value The parameter value.
+#        @raises KeyError if the name is invalid.
+#        """
+    #    log.debug("setting %s to %s", name, str(value))
+    #    self._param_dict[name].value = value
         
 ###
 #   Driver for mavs4
@@ -764,6 +724,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
+        self._build_cmd_dict()
+        self._build_driver_dict()
 
         # create chunker for processing instrument samples.
         self._chunker = StringChunker(mavs4InstrumentProtocol.chunker_sieve_function)
@@ -1088,7 +1050,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if parameters_dict:
             # set the parameter values so they can be gotten in the command builders
             for (key, value) in parameters_dict.iteritems():
-                self._param_dict.set(key, value)
+                self._param_dict.set_value(key, value)
             if params_to_set.get(InstrumentParameters.MONITOR, 'n') != 'y':
                 # if there isn't a set for enabling the monitor parameter then force a set so sub-parameters will be set
                 dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.MONITOR)
@@ -1111,7 +1073,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if parameters_dict:
             # set the parameter values so they can be gotten in the command builders
             for (key, value) in parameters_dict.iteritems():
-                self._param_dict.set(key, value)
+                self._param_dict.set_value(key, value)
             dest_submenu = self._param_dict.get_menu_path_write(InstrumentParameters.BURST_INTERVAL_DAYS)
             command = self._param_dict.get_submenu_write(InstrumentParameters.BURST_INTERVAL_DAYS)
             self._navigate_and_execute(command, name=key,
@@ -1522,419 +1484,681 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             # handle ENTER_LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES parameter case when not off
             return input
     
+    def _build_driver_dict(self):
+        """
+        Populate the driver dictionary with MAVS4 metadata information.
+        """
+        self._driver_dict = DriverDict()
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
+    
+    def _build_cmd_dict(self):
+        """
+        Populate the command dictionary with MAVS4 metadata information. Empty
+        for the MAVS4 instrument as no additional commands are supported.
+        """
+        self._cmd_dict = ProtocolCommandDict()
+
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with MAVS4 parameters.
         For each parameter key add value formatting function for set commands.
         """
+        
         # The parameter dictionary.
         self._param_dict = Mavs4ProtocolParameterDict()
         
         # Add parameter handlers to parameter dictionary for instrument configuration parameters.
-        self._param_dict.add(InstrumentParameters.SYS_CLOCK,
-                             r'.*\[(.*)\].*', 
-                             lambda match : match.group(1),
-                             lambda string : str(string),
-                             menu_path_read=SubMenues.ROOT,
-                             submenu_read=InstrumentCmds.SET_TIME,
-                             menu_path_write=SubMenues.SET_TIME,
-                             submenu_write=InstrumentCmds.ENTER_TIME)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.SYS_CLOCK,
+                           r'.*\[(.*)\].*', 
+                           lambda match : match.group(1),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           menu_path_read=SubMenues.ROOT,
+                           submenu_read=InstrumentCmds.SET_TIME,
+                           menu_path_write=SubMenues.SET_TIME,
+                           submenu_write=InstrumentCmds.ENTER_TIME,
+                           description="System clock",
+                           type="string",
+                           value_description="A time between 1970 and 2038, formatted as 'MM/DD/YY HH:MM:SS'"))
+    
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.NOTE1,
+                           r'.*Notes 1\| (.*?)\r\n.*', 
+                           lambda match : match.group(1),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           menu_path_read=SubMenues.DEPLOY,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.DEPLOY,
+                           submenu_write=InstrumentCmds.SET_NOTE,
+                           description="Deployment note line 1",
+                           display_name="Note line 1",
+                           type="string",
+                           value_description="Line of a note describing the deployment"))
 
-        self._param_dict.add(InstrumentParameters.NOTE1,
-                             r'.*Notes 1\| (.*?)\r\n.*', 
-                             lambda match : match.group(1),
-                             lambda string : str(string),
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_NOTE)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.NOTE2,
+                           r'.*2\| (.*?)\r\n.*', 
+                           lambda match : match.group(1),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           menu_path_read=SubMenues.DEPLOY,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.DEPLOY,
+                           submenu_write=InstrumentCmds.SET_NOTE,
+                           description="Deployment note line 2",
+                           display_name="Note line 2",
+                           type="string",
+                           value_description="Line of a note describing the deployment"))
 
-        self._param_dict.add(InstrumentParameters.NOTE2,
-                             r'.*2\| (.*?)\r\n.*', 
-                             lambda match : match.group(1),
-                             lambda string : str(string),
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_NOTE)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.NOTE3,
+                           r'.*3\| (.*?)\r\n.*', 
+                           lambda match : match.group(1),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           menu_path_read=SubMenues.DEPLOY,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.DEPLOY,
+                           submenu_write=InstrumentCmds.SET_NOTE,
+                           description="Deployment note line 3",
+                           display_name="Note line 3",
+                           type="string",
+                           value_description="Line of a note describing the deployment"))
 
-        self._param_dict.add(InstrumentParameters.NOTE3,
-                             r'.*3\| (.*?)\r\n.*', 
-                             lambda match : match.group(1),
-                             lambda string : str(string),
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_NOTE)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.VELOCITY_FRAME,
+                           r'.*Data  F\| Velocity Frame (.*?) TTag FSec Axes.*', 
+                           lambda match : self._parse_velocity_frame(match.group(1)),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           startup_param=True,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           default_value='3',
+                           menu_path_read=SubMenues.DEPLOY,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.DEPLOY,
+                           submenu_write=InstrumentCmds.SET_VELOCITY_FRAME,
+                           description="Velocity frame",
+                           type="enum",
+                           value_description="No velocity frame,  MAVS4 frame (U, V, W), Earth frame (E, N, W), or Earth Frame(S, ?, W)"))
 
-        self._param_dict.add(InstrumentParameters.VELOCITY_FRAME,
-                             r'.*Data  F\| Velocity Frame (.*?) TTag FSec Axes.*', 
-                             lambda match : self._parse_velocity_frame(match.group(1)),
-                             lambda string : str(string),
-                             startup_param=True,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             default_value='3',
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_VELOCITY_FRAME)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.MONITOR,
+                           r'.*M\| Monitor\s+(\w+).*', 
+                           lambda match : self._parse_enable_disable(match.group(1)),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           value='',
+                           menu_path_read=SubMenues.DEPLOY,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.DEPLOY,
+                           submenu_write=InstrumentCmds.SET_MONITOR,
+                           description="Data monitor enabled",
+                           display_name="Data monitor",
+                           type="bool",
+                           value_description="On or off"))
 
-        self._param_dict.add(InstrumentParameters.MONITOR,
-                             r'.*M\| Monitor\s+(\w+).*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             value='',
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_MONITOR)
+        self._param_dict.add_parameter(
+	    RegexParameter(InstrumentParameters.LOG_DISPLAY_TIME,
+                           r'.*M\| Monitor\s+\w+\s+(\w+).*', 
+                           lambda match : self._parse_on_off(match.group(1)),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           value='',
+                           description="Log/display time with each sample while monitoring",
+                           display_name="Log display time",
+                           type="bool",
+                           value_description="Time logging on or off"))
 
-        self._param_dict.add(InstrumentParameters.LOG_DISPLAY_TIME,
-                             r'.*M\| Monitor\s+\w+\s+(\w+).*', 
-                             lambda match : self._parse_on_off(match.group(1)),
-                             lambda string : str(string),
-                             value='')
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
+                           r'.*M\| Monitor\s+\w+\s+\w+\s+(\w+).*', 
+                           lambda match : self._parse_on_off(match.group(1)),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           value='',
+                           description="Log/display time with fractional seconds",
+                           display_name="Display fractional seconds",
+                           type="bool",
+                           value_description="Fractional seconds on or off"))
 
-        self._param_dict.add(InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND,
-                             r'.*M\| Monitor\s+\w+\s+\w+\s+(\w+).*', 
-                             lambda match : self._parse_on_off(match.group(1)),
-                             lambda string : str(string),
-                             value='')
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES,
+                           r'.*M\| Monitor\s+\w+\s+\w+\s+\w+\s+(\w+).*', 
+                           lambda match : self._parse_on_off(match.group(1)),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           value='',
+                           description="Log/display acoustic axis velocities",
+                           display_name="Display acoustic axis velocities",
+                           type="bool",
+                           value_description="Acoustic axis velocities on or off"))
 
-        self._param_dict.add(InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES,
-                             r'.*M\| Monitor\s+\w+\s+\w+\s+\w+\s+(\w+).*', 
-                             lambda match : self._parse_on_off(match.group(1)),
-                             lambda string : str(string),
-                             value='')
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.QUERY_MODE,
+                           r'.*Q\| Query Mode\s+(\w+).*', 
+                           lambda match : self._parse_enable_disable(match.group(1)),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           value='',
+                           menu_path_read=SubMenues.DEPLOY,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.DEPLOY,
+                           submenu_write=InstrumentCmds.SET_QUERY,
+                           description="Enable or disable query mode",
+                           display_name="Query mode",
+                           type="bool",
+                           value_description="Query mode on or off"))
 
-        self._param_dict.add(InstrumentParameters.QUERY_MODE,
-                             r'.*Q\| Query Mode\s+(\w+).*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             value='',
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_QUERY)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.FREQUENCY,
+                           r'.*4\| Measurement Frequency\s+(\d+.\d+)\s+\[Hz\].*', 
+                           lambda match : float(match.group(1)),
+                           self._float_to_string,
+                           regex_flags=re.DOTALL,
+                           default_value=1.0,
+                           menu_path_read=SubMenues.DEPLOY,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.DEPLOY,
+                           submenu_write=InstrumentCmds.SET_FREQUENCY,
+                           description="The rate at which measurements are taken to form a sample (applies to all enabled sensors)",
+                           display_name="Measurement frequency",
+                           type="float",
+                           units="Hz",
+                           value_description="0.01 to 50.0"))
 
-        self._param_dict.add(InstrumentParameters.FREQUENCY,
-                             r'.*4\| Measurement Frequency\s+(\d+.\d+)\s+\[Hz\].*', 
-                             lambda match : float(match.group(1)),
-                             self._float_to_string,
-                             default_value=1.0,
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_FREQUENCY)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
+                           r'.*5\| Measurements/Sample\s+(\d+)\s+\[M/S\].*', 
+                           lambda match : int(match.group(1)),
+                           self._int_to_string,
+                           regex_flags=re.DOTALL,
+                           default_value=1,
+                           menu_path_read=SubMenues.DEPLOY,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.DEPLOY,
+                           submenu_write=InstrumentCmds.SET_MEAS_PER_SAMPLE,
+                           description="The number of individual measurements that are averaged to form a sample (applies to all enabled sensors)",
+                           display_name="Measurements per sample",
+                           type="int",
+                           value_description="1 to 10000"))
 
-        self._param_dict.add(InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
-                             r'.*5\| Measurements/Sample\s+(\d+)\s+\[M/S\].*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             default_value=1,
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_MEAS_PER_SAMPLE)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.SAMPLE_PERIOD,
+                            '.*6\| Sample Period\s+(\d+.\d+)\s+\[sec\].*', 
+                           lambda match : float(match.group(1)),
+                           self._float_to_string,
+                           regex_flags=re.DOTALL,
+                           menu_path_read=SubMenues.DEPLOY,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.DEPLOY,
+                           submenu_write=InstrumentCmds.SET_SAMPLE_PERIOD,
+                           description="The interval between samples",
+                           display_name="Sample period",
+                           type="float",
+                           units="seconds",
+                           value_description="0.02 to 10000"))
 
-        self._param_dict.add(InstrumentParameters.SAMPLE_PERIOD,
-                             r'.*6\| Sample Period\s+(\d+.\d+)\s+\[sec\].*', 
-                             lambda match : float(match.group(1)),
-                             self._float_to_string,
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_SAMPLE_PERIOD)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.SAMPLES_PER_BURST,
+                           r'.*7\| Samples/Burst\s+(\d+)\s+\[S/B\].*', 
+                           lambda match : int(match.group(1)),
+                           self._int_to_string,
+                           regex_flags=re.DOTALL,
+                           menu_path_read=SubMenues.DEPLOY,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.DEPLOY,
+                           submenu_write=InstrumentCmds.SET_SAMPLES_PER_BURST,
+                           description="The number of samples (single data records) in a burst. Each sample is displayed if the data monitor is enabled and logged if flash card logging is enabled.",
+                           display_name="Samples per burst",
+                           type="int",
+                           value_description="1 to 100000"))
 
-        self._param_dict.add(InstrumentParameters.SAMPLES_PER_BURST,
-                             r'.*7\| Samples/Burst\s+(\d+)\s+\[S/B\].*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_SAMPLES_PER_BURST)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.BURST_INTERVAL_DAYS,
+                           r'.*8\| Burst Interval\s+(\d+)\s+.*', 
+                           lambda match : int(match.group(1)),
+                           self._int_to_string,
+                           regex_flags=re.DOTALL,
+                           default_value=0,
+                           menu_path_read=SubMenues.DEPLOY,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.DEPLOY,
+                           submenu_write=InstrumentCmds.SET_BURST_INTERVAL_DAYS,
+                           description="The days value in the interval between bursts. Set to 0 for continuous sampling. Burst interval is disabled when query mode is enabled.",
+                           display_name="Burst interval days",
+                           type="int",
+                           units="days",
+                           value_description="0 to 366"))
 
-        self._param_dict.add(InstrumentParameters.BURST_INTERVAL_DAYS,
-                             r'.*8\| Burst Interval\s+(\d+)\s+.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             default_value=0,
-                             menu_path_read=SubMenues.DEPLOY,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.DEPLOY,
-                             submenu_write=InstrumentCmds.SET_BURST_INTERVAL_DAYS)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.BURST_INTERVAL_HOURS,
+                           r'.*8\| Burst Interval\s+\d+\s+(\d+):.*', 
+                           lambda match : int(match.group(1)),
+                           self._int_to_string,
+                           regex_flags=re.DOTALL,
+                           default_value=0,
+                           description="The hours value in the interval between bursts. Set to 0 for continuous sampling. Burst interval is disabled when query mode is enabled.",
+                           display_name="Burst interval hours",
+                           type="int",
+                           units="hours",
+                           value_description="0 to 23"))
 
-        self._param_dict.add(InstrumentParameters.BURST_INTERVAL_HOURS,
-                             r'.*8\| Burst Interval\s+\d+\s+(\d+):.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             default_value=0)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.BURST_INTERVAL_MINUTES,
+                           r'.*8\| Burst Interval\s+\d+\s+\d+:(\d+):.*', 
+                           lambda match : int(match.group(1)),
+                           self._int_to_string,
+                           regex_flags=re.DOTALL,
+                           default_value=0,
+                           description="The minutes value in the interval between bursts. Set to 0 for continuous sampling. Burst interval is disabled when query mode is enabled.",
+                           display_name="Burst interval minutes",
+                           type="int",
+                           units="minutes",
+                           value_description="0 to 59"))
 
-        self._param_dict.add(InstrumentParameters.BURST_INTERVAL_MINUTES,
-                             r'.*8\| Burst Interval\s+\d+\s+\d+:(\d+):.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             default_value=0)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.BURST_INTERVAL_SECONDS,
+                           r'.*8\| Burst Interval\s+\d+\s+\d+:\d+:(\d+)\s+.*', 
+                           lambda match : int(match.group(1)),
+                           self._int_to_string,
+                           regex_flags=re.DOTALL,
+                           default_value=0,
+                           description="The seconds value in the interval between bursts. Set to 0 for continuous sampling. Burst interval is disabled when query mode is enabled.",
+                           display_name="Burst interval seconds",
+                           type="int",
+                           units="seconds",
+                           value_description="0 to 59"))
 
-        self._param_dict.add(InstrumentParameters.BURST_INTERVAL_SECONDS,
-                             r'.*8\| Burst Interval\s+\d+\s+\d+:\d+:(\d+)\s+.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             default_value=0)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.SI_CONVERSION,
+                           r'.*<C> Binary to SI Conversion\s+(\d+.\d+)\s+.*', 
+                           lambda match : float(match.group(1)),
+                           self._float_to_string,
+                           regex_flags=re.DOTALL,
+                           menu_path_read=SubMenues.CONFIGURATION,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.CONFIGURATION,
+                           submenu_write=InstrumentCmds.SET_SI_CONVERSION,
+                           description="Coefficient to use during conversion from binary to SI",
+                           display_name="SI conversion coefficient",
+                           type="float",
+                           value_description="0.0010000 to 0.0200000"))
 
-        self._param_dict.add(InstrumentParameters.SI_CONVERSION,
-                             r'.*<C> Binary to SI Conversion\s+(\d+.\d+)\s+.*', 
-                             lambda match : float(match.group(1)),
-                             self._float_to_string,
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_SI_CONVERSION)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.WARM_UP_INTERVAL,
+                           r'.*<W> Warm up interval\s+(\w)\w*\s+.*', 
+                           lambda match : match.group(1),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           startup_param=True,
+                           default_value='f',
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CONFIGURATION,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.CONFIGURATION,
+                           submenu_write=InstrumentCmds.SET_WARM_UP_INTERVAL,
+                           description="Adjusts warm up time to allow for working with auxiliary sensors that have slower response times to get the required accuracy",
+                           display_name="Warm up interval for sensors",
+                           type="enum",
+                           value_description="Fast or slow"))
 
-        self._param_dict.add(InstrumentParameters.WARM_UP_INTERVAL,
-                             r'.*<W> Warm up interval\s+(\w)\w*\s+.*', 
-                             lambda match : match.group(1),
-                             lambda string : str(string),
-                             startup_param=True,
-                             default_value='f',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_WARM_UP_INTERVAL)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.THREE_AXIS_COMPASS,
+                           r'.*<1> 3-Axis Compass\s+(\w+)\s+.*', 
+                           lambda match : self._parse_enable_disable(match.group(1)),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           default_value='y',
+                           startup_param=True,
+                           visibility=ParameterDictVisibility.READ_ONLY,                             
+                           menu_path_read=SubMenues.CONFIGURATION,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.CONFIGURATION,
+                           submenu_write=InstrumentCmds.SET_THREE_AXIS_COMPASS,
+                           description="Enable the 3-axis compass sensor",
+                           display_name="3-axis compass enabled",
+                           type="bool",
+                           value_description="On or off"))
 
-        self._param_dict.add(InstrumentParameters.THREE_AXIS_COMPASS,
-                             r'.*<1> 3-Axis Compass\s+(\w+)\s+.*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             default_value='y',
-                             startup_param=True,
-                             visibility=ParameterDictVisibility.READ_ONLY,                             
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_THREE_AXIS_COMPASS)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.SOLID_STATE_TILT,
+                           r'.*<2> Solid State Tilt\s+(\w+)\s+.*', 
+                           lambda match : self._parse_enable_disable(match.group(1)),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           default_value='y',
+                           startup_param=True,
+                           visibility=ParameterDictVisibility.READ_ONLY,                             
+                           menu_path_read=SubMenues.CONFIGURATION,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.CONFIGURATION,
+                           submenu_write=InstrumentCmds.SET_SOLID_STATE_TILT,
+                           description="Enable the solid state tilt sensor",
+                           display_name="Solid state tilt sensor",
+                           type="bool",
+                           value_description="On or off"))
 
-        self._param_dict.add(InstrumentParameters.SOLID_STATE_TILT,
-                             r'.*<2> Solid State Tilt\s+(\w+)\s+.*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             default_value='y',
-                             startup_param=True,
-                             visibility=ParameterDictVisibility.READ_ONLY,                             
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_SOLID_STATE_TILT)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.THERMISTOR,
+                           r'.*<3> Thermistor\s+(\w+)\s+.*', 
+                           lambda match : self._parse_enable_disable(match.group(1)),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           default_value='y',
+                           startup_param=True,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CONFIGURATION,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.CONFIGURATION,
+                           submenu_write=InstrumentCmds.SET_THERMISTOR,
+                           description="Enable the thermister sensor",
+                           display_name="Thermistor sensor",
+                           type="bool",
+                           value_description="On or off"))
 
-        self._param_dict.add(InstrumentParameters.THERMISTOR,
-                             r'.*<3> Thermistor\s+(\w+)\s+.*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             default_value='y',
-                             startup_param=True,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_THERMISTOR)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.PRESSURE,
+                           r'.*<4> Pressure\s+(\w+)\s+.*', 
+                           lambda match : self._parse_enable_disable(match.group(1)),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
+                                                         # support for setting it to 'y' has not been implemented
+                           startup_param=True,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CONFIGURATION,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.CONFIGURATION,
+                           submenu_write=InstrumentCmds.SET_PRESSURE,
+                           description="Enable the pressure sensor",
+                           display_name="Pressure sensor",
+                           type="bool",
+                           value_description="On or off"))
 
-        self._param_dict.add(InstrumentParameters.PRESSURE,
-                             r'.*<4> Pressure\s+(\w+)\s+.*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
-                                                           # support for setting it to 'y' has not been implemented
-                             startup_param=True,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_PRESSURE)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.AUXILIARY_1,
+                           r'.*<5> Auxiliary 1\s+(\w+)\s+.*', 
+                           lambda match : self._parse_enable_disable(match.group(1)),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
+                                                         # support for setting it to 'y' has not been implemented
+                           startup_param=True,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CONFIGURATION,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.CONFIGURATION,
+                           submenu_write=InstrumentCmds.SET_AUXILIARY,
+                           description="Enable auxiliary sensor #1",
+                           display_name="Aux sensor 1",
+                           type="bool",
+                           value_description="On or off"))
 
-        self._param_dict.add(InstrumentParameters.AUXILIARY_1,
-                             r'.*<5> Auxiliary 1\s+(\w+)\s+.*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
-                                                           # support for setting it to 'y' has not been implemented
-                             startup_param=True,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_AUXILIARY)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.AUXILIARY_2,
+                           r'.*<6> Auxiliary 2\s+(\w+)\s+.*', 
+                           lambda match : self._parse_enable_disable(match.group(1)),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
+                                                         # support for setting it to 'y' has not been implemented
+                           startup_param=True,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CONFIGURATION,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.CONFIGURATION,
+                           submenu_write=InstrumentCmds.SET_AUXILIARY,
+                           description="Enable auxiliary sensor #2",
+                           display_name="Aux sensor 2",
+                           type="bool",
+                           value_description="On or off"))
 
-        self._param_dict.add(InstrumentParameters.AUXILIARY_2,
-                             r'.*<6> Auxiliary 2\s+(\w+)\s+.*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
-                                                           # support for setting it to 'y' has not been implemented
-                             startup_param=True,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_AUXILIARY)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.AUXILIARY_3,
+                           r'.*<7> Auxiliary 3\s+(\w+)\s+.*', 
+                           lambda match : self._parse_enable_disable(match.group(1)),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
+                                                         # support for setting it to 'y' has not been implemented
+                           startup_param=True,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CONFIGURATION,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.CONFIGURATION,
+                           submenu_write=InstrumentCmds.SET_AUXILIARY,
+                           description="Enable auxiliary sensor #3",
+                           display_name="Aux sensor 3",
+                           type="bool",
+                           value_description="On or off"))
 
-        self._param_dict.add(InstrumentParameters.AUXILIARY_3,
-                             r'.*<7> Auxiliary 3\s+(\w+)\s+.*', 
-                             lambda match : self._parse_enable_disable(match.group(1)),
-                             lambda string : str(string),
-                             default_value='n',            # this parameter can only be set to 'n' (meaning disabled)
-                                                           # support for setting it to 'y' has not been implemented
-                             startup_param=True,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_AUXILIARY)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.SENSOR_ORIENTATION,
+                           r'.*<O> Sensor Orientation\s+(.*)\n.*', 
+                           lambda match : self._parse_sensor_orientation(match.group(1)),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           default_value='2',
+                           startup_param=True,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CONFIGURATION,
+                           submenu_read=None,
+                           menu_path_write=SubMenues.CONFIGURATION,
+                           submenu_write=InstrumentCmds.SET_SENSOR_ORIENTATION,
+                           description="Sensor orientation",
+                           type="enum",
+                           value_description="One of: Veritcal/Down, Vertical/Up, Horizontal/Straight, Horizontal/Bent Left, Horizontal/Bent Right, Horizontal/Bent Down, Horizontal/Bent Up"))
 
-        self._param_dict.add(InstrumentParameters.SENSOR_ORIENTATION,
-                             r'.*<O> Sensor Orientation\s+(.*)\n.*', 
-                             lambda match : self._parse_sensor_orientation(match.group(1)),
-                             lambda string : str(string),
-                             default_value='2',
-                             startup_param=True,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=SubMenues.CONFIGURATION,
-                             submenu_write=InstrumentCmds.SET_SENSOR_ORIENTATION)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.SERIAL_NUMBER,
+                           r'.*<S> Serial Number\s+(\w+)\s+.*', 
+                           lambda match : match.group(1),
+                           lambda string : str(string),
+                           regex_flags=re.DOTALL,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CONFIGURATION,
+                           submenu_read=None,
+                           menu_path_write=None,
+                           submenu_write=None,
+                           description="The instrument serial number",
+                           display_name="Serial number",
+                           type="int",
+                           value_description="10000 to 20000"))
 
-        self._param_dict.add(InstrumentParameters.SERIAL_NUMBER,
-                             r'.*<S> Serial Number\s+(\w+)\s+.*', 
-                             lambda match : match.group(1),
-                             lambda string : str(string),
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CONFIGURATION,
-                             submenu_read=None,
-                             menu_path_write=None,
-                             submenu_write=None)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.VELOCITY_OFFSET_PATH_A,
+                           r'.*Current path offsets:\s+(\w+)\s+.*', 
+                           lambda match : int(match.group(1), 16),
+                           self._int_to_string,
+                           regex_flags=re.DOTALL,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CALIBRATION,
+                           submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
+                           menu_path_write=None,
+                           submenu_write=None,
+                           description="The velocity offset value for path A",
+                           display_name="Velocity offset path A",
+                           type="string",
+                           units="",
+                           value_description="A hex value from F300 to 0D00"))
 
-        self._param_dict.add(InstrumentParameters.VELOCITY_OFFSET_PATH_A,
-                             r'.*Current path offsets:\s+(\w+)\s+.*', 
-                             lambda match : int(match.group(1), 16),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.VELOCITY_OFFSET_PATH_B,
+                           r'.*Current path offsets:\s+\w+\s+(\w+)\s+.*', 
+                           lambda match : int(match.group(1), 16),
+                           self._int_to_string,
+                           regex_flags=re.DOTALL,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CALIBRATION,
+                           submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
+                           menu_path_write=None,
+                           submenu_write=None,
+                           description="The velocity offset value for path B",
+                           display_name="Velocity offset path B",
+                           type="string",
+                           units="",
+                           value_description="A hex value from F300 to 0D00"))
 
-        self._param_dict.add(InstrumentParameters.VELOCITY_OFFSET_PATH_B,
-                             r'.*Current path offsets:\s+\w+\s+(\w+)\s+.*', 
-                             lambda match : int(match.group(1), 16),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.VELOCITY_OFFSET_PATH_C,
+                           r'.*Current path offsets:\s+\w+\s+\w+\s+(\w+)\s+.*', 
+                           lambda match : int(match.group(1), 16),
+                           self._int_to_string,
+                           regex_flags=re.DOTALL,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CALIBRATION,
+                           submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
+                           menu_path_write=None,
+                           submenu_write=None,
+                           description="The velocity offset value for path B",
+                           display_name="Velocity offset path B",
+                           type="string",
+                           units="",
+                           value_description="A hex value from F300 to 0D00"))
 
-        self._param_dict.add(InstrumentParameters.VELOCITY_OFFSET_PATH_C,
-                             r'.*Current path offsets:\s+\w+\s+\w+\s+(\w+)\s+.*', 
-                             lambda match : int(match.group(1), 16),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.VELOCITY_OFFSET_PATH_D,
+                           r'.*Current path offsets:\s+\w+\s+\w+\s+\w+\s+(\w+)\s+.*', 
+                           lambda match : int(match.group(1), 16),
+                           self._int_to_string,
+                           regex_flags=re.DOTALL,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CALIBRATION,
+                           submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
+                           menu_path_write=None,
+                           submenu_write=None,
+                           description="The velocity offset value for path C",
+                           display_name="Velocity offset path C",
+                           type="string",
+                           units="",
+                           value_description="A hex value from F300 to 0D00"))
 
-        self._param_dict.add(InstrumentParameters.VELOCITY_OFFSET_PATH_D,
-                             r'.*Current path offsets:\s+\w+\s+\w+\s+\w+\s+(\w+)\s+.*', 
-                             lambda match : int(match.group(1), 16),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.VELOCITY_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.COMPASS_OFFSET_0,
+                           r'.*Current compass offsets:\s+([-+]?\d+)\s+.*', 
+                           lambda match : int(match.group(1)),
+                           self._int_to_string,
+                           regex_flags=re.DOTALL,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CALIBRATION,
+                           submenu_read=InstrumentCmds.COMPASS_OFFSETS,
+                           menu_path_write=None,
+                           submenu_write=None,
+                           description="Compass offset 0",
+                           type="int",
+                           value_description="-400 to 400"))
 
-        self._param_dict.add(InstrumentParameters.COMPASS_OFFSET_0,
-                             r'.*Current compass offsets:\s+([-+]?\d+)\s+.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.COMPASS_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.COMPASS_OFFSET_1,
+                           r'.*Current compass offsets:\s+[-+]?\d+\s+([-+]?\d+)\s+.*', 
+                           lambda match : int(match.group(1)),
+                           self._int_to_string,
+                           regex_flags=re.DOTALL,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CALIBRATION,
+                           submenu_read=InstrumentCmds.COMPASS_OFFSETS,
+                           menu_path_write=None,
+                           submenu_write=None,
+                           description="Compass offset 1",
+                           type="int",
+                           value_description="-400 to 400"))
 
-        self._param_dict.add(InstrumentParameters.COMPASS_OFFSET_1,
-                             r'.*Current compass offsets:\s+[-+]?\d+\s+([-+]?\d+)\s+.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.COMPASS_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.COMPASS_OFFSET_2,
+                           r'.*Current compass offsets:\s+[-+]?\d+\s+[-+]?\d+\s+([-+]?\d+)\s+.*', 
+                           lambda match : int(match.group(1)),
+                           self._int_to_string,
+                           regex_flags=re.DOTALL,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CALIBRATION,
+                           submenu_read=InstrumentCmds.COMPASS_OFFSETS,
+                           menu_path_write=None,
+                           submenu_write=None,
+                           description="Compass offset 2",
+                           type="int",
+                           value_description="-400 to 400"))
 
-        self._param_dict.add(InstrumentParameters.COMPASS_OFFSET_2,
-                             r'.*Current compass offsets:\s+[-+]?\d+\s+[-+]?\d+\s+([-+]?\d+)\s+.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.COMPASS_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.COMPASS_SCALE_FACTORS_0,
+                           r'.*Current compass scale factors:\s+(\d+.\d+)\s+.*', 
+                           lambda match : float(match.group(1)),
+                           self._float_to_string,
+                           regex_flags=re.DOTALL,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CALIBRATION,
+                           submenu_read=InstrumentCmds.COMPASS_SCALE_FACTORS,
+                           menu_path_write=None,
+                           submenu_write=None,
+                           description="Compass scale factor 0",
+                           type="float",
+                           value_description="0.200 to 5.000"))
 
-        self._param_dict.add(InstrumentParameters.COMPASS_SCALE_FACTORS_0,
-                             r'.*Current compass scale factors:\s+(\d+.\d+)\s+.*', 
-                             lambda match : float(match.group(1)),
-                             self._float_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.COMPASS_SCALE_FACTORS,
-                             menu_path_write=None,
-                             submenu_write=None)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.COMPASS_SCALE_FACTORS_1,
+                           r'.*Current compass scale factors:\s+\d+.\d+\s+(\d+.\d+)\s+.*', 
+                           lambda match : float(match.group(1)),
+                           self._float_to_string,
+                           regex_flags=re.DOTALL,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CALIBRATION,
+                           submenu_read=InstrumentCmds.COMPASS_SCALE_FACTORS,
+                           menu_path_write=None,
+                           submenu_write=None,
+                           description="Compass scale factor 1",
+                           type="float",
+                           value_description="0.200 to 5.000"))
 
-        self._param_dict.add(InstrumentParameters.COMPASS_SCALE_FACTORS_1,
-                             r'.*Current compass scale factors:\s+\d+.\d+\s+(\d+.\d+)\s+.*', 
-                             lambda match : float(match.group(1)),
-                             self._float_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.COMPASS_SCALE_FACTORS,
-                             menu_path_write=None,
-                             submenu_write=None)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.COMPASS_SCALE_FACTORS_2,
+                           r'.*Current compass scale factors:\s+\d+.\d+\s+\d+.\d+\s+(\d+.\d+)\s+.*', 
+                           lambda match : float(match.group(1)),
+                           self._float_to_string,
+                           regex_flags=re.DOTALL,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CALIBRATION,
+                           submenu_read=InstrumentCmds.COMPASS_SCALE_FACTORS,
+                           menu_path_write=None,
+                           submenu_write=None,
+                           description="Compass scale factor 2",
+                           type="float",
+                           value_description="0.200 to 5.000"))
 
-        self._param_dict.add(InstrumentParameters.COMPASS_SCALE_FACTORS_2,
-                             r'.*Current compass scale factors:\s+\d+.\d+\s+\d+.\d+\s+(\d+.\d+)\s+.*', 
-                             lambda match : float(match.group(1)),
-                             self._float_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.COMPASS_SCALE_FACTORS,
-                             menu_path_write=None,
-                             submenu_write=None)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.TILT_PITCH_OFFSET,
+                           r'.*Current tilt offsets:\s+(\d+)\s+.*', 
+                           lambda match : int(match.group(1)),
+                           self._int_to_string,
+                           regex_flags=re.DOTALL,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           value=-1,     # to indicate that the parameter has not been read from the instrument
+                           menu_path_read=SubMenues.CALIBRATION,
+                           submenu_read=InstrumentCmds.TILT_OFFSETS,
+                           menu_path_write=None,
+                           submenu_write=None,
+                           description="Tilt offset for pitch axis",
+                           display_name="Tilt offset (pitch)",
+                           type="int",
+                           value_description="0 to 30000"))
 
-        self._param_dict.add(InstrumentParameters.TILT_PITCH_OFFSET,
-                             r'.*Current tilt offsets:\s+(\d+)\s+.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             value=-1,     # to indicate that the parameter has not been read from the instrument
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.TILT_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
-
-        self._param_dict.add(InstrumentParameters.TILT_ROLL_OFFSET,
-                             r'.*Current tilt offsets:\s+\d+\s+(\d+)\s+.*', 
-                             lambda match : int(match.group(1)),
-                             self._int_to_string,
-                             value=-1,     # to indicate that the parameter has not been read from the instrument
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             menu_path_read=SubMenues.CALIBRATION,
-                             submenu_read=InstrumentCmds.TILT_OFFSETS,
-                             menu_path_write=None,
-                             submenu_write=None)
+        self._param_dict.add_parameter(
+            RegexParameter(InstrumentParameters.TILT_ROLL_OFFSET,
+                           r'.*Current tilt offsets:\s+\d+\s+(\d+)\s+.*', 
+                           lambda match : int(match.group(1)),
+                           self._int_to_string,
+                           value=-1,     # to indicate that the parameter has not been read from the instrument
+                           regex_flags=re.DOTALL,
+                           visibility=ParameterDictVisibility.READ_ONLY,
+                           menu_path_read=SubMenues.CALIBRATION,
+                           submenu_read=InstrumentCmds.TILT_OFFSETS,
+                           menu_path_write=None,
+                           submenu_write=None,
+                           description="Tilt offset for roll axis",
+                           display_name="Tilt offset (roll)",
+                           type="int",
+                           value_description="0 to 30000"))
 
     def _build_command_handlers(self):
         # these build handlers will be called by the base class during the navigate_and_execute sequence.        
@@ -2527,8 +2751,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                     continue
                 elif self._param_dict.get(InstrumentParameters.SOLID_STATE_TILT) == 'n':
                     # don't get the tilt offset parameters if the solid state tilt is disabled
-                    self._param_dict.set(InstrumentParameters.TILT_PITCH_OFFSET, -1)
-                    self._param_dict.set(InstrumentParameters.TILT_ROLL_OFFSET, -1)
+                    self._param_dict.set_value(InstrumentParameters.TILT_PITCH_OFFSET, -1)
+                    self._param_dict.set_value(InstrumentParameters.TILT_ROLL_OFFSET, -1)
                     tilt_offset_set_prameters_parsed = True               
                     continue
                 else:

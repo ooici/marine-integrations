@@ -445,6 +445,7 @@ class InstrumentProtocol(object):
         @retval A python dict that represents the metadata
         @see https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Driver-Agent+parameter+and+command+metadata+exchange
         """
+        log.debug("Getting metadata dict from protocol...")
         return_dict = {}
         return_dict[ConfigMetadataKey.DRIVER] = self._driver_dict.generate_dict()
         return_dict[ConfigMetadataKey.COMMANDS] = self._cmd_dict.generate_dict()

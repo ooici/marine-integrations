@@ -1651,10 +1651,12 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         """
         self.assertIsInstance(param_dict, dict)
 
+        log.debug("****** SETTING_RESOURCE")
         reply = self.driver_client.cmd_dvr('set_resource', param_dict)
         self.assertIsNone(reply, None)
-
+        
         for (key, value) in param_dict.items():
+            log.debug("****** GETTING VALUE: %s", key)
             self.assert_get(key, value)
 
     def assert_set_bulk_exception(self, param_dict, error_regex=None, exception_class=InstrumentParameterException):
