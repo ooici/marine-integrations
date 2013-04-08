@@ -277,7 +277,6 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                     self.parse_echo_intensity_chunk(chunks[offset])
                 elif 4 == variable_leader_id:
                     self.parse_percent_good_chunk(chunks[offset])
-        log.error("RETURNING PD0 particle")
         return self.final_result
 
     def parse_fixed_chunk(self, chunk):

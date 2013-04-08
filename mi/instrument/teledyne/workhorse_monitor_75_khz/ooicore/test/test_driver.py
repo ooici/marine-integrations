@@ -645,7 +645,6 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
     #    Add instrument specific integration tests
     ###
 
-    #WORKS#
     def test_connect_and_disconnect(self):
 
         log.info("test_connect test started")
@@ -667,19 +666,15 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
 
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('discover_state')
-        
-        log.error("SHOULD FAIL HERE...")
 
         # If we are in streaming mode then stop streaming
         state = self.driver_client.cmd_dvr('get_resource_state')
-        log.error("BEFORE HERE...")
 
         reply = self.driver_client.cmd_dvr('disconnect')
         self.assertEqual(reply, None)
 
         self.assert_current_state(DriverConnectionState.DISCONNECTED)
 
-    #WORKS#
     def test_send_last_sample(self):
         """
         """
@@ -689,8 +684,6 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         # seems to be a variant size record, and fails in int tests on below.  changed val 3x so far.
         # self.assertTrue(len(result) == 1367, "re-send of PD0 packet was wrong size.")
 
-
-    #WORKS#
     def test_parameters(self):
         """
         Test driver parameters and verify their type.  Startup parameters also verify the parameter
@@ -702,7 +695,6 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         log.debug("REPLY = " + str(reply))
         self.assert_driver_parameters(reply, True)
 
-    #BROKE#
     def test_set(self):
         """
         Test all set commands. Verify all exception cases.
@@ -763,7 +755,6 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_set(Parameter.PING_WEIGHT, 0)
         self.assert_set(Parameter.AMBIGUITY_VELOCITY, 175)
 
-    #works#
     def set_baseline(self):
         params = {
             Parameter.BANNER: False,
@@ -798,7 +789,6 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_set_bulk(params)
         return params
 
-    #works#
     @unittest.skip("Super long. works at current.")
     def test_set_ranges(self):
         """
@@ -1620,7 +1610,6 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
-    #works#  
     def test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample
@@ -1664,7 +1653,6 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
 
-    #works#
     def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -1759,8 +1747,7 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         """
         self.clear_events()
         self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_particle_compass_calibration, timeout=200)
-    
-    #works#
+
     def test_scheduled_device_calibration_command(self):
         """
         Verify the device configuration command can be triggered and run in command
@@ -1785,7 +1772,6 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.clear_events()
         self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=200)
 
-    #WORKS#
     def test_scheduled_device_configuration_command(self):
         """
         Verify the device status command can be triggered and run in command
@@ -1812,7 +1798,6 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:13].upper() in dt.upper())
 
-    #works#
     def test_scheduled_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
