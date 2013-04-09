@@ -19,7 +19,8 @@ import ntplib
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.common import BaseEnum
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import SampleException, \
+                               InstrumentStateException
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -90,10 +91,7 @@ class ProtocolState(BaseEnum):
     """
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
-    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    TEST = DriverProtocolState.TEST
-    CALIBRATE = DriverProtocolState.CALIBRATE
 
 class ProtocolEvent(BaseEnum):
     """
@@ -101,8 +99,6 @@ class ProtocolEvent(BaseEnum):
     """
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
@@ -178,8 +174,6 @@ class OPTAA_SampleDataParticle(DataParticle):
         if not match:
             raise SampleException("OPTAA_SampleDataParticle: No regex match of parsed sample data: [%s]", record)
 
-        result = []
-        
         record_length = get_two_byte_value(match.group(1), 0)
         
         packet_checksum = get_two_byte_value(record, record_length)
@@ -193,6 +187,8 @@ class OPTAA_SampleDataParticle(DataParticle):
             raise SampleException('OPTAA_SampleDataParticle: Checksum mismatch in data packet, rcvd=%d, calc=%d.'
                                   %(packet_checksum, checksum))
             
+        result = []
+        
         result.append({DataParticleKey.VALUE_ID: OPTAA_SampleDataParticleKey.RECORD_LENGTH,
                        DataParticleKey.VALUE: record_length})
         result.append({DataParticleKey.VALUE_ID: OPTAA_SampleDataParticleKey.PACKET_TYPE,
@@ -258,7 +254,6 @@ class OPTAA_StatusDataParticleKey(BaseEnum):
 class OPTAA_StatusDataParticle(DataParticle):
     _data_particle_type = DataParticleType.OPTAA_STATUS
     
-
     def _build_parsed_values(self):
         result = []
         
@@ -278,7 +273,6 @@ class OPTAA_StatusDataParticle(DataParticle):
         else:
             raise SampleException('Unable to find exactly three floating-point numbers in status message.')
             
-        
         ### find the date/time string and remove enclosing parens
         DATE_REGEX = r'\([A-Za-z]+\s+\d+\s+\d{4}\s+\d+:\d+:\d+\)'
         date_regex_matcher = re.compile(DATE_REGEX)
@@ -287,20 +281,20 @@ class OPTAA_StatusDataParticle(DataParticle):
                 p = m.group()
                 date_of_version = p[1:-1]
         else:
-                date_of_version = None
+                date_of_version = 'None found'
         
         PERSISTOR_REGEX = r'Persistor CF2 SN:\d+'
         persistor_regex_matcher = re.compile(PERSISTOR_REGEX)
-        persis = re.search(persistor_regex_matcher, data_stream)
-        if persis is not None:
-                temp = persis.group()
-                temp1 = re.search(r'\d{2,10}', temp)
-                if temp1 is not None:
-                        persistor_sn = temp1.group()
-                else:
-                        persistor_sn = None
+        persistor = re.search(persistor_regex_matcher, data_stream)
+        if persistor is not None:
+            temp = persistor.group()
+            temp1 = re.search(r'\d{2,10}', temp)
+            if temp1 is not None:
+                persistor_sn = temp1.group()
+            else:
+                persistor_sn = 'None found'
         else:
-                persistor_sn = None
+            persistor_sn = 'None found'
         
         result = [{DataParticleKey.VALUE_ID: OPTAA_StatusDataParticleKey.FIRMWARE_VERSION,
                    DataParticleKey.VALUE: str(version) },
@@ -384,8 +378,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -532,25 +524,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    def _handler_command_get(self, *args, **kwargs):
-        """
-        Get parameter
-        """
-        next_state = None
-        result = None
-
-
-        return (next_state, result)
-
-    def _handler_command_set(self, *args, **kwargs):
-        """
-        Set parameter
-        """
-        next_state = None
-        result = None
-
-        return (next_state, result)
-
     def _handler_command_exit(self, *args, **kwargs):
         """
         Exit command state.
@@ -567,6 +540,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("_handler_command_start_direct: entering DA mode")
         return (next_state, (next_agent_state, result))
 
+ 
     ########################################################################
     # Direct access handlers.
     ########################################################################
