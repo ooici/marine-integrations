@@ -382,9 +382,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         """
         capabilities = {
             ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
-            ProtocolState.COMMAND: ['DRIVER_EVENT_START_DIRECT'],
-            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 
-                                          'EXECUTE_DIRECT']
+            ProtocolState.AUTOSAMPLE: []
         }
 
         driver = InstrumentDriver(self._got_data_event_callback)
