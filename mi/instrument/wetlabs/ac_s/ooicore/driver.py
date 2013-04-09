@@ -138,15 +138,12 @@ class InstrumentCommand(BaseEnum):
     Instrument command strings
     """
 
-@staticmethod
 def get_two_byte_value(str, index):
     return ord(str[index])*2**8 + ord(str[index+1])
 
-@staticmethod
 def get_three_byte_value(str, index):
     return ord(str[index])*2**16 + get_two_byte_value(str, index+1)
 
-@staticmethod
 def get_four_byte_value(str, index):
     return ord(str[index])*2**24 + get_three_byte_value(str, index+1)
         
@@ -190,7 +187,7 @@ class OPTAA_SampleDataParticle(DataParticle):
         
         record_length = get_two_byte_value(match.group(1), 0)
         
-        packet_checksum = self.get_two_byte_value(record, record_length)
+        packet_checksum = get_two_byte_value(record, record_length)
         checksum = 0
         for i in range(0, record_length):
             checksum += ord(record[i])
@@ -416,12 +413,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         The method that splits samples and status
         """
         raw_data_len = len(raw_data)
+        #log.debug("sieve_function: raw_data=<%s>, len=%d" %(raw_data.encode('hex'), raw_data_len))
         return_list = []
         
         # look for samples
         for match in PACKET_REGISTRATION_REGEX.finditer(raw_data):
             if match.start() + INDEX_OF_PACKET_RECORD_LENGTH + SIZEOF_PACKET_RECORD_LENGTH < raw_data_len:
-                packet_length = get_two_byte_value(raw_data, INDEX_OF_PACKET_RECORD_LENGTH) + SIZEOF_CHECKSUM_PLUS_PAD
+                packet_length = get_two_byte_value(raw_data, match.start() + INDEX_OF_PACKET_RECORD_LENGTH) + SIZEOF_CHECKSUM_PLUS_PAD
                 if match.start() + packet_length <= raw_data_len:
                     return_list.append((match.start(), match.start() + packet_length))
                     
