@@ -313,7 +313,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(InstrumentCommand())
 
-        # Test capabilities for duplicates, them verify that capabilities is a subset of proto events
+        # Test capabilities for duplicates, them verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
@@ -335,6 +335,13 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         self.assert_chunker_combined_sample(chunker, OPTAA_STATUS_DATA)
 
 
+    def test_corrupt_data_sample(self):
+        # garbage is not okay
+        particle = OPTAA_SampleDataParticle(OPTAA_SAMPLE.replace('\x00\x00\x7b', 'foo'),
+                                            port_timestamp = 3558720820.531179)
+        with self.assertRaises(SampleException):
+            particle.generate()
+         
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles

@@ -116,12 +116,7 @@ class ProtocolEvent(BaseEnum):
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
-    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
-    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
-    ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
     """
-    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
  
 class Parameter(DriverParameter):
     """
@@ -193,6 +188,8 @@ class OPTAA_SampleDataParticle(DataParticle):
             checksum += ord(record[i])
             checksum &= 0xffff
         if checksum != packet_checksum:
+            log.debug('OPTAA_SampleDataParticle: Checksum mismatch in data packet, rcvd=%d, calc=%d.'
+                      %(packet_checksum, checksum))
             raise SampleException('OPTAA_SampleDataParticle: Checksum mismatch in data packet, rcvd=%d, calc=%d.'
                                   %(packet_checksum, checksum))
             
