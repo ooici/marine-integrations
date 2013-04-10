@@ -183,7 +183,7 @@ class Parameter(object):
         self.value = ParameterValue(name, f_format, value=value,
                                     expiration=expiration)
         self.name = name
-        
+
     def update(self, input):
         """
         Attempt to udpate a parameter value. By default, this assumes the input
@@ -647,11 +647,11 @@ class ProtocolParameterDict(object):
         hit_count = 0
         multi_mode = False
         for (name, val) in self._param_dict.iteritems():
-            if multi_mode == True and val.multi_match == False:
+            if multi_mode == True and val.description.multi_match == False:
                 continue
             if val.update(input):
                 hit_count =hit_count +1
-                if False == val.multi_match:
+                if False == val.description.multi_match:
                     return hit_count
                 else:
                     multi_mode = True
@@ -688,6 +688,17 @@ class ProtocolParameterDict(object):
             if val.update(input):
                 found = True
         return found
+
+    def get_all(self, timestamp=None):
+        """
+        Retrive the configuration (all settable key values).
+        @param timestamp baseline timestamp to use for expiration
+        @retval name : value configuration dict.
+        """
+        config = {}
+        for (key, val) in self._param_dict.iteritems():
+            config[key] = val.get_value(timestamp)
+        return config
 
     def get_config(self):
         """

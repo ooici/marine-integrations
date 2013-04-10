@@ -32,6 +32,7 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import ResourceAgentEvent
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
+from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
@@ -109,7 +110,6 @@ class SBE37Capability(BaseEnum):
     TEST = SBE37ProtocolEvent.TEST
     ACQUIRE_STATUS  = SBE37ProtocolEvent.ACQUIRE_STATUS
     ACQUIRE_CONFIGURATION = SBE37ProtocolEvent.ACQUIRE_CONFIGURATION
-    
 
 # Device specific parameters.
 class SBE37Parameter(DriverParameter):
@@ -710,17 +710,12 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
+        self._build_driver_dict()
+        self._build_command_dict()
 
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCmds.DISPLAY_STATUS, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.DISPLAY_CALIBRATION, self._build_simple_command)
-        
-        InstrumentCmds.TAKE_SAMPLE
-        InstrumentCmds.SET
-        InstrumentCmds.START_LOGGING
-        InstrumentCmds.STOP_LOGGING
-
- 
         self._add_build_handler(InstrumentCmds.TAKE_SAMPLE, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.START_LOGGING, self._build_simple_command)
         self._add_build_handler(InstrumentCmds.STOP_LOGGING, self._build_simple_command)
@@ -1336,7 +1331,24 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         result = self._extract_sample(SBE37DataParticle, SAMPLE_PATTERN_MATCHER, chunk, timestamp)
         result = self._extract_sample(SBE37DeviceStatusParticle, STATUS_DATA_REGEX_MATCHER, chunk, timestamp)
         result = self._extract_sample(SBE37DeviceCalibrationParticle, CALIBRATION_DATA_REGEX_MATCHER, chunk, timestamp)
-     
+
+    def _build_driver_dict(self):
+        """
+        Populate the driver dictionary with options
+        """
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
+
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+        self._cmd_dict.add(SBE37Capability.ACQUIRE_STATUS, display_name="acquire status")
+        self._cmd_dict.add(SBE37Capability.TEST, display_name="test instrument")
+        self._cmd_dict.add(SBE37Capability.START_AUTOSAMPLE, display_name="start autosample")
+        self._cmd_dict.add(SBE37Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
+        self._cmd_dict.add(SBE37Capability.ACQUIRE_CONFIGURATION, display_name="get configuration data")
+        self._cmd_dict.add(SBE37Capability.ACQUIRE_SAMPLE, display_name="acquire sample")
+
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with SBE37 parameters.

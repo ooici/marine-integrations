@@ -322,6 +322,41 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
+    def _handler_command_set(self, *args, **kwargs):
+        """
+        Perform a set command.
+        @param args[0] parameter : value dict.
+        @param args[1] parameter : startup parameters?
+        @retval (next_state, result) tuple, (None, None).
+        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
+        not a dict, or if paramter can't be properly formatted.
+        @throws InstrumentTimeoutException if device cannot be woken for set command.
+        @throws InstrumentProtocolException if set command could not be built or misunderstood.
+        """
+        next_state = None
+        result = None
+        startup = False
+
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('_handler_command_set Set command requires a parameter dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
+        if not isinstance(params, dict):
+            raise InstrumentParameterException('Set parameters not a dict.')
+
+        # For each key, val in the dict, issue set command to device.
+        # Raise if the command not understood.
+        else:
+            self._set_params(params, startup)
+
+        return (next_state, result)
+
     ########################################################################
     # Private helpers.
     ########################################################################

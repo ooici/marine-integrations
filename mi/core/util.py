@@ -10,6 +10,8 @@
 __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
+from mi.core.log import get_logger ; log = get_logger()
+
 def dict_equal(ldict, rdict, ignore_keys=[]):
     """
     Compare two dictionary.  assumes both dictionaries are flat
@@ -24,8 +26,10 @@ def dict_equal(ldict, rdict, ignore_keys=[]):
     for key in set(ldict.keys() + rdict.keys()):
         if(key in ldict.keys() and key in rdict.keys()):
             if(not key in ignore_keys and ldict[key] != rdict[key]):
+                log.debug("Key '%s' %s != %s", key, ldict[key], rdict[key])
                 return False
         else:
+            log.debug("Key '%s' not in both lists", key)
             return False
         pass
 
