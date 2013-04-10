@@ -1082,6 +1082,62 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             for parameter in parameters_dict:
                 del params_to_set[parameter]
 
+    def _check_deployment_params(self, params):
+        """
+        Verify that the deployment params are either not all set at the same
+        time or, if they are, all are set to correct values.
+        @param params A dict of parameter names and values
+        @retval A list of keys to set. Must have these values in the correct
+        order to not hose things later.
+        @throws InstrumentParameterException if the parameters conflict or one
+        is missing
+        """
+        if (params == None):
+            return list(params)
+        if (not isinstance(params, dict)):
+            raise InstrumentParameterException("Checking invalid deployment params")
+        
+        target = {}
+        if InstrumentParameters.FREQUENCY in params:
+            target[InstrumentParameters.FREQUENCY] = \
+            params[InstrumentParameters.FREQUENCY]
+        
+        if InstrumentParameters.MEASUREMENTS_PER_SAMPLE in params:
+            target[InstrumentParameters.MEASUREMENTS_PER_SAMPLE] = \
+            params[InstrumentParameters.MEASUREMENTS_PER_SAMPLE]
+            
+        if InstrumentParameters.SAMPLE_PERIOD in params:
+            target[InstrumentParameters.SAMPLE_PERIOD] = \
+            params[InstrumentParameters.SAMPLE_PERIOD]
+        
+        if ((len(target) == 2) and ((InstrumentParameters.FREQUENCY in target) and \
+                                    (InstrumentParameters.MEASUREMENTS_PER_SAMPLE in target))):
+            return_list = list(params)
+            return_list.remove(InstrumentParameters.FREQUENCY)
+            return_list.remove(InstrumentParameters.MEASUREMENTS_PER_SAMPLE)
+            return_list.extend([InstrumentParameters.FREQUENCY,
+                                InstrumentParameters.MEASUREMENTS_PER_SAMPLE])
+            return return_list
+        
+        if (len(target) == 1):
+            return list(params)
+        
+        if ((len(target) == 3) and (target[InstrumentParameters.SAMPLE_PERIOD] * \
+                                    target[InstrumentParameters.FREQUENCY] == \
+                                    target[InstrumentParameters.MEASUREMENTS_PER_SAMPLE])):
+            return_list = list(params)
+            return_list.remove(InstrumentParameters.FREQUENCY)
+            return_list.remove(InstrumentParameters.MEASUREMENTS_PER_SAMPLE)
+            return_list.remove(InstrumentParameters.SAMPLE_PERIOD)
+            return_list.extend([InstrumentParameters.FREQUENCY,
+                                InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
+                                InstrumentParameters.SAMPLE_PERIOD])
+            return return_list
+        
+        # if we made it this far, it cant be good)
+        raise InstrumentParameterException("Invalid deployment parameter configuration! %s" %
+                                           target)
+        
 
     def _handler_command_set(self, *args, **kwargs):
         """
@@ -1112,7 +1168,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         else:
             if not isinstance(params_to_set, dict):
                 raise InstrumentParameterException('Set parameters not a dict.')
-        
+                
         startup = kwargs.get('startup', False)
         log.debug("*** startup is %s", startup)
         if not startup:
@@ -1125,13 +1181,17 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                     raise InstrumentParameterException("Attempt to set read only parameter (%s)" % key)
 
         self._set_parameter_sub_parameters(params_to_set)
-                
-        for (key, val) in params_to_set.iteritems():
+              
+        keys_to_set = self._check_deployment_params(params_to_set)
+        log.debug("*** Keys to set after: %s (before: %s)", keys_to_set, list(params_to_set))
+          
+        #for (key, val) in params_to_set.iteritems():
+        for key in keys_to_set:
             dest_submenu = self._param_dict.get_menu_path_write(key)
             command = self._param_dict.get_submenu_write(key)
-            self._navigate_and_execute(command, name=key, value=val,
+            self._navigate_and_execute(command, name=key, value=params_to_set[key],
                                        dest_submenu=dest_submenu, timeout=5)
-
+        
         self._update_params()
             
         return (next_state, result)
@@ -2676,6 +2736,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be timely woken.
         @throws InstrumentProtocolException if ds/dc misunderstood.
         """
+        log.debug("*** Updating parameters with args: %s", args)
+        
         if self.get_current_state() != ProtocolStates.COMMAND:
             raise InstrumentStateException('Can not perform update of parameters when not in command state',
                                            error_code=InstErrorCode.INCORRECT_STATE)
@@ -2764,7 +2826,11 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
+        log.debug("*** getting new config...")
         new_config = self._param_dict.get_config()
+        log.debug("*** got new config: %s", new_config)
+        log.debug("*** compared to old config: %s", old_config)
+        
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
             

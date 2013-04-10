@@ -42,6 +42,7 @@ import json
 from nose.plugins.attrib import attr
 
 from pyon.agent.agent import ResourceAgentEvent
+from pyon.core.exception import BadRequest
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
@@ -661,9 +662,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         json_result = self.driver_client.cmd_dvr("get_config_metadata")
         self.assert_(json_result != None)
         self.assert_(len(json_result) > 100) # just make sure we have something...
-        log.debug("*** json result: %s", json_result)
         result = json.loads(json_result)
-        log.debug("*** result: %s", result)
         self.assert_(result != None)
         self.assert_(isinstance(result, dict))
         self.assertFalse(result[ConfigMetadataKey.COMMANDS])
@@ -680,7 +679,80 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         log.debug("*** keys: %s\nenum_list: %s", keys, enum_list)
         self.assertEqual(keys, enum_list)
         
+    def test_related_parameters(self):
+        """
+        Measurement Frequency, Measurement/Sample, and Sample period are all
+        tied together. When one changes, the others must follow suit when
+        being set as a group.
+        """
+        self.assert_initialize_driver()
+        read_values = [
+            InstrumentParameters.FREQUENCY,
+            InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
+            InstrumentParameters.SAMPLE_PERIOD
+            ]
+
+        # The "normal, everything is good" case
+        new_parameter_values = {
+            InstrumentParameters.FREQUENCY : 2.0,
+            InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
+            InstrumentParameters.SAMPLE_PERIOD : 5.0,
+        }
+        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
+        reply = self.driver_client.cmd_dvr('get_resource', read_values)
+        self.assertEqual(reply[InstrumentParameters.MEASUREMENTS_PER_SAMPLE], 10)
+        self.assertEqual(reply[InstrumentParameters.FREQUENCY], 2)
+        self.assertEqual(reply[InstrumentParameters.SAMPLE_PERIOD], 5.0)
         
+        # The single case
+        new_parameter_values = {
+            InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 20,
+        }
+        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
+        reply = self.driver_client.cmd_dvr('get_resource', read_values)
+        self.assertEqual(reply[InstrumentParameters.MEASUREMENTS_PER_SAMPLE], 20)
+        self.assertEqual(reply[InstrumentParameters.FREQUENCY], 2)
+        self.assertEqual(reply[InstrumentParameters.SAMPLE_PERIOD], 10.0)
+
+        # Two good values (M/S and Freq are okay)
+        new_parameter_values = {
+            InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 1,
+            InstrumentParameters.FREQUENCY : 1.0,
+        }
+        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
+        reply = self.driver_client.cmd_dvr('get_resource', read_values)
+        self.assertEqual(reply[InstrumentParameters.MEASUREMENTS_PER_SAMPLE], 1)
+        self.assertEqual(reply[InstrumentParameters.FREQUENCY], 1.0)
+        self.assertEqual(reply[InstrumentParameters.SAMPLE_PERIOD], 1.0)
+       
+        # One value wrong
+        new_parameter_values = {
+            InstrumentParameters.FREQUENCY : 10.0,
+            InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 2,
+            InstrumentParameters.SAMPLE_PERIOD : 5.0,
+        }
+        self.assertRaises(BadRequest,
+                          self.driver_client.cmd_dvr, 'set_resource',
+                                                      new_parameter_values)
+        
+        # Two values wrong
+        new_parameter_values = {
+            InstrumentParameters.FREQUENCY : 20.0,
+            InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
+            InstrumentParameters.SAMPLE_PERIOD : 5.0,
+        }
+        self.assertRaises(BadRequest,
+                          self.driver_client.cmd_dvr, 'set_resource',
+                                                      new_parameter_values)
+        
+        # Two bad values
+        new_parameter_values = {
+            InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
+            InstrumentParameters.SAMPLE_PERIOD : 5.0,
+        }
+        self.assertRaises(BadRequest,
+                          self.driver_client.cmd_dvr, 'set_resource',
+                                                      new_parameter_values)
         
 
 ###############################################################################
