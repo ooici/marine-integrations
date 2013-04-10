@@ -1,8 +1,0 @@
-comm:
-  command_port: 6002
-  data_port: 6001
-  device_addr: sbe37-simulator.oceanobservatories.org
-  device_port: 4001
-  host: localhost
-  method: ethernet
-  sniffer_port: 6003
