@@ -26,6 +26,7 @@ from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import InstrumentDriverPublicationTestCase
+from mi.core.time import get_timestamp_delayed
 
 DEFAULT_CLOCK_DIFF = 500
 ###############################################################################
@@ -87,6 +88,25 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
 
         # Verify the clock is set within the tolerance
         return abs(converted_time - time.mktime(expected_time_struct)) <= tolerance
+
+    def assert_set_clock(self, time_param, time_override=None, time_format = "%Y/%m/%d,%H:%M:%S", tolerance=DEFAULT_CLOCK_DIFF):
+        """
+        Verify that we can set the clock
+        @param time_param: driver parameter
+        @param time_override: use this time instead of current time.
+        @param time_format: date time format
+        @param tolerance: how close to the set time should the get be?
+        """
+        # Some seabirds tick the clock the instant you set it.  So you set
+        # time 1, the get would be time 2.  Others do it correctly and wait
+        # for a second before ticking. Hence the default tolerance of 1.
+        if(time_override == None):
+            set_time = get_timestamp_delayed(time_format)
+        else:
+            set_time = time.strftime(time_format, time.localtime(time_override))
+
+        self.assert_set(time_param, set_time, no_get=True, startup=True)
+        self.assertTrue(self._is_time_set(time_param, set_time, time_format, tolerance))
 
 
 ###############################################################################

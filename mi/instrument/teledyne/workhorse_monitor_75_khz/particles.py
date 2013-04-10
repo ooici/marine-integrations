@@ -166,7 +166,7 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
     SPURIOUS_UART_INTERRUPT = "spurious_uart_interrupt"
     SPURIOUS_CLOCK_INTERRUPT = "spurious_clock_interrupt"
     LEVEL_7_INTERRUPT = "level_7_interrupt"
-    ABSOLUTE_PRESSURE = "absolute_pressure"
+    ABSOLUTE_PRESSURE = "pressure"
     PRESSURE_VARIANCE = "pressure_variance"
     INTERNAL_TIMESTAMP = "internal_timestamp"
     VELOCITY_DATA_ID = "velocity_data_id"
@@ -258,12 +258,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             chunks.append(self.raw_data[offsets[offset] : offsets[offset + 1] ])
 
             variable_leader_id = unpack('!H', chunks[offset][0:2])[0]
-            log.debug("variable_leader_id = %s", str(variable_leader_id))
-            log.debug("OBTAINING CHUNK %s FROM %s TO %s FOR A LENGTH OF %s", 
-                      str(offset),
-                      str(offsets[offset]),
-                      str(offsets[offset + 1]),
-                      str(len(chunks[offset])))
+
             if offset == 0:
                 self.parse_fixed_chunk(chunks[offset])
             else:
