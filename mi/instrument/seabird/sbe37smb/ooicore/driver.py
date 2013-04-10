@@ -65,8 +65,7 @@ class InstrumentCmds(BaseEnum):
     #'tc'
     #'tt'
     #'tp'
-    
-    
+
 class SBE37ProtocolState(BaseEnum):
     """
     Protocol states for SBE37. Cherry picked from DriverProtocolState
@@ -1011,36 +1010,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
         @throws InstrumentParameterException if missing or invalid parameter.
         """
-        next_state = None
-        result = None
-
-        # Retrieve the required parameter, raise if not present.
-        try:
-            params = args[0]
-
-        except IndexError:
-            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
-
-        # If all params requested, retrieve config.
-        if params == DriverParameter.ALL:
-            result = self._param_dict.get_config()
-
-        # If not all params, confirm a list or tuple of params to retrieve.
-        # Raise if not a list or tuple.
-        # Retireve each key in the list, raise if any are invalid.
-        else:
-            if not isinstance(params, (list, tuple)):
-                raise InstrumentParameterException('Get argument not a list or tuple.')
-            result = {}
-            for key in params:
-                try:
-                    val = self._param_dict.get(key)
-                    result[key] = val
-
-                except KeyError:
-                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
-
-        return (next_state, result)
+        return self._handler_get(*args, **kwargs)
 
     ########################################################################
     # Test handlers.
