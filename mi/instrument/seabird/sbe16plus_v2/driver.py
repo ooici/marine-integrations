@@ -18,8 +18,10 @@ from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.common import BaseEnum
+from mi.core.util import dict_equal
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -32,6 +34,8 @@ from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.instrument.driver_dict import DriverDictKey
 
 from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
 from mi.instrument.seabird.driver import SeaBirdParticle
@@ -43,6 +47,8 @@ from mi.instrument.seabird.driver import DEFAULT_ENCODER_KEY
 ###############################################################################
 # Module-wide values
 ###############################################################################
+
+WAKEUP_TIMEOUT = 60
 
 ###############################################################################
 # Static enumerations for this class
@@ -122,7 +128,6 @@ class Capability(BaseEnum):
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
     GET_CONFIGURATION = ProtocolEvent.GET_CONFIGURATION
     TEST = DriverEvent.TEST
-    DISCOVER = DriverEvent.DISCOVER
     RESET_EC = ProtocolEvent.RESET_EC
 
 # Device specific parameters.
@@ -739,7 +744,7 @@ class SBE16Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_CONFIGURATION, self._handler_command_get_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.RESET_EC, self._handler_command_reset_ec)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST, self._handler_command_test)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
@@ -749,7 +754,7 @@ class SBE16Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.QUIT_SESSION, self._handler_command_autosample_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS, self._handler_autosample_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET_CONFIGURATION, self._handler_autosample_get_configuration)
@@ -757,7 +762,7 @@ class SBE16Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.ENTER, self._handler_test_enter)
         self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.EXIT, self._handler_test_exit)
         self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.RUN_TEST, self._handler_test_run_tests)
-        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.GET, self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
@@ -766,6 +771,8 @@ class SBE16Protocol(SeaBirdProtocol):
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
+        self._build_driver_dict()
+        self._build_command_dict()
         self._build_param_dict()
 
         # Add build handlers for device commands.
@@ -860,11 +867,9 @@ class SBE16Protocol(SeaBirdProtocol):
 
         if(logging == None):
             raise InstrumentProtocolException('_handler_unknown_discover - unable to to determine state')
-
-        elif(logging):
+        elif(logging == True):
             next_state = ProtocolState.AUTOSAMPLE
             next_agent_state = ResourceAgentState.STREAMING
-
         else:
             next_state = ProtocolState.COMMAND
             next_agent_state = ResourceAgentState.IDLE
@@ -883,9 +888,6 @@ class SBE16Protocol(SeaBirdProtocol):
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
-        # Command device to update parameters and send a config change event.
-        self._update_params()
-
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -951,9 +953,10 @@ class SBE16Protocol(SeaBirdProtocol):
         """
         Issue commands to the instrument to set various parameters
         """
-        SeaBirdProtocol._set_params(self, *args, **kwargs)
-
-        params = args[0]
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
 
         # Pump Mode is the only parameter that is set by the driver
         # that where the input isn't validated by the instrument.  So
@@ -961,6 +964,8 @@ class SBE16Protocol(SeaBirdProtocol):
         for (key, val) in params.iteritems():
             if(key == Parameter.PUMP_MODE and val not in [0, 1, 2]):
                 raise InstrumentParameterException("pump mode out of range")
+
+        self._verify_not_readonly(*args, **kwargs)
 
         for (key, val) in params.iteritems():
             log.debug("KEY = %s VALUE = %s", key, val)
@@ -1022,8 +1027,8 @@ class SBE16Protocol(SeaBirdProtocol):
         result = None
 
         # When in autosample this command requires two wakeups to get to the right prompt
-        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
-        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
         kwargs['timeout'] = TIMEOUT
         result = self._do_cmd_resp(Command.DCAL, *args, **kwargs)
@@ -1092,9 +1097,9 @@ class SBE16Protocol(SeaBirdProtocol):
         next_agent_state = None
         result = None
 
-        prompt = self._wakeup(timeout=TIMEOUT)
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT)
 
-        self._sync_clock(Parameter.DATE_TIME, Prompt.COMMAND)
+        self._sync_clock(Command.SET, Parameter.DATE_TIME, TIMEOUT, time_format="%d %b %Y %H:%M:%S")
 
         return (next_state, (next_agent_state, result))
 
@@ -1125,7 +1130,7 @@ class SBE16Protocol(SeaBirdProtocol):
             self._stop_logging(*args, **kwargs)
 
             # Sync the clock
-            self._sync_clock(Parameter.DATE_TIME, Prompt.COMMAND, TIMEOUT, time_format="%d %b %Y %H:%M:%S")
+            self._sync_clock(Command.SET, Parameter.DATE_TIME, TIMEOUT, time_format="%d %b %Y %H:%M:%S")
 
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
@@ -1178,43 +1183,6 @@ class SBE16Protocol(SeaBirdProtocol):
     # Common handlers.
     ########################################################################
 
-    def _handler_command_autosample_test_get(self, *args, **kwargs):
-        """
-        Get device parameters from the parameter dict.
-        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
-        @throws InstrumentParameterException if missing or invalid parameter.
-        """
-        next_state = None
-        result = None
-
-        # Retrieve the required parameter, raise if not present.
-        try:
-            params = args[0]
-           
-        except IndexError:
-            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
-
-        # If all params requested, retrieve config.
-        if params == DriverParameter.ALL:
-            result = self._param_dict.get_config()
-                    
-        # If not all params, confirm a list or tuple of params to retrieve.
-        # Raise if not a list or tuple.
-        # Retireve each key in the list, raise if any are invalid.
-        else:
-            if not isinstance(params, (list, tuple)):
-                raise InstrumentParameterException('Get argument not a list or tuple.')
-            result = {}
-            for key in params:
-                try:
-                    val = self._param_dict.get(key)
-                    result[key] = val
-
-                except KeyError:
-                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
-            
-        return (next_state, result)
-
     def _handler_command_acquire_status(self, *args, **kwargs):
         """
         Get device status
@@ -1239,8 +1207,8 @@ class SBE16Protocol(SeaBirdProtocol):
         result = None
 
         # When in autosample this command requires two wakeups to get to the right prompt
-        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
-        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
         log.debug("_handler_autosample_acquire_status")
         result = self._do_cmd_resp(Command.DS, timeout=TIMEOUT)
@@ -1380,8 +1348,13 @@ class SBE16Protocol(SeaBirdProtocol):
                  None - unknown logging state
         @raise: InstrumentProtocolException if we can't identify the prompt
         """
-        self._update_params(*args, **kwargs)
-        pd = self._param_dict.get_config()
+        basetime = self._param_dict.get_current_timestamp()
+
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+
+        self._update_params()
+
+        pd = self._param_dict.get_all(basetime)
         return pd.get(Parameter.LOGGING)
 
     def _start_logging(self, *args, **kwargs):
@@ -1413,8 +1386,8 @@ class SBE16Protocol(SeaBirdProtocol):
         """
         log.debug("Stop Logging!")
 
-        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
-        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
         # Issue the stop command.
         if(self.get_current_state() == ProtocolState.AUTOSAMPLE):
@@ -1452,13 +1425,14 @@ class SBE16Protocol(SeaBirdProtocol):
         @throws InstrumentTimeoutException if device cannot be timely woken.
         @throws InstrumentProtocolException if ds/dc misunderstood.
         """
-        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
         # For some reason when in streaming we require a second wakeup
-        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
         # Get old param dict config.
         old_config = self._param_dict.get_config()
+        baseline = self._param_dict.get_current_timestamp()
         
         # Issue display commands and parse results.
         log.debug("device status from _update_params")
@@ -1475,13 +1449,13 @@ class SBE16Protocol(SeaBirdProtocol):
         # sampling autonomously (for example, to send DS to check on progress), it
         # temporarily stops sampling. Autonomous sampling resumes when it
         ###
-        if(new_config.get(Parameter.LOGGING)):
+        if(self._param_dict.get(Parameter.LOGGING, baseline)):
+            log.debug("Sending QS to resume logging")
             self._do_cmd_no_resp(Command.QS, timeout=TIMEOUT)
 
-        # We ignore the data time parameter diffs
-        new_config[Parameter.DATE_TIME] = old_config.get(Parameter.DATE_TIME)
-
-        if new_config != old_config and self._protocol_fsm.get_current_state() != ProtocolState.UNKNOWN:
+        log.debug("Old Config: %s", old_config)
+        log.debug("New Config: %s", new_config)
+        if not dict_equal(new_config, old_config) and self._protocol_fsm.get_current_state() != ProtocolState.UNKNOWN:
             log.debug("parameters updated, sending event")
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
         else:
@@ -1633,6 +1607,25 @@ class SBE16Protocol(SeaBirdProtocol):
                 self._extract_sample(SBE16CalibrationParticle, SBE16CalibrationParticle.regex_compiled(), chunk, timestamp)):
             raise InstrumentProtocolException("Unhandled chunk")
 
+    def _build_driver_dict(self):
+        """
+        Populate the driver dictionary with options
+        """
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
+
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+        self._cmd_dict.add(Capability.QUIT_SESSION, display_name="acquire status")
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
+        self._cmd_dict.add(Capability.CLOCK_SYNC, display_name="synchronize clock")
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
+        self._cmd_dict.add(Capability.GET_CONFIGURATION, display_name="get calibrations")
+        self._cmd_dict.add(Capability.TEST, display_name="test eeprom")
+        self._cmd_dict.add(Capability.RESET_EC, display_name="test eeprom")
+
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with SBE16 parameters.
@@ -1644,35 +1637,46 @@ class SBE16Protocol(SeaBirdProtocol):
                              r'SBE 16plus V ([\w.]+) +SERIAL NO. (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)',
                              lambda match : string.upper(match.group(3)),
                              self._string_to_numeric_date_time_string,
+                             type=ParameterDictType.STRING,
+                             display_name="Date/Time",
+                             #expiration=0,
                              visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ECHO,
                              r'echo characters = (yes|no)',
                              lambda match : True if match.group(1)=='yes' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Echo Characters",
                              startup_param = True,
                              direct_access = True,
                              default_value = True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.OUTPUT_EXEC_TAG,
                              r'.',
                              lambda match : True,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Output Execute Tag",
                              startup_param = True,
                              direct_access = True,
                              default_value = True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.TXREALTIME,
                              r'transmit real-time = (yes|no)',
                              lambda match : True if match.group(1)=='yes' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Transmit Real-Time",
                              startup_param = True,
                              direct_access = True,
                              default_value = True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.PUMP_MODE,
                              r'pump = (run pump during sample|run pump for 0.5 sec|no pump)',
                              self._pump_mode_to_int,
                              str,
+                             type=ParameterDictType.INT,
+                             display_name="Pump Mode",
                              startup_param = True,
                              direct_access = True,
                              default_value = 2)
@@ -1680,6 +1684,8 @@ class SBE16Protocol(SeaBirdProtocol):
                              r'number of measurements per sample = (\d+)',
                              lambda match : int(match.group(1)),
                              str,
+                             type=ParameterDictType.INT,
+                             display_name="Ncycles",
                              startup_param = True,
                              direct_access = False,
                              default_value = 4)
@@ -1687,6 +1693,8 @@ class SBE16Protocol(SeaBirdProtocol):
                              r'sample interval = (\d+)',
                              lambda match : int(match.group(1)),
                              str,
+                             type=ParameterDictType.INT,
+                             display_name="Sample Interval",
                              startup_param = True,
                              direct_access = False,
                              default_value = 10)
@@ -1694,160 +1702,201 @@ class SBE16Protocol(SeaBirdProtocol):
                              r'.',
                              lambda match : False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Biowiper",
                              startup_param = True,
                              direct_access = True,
                              default_value = False,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.PTYPE,
                              r'pressure sensor = ([\w\s]+),',
                              self._pressure_sensor_to_int,
                              self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Pressure Sensor Type",
                              startup_param = True,
                              direct_access = True,
                              default_value = 1,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.VOLT0,
                              r'Ext Volt 0 = ([\w]+)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 0",
                              startup_param = True,
                              direct_access = True,
                              default_value = True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.VOLT1,
                              r'Ext Volt 1 = ([\w]+)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 1",
                              startup_param = True,
                              direct_access = True,
                              default_value = True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.VOLT2,
                              r'Ext Volt 2 = ([\w]+)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 2",
                              startup_param = True,
                              direct_access = True,
                              default_value = True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.VOLT3,
                              r'Ext Volt 3 = ([\w]+)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 3",
                              startup_param = True,
                              direct_access = True,
                              default_value = True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.VOLT4,
                              r'Ext Volt 4 = ([\w]+)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 4",
                              startup_param = True,
                              direct_access = True,
                              default_value = True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.VOLT5,
                              r'Ext Volt 5 = ([\w]+)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 5",
                              startup_param = True,
                              direct_access = True,
                              default_value = True,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.DELAY_BEFORE_SAMPLE,
                              r'delay before sampling = (\d+\.\d+)',
                              lambda match : float(match.group(1)),
                              self._float_to_string,
+                             type=ParameterDictType.FLOAT,
+                             display_name="Delay Before Sample",
                              startup_param = True,
                              direct_access = True,
                              default_value = 0.0,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.DELAY_AFTER_SAMPLE,
                              r'delay after sampling = (\d\.\d)',
                              lambda match : float(match.group(1)),
                              str,
+                             type=ParameterDictType.FLOAT,
+                             display_name="Delay After Sample",
                              startup_param = True,
                              direct_access = True,
                              default_value = 0.0,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.SBE63,
                              r'SBE\s?63 = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="SBE63 Attached",
                              startup_param = True,
                              direct_access = True,
                              default_value = False,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.SBE38,
                              r'SBE 38 = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="SBE38 Attached",
                              startup_param = True,
                              direct_access = True,
                              default_value = False,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.SBE50,
                              r'SBE 50 = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="SBE50 Attached",
                              startup_param = True,
                              direct_access = True,
                              default_value = False,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.WETLABS,
                              r'WETLABS = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="WetLabs Attached",
                              startup_param = True,
                              direct_access = True,
                              default_value = False,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.GTD,
                              r'Gas Tension Device = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="GTD Attached",
                              startup_param = True,
                              direct_access = True,
                              default_value = False,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.OPTODE,
                              r'OPTODE = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Optode Attached",
                              startup_param = True,
                              direct_access = True,
                              default_value = False,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.SYNCMODE,
                              r'serial sync mode (dis|en)abled',
                              lambda match : True if match.group(1) == 'en' else False,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Enable Serial Sync",
                              startup_param = True,
                              direct_access = True,
                              default_value = False,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.SYNCWAIT,
                              r'wait time after sampling = (\d) seconds',
                              lambda match : int(match.group(1)),
                              str,
+                             type=ParameterDictType.BOOL,
+                             display_name="Serial Sync Wait",
                              # Not a startup parameter because syncmode is read only false.
                              # This parameter is not needed.
                              startup_param = False,
                              direct_access = False,
                              default_value = 0,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.OUTPUT_FORMAT,
                              r'output format = (raw HEX)',
                              self._output_format_string_2_int,
                              int,
+                             type=ParameterDictType.INT,
+                             display_name="Output Format",
                              startup_param = True,
                              direct_access = True,
                              default_value = 0,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.LOGGING,
                              r'status = (not )?logging',
                              lambda match : False if (match.group(1)) else True,
                              self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Is Logging",
+                             #expiration=0,
                              visibility=ParameterDictVisibility.READ_ONLY)
 
 

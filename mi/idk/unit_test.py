@@ -721,7 +721,7 @@ class DriverTestMixin(MiUnitTest):
         expected_type = expected_parameter.get(ParameterTestConfigKey.TYPE)
         self.assertIsNotNone(expected_type)
 
-        self.assertEqual(expected_type, param_type)
+        self.assertEqual(expected_type, param_type, msg="Type mismatch: %s expected type %s, defined type %s" % (name, expected_type, param_type))
 
     def assert_schema_parameter_read_only(self, name, config_parameter, expected_parameter):
         """
@@ -749,8 +749,8 @@ class DriverTestMixin(MiUnitTest):
         @param config_parameter parameter as returned from the schema
         @param expected_parameters dictionary with expected parameter info
         """
-        name = config_parameter.get(ParameterDictKey.DISPLAY_NAME)
-        self.assertIsNotNone(name, "%s has no name defined" % name)
+        display_name = config_parameter.get(ParameterDictKey.DISPLAY_NAME)
+        self.assertIsNotNone(display_name, "%s has no name defined" % name)
 
     def assert_schema_value_metadata(self, name, config_parameter):
         """
@@ -1620,7 +1620,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             current_value = self.assert_get(param)
             config_change = current_value != value
 
-            log.debug("current value: %s new value: %s" % (current_value, value))
+            log.debug("current value: %s new value: %s, config_change: %s" % (current_value, value, config_change))
             self.assert_set(param, value, True)
             self.assert_get(param, value)
 

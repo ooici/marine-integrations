@@ -87,6 +87,7 @@ DA = ParameterTestConfigKey.DIRECT_ACCESS
 VALUE = ParameterTestConfigKey.VALUE
 REQUIRED = ParameterTestConfigKey.REQUIRED
 DEFAULT = ParameterTestConfigKey.DEFAULT
+STATES = ParameterTestConfigKey.STATES
 
 class SeaBird26PlusMixin(DriverTestMixin):
     '''
@@ -113,12 +114,12 @@ class SeaBird26PlusMixin(DriverTestMixin):
         Parameter.USE_STOP_TIME : {TYPE: bool, READONLY: True, DA: False, STARTUP: False, REQUIRED: False, VALUE: False},
         Parameter.TIDE_SAMPLES_PER_DAY : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
         Parameter.WAVE_BURSTS_PER_DAY : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
-        Parameter.MEMORY_ENDURANCE : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
-        Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
-        Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
-        Parameter.TOTAL_RECORDED_WAVE_BURSTS : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
-        Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
-        Parameter.WAVE_BURSTS_SINCE_LAST_START : {TYPE: float, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.MEMORY_ENDURANCE : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TOTAL_RECORDED_WAVE_BURSTS : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
+        Parameter.WAVE_BURSTS_SINCE_LAST_START : {TYPE: float, READONLY: True, DA: False, STARTUP: False, REQUIRED: False},
         Parameter.TXWAVESTATS : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
         Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS : {TYPE: int, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
         Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC : {TYPE: bool, READONLY: False, DA: False, STARTUP: False, REQUIRED: False},
@@ -146,6 +147,17 @@ class SeaBird26PlusMixin(DriverTestMixin):
         Parameter.SHOW_PROGRESS_MESSAGES : { TYPE: bool, READONLY: True, REQUIRED: False},
         Parameter.STATUS : { TYPE: str, READONLY: True},
         Parameter.LOGGING : { TYPE: bool, READONLY: True},
+    }
+
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        Capability.ACQUIRE_STATUS : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.START_AUTOSAMPLE : {STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_AUTOSAMPLE : {STATES: [ProtocolState.AUTOSAMPLE]},
+        Capability.CLOCK_SYNC : {STATES: [ProtocolState.COMMAND]},
+        Capability.ACQUIRE_CONFIGURATION : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.SEND_LAST_SAMPLE : {STATES: [ProtocolState.AUTOSAMPLE]},
+        Capability.QUIT_SESSION : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
     }
 
     _tide_sample_parameters = {
@@ -376,6 +388,13 @@ class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
+    def test_driver_schema(self):
+        """
+        get the driver schema and verify it is configured properly
+        """
+        driver = SBE26PlusInstrumentDriver(self._got_data_event_callback)
+        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
+
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
@@ -497,6 +516,22 @@ class SeaBird26PlusUnitTest(SeaBirdUnitTest, SeaBird26PlusMixin):
         driver = SBE26PlusInstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
+    def test_parse_ds(self):
+        """
+        Create a mock port agent
+        """
+        driver = SBE26PlusInstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
+        source = SAMPLE_DEVICE_STATUS
+
+        baseline = driver._protocol._param_dict.get_current_timestamp()
+
+        # First verify that parse ds sets all know parameters.
+        driver._protocol._parse_ds_response(source, Prompt.COMMAND)
+        pd = driver._protocol._param_dict.get_all(baseline)
+        log.debug("Param Dict Values: %s" % pd)
+        log.debug("Param Sample: %s" % source)
+        self.assert_driver_parameters(pd, False)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -528,9 +563,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         Test all set commands. Verify all exception cases.
         """
         self.assert_initialize_driver()
-
-        # Verify we can set the clock
-        self.assert_set_clock(Parameter.DS_DEVICE_DATE_TIME, tolerance=5)
 
         ###
         #   Instrument Parameteres
@@ -1200,7 +1232,6 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         self.assert_startup_parameters(self.assert_driver_parameters)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
-        self.assert_set(Parameter.TXWAVEBURST, True)
 
     ###
     #   Test scheduled events

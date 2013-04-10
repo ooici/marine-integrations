@@ -370,10 +370,10 @@ class TestDriverFileList(IDKPackageNose):
 
     @unittest.skip("skip until all baseclass work complete")
     def test_sbe37_list(self):
-        metadata = Metadata('seabird', 'sbe37smb', 'example')
+        metadata = Metadata('seabird', 'sbe37smb', 'ooicore')
         filelist = DriverFileList(metadata, Config().get('working_repo'))
-        known_files = ['mi/instrument/seabird/sbe37smb/example/comm_config.yml',
-                       'mi/instrument/seabird/sbe37smb/example/metadata.yml',
+        known_files = ['mi/instrument/seabird/sbe37smb/ooicore/comm_config.yml',
+                       'mi/instrument/seabird/sbe37smb/ooicore/metadata.yml',
                        'mi/__init__.py',
                        'mi/core/__init__.py',
                        'mi/core/common.py',
@@ -387,8 +387,8 @@ class TestDriverFileList(IDKPackageNose):
                        'mi/instrument/__init__.py',
                        'mi/instrument/seabird/__init__.py',
                        'mi/instrument/seabird/sbe37smb/__init__.py',
-                       'mi/instrument/seabird/sbe37smb/example/__init__.py',
-                       'mi/instrument/seabird/sbe37smb/example/driver.py',
+                       'mi/instrument/seabird/sbe37smb/ooicore/__init__.py',
+                       'mi/instrument/seabird/sbe37smb/ooicore/driver.py',
                        'mi/core/instrument/driver_client.py',
                        'mi/core/instrument/driver_process.py',
                        'mi/core/instrument/zmq_driver_client.py',
@@ -407,8 +407,8 @@ class TestDriverFileList(IDKPackageNose):
                        'mi/core/instrument/port_agent_client.py',
                        'mi/core/instrument/logger_client.py',
                        'mi/idk/unit_test.py',
-                       'mi/instrument/seabird/sbe37smb/example/test/__init__.py',
-                       'mi/instrument/seabird/sbe37smb/example/test/test_driver.py']
+                       'mi/instrument/seabird/sbe37smb/ooicore/test/__init__.py',
+                       'mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py']
         self.maxDiff = None
         files = filelist.files()
         log.debug("FILES = " + str(sorted(files)))
@@ -423,7 +423,7 @@ class TestDriverEggGenerator(IDKPackageNose):
         IDKPackageNose.setUp(self)
 
 
-        self._metadata = Metadata('seabird', 'sbe37smb', 'example')
+        self._metadata = Metadata('seabird', 'sbe37smb', 'ooicore')
         self._generator = EggGenerator(self._metadata)
 
         # Ensure the base build dir doesnt exists
@@ -492,8 +492,8 @@ class TestDriverEggGenerator(IDKPackageNose):
 
 
     def test_egg_build(self):
-        files = [ 'mi/instrument/seabird/sbe37smb/example/driver.py',
-                  'mi/instrument/seabird/sbe37smb/example/test/test_driver.py',
+        files = [ 'mi/instrument/seabird/sbe37smb/ooicore/driver.py',
+                  'mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py',
                   'res/config/mi-logging.yml']
 
         egg_file = self._generator._build_egg(files)
