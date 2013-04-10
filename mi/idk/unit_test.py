@@ -721,7 +721,7 @@ class DriverTestMixin(MiUnitTest):
         expected_type = expected_parameter.get(ParameterTestConfigKey.TYPE)
         self.assertIsNotNone(expected_type)
 
-        self.assertEqual(expected_type, param_type)
+        self.assertEqual(expected_type, param_type, msg="Type mismatch: %s expected type %s, defined type %s" % (name, expected_type, param_type))
 
     def assert_schema_parameter_read_only(self, name, config_parameter, expected_parameter):
         """
