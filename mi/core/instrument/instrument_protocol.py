@@ -39,6 +39,7 @@ from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import NotImplementedException
+from mi.core.exceptions import InstrumentParameterExpirationException
 
 DEFAULT_CMD_TIMEOUT=20
 DEFAULT_WRITE_DELAY=0
@@ -86,6 +87,52 @@ class InstrumentProtocol(object):
         self._scheduler_config = {}
 
     ########################################################################
+    # Common handlers
+    ########################################################################
+    def _handler_get(self, *args, **kwargs):
+        """
+        Get device parameters from the parameter dict.  First we set a baseline timestamp
+        that all data expirations will be calculated against.  Then we try to get parameter
+        value.  If we catch an expired parameter then we will update all parameters and get
+        values using the original baseline time that we set at the beginning of this method.
+        Assuming our _update_params is updating all parameter values properly then we can
+        ensure that all data will be fresh.  Nobody likes stale data!
+        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
+        @raise InstrumentParameterException if missing or invalid parameter.
+        @raise InstrumentParameterExpirationException If we fail to update a parameter
+        on the second pass this exception will be raised on expired data
+        """
+        log.debug("%%% IN base _handler_command_get")
+
+        next_state = None
+        result = None
+
+        # Grab a baseline time for calculating expiration time.  It is assumed
+        # that all data if valid if acquired after this time.
+        expire_time = self._param_dict.get_current_timestamp()
+
+        # build a list of parameters we need to get
+        param_list = self._get_param_list(*args, **kwargs)
+
+        try:
+            # Take a first pass at getting parameters.  If they are
+            # expired an exception will be raised.
+            result = self._get_param_result(param_list, expire_time)
+        except InstrumentParameterExpirationException as e:
+            # In the second pass we need to update parameters, it is assumed
+            # that _update_params does everything required to refresh all
+            # parameters or at least those that would expire.
+            log.debug("Parameter expired, refreshing, %s", e)
+            self._update_params()
+
+            # Take a second pass at getting values, this time is should
+            # have all fresh values.
+            log.debug("Fetching parameters for the second time")
+            result = self._get_param_result(param_list, expire_time)
+
+        return (next_state, result)
+
+    ########################################################################
     # Helper methods
     ########################################################################
     def got_data(self, port_agent_packet):
@@ -95,6 +142,22 @@ class InstrumentProtocol(object):
         """
         log.error("base got_data.  Who called me?")
         pass
+
+    def _get_param_result(self,param_list, expire_time):
+        """
+        return a dictionary of the parameters and values
+        @param expire_time: baseline time for expiration calculation
+        @return: dictionary of values
+        @raise InstrumentParameterException if missing or invalid parameter
+        @raise InstrumentParameterExpirationException if value is expired.
+        """
+        result = {}
+
+        for param in param_list:
+            val = self._param_dict.get(param, expire_time)
+            result[param] = val
+
+        return result
 
     def _verify_not_readonly(self, params_to_set, startup=False):
         """
