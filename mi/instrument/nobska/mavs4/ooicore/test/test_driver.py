@@ -676,7 +676,6 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         keys.sort()
         enum_list = InstrumentParameters.list()
         enum_list.sort()
-        log.debug("*** keys: %s\nenum_list: %s", keys, enum_list)
         self.assertEqual(keys, enum_list)
         
     def test_related_parameters(self):

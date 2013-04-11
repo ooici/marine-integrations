@@ -749,7 +749,6 @@ class ProtocolParameterDict(object):
         or value object is missing.
         @raises KeyError if the parameter name is invalid.
         """
-        log.debug("*** format name: %s, self._param_dict[name]: %s", name, self._param_dict[name])
         if not self._param_dict[name].value:
             raise InstrumentParameterException("No value present for %s!" % name)
 

@@ -831,13 +831,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         for directions in directions_list:
             log.debug('_navigate_and_execute: directions: %s', directions)
             command = directions.get_command()
-            log.debug("*** command: %s", command)
             response = directions.get_response()
-            log.debug("*** response: %s", response)
             timeout = directions.get_timeout()
-            log.debug("*** timeout: %s", timeout)
             self._do_cmd_resp(command, expected_prompt = response, timeout = timeout, **kwargs)
-            log.debug("*** FINISHED!")
 
         # restore timeout and expected_prompt for the execution of the actual command 
         kwargs['timeout'] = cmd_timeout
@@ -1109,7 +1105,10 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         if InstrumentParameters.SAMPLE_PERIOD in params:
             target[InstrumentParameters.SAMPLE_PERIOD] = \
             params[InstrumentParameters.SAMPLE_PERIOD]
-        
+
+        if (len(target) <= 1):
+            return list(params)
+
         if ((len(target) == 2) and ((InstrumentParameters.FREQUENCY in target) and \
                                     (InstrumentParameters.MEASUREMENTS_PER_SAMPLE in target))):
             return_list = list(params)
@@ -1118,10 +1117,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             return_list.extend([InstrumentParameters.FREQUENCY,
                                 InstrumentParameters.MEASUREMENTS_PER_SAMPLE])
             return return_list
-        
-        if (len(target) == 1):
-            return list(params)
-        
+                
         if ((len(target) == 3) and (target[InstrumentParameters.SAMPLE_PERIOD] * \
                                     target[InstrumentParameters.FREQUENCY] == \
                                     target[InstrumentParameters.MEASUREMENTS_PER_SAMPLE])):
@@ -1157,8 +1153,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         next_state = None
         result = None
 
-        log.debug("*** Entering _handler_command_set with args: %s", args)
-        log.debug("*** Entering _handler_command_set with kwargs: %s", kwargs)
         # Retrieve required parameter from args.
         # Raise exception if no parameter provided, or not a dict.
         try:
@@ -1170,10 +1164,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 raise InstrumentParameterException('Set parameters not a dict.')
                 
         startup = kwargs.get('startup', False)
-        log.debug("*** startup is %s", startup)
         if not startup:
             readonly = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
-            log.debug("*** Read only keys during non startup: %s", readonly)
             #log.trace("Read only keys during non startup: %s", readonly)
 
             for (key, val) in params_to_set.iteritems():
@@ -1183,7 +1175,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._set_parameter_sub_parameters(params_to_set)
               
         keys_to_set = self._check_deployment_params(params_to_set)
-        log.debug("*** Keys to set after: %s (before: %s)", keys_to_set, list(params_to_set))
           
         #for (key, val) in params_to_set.iteritems():
         for key in keys_to_set:
@@ -2735,9 +2726,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         needs to be iterated through a line at a time and valuse saved.
         @throws InstrumentTimeoutException if device cannot be timely woken.
         @throws InstrumentProtocolException if ds/dc misunderstood.
-        """
-        log.debug("*** Updating parameters with args: %s", args)
-        
+        """        
         if self.get_current_state() != ProtocolStates.COMMAND:
             raise InstrumentStateException('Can not perform update of parameters when not in command state',
                                            error_code=InstErrorCode.INCORRECT_STATE)
@@ -2826,10 +2815,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
-        log.debug("*** getting new config...")
         new_config = self._param_dict.get_config()
-        log.debug("*** got new config: %s", new_config)
-        log.debug("*** compared to old config: %s", old_config)
         
         if new_config != old_config:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
