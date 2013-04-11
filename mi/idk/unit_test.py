@@ -2941,8 +2941,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                                                            timeout=GET_TIMEOUT)
         self.assert_reset()
 
-        self.driver_client.cmd_dvr('set_init_params', config)
-
 
     @unittest.skip("Driver.get_device_signature not yet implemented")
     def test_get_device_signature(self):

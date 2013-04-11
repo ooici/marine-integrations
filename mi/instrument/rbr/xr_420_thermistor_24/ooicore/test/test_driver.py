@@ -111,6 +111,7 @@ class UtilMixin(DriverTestMixin):
     VALUE = ParameterTestConfigKey.VALUE
     REQUIRED = ParameterTestConfigKey.REQUIRED
     DEFAULT = ParameterTestConfigKey.DEFAULT
+    STATES = ParameterTestConfigKey.STATES
     
     CLOCK_SYNC_TIME = '21 Feb 2002 11:18:42'
     TIME_IN_PAST    = '01 Jan 2000 12:23:00'
@@ -128,7 +129,7 @@ class UtilMixin(DriverTestMixin):
         InstrumentParameters.STATUS : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.BATTERY_VOLTAGE : {TYPE: float, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.POWER_ALWAYS_ON : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1, VALUE: 1},
-        InstrumentParameters.SIX_HZ_PROFILING_MODE : {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        InstrumentParameters.SIX_HZ_PROFILING_MODE : {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
         InstrumentParameters.OUTPUT_INCLUDES_SERIAL_NUMBER : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         InstrumentParameters.OUTPUT_INCLUDES_BATTERY_VOLTAGE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         InstrumentParameters.SAMPLING_LED : {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
@@ -159,6 +160,14 @@ class UtilMixin(DriverTestMixin):
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_22 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_23 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.CALIBRATION_COEFFICIENTS_CHANNEL_24 : {TYPE: list, READONLY: True, DA: False, STARTUP: False},
+    }
+
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        Capability.ACQUIRE_STATUS : {STATES: [ProtocolStates.COMMAND, ProtocolStates.AUTOSAMPLE]},
+        Capability.START_AUTOSAMPLE : {STATES: [ProtocolStates.COMMAND]},
+        Capability.STOP_AUTOSAMPLE : {STATES: [ProtocolStates.AUTOSAMPLE]},
+        Capability.CLOCK_SYNC : {STATES: [ProtocolStates.COMMAND]},
     }
 
     _raw_coefficients = {
@@ -265,7 +274,6 @@ class UtilMixin(DriverTestMixin):
         rcvd_time = reply[InstrumentParameters.LOGGER_DATE_AND_TIME]
         self.assert_clock_set_correctly(time, rcvd_time)
 
-    
     def assert_particle_sample(self, data_particle, verify_values = False):
         '''
         Verify a take sample data particle
@@ -373,6 +381,13 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         # Test capabilities for duplicates, then verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
+
+    def test_driver_schema(self):
+        """
+        get the driver schema and verify it is configured properly
+        """
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
     def test_chunker(self):
         """
