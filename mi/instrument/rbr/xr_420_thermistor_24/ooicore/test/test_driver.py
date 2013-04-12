@@ -506,6 +506,18 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         self.assert_capabilities(driver, capabilities)
 
 
+    def test_parse_status(self):
+        status = "Logger status 00"
+
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        driver._protocol._parse_status_response(status)
+
+        config = driver._protocol._param_dict.get_all()
+        log.debug(config)
+
+
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 #     Integration test test the direct driver / instrument interaction        #
@@ -628,19 +640,15 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         test_values = {
             InstrumentParameters.SAMPLE_INTERVAL : '00:00:15',
             InstrumentParameters.POWER_ALWAYS_ON : 1,
-            InstrumentParameters.SIX_HZ_PROFILING_MODE : 0,
             InstrumentParameters.INHIBIT_DATA_STORAGE : 1,
         }
 
         # Set parameters in bulk and verify.
-        #self.assert_set_bulk(test_values)
+        self.assert_set_bulk(test_values)
 
         # Verify single sets, we first set to the current value to verify
         # a config update event IS NOT sent.  Then change the value and
         # watch for an config update event.
-        self.assert_set(InstrumentParameters.SIX_HZ_PROFILING_MODE, 0)
-        self.assert_set(InstrumentParameters.SIX_HZ_PROFILING_MODE, 1)
-
         self.assert_set(InstrumentParameters.POWER_ALWAYS_ON, 1)
         self.assert_set(InstrumentParameters.POWER_ALWAYS_ON, 0)
 

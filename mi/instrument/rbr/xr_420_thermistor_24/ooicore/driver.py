@@ -247,30 +247,6 @@ class AdvancedFuntionsBits(BaseEnum):
 
 
 ###############################################################################
-# parameter dictionary
-###############################################################################
-class ListProtocolParameterDict(ProtocolParameterDict):
-    
-    def update_specific(self, name, input):
-        val = self._param_dict[name]
-        return val.update(input)
-    
-    def set_value(self, name, value):
-        """
-        Set a parameter value in the dictionary.
-        @param name The parameter name.
-        @param value The parameter value.
-        @raises KeyError if the name is invalid.
-        """
-        log.debug("setting " + name + " to " + str(value))
-        try:
-            val = self._param_dict[name]
-            val.value = val.f_getval(value)
-        except Exception as ex:
-            raise InstrumentParameterException('ERROR: parameter %s value %s - %s.' %(name, str(value), repr(ex)))
-        
-        
-###############################################################################
 #   Driver for XR-420 Thermistor
 ###############################################################################
 class InstrumentDriver(SingleConnectionInstrumentDriver):
@@ -769,7 +745,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                 # Command device to update parameters and send a config change event.
                 # do this here because it shouldn't be done on entry to autosample everytime, 
                 # but the parameters need to be initialized in this mode also
+                log.debug("Updating paramdict")
                 self._update_params()
+                log.debug("Update paramdict complete")
             else:
                 next_state = ProtocolStates.COMMAND
                 result = ResourceAgentState.IDLE
@@ -1279,7 +1257,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         For each parameter key add value formatting function for set commands.
         """
         # The parameter dictionary.
-        self._param_dict = ListProtocolParameterDict()
+        self._param_dict = ProtocolParameterDict()
         
         # Add parameter handlers to parameter dictionary for instrument configuration parameters.
         self._param_dict.add(InstrumentParameters.STATUS,
@@ -1306,7 +1284,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              lambda string : str(string),
                              type=ParameterDictType.STRING,
                              display_name="Date/Time",
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_LOGGER_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_LOGGER_DATE_AND_TIME)
 
@@ -1852,7 +1830,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 # response handlers
 ##################################################################################################
 
-    def _parse_status_response(self, response, prompt, **kwargs):
+    def _parse_status_response(self, response, prompt=None, **kwargs):
         log.debug("_parse_status_response: response=%s" %response.rstrip())
         if InstrumentResponses.GET_STATUS in response:
             # got status response, so save it
@@ -1915,7 +1893,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             raise InstrumentParameterException('_parse_channel_calibration_response requires a parameter name.')
         if InstrumentResponses.GET_CHANNEL_CALIBRATION in response:
             # got channel calibration response, so save it
-            self._param_dict.update_specific(param_name, response)
+            self._param_dict.update(response, param_name)
         else:
             raise InstrumentParameterException('Get channel calibration response not correct: %s.' %response)
 

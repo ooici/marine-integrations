@@ -4,5 +4,5 @@ driver_metadata:
   driver_model: xr_420_thermistor_24
   driver_name: ooicore
   email: wcbollenbacher@ucsd.edu
-  release_notes: .
-  version: 0.0.1
+  release_notes: initial release
+  version: 0.0.2
