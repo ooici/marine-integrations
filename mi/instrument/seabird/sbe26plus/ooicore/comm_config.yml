@@ -3,4 +3,6 @@ comm:
   data_port: 2104
   device_addr: ciports1-4.whoi.edu
   device_port: 2102
+  host: localhost
   method: ethernet
+  sniffer_port: 6003

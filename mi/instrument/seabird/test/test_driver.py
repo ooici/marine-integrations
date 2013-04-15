@@ -162,12 +162,12 @@ class SeaBirdIntegrationTest(InstrumentDriverIntegrationTestCase):
 
         while(not self._is_time_set(time_param, time.mktime(time.gmtime()), tolerance=tolerance)):
             log.debug("time isn't current. sleep for a bit")
-            time.sleep(2)
 
             # Run acquire status command to set clock parameter
             self.assert_driver_command(sync_clock_cmd)
 
             log.debug("T: %s T: %s", time.time(), timeout_time)
+            time.sleep(5)
             self.assertLess(time.time(), timeout_time, msg="Timeout waiting for clock sync event")
 
 ###############################################################################

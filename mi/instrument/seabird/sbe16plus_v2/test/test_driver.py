@@ -181,6 +181,7 @@ class SeaBird16plusMixin(DriverTestMixin):
     VALUE     = ParameterTestConfigKey.VALUE
     REQUIRED  = ParameterTestConfigKey.REQUIRED
     DEFAULT   = ParameterTestConfigKey.DEFAULT
+    STATES    = ParameterTestConfigKey.STATES
 
     ###
     #  Parameter and Type Definitions
@@ -214,6 +215,18 @@ class SeaBird16plusMixin(DriverTestMixin):
         Parameter.SYNCWAIT : {TYPE: bool, READONLY: True, DA: False, STARTUP: False, DEFAULT: 0, VALUE: 0, REQUIRED: False},
         Parameter.OUTPUT_FORMAT : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.LOGGING : {TYPE: bool, READONLY: True, DA: False, STARTUP: False},
+    }
+
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        Capability.QUIT_SESSION : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.START_AUTOSAMPLE : {STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_AUTOSAMPLE : {STATES: [ProtocolState.AUTOSAMPLE]},
+        Capability.CLOCK_SYNC : {STATES: [ProtocolState.COMMAND]},
+        Capability.ACQUIRE_STATUS : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.GET_CONFIGURATION : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.TEST : {STATES: [ProtocolState.COMMAND]},
+        Capability.RESET_EC : {STATES: [ProtocolState.COMMAND]},
     }
 
     _sample_parameters = {
@@ -444,6 +457,13 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
+    def test_driver_schema(self):
+        """
+        get the driver schema and verify it is configured properly
+        """
+        driver = SBE16InstrumentDriver(self._got_data_event_callback)
+        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
+
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
@@ -492,41 +512,6 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
         self.assert_particle_published(driver, VALID_DCAL_QUARTZ, self.assert_particle_calibration_quartz, True)
         self.assert_particle_published(driver, VALID_DCAL_STRAIN, self.assert_particle_calibration_strain, True)
 
-    def test_protocol_filter_capabilities(self):
-        """
-        This tests driver filter_capabilities.
-        Iterate through available capabilities, and verify that they can pass successfully through the filter.
-        Test silly made up capabilities to verify they are blocked by filter.
-        """
-        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
-        protocol = SBE16Protocol(Prompt, NEWLINE, my_event_callback)
-        driver_capabilities = Capability().list()
-        test_capabilities = Capability().list()
-
-        # Add a bogus capability that will be filtered out.
-        test_capabilities.append("BOGUS_CAPABILITY")
-
-        # Verify "BOGUS_CAPABILITY was filtered out
-        self.assertEquals(driver_capabilities, protocol._filter_capabilities(test_capabilities))
-
-    def test_driver_parameters(self):
-        """
-        Verify the set of parameters known by the driver
-        """
-        driver = SBE16InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
-
-        expected_parameters = sorted(self._driver_parameters.keys())
-        reported_parameters = sorted(driver.get_resource(Parameter.ALL))
-
-        log.debug("Reported Parameters: %s" % reported_parameters)
-        log.debug("Expected Parameters: %s" % expected_parameters)
-
-        self.assertEqual(reported_parameters, expected_parameters)
-
-        # Verify the parameter definitions
-        self.assert_driver_parameter_definition(driver, self._driver_parameters)
-
     def test_capabilities(self):
         """
         Verify the FSM reports capabilities as expected.  All states defined in this dict must
@@ -568,9 +553,11 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
         self.assert_initialize_driver(driver, ProtocolState.COMMAND)
         source = VALID_DS_RESPONSE
 
+        baseline = driver._protocol._param_dict.get_current_timestamp()
+
         # First verify that parse ds sets all know parameters.
         driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_config()
+        pd = driver._protocol._param_dict.get_all(baseline)
         log.debug("Param Dict Values: %s" % pd)
         log.debug("Param Sample: %s" % source)
         self.assert_driver_parameters(pd, True)
@@ -582,42 +569,42 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
         source = source.replace("= not logging", "= logging")
         log.debug("Param Sample: %s" % source)
         driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_config()
+        pd = driver._protocol._param_dict.get_all(baseline)
         self.assertTrue(pd.get(Parameter.LOGGING))
 
         # Sync Mode
         source = source.replace("serial sync mode disabled", "serial sync mode enabled")
         log.debug("Param Sample: %s" % source)
         driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_config()
+        pd = driver._protocol._param_dict.get_all(baseline)
         self.assertTrue(pd.get(Parameter.SYNCMODE))
 
         # Pump Mode 0
         source = source.replace("run pump during sample", "no pump")
         log.debug("Param Sample: %s" % source)
         driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_config()
+        pd = driver._protocol._param_dict.get_all(baseline)
         self.assertEqual(pd.get(Parameter.PUMP_MODE), 0)
 
         # Pump Mode 1
         source = source.replace("no pump", "run pump for 0.5 sec")
         log.debug("Param Sample: %s" % source)
         driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_config()
+        pd = driver._protocol._param_dict.get_all(baseline)
         self.assertEqual(pd.get(Parameter.PUMP_MODE), 1)
 
         # Pressure Sensor type 2
         source = source.replace("strain gauge", "quartz without temp comp")
         log.debug("Param Sample: %s" % source)
         driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_config()
+        pd = driver._protocol._param_dict.get_all(baseline)
         self.assertEqual(pd.get(Parameter.PTYPE), 2)
 
         # Pressure Sensor type 3
         source = source.replace("quartz without temp comp", "quartz with temp comp")
         log.debug("Param Sample: %s" % source)
         driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_config()
+        pd = driver._protocol._param_dict.get_all(baseline)
         self.assertEqual(pd.get(Parameter.PTYPE), 3)
 
     def test_parse_set_response(self):
@@ -695,9 +682,6 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         Test all set commands. Verify all exception cases.
         """
         self.assert_initialize_driver()
-
-        # Verify we can set the clock
-        self.assert_set_clock(Parameter.DATE_TIME, tolerance=5)
 
         # Verify we can set all parameters in bulk
         new_values = {
@@ -917,10 +901,11 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         self.assert_current_state(ProtocolState.COMMAND)
 
         # Set the clock to some time in the past
-        self.assert_set_clock(Parameter.DATE_TIME, time_override=SBE_EPOCH)
+        # Need an easy way to do this now that DATE_TIME is read only
+        #self.assert_set_clock(Parameter.DATE_TIME, time_override=SBE_EPOCH)
 
         # Check the clock until it is set correctly (by a schedued event)
-        self.assert_clock_set(Parameter.DATE_TIME, sync_clock_cmd=ProtocolEvent.GET_CONFIGURATION, timeout=timeout)
+        #self.assert_clock_set(Parameter.DATE_TIME, sync_clock_cmd=ProtocolEvent.GET_CONFIGURATION, timeout=timeout)
 
     def test_scheduled_clock_sync_autosample(self):
         """
@@ -931,12 +916,12 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         self.assert_current_state(ProtocolState.COMMAND)
 
         # Set the clock to some time in the past
-        self.assert_set_clock(Parameter.DATE_TIME, time_override=SBE_EPOCH)
+        # Need an easy way to do this now that DATE_TIME is read only
+        #self.assert_set_clock(Parameter.DATE_TIME, time_override=SBE_EPOCH)
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
 
         # Check the clock until it is set correctly (by a scheduled event)
-        self.assert_clock_set(Parameter.DATE_TIME, sync_clock_cmd=ProtocolEvent.GET_CONFIGURATION, timeout=timeout, tolerance=10)
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+        #self.assert_clock_set(Parameter.DATE_TIME, sync_clock_cmd=ProtocolEvent.GET_CONFIGURATION, timeout=timeout, tolerance=10)
 
     def assert_cycle(self):
         self.assert_current_state(ProtocolState.COMMAND)

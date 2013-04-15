@@ -14,7 +14,7 @@ __license__ = 'Apache 2.0'
 
 import time
 import re
-import datetime
+import copy
 import ntplib
 import struct
 
@@ -29,6 +29,8 @@ from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.driver_dict import DriverDictKey
+from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.exceptions import InstrumentTimeoutException, \
                                InstrumentParameterException, \
                                InstrumentProtocolException, \
@@ -158,8 +160,6 @@ class Capability(BaseEnum):
     """
     Capabilities that are exposed to the user (subset of above)
     """
-    GET              = ProtocolEvent.GET
-    SET              = ProtocolEvent.SET
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE  = ProtocolEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC       = ProtocolEvent.CLOCK_SYNC
@@ -246,30 +246,6 @@ class AdvancedFuntionsBits(BaseEnum):
     inhibit_data_storage            = 0x1
 
 
-###############################################################################
-# parameter dictionary
-###############################################################################
-class ListProtocolParameterDict(ProtocolParameterDict):
-    
-    def update_specific(self, name, input):
-        val = self._param_dict[name]
-        return val.update(input)
-    
-    def set_value(self, name, value):
-        """
-        Set a parameter value in the dictionary.
-        @param name The parameter name.
-        @param value The parameter value.
-        @raises KeyError if the name is invalid.
-        """
-        log.debug("setting " + name + " to " + str(value))
-        try:
-            val = self._param_dict[name]
-            val.value = val.f_getval(value)
-        except Exception as ex:
-            raise InstrumentParameterException('ERROR: parameter %s value %s - %s.' %(name, str(value), repr(ex)))
-        
-        
 ###############################################################################
 #   Driver for XR-420 Thermistor
 ###############################################################################
@@ -489,6 +465,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
+        self._build_command_dict()
+        self._build_driver_dict()
 
         # create chunker for processing instrument samples.
         self._chunker = StringChunker(InstrumentProtocol.chunker_sieve_function)
@@ -767,7 +745,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                 # Command device to update parameters and send a config change event.
                 # do this here because it shouldn't be done on entry to autosample everytime, 
                 # but the parameters need to be initialized in this mode also
+                log.debug("Updating paramdict")
                 self._update_params()
+                log.debug("Update paramdict complete")
             else:
                 next_state = ProtocolStates.COMMAND
                 result = ResourceAgentState.IDLE
@@ -858,6 +838,10 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._verify_not_readonly(*args, **kwargs)
 
+        # _set_advanced_functions removed some parameters from the set which means we
+        # don't verify they were set.  Store the entire set first
+        all_params_to_set = copy.deepcopy(params_to_set)
+
         # This call circumvents the param dict a bit in that it
         # sets parameter values directly before update_params has a chance
         # to detect a configuration change.  So this method will also raise
@@ -876,7 +860,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._update_params(called_from_set=True)
 
-        self._check_for_set_failures(params_to_set)
+        self._check_for_set_failures(all_params_to_set)
             
         return (next_state, result)
 
@@ -1040,56 +1024,18 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     
         return (next_state, (next_agent_state, result))
 
-    def _handler_get(self, *args, **kwargs):
-        """
-        Get device parameters from the parameter dict.
-        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
-        @throws InstrumentParameterException if missing or invalid parameter.
-        """
-        next_state = None
-        result = None
-
-        # Retrieve the required parameter, raise if not present.
-        try:
-            params = args[0]
-        except IndexError:
-            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
-
-        # If all params requested, retrieve config.
-        if params == DriverParameter.ALL:
-            result = self._param_dict.get_config()
-
-        # If not all params, confirm a list or tuple of params to retrieve.
-        # Raise if not a list or tuple.
-        # Retireve each key in the list, raise if any are invalid.
-        else:
-            if not isinstance(params, (list, tuple)):
-                raise InstrumentParameterException('Get argument not a list or tuple.')
-            result = {}
-            for key in params:
-                try:
-                    val = self._param_dict.get(key)
-                    result[key] = val
-
-                except KeyError:
-                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
-
-        return (next_state, result)
-
     ########################################################################
     # Private helpers.
     ########################################################################
-        
 
     def _check_for_set_failures(self, params_to_check):
             device_parameters = self._param_dict.get_config()
             for key in params_to_check.keys():
-                if key == InstrumentParameters.LOGGER_DATE_AND_TIME:
-                    # time-date will always not match, so ignore it
-                    continue
+                log.debug("Verify set, key: %s", key)
                 if params_to_check[key] != device_parameters[key]:
-                    log.debug("_check_for_set_failures: SET FAILURE: " + str(key) + " is " + str(device_parameters[key]) + " and should have been set to " + str(params_to_check[key]))
-                    raise InstrumentParameterException("SET FAILURE: " + str(key) + " is " + str(device_parameters[key]) + " and should have been set to " + str(params_to_check[key]))
+                    msg = "SET FAILURE: %s is %s and should have been set to %s" % (key, device_parameters[key], params_to_check[key])
+                    log.debug("_check_for_set_failures: %s", msg)
+                    raise InstrumentParameterException(msg)
 
     def _clock_sync(self):
         # get time in ION format so command builder method can convert it correctly
@@ -1247,16 +1193,16 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                     continue
                 else:
                     advanced_functions_already_gotten = True
+            log.debug("Get value for %s", key)
             command = self._param_dict.get_submenu_read(key)
-            self._do_cmd_resp(command, name=key)
+            log.debug("Get command '%s'", command)
+            response = self._do_cmd_resp(command, name=key)
+            log.debug("Get command response '%s'", response)
 
         # Get new param dict config. If it differs from the old config,
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()
         
-        # We ignore the data-time parameter difference which should always be different
-        new_config[InstrumentParameters.LOGGER_DATE_AND_TIME] = old_config.get(InstrumentParameters.LOGGER_DATE_AND_TIME)
-
         log.debug("Old Configuration: %s", old_config)
         log.debug("New Configuration: %s", new_config)
         if new_config != old_config:
@@ -1292,7 +1238,21 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         # send particle as an event
         self._driver_event(DriverAsyncEvent.SAMPLE, status)
-    
+
+    def _build_driver_dict(self):
+        """
+        Populate the driver dictionary with options
+        """
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, False)
+
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
+        self._cmd_dict.add(Capability.CLOCK_SYNC, display_name="sync clock")
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
 
     def _build_param_dict(self):
         """
@@ -1300,13 +1260,15 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         For each parameter key add value formatting function for set commands.
         """
         # The parameter dictionary.
-        self._param_dict = ListProtocolParameterDict()
+        self._param_dict = ProtocolParameterDict()
         
         # Add parameter handlers to parameter dictionary for instrument configuration parameters.
         self._param_dict.add(InstrumentParameters.STATUS,
                              r'Logger status (.*)\r\n', 
                              lambda match : match.group(1),
                              lambda string : str(string),
+                             type=ParameterDictType.STRING,
+                             display_name="Status",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_STATUS)
 
@@ -1314,6 +1276,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(RBR XR-420 .*)\r\n', 
                              lambda match : match.group(1),
                              lambda string : str(string),
+                             type=ParameterDictType.STRING,
+                             display_name="Identification",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_IDENTIFICATION)
 
@@ -1321,6 +1285,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\d{12})CTD\r\n', 
                              lambda match : self._convert_xr_420_date_and_time(match.group(1)),
                              lambda string : str(string),
+                             type=ParameterDictType.STRING,
+                             display_name="Date/Time",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_LOGGER_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_LOGGER_DATE_AND_TIME)
@@ -1331,6 +1297,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              lambda string : str(string),
                              startup_param=True,
                              default_value='00:00:12',             # 12 seconds
+                             type=ParameterDictType.STRING,
+                             display_name="Sample Interval",
                              submenu_read=InstrumentCmds.GET_SAMPLE_INTERVAL,
                              submenu_write=InstrumentCmds.SET_SAMPLE_INTERVAL)
 
@@ -1341,7 +1309,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              default_value='01 Jan 2000 00:00:00',
                              direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             type=ParameterDictType.STRING,
+                             display_name="Start Date and Time",
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              submenu_read=InstrumentCmds.GET_START_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_START_DATE_AND_TIME)
 
@@ -1352,7 +1322,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              default_value='01 Jan 2050 00:00:00',
                              startup_param=True,
                              direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             type=ParameterDictType.STRING,
+                             display_name="End Date and Time",
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              submenu_read=InstrumentCmds.GET_END_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_END_DATE_AND_TIME)
 
@@ -1360,6 +1332,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{2})BAT\r\n', 
                              lambda match : self._convert_battery_voltage(match.group(1)),
                              self._float_to_string,
+                             type=ParameterDictType.FLOAT,
+                             display_name="Battery Voltage",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_BATTERY_VOLTAGE)
 
@@ -1367,6 +1341,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 1",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1374,6 +1350,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 2",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1381,6 +1359,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 3",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1388,6 +1368,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 4",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1395,6 +1377,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 5",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1402,6 +1386,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 6",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1409,6 +1395,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 7",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1416,6 +1404,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 8",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1423,6 +1413,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 9",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1430,6 +1422,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 10",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1437,6 +1431,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 11",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1444,6 +1440,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 12",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1451,6 +1449,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 13",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1458,6 +1458,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 14",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1465,6 +1467,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 15",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1472,6 +1476,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 16",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1479,6 +1485,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 17",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1486,6 +1494,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 18",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1493,6 +1503,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 19",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1500,6 +1512,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 20",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1507,6 +1521,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 21",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1514,6 +1530,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 22",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1521,6 +1539,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 23",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1528,6 +1548,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              r'(\w{64})CAL\r\n', 
                              lambda match : self._convert_calibration(match.group(1)),
                              self._float_list_to_string,
+                             type=ParameterDictType.LIST,
+                             display_name="Calibration Coefficients Channel 24",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_CHANNEL_CALIBRATION)
 
@@ -1536,18 +1558,24 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              lambda value : self._check_bit_value(value),
                              None,
                              default_value=1,          # 1 = True
+                             type=ParameterDictType.INT,
+                             display_name="Power Always On",
                              startup_param=True,
                              direct_access=False,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
+        # Not available using this logger
         self._param_dict.add(InstrumentParameters.SIX_HZ_PROFILING_MODE,
                              r'$^', 
                              lambda value : self._check_bit_value(value),
                              None,
                              default_value=0,          # 0 = False
+                             type=ParameterDictType.INT,
+                             display_name="6Hz Profiling Mode",
                              startup_param=True,
                              direct_access=False,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1558,7 +1586,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              default_value=1,          # 1 = True
                              startup_param=True,
                              direct_access=True,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             type=ParameterDictType.INT,
+                             display_name="Output Includes Serial Number",
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1569,7 +1599,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              default_value=1,          # 1 = True
                              startup_param=True,
                              direct_access=True,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             type=ParameterDictType.INT,
+                             display_name="Output Includes Battery Voltage",
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1580,7 +1612,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              default_value=0,          # 0 = False
                              startup_param=True,
                              direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             type=ParameterDictType.INT,
+                             display_name="Sampling LED",
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1591,7 +1625,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              default_value=1,          # 1 = True
                              startup_param=True,
                              direct_access=True,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             type=ParameterDictType.INT,
+                             display_name="Engineering Units Output",
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1602,7 +1638,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              default_value=1,          # 1 = True
                              startup_param=True,
                              direct_access=False,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             type=ParameterDictType.INT,
+                             display_name="Auto Run",
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1613,6 +1651,8 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              default_value=1,          # 1 = True
                              startup_param=True,
                              direct_access=False,
+                             type=ParameterDictType.INT,
+                             display_name="Inhibit Data Storage",
                              submenu_read=InstrumentCmds.GET_ADVANCED_FUNCTIONS,
                              submenu_write=InstrumentCmds.SET_ADVANCED_FUNCTIONS)
 
@@ -1793,7 +1833,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 # response handlers
 ##################################################################################################
 
-    def _parse_status_response(self, response, prompt, **kwargs):
+    def _parse_status_response(self, response, prompt=None, **kwargs):
         log.debug("_parse_status_response: response=%s" %response.rstrip())
         if InstrumentResponses.GET_STATUS in response:
             # got status response, so save it
@@ -1856,7 +1896,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             raise InstrumentParameterException('_parse_channel_calibration_response requires a parameter name.')
         if InstrumentResponses.GET_CHANNEL_CALIBRATION in response:
             # got channel calibration response, so save it
-            self._param_dict.update_specific(param_name, response)
+            self._param_dict.update(response, param_name)
         else:
             raise InstrumentParameterException('Get channel calibration response not correct: %s.' %response)
 
@@ -1867,7 +1907,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     
     def _parse_advanced_functions_response(self, response, prompt, **kwargs):
         log.debug("_parse_advanced_functions_response: response=%s" %response.rstrip())
-        match = re.search('(\d{4})\d{4}STC', response)
+        match = re.search('([0-9A-F]{4})[0-9A-F]{4}STC', response)
         if match != None:
             # got advanced functions response, so save it
             hex_value = int(match.group(1), 16)

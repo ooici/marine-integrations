@@ -591,6 +591,8 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, SBE37ProtocolState.COMMAND)
 
+        self.assert_get(DriverParameter.ALL)
+
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('disconnect')
 
@@ -1525,7 +1527,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
             ResourceAgentEvent.GO_DIRECT_ACCESS
         ]
 
-        agt_pars_all = ['example', 'pubfreq', 'alarms', 'streams']
+        agt_pars_all = ['aggstatus', 'alerts', 'example', 'pubrate', 'streams']
 
         res_cmds_all =[
             SBE37ProtocolEvent.ACQUIRE_STATUS,
@@ -2231,5 +2233,12 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         '''
         Skipping this common test for now because we are having issues coming out of DA
         @return:
+        '''
+        pass
+
+    def test_discover(self):
+        '''
+        Skipping this common test because the simulator doesn't have state and can't remember that
+        it was in streaming mode when we disconnect.
         '''
         pass

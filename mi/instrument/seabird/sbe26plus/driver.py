@@ -20,6 +20,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
 from mi.instrument.seabird.driver import SeaBirdProtocol
 
+from mi.core.util import dict_equal
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -28,6 +29,8 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
+from mi.core.instrument.protocol_param_dict import ParameterDictType
+from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
@@ -88,6 +91,7 @@ class InstrumentCmds(BaseEnum):
     DISPLAY_CALIBRATION = 'dc'
     START_LOGGING = 'start'
     STOP_LOGGING = 'stop'
+    SET_TIME = 'settime'
     SET = 'set'
     GET = 'get'
     TAKE_SAMPLE = 'ts'
@@ -143,7 +147,6 @@ class Capability(BaseEnum):
     ACQUIRE_CONFIGURATION = ProtocolEvent.ACQUIRE_CONFIGURATION
     SEND_LAST_SAMPLE = ProtocolEvent.SEND_LAST_SAMPLE
     QUIT_SESSION = ProtocolEvent.QUIT_SESSION
-    SETSAMPLING = ProtocolEvent.SETSAMPLING
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
 
 class Parameter(DriverParameter):
@@ -1070,7 +1073,7 @@ class Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT,                   self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,         self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,       self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,                    self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,                    self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,                    self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SETSAMPLING,            self._handler_command_setsampling)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC,             self._handler_command_clock_sync)
@@ -1082,7 +1085,7 @@ class Protocol(SeaBirdProtocol):
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,                   self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                    self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                     self._handler_command_autosample_test_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                     self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,          self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_CONFIGURATION,   self._handler_command_acquire_configuration)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,         self._handler_autosample_stop_autosample)
@@ -1097,6 +1100,8 @@ class Protocol(SeaBirdProtocol):
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
+        self._build_command_dict()
+        self._build_driver_dict()
 
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCmds.SETSAMPLING,                 self._build_setsampling_command)
@@ -1108,6 +1113,7 @@ class Protocol(SeaBirdProtocol):
         self._add_build_handler(InstrumentCmds.START_LOGGING,               self._build_simple_command)
         self._add_build_handler(InstrumentCmds.STOP_LOGGING,                self._build_simple_command)
         self._add_build_handler(InstrumentCmds.SET,                         self._build_set_command)
+        self._add_build_handler(InstrumentCmds.SET_TIME,                    self._build_set_command)
         self._add_build_handler(InstrumentCmds.TAKE_SAMPLE,                 self._build_simple_command)
 
         # Add response handlers for device commands.
@@ -1116,6 +1122,7 @@ class Protocol(SeaBirdProtocol):
         self._add_response_handler(InstrumentCmds.DISPLAY_CALIBRATION,      self._parse_dc_response)
         self._add_response_handler(InstrumentCmds.SEND_LAST_SAMPLE,         self._parse_sl_response)
         self._add_response_handler(InstrumentCmds.SET,                      self._parse_set_response)
+        self._add_response_handler(InstrumentCmds.SET_TIME,                 self._parse_set_response)
         self._add_response_handler(InstrumentCmds.TAKE_SAMPLE,              self._parse_ts_response)
 
         # State state machine in UNKNOWN state.
@@ -1196,7 +1203,7 @@ class Protocol(SeaBirdProtocol):
             next_state = ProtocolState.COMMAND
             result = ResourceAgentState.IDLE
         else:
-            raise InstrumentStateException('Unknown state.')
+            raise InstrumentStateException('Discover state failed.')
 
         return (next_state, result)
 
@@ -1312,7 +1319,7 @@ class Protocol(SeaBirdProtocol):
 
             # Sync the clock
             timeout = kwargs.get('timeout', TIMEOUT)
-            self._sync_clock(Parameter.DS_DEVICE_DATE_TIME, Prompt.COMMAND, timeout)
+            self._sync_clock(InstrumentCmds.SET_TIME, Parameter.DS_DEVICE_DATE_TIME, TIMEOUT)
 
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
@@ -1341,52 +1348,18 @@ class Protocol(SeaBirdProtocol):
         result = None
 
         timeout = kwargs.get('timeout', TIMEOUT)
-        self._sync_clock(Parameter.DS_DEVICE_DATE_TIME, Prompt.COMMAND, timeout)
+        self._sync_clock(InstrumentCmds.SET_TIME, Parameter.DS_DEVICE_DATE_TIME, TIMEOUT)
 
         return (next_state, (next_agent_state, result))
 
     ################################
     # SET / SETSAMPLING
     ################################
-
-    def _handler_command_set(self, *args, **kwargs):
-        """
-        Perform a set command.
-        @param args[0] parameter : value dict.
-        @retval (next_state, result) tuple, (None, None).
-        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
-        not a dict, or if paramter can't be properly formatted.
-        @throws InstrumentTimeoutException if device cannot be woken for set command.
-        @throws InstrumentProtocolException if set command could not be built or misunderstood.
-        """
-        next_state = None
-        result = None
-        startup = False
-
-        # Retrieve required parameter.
-        # Raise if no parameter provided, or not a dict.
-        try:
-            params = args[0]
-        except IndexError:
-            raise InstrumentParameterException('Set command requires a parameter dict.')
-
-        if not isinstance(params, dict):
-            raise InstrumentParameterException('Set parameters not a dict.')
-
-        try:
-            startup = args[1]
-        except IndexError:
-            pass
-
-        self._set_params(params, startup)
-
-        return (next_state, result)
-
     def _set_params(self, *args, **kwargs):
         """
         Issue commands to the instrument to set various parameters
         """
-        SeaBirdProtocol._set_params(self, *args, **kwargs)
+        self._verify_not_readonly(*args, **kwargs)
 
         # Retrieve required parameter.
         # Raise if no parameter provided, or not a dict.
@@ -1408,10 +1381,8 @@ class Protocol(SeaBirdProtocol):
             # ONLY do next if a param for it is present
             kwargs['expected_prompt'] = ", new value = "
             self._do_cmd_resp(InstrumentCmds.SETSAMPLING, ss_params, **kwargs)
-        else:
-            # if there were no ss_params, then update the params here,
-            # if there were ss_params, then setsampling will handle the updating.
-            self._update_params()
+
+        self._update_params()
 
     def _build_set_command(self, cmd, param, val):
         """
@@ -1792,40 +1763,6 @@ class Protocol(SeaBirdProtocol):
 
         return (next_state, (next_agent_state, result))
 
-    def _handler_command_autosample_test_get(self, *args, **kwargs):
-        """
-        Get device parameters from the parameter dict.
-        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
-        @throws InstrumentParameterException if missing or invalid parameter.
-        """
-        next_state = None
-        result = None
-
-        # Retrieve the required parameter, raise if not present.
-        try:
-            params = args[0]
-
-        except IndexError:
-            raise InstrumentParameterException('Get command requires a parameter list or tuple.')
-
-        # If all params requested, retrieve config.
-        if params == DriverParameter.ALL or DriverParameter.ALL in params:
-            result = self._param_dict.get_config()
-
-        # If not all params, confirm a list or tuple of params to retrieve.
-        # Raise if not a list or tuple.
-        # Retireve each key in the list, raise if any are invalid.
-
-        else:
-            if not isinstance(params, (list, tuple)):
-                raise InstrumentParameterException('Get argument not a list or tuple.')
-            result = {}
-            for key in params:
-                val = self._param_dict.get(key)
-                result[key] = val
-
-        return (next_state, result)
-
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Stop autosample and switch back to command mode.
@@ -2007,18 +1944,22 @@ class Protocol(SeaBirdProtocol):
     # Private helpers.
     ########################################################################
 
-    def _is_logging(self, timeout=TIMEOUT):
+    def _is_logging(self, *args, **kwargs):
         """
-        Poll the instrument to see if we are in logging mode.  Return True
-        if we are, False if not, or None if we couldn't tell.
+        Wake up the instrument and inspect the prompt to determine if we
+        are in streaming
         @param: timeout - Command timeout
         @return: True - instrument logging, False - not logging,
                  None - unknown logging state
+        @raise: InstrumentProtocolException if we can't identify the prompt
         """
-        self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS,timeout=timeout)
-        pd = self._param_dict.get_config()
-        log.debug("Logging? %s" % pd.get(Parameter.LOGGING))
+        basetime = self._param_dict.get_current_timestamp()
 
+        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
+
+        self._update_params()
+
+        pd = self._param_dict.get_all(basetime)
         return pd.get(Parameter.LOGGING)
 
     def _start_logging(self, timeout=TIMEOUT):
@@ -2076,6 +2017,24 @@ class Protocol(SeaBirdProtocol):
         @retval The command to be sent to the device.
         """
         return cmd + NEWLINE
+
+    def _build_driver_dict(self):
+        """
+        Populate the driver dictionary with options
+        """
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
+
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
+        self._cmd_dict.add(Capability.CLOCK_SYNC, display_name="sync clock")
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
+        self._cmd_dict.add(Capability.ACQUIRE_CONFIGURATION, display_name="get configuration data")
+        self._cmd_dict.add(Capability.SEND_LAST_SAMPLE, display_name="get last sample")
+        self._cmd_dict.add(Capability.QUIT_SESSION, display_name="quit session")
 
     def _build_param_dict(self):
         """
@@ -2145,6 +2104,8 @@ class Protocol(SeaBirdProtocol):
             ds_line_01,
             lambda match : string.upper(match.group(1)),
             self._string_to_string,
+            type=ParameterDictType.STRING,
+            display_name="Firmware Version",
             multi_match=True,
             visibility=ParameterDictVisibility.READ_ONLY)
 
@@ -2152,6 +2113,8 @@ class Protocol(SeaBirdProtocol):
             ds_line_01,
             lambda match : string.upper(match.group(2)),
             self._string_to_string,
+            type=ParameterDictType.STRING,
+            display_name="Serial Number",
             multi_match=True,
             visibility=ParameterDictVisibility.READ_ONLY)
 
@@ -2159,13 +2122,17 @@ class Protocol(SeaBirdProtocol):
             ds_line_01,
             lambda match : string.upper(match.group(3)),
             self._string_to_numeric_date_time_string,
+            type=ParameterDictType.STRING,
+            display_name="Instrument Time",
             multi_match=True,
             visibility=ParameterDictVisibility.READ_ONLY) # will need to make this a date time once that is sorted out
 
         self._param_dict.add(Parameter.USER_INFO,
             ds_line_02,
             lambda match : string.upper(match.group(1)),
-            self._string_to_string)
+            self._string_to_string,
+            type=ParameterDictType.STRING,
+            display_name="User Info")
 
         #
         # Next 2 work together to pull 2 values out of a single line.
@@ -2174,6 +2141,8 @@ class Protocol(SeaBirdProtocol):
             ds_line_03,
             lambda match : float(match.group(1)),
             self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Quartz Pressure Sensor Serial Number",
             multi_match=True,
             visibility=ParameterDictVisibility.READ_ONLY)
 
@@ -2181,6 +2150,8 @@ class Protocol(SeaBirdProtocol):
             ds_line_03,
             lambda match : float(match.group(2)),
             self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Quartz Pressure Sensor Range",
             multi_match=True,
             visibility=ParameterDictVisibility.READ_ONLY)
 
@@ -2188,7 +2159,9 @@ class Protocol(SeaBirdProtocol):
             ds_line_04,
             lambda match : False if (match.group(1)=='internal') else True,
             self._true_false_to_string,
-            visibility=ParameterDictVisibility.READ_ONLY,
+            type=ParameterDictType.BOOL,
+            display_name="External Temperature Sensor",
+            visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
             default_value=False
@@ -2198,7 +2171,9 @@ class Protocol(SeaBirdProtocol):
             ds_line_05,
             lambda match : False if (match.group(1)=='NO') else True,
             self._true_false_to_string,
-            visibility=ParameterDictVisibility.READ_ONLY,
+            type=ParameterDictType.BOOL,
+            display_name="Report Conductivity",
+            visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
             default_value=False
@@ -2211,18 +2186,24 @@ class Protocol(SeaBirdProtocol):
             ds_line_06,
             lambda match : float(match.group(1)),
             self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="IOP",
             multi_match=True,
             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.VMAIN_V,
             ds_line_06,
             lambda match : float(match.group(2)),
             self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="VMain",
             multi_match=True,
             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.VLITH_V,
             ds_line_06,
             lambda match : float(match.group(3)),
             self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="VLith",
             multi_match=True,
             visibility=ParameterDictVisibility.READ_ONLY)
 
@@ -2233,6 +2214,8 @@ class Protocol(SeaBirdProtocol):
             ds_line_07a,
             lambda match : float(match.group(1)),
             self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Last Sample Pressure",
             multi_match=True,
             visibility=ParameterDictVisibility.READ_ONLY)
 
@@ -2240,6 +2223,8 @@ class Protocol(SeaBirdProtocol):
             ds_line_07a,
             lambda match : float(match.group(2)),
             self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Last Sample Temperature",
             multi_match=True,
             visibility=ParameterDictVisibility.READ_ONLY)
 
@@ -2247,6 +2232,8 @@ class Protocol(SeaBirdProtocol):
             ds_line_07a,
             lambda match : float(match.group(3)),
             self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Last Sample Salinity",
             multi_match=True,
             visibility=ParameterDictVisibility.READ_ONLY)
 
@@ -2257,6 +2244,8 @@ class Protocol(SeaBirdProtocol):
             ds_line_07b,
             lambda match : float(match.group(1)),
             self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Last Sample Pressure",
             multi_match=True,
             visibility=ParameterDictVisibility.READ_ONLY)
 
@@ -2264,6 +2253,8 @@ class Protocol(SeaBirdProtocol):
             ds_line_07b,
             lambda match : float(match.group(2)),
             self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Last Sample Temperature",
             multi_match=True,
             visibility=ParameterDictVisibility.READ_ONLY)
 
@@ -2274,18 +2265,24 @@ class Protocol(SeaBirdProtocol):
             ds_line_08,
             lambda match : int(match.group(1)),
             self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Tide Interval",
             multi_match=True)
 
         self._param_dict.add(Parameter.TIDE_MEASUREMENT_DURATION,
             ds_line_08,
             lambda match : int(match.group(2)),
             self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Tide Measurement Duration",
             multi_match=True)
 
         self._param_dict.add(Parameter.TIDE_SAMPLES_BETWEEN_WAVE_BURST_MEASUREMENTS,
             ds_line_09,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Tide Samples Between Wave Burst Measurements")
 
         #
         # Next 3 work together to pull 3 values out of a single line.
@@ -2294,25 +2291,33 @@ class Protocol(SeaBirdProtocol):
             ds_line_10,
             lambda match : int(match.group(1)),
             self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Wave Sample Per Burst",
             multi_match=True)
 
         self._param_dict.add(Parameter.WAVE_SAMPLES_SCANS_PER_SECOND,
             ds_line_10,
             lambda match : float(match.group(2)),
             self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Wave Samples Scans Per Second",
             multi_match=True)
 
         self._param_dict.add(Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS,
             ds_line_10,
             lambda match : int(match.group(3)),
             self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Number of Wave Samples Per Burst For Wave Stats",
             multi_match=True)
 
         self._param_dict.add(Parameter.USE_START_TIME,
             ds_line_11b,
             lambda match : False if (match.group(1)=='do not') else True,
             self._true_false_to_string,
-            visibility=ParameterDictVisibility.READ_ONLY,
+            type=ParameterDictType.BOOL,
+            display_name="Use Start Time",
+            visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=False,
             direct_access=False,
             default_value=False
@@ -2322,7 +2327,9 @@ class Protocol(SeaBirdProtocol):
             ds_line_12b,
             lambda match : False if (match.group(1)=='do not') else True,
             self._true_false_to_string,
-            visibility=ParameterDictVisibility.READ_ONLY,
+            type=ParameterDictType.BOOL,
+            display_name="Use Stop Time",
+            visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=False,
             direct_access=False,
             default_value=False
@@ -2331,47 +2338,71 @@ class Protocol(SeaBirdProtocol):
         self._param_dict.add(Parameter.TIDE_SAMPLES_PER_DAY,
             ds_line_13,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Tide Samples Per Day")
 
         self._param_dict.add(Parameter.WAVE_BURSTS_PER_DAY,
             ds_line_14,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Wave Bursts Per Day")
 
         self._param_dict.add(Parameter.MEMORY_ENDURANCE,
             ds_line_15,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            type=ParameterDictType.FLOAT,
+            display_name="Memory Endurance")
 
         self._param_dict.add(Parameter.NOMINAL_ALKALINE_BATTERY_ENDURANCE,
             ds_line_16,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            type=ParameterDictType.FLOAT,
+            display_name="Nominal Alkaline Battery Endurance")
 
         self._param_dict.add(Parameter.TOTAL_RECORDED_TIDE_MEASUREMENTS,
             ds_line_17,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            type=ParameterDictType.FLOAT,
+            display_name="Total Recorded Tide Measurements")
 
         self._param_dict.add(Parameter.TOTAL_RECORDED_WAVE_BURSTS,
             ds_line_18,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            type=ParameterDictType.FLOAT,
+            display_name="Total Recorded Wave Bursts")
 
         self._param_dict.add(Parameter.TIDE_MEASUREMENTS_SINCE_LAST_START,
             ds_line_19,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            type=ParameterDictType.FLOAT,
+            display_name="Tide Measuremetns Since Last Start")
 
         self._param_dict.add(Parameter.WAVE_BURSTS_SINCE_LAST_START,
             ds_line_20,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            visibility=ParameterDictVisibility.READ_ONLY,
+            type=ParameterDictType.FLOAT,
+            display_name="Wave Bursts Since Last Start")
 
         self._param_dict.add(Parameter.TXREALTIME,
             ds_line_21,
             lambda match : False if (match.group(1)=='NO') else True,
             self._true_false_to_string,
+            type=ParameterDictType.BOOL,
+            display_name="Transmit RealTime Tide Data",
             startup_param=True,
             direct_access=True,
             default_value=True
@@ -2381,6 +2412,8 @@ class Protocol(SeaBirdProtocol):
             ds_line_22,
             lambda match : False if (match.group(1)=='NO') else True,
             self._true_false_to_string,
+            type=ParameterDictType.BOOL,
+            display_name="Transmit RealTime Wave Burst Data",
             startup_param=True,
             direct_access=True,
             default_value=False
@@ -2390,74 +2423,112 @@ class Protocol(SeaBirdProtocol):
             ds_line_23,
             lambda match : False if (match.group(1)=='NO') else True,
             self._true_false_to_string,
+            type=ParameterDictType.BOOL,
+            display_name="Transmit Wave Stats Data",
         )
 
         self._param_dict.add(Parameter.NUM_WAVE_SAMPLES_PER_BURST_FOR_WAVE_STASTICS,
             ds_line_24,
             lambda match : int(match.group(1)),
-            self._int_to_string)
-        
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Number of Wave Samples Per Burst For Wave Stats",
+        )
+
         self._param_dict.add(Parameter.USE_MEASURED_TEMP_AND_CONDUCTIVITY_FOR_DENSITY_CALC,
             ds_line_25,
             lambda match : False if (match.group(1)=='do not ') else True,
-            self._true_false_to_string)
+            self._true_false_to_string,
+            type=ParameterDictType.BOOL,
+            display_name="Use Measured Temperature and Conductivity of rDensity Calculation",
+        )
 
         self._param_dict.add(Parameter.AVERAGE_WATER_TEMPERATURE_ABOVE_PRESSURE_SENSOR,
             ds_line_26,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Average Water Temperature Above Pressure Sensor",
+        )
 
         self._param_dict.add(Parameter.AVERAGE_SALINITY_ABOVE_PRESSURE_SENSOR,
             ds_line_27,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Average Salinity Above Pressure Sensor",
+        )
 
         self._param_dict.add(Parameter.PRESSURE_SENSOR_HEIGHT_FROM_BOTTOM,
             ds_line_28,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Pressure Sensor Height From Bottom",
+        )
 
         self._param_dict.add(Parameter.SPECTRAL_ESTIMATES_FOR_EACH_FREQUENCY_BAND,
             ds_line_29,
             lambda match : int(match.group(1)),
-            self._int_to_string)
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Spectral Estimates For Each Frequency Band",
+        )
 
         self._param_dict.add(Parameter.MIN_ALLOWABLE_ATTENUATION,
             ds_line_30,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Minimum Allowable Attenuation",
+        )
 
         self._param_dict.add(Parameter.MIN_PERIOD_IN_AUTO_SPECTRUM,
             ds_line_31,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Minimum Period In Auto Spectrum",
+        )
 
         self._param_dict.add(Parameter.MAX_PERIOD_IN_AUTO_SPECTRUM,
             ds_line_32,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Maximum Period In Auto Spectrum",
+        )
 
         self._param_dict.add(Parameter.HANNING_WINDOW_CUTOFF,
             ds_line_33,
             lambda match : float(match.group(1)),
-            self._float_to_string)
+            self._float_to_string,
+            type=ParameterDictType.FLOAT,
+            display_name="Hanning Window Cutoff",
+        )
 
         self._param_dict.add(Parameter.SHOW_PROGRESS_MESSAGES,
             ds_line_34,
             lambda match : True if (match.group(1)=='show') else False,
             self._true_false_to_string,
-            visibility=ParameterDictVisibility.READ_ONLY)
+            type=ParameterDictType.BOOL,
+            display_name="Show Progress Message",
+            visibility=ParameterDictVisibility.IMMUTABLE)
 
         self._param_dict.add(Parameter.STATUS,
             ds_line_35,
             lambda match : string.upper(match.group(1)),
             self._string_to_string,
+            type=ParameterDictType.STRING,
+            display_name="Status",
             visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.LOGGING,
             ds_line_36,
             lambda match : False if (match.group(1)=='NO') else True,
             self._true_false_to_string,
+            type=ParameterDictType.BOOL,
+            display_name="Logging",
             visibility=ParameterDictVisibility.READ_ONLY)
 
 
@@ -2480,10 +2551,7 @@ class Protocol(SeaBirdProtocol):
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()
 
-        # We ignore the data time parameter diffs
-        new_config[Parameter.DS_DEVICE_DATE_TIME] = old_config.get(Parameter.DS_DEVICE_DATE_TIME)
-
-        if new_config != old_config:
+        if not dict_equal(new_config, old_config) and self._protocol_fsm.get_current_state() != ProtocolState.UNKNOWN:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     def _parse_ds_response(self, response, prompt):
