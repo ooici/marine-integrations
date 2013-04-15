@@ -14,7 +14,7 @@ __license__ = 'Apache 2.0'
 
 import time
 import re
-import datetime
+import copy
 import ntplib
 import struct
 
@@ -838,6 +838,10 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._verify_not_readonly(*args, **kwargs)
 
+        # _set_advanced_functions removed some parameters from the set which means we
+        # don't verify they were set.  Store the entire set first
+        all_params_to_set = copy.deepcopy(params_to_set)
+
         # This call circumvents the param dict a bit in that it
         # sets parameter values directly before update_params has a chance
         # to detect a configuration change.  So this method will also raise
@@ -856,7 +860,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._update_params(called_from_set=True)
 
-        self._check_for_set_failures(params_to_set)
+        self._check_for_set_failures(all_params_to_set)
             
         return (next_state, result)
 
@@ -1027,12 +1031,11 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     def _check_for_set_failures(self, params_to_check):
             device_parameters = self._param_dict.get_config()
             for key in params_to_check.keys():
-                if key == InstrumentParameters.LOGGER_DATE_AND_TIME:
-                    # time-date will always not match, so ignore it
-                    continue
+                log.debug("Verify set, key: %s", key)
                 if params_to_check[key] != device_parameters[key]:
-                    log.debug("_check_for_set_failures: SET FAILURE: " + str(key) + " is " + str(device_parameters[key]) + " and should have been set to " + str(params_to_check[key]))
-                    raise InstrumentParameterException("SET FAILURE: " + str(key) + " is " + str(device_parameters[key]) + " and should have been set to " + str(params_to_check[key]))
+                    msg = "SET FAILURE: %s is %s and should have been set to %s" % (key, device_parameters[key], params_to_check[key])
+                    log.debug("_check_for_set_failures: %s", msg)
+                    raise InstrumentParameterException(msg)
 
     def _clock_sync(self):
         # get time in ION format so command builder method can convert it correctly
