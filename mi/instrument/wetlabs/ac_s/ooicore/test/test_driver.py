@@ -523,9 +523,22 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
+    def test_disconnect(self):
+        """
+        over-ride base class test which fails because it expects to be able to go to command mode
+        Test that we can disconnect from a driver
+        """
+        self.assert_initialize_driver(final_state=DriverProtocolState.AUTOSAMPLE)
+
+        reply = self.driver_client.cmd_dvr('disconnect')
+        self.assertEqual(reply, None)
+
+        self.assert_current_state(DriverConnectionState.DISCONNECTED)
+        
     def test_autosample_particle_generation(self):
         """
-        Test that we can generate particles when in autosample
+        Test that we can generate particles when in autosample.
+        To test status particle instrument must be off and powered on will test is waiting
         """
         self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
 
