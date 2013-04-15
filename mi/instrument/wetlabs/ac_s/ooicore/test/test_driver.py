@@ -17,6 +17,7 @@ __author__ = 'Lytle Johnson'
 __license__ = 'Apache 2.0'
 
 import unittest
+import gevent
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -63,6 +64,10 @@ from mi.instrument.wetlabs.ac_s.ooicore.driver import OPTAA_StatusDataParticle
 from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException
 from interface.objects import AgentCommand
+
+from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+from pyon.agent.agent import ResourceAgentEvent
+from pyon.agent.agent import ResourceAgentState
 
 from struct import pack
 
@@ -559,16 +564,27 @@ class TestQUAL(InstrumentDriverQualificationTestCase):
 
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (virtual serial port mode)
         """
-        self.assert_direct_access_start_telnet()
-        self.assertTrue(self.tcp_client)
+        # go direct access
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
+            kwargs={'session_type': DirectAccessTypes.telnet,
+                    'session_timeout':600,
+                    'inactivity_timeout':600})
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=600)
+        log.warn("go_direct_access retval=" + str(retval.result))
 
-        ###
-        #   Add instrument specific code here.
-        ###
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
+        
+        print("test_direct_access_telnet_mode: waiting 120 seconds for manual testing")
+        gevent.sleep(120)
 
-        self.assert_direct_access_stop_telnet()
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
+        retval = self.instrument_agent_client.execute_agent(cmd) # ~9s to run
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.STREAMING)
 
     def test_get_capabilities(self):
         """
