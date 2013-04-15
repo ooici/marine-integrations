@@ -14,7 +14,7 @@ __license__ = 'Apache 2.0'
 
 import time
 import re
-import datetime
+import copy
 import ntplib
 import struct
 
@@ -246,30 +246,6 @@ class AdvancedFuntionsBits(BaseEnum):
     inhibit_data_storage            = 0x1
 
 
-###############################################################################
-# parameter dictionary
-###############################################################################
-class ListProtocolParameterDict(ProtocolParameterDict):
-    
-    def update_specific(self, name, input):
-        val = self._param_dict[name]
-        return val.update(input)
-    
-    def set_value(self, name, value):
-        """
-        Set a parameter value in the dictionary.
-        @param name The parameter name.
-        @param value The parameter value.
-        @raises KeyError if the name is invalid.
-        """
-        log.debug("setting " + name + " to " + str(value))
-        try:
-            val = self._param_dict[name]
-            val.value = val.f_getval(value)
-        except Exception as ex:
-            raise InstrumentParameterException('ERROR: parameter %s value %s - %s.' %(name, str(value), repr(ex)))
-        
-        
 ###############################################################################
 #   Driver for XR-420 Thermistor
 ###############################################################################
@@ -769,7 +745,9 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                 # Command device to update parameters and send a config change event.
                 # do this here because it shouldn't be done on entry to autosample everytime, 
                 # but the parameters need to be initialized in this mode also
+                log.debug("Updating paramdict")
                 self._update_params()
+                log.debug("Update paramdict complete")
             else:
                 next_state = ProtocolStates.COMMAND
                 result = ResourceAgentState.IDLE
@@ -860,6 +838,10 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._verify_not_readonly(*args, **kwargs)
 
+        # _set_advanced_functions removed some parameters from the set which means we
+        # don't verify they were set.  Store the entire set first
+        all_params_to_set = copy.deepcopy(params_to_set)
+
         # This call circumvents the param dict a bit in that it
         # sets parameter values directly before update_params has a chance
         # to detect a configuration change.  So this method will also raise
@@ -878,7 +860,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._update_params(called_from_set=True)
 
-        self._check_for_set_failures(params_to_set)
+        self._check_for_set_failures(all_params_to_set)
             
         return (next_state, result)
 
@@ -1049,12 +1031,11 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
     def _check_for_set_failures(self, params_to_check):
             device_parameters = self._param_dict.get_config()
             for key in params_to_check.keys():
-                if key == InstrumentParameters.LOGGER_DATE_AND_TIME:
-                    # time-date will always not match, so ignore it
-                    continue
+                log.debug("Verify set, key: %s", key)
                 if params_to_check[key] != device_parameters[key]:
-                    log.debug("_check_for_set_failures: SET FAILURE: " + str(key) + " is " + str(device_parameters[key]) + " and should have been set to " + str(params_to_check[key]))
-                    raise InstrumentParameterException("SET FAILURE: " + str(key) + " is " + str(device_parameters[key]) + " and should have been set to " + str(params_to_check[key]))
+                    msg = "SET FAILURE: %s is %s and should have been set to %s" % (key, device_parameters[key], params_to_check[key])
+                    log.debug("_check_for_set_failures: %s", msg)
+                    raise InstrumentParameterException(msg)
 
     def _clock_sync(self):
         # get time in ION format so command builder method can convert it correctly
@@ -1279,7 +1260,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         For each parameter key add value formatting function for set commands.
         """
         # The parameter dictionary.
-        self._param_dict = ListProtocolParameterDict()
+        self._param_dict = ProtocolParameterDict()
         
         # Add parameter handlers to parameter dictionary for instrument configuration parameters.
         self._param_dict.add(InstrumentParameters.STATUS,
@@ -1306,7 +1287,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                              lambda string : str(string),
                              type=ParameterDictType.STRING,
                              display_name="Date/Time",
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              submenu_read=InstrumentCmds.GET_LOGGER_DATE_AND_TIME,
                              submenu_write=InstrumentCmds.SET_LOGGER_DATE_AND_TIME)
 
@@ -1852,7 +1833,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
 # response handlers
 ##################################################################################################
 
-    def _parse_status_response(self, response, prompt, **kwargs):
+    def _parse_status_response(self, response, prompt=None, **kwargs):
         log.debug("_parse_status_response: response=%s" %response.rstrip())
         if InstrumentResponses.GET_STATUS in response:
             # got status response, so save it
@@ -1915,7 +1896,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             raise InstrumentParameterException('_parse_channel_calibration_response requires a parameter name.')
         if InstrumentResponses.GET_CHANNEL_CALIBRATION in response:
             # got channel calibration response, so save it
-            self._param_dict.update_specific(param_name, response)
+            self._param_dict.update(response, param_name)
         else:
             raise InstrumentParameterException('Get channel calibration response not correct: %s.' %response)
 

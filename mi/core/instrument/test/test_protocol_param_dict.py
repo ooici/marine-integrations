@@ -263,7 +263,40 @@ bar=200, baz=300
         self.assertEquals(self.param_dict.get("foo"), 100)
         self.assertEquals(self.param_dict.get("bar"), 200)
         self.assertEquals(self.param_dict.get("baz"), 300)
-        
+
+    def test_update_specific_values(self):
+        """
+        test to verify we can limit update to a specific
+        set of parameters
+        """
+        sample_input = "foo=100, bar=200"
+
+        # First verify we can set both
+        self.assertNotEquals(self.param_dict.get("foo"), 100)
+        self.assertNotEquals(self.param_dict.get("bar"), 200)
+        self.assertTrue(self.param_dict.update(sample_input))
+        self.assertEquals(self.param_dict.get("foo"), 100)
+        self.assertEquals(self.param_dict.get("bar"), 200)
+
+        # Now let's only have it update 1 parameter with a name
+        sample_input = "foo=200, bar=300"
+        self.assertTrue(self.param_dict.update(sample_input, target_params = "foo"))
+        self.assertEquals(self.param_dict.get("foo"), 200)
+        self.assertEquals(self.param_dict.get("bar"), 200)
+
+        # Now let's only have it update 1 parameter using a list
+        sample_input = "foo=300, bar=400"
+        self.assertTrue(self.param_dict.update(sample_input, target_params = ["foo"]))
+        self.assertEquals(self.param_dict.get("foo"), 300)
+        self.assertEquals(self.param_dict.get("bar"), 200)
+
+        # Test our exceptions
+        with self.assertRaises(KeyError):
+            self.param_dict.update(sample_input, "key_does_not_exist")
+
+        with self.assertRaises(InstrumentParameterException):
+            self.param_dict.update(sample_input, {'bad': "key_does_not_exist"})
+
     def test_visibility_list(self):
         lst = self.param_dict.get_visibility_list(ParameterDictVisibility.READ_WRITE)
         lst.sort()

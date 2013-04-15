@@ -673,18 +673,35 @@ class ProtocolParameterDict(object):
                 result[name] = update_result 
         return result
 
-    def update(self, input):
+    def update(self, input, target_params=None):
         """
         Update the dictionaray with a line input. Iterate through all objects
         and attempt to match and update a parameter. Only updates the first
-        match encountered.
+        match encountered. If we pass in a target params list then will will
+        only iterate through those allowing us to limit upstate to only specific
+        parameters.
         @param input A string to match to a dictionary object.
+        @param target_params a name, or list of names to limit the scope of
+        the update.
         @retval The name that was successfully updated, None if not updated
+        @raise InstrumentParameterException on invalid target prams
+        @raise KeyError on invalid parameter name
         """
         log.debug("update input: %s", input)
         found = False
-        for (name, val) in self._param_dict.iteritems():
+
+        if(target_params and isinstance(target_params, str)):
+            params = [target_params]
+        elif(target_params and isinstance(target_params, list)):
+            params = target_params
+        elif(target_params == None):
+            params = self._param_dict.keys()
+        else:
+            raise InstrumentParameterException("invalid target_params, must be name or list")
+
+        for name in params:
             log.trace("update param dict name: %s", name)
+            val = self._param_dict[name]
             if val.update(input):
                 found = True
         return found
