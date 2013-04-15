@@ -1,6 +1,6 @@
 """
 @package mi.instrument.nobska.mavs4.ooicore.driver
-@file /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nobska/mavs4/ooicore/driver.py
+@file /marine-integrations/mi/instrument/nobska/mavs4/ooicore/driver.py
 @author Bill Bollenbacher
 @brief Driver for the mavs4
 Release notes:
@@ -63,10 +63,6 @@ SAMPLE_DATA_PATTERN = (r'(\d+\s+\d+\s+\d+)' +    # date
 
 SAMPLE_DATA_REGEX = re.compile(SAMPLE_DATA_PATTERN)
 
-class DataParticleType(BaseEnum):
-    RAW = CommonDataParticleType.RAW
-    SAMPLE = 'sample'
-    STATUS = 'status'
 
 INSTRUMENT_NEWLINE = '\r\n'
 WRITE_DELAY = 0
@@ -74,11 +70,17 @@ WRITE_DELAY = 0
 # default timeout.
 INSTRUMENT_TIMEOUT = 5
 
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW
+    SAMPLE = 'sample'
+    STATUS = 'status'
+
 # Device prompts.
 class InstrumentPrompts(BaseEnum):
     """
     MAVS-4 prompts.
-    The main menu prompt has 2 bells and the sub menu prompts have one; the PicoDOS prompt has none.
+    The main menu prompt has 2 bells and the sub menu prompts have one; the
+    PicoDOS prompt has none.
     """
     MAIN_MENU                     = '\a\b ? \a\b'
     SUB_MENU                      = '\a\b'
@@ -398,7 +400,9 @@ class mavs4InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = mavs4InstrumentProtocol(InstrumentPrompts, INSTRUMENT_NEWLINE, self._driver_event)
+        self._protocol = mavs4InstrumentProtocol(InstrumentPrompts,
+                                                 INSTRUMENT_NEWLINE,
+                                                 self._driver_event)
         
 ###############################################################################
 # Data particles
@@ -435,7 +439,8 @@ class Mavs4SampleDataParticle(DataParticle):
         match = SAMPLE_DATA_REGEX.match(self.raw_data)
         
         if not match:
-            raise SampleException("Mavs4SampleDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
+            raise SampleException("Mavs4SampleDataParticle: No regex match of \
+                                  parsed sample data: [%s]", self.raw_data)
         
         #log.debug('_build_parsed_values: match=%s', match.group(0))
                 
@@ -458,7 +463,8 @@ class Mavs4SampleDataParticle(DataParticle):
             pitch = float(match.group(14))
             roll = float(match.group(15))
         except (ValueError, TypeError, IndexError) as ex:
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]" %(ex, self.raw_data))
+            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
+                                  % (ex, self.raw_data))
                      
         result = [{DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: ntp_timestamp},
@@ -515,16 +521,19 @@ class Mavs4StatusDataParticleKey(BaseEnum):
                 
 class Mavs4StatusDataParticle(DataParticle):
     """
-    Class for constructing status data into a status particle structure for the MAVS-4 sensor. 
-    The raw_data variable in the DataParticle base class needs to be initialized to a reference to 
-    a dictionary that contains the status parameters.
+    Class for constructing status data into a status particle structure for
+    the MAVS-4 sensor. The raw_data variable in the DataParticle base class
+    needs to be initialized to a reference to a dictionary that contains the
+    status parameters.
     """
     _data_particle_type = DataParticleType.STATUS
 
     def _build_parsed_values(self):
         """
-        Build the status particle from a dictionary of parameters adding the appropriate tags.
-        NOTE: raw_data references a dictionary with the status parameters, not a line of input
+        Build the status particle from a dictionary of parameters adding the
+        appropriate tags.
+        NOTE: raw_data references a dictionary with the status parameters, not
+        a line of input
         @throws SampleException If there is a problem with particle creation
         """
                 
@@ -546,9 +555,10 @@ class Mavs4StatusDataParticle(DataParticle):
 ###
 class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     """
-    This protocol implements a simple command-response interaction for the menu based MAVs-4 instrument.  
-    It utilizes a dictionary that holds info on the more complex commands as well as command builders and 
-    response handles that can dynamically create and process the instrument interactions.
+    This protocol implements a simple command-response interaction for the
+    menu based MAVs-4 instrument. It utilizes a dictionary that holds info on
+    the more complex commands as well as command builders and response handles
+    that can dynamically create and process the instrument interactions.
     """
     
     monitor_sub_parameters = (InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES, 
@@ -560,11 +570,12 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                                  InstrumentParameters.BURST_INTERVAL_MINUTES,
                                  InstrumentParameters.BURST_INTERVAL_SECONDS)
     
-    # Lookup dictionary which contains the response, the next command, and the possible parameter name for 
-    # a given instrument command if it is needed.
-    # The value None for the next command means there is no next command (the interaction is complete).
-    # Commands that decide how to construct the command or any of these values dynamically have there own 
-    # build handlers and are not in this table.
+    # Lookup dictionary which contains the response, the next command, and the
+    # possible parameter name for a given instrument command if it is needed.
+    # The value None for the next command means there is no next command (the
+    # interaction is complete). Commands that decide how to construct the
+    # command or any of these values dynamically have there own build handlers
+    # and are not in this table.
     Command_Response = {InstrumentCmds.SET_TIME : 
                             [InstrumentPrompts.SET_TIME, None, None],
                         InstrumentCmds.ENTER_TIME : 
@@ -572,11 +583,15 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                         InstrumentCmds.ENTER_NOTE : 
                             [InstrumentPrompts.DEPLOY_MENU, None, None],
                         InstrumentCmds.SET_VELOCITY_FRAME : 
-                            [InstrumentPrompts.VELOCITY_FRAME, InstrumentCmds.ENTER_VELOCITY_FRAME, None],
+                            [InstrumentPrompts.VELOCITY_FRAME,
+                             InstrumentCmds.ENTER_VELOCITY_FRAME,
+                             None],
                         InstrumentCmds.ENTER_VELOCITY_FRAME : 
                             [InstrumentPrompts.DEPLOY_MENU, None, None],
                         InstrumentCmds.SET_MONITOR : 
-                            [InstrumentPrompts.MONITOR, InstrumentCmds.ENTER_MONITOR, None],
+                            [InstrumentPrompts.MONITOR,
+                             InstrumentCmds.ENTER_MONITOR,
+                             None],
                         InstrumentCmds.ENTER_LOG_DISPLAY_TIME : 
                             [InstrumentPrompts.LOG_DISPLAY, 
                              InstrumentCmds.ENTER_LOG_DISPLAY_FRACTIONAL_SECOND, 
@@ -586,27 +601,39 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              InstrumentCmds.ENTER_LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES, 
                              InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND],
                         InstrumentCmds.SET_QUERY : 
-                            [InstrumentPrompts.QUERY, InstrumentCmds.ENTER_QUERY, None],
+                            [InstrumentPrompts.QUERY,
+                             InstrumentCmds.ENTER_QUERY,
+                             None],
                         InstrumentCmds.ENTER_QUERY : 
                             [InstrumentPrompts.DEPLOY_MENU, None, None],
                         InstrumentCmds.SET_FREQUENCY : 
-                            [InstrumentPrompts.FREQUENCY, InstrumentCmds.ENTER_FREQUENCY, None],
+                            [InstrumentPrompts.FREQUENCY,
+                             InstrumentCmds.ENTER_FREQUENCY,
+                             None],
                         InstrumentCmds.ENTER_FREQUENCY : 
                             [InstrumentPrompts.DEPLOY_MENU, None, None],                        
                         InstrumentCmds.SET_MEAS_PER_SAMPLE : 
-                            [InstrumentPrompts.MEAS_PER_SAMPLE, InstrumentCmds.ENTER_MEAS_PER_SAMPLE, None],
+                            [InstrumentPrompts.MEAS_PER_SAMPLE,
+                             InstrumentCmds.ENTER_MEAS_PER_SAMPLE,
+                             None],
                         InstrumentCmds.ENTER_MEAS_PER_SAMPLE : 
                             [InstrumentPrompts.DEPLOY_MENU, None, None],                        
                         InstrumentCmds.SET_SAMPLE_PERIOD : 
-                            [InstrumentPrompts.SAMPLE_PERIOD, InstrumentCmds.ENTER_SAMPLE_PERIOD, None],
+                            [InstrumentPrompts.SAMPLE_PERIOD,
+                             InstrumentCmds.ENTER_SAMPLE_PERIOD,
+                             None],
                         InstrumentCmds.ENTER_SAMPLE_PERIOD : 
                             [InstrumentPrompts.DEPLOY_MENU, None, None],                        
                         InstrumentCmds.SET_SAMPLES_PER_BURST : 
-                            [InstrumentPrompts.SAMPLES_PER_BURST, InstrumentCmds.ENTER_SAMPLES_PER_BURST, None],
+                            [InstrumentPrompts.SAMPLES_PER_BURST,
+                             InstrumentCmds.ENTER_SAMPLES_PER_BURST,
+                             None],
                         InstrumentCmds.ENTER_SAMPLES_PER_BURST : 
                             [InstrumentPrompts.DEPLOY_MENU, None, None],                        
                         InstrumentCmds.SET_BURST_INTERVAL_DAYS : 
-                            [InstrumentPrompts.BURST_INTERVAL_DAYS, InstrumentCmds.ENTER_BURST_INTERVAL_DAYS, None],                        
+                            [InstrumentPrompts.BURST_INTERVAL_DAYS,
+                             InstrumentCmds.ENTER_BURST_INTERVAL_DAYS,
+                             None],                        
                         InstrumentCmds.ENTER_BURST_INTERVAL_DAYS : 
                             [InstrumentPrompts.BURST_INTERVAL_HOURS, 
                              InstrumentCmds.ENTER_BURST_INTERVAL_HOURS, 
@@ -620,51 +647,88 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                              InstrumentCmds.ENTER_BURST_INTERVAL_SECONDS, 
                              InstrumentParameters.BURST_INTERVAL_MINUTES],                        
                         InstrumentCmds.ENTER_BURST_INTERVAL_SECONDS : 
-                            [InstrumentPrompts.DEPLOY_MENU, None, InstrumentParameters.BURST_INTERVAL_SECONDS],                        
+                            [InstrumentPrompts.DEPLOY_MENU,
+                             None,
+                             InstrumentParameters.BURST_INTERVAL_SECONDS],                        
                         InstrumentCmds.DEPLOY_GO : 
                             [InstrumentPrompts.BEGIN_MEASUREMENT, None, None],                        
                         InstrumentCmds.SET_SI_CONVERSION : 
-                            [InstrumentPrompts.SI_CONVERSION, InstrumentCmds.ENTER_SI_CONVERSION, None],                        
+                            [InstrumentPrompts.SI_CONVERSION,
+                             InstrumentCmds.ENTER_SI_CONVERSION,
+                             None],                        
                         InstrumentCmds.ENTER_SI_CONVERSION : 
-                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
+                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU,
+                             InstrumentCmds.SYSTEM_CONFIGURATION_EXIT,
+                             None],                        
                         InstrumentCmds.SYSTEM_CONFIGURATION_EXIT : 
                             [InstrumentPrompts.MAIN_MENU, None, None],                        
                         InstrumentCmds.SET_WARM_UP_INTERVAL : 
-                            [InstrumentPrompts.WARM_UP_INTERVAL, InstrumentCmds.ENTER_WARM_UP_INTERVAL, None],                        
+                            [InstrumentPrompts.WARM_UP_INTERVAL,
+                             InstrumentCmds.ENTER_WARM_UP_INTERVAL,
+                             None],                        
                         InstrumentCmds.SET_THREE_AXIS_COMPASS : 
-                            [InstrumentPrompts.THREE_AXIS_COMPASS, InstrumentCmds.ENTER_THREE_AXIS_COMPASS, None],                        
+                            [InstrumentPrompts.THREE_AXIS_COMPASS,
+                             InstrumentCmds.ENTER_THREE_AXIS_COMPASS,
+                             None],                        
                         InstrumentCmds.ENTER_THREE_AXIS_COMPASS : 
-                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
+                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU,
+                             InstrumentCmds.SYSTEM_CONFIGURATION_EXIT,
+                             None],                        
                         InstrumentCmds.SET_SOLID_STATE_TILT : 
-                            [InstrumentPrompts.SOLID_STATE_TILT, InstrumentCmds.ENTER_SOLID_STATE_TILT, None],                        
+                            [InstrumentPrompts.SOLID_STATE_TILT,
+                             InstrumentCmds.ENTER_SOLID_STATE_TILT,
+                             None],                        
                         InstrumentCmds.ANSWER_SOLID_STATE_TILT_YES : 
-                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
+                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU,
+                             InstrumentCmds.SYSTEM_CONFIGURATION_EXIT,
+                             None],                        
                         InstrumentCmds.SET_THERMISTOR : 
-                            [InstrumentPrompts.THERMISTOR, InstrumentCmds.ENTER_THERMISTOR, None],                        
+                            [InstrumentPrompts.THERMISTOR,
+                             InstrumentCmds.ENTER_THERMISTOR,
+                             None],                        
                         InstrumentCmds.ANSWER_THERMISTOR_NO : 
-                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
+                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU,
+                             InstrumentCmds.SYSTEM_CONFIGURATION_EXIT,
+                             None],                        
                         InstrumentCmds.SET_PRESSURE : 
-                            [InstrumentPrompts.PRESSURE, InstrumentCmds.ENTER_PRESSURE, None],                        
+                            [InstrumentPrompts.PRESSURE,
+                             InstrumentCmds.ENTER_PRESSURE,
+                             None],                        
                         InstrumentCmds.ENTER_PRESSURE : 
-                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
+                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU,
+                             InstrumentCmds.SYSTEM_CONFIGURATION_EXIT,
+                             None],                        
                         InstrumentCmds.SET_SENSOR_ORIENTATION : 
-                            [InstrumentPrompts.SENSOR_ORIENTATION, InstrumentCmds.ENTER_SENSOR_ORIENTATION, None],                        
+                            [InstrumentPrompts.SENSOR_ORIENTATION,
+                             InstrumentCmds.ENTER_SENSOR_ORIENTATION,
+                             None],                        
                         InstrumentCmds.ENTER_SENSOR_ORIENTATION : 
-                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU, InstrumentCmds.SYSTEM_CONFIGURATION_EXIT, None],                        
+                            [InstrumentPrompts.SYSTEM_CONFIGURATION_MENU,
+                             InstrumentCmds.SYSTEM_CONFIGURATION_EXIT,
+                             None],                        
                         InstrumentCmds.VELOCITY_OFFSETS : 
-                            [InstrumentPrompts.VELOCITY_OFFSETS, InstrumentCmds.VELOCITY_OFFSETS_SET, None],                        
+                            [InstrumentPrompts.VELOCITY_OFFSETS,
+                             InstrumentCmds.VELOCITY_OFFSETS_SET,
+                             None],                        
                         InstrumentCmds.VELOCITY_OFFSETS_SET: 
                             [InstrumentPrompts.VELOCITY_OFFSETS_SET, None, None],                        
                         InstrumentCmds.COMPASS_OFFSETS : 
-                            [InstrumentPrompts.COMPASS_OFFSETS, InstrumentCmds.COMPASS_OFFSETS_SET, None],                        
+                            [InstrumentPrompts.COMPASS_OFFSETS,
+                             InstrumentCmds.COMPASS_OFFSETS_SET, None],                        
                         InstrumentCmds.COMPASS_OFFSETS_SET: 
                             [InstrumentPrompts.COMPASS_OFFSETS_SET, None, None],                        
                         InstrumentCmds.COMPASS_SCALE_FACTORS : 
-                            [InstrumentPrompts.COMPASS_SCALE_FACTORS, InstrumentCmds.COMPASS_SCALE_FACTORS_SET, None],                        
+                            [InstrumentPrompts.COMPASS_SCALE_FACTORS,
+                             InstrumentCmds.COMPASS_SCALE_FACTORS_SET,
+                             None],                        
                         InstrumentCmds.COMPASS_SCALE_FACTORS_SET: 
-                            [InstrumentPrompts.COMPASS_SCALE_FACTORS_SET, None, None],                        
+                            [InstrumentPrompts.COMPASS_SCALE_FACTORS_SET,
+                             None,
+                             None],                        
                         InstrumentCmds.TILT_OFFSETS : 
-                            [InstrumentPrompts.TILT_OFFSETS, InstrumentCmds.TILT_OFFSETS_SET, None],                        
+                            [InstrumentPrompts.TILT_OFFSETS,
+                             InstrumentCmds.TILT_OFFSETS_SET,
+                             None],                        
                         InstrumentCmds.TILT_OFFSETS_SET: 
                             [InstrumentPrompts.TILT_OFFSETS_SET, None, None],                        
                         }
@@ -682,11 +746,17 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # create MenuTree object for navigating to sub-menus
         menu = MenuInstrumentProtocol.MenuTree({
             SubMenues.ROOT          : [],
-            SubMenues.SET_TIME      : [Directions(InstrumentCmds.SET_TIME, InstrumentPrompts.SET_TIME)],
-            SubMenues.DEPLOY        : [Directions(InstrumentCmds.DEPLOY_MENU, InstrumentPrompts.DEPLOY_MENU, 20)],
-            SubMenues.CONFIGURATION : [Directions(InstrumentCmds.SYSTEM_CONFIGURATION_MENU, InstrumentPrompts.SYSTEM_CONFIGURATION_PASSWORD),
-                                       Directions(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, InstrumentPrompts.SYSTEM_CONFIGURATION_MENU)],
-            SubMenues.CALIBRATION   : [Directions(InstrumentCmds.CALIBRATION_MENU, InstrumentPrompts.CALIBRATION_MENU)],
+            SubMenues.SET_TIME      : [Directions(InstrumentCmds.SET_TIME,
+                                                  InstrumentPrompts.SET_TIME)],
+            SubMenues.DEPLOY        : [Directions(InstrumentCmds.DEPLOY_MENU,
+                                                  InstrumentPrompts.DEPLOY_MENU,
+                                                  20)],
+            SubMenues.CONFIGURATION : [Directions(InstrumentCmds.SYSTEM_CONFIGURATION_MENU,
+                                                  InstrumentPrompts.SYSTEM_CONFIGURATION_PASSWORD),
+                                       Directions(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD,
+                                                  InstrumentPrompts.SYSTEM_CONFIGURATION_MENU)],
+            SubMenues.CALIBRATION   : [Directions(InstrumentCmds.CALIBRATION_MENU,
+                                                  InstrumentPrompts.CALIBRATION_MENU)],
             })
         
         MenuInstrumentProtocol.__init__(self, menu, prompts, newline, driver_event)
@@ -750,11 +820,13 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
     def _got_chunk(self, structure, timestamp):
         """
-        The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
-        with the appropriate particle objects and REGEXes. 
+        The base class got_data has gotten a structure from the chunker.
+        Pass it to extract_sample with the appropriate particle objects and
+        REGEXes. 
         """
         log.debug("_got_chunk: detected structure = <%s>", structure)
-        self._extract_sample(Mavs4SampleDataParticle, SAMPLE_DATA_REGEX, structure, timestamp)
+        self._extract_sample(Mavs4SampleDataParticle, SAMPLE_DATA_REGEX,
+                             structure, timestamp)
 
 
     ########################################################################
@@ -763,7 +835,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
     def _get_response(self, timeout=10, expected_prompt=None):
         """
-        Get a response from the instrument, and do not ignore white space as in base class method..        
+        Get a response from the instrument, and do not ignore white space as in
+        base class method.
         @param timeout The timeout in seconds
         @param expected_prompt Only consider the specific expected prompt as
         presented by this string
@@ -794,7 +867,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
     def _navigate_and_execute(self, cmd, **kwargs):
         """
-        Navigate to a sub-menu and execute a list of commands instead of just one command as in the base class.  
+        Navigate to a sub-menu and execute a list of commands instead of just
+        one command as in the base class.  
         @param cmds The list of commands to execute.
         @param expected_prompt optional kwarg passed through to do_cmd_resp.
         @param timeout=timeout optional wakeup and command timeout.
@@ -847,7 +921,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
         Perform a command-response on the device. 
-        Send commands a character at a time to spoon feed instrument so it doesn't drop characters!
+        Send commands a character at a time to spoon feed instrument so it
+        doesn't drop characters!
         @param cmd The command to execute.
         @param args positional arguments to pass to the build handler.
         @param timeout=timeout optional command timeout.
@@ -917,10 +992,12 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         @param cmd The command to build
         @param args Unused arguments
-        @ retval list with:
-            The command to be sent to the device
-            The response expected from the device (set to None to indicate not specified)
-            The next command to be sent to device (set to None to indicate not specified)
+        @retval list with:
+            The command to be sent to the device,
+            The response expected from the device (set to None to indicate not
+            specified),
+            The next command to be sent to device (set to None to indicate not
+            specified)
         """
         cmd = kwargs.get('command', None)
         if cmd == None:
@@ -991,8 +1068,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         """
         Discover current state; can be COMMAND or AUTOSAMPLE.  If the
         instrument is sleeping consider that to be in command state.
-        @retval (next_state, result), (ProtocolStates.COMMAND or ProtocolStates.AUTOSAMPLE, None)
-        if successful.
+        @retval (next_state, result), (ProtocolStates.COMMAND or
+        ProtocolStates.AUTOSAMPLE, None) if successful.
         """
         next_state = None
         result = None
@@ -1001,7 +1078,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # NOTE: this driver always tries to put instrument into command mode
         # so that parameters can be initialized
         try:
-            prompt = self._go_to_root_menu()
+            self._go_to_root_menu()
         except InstrumentTimeoutException:
             # didn't get root menu prompt, so indicate that there is trouble
             # with the instrument
@@ -1022,7 +1099,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         """
         Enter command state.
         @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not recognized.
+        @throws InstrumentProtocolException if the update commands and not
+        recognized.
         """
         # Command device to update parameters and send a config change event.
         self._update_params()
@@ -1273,7 +1351,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         sync clock close to a second edge 
         @retval (next_state, result) tuple, (None, None) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        @throws InstrumentProtocolException if command could not be built or
+        misunderstood.
         """
 
         next_state = None
@@ -2275,18 +2354,25 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.DEPLOY_GO, self._build_simple_command)
         
         # Add response handlers for device commands.
-        self._add_response_handler(InstrumentCmds.SET_TIME, self._parse_time_response)
-        self._add_response_handler(InstrumentCmds.DEPLOY_MENU, self._parse_deploy_menu_response)
-        self._add_response_handler(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD, self._parse_system_configuration_menu_response)
-        self._add_response_handler(InstrumentCmds.VELOCITY_OFFSETS_SET, self._parse_velocity_offset_set_response)
-        self._add_response_handler(InstrumentCmds.COMPASS_OFFSETS_SET, self._parse_compass_offset_set_response)
-        self._add_response_handler(InstrumentCmds.COMPASS_SCALE_FACTORS_SET, self._parse_compass_scale_factors_set_response)
-        self._add_response_handler(InstrumentCmds.TILT_OFFSETS_SET, self._parse_tilt_offset_set_response)
+        self._add_response_handler(InstrumentCmds.SET_TIME,
+                                   self._parse_time_response)
+        self._add_response_handler(InstrumentCmds.DEPLOY_MENU,
+                                   self._parse_deploy_menu_response)
+        self._add_response_handler(InstrumentCmds.SYSTEM_CONFIGURATION_PASSWORD,
+                                   self._parse_system_configuration_menu_response)
+        self._add_response_handler(InstrumentCmds.VELOCITY_OFFSETS_SET,
+                                   self._parse_velocity_offset_set_response)
+        self._add_response_handler(InstrumentCmds.COMPASS_OFFSETS_SET,
+                                   self._parse_compass_offset_set_response)
+        self._add_response_handler(InstrumentCmds.COMPASS_SCALE_FACTORS_SET,
+                                   self._parse_compass_scale_factors_set_response)
+        self._add_response_handler(InstrumentCmds.TILT_OFFSETS_SET,
+                                   self._parse_tilt_offset_set_response)
    
     def _build_enter_auxiliary_command(self, **kwargs):
         """
         Build handler for auxiliary enter command 
-        @ retval list with:
+        @retval list with:
             The command to be sent to the device
             The response expected from the device
             The next command to be sent to device 
@@ -2304,7 +2390,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_set_auxiliary_command(self, **kwargs):
         """
         Build handler for auxiliary set command 
-        @ retval list with:
+        @retval list with:
             The command to be sent to the device
             The response expected from the device
             The next command to be sent to device 
@@ -2320,7 +2406,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_enter_solid_state_tilt_command(self, **kwargs):
         """
         Build handler for solid state tilt enter command 
-        @ retval list with:
+        @retval list with:
             The command to be sent to the device
             The response expected from the device
             The next command to be sent to device 
@@ -2343,7 +2429,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_enter_thermistor_command(self, **kwargs):
         """
         Build handler for thermistor enter command 
-        @ retval list with:
+        @retval list with:
             The command to be sent to the device
             The response expected from the device
             The next command to be sent to device 
@@ -2367,7 +2453,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_enter_warm_up_interval_command(self, **kwargs):
         """
         Build handler for warm up interval enter command 
-        @ retval list with:
+        @retval list with:
             The command to be sent to the device
             The response expected from the device
             The next command to be sent to device 
@@ -2385,7 +2471,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_enter_log_display_acoustic_axis_velocity_format_command(self, **kwargs):
         """
         Build handler for log display acoustic axis velocity format enter command 
-        @ retval list with:
+        @retval list with:
             The command to be sent to the device
             The response expected from the device
             The next command to be sent to device (set to None to indicate there isn't one) 
@@ -2397,7 +2483,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_enter_log_display_acoustic_axis_velocities_command(self, **kwargs):
         """
         Build handler for log display acoustic axis velocities enter command 
-        @ retval list with:
+        @retval list with:
             The command to be sent to the device
             The response expected from the device
             The next command to be sent to device (set to None to indicate there isn't one for the 'n' cmd) 
@@ -2413,7 +2499,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         """
         Build handler for simple sub parameter enter command 
         String cmd constructed by param dict formatting function.
-        @ retval list with:
+        @retval list with:
             The command to be sent to the device
             The response expected from the device
             The next command to be sent to device
@@ -2433,7 +2519,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_enter_monitor_command(self, **kwargs):
         """
         Build handler for monitor enter command 
-        @ retval list with:
+        @retval list with:
             The command to be sent to the device
             The response expected from the device
             The next command to be sent to device 
@@ -2453,7 +2539,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_enter_velocity_frame_command(self, **kwargs):
         """
         Build handler for velocity frame enter command 
-        @ retval list with:
+        @retval list with:
             The command to be sent to the device
             The response expected from the device
             The next command to be sent to device (set to None to indicate there isn't one)
@@ -2474,7 +2560,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_set_note_command(self, **kwargs):
         """
         Build handler for note set command 
-        @ retval list with:
+        @retval list with:
             The command to be sent to the device
             The response expected from the device
             The next command to be sent to device 
@@ -2490,7 +2576,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         """
         Build handler for simple enter command 
         String cmd constructed by param dict formatting function.
-        @ retval list with:
+        @retval list with:
             The command to be sent to the device
             The response expected from the device
             The next command to be sent to device
@@ -2513,7 +2599,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
     def _build_simple_command(self, **kwargs):
         """
         Build handler for simple set command 
-        @ retval list with:
+        @retval list with:
             The command to be sent to the device
             The response expected from the device
             The next command to be sent to device

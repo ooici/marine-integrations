@@ -603,5 +603,5 @@ bar=200, baz=300
                              value=10)
         self.assertEqual(self.param_dict.format("test_format", 20), 25)
         self.assertEqual(self.param_dict.format("test_format"), 15)
-        self.assertRaises(InstrumentParameterException,
+        self.assertRaises(KeyError,
                           self.param_dict.format, "bad_name")
