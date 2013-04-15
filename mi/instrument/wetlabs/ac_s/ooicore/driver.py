@@ -14,7 +14,6 @@ __license__ = 'Apache 2.0'
 import re
 import time
 import string
-import ntplib
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -70,8 +69,8 @@ SAMPLE_RECORD_HEADER = (r'^%s' %PACKET_REGISTRATION_PATTERN +
 
 SAMPLE_RECORD_HEADER_REGEX = re.compile(SAMPLE_RECORD_HEADER)
 
-STATUS_PATTERN = r'AC-Spectra(.*?\n)*?(.*?quit\.)'
-STATUS_REGEX = re.compile(STATUS_PATTERN)
+STATUS_PATTERN = r'AC-Spectra .+ quit\.'
+STATUS_REGEX = re.compile(STATUS_PATTERN, re.DOTALL)
         
 ####
 #    Driver Constant Definitions
@@ -81,7 +80,7 @@ class DataParticleType(BaseEnum):
     """
     Data particle types produced by this driver
     """
-    RAW = CommonDataParticleType.RAW
+    RAW          = CommonDataParticleType.RAW
     OPTAA_SAMPLE = 'optaa_sample'
     OPTAA_STATUS = 'optaa_status'
     
@@ -89,16 +88,20 @@ class ProtocolState(BaseEnum):
     """
     Instrument protocol states
     """
-    UNKNOWN = DriverProtocolState.UNKNOWN
-    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
+    UNKNOWN       = DriverProtocolState.UNKNOWN
+    AUTOSAMPLE    = DriverProtocolState.AUTOSAMPLE
+    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
 
 class ProtocolEvent(BaseEnum):
     """
     Protocol events
     """
-    ENTER = DriverEvent.ENTER
-    EXIT = DriverEvent.EXIT
-    DISCOVER = DriverEvent.DISCOVER
+    ENTER          = DriverEvent.ENTER
+    EXIT           = DriverEvent.EXIT
+    DISCOVER       = DriverEvent.DISCOVER
+    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    START_DIRECT   = DriverEvent.START_DIRECT
+    STOP_DIRECT    = DriverEvent.STOP_DIRECT
 
 class Capability(BaseEnum):
     """
@@ -249,6 +252,8 @@ class OPTAA_StatusDataParticle(DataParticle):
         result = []
         
         data_stream = self.raw_data
+        
+        log.debug("OPTAA_StatusDataParticle: input = %s" %data_stream)
             
         ### This regex searching can be made a lot more specific, but at the expense of
         ### more code. For now, grabbing all three floating point numbers in one sweep is
@@ -297,6 +302,7 @@ class OPTAA_StatusDataParticle(DataParticle):
                    DataParticleKey.VALUE: str(bios) },
                   {DataParticleKey.VALUE_ID: OPTAA_StatusDataParticleKey.PERSISTOR_CF_PICODOS_VERSION,
                    DataParticleKey.VALUE: str(picodos) } ]
+        log.debug("OPTAA_StatusDataParticle: result = %s" %result)
         return result                      
 
 ###############################################################################
@@ -368,6 +374,12 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.START_DIRECT, self._handler_autosample_start_direct)
+
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -410,6 +422,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Return a list of currently available capabilities.
         """
         return [x for x in events if Capability.has(x)]
+
 
     ########################################################################
     # Unknown handlers.
@@ -468,4 +481,53 @@ class Protocol(CommandResponseInstrumentProtocol):
         Exit command state.
         """
         pass
+
+    def _handler_autosample_start_direct(self):
+        """
+        """
+        next_state = None
+        result = None
+
+        next_state = ProtocolState.DIRECT_ACCESS
+        next_agent_state = ResourceAgentState.DIRECT_ACCESS
+        
+        return (next_state, (next_agent_state, result))
+
+
+    ########################################################################
+    # Direct access handlers.
+    ########################################################################
+
+    def _handler_direct_access_enter(self, *args, **kwargs):
+        """
+        Enter direct access state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.                
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        
+        self._sent_cmds = []
+    
+    def _handler_direct_access_exit(self, *args, **kwargs):
+        """
+        Exit direct access state.
+        """
+        pass
+
+    def _handler_direct_access_execute_direct(self, data):
+        next_state = None
+        result = None
+
+        self._do_cmd_direct(data)
+                        
+        return (next_state, result)
+
+    def _handler_direct_access_stop_direct(self):
+        next_state = None
+        result = None
+
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+
+        return (next_state, (next_agent_state, result))
 

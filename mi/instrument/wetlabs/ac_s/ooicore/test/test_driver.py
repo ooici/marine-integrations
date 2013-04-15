@@ -359,9 +359,10 @@ class UtilMixin(DriverTestMixin):
         correct
         @param data_particle: Data particle of unknown type produced by the driver
         '''
-        if (isinstance(data_particle, OPTAA_SampleDataParticle)):
+        sample_dict = self.convert_data_particle_to_dict(data_particle)
+        if (sample_dict[DataParticleKey.STREAM_NAME] == DataParticleType.OPTAA_SAMPLE):
             self.assert_data_particle_sample(data_particle)
-        if (isinstance(data_particle, OPTAA_StatusDataParticle)):
+        elif (sample_dict[DataParticleKey.STREAM_NAME] == DataParticleType.OPTAA_STATUS):
             self.assert_data_particle_status(data_particle)
         else:
             log.error("Unknown Particle Detected: %s" % data_particle)
@@ -509,6 +510,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
+
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 #     Integration test test the direct driver / instrument interaction        #
@@ -517,7 +519,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, UtilMixin):
+class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
@@ -527,8 +529,9 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, UtilMixin):
         """
         self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
 
+        print("waiting 30 seconds for instrument data")
+        self.assert_async_particle_generation(DataParticleType.OPTAA_SAMPLE, self.assert_sample_data_particle, timeout=30)
 
-        self.assert_async_particle_generation(DataParticleType.OPTAA_SAMPLE, self.assert_sample_data_particle, timeout=120)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -537,7 +540,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, UtilMixin):
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class DriverQualificationTest(InstrumentDriverQualificationTestCase):
+class TestQUAL(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
