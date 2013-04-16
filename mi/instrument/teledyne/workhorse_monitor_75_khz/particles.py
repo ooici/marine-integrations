@@ -41,7 +41,7 @@ ADCP_PD0_PARSED_REGEX_MATCHER = re.compile(ADCP_PD0_PARSED_REGEX, re.DOTALL)
 ADCP_SYSTEM_CONFIGURATION_REGEX = r'(Instrument S/N.*?)\>'
 ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER = re.compile(ADCP_SYSTEM_CONFIGURATION_REGEX, re.DOTALL)
 
-ADCP_COMPASS_CALIBRATION_REGEX = r'(ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM.*?)\>'
+ADCP_COMPASS_CALIBRATION_REGEX = r'.*(ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM.*?)\>.*'
 ADCP_COMPASS_CALIBRATION_REGEX_MATCHER = re.compile(ADCP_COMPASS_CALIBRATION_REGEX, re.DOTALL)
 
 
@@ -929,8 +929,6 @@ class ADCP_COMPASS_CALIBRATION_KEY(BaseEnum):
 class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
     _data_particle_type = DataParticleType.ADCP_COMPASS_CALIBRATION
 
-    #EF_CHAR = '\xef'
-
     RE01 = re.compile(r' +Calibration date and time: ([/0-9: ]+)')
     RE04 = re.compile(r' +Bx +. +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) .')
     RE05 = re.compile(r' +By +. +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) +([0-9e+-.]+) .')
@@ -951,6 +949,7 @@ class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
     RE36 = re.compile(r' +Null +. (\d+) +.')
 
     def _build_parsed_values(self):
+        log.error("ADCP_COMPASS_CALIBRATION_DataParticle 1")
         """
         """
         # Initialize
@@ -1002,5 +1001,7 @@ class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
         for (key, value) in matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
+
+        log.error("RESULT from ADCP_COMPASS_CALIBRATION_DataParticle = " + repr(result))
 
         return result

@@ -205,7 +205,6 @@ class Parameter(DriverParameter):
     TRANSMIT_LENGTH = 'WT'              # 0000 Transmit Length 0 to 3200(cm) 0 = Bin Length
     PING_WEIGHT = 'WU'                  # 0 Ping Weighting (0=Box,1=Triangle)
     AMBIGUITY_VELOCITY = 'WV'           # 175 Mode 1 Ambiguity Vel (cm/s radial)
-    PINGS_BEFORE_REAQUIRE = 'WW'        # Mode 1 Pings before Mode 4 Re-acquire
 
 
 class Prompt(BaseEnum):
@@ -213,7 +212,7 @@ class Prompt(BaseEnum):
     Device i/o prompts..
     """
     COMMAND = '\r\n>\r\n>'
-    AUTOSAMPLE = ''
+    #AUTOSAMPLE = ''
     ERR = 'ERR:'
     # POWERING DOWN MESSAGE 
     # "Powering Down"
@@ -308,8 +307,8 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_command_clock_sync)
 
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_CALIBRATION, self._handler_command_acquire_status)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_CONFIGURATION, self._handler_command_acquire_configuration)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_CALIBRATION, self._handler_command_get_calibration)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_CONFIGURATION, self._handler_command_get_configuration)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SAVE_SETUP_TO_RAM, self._handler_command_save_setup_to_ram)
 
@@ -329,9 +328,9 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_get)
 
-
-# add in schedued events and make them take out do it put back in sampling
-
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_autosample_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET_CALIBRATION, self._handler_autosample_get_calibration)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET_CONFIGURATION, self._handler_autosample_get_configuration)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -368,6 +367,8 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._add_response_handler(InstrumentCmds.DISPLAY_ERROR_STATUS_WORD, self._parse_error_status_response)
         self._add_response_handler(InstrumentCmds.CLEAR_FAULT_LOG, self._parse_clear_fault_log_response)
         self._add_response_handler(InstrumentCmds.GET_FAULT_LOG, self._parse_fault_log_response)
+        self._add_response_handler(InstrumentCmds.GET_SYSTEM_CONFIGURATION, self._parse_get_system_configuration)
+        
         self._add_response_handler(InstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, self._parse_instrument_transform_matrix_response)
         self._add_response_handler(InstrumentCmds.RUN_TEST_200, self._parse_test_response)
         self._add_response_handler(InstrumentCmds.SET, self._parse_set_response)
@@ -802,11 +803,11 @@ class WorkhorseProtocol(TeledyneProtocol):
 
         logging = self._is_logging()
         log.error("ASP LOGGING = " + str(logging))
-        
+
         # If we are in streaming mode and our configuration on the
         # instrument matches what we think it should be then we
         # don't need to do anything.
-        
+
         #if(not self._instrument_config_dirty()):
         #    return True
 
@@ -823,6 +824,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
         except Exception as e:
+            log.error("EXCEPTION WAS " + str(e))
             error = e
 
         #  TODO: enable below finally block when understood
@@ -967,8 +969,8 @@ class WorkhorseProtocol(TeledyneProtocol):
                 if not attr.startswith("_"):
                     # clean out prior info so it does not trigger
                     # a premature return.
-                    self._linebuf = ""
-                    self._promptbuf = ""
+                    #self._linebuf = ""
+                    #self._promptbuf = ""
                     key = getattr(Parameter, attr)
                     result = self._do_cmd_resp(InstrumentCmds.GET, key, **kwargs)
                     results += result + NEWLINE
@@ -976,11 +978,6 @@ class WorkhorseProtocol(TeledyneProtocol):
         result = self._do_cmd_resp(InstrumentCmds.GET, key, **kwargs)
         new_config = self._param_dict.get_config()
         # Issue display commands and parse results.
-
-        log.debug("**********************************")
-        log.debug("OLD_CONFIG = " + repr(old_config))
-        log.debug("NEW_CONFIG = " + repr(new_config))
-        log.debug("**********************************")
 
         if repr(new_config) != repr(old_config):
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
@@ -993,27 +990,25 @@ class WorkhorseProtocol(TeledyneProtocol):
         Pass it to extract_sample with the appropriate particle
         objects and REGEXes.
         """
+        log.debug("GOT HERE CHUNK = " + str(chunk[0:8]))
 
         if (self._extract_sample(ADCP_PD0_PARSED_DataParticle,
                                  ADCP_PD0_PARSED_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
             log.debug("successful match for ADCP_PD0_PARSED_DataParticle")
-            return
 
         if (self._extract_sample(ADCP_SYSTEM_CONFIGURATION_DataParticle,
                                  ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
             log.debug("successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
-            return
 
         if (self._extract_sample(ADCP_COMPASS_CALIBRATION_DataParticle,
                                  ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
-            log.debug("successful match for ADCP_COMPASS_CALIBRATION_DataParticle")
-            return
+            log.debug(">>>>_got_chunk>>>>>> successful match for ADCP_COMPASS_CALIBRATION_DataParticle")
 
     def _filter_capabilities(self, events):
         """
@@ -1030,17 +1025,25 @@ class WorkhorseProtocol(TeledyneProtocol):
         """
         x
         """
-        log.debug("parse_output_calibration_data_response = %s", str(response))
+        log.debug(">>>GOT HERE.>>>parse_output_calibration_data response = %s", str(response))
+        
         return response
 
+    def _parse_get_system_configuration(self, response, prompt):
+        """
+        x
+        """
+        log.debug("_parse_get_system_configuration response= %s", str(response))
+        return response
+    
     def _parse_send_last_sample_response(self, response, prompt):
         """
         get the response from the CE command.  
         Remove the >\n> from the end of it.
         """
-
-        response = re.sub("CE\r\n", "", response)
         log.debug("RESPONSE = " + response)
+        response = re.sub("CE\r\n", "", response)
+
         return (True, response)
 
     def _parse_save_setup_to_ram_response(self, response, prompt):
@@ -1294,7 +1297,8 @@ class WorkhorseProtocol(TeledyneProtocol):
         resp = self._do_cmd_resp(InstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
         log.debug("SAVE_SETUP_TO_RAM RESPONSE = " + str(resp))
         # Issue start command and switch to autosample if successful.
-        resp = self._do_cmd_resp(InstrumentCmds.START_DEPLOYMENT, *args, **kwargs)
+
+        resp = self._do_cmd_no_resp(InstrumentCmds.START_DEPLOYMENT, *args, **kwargs)
         log.debug("START_DEPLOYMENT RESPONSE = " + str(resp))
 
         next_state = ProtocolState.AUTOSAMPLE
@@ -1320,7 +1324,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         #self._wakeup_until(timeout, Prompt.AUTOSAMPLE)
 
         self._stop_logging(timeout)
-        prompt = self._send_break()
+        #prompt = self._send_break()
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
@@ -1393,6 +1397,86 @@ class WorkhorseProtocol(TeledyneProtocol):
             result = self._get_param_result(param_list, expire_time)
 
         return (next_state, result)
+    
+    def _handler_autosample_get_calibration(self, *args, **kwargs):
+        """
+        execute a get calibration from autosample mode.  
+        For this command we have to move the instrument
+        into command mode, get calibration, then switch back.  If an
+        exception is thrown we will try to get ourselves back into
+        streaming and then raise that exception.
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+        error = None
+
+        try:
+            # Switch to command mode,
+            self._stop_logging(*args, **kwargs)
+
+            # Sync the clock
+            kwargs['timeout'] = 120
+            result = self._do_cmd_resp(InstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
+            time.sleep(5)
+            
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            error = e
+
+        finally:
+            # Switch back to streaming
+            self._start_logging()
+
+        if(error):
+            raise error
+        return (next_state, (next_agent_state, result))
+
+    def _handler_autosample_get_configuration(self, *args, **kwargs):
+        """
+        execute a get configuration from autosample mode.  
+        For this command we have to move the instrument
+        into command mode, get configuration, then switch back.  If an
+        exception is thrown we will try to get ourselves back into
+        streaming and then raise that exception.
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+        error = None
+
+        try:
+            # Switch to command mode,
+            log.debug("==================================STOPPING LOGGING==================================")
+            self._stop_logging(*args, **kwargs)
+
+            # Sync the clock
+            timeout = kwargs.get('timeout', TIMEOUT)
+            result = self._do_cmd_resp(InstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
+            log.debug("RESULT = " +repr(result))
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            error = e
+
+        finally:
+            # Switch back to streaming
+            log.debug("==================================RESUMING LOGGING==================================")
+            self._start_logging()
+
+        if(error):
+            raise error
+
+        return (next_state, (next_agent_state, result))
 
     def _handler_autosample_clock_sync(self, *args, **kwargs):
         """
@@ -1413,12 +1497,14 @@ class WorkhorseProtocol(TeledyneProtocol):
 
         try:
             # Switch to command mode,
-            #self._stop_logging()
+            #log.debug("I AM HERE 1")
+            self._stop_logging(*args, **kwargs)
 
             # Sync the clock
             timeout = kwargs.get('timeout', TIMEOUT)
-            self._sync_clock(Parameter.TIME, Prompt.COMMAND, timeout, time_format="%Y/%m/%dT, %H:%M:%S")
-
+            #log.debug("I AM HERE 2")
+            self._sync_clock(InstrumentCmds.SET, Parameter.TIME, timeout, time_format="%Y/%m/%dT, %H:%M:%S")
+            #log.debug("I AM HERE 3")
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
         except Exception as e:
@@ -1426,11 +1512,14 @@ class WorkhorseProtocol(TeledyneProtocol):
 
         finally:
             # Switch back to streaming
+            #log.debug("I AM HERE 4")
             self._start_logging()
+            #log.debug("I AM HERE 5")
 
         if(error):
+            #log.debug("I AM HERE 6")
             raise error
-
+        #log.debug("I AM HERE 7")
         return (next_state, (next_agent_state, result))
 
     def _handler_command_set(self, *args, **kwargs):
@@ -1443,6 +1532,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for set command.
         @throws InstrumentProtocolException if set command could not be built or misunderstood.
         """
+        log.debug("IN _handler_command_set")
         next_state = None
         result = None
         startup = False
@@ -1463,7 +1553,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
-            self._set_params(params, startup)
+            result = self._set_params(params, startup)
 
         return (next_state, result)
 
@@ -1489,29 +1579,28 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._verify_not_readonly(*args, **kwargs)
 
         for (key, val) in params.iteritems():
-            log.debug("KEY = " + str(key) + " VALUE = " + str(val))
             result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
-
-        log.error("HERE I AM")
         self._update_params()
+        return result
 
-    def _handler_command_acquire_status(self, *args, **kwargs):
+    def _handler_command_get_calibration(self, *args, **kwargs):
         """
         @param args:
         @param kwargs:
         @return:
         """
-        log.debug("IN _handler_command_acquire_status - DOING NOTHING I GUESS")
+        log.debug("MrBigglesII IN _handler_command_get_calibration")
         next_state = None
         next_agent_state = None
         result = None
 
-        kwargs['timeout'] = 30
+        kwargs['timeout'] = 120
 
         result = self._do_cmd_resp(InstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
+        log.debug("_handler_command_get_calibration result = " + repr(result))
         return (next_state, (next_agent_state, result))
 
-    def _handler_command_acquire_configuration(self, *args, **kwargs):
+    def _handler_command_get_configuration(self, *args, **kwargs):
         """
         @param args:
         @param kwargs:
@@ -1526,6 +1615,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         #result = self._update_params()
 
         result = self._do_cmd_resp(InstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
+        log.debug("_handler_command_get_configuration RESULT = " + repr(result))
         return (next_state, (next_agent_state, result))
 
     def _handler_command_clock_sync(self, *args, **kwargs):
@@ -1553,12 +1643,13 @@ class WorkhorseProtocol(TeledyneProtocol):
         @param kwargs:
         @return:
         """
+        log.debug("***********IN _handler_command_send_last_sample")
         next_state = None
         next_agent_state = None
         kwargs['timeout'] = 30
         kwargs['expected_prompt'] = Prompt.COMMAND
-        result = self._do_cmd_resp(InstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
-
+        result = self._do_cmd_no_resp(InstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
+        log.debug("***********IN _handler_command_send_last_sample RESULT = " + str(result))
         return (next_state, result)
         #return (next_state, (next_agent_state, result))
 
@@ -1632,8 +1723,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         if the formatting function could not accept the value passed.
         """
         log.debug("in _build_set_command")
-        my_state = self._protocol_fsm.get_current_state()
-        log.debug("current_state = %s", my_state)
+
         try:
             str_val = self._param_dict.format(param, val)
             set_cmd = '%s%s' % (param, str_val)
@@ -1644,7 +1734,6 @@ class WorkhorseProtocol(TeledyneProtocol):
 
         return set_cmd
 
-
     def _parse_set_response(self, response, prompt):
         """
         Parse handler for set command.
@@ -1653,9 +1742,11 @@ class WorkhorseProtocol(TeledyneProtocol):
         @throws InstrumentProtocolException if set command misunderstood.
         """
 
-        log.debug("SET RESPONSE WAS " + str(prompt) + str(response))
+        log.debug("PROMPT ROGER = " + str(prompt))
+        log.debug("RESPONSE ROGER = " + str(response))
+
         if prompt == Prompt.ERR:
-            raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
+            raise InstrumentParameterException('Protocol._parse_set_response : Set command not recognized: %s' % response)
 
         if " ERR" in response:
             raise InstrumentParameterException('Protocol._parse_set_response : Set command failed: %s' % response)
@@ -1673,8 +1764,8 @@ class WorkhorseProtocol(TeledyneProtocol):
         """
 
         #time.sleep(0.1)
-        self._promptbuf = ""
-        self._linebuf = ""
+        #self._promptbuf = ""
+        #self._linebuf = ""
         #time.sleep(0.1)
 
         kwargs['expected_prompt'] = Prompt.COMMAND + NEWLINE + Prompt.COMMAND + "HOUSE"
@@ -1703,13 +1794,13 @@ class WorkhorseProtocol(TeledyneProtocol):
         for line in response.split(NEWLINE):
             self._param_dict.update(line)
             if not "?" in line and ">" != line:
-                response2 = line
+                response = line
 
         if self.get_param not in response:
             raise InstrumentParameterException('Failed to get a response for lookup of ' + self.get_param)
 
         self.get_count = 0
-        return response2
+        return response
 
     def _is_logging(self, timeout=TIMEOUT):
         """

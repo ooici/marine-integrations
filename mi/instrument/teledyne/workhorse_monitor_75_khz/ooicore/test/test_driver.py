@@ -16,6 +16,8 @@ USAGE:
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
+import socket
+
 import unittest
 import time as time
 import datetime as dt
@@ -505,6 +507,8 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_CalibrationDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
+        log.debug("in assert_particle_compass_calibration")
+        log.debug("data_particle = " + repr(data_particle))
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_data_parameters, verify_values)
 
@@ -656,7 +660,10 @@ class DriverUnitTest(TeledyneUnitTest, ADCPTMixin):
                                     'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
                                     'PROTOCOL_EVENT_SEND_LAST_SAMPLE'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                    'DRIVER_EVENT_GET'],
+                                    'DRIVER_EVENT_GET',
+                                    'PROTOCOL_EVENT_GET_CALIBRATION',
+                                    'PROTOCOL_EVENT_GET_CONFIGURATION',
+                                    'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
 
@@ -694,22 +701,6 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         """
         self.assert_initialize_driver()
 
-        # The clock in this instrument is a little odd.  It looks like if you wait until the edge of a second
-        # to set it, it immediately ticks after the set, making it off by 1.  For now we will accept this
-        # behavior, but we need to check this behavior on all SBE instruments.
-
-        #time_format = "%Y/%m/%d,%H:%M:%S"
-        #set_time = get_timestamp_delayed(time_format)
-
-        #self.assert_set(Parameter.TIME, set_time, no_get=True, startup=True)
-        #self.assertTrue(self._is_time_set(Parameter.TIME, set_time, time_format, tolerance))
-
-        # Verify we can set the clock
-        self.assert_set_clock(Parameter.TIME, tolerance=5)
-        #
-        # look at 16 for tolerance, within 5 minutes.
-        # model after the 16
-
         ###
         #   Instrument Parameteres
         ###
@@ -720,7 +711,6 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_set_readonly(Parameter.WATER_PROFILING_MODE)
         self.assert_set_readonly(Parameter.SERIAL_OUT_FW_SWITCHES)
 
-        # FAILS HERE ON ASSERT SET
         self.assert_set(Parameter.CORRELATION_THRESHOLD, 64)
         self.assert_set(Parameter.TIME_PER_ENSEMBLE, '00:00:00.00')
         self.assert_set(Parameter.BANNER, False)
@@ -730,11 +720,9 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_set(Parameter.XMIT_POWER, 255)
         self.assert_set(Parameter.SPEED_OF_SOUND, 1485)
         self.assert_set(Parameter.PITCH, 0)
-        
         self.assert_set(Parameter.ROLL, 0) 
         self.assert_set(Parameter.SALINITY, 35)
         self.assert_set(Parameter.SENSOR_SOURCE, "1111101")
-        #self.assert_set(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
         self.assert_set(Parameter.TIME_PER_PING, '00:01.00')
         self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, '050,001')
         self.assert_set(Parameter.BANDWIDTH_CONTROL, 0)
@@ -749,6 +737,10 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_set(Parameter.TRANSMIT_LENGTH, 0)
         self.assert_set(Parameter.PING_WEIGHT, 0)
         self.assert_set(Parameter.AMBIGUITY_VELOCITY, 175)
+        
+        #self.assert_set(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
+        # funky param, cant set it to ***, can set it to a time, 
+        # but only if a break can be sent shortly after.
 
     def set_baseline(self):
         params = {
@@ -783,795 +775,523 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         # Set all parameters to a known ground state
         self.assert_set_bulk(params)
         return params
+    
+    def send_break(self):
+        """
+        Send a BREAK to attempt to wake the device.
+        """
+        log.debug("IN _send_break")
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        except socket.error, msg:
+            log.debug("WHOOPS! 1")
 
-    @unittest.skip("Super long. works at current.")
+        try:
+            sock.connect(('10.180.80.178', 2102))
+        except socket.error, msg:
+            log.debug("WHOOPS! 2")
+        sock.send("break 300\r\n")
+        sock.close()
+
+    # 4/12 WORKS
     def test_set_ranges(self):
         """
         @Brief test a variety of paramater ranges.
         """
         self.assert_initialize_driver()
 
-        params = self.set_baseline()
+        now_2_hour = (dt.datetime.today() + dt.timedelta(hours=2)).strftime("%Y/%m/%d,%H:%m:%S")
+        today_plus_10 = (dt.datetime.today() + dt.timedelta(days=10)).strftime("%Y/%m/%d,%H:%m:%S")
+        today_plus_1month = (dt.datetime.today() + dt.timedelta(days=31)).strftime("%Y/%m/%d,%H:%m:%S")
+        today_plus_6month = (dt.datetime.today() + dt.timedelta(days=183)).strftime("%Y/%m/%d,%H:%m:%S")
 
-        params = {}
-
-        # BANNER -- (True/False)
-        params[Parameter.BANNER] = True
-        self.assert_set_bulk(params)
-        params[Parameter.BANNER] = "LEROY JENKINS"
-
-        self.assert_set_bulk_exception(params)
+        self.assert_set(Parameter.BANNER, True)
+        self.assert_set_exception(Parameter.BANNER, "LEROY JENKINS")
         # @TODO why does 5 get turned to boolean
-        #params[Parameter.BANNER] = 5
-        #self.assert_set_bulk_exception(params)
-        # @TODO why does 5 get turned to boolean
-        #params[Parameter.BANNER] = -1
-        #self.assert_set_bulk_exception(params)
+        #self.assert_set_exception(Parameter.BANNER, 5)
+        self.assert_set_exception(Parameter.BANNER, -2.13)
+        self.assert_set(Parameter.BANNER, True)
+
         #
         # Reset to good value.
         #
-        params[Parameter.BANNER] = False
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.BANNER, False)
 
         # INSTRUMENT_ID -- Int 0-255
-        params[Parameter.INSTRUMENT_ID] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.INSTRUMENT_ID, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.INSTRUMENT_ID, -1)
 
-        params[Parameter.INSTRUMENT_ID] = -1
-        self.assert_set_bulk_exception(params)
         #
         # Reset to good value.
         #
-        params[Parameter.INSTRUMENT_ID] = 0
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.INSTRUMENT_ID, 0)
 
         # SLEEP_ENABLE:  -- (0,1,2)
-        params[Parameter.SLEEP_ENABLE] = 1
-        self.assert_set_bulk(params)
-        params[Parameter.SLEEP_ENABLE] = 2
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.SLEEP_ENABLE, 1)
+        self.assert_set(Parameter.SLEEP_ENABLE, 2)
 
-        params[Parameter.SLEEP_ENABLE] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SLEEP_ENABLE] = 3
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SLEEP_ENABLE] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SLEEP_ENABLE] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.SLEEP_ENABLE, -1)
+        self.assert_set_exception(Parameter.SLEEP_ENABLE, 3)
+        self.assert_set_exception(Parameter.SLEEP_ENABLE, 3.1415926)
+        self.assert_set_exception(Parameter.SLEEP_ENABLE, "LEROY JENKINS")
         #
         # Reset to good value.
         #
-        params[Parameter.SLEEP_ENABLE] = 0
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.SLEEP_ENABLE, 0)
 
         # POLLED_MODE:  -- (True/False)
-        params[Parameter.POLLED_MODE] = True
-        self.assert_set_bulk(params)
-        params[Parameter.POLLED_MODE] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
-        # @TODO why does 5 get turned to boolean
-        #params[Parameter.POLLED_MODE] = 5
-        #self.assert_set_bulk_exception(params)
-        #params[Parameter.POLLED_MODE] = -1
-        #self.assert_set_bulk_exception(params)
+        self.assert_set(Parameter.POLLED_MODE, True)
+        self.assert_set_exception(Parameter.POLLED_MODE, "LEROY JENKINS")
+        # @TODO why does 5,-1 get turned to boolean
+        #self.assert_set_exception(Parameter.POLLED_MODE, 5)
+        #self.assert_set_exception(Parameter.POLLED_MODE, -1)
         #
         # Reset to good value.
         #
-        params[Parameter.POLLED_MODE] = False
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.POLLED_MODE, False)
 
         # XMIT_POWER:  -- Int 0-255
-        params[Parameter.XMIT_POWER] = 0
-        self.assert_set_bulk(params)
-        params[Parameter.XMIT_POWER] = 128
-        self.assert_set_bulk(params)
-        params[Parameter.XMIT_POWER] = 254
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.XMIT_POWER, 0)
+        self.assert_set(Parameter.XMIT_POWER, 128)
+        self.assert_set(Parameter.XMIT_POWER, 254)
 
-        params[Parameter.XMIT_POWER] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.XMIT_POWER] = 256
-        self.assert_set_bulk_exception(params)
-        params[Parameter.XMIT_POWER] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.XMIT_POWER] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.XMIT_POWER, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.XMIT_POWER, 256)
+        self.assert_set_exception(Parameter.XMIT_POWER, -1)
+        self.assert_set_exception(Parameter.XMIT_POWER, 3.1415926)
         #
         # Reset to good value.
         #
-        params[Parameter.XMIT_POWER] = 255
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.XMIT_POWER, 255)
 
         # SPEED_OF_SOUND:  -- Int 1485 (1400 - 1600)
-        params[Parameter.SPEED_OF_SOUND] = 1400
-        self.assert_set_bulk(params)
-        params[Parameter.SPEED_OF_SOUND] = 1450
-        self.assert_set_bulk(params)
-        params[Parameter.SPEED_OF_SOUND] = 1500
-        self.assert_set_bulk(params)
-        params[Parameter.SPEED_OF_SOUND] = 1550
-        self.assert_set_bulk(params)
-        params[Parameter.SPEED_OF_SOUND] = 1600
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.SPEED_OF_SOUND, 1400)
+        self.assert_set(Parameter.SPEED_OF_SOUND, 1450)
+        self.assert_set(Parameter.SPEED_OF_SOUND, 1500)
+        self.assert_set(Parameter.SPEED_OF_SOUND, 1550)
+        self.assert_set(Parameter.SPEED_OF_SOUND, 1600)
 
-        params[Parameter.SPEED_OF_SOUND] = 0
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SPEED_OF_SOUND] = 1399
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SPEED_OF_SOUND] = 1601
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SPEED_OF_SOUND] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SPEED_OF_SOUND] = -256
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SPEED_OF_SOUND] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SPEED_OF_SOUND] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.SPEED_OF_SOUND, 0)
+        self.assert_set_exception(Parameter.SPEED_OF_SOUND, 1399)
+
+        self.assert_set_exception(Parameter.SPEED_OF_SOUND, 1601)
+        self.assert_set_exception(Parameter.SPEED_OF_SOUND, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.SPEED_OF_SOUND, -256)
+        self.assert_set_exception(Parameter.SPEED_OF_SOUND, -1)
+        self.assert_set_exception(Parameter.SPEED_OF_SOUND, 3.1415926)
+
         #
         # Reset to good value.
         #
-        params[Parameter.SPEED_OF_SOUND] = 1485
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.SPEED_OF_SOUND, 1485)
 
         # PITCH:  -- Int -6000 to 6000
-        params[Parameter.PITCH] = -6000
-        self.assert_set_bulk(params)
-        params[Parameter.PITCH] = -4000
-        self.assert_set_bulk(params)
-        params[Parameter.PITCH] = -2000
-        self.assert_set_bulk(params)
-        params[Parameter.PITCH] = -1
-        self.assert_set_bulk(params)
-        params[Parameter.PITCH] = 0
-        self.assert_set_bulk(params)
-        params[Parameter.PITCH] = 1
-        self.assert_set_bulk(params)
-        params[Parameter.PITCH] = 2000
-        self.assert_set_bulk(params)
-        params[Parameter.PITCH] = 4000
-        self.assert_set_bulk(params)
-        params[Parameter.PITCH] = 6000
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.PITCH, -6000)
+        self.assert_set(Parameter.PITCH, -4000)
+        self.assert_set(Parameter.PITCH, -2000)
+        self.assert_set(Parameter.PITCH, -1)
+        self.assert_set(Parameter.PITCH, 0)
+        self.assert_set(Parameter.PITCH, 1)
+        self.assert_set(Parameter.PITCH, 2000)
+        self.assert_set(Parameter.PITCH, 4000)
+        self.assert_set(Parameter.PITCH, 6000)
 
-        params[Parameter.PITCH] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.PITCH] = -6001
-        self.assert_set_bulk_exception(params)
-        params[Parameter.PITCH] = 6001
-        self.assert_set_bulk_exception(params)
-        params[Parameter.PITCH] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.PITCH, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.PITCH, -6001)
+        self.assert_set_exception(Parameter.PITCH, 6001)
+        self.assert_set_exception(Parameter.PITCH, 3.1415926)
+
         #
         # Reset to good value.
         #
-        params[Parameter.PITCH] = 0
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.PITCH, 0)
 
         # ROLL:  -- Int -6000 to 6000
-        params[Parameter.ROLL] = -6000
-        self.assert_set_bulk(params)
-        params[Parameter.ROLL] = -4000
-        self.assert_set_bulk(params)
-        params[Parameter.ROLL] = -2000
-        self.assert_set_bulk(params)
-        params[Parameter.ROLL] = -1
-        self.assert_set_bulk(params)
-        params[Parameter.ROLL] = 0
-        self.assert_set_bulk(params)
-        params[Parameter.ROLL] = 1
-        self.assert_set_bulk(params)
-        params[Parameter.ROLL] = 2000
-        self.assert_set_bulk(params)
-        params[Parameter.ROLL] = 4000
-        self.assert_set_bulk(params)
-        params[Parameter.ROLL] = 6000
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.ROLL, -6000)
+        self.assert_set(Parameter.ROLL, -4000)
+        self.assert_set(Parameter.ROLL, -2000)
+        self.assert_set(Parameter.ROLL, -1)
+        self.assert_set(Parameter.ROLL, 0)
+        self.assert_set(Parameter.ROLL, 1)
+        self.assert_set(Parameter.ROLL, 2000)
+        self.assert_set(Parameter.ROLL, 4000)
+        self.assert_set(Parameter.ROLL, 6000)
 
-        params[Parameter.ROLL] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.ROLL] = -6001
-        self.assert_set_bulk_exception(params)
-        params[Parameter.ROLL] = 6001
-        self.assert_set_bulk_exception(params)
-        params[Parameter.ROLL] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.ROLL, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.ROLL, -6001)
+        self.assert_set_exception(Parameter.ROLL, 6001)
+        self.assert_set_exception(Parameter.ROLL, 3.1415926)
         #
         # Reset to good value.
         #
-        params[Parameter.ROLL] = 0
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.ROLL, 0)
 
         # SALINITY:  -- Int (0 - 40)
-        params[Parameter.SALINITY] = 0
-        self.assert_set_bulk(params)
-        params[Parameter.SALINITY] = 10
-        self.assert_set_bulk(params)
-        params[Parameter.SALINITY] = 20
-        self.assert_set_bulk(params)
-        params[Parameter.SALINITY] = 30
-        self.assert_set_bulk(params)
-        params[Parameter.SALINITY] = 40
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.SALINITY, 0)
+        self.assert_set(Parameter.SALINITY, 10)
+        self.assert_set(Parameter.SALINITY, 20)
+        self.assert_set(Parameter.SALINITY, 30)
+        self.assert_set(Parameter.SALINITY, 40)
 
-        params[Parameter.SALINITY] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SALINITY] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SALINITY] = 41
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SALINITY] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.SALINITY, "LEROY JENKINS")
+
+        # AssertionError: Unexpected exception: ES no value match (40 != -1)
+        self.assert_set_exception(Parameter.SALINITY, -1)
+
+        # AssertionError: Unexpected exception: ES no value match (35 != 41)
+        self.assert_set_exception(Parameter.SALINITY, 41)
+
+        self.assert_set_exception(Parameter.SALINITY, 3.1415926)
+
         #
         # Reset to good value.
         #
-        params[Parameter.SALINITY] = 35
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.SALINITY, 35)
 
         # SENSOR_SOURCE:  -- (0/1) for 7 positions.
         # note it lacks capability to have a 1 in the #6 position
-        params[Parameter.SENSOR_SOURCE] = "0000000"
-        self.assert_set_bulk(params)
-        params[Parameter.SENSOR_SOURCE] = "1111101"
-        self.assert_set_bulk(params)
-        params[Parameter.SENSOR_SOURCE] = "1010101"
-        self.assert_set_bulk(params)
-        params[Parameter.SENSOR_SOURCE] = "0101000"
-        self.assert_set_bulk(params)
-        params[Parameter.SENSOR_SOURCE] = "1100100"
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.SENSOR_SOURCE, "0000000")
+        self.assert_set(Parameter.SENSOR_SOURCE, "1111101")
+        self.assert_set(Parameter.SENSOR_SOURCE, "1010101")
+        self.assert_set(Parameter.SENSOR_SOURCE, "0101000")
+        self.assert_set(Parameter.SENSOR_SOURCE, "1100100")
 
-        params[Parameter.SENSOR_SOURCE] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SENSOR_SOURCE] = 2
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SENSOR_SOURCE] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SENSOR_SOURCE] = "1111112"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SENSOR_SOURCE] = "11111112"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.SENSOR_SOURCE] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.SENSOR_SOURCE, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.SENSOR_SOURCE, 2)
+        self.assert_set_exception(Parameter.SENSOR_SOURCE, -1)
+        self.assert_set_exception(Parameter.SENSOR_SOURCE, "1111112")
+        self.assert_set_exception(Parameter.SENSOR_SOURCE, "11111112")
+        self.assert_set_exception(Parameter.SENSOR_SOURCE, 3.1415926)
+
         #
         # Reset to good value.
         #
-        params[Parameter.SENSOR_SOURCE] = "1111101"
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.SENSOR_SOURCE, "1111101")
 
         # TIME_PER_ENSEMBLE:  -- String 01:00:00.00 (hrs:min:sec.sec/100)
-        params[Parameter.TIME_PER_ENSEMBLE] = '00:00:00.00'
-        self.assert_set_bulk(params)
-        params[Parameter.TIME_PER_ENSEMBLE] = '00:00:01.00'
-        self.assert_set_bulk(params)
-        params[Parameter.TIME_PER_ENSEMBLE] = '00:01:00.00'
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.TIME_PER_ENSEMBLE, "00:00:00.00")
+        self.assert_set(Parameter.TIME_PER_ENSEMBLE, "00:00:01.00")
+        self.assert_set(Parameter.TIME_PER_ENSEMBLE, "00:01:00.00")
 
-        params[Parameter.TIME_PER_ENSEMBLE] = '30:30:30.30'
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_PER_ENSEMBLE] = '59:59:59.99'
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_PER_ENSEMBLE] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_PER_ENSEMBLE] = 2
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_PER_ENSEMBLE] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_PER_ENSEMBLE] = '99:99:99.99'
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_PER_ENSEMBLE] = '-1:-1:-1.+1'
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_PER_ENSEMBLE] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.TIME_PER_ENSEMBLE, '30:30:30.30')
+        self.assert_set_exception(Parameter.TIME_PER_ENSEMBLE, '59:59:59.99')
+        self.assert_set_exception(Parameter.TIME_PER_ENSEMBLE, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.TIME_PER_ENSEMBLE, 2)
+        self.assert_set_exception(Parameter.TIME_PER_ENSEMBLE, -1)
+        self.assert_set_exception(Parameter.TIME_PER_ENSEMBLE, '99:99:99.99')
+        self.assert_set_exception(Parameter.TIME_PER_ENSEMBLE, '-1:-1:-1.+1')
+        self.assert_set_exception(Parameter.TIME_PER_ENSEMBLE, 3.1415926)
         #
         # Reset to good value.
         #
-        params[Parameter.TIME_PER_ENSEMBLE] = '00:00:00.00'
-        self.assert_set_bulk(params)
 
-        params = {}
+        self.assert_set(Parameter.TIME_PER_ENSEMBLE, "00:00:00.00")
 
         # TIME_OF_FIRST_PING:  -- str ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
+        # AssertionError: TG no value match (****/**/**,**:**:** != 2013/04/01,01:01:01)
 
-        params[Parameter.TIME_OF_FIRST_PING] = '2013/04/01,01:01:01'
-        self.assert_set_bulk(params)
-        params[Parameter.TIME_OF_FIRST_PING] = '2013/12/12,12:12:12'
-        self.assert_set_bulk(params)
-        params[Parameter.TIME_OF_FIRST_PING] = '2013/06/06,06:06:06'
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.TIME_OF_FIRST_PING, now_2_hour)
+        self.assert_set(Parameter.TIME_OF_FIRST_PING, today_plus_10)
+        self.assert_set(Parameter.TIME_OF_FIRST_PING, today_plus_1month)
+        self.assert_set(Parameter.TIME_OF_FIRST_PING, today_plus_6month)
 
-        params[Parameter.TIME_OF_FIRST_PING] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_OF_FIRST_PING] = 2
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_OF_FIRST_PING] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_OF_FIRST_PING] = '99:99.99'
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_OF_FIRST_PING] = '-1:-1.+1'
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_OF_FIRST_PING] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        # AssertionError: Unexpected exception: TG no value match (2013/06/06,06:06:06 != LEROY JENKINS)
+        self.assert_set_exception(Parameter.TIME_OF_FIRST_PING, "LEROY JENKINS")
+
+        self.assert_set_exception(Parameter.TIME_OF_FIRST_PING, 2)
+        self.assert_set_exception(Parameter.TIME_OF_FIRST_PING, -1)
+        self.assert_set_exception(Parameter.TIME_OF_FIRST_PING, '99:99.99')
+        self.assert_set_exception(Parameter.TIME_OF_FIRST_PING, '-1:-1.+1')
+        self.assert_set_exception(Parameter.TIME_OF_FIRST_PING, 3.1415926)
+
         #
         # Reset to good value. TODO add a break here to reset to a good value
         #
-        #params[Parameter.TIME_OF_FIRST_PING] = '****/**/**,**:**:**'
-        #self.assert_set_bulk(params)
-
-        params = {}
+        # send a break to reset it.
+        self.send_break()
 
         # TIME_PER_PING: '00:01.00'
-        params[Parameter.TIME_PER_PING] = '01:00.00'
-        self.assert_set_bulk(params)
-        params[Parameter.TIME_PER_PING] = '59:59.99'
-        self.assert_set_bulk(params)
-        params[Parameter.TIME_PER_PING] = '30:30.30'
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.TIME_PER_PING, '01:00.00')
+        self.assert_set(Parameter.TIME_PER_PING, '59:59.99')
+        self.assert_set(Parameter.TIME_PER_PING, '30:30.30')
 
-        params[Parameter.TIME_PER_PING] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_PER_PING] = 2
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_PER_PING] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_PER_PING] = '99:99.99'
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_PER_PING] = '-1:-1.+1'
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TIME_PER_PING] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.TIME_PER_PING, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.TIME_PER_PING, 2)
+        self.assert_set_exception(Parameter.TIME_PER_PING, -1)
+        self.assert_set_exception(Parameter.TIME_PER_PING, '99:99.99')
+        self.assert_set_exception(Parameter.TIME_PER_PING, '-1:-1.+1')
+        self.assert_set_exception(Parameter.TIME_PER_PING, 3.1415926)
+
         #
         # Reset to good value.
         #
-        params[Parameter.TIME_PER_PING] = '00:01.00'
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.TIME_PER_PING, '00:01.00')
 
         # FALSE_TARGET_THRESHOLD: string of 0-255,0-255
-        params[Parameter.FALSE_TARGET_THRESHOLD] = "000,000"
-        self.assert_set_bulk(params)
-        params[Parameter.FALSE_TARGET_THRESHOLD] = "255,000"
-        self.assert_set_bulk(params)
-        params[Parameter.FALSE_TARGET_THRESHOLD] = "000,255"
-        self.assert_set_bulk(params)
-        params[Parameter.FALSE_TARGET_THRESHOLD] = "255,255"
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, "000,000")
+        self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, "255,000")
+        self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, "000,255")
+        self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, "255,255")
 
-        params[Parameter.FALSE_TARGET_THRESHOLD] = "256,000"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.FALSE_TARGET_THRESHOLD] = "256,255"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.FALSE_TARGET_THRESHOLD] = "000,256"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.FALSE_TARGET_THRESHOLD] = "255,256"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.FALSE_TARGET_THRESHOLD] = -1
-        self.assert_set_bulk_exception(params)
-        #TODO below fails.  need to think of a better fix for it.
-        #params[Parameter.FALSE_TARGET_THRESHOLD] = 2
-        #self.assert_set_bulk_exception(params)
-        params[Parameter.FALSE_TARGET_THRESHOLD] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
-        #TODO below fails.  need to think of a better fix for it.
-        #params[Parameter.FALSE_TARGET_THRESHOLD] = 3.1415926
-        #self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.FALSE_TARGET_THRESHOLD, "256,000")
+        self.assert_set_exception(Parameter.FALSE_TARGET_THRESHOLD, "256,255")
+        self.assert_set_exception(Parameter.FALSE_TARGET_THRESHOLD, "000,256")
+        self.assert_set_exception(Parameter.FALSE_TARGET_THRESHOLD, "255,256")
+        self.assert_set_exception(Parameter.FALSE_TARGET_THRESHOLD, -1)
+
+        self.assert_set_exception(Parameter.FALSE_TARGET_THRESHOLD, "LEROY JENKINS")
+
         #
         # Reset to good value.
         #
-        params[Parameter.FALSE_TARGET_THRESHOLD] = "050,001"
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, "050,001")
 
         # BANDWIDTH_CONTROL: 0/1,
-        params[Parameter.BANDWIDTH_CONTROL] = 0
-        self.assert_set_bulk(params)
-        params[Parameter.BANDWIDTH_CONTROL] = 1
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.BANDWIDTH_CONTROL, 1)
 
-        params[Parameter.BANDWIDTH_CONTROL] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.BANDWIDTH_CONTROL] = 2
-        self.assert_set_bulk_exception(params)
-        params[Parameter.BANDWIDTH_CONTROL] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.BANDWIDTH_CONTROL] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.BANDWIDTH_CONTROL, -1)
+        self.assert_set_exception(Parameter.BANDWIDTH_CONTROL, 2)
+        self.assert_set_exception(Parameter.BANDWIDTH_CONTROL, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.BANDWIDTH_CONTROL, 3.1415926)
+
         #
         # Reset to good value.
         #
-        params[Parameter.BANDWIDTH_CONTROL] = 0
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.BANDWIDTH_CONTROL, 0)
 
         # CORRELATION_THRESHOLD: int 064, 0 - 255
-        params[Parameter.CORRELATION_THRESHOLD] = 0
-        self.assert_set_bulk(params)
-        params[Parameter.CORRELATION_THRESHOLD] = 50
-        self.assert_set_bulk(params)
-        params[Parameter.CORRELATION_THRESHOLD] = 100
-        self.assert_set_bulk(params)
-        params[Parameter.CORRELATION_THRESHOLD] = 150
-        self.assert_set_bulk(params)
-        params[Parameter.CORRELATION_THRESHOLD] = 200
-        self.assert_set_bulk(params)
-        params[Parameter.CORRELATION_THRESHOLD] = 255
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.CORRELATION_THRESHOLD, 50)
+        self.assert_set(Parameter.CORRELATION_THRESHOLD, 100)
+        self.assert_set(Parameter.CORRELATION_THRESHOLD, 150)
+        self.assert_set(Parameter.CORRELATION_THRESHOLD, 200)
+        self.assert_set(Parameter.CORRELATION_THRESHOLD, 255)
 
-        params[Parameter.CORRELATION_THRESHOLD] = "LEROY JENKINS!"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.CORRELATION_THRESHOLD] = -256
-        self.assert_set_bulk_exception(params)
-        params[Parameter.CORRELATION_THRESHOLD] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.CORRELATION_THRESHOLD] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.CORRELATION_THRESHOLD, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.CORRELATION_THRESHOLD, -256)
+        self.assert_set_exception(Parameter.CORRELATION_THRESHOLD, -1)
+        self.assert_set_exception(Parameter.CORRELATION_THRESHOLD, 3.1415926)
+
         #
         # Reset to good value.
         #
-        params[Parameter.CORRELATION_THRESHOLD] = 64
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.CORRELATION_THRESHOLD, 64)
 
         # ERROR_VELOCITY_THRESHOLD: int (0-5000 mm/s) NOTE it enforces 0-9999
         # decimals are truncated to ints
-        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 0
-        self.assert_set_bulk(params)
-        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 128
-        self.assert_set_bulk(params)
-        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 1000
-        self.assert_set_bulk(params)
-        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 2000
-        self.assert_set_bulk(params)
-        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 3000
-        self.assert_set_bulk(params)
-        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 4000
-        self.assert_set_bulk(params)
-        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 5000
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 0)
+        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 128)
+        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 1000)
+        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 2000)
+        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 3000)
+        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 4000)
+        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 5000)
 
-        params[Parameter.ERROR_VELOCITY_THRESHOLD] = "LEROY JENKINS!"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.ERROR_VELOCITY_THRESHOLD] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 10000
-        self.assert_set_bulk_exception(params)
-        params[Parameter.ERROR_VELOCITY_THRESHOLD] = -3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.ERROR_VELOCITY_THRESHOLD, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.ERROR_VELOCITY_THRESHOLD, -1)
+        self.assert_set_exception(Parameter.ERROR_VELOCITY_THRESHOLD, 10000)
+        self.assert_set_exception(Parameter.ERROR_VELOCITY_THRESHOLD, -3.1415926)
         #
         # Reset to good value.
         #
-        params[Parameter.ERROR_VELOCITY_THRESHOLD] = 2000
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 2000)
 
         # BLANK_AFTER_TRANSMIT: int 704, (0 - 9999)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 0
-        self.assert_set_bulk(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 128
-        self.assert_set_bulk(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 1000
-        self.assert_set_bulk(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 2000
-        self.assert_set_bulk(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 3000
-        self.assert_set_bulk(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 4000
-        self.assert_set_bulk(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 5000
-        self.assert_set_bulk(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 5000
-        self.assert_set_bulk(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 6000
-        self.assert_set_bulk(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 7000
-        self.assert_set_bulk(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 8000
-        self.assert_set_bulk(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 9000
-        self.assert_set_bulk(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 9999
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 0)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 128)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 1000)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 2000)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 3000)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 4000)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 5000)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 6000)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 7000)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 8000)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 9000)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 9999)
 
-        params[Parameter.BLANK_AFTER_TRANSMIT] = "LEROY JENKINS!"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 10000
-        self.assert_set_bulk_exception(params)
-        params[Parameter.BLANK_AFTER_TRANSMIT] = -3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.BLANK_AFTER_TRANSMIT, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.BLANK_AFTER_TRANSMIT, -1)
+        self.assert_set_exception(Parameter.BLANK_AFTER_TRANSMIT, 10000)
+        self.assert_set_exception(Parameter.BLANK_AFTER_TRANSMIT, -3.1415926)
         #
         # Reset to good value.
         #
-        params[Parameter.BLANK_AFTER_TRANSMIT] = 704
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 704)
 
         # CLIP_DATA_PAST_BOTTOM: True/False,
-        params[Parameter.CLIP_DATA_PAST_BOTTOM] = True
-        self.assert_set_bulk(params)
-        params[Parameter.CLIP_DATA_PAST_BOTTOM] = "LEROY JENKINS!"
-        self.assert_set_bulk_exception(params)
-        # @TODO why does 5 get turned to boolean
-        # ints get turned into true.
-        #params[Parameter.CLIP_DATA_PAST_BOTTOM] = 5
-        #self.assert_set_bulk_exception(params)
-        #params[Parameter.CLIP_DATA_PAST_BOTTOM] = -1
-        #self.assert_set_bulk_exception(params)
+        self.assert_set(Parameter.CLIP_DATA_PAST_BOTTOM, True)
+
+        self.assert_set_exception(Parameter.CLIP_DATA_PAST_BOTTOM, "LEROY JENKINS")
+        # AssertionError: Unexpected exception: WI no value match (True != 5)
+        #self.assert_set_exception(Parameter.CLIP_DATA_PAST_BOTTOM, 5)
+        # AssertionError: Unexpected exception: WI no value match (True != -1)
+        #self.assert_set_exception(Parameter.CLIP_DATA_PAST_BOTTOM, -1)
+
         #
         # Reset to good value.
         #
-        params[Parameter.CLIP_DATA_PAST_BOTTOM] = False
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.CLIP_DATA_PAST_BOTTOM, False)
 
         # RECEIVER_GAIN_SELECT: (0/1),
-        params[Parameter.RECEIVER_GAIN_SELECT] = 0
-        self.assert_set_bulk(params)
-        params[Parameter.RECEIVER_GAIN_SELECT] = 1
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.RECEIVER_GAIN_SELECT, 0)
+        self.assert_set(Parameter.RECEIVER_GAIN_SELECT, 1)
 
-        params[Parameter.RECEIVER_GAIN_SELECT] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.RECEIVER_GAIN_SELECT] = 2
-        self.assert_set_bulk_exception(params)
-        params[Parameter.RECEIVER_GAIN_SELECT] = "LEROY JENKINS!"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.RECEIVER_GAIN_SELECT] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.RECEIVER_GAIN_SELECT, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.RECEIVER_GAIN_SELECT, 2)
+        self.assert_set_exception(Parameter.RECEIVER_GAIN_SELECT, -1)
+        self.assert_set_exception(Parameter.RECEIVER_GAIN_SELECT, 3.1415926)
+
         #
         # Reset to good value.
         #
-        params[Parameter.RECEIVER_GAIN_SELECT] = 1
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.RECEIVER_GAIN_SELECT, 1)
 
         # WATER_REFERENCE_LAYER:  -- int Begin Cell (0=OFF), End Cell  (0-100)
+        self.assert_set(Parameter.WATER_REFERENCE_LAYER, "000,001")
+        self.assert_set(Parameter.WATER_REFERENCE_LAYER, "000,100")
+        self.assert_set(Parameter.WATER_REFERENCE_LAYER, "000,100")
 
-        params[Parameter.WATER_REFERENCE_LAYER] = "000,001"
-        self.assert_set_bulk(params)
-        params[Parameter.WATER_REFERENCE_LAYER] = "000,100"
-        self.assert_set_bulk(params)
-        params[Parameter.WATER_REFERENCE_LAYER] = "000,100"
-        self.assert_set_bulk(params)
+        self.assert_set_exception(Parameter.WATER_REFERENCE_LAYER, "255,000")
+        self.assert_set_exception(Parameter.WATER_REFERENCE_LAYER, "000,000")
+        self.assert_set_exception(Parameter.WATER_REFERENCE_LAYER, "001,000")
+        self.assert_set_exception(Parameter.WATER_REFERENCE_LAYER, "100,000")
+        self.assert_set_exception(Parameter.WATER_REFERENCE_LAYER, "000,101")
+        self.assert_set_exception(Parameter.WATER_REFERENCE_LAYER, "100,101")
+        self.assert_set_exception(Parameter.WATER_REFERENCE_LAYER, -1)
+        self.assert_set_exception(Parameter.WATER_REFERENCE_LAYER, 2)
+        self.assert_set_exception(Parameter.WATER_REFERENCE_LAYER, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.WATER_REFERENCE_LAYER, 3.1415926)
 
-        params[Parameter.WATER_REFERENCE_LAYER] = "255,000"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.WATER_REFERENCE_LAYER] = "000,000"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.WATER_REFERENCE_LAYER] = "001,000"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.WATER_REFERENCE_LAYER] = "100,000"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.WATER_REFERENCE_LAYER] = "000,101"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.WATER_REFERENCE_LAYER] = "100,101"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.WATER_REFERENCE_LAYER] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.WATER_REFERENCE_LAYER] = 2
-        self.assert_set_bulk_exception(params)
-        params[Parameter.WATER_REFERENCE_LAYER] = "LEROY JENKINS"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.WATER_REFERENCE_LAYER] = 3.1415926
-        self.assert_set_bulk_exception(params)
         #
         # Reset to good value.
         #
-        params[Parameter.WATER_REFERENCE_LAYER] = "001,005"
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.WATER_REFERENCE_LAYER, "001,005")
 
         # NUMBER_OF_DEPTH_CELLS:  -- int (1-255) 100,
-        params[Parameter.NUMBER_OF_DEPTH_CELLS] = 1
-        self.assert_set_bulk(params)
-        params[Parameter.NUMBER_OF_DEPTH_CELLS] = 128
-        self.assert_set_bulk(params)
-        params[Parameter.NUMBER_OF_DEPTH_CELLS] = 254
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.NUMBER_OF_DEPTH_CELLS, 1)
+        self.assert_set(Parameter.NUMBER_OF_DEPTH_CELLS, 128)
+        self.assert_set(Parameter.NUMBER_OF_DEPTH_CELLS, 254)
 
-        params[Parameter.NUMBER_OF_DEPTH_CELLS] = "LEROY JENKINS!"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.NUMBER_OF_DEPTH_CELLS] = 256
-        self.assert_set_bulk_exception(params)
-        params[Parameter.NUMBER_OF_DEPTH_CELLS] = 0
-        self.assert_set_bulk_exception(params)
-        params[Parameter.NUMBER_OF_DEPTH_CELLS] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.NUMBER_OF_DEPTH_CELLS] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.NUMBER_OF_DEPTH_CELLS, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.NUMBER_OF_DEPTH_CELLS, 256)
+        self.assert_set_exception(Parameter.NUMBER_OF_DEPTH_CELLS, 0)
+        self.assert_set_exception(Parameter.NUMBER_OF_DEPTH_CELLS, -1)
+        self.assert_set_exception(Parameter.NUMBER_OF_DEPTH_CELLS, 3.1415926)
+
         #
         # Reset to good value.
         #
-        params[Parameter.NUMBER_OF_DEPTH_CELLS] = 100
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.NUMBER_OF_DEPTH_CELLS, 100)
 
         # PINGS_PER_ENSEMBLE: -- int  (0-16384) 1,
-        params[Parameter.PINGS_PER_ENSEMBLE] = 0
-        self.assert_set_bulk(params)
-        params[Parameter.PINGS_PER_ENSEMBLE] = 16384
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.PINGS_PER_ENSEMBLE, 0)
+        self.assert_set(Parameter.PINGS_PER_ENSEMBLE, 16384)
 
-        params[Parameter.PINGS_PER_ENSEMBLE] = 16385
-        self.assert_set_bulk_exception(params)
-        params[Parameter.PINGS_PER_ENSEMBLE] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.PINGS_PER_ENSEMBLE] = 32767
-        self.assert_set_bulk_exception(params)
-        params[Parameter.PINGS_PER_ENSEMBLE] = 3.1415926
-        self.assert_set_bulk_exception(params)
-        params[Parameter.PINGS_PER_ENSEMBLE] = "LEROY JENKINS!"
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.PINGS_PER_ENSEMBLE, 16385)
+        self.assert_set_exception(Parameter.PINGS_PER_ENSEMBLE, -1)
+        self.assert_set_exception(Parameter.PINGS_PER_ENSEMBLE, 32767)
+        self.assert_set_exception(Parameter.PINGS_PER_ENSEMBLE, 3.1415926)
+        self.assert_set_exception(Parameter.PINGS_PER_ENSEMBLE, "LEROY JENKINS")
         #
         # Reset to good value.
         #
-        params[Parameter.PINGS_PER_ENSEMBLE] = 1
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.PINGS_PER_ENSEMBLE, 1)
 
         # DEPTH_CELL_SIZE: int 80 - 3200
-        params[Parameter.DEPTH_CELL_SIZE] = 80
-        self.assert_set_bulk(params)
-        params[Parameter.DEPTH_CELL_SIZE] = 3200
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.DEPTH_CELL_SIZE, 80)
+        self.assert_set(Parameter.PINGS_PER_ENSEMBLE, 3200)
 
-        params[Parameter.PING_WEIGHT] = 3201
-        self.assert_set_bulk_exception(params)
-        params[Parameter.PING_WEIGHT] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.PING_WEIGHT] = 2
-        self.assert_set_bulk_exception(params)
-        params[Parameter.PING_WEIGHT] = "LEROY JENKINS!"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.PING_WEIGHT] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.PING_WEIGHT, 3201)
+        self.assert_set_exception(Parameter.PING_WEIGHT, -1)
+        self.assert_set_exception(Parameter.PING_WEIGHT, 2)
+        self.assert_set_exception(Parameter.PING_WEIGHT, 3.1415926)
+        self.assert_set_exception(Parameter.PING_WEIGHT, "LEROY JENKINS")
         #
         # Reset to good value.
         #
-        params[Parameter.PING_WEIGHT] = 0
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.PINGS_PER_ENSEMBLE, 0)
 
         # TRANSMIT_LENGTH: int 0 to 3200
-        params[Parameter.TRANSMIT_LENGTH] = 80
-        self.assert_set_bulk(params)
-        params[Parameter.TRANSMIT_LENGTH] = 3200
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.TRANSMIT_LENGTH, 80)
+        self.assert_set(Parameter.TRANSMIT_LENGTH, 3200)
 
-        params[Parameter.TRANSMIT_LENGTH] = 3201
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TRANSMIT_LENGTH] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TRANSMIT_LENGTH] = "LEROY JENKINS!"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.TRANSMIT_LENGTH] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.TRANSMIT_LENGTH, 3201)
+        self.assert_set_exception(Parameter.TRANSMIT_LENGTH, -1)
+        self.assert_set_exception(Parameter.TRANSMIT_LENGTH, 3.1415926)
+        self.assert_set_exception(Parameter.TRANSMIT_LENGTH, "LEROY JENKINS")
         #
         # Reset to good value.
         #
-        params[Parameter.TRANSMIT_LENGTH] = 0
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.TRANSMIT_LENGTH, 0)
 
         # PING_WEIGHT: (0/1),
-        params[Parameter.PING_WEIGHT] = 0
-        self.assert_set_bulk(params)
-        params[Parameter.PING_WEIGHT] = 1
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.PING_WEIGHT, 0)
+        self.assert_set(Parameter.PING_WEIGHT, 1)
 
-        params[Parameter.PING_WEIGHT] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.PING_WEIGHT] = 2
-        self.assert_set_bulk_exception(params)
-        params[Parameter.PING_WEIGHT] = "LEROY JENKINS!"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.PING_WEIGHT] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.PING_WEIGHT, 2)
+        self.assert_set_exception(Parameter.PING_WEIGHT, -1)
+        self.assert_set_exception(Parameter.PING_WEIGHT, 3.1415926)
+        self.assert_set_exception(Parameter.PING_WEIGHT, "LEROY JENKINS")
         #
         # Reset to good value.
         #
-        params[Parameter.PING_WEIGHT] = 0
-        self.assert_set_bulk(params)
-
-        params = {}
+        self.assert_set(Parameter.PING_WEIGHT, 0)
 
         # AMBIGUITY_VELOCITY: int 2 - 700
-        params[Parameter.AMBIGUITY_VELOCITY] = 2
-        self.assert_set_bulk(params)
-        params[Parameter.AMBIGUITY_VELOCITY] = 111
-        self.assert_set_bulk(params)
-        params[Parameter.AMBIGUITY_VELOCITY] = 222
-        self.assert_set_bulk(params)
-        params[Parameter.AMBIGUITY_VELOCITY] = 333
-        self.assert_set_bulk(params)
-        params[Parameter.AMBIGUITY_VELOCITY] = 444
-        self.assert_set_bulk(params)
-        params[Parameter.AMBIGUITY_VELOCITY] = 555
-        self.assert_set_bulk(params)
-        params[Parameter.AMBIGUITY_VELOCITY] = 666
-        self.assert_set_bulk(params)
-        params[Parameter.AMBIGUITY_VELOCITY] = 700
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.AMBIGUITY_VELOCITY, 2)
+        self.assert_set(Parameter.AMBIGUITY_VELOCITY, 111)
+        self.assert_set(Parameter.AMBIGUITY_VELOCITY, 222)
+        self.assert_set(Parameter.AMBIGUITY_VELOCITY, 333)
+        self.assert_set(Parameter.AMBIGUITY_VELOCITY, 444)
+        self.assert_set(Parameter.AMBIGUITY_VELOCITY, 555)
+        self.assert_set(Parameter.AMBIGUITY_VELOCITY, 666)
+        self.assert_set(Parameter.AMBIGUITY_VELOCITY, 700)
 
-        params[Parameter.AMBIGUITY_VELOCITY] = 0
-        self.assert_set_bulk_exception(params)
-        params[Parameter.AMBIGUITY_VELOCITY] = 1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.AMBIGUITY_VELOCITY] = "LEROY JENKINS!"
-        self.assert_set_bulk_exception(params)
-        params[Parameter.AMBIGUITY_VELOCITY] = -1
-        self.assert_set_bulk_exception(params)
-        params[Parameter.AMBIGUITY_VELOCITY] = 3.1415926
-        self.assert_set_bulk_exception(params)
+        self.assert_set_exception(Parameter.AMBIGUITY_VELOCITY, 0)
+        self.assert_set_exception(Parameter.AMBIGUITY_VELOCITY, 1)
+        self.assert_set_exception(Parameter.AMBIGUITY_VELOCITY, -1)
+        self.assert_set_exception(Parameter.AMBIGUITY_VELOCITY, 3.1415926)
+        self.assert_set_exception(Parameter.AMBIGUITY_VELOCITY, "LEROY JENKINS")
         #
         # Reset to good value.
         #
-        params[Parameter.AMBIGUITY_VELOCITY] = 175
-        self.assert_set_bulk(params)
+        self.assert_set(Parameter.AMBIGUITY_VELOCITY, 175)
 
-        params = {}
+        # Test read only raise exceptions on set.
+        self.assert_set_exception(Parameter.SERIAL_DATA_OUT, '000 000 111')
+        self.assert_set_exception(Parameter.SERIAL_FLOW_CONTROL, '10110')
+        self.assert_set_exception(Parameter.SAVE_NVRAM_TO_RECORDER, False)
+        self.assert_set_exception(Parameter.SERIAL_OUT_FW_SWITCHES, '110100100')
+        self.assert_set_exception(Parameter.WATER_PROFILING_MODE, 0)
 
-    #works# need to determine if commented out commands need support in auto sample mode.
+
+    # WORKS 4/14
     def test_commands(self):
         """
         Run instrument commands from both command and streaming mode.
         """
         self.assert_initialize_driver()
-
         ####
         # First test in command mode
         ####
 
-        #self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
-        #self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
         self.assert_driver_command(ProtocolEvent.GET_CALIBRATION)
         self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION)
-        #BROKE# self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
+
+        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
         self.assert_driver_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
-        self.assert_driver_command(ProtocolEvent.SEND_LAST_SAMPLE, regex='^\x7f\x7fh.*')
+        self.assert_driver_command(ProtocolEvent.SEND_LAST_SAMPLE) #, regex='^\x7f\x7fh.*'
         self.assert_driver_command(ProtocolEvent.SAVE_SETUP_TO_RAM, expected="Parameters saved as USER defaults")
         self.assert_driver_command(ProtocolEvent.GET_ERROR_STATUS_WORD, regex='^........')
         self.assert_driver_command(ProtocolEvent.CLEAR_ERROR_STATUS_WORD, regex='^Error Status Word Cleared')
         self.assert_driver_command(ProtocolEvent.GET_FAULT_LOG, regex='^Total Unique Faults   =.*')
         self.assert_driver_command(ProtocolEvent.CLEAR_FAULT_LOG, expected='FC ..........\r\n Fault Log Cleared.\r\nClearing buffer @0x00801000\r\nDone [i=2048].\r\n')
 
+        # fails because TT is readonly.
         self.assert_driver_command(ProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX, regex='^Beam Width:')
         self.assert_driver_command(ProtocolEvent.RUN_TEST_200, regex='^  Ambient  Temperature =')
 
@@ -1581,7 +1301,6 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         # Put us in streaming
 
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
-
         self.assert_driver_command_exception(ProtocolEvent.SEND_LAST_SAMPLE, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(ProtocolEvent.SAVE_SETUP_TO_RAM, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(ProtocolEvent.GET_ERROR_STATUS_WORD, exception_class=InstrumentCommandException)
@@ -1592,12 +1311,11 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_driver_command_exception(ProtocolEvent.RUN_TEST_200, exception_class=InstrumentCommandException)
 
 
-        #self.assert_driver_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
-        self.assert_driver_command_exception(ProtocolEvent.START_AUTOSAMPLE, exception_class=InstrumentCommandException)
+        # this command is not defined.
+        self.assert_driver_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
         self.assert_driver_command_exception(ProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
-        #self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'SBE 26plus')
-        #self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION, regex=r'Pressure coefficients')
-        #self.assert_driver_command(ProtocolEvent.SEND_LAST_SAMPLE, regex=r'p = +([\-\d.]+), t = +([\-\d.]+)')
+        self.assert_driver_command(ProtocolEvent.GET_CALIBRATION, regex=r'Calibration date and time:')
+        self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION, regex=r' Instrument S/N')
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
         ####
@@ -1605,6 +1323,7 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
+    # WORKS 4/14
     def test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample
@@ -1648,6 +1367,7 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
 
+    # WORKS 4/14
     def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -1726,12 +1446,7 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
 
         self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
-        #read only
-        self.assert_set_exception(Parameter.SERIAL_DATA_OUT, '000 000 111')
-        self.assert_set_exception(Parameter.SERIAL_FLOW_CONTROL, '10110')
-        self.assert_set_exception(Parameter.SAVE_NVRAM_TO_RECORDER, False)
-        self.assert_set_exception(Parameter.SERIAL_OUT_FW_SWITCHES, '110100100')
-        self.assert_set_exception(Parameter.WATER_PROFILING_MODE, 0)
+
 
     ###
     #   Test scheduled events
@@ -1740,76 +1455,84 @@ class DriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         """
         Verify a calibration particle was generated
         """
+        log.error("IN assert_compass_calibration")
         self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_particle_compass_calibration, timeout=200)
+        log.error("IN assert_compass_calibration cleared events")
+        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_particle_compass_calibration, timeout=360)
 
-    def test_scheduled_device_calibration_command(self):
+    # WORKS 4/14
+    def test_scheduled_compass_calibration_command(self):
         """
         Verify the device configuration command can be triggered and run in command
         """
-        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=170)
+        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=250)
         self.assert_current_state(ProtocolState.COMMAND)
 
-    @unittest.skip("broke not setup")
-    def test_scheduled_device_calibration_autosample(self):
+
+    # BROKE KICKED UPSTAIRS.
+    def test_scheduled_compass_calibration_autosample(self):
         """
         Verify the device configuration command can be triggered and run in autosample
         """
-        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration,
-            autosample_command=ProtocolEvent.GET_CALIBRATION, delay=250)
+
+        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=260,
+            autosample_command=ProtocolEvent.START_AUTOSAMPLE)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
-    def assert_system_configuration(self):
+
+    def assert_acquire_status(self):
         """
         Verify a status particle was generated
         """
         self.clear_events()
         self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=200)
 
+    # WORKS 4/14
     def test_scheduled_device_configuration_command(self):
         """
         Verify the device status command can be triggered and run in command
         """
-        self.assert_scheduled_event(ScheduledJob.GET_CONFIGURATION, self.assert_system_configuration, delay=170)
+        self.assert_scheduled_event(ScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=360)
         self.assert_current_state(ProtocolState.COMMAND)
 
-    @unittest.skip("broke not setup")
+    # WORKS 4/15
     def test_scheduled_device_configuration_autosample(self):
         """
         Verify the device status command can be triggered and run in autosample
         """
         self.assert_scheduled_event(ScheduledJob.GET_CONFIGURATION, self.assert_acquire_status,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=60)
-        #self.assert_current_state(ProtocolState.GET_CONFIGURATION)
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=300)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
+    # WORKS 4/14
     def assert_clock_sync(self):
         """
         Verify the clock is set to at least the current date
         """
-        #self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        #self.assert_initialize_driver()
         dt = self.assert_get(Parameter.TIME)
         lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:13].upper() in dt.upper())
 
+    # WORKS 4/14
     def test_scheduled_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=200)
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=360)
         self.assert_current_state(ProtocolState.COMMAND)
 
-    @unittest.skip("broke not setup")
+    # BROKE 4/14 - looks like stop autosample is broke.
     def test_scheduled_clock_sync_autosample(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=200)
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, 
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=360)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
-
 
 
 ###############################################################################

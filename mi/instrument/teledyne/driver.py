@@ -8,6 +8,20 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.common import BaseEnum
+
+# default timeout.
+TIMEOUT = 20
+
+class Prompt(BaseEnum):
+    """
+    Device i/o prompts..
+    """
+    COMMAND = '\r\n>\r\n>'
+    #AUTOSAMPLE = ''
+    ERR = 'ERR:'
+    # POWERING DOWN MESSAGE 
+    # "Powering Down"
 
 class TeledyneInstrumentDriver(SingleConnectionInstrumentDriver):
     """
@@ -27,8 +41,9 @@ class TeledyneInstrumentDriver(SingleConnectionInstrumentDriver):
     def _handler_connected_discover(self, event, *args, **kwargs):
         # Redefine discover handler so that we can apply startup params
         # when we discover. Gotta get into command mode first though.
-        log.debug("in _handler_connected_discover")
+        log.debug("in TeledyneInstrumentDriver._handler_connected_discover calling SingleConnectionInstrumentDriver._handler_connected_protocol_event")
         result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
+        log.debug("in TeledyneInstrumentDriver._handler_connected_discover apply_startup_params")
         self.apply_startup_params()
         return result
 
@@ -47,8 +62,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.debug("IN TeledyneProtocol.__init__")
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
-
-    def _sync_clock(self, date_time_param, prompts, timeout, delay=1, time_format="%Y/%m/%dT, %H:%M:%S"):
+    def _sync_clock(self, command, date_time_param, timeout=TIMEOUT, delay=1, time_format="%d %b %Y %H:%M:%S"):
+    #def _sync_clock(self, command, date_time_param, prompts, timeout=TIMEOUT, delay=1, time_format="%Y/%m/%dT, %H:%M:%S"):
         """
         Send the command to the instrument to syncronize the clock
         @param date_time_param: date time parameter that we want to set
@@ -65,11 +80,22 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._linebuf = ''
         self._promptbuf = ''
 
-        log.debug("Set time format(%s) '%s''", time_format, date_time_param)
-        str_val = get_timestamp_delayed(time_format)
-        log.debug("Set time value == '%s'", str_val)
-        self._set_params({date_time_param: str_val}, True)
+        prompt = self._wakeup(timeout=timeout, delay=delay)
+        #log.debug("GOT PROMPT = " + repr(prompt))
 
+        #log.debug("TT1 Set time format(%s) '%s''", time_format, date_time_param)
+        str_val = get_timestamp_delayed(time_format)
+        #log.debug("TT2 Set time value == '%s'", str_val)
+        reply = self._do_cmd_direct(date_time_param + str_val)
+
+        #log.debug("TT3 BEFORE SLEEP self._linebuf = " + str(self._linebuf))
+        time.sleep(1)
+        #log.debug("TT3 " + str(reply))
+        reply = self._get_response(TIMEOUT)
+        #log.debug("TT4 " + str(reply))
+        #
+        #self._do_cmd_resp(command, date_time_param, str_val)
+        #log.debug("self._linebuf = " + repr(self._linebuf))
         return True
 
     def _apply_params(self):
