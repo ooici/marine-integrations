@@ -2235,3 +2235,10 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         @return:
         '''
         pass
+
+    def test_discover(self):
+        '''
+        Skipping this common test because the simulator doesn't have state and can't remember that
+        it was in streaming mode when we disconnect.
+        '''
+        pass
