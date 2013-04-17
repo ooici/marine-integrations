@@ -33,6 +33,7 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
+from mi.idk.unit_test import AgentCapabilityType
 
 from interface.objects import AgentCommand
 
@@ -43,6 +44,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 
@@ -62,7 +64,7 @@ from mi.instrument.wetlabs.ac_s.ooicore.driver import OPTAA_StatusDataParticleKe
 from mi.instrument.wetlabs.ac_s.ooicore.driver import OPTAA_StatusDataParticle
 
 from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
-from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException
+from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException, Conflict
 from interface.objects import AgentCommand
 
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
@@ -509,7 +511,13 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         """
         capabilities = {
             ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
-            ProtocolState.AUTOSAMPLE: []
+            ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_SET',
+                                    'DRIVER_EVENT_START_AUTOSAMPLE',
+                                    'DRIVER_EVENT_START_DIRECT'],
+            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE'],
+            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 
+                                          'EXECUTE_DIRECT']
         }
 
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -528,18 +536,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    def test_disconnect(self):
-        """
-        over-ride base class test which fails because it expects to be able to go to command mode
-        Test that we can disconnect from a driver
-        """
-        self.assert_initialize_driver(final_state=DriverProtocolState.AUTOSAMPLE)
-
-        reply = self.driver_client.cmd_dvr('disconnect')
-        self.assertEqual(reply, None)
-
-        self.assert_current_state(DriverConnectionState.DISCONNECTED)
-        
     def test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample.
@@ -558,17 +554,20 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class TestQUAL(InstrumentDriverQualificationTestCase):
+class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
+    @unittest.skip('Only enabled and used for manual testing of vendor SW')
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (virtual serial port mode)
         """
+        self.assert_enter_command_mode()
+
         # go direct access
         cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-            kwargs={'session_type': DirectAccessTypes.telnet,
+            kwargs={'session_type': DirectAccessTypes.vsp,
                     'session_timeout':600,
                     'inactivity_timeout':600})
         retval = self.instrument_agent_client.execute_agent(cmd, timeout=600)
@@ -581,10 +580,27 @@ class TestQUAL(InstrumentDriverQualificationTestCase):
         gevent.sleep(120)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-        retval = self.instrument_agent_client.execute_agent(cmd) # ~9s to run
+        retval = self.instrument_agent_client.execute_agent(cmd) 
 
         state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.STREAMING)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
+    def test_discover(self):
+        """
+        over-ridden because instrument doesn't actually have a command mode and therefore
+        driver will always go to autosample mode during the discover process after a reset.
+        verify we can discover our instrument state from streaming and autosample.  This
+        method assumes that the instrument has a command and streaming mode. If not you will
+        need to explicitly overload this test in your driver tests.
+        """
+        # Verify the agent is in command mode
+        self.assert_enter_command_mode()
+
+        # Now reset and try to discover.  This will stop the driver and cause it to re-discover which
+        # will always go back to autosample for this instrument
+        self.assert_reset()
+        self.assert_discover(ResourceAgentState.STREAMING)
+
 
     def test_get_capabilities(self):
         """
@@ -592,3 +608,55 @@ class TestQUAL(InstrumentDriverQualificationTestCase):
         returned by get_current_capabilities
         """
         self.assert_enter_command_mode()
+        
+        ##################
+        #  Command Mode
+        ##################
+
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
+            AgentCapabilityType.RESOURCE_COMMAND: [
+                DriverEvent.START_AUTOSAMPLE
+            ],
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
+            }
+
+        self.assert_capabilities(capabilities)
+
+        ##################
+        #  Streaming Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+            DriverEvent.STOP_AUTOSAMPLE,
+        ]
+
+        self.assert_start_autosample()
+        self.assert_capabilities(capabilities)
+        self.assert_stop_autosample()
+
+        ##################
+        #  DA Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = self._common_da_resource_commands()
+
+        self.assert_direct_access_start_telnet()
+        self.assert_capabilities(capabilities)
+        self.assert_direct_access_stop_telnet()
+
+        #######################
+        #  Uninitialized Mode
+        #######################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
+        self.assert_capabilities(capabilities)

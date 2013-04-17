@@ -69,7 +69,7 @@ SAMPLE_RECORD_HEADER = (r'^%s' %PACKET_REGISTRATION_PATTERN +
 
 SAMPLE_RECORD_HEADER_REGEX = re.compile(SAMPLE_RECORD_HEADER)
 
-STATUS_PATTERN = r'AC-Spectra .+ quit\.'
+STATUS_PATTERN = r'AC-Spectra .+? quit\.'
 STATUS_REGEX = re.compile(STATUS_PATTERN, re.DOTALL)
         
 ####
@@ -89,6 +89,7 @@ class ProtocolState(BaseEnum):
     Instrument protocol states
     """
     UNKNOWN       = DriverProtocolState.UNKNOWN
+    COMMAND       = DriverProtocolState.COMMAND
     AUTOSAMPLE    = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
 
@@ -96,17 +97,24 @@ class ProtocolEvent(BaseEnum):
     """
     Protocol events
     """
-    ENTER          = DriverEvent.ENTER
-    EXIT           = DriverEvent.EXIT
-    DISCOVER       = DriverEvent.DISCOVER
-    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    START_DIRECT   = DriverEvent.START_DIRECT
-    STOP_DIRECT    = DriverEvent.STOP_DIRECT
+    ENTER            = DriverEvent.ENTER
+    EXIT             = DriverEvent.EXIT
+    DISCOVER         = DriverEvent.DISCOVER
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE     
+    STOP_AUTOSAMPLE  = DriverEvent.STOP_AUTOSAMPLE      
+    EXECUTE_DIRECT   = DriverEvent.EXECUTE_DIRECT
+    START_DIRECT     = DriverEvent.START_DIRECT
+    STOP_DIRECT      = DriverEvent.STOP_DIRECT
+    GET              = DriverEvent.GET
+    SET              = DriverEvent.SET
+
 
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
+    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
  
 class Parameter(DriverParameter):
     """
@@ -372,9 +380,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
 
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.START_DIRECT, self._handler_autosample_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -444,7 +459,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
-        Discover current state; can only be AUTOSAMPLE.
+        Discover current state; can only be AUTOSAMPLE (instrument has no actual command mode).
         @retval (next_state, result), (ProtocolState.COMMAND or
         State.AUTOSAMPLE, None) if successful.
         @throws InstrumentTimeoutException if the device cannot be woken.
@@ -458,6 +473,62 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
+
+    ########################################################################
+    # Command handlers.
+    # just implemented to make DA possible, instrument has no actual command mode
+    ########################################################################
+
+    def _handler_command_enter(self, *args, **kwargs):
+        """
+        Enter command state.
+        """
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_command_exit(self, *args, **kwargs):
+        """
+        Exit command state.
+        """
+        pass
+
+    def _handler_command_get(self, *args, **kwargs):
+        """
+        does nothing, just implemented to make framework happy
+        """
+
+        next_state = None
+        result = None
+        return (next_state, result)
+
+    def _handler_command_set(self, *args, **kwargs):
+        """
+        does nothing, just implemented to make framework happy
+        """
+
+        next_state = None
+        result = None
+        return (next_state, result)
+
+    def _handler_command_start_direct(self, *args, **kwargs):
+        """
+        """
+        result = None
+        next_state = ProtocolState.DIRECT_ACCESS
+        next_agent_state = ResourceAgentState.DIRECT_ACCESS
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_start_autosample(self, *args, **kwargs):
+        """
+        """
+        result = None
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Autosample handlers.
@@ -482,14 +553,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         pass
 
-    def _handler_autosample_start_direct(self):
+    def _handler_autosample_stop_autosample(self):
         """
         """
-        next_state = None
         result = None
-
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
         
         return (next_state, (next_agent_state, result))
 
@@ -523,11 +592,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         return (next_state, result)
 
     def _handler_direct_access_stop_direct(self):
-        next_state = None
         result = None
-
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
 
         return (next_state, (next_agent_state, result))
 
