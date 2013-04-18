@@ -25,7 +25,6 @@ from mi.core.common import BaseEnum
 
 from mi.instrument.teledyne.driver import TeledyneInstrumentDriver
 from mi.instrument.teledyne.driver import TeledyneProtocol
-#from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 
 
 from mi.core.instrument.instrument_fsm import InstrumentFSM
@@ -94,14 +93,13 @@ class ProtocolState(BaseEnum):
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
 
 
-
 class ProtocolEvent(BaseEnum):
     """
     Protocol events
     """
 
     DISCOVER = DriverEvent.DISCOVER
-    
+
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
 
@@ -155,12 +153,6 @@ class Capability(BaseEnum):
     GET_INSTRUMENT_TRANSFORM_MATRIX = ProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX
     RUN_TEST_200 = ProtocolEvent.RUN_TEST_200
 
-    #GET = DriverEvent.GET
-    #SET = DriverEvent.SET
-    #DISCOVER = DriverEvent.DISCOVER
-    #PING_DRIVER = ProtocolEvent.PING_DRIVER
-
-
 class Parameter(DriverParameter):
     """
     Device parameters
@@ -212,17 +204,13 @@ class Prompt(BaseEnum):
     Device i/o prompts..
     """
     COMMAND = '\r\n>\r\n>'
-    #AUTOSAMPLE = ''
     ERR = 'ERR:'
-    # POWERING DOWN MESSAGE 
-    # "Powering Down"
+
 
 class ScheduledJob(BaseEnum):
     """
     Complete this last.
     """
-    #ACQUIRE_STATUS = 'acquire_status'
-    #CALIBRATION_COEFFICIENTS = 'calibration_coefficients'
     CLOCK_SYNC = 'clock_sync'
     GET_CONFIGURATION = 'acquire_configuration'
     GET_CALIBRATION = 'acquire_calibration'
@@ -368,7 +356,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._add_response_handler(InstrumentCmds.CLEAR_FAULT_LOG, self._parse_clear_fault_log_response)
         self._add_response_handler(InstrumentCmds.GET_FAULT_LOG, self._parse_fault_log_response)
         self._add_response_handler(InstrumentCmds.GET_SYSTEM_CONFIGURATION, self._parse_get_system_configuration)
-        
+
         self._add_response_handler(InstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, self._parse_instrument_transform_matrix_response)
         self._add_response_handler(InstrumentCmds.RUN_TEST_200, self._parse_test_response)
         self._add_response_handler(InstrumentCmds.SET, self._parse_set_response)
@@ -626,6 +614,7 @@ class WorkhorseProtocol(TeledyneProtocol):
             str,
             type=ParameterDictType.STRING,
             display_name="time",
+            expiration=0,
             visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.FALSE_TARGET_THRESHOLD,
@@ -804,8 +793,8 @@ class WorkhorseProtocol(TeledyneProtocol):
         # instrument matches what we think it should be then we
         # don't need to do anything.
 
-        #if(not self._instrument_config_dirty()):
-        #    return True
+        if(not self._instrument_config_dirty()):
+            return True
 
         error = None
 
@@ -840,10 +829,6 @@ class WorkhorseProtocol(TeledyneProtocol):
         @throws: InstrumentParameterException
         """
         # Refresh the param dict cache
-
-        # Let's assume we have already run this command recently
-        #self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS)
-        #self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION)
         self._update_params()
 
         startup_params = self._param_dict.get_startup_list()
@@ -960,7 +945,6 @@ class WorkhorseProtocol(TeledyneProtocol):
                                  chunk,
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
-
 
     def _filter_capabilities(self, events):
         """
@@ -1099,7 +1083,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         kwargs['expected_prompt'] = Prompt.COMMAND
         result = self._do_cmd_resp(InstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
 
-        #return (next_state, (next_agent_state, result))
+        #\return (next_state, (next_agent_state, result))
         return (next_state, result)
 
     def _handler_command_clear_error_status_word(self, *args, **kwargs):
@@ -1169,12 +1153,17 @@ class WorkhorseProtocol(TeledyneProtocol):
 
     def _handler_unknown_enter(self, *args, **kwargs):
         """
+        Enter unknown state.
         """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_unknown_exit(self, *args, **kwargs):
         """
+        Exit unknown state.
         """
-
+        pass
     ######################################################
     #                                                    #
     ######################################################
@@ -1248,8 +1237,6 @@ class WorkhorseProtocol(TeledyneProtocol):
 
         # Issue start command and switch to autosample if successful.
         self._start_logging()
-        #resp = self._do_cmd_no_resp(InstrumentCmds.START_DEPLOYMENT, *args, **kwargs)
-        #log.debug("START_DEPLOYMENT RESPONSE = " + str(resp))
 
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -1271,10 +1258,9 @@ class WorkhorseProtocol(TeledyneProtocol):
 
         # Wake up the device, continuing until autosample prompt seen.
         timeout = kwargs.get('timeout', TIMEOUT)
-        #self._wakeup_until(timeout, Prompt.AUTOSAMPLE)
 
         self._stop_logging(timeout)
-        #prompt = self._send_break()
+
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
@@ -1506,7 +1492,6 @@ class WorkhorseProtocol(TeledyneProtocol):
         kwargs['timeout'] = 120
 
         result = self._do_cmd_resp(InstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
-        log.debug("_handler_command_get_calibration result = " + repr(result))
         return (next_state, (next_agent_state, result))
 
     def _handler_command_get_configuration(self, *args, **kwargs):
@@ -1521,10 +1506,7 @@ class WorkhorseProtocol(TeledyneProtocol):
 
         kwargs['timeout'] = 120  # long time to get params.
 
-        #result = self._update_params()
-
         result = self._do_cmd_resp(InstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
-        log.debug("_handler_command_get_configuration RESULT = " + repr(result))
         return (next_state, (next_agent_state, result))
 
     def _handler_command_clock_sync(self, *args, **kwargs):
@@ -1558,9 +1540,8 @@ class WorkhorseProtocol(TeledyneProtocol):
         kwargs['timeout'] = 30
         kwargs['expected_prompt'] = Prompt.COMMAND
         result = self._do_cmd_no_resp(InstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
-        log.debug("***********IN _handler_command_send_last_sample RESULT = " + str(result))
-        return (next_state, result)
-        #return (next_state, (next_agent_state, result))
+        #return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_start_direct(self, *args, **kwargs):
         """

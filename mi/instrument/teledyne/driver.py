@@ -85,7 +85,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         time.sleep(1)
         reply = self._get_response(TIMEOUT)
-        
+
         return True
 
     def _apply_params(self):
