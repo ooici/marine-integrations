@@ -35,13 +35,13 @@ TIMEOUT = 10
 # Particle Regex's'
 #
 
-ADCP_PD0_PARSED_REGEX = r'\x7f\x7f(.*)' #(.{230})' #2152 total...
+ADCP_PD0_PARSED_REGEX = r'\x7f\x7f(..)' # .*
 ADCP_PD0_PARSED_REGEX_MATCHER = re.compile(ADCP_PD0_PARSED_REGEX, re.DOTALL)
 
 ADCP_SYSTEM_CONFIGURATION_REGEX = r'(Instrument S/N.*?)\>'
 ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER = re.compile(ADCP_SYSTEM_CONFIGURATION_REGEX, re.DOTALL)
 
-ADCP_COMPASS_CALIBRATION_REGEX = r'.*(ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM.*?)\>.*'
+ADCP_COMPASS_CALIBRATION_REGEX = r'(ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM.*?)\>'
 ADCP_COMPASS_CALIBRATION_REGEX_MATCHER = re.compile(ADCP_COMPASS_CALIBRATION_REGEX, re.DOTALL)
 
 
@@ -209,6 +209,9 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         """
         Parse the base portion of the particle
         """
+        if "[BREAK Wakeup A]" in self.raw_data:
+            raise SampleException("BREAK encountered, something is not right.")
+
         self.final_result = []
 
         length = unpack("H", self.raw_data[2:4])[0]
@@ -224,7 +227,9 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         checksum = total & 65535    # bitwise and with 65535 or mod vs 65536
 
         if checksum != unpack("H", self.raw_data[length: length+2])[0]:
-            raise Exception
+            log.debug("Checksum mismatch "+ str(checksum) + "!= " + str(unpack("H", self.raw_data[length: length+2])[0]))
+
+            raise SampleException("Checksum mismatch")
 
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CHECKSUM,
                                   DataParticleKey.VALUE: checksum})
@@ -1001,7 +1006,5 @@ class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
         for (key, value) in matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
-
-        log.error("RESULT from ADCP_COMPASS_CALIBRATION_DataParticle = " + repr(result))
 
         return result

@@ -63,7 +63,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
     def _sync_clock(self, command, date_time_param, timeout=TIMEOUT, delay=1, time_format="%d %b %Y %H:%M:%S"):
-    #def _sync_clock(self, command, date_time_param, prompts, timeout=TIMEOUT, delay=1, time_format="%Y/%m/%dT, %H:%M:%S"):
         """
         Send the command to the instrument to syncronize the clock
         @param date_time_param: date time parameter that we want to set
@@ -81,21 +80,12 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._promptbuf = ''
 
         prompt = self._wakeup(timeout=timeout, delay=delay)
-        #log.debug("GOT PROMPT = " + repr(prompt))
-
-        #log.debug("TT1 Set time format(%s) '%s''", time_format, date_time_param)
         str_val = get_timestamp_delayed(time_format)
-        #log.debug("TT2 Set time value == '%s'", str_val)
         reply = self._do_cmd_direct(date_time_param + str_val)
 
-        #log.debug("TT3 BEFORE SLEEP self._linebuf = " + str(self._linebuf))
         time.sleep(1)
-        #log.debug("TT3 " + str(reply))
         reply = self._get_response(TIMEOUT)
-        #log.debug("TT4 " + str(reply))
-        #
-        #self._do_cmd_resp(command, date_time_param, str_val)
-        #log.debug("self._linebuf = " + repr(self._linebuf))
+        
         return True
 
     def _apply_params(self):
