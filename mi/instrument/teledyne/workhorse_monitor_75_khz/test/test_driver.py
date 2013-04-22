@@ -721,35 +721,12 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         # Set all parameters to a known ground state
         self.assert_set_bulk(params)
         return params
-    
-    def send_break(self):
-        """
-        Send a BREAK to attempt to wake the device.
-        """
-        log.debug("IN _send_break")
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        except socket.error, msg:
-            log.debug("WHOOPS! 1")
 
-        try:
-            sock.connect(('10.180.80.178', 2102))
-        except socket.error, msg:
-            log.debug("WHOOPS! 2")
-        sock.send("break 300\r\n")
-        sock.close()
-
-    # 4/12 WORKS
     def test_set_ranges(self):
         """
         @Brief test a variety of paramater ranges.
         """
         self.assert_initialize_driver()
-
-        now_2_hour = (dt.datetime.today() + dt.timedelta(hours=2)).strftime("%Y/%m/%d,%H:%m:%S")
-        today_plus_10 = (dt.datetime.today() + dt.timedelta(days=10)).strftime("%Y/%m/%d,%H:%m:%S")
-        today_plus_1month = (dt.datetime.today() + dt.timedelta(days=31)).strftime("%Y/%m/%d,%H:%m:%S")
-        today_plus_6month = (dt.datetime.today() + dt.timedelta(days=183)).strftime("%Y/%m/%d,%H:%m:%S")
 
         self.assert_set(Parameter.BANNER, True)
         self.assert_set_exception(Parameter.BANNER, "LEROY JENKINS")
@@ -934,9 +911,13 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_set(Parameter.TIME_PER_ENSEMBLE, "00:00:00.00")
 
         # TIME_OF_FIRST_PING:  -- str ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
-        # AssertionError: TG no value match (****/**/**,**:**:** != 2013/04/01,01:01:01)
 
-        self.assert_set(Parameter.TIME_OF_FIRST_PING, now_2_hour)
+        now_1_hour = (dt.datetime.utcnow() + dt.timedelta(hours=1)).strftime("%Y/%m/%d,%H:%m:%S")
+        today_plus_10 = (dt.datetime.utcnow() + dt.timedelta(days=10)).strftime("%Y/%m/%d,%H:%m:%S")
+        today_plus_1month = (dt.datetime.utcnow() + dt.timedelta(days=31)).strftime("%Y/%m/%d,%H:%m:%S")
+        today_plus_6month = (dt.datetime.utcnow() + dt.timedelta(days=183)).strftime("%Y/%m/%d,%H:%m:%S")
+
+        self.assert_set(Parameter.TIME_OF_FIRST_PING, now_1_hour)
         self.assert_set(Parameter.TIME_OF_FIRST_PING, today_plus_10)
         self.assert_set(Parameter.TIME_OF_FIRST_PING, today_plus_1month)
         self.assert_set(Parameter.TIME_OF_FIRST_PING, today_plus_6month)
@@ -949,12 +930,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_set_exception(Parameter.TIME_OF_FIRST_PING, '99:99.99')
         self.assert_set_exception(Parameter.TIME_OF_FIRST_PING, '-1:-1.+1')
         self.assert_set_exception(Parameter.TIME_OF_FIRST_PING, 3.1415926)
-
-        #
-        # Reset to good value. TODO add a break here to reset to a good value
-        #
-        # send a break to reset it.
-        self.send_break()
 
         # TIME_PER_PING: '00:01.00'
         self.assert_set(Parameter.TIME_PER_PING, '01:00.00')
@@ -1210,8 +1185,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_set_exception(Parameter.SERIAL_OUT_FW_SWITCHES, '110100100')
         self.assert_set_exception(Parameter.WATER_PROFILING_MODE, 0)
 
-
-    # WORKS 4/14
     def test_commands(self):
         """
         Run instrument commands from both command and streaming mode.
@@ -1236,8 +1209,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_driver_command(ProtocolEvent.CLEAR_ERROR_STATUS_WORD, regex='^Error Status Word Cleared')
         self.assert_driver_command(ProtocolEvent.GET_FAULT_LOG, regex='^Total Unique Faults   =.*')
         self.assert_driver_command(ProtocolEvent.CLEAR_FAULT_LOG, expected='FC ..........\r\n Fault Log Cleared.\r\nClearing buffer @0x00801000\r\nDone [i=2048].\r\n')
-
-        # fails because TT is readonly.
         self.assert_driver_command(ProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX, regex='^Beam Width:')
         self.assert_driver_command(ProtocolEvent.RUN_TEST_200, regex='^  Ambient  Temperature =')
 
@@ -1256,8 +1227,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_driver_command_exception(ProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(ProtocolEvent.RUN_TEST_200, exception_class=InstrumentCommandException)
 
-
-        # this command is not defined.
         self.assert_driver_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
         self.assert_driver_command_exception(ProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
         self.assert_driver_command(ProtocolEvent.GET_CALIBRATION, regex=r'Calibration date and time:')
@@ -1269,7 +1238,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
-    # WORKS 4/14
     def test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample
@@ -1313,7 +1281,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
 
-    # WORKS 4/14
     def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -1322,7 +1289,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         since nose orders the tests by ascii value this should run first.
         """
         self.assert_initialize_driver()
-
 
         get_values = {
             Parameter.SERIAL_FLOW_CONTROL: '11110',
@@ -1392,8 +1358,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
 
         self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
-
-
     ###
     #   Test scheduled events
     ###
@@ -1404,7 +1368,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.clear_events()
         self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_particle_compass_calibration, timeout=360)
 
-    # WORKS 4/14
     def test_scheduled_compass_calibration_command(self):
         """
         Verify the device configuration command can be triggered and run in command
@@ -1412,8 +1375,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=250)
         self.assert_current_state(ProtocolState.COMMAND)
 
-
-    # WORKS 4/18
     def test_scheduled_compass_calibration_autosample(self):
         """
         Verify the device configuration command can be triggered and run in autosample
@@ -1424,7 +1385,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
-
     def assert_acquire_status(self):
         """
         Verify a status particle was generated
@@ -1432,7 +1392,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.clear_events()
         self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=300)
 
-    # WORKS 4/14
     def test_scheduled_device_configuration_command(self):
         """
         Verify the device status command can be triggered and run in command
@@ -1440,7 +1399,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_scheduled_event(ScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=360)
         self.assert_current_state(ProtocolState.COMMAND)
 
-    # WORKS 4/15
     def test_scheduled_device_configuration_autosample(self):
         """
         Verify the device status command can be triggered and run in autosample
@@ -1450,7 +1408,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
-    # WORKS 4/14
     def assert_clock_sync(self):
         """
         Verify the clock is set to at least the current date
@@ -1460,21 +1417,19 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:13].upper() in dt.upper())
 
-    # WORKS 4/14
     def test_scheduled_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=360)
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=200)
         self.assert_current_state(ProtocolState.COMMAND)
 
-    # WORKS 4/16
     def test_scheduled_clock_sync_autosample(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
         self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, 
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=360)
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=300)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
@@ -1486,11 +1441,188 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
+class WorkhorseDriverQualificationTest(TeledyneQualificationTest, ADCPTMixin):
     def setUp(self):
         TeledyneQualificationTest.setUp(self)
 
+
+
+
+    def assert_compass_calibration(self, data_particle, verify_values = False):
+        '''
+        Verify status particle
+        @param data_particle:  SBE16StatusParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        log.debug("************************* A")
+        #self.assert_data_particle_keys(ADCP_COMPASS_CALIBRATION_KEY, self._status_parameters)
+        #log.debug("************************* B")
+        #self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
+        #log.debug("************************* C")
+        #self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
+        #log.debug("************************* D")
+    ##
+    ## From sbd26v2
+    ##
+    # UNTESTED
     def test_autosample(self):
+        """
+        Verify autosample works and data particles are created
+        """
+        self.assert_enter_command_mode()
+
+        self.assert_start_autosample()
+        log.debug("************************* 0")
+        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED, self.assert_particle_pd0_data)
+        log.debug("************************* 1")
+
+        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=20)
+        #self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_acquire_status, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=20)
+        log.debug("************************* 2")
+        # Stop autosample and do run a couple commands.
+        self.assert_stop_autosample()
+        return
+        log.debug("************************* 3")
+        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
+        #self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_acquire_status, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
+        log.debug("************************* 4")
+        # Restart autosample and gather a couple samples
+        self.assert_sample_autosample(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED)
+        # Stop autosample
+        log.debug("************************* 5")
+        self.assert_stop_autosample()
+        log.debug("************************* 6")
+        
+    def assert_cycle(self):
+        self.assert_start_autosample()
+
+        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED, self.assert_particle_pd0_data)
+
+        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=20)
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_acquire_status, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=20)
+
+        self.assert_stop_autosample()
+
+        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_acquire_status, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
+
+    def test_cycle(self):
+        """
+        Verify we can bounce between command and streaming.  We try it a few times to see if we can find a timeout.
+        """
+        self.assert_enter_command_mode()
+
+        self.assert_cycle()
+        self.assert_cycle()
+        self.assert_cycle()
+        self.assert_cycle()
+
+    def test_direct_access_telnet_mode(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+        self.assert_enter_command_mode()
+        self.assert_set_parameter(Parameter.SPEED_OF_SOUND, 1387)
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.tcp_client.send_data("%sEC1388%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.expect(Prompt.COMMAND)
+
+        self.assert_direct_access_stop_telnet()
+
+        # verify the setting got restored.
+        self.assert_enter_command_mode()
+        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1388)
+
+    def test_execute_clock_sync(self):
+        """
+        Verify we can syncronize the instrument internal clock
+        """
+        self.assert_enter_command_mode()
+
+        self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
+        self.assert_execute_resource(ProtocolEvent.GET_CONFIGURATION)
+
+        # Now verify that at least the date matches
+        check_new_params = self.instrument_agent_client.get_resource([Parameter.TIME])
+        instrument_time = time.mktime(time.strptime(check_new_params.get(Parameter.TIME).lower(), "%d %b %Y %H:%M:%S"))
+        self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 15)
+
+    def test_get_capabilities(self):
+        """
+        @brief Verify that the correct capabilities are returned from get_capabilities
+        at various driver/agent states.
+        """
+        self.assert_enter_command_mode()
+
+        ##################
+        #  Command Mode
+        ##################
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
+            AgentCapabilityType.RESOURCE_COMMAND: [
+                ProtocolEvent.TEST,
+                ProtocolEvent.GET,
+                ProtocolEvent.SET,
+                ProtocolEvent.RESET_EC,
+                ProtocolEvent.CLOCK_SYNC,
+                ProtocolEvent.QUIT_SESSION,
+                ProtocolEvent.ACQUIRE_STATUS,
+                ProtocolEvent.START_AUTOSAMPLE,
+                ProtocolEvent.GET_CONFIGURATION,
+                ],
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
+        }
+
+        self.assert_capabilities(capabilities)
+
+        ##################
+        #  Streaming Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+            ProtocolEvent.GET,
+            ProtocolEvent.STOP_AUTOSAMPLE,
+            ProtocolEvent.QUIT_SESSION,
+            ProtocolEvent.ACQUIRE_STATUS,
+            ProtocolEvent.GET_CONFIGURATION,
+            ]
+
+        self.assert_start_autosample()
+        self.assert_capabilities(capabilities)
+        self.assert_stop_autosample()
+
+        ##################
+        #  DA Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = self._common_da_resource_commands()
+
+        self.assert_direct_access_start_telnet()
+        self.assert_capabilities(capabilities)
+        self.assert_direct_access_stop_telnet()
+
+        #######################
+        #  Uninitialized Mode
+        #######################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
+        self.assert_capabilities(capabilities)
+    ##
+    ## End from sbd26v2
+    ##
+
+    def test_autosample_old(self):
         """
         Verify that we can enter streaming and that all particles are produced
         properly.

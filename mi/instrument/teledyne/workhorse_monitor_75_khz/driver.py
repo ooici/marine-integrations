@@ -57,7 +57,8 @@ import socket
 
 
 # default timeout.
-TIMEOUT = 10
+TIMEOUT = 30
+
 
 class InstrumentCmds(BaseEnum):
     """
@@ -794,6 +795,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         # don't need to do anything.
 
         if(not self._instrument_config_dirty()):
+            log.debug("in apply_startup_params returning True")
             return True
 
         error = None
@@ -865,18 +867,18 @@ class WorkhorseProtocol(TeledyneProtocol):
             log.debug("WHOOPS! 2")
         sock.send("break 300\r\n")
         sock.close()
-
-        break_confirmation = "[BREAK Wakeup A]" + NEWLINE + \
+        break_confirmation = []
+        break_confirmation.append("[BREAK Wakeup A]" + NEWLINE + \
         "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
         "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
-        "All Rights Reserved."
-
+        "All Rights Reserved.")
+        break_confirmation.append(">")
         found = False
         while (not found):
-
-            if break_confirmation in self._linebuf:
-                log.debug("GOT A MATCH")
-                found = True
+            for break_message in break_confirmation:
+                if break_message in self._linebuf:
+                    log.debug("GOT A MATCH")
+                    found = True
 
             time.sleep(1)
         self._chunker._clean_buffer(len(self._chunker.raw_chunk_list))
@@ -1177,6 +1179,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         @throws InstrumentStateException if the device response does not correspond to
         an expected state.
         """
+        log.debug("in _handler_unknown_discover")
         next_state = None
         next_agent_state = None
 
@@ -1227,7 +1230,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         kwargs['expected_prompt'] = Prompt.COMMAND
         kwargs['timeout'] = 30
 
-        log.info("SYNCING TIME WITH SENSOR")
+        log.info("SYNCING TIME WITH SENSOR.")
         resp = self._do_cmd_resp(InstrumentCmds.SET, Parameter.TIME, get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
         log.debug("SET TIME RESPONSE = " + str(resp))
 
@@ -1266,7 +1269,7 @@ class WorkhorseProtocol(TeledyneProtocol):
 
         return (next_state, (next_agent_state, result))
 
-    def _handler_command_get(self, *args, **kwargs):
+    def _handler_command_get_old(self, *args, **kwargs):
         """
         Get device parameters from the parameter dict.
         @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
@@ -1291,8 +1294,78 @@ class WorkhorseProtocol(TeledyneProtocol):
             # In the second pass we need to update parameters, it is assumed
             # that _update_params does everything required to refresh all
             # parameters or at least those that would expire.
-            log.debug("Parameter expired, refreshing, %s", e)
+            log.debug("XXX in _handler_command_get Parameter expired, refreshing, %s", e)
             self._update_params()
+
+            # Take a second pass at getting values, this time is should
+            # have all fresh values.
+            log.debug("Fetching parameters for the second time")
+            result = self._get_param_result(param_list, expire_time)
+
+        return (next_state, result)
+
+
+
+
+
+    def _handler_command_get(self, *args, **kwargs):
+        """
+        Get device parameters from the parameter dict.
+        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
+        @throws InstrumentParameterException if missing or invalid parameter.
+        """
+
+        next_state = None
+        result = None
+        error = None
+
+        # Grab a baseline time for calculating expiration time.  It is assumed
+        # that all data if valid if acquired after this time.
+        expire_time = self._param_dict.get_current_timestamp()
+
+        # build a list of parameters we need to get
+        param_list = self._get_param_list(*args, **kwargs)
+
+        try:
+            # Take a first pass at getting parameters.  If they are
+            # expired an exception will be raised.
+            result = self._get_param_result(param_list, expire_time)
+        except InstrumentParameterExpirationException as e:
+            # In the second pass we need to update parameters, it is assumed
+            # that _update_params does everything required to refresh all
+            # parameters or at least those that would expire.
+
+            log.debug("in _handler_command_get Parameter expired, refreshing, %s", e)
+
+            if self._is_logging():
+                log.debug("I am logging")
+                try:
+                    # Switch to command mode,
+                    self._stop_logging(*args, **kwargs)
+
+                    self._update_params()
+                    # Take a second pass at getting values, this time is should
+                    # have all fresh values.
+                    log.debug("Fetching parameters for the second time")
+                    result = self._get_param_result(param_list, expire_time)
+                # Catch all error so we can put ourself back into
+                # streaming.  Then rethrow the error
+                except Exception as e:
+                    error = e
+
+                finally:
+                    # Switch back to streaming
+                    self._start_logging()
+
+                if(error):
+                    raise error
+            else:
+                log.debug("I am not logging")
+                self._update_params()
+                # Take a second pass at getting values, this time is should
+                # have all fresh values.
+                log.debug("Fetching parameters for the second time")
+                result = self._get_param_result(param_list, expire_time)
 
             # Take a second pass at getting values, this time is should
             # have all fresh values.
@@ -1374,7 +1447,7 @@ class WorkhorseProtocol(TeledyneProtocol):
 
         if(error):
             raise error
-
+        
         return (next_state, (next_agent_state, result))
 
     def _handler_autosample_clock_sync(self, *args, **kwargs):
@@ -1393,7 +1466,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         next_agent_state = None
         result = None
         error = None
-
+        log.debug("in _handler_autosample_clock_sync")
         try:
             # Switch to command mode,
             self._stop_logging(*args, **kwargs)
@@ -1520,7 +1593,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         next_state = None
         next_agent_state = None
         result = None
-
+        
         timeout = kwargs.get('timeout', TIMEOUT)
         prompt = self._wakeup(timeout=TIMEOUT)
 
@@ -1660,6 +1733,8 @@ class WorkhorseProtocol(TeledyneProtocol):
         return get_cmd
 
     def _parse_get_response(self, response, prompt):
+        log.debug("GET RESPONSE = " + repr(response))
+        log.debug("GET PROMPT = " + repr(prompt))
         if prompt == Prompt.ERR:
             raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
 
@@ -1680,6 +1755,38 @@ class WorkhorseProtocol(TeledyneProtocol):
         self.get_count = 0
         return response
 
+    def _wakeup(self, timeout, delay=1):
+        """
+        Clear buffers and send a wakeup command to the instrument
+        @param timeout The timeout to wake the device.
+        @param delay The time to wait between consecutive wakeups.
+        @throw InstrumentTimeoutException if the device could not be woken.
+        """
+        # Clear the prompt buffer.
+        log.debug("clearing promptbuf: %s" % self._promptbuf)
+        self._promptbuf = ''
+
+        # Grab time for timeout.
+        starttime = time.time()
+
+        # Send a line return and wait a sec.
+        log.trace('Sending wakeup. timeout=%s' % timeout)
+        self._send_wakeup()
+        time.sleep(delay)
+
+        log.debug("Prompts: %s" % self._get_prompts())
+
+        for item in self._get_prompts():
+            log.debug("buffer: %s" % self._promptbuf)
+            log.debug("find prompt: %s" % item)
+            index = self._promptbuf.find(item)
+            log.debug("Got prompt (index: %s): %s " % (index, repr(self._promptbuf)))
+            if index >= 0:
+                log.trace('wakeup got prompt: %s' % repr(item))
+                return item
+
+        return None
+
     def _is_logging(self, timeout=TIMEOUT):
         """
         Poll the instrument to see if we are in logging mode.  Return True
@@ -1687,8 +1794,9 @@ class WorkhorseProtocol(TeledyneProtocol):
         @param: timeout - Command timeout
         @return: True - instrument logging, False - not logging
         """
-
-        prompt = self._wakeup(timeout=TIMEOUT, delay=0.3)
+        log.debug("BEFORE")
+        prompt = self._wakeup(timeout=TIMEOUT)
+        log.debug("AFTER")
         if Prompt.COMMAND == prompt:
             logging = False
             log.debug("COMMAND MODE!")
