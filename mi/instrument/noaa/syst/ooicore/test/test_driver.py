@@ -1,19 +1,19 @@
 """
-@package ${test_module}
-@file ${file}
-@author ${author}
-@brief Test cases for ${driver_name} driver
+@package mi.instrument.noaa.syst.ooicore.test.test_driver
+@file marine-integrations/mi/instrument/noaa/syst/ooicore/driver.py
+@author David Everett
+@brief Test cases for ooicore driver
 
 USAGE:
  Make tests verbose and provide stdout
    * From the IDK
-       $$ bin/test_driver
-       $$ bin/test_driver -u [-t testname]
-       $$ bin/test_driver -i [-t testname]
-       $$ bin/test_driver -q [-t testname]
+       $ bin/test_driver
+       $ bin/test_driver -u [-t testname]
+       $ bin/test_driver -i [-t testname]
+       $ bin/test_driver -q [-t testname]
 """
 
-__author__ = '${author}'
+__author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 import unittest
@@ -28,7 +28,6 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from mi.idk.unit_test import DriverTestMixin
 
 from interface.objects import AgentCommand
 
@@ -42,26 +41,26 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import ${driver_class}
-from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import DataParticleType
-from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import InstrumentCommand
-from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import ProtocolState
-from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import ProtocolEvent
-from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import Capability
-from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import Parameter
-from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import Protocol
-from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import Prompt
-from mi.instrument.${driver_make}.${driver_model}.${driver_name}.driver import NEWLINE
+from mi.instrument.noaa.syst.ooicore.driver import InstrumentDriver
+from mi.instrument.noaa.syst.ooicore.driver import DataParticleType
+from mi.instrument.noaa.syst.ooicore.driver import InstrumentCommand
+from mi.instrument.noaa.syst.ooicore.driver import ProtocolState
+from mi.instrument.noaa.syst.ooicore.driver import ProtocolEvent
+from mi.instrument.noaa.syst.ooicore.driver import Capability
+from mi.instrument.noaa.syst.ooicore.driver import Parameter
+from mi.instrument.noaa.syst.ooicore.driver import Protocol
+from mi.instrument.noaa.syst.ooicore.driver import Prompt
+from mi.instrument.noaa.syst.ooicore.driver import NEWLINE
 
 ###
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
-    driver_module='${driver_module}',
-    driver_class="${driver_class}",
+    driver_module='mi.instrument.noaa.syst.ooicore.driver',
+    driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = '${instrument_agent_resource_id}',
-    instrument_agent_name = '${instrument_agent_name}',
+    instrument_agent_resource_id = 'DZWXL3',
+    instrument_agent_name = 'noaa_syst_ooicore',
     instrument_agent_packet_config = DataParticleType(),
 
     driver_startup_config = {}
@@ -83,32 +82,6 @@ InstrumentDriverTestCase.initialize(
 ###
 #   Driver constant definitions
 ###
-
-###############################################################################
-#                           DRIVER TEST MIXIN        		                  #
-#     Defines a set of constants and assert methods used for data particle    #
-#     verification 														      #
-#                                                                             #
-#  In python mixin classes are classes designed such that they wouldn't be    #
-#  able to stand on their own, but are inherited by other classes generally   #
-#  using multiple inheritance.                                                #
-#                                                                             #
-# This class defines a configuration structure for testing and common assert  #
-# methods for validating data particles.									  #
-###############################################################################
-class DriverTestMixinSub(DriverTestMixin):
-    def assertSampleDataParticle(self, data_particle):
-        '''
-        Verify a particle is a know particle to this driver and verify the particle is
-        correct
-        @param data_particle: Data particle of unkown type produced by the driver
-        '''
-        if (isinstance(data_particle, RawDataParticle)):
-            self.assert_particle_raw(data_particle)
-        else:
-            log.error("Unknown Particle Detected: %s" % data_particle)
-            self.assertFalse(True)
-
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -191,6 +164,13 @@ class DriverUnitTest(InstrumentDriverUnitTestCase):
 class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
+
+    """
+    DHE TEMPTEMPTEMP just to test connection to BOTPT
+    """
+    def test_connection(self):
+        self.assert_initialize_driver()
+        
 
 
 
