@@ -56,6 +56,7 @@ from interface.objects import AgentCommand
 
 from mi.idk.util import convert_enum_to_dict
 from mi.idk.comm_config import CommConfig
+from mi.idk.comm_config import ConfigTypes
 from mi.idk.config import Config
 from mi.idk.common import Singleton
 from mi.idk.instrument_agent_client import InstrumentAgentClient
@@ -941,7 +942,6 @@ class InstrumentDriverTestCase(MiIntTestCase):
 
         config = {
             'device_addr' : comm_config.device_addr,
-            'device_port' : comm_config.device_port,
 
             'command_port': comm_config.command_port,
             'data_port': comm_config.data_port,
@@ -951,6 +951,13 @@ class InstrumentDriverTestCase(MiIntTestCase):
             'process_type': PortAgentProcessType.UNIX,
             'log_level': 5,
             }
+
+        if ConfigTypes.BOTPT == comm_config.config_type:
+            config['instrument_type'] = ConfigTypes.BOTPT
+            config['device_tx_port'] = comm_config.device_tx_port
+            config['device_rx_port'] = comm_config.device_rx_port
+        else:
+            config['device_port'] = comm_config.device_port
 
         if(comm_config.sniffer_prefix): config['telnet_sniffer_prefix'] = comm_config.sniffer_prefix
         if(comm_config.sniffer_suffix): config['telnet_sniffer_suffix'] = comm_config.sniffer_suffix
