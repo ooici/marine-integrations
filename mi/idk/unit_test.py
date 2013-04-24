@@ -9,6 +9,7 @@
 from mock import patch
 from pyon.core.bootstrap import CFG
 
+import subprocess
 import re
 import os
 import time
@@ -89,7 +90,7 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 from ion.agents.port.port_agent_process import PortAgentProcess
 
 from pyon.core.exception import Conflict
-from pyon.core.exception import ResourceError
+from pyon.core.exception import ResourceError, BadRequest
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 from ooi.logging import log
@@ -97,8 +98,8 @@ from ooi.logging import log
 # Do not remove this import.  It is for package building.
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
-AGENT_DISCOVER_TIMEOUT=120
-GO_ACTIVE_TIMEOUT=180
+AGENT_DISCOVER_TIMEOUT=180
+GO_ACTIVE_TIMEOUT=400
 GET_TIMEOUT=30
 SET_TIMEOUT=90
 EXECUTE_TIMEOUT=30
@@ -277,6 +278,7 @@ class DriverTestMixin(MiUnitTest):
         @param data_particle: data particle
         @return: dictionary representation of a data particle
         """
+        log.debug("*** data particle: %s", data_particle)
         if (isinstance(data_particle, DataParticle)):
             sample_dict = json.loads(data_particle.generate())
         elif (isinstance(data_particle, str)):
@@ -341,6 +343,7 @@ class DriverTestMixin(MiUnitTest):
         @param stream_name: version 1 data particle
         @param require_instrument_timestamp: should we verify the instrument timestamp exists
         """
+        log.debug("*** data particle to convert from header: %s", data_particle)
         sample_dict = self.convert_data_particle_to_dict(data_particle)
         log.debug("SAMPLEDICT: %s" % sample_dict)
 
@@ -372,6 +375,7 @@ class DriverTestMixin(MiUnitTest):
         @param parameter_dict: dict with parameter names and types
         @param verify_values: bool should ve verify parameter values
         """
+        log.debug("*** data particle to convert from parameters: %s", data_particle)
         sample_dict = self.get_data_particle_values_as_dict(data_particle)
         self.assert_parameters(sample_dict,param_dict,verify_values)
 
@@ -993,7 +997,6 @@ class InstrumentDriverTestCase(MiIntTestCase):
         if self.port_agent:
             log.debug("found port agent, now stop it")
             self.port_agent.stop()
-
         self.port_agent = None
 
     
@@ -1697,6 +1700,24 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         # If we have made it this far then no exception was raised
         self.fail("No exception raised")
+    
+    def assert_ion_exception(self, ex, call, *args):
+        """
+        Take a generic ION exception that comes in as a BadRequest, parse it
+        and verify that it is the correct type of exception. This gets around
+        the hiding of exceptions that the ION system does.
+        @param ex The exception we are expecting
+        @param call The method to call
+        @param args The args to add to that call to get it to go
+        """
+        try:
+            call(args)
+        except BadRequest as badreq:
+            if(self._driver_exception_match(badreq, ex)):
+                log.debug("Expected exception raised: %s", e)
+                return            
+        except e:
+            self.fail("Call returned bad exception: %s" % e)
 
     def _driver_exception_match(self, ion_exception, expected_exception, error_regex=None):
         """
@@ -1867,6 +1888,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         @param autosample_command: command to put us in autosample mode
         @param delay: time to wait before the event is triggered in seconds
         """
+        log.debug("*** asserting scheduled job: %s", job_name)
         # Build a scheduled job for 'delay' seconds from now
         dt = datetime.datetime.now() + datetime.timedelta(0,delay)
 
@@ -1876,7 +1898,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
                 DriverSchedulerConfigKey.DATE: "%s" % dt
             }
         }
-
+        log.debug("*** Scheduler_config: %s", scheduler_config)
         # get the current driver configuration
         config = self.driver_client.cmd_dvr('get_init_params')
 
@@ -1885,8 +1907,9 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             config = {}
         if(not config.get(DriverStartupConfigKey.SCHEDULER)):
             config[DriverStartupConfigKey.SCHEDULER] = {}
-
+        log.debug("*** config 1: %s", config)
         config[DriverStartupConfigKey.SCHEDULER][job_name] = scheduler_config
+        log.debug("*** config 2: %s", config)
 
         # Currently the only way to setup schedulers is via the startup config
         # mechanism.  We may need to expose scheduler specific capability in the
@@ -1896,11 +1919,11 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         # Walk the driver to command mode.
         self.assert_initialize_driver()
-
+        log.debug("*** initialized")
         # We explicitly call apply startup params because we don't know if the
         # driver does it for us.  It should, but it is tested in another test.
         self.driver_client.cmd_dvr('apply_startup_params')
-
+        log.debug("*** params applied")
         # Transition to autosample if command supplied
         if(autosample_command):
             self.assert_driver_command(autosample_command)
@@ -1908,11 +1931,12 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         # Ensure we have at least 5 seconds before the event should fire
         safe_time = datetime.datetime.now() + datetime.timedelta(0,5)
         self.assertGreaterEqual(dt, safe_time, msg="Trigger time already in the past. Increase your delay")
-
+        log.debug("*** sleeping...")
         time.sleep(2)
 
         # Now verify that the job is triggered and it does what we think it should
         if(assert_callback):
+            log.debug("Asserting callback now")
             assert_callback()
 
     ###
@@ -1988,7 +2012,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.container = self.instrument_agent_manager.container
 
-        log.debug("Packet Config: %s" % self.test_config.instrument_agent_packet_config)
+        log.debug("Packet Config: %s", self.test_config.instrument_agent_packet_config)
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.instrument_agent_packet_config,
         )
@@ -2216,7 +2240,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         
         expected_agent_cmd = capabilities.get(AgentCapabilityType.AGENT_COMMAND)
         expected_agent_cmd.sort()
-        expected_agent_param = capabilities.get(AgentCapabilityType.AGENT_PARAMETER)
+        expected_agent_param = self._common_agent_parameters()
+        #expected_agent_param = capabilities.get(AgentCapabilityType.AGENT_PARAMETER)
         expected_agent_param.sort()
         expected_res_cmd = capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)
         expected_res_cmd.sort()
@@ -2230,15 +2255,15 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         agt_cmds, agt_pars, res_cmds, res_iface, res_pars = sort_capabilities(retval)
 
         log.debug("Agent Commands: %s " % str(agt_cmds))
-        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.AGENT_COMMAND))
+        log.debug("Compared to: %s", expected_agent_cmd)
         log.debug("Agent Parameters: %s " % str(agt_pars))
-        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.AGENT_PARAMETER))
+        log.debug("Compared to: %s", expected_agent_param)
         log.debug("Resource Commands: %s " % str(res_cmds))
-        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.RESOURCE_COMMAND))
+        log.debug("Compared to: %s", expected_res_cmd)
         log.debug("Resource Interface: %s " % str(res_iface))
-        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE))
+        log.debug("Compared to: %s", expected_res_int)
         log.debug("Resource Parameter: %s " % str(res_pars))
-        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER))
+        log.debug("Compared to: %s", expected_res_param)
         
         # Compare to what we are supposed to have
         self.assertEqual(expected_agent_cmd, agt_cmds)
@@ -2365,6 +2390,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             self.assert_agent_command(ResourceAgentEvent.RESET)
             self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
 
+        state = self.instrument_agent_client.get_agent_state()
+        log.debug("Reset State: %s" % state)
+
     def assert_get_parameter(self, name, value):
         '''
         verify that parameters are got correctly.  Assumes we are in command mode.
@@ -2404,14 +2432,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # Call get and verify the value is correct.
         #result = self.instrument_agent_client.get_resource(getParams)
         #self.assertEqual(result[name], value)
-
-    def assert_agent_state(self, expected_state):
-        '''
-        Verify that the agent state is what we expect
-        @param expected_state: the state we think the agent is in
-        '''
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, expected_state)
 
     def assert_stop_autosample(self, timeout=GO_ACTIVE_TIMEOUT):
         '''
@@ -2456,10 +2476,12 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             log.info("Sent INITIALIZE; IA state = %s", state)
     
             res_state = self.instrument_agent_client.get_resource_state()
+            log.debug("*** GOT RESOURCE STATE: %s", res_state)
             self.assertEqual(res_state, DriverConnectionState.UNCONFIGURED)
     
             cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
             retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
+            log.debug("*** SENT GO_ACTIVE, retval=%s", retval)
             state = self.instrument_agent_client.get_agent_state()
             log.info("Sent GO_ACTIVE; IA state = %s", state)
 
@@ -3145,3 +3167,5 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
 
             state = self.instrument_agent_client.get_agent_state()
             self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+    
+    

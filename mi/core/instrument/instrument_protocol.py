@@ -864,11 +864,14 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             if self.get_current_state() == DriverProtocolState.DIRECT_ACCESS:
                 self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
 
+            log.debug("*** adding to buffer: %s", data)
             self.add_to_buffer(data)
 
+            log.debug("*** adding chunk: %s", data)
             self._chunker.add_chunk(data, timestamp)
-
+            log.debug("*** getting next data")
             (timestamp, chunk) = self._chunker.get_next_data()
+            log.debug("*** got chunk: %s", chunk)
             while(chunk):
                 self._got_chunk(chunk, timestamp)
                 (timestamp, chunk) = self._chunker.get_next_data()
