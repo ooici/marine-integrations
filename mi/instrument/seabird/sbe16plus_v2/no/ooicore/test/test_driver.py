@@ -154,6 +154,14 @@ VersionSpecificStructures.VALID_DCAL_STRAIN ='SBE 16plus V 2.5  SERIAL NO. 6841 
 VersionSpecificStructures.VALID_GETHD_RESPONSE =  "" + \
 "<HardwareData DeviceType = 'SBE16plus' SerialNumber = '01607231'>" + NEWLINE + \
 "   <Manufacturer>Sea-Bird Electronics, Inc.</Manufacturer>" + NEWLINE + \
+"   <FirmwareVersion>2.5.2</FirmwareVersion>" + NEWLINE + \
+"   <FirmwareDate>12 Mar 2013 11:50</FirmwareDate>" + NEWLINE + \
+"   <CommandSetVersion>2.3</CommandSetVersion>" + NEWLINE + \
+"   <PCBAssembly PCBSerialNum = '49577' AssemblyNum = '41054H'/>" + NEWLINE + \
+"   <PCBAssembly PCBSerialNum = '46750' AssemblyNum = '41580B'/>" + NEWLINE + \
+"   <PCBAssembly PCBSerialNum = '49374' AssemblyNum = '41606'/>" + NEWLINE + \
+"   <PCBAssembly PCBSerialNum = '38071' AssemblyNum = '41057A'/>" + NEWLINE + \
+"   <MfgDate>29-Oct-2012</MfgDate>" + NEWLINE + \
 "   <InternalSensors>" + NEWLINE + \
 "      <Sensor id = 'Main Temperature'>" + NEWLINE + \
 "         <type>temperature0</type>" + NEWLINE + \
@@ -168,16 +176,67 @@ VersionSpecificStructures.VALID_GETHD_RESPONSE =  "" + \
 "         <SerialNumber>125270</SerialNumber>" + NEWLINE + \
 "      </Sensor>" + NEWLINE + \
 "   </InternalSensors>" + NEWLINE + \
-    '</HardwareData>' + NEWLINE
+"   <ExternalSensors>" + NEWLINE + \
+"      <Sensor id = 'volt 0'>" + NEWLINE + \
+"         <type>not assigned</type>" + NEWLINE + \
+"         <SerialNumber>not assigned</SerialNumber>" + NEWLINE + \
+"      </Sensor>" + NEWLINE + \
+"      <Sensor id = 'volt 1'>" + NEWLINE + \
+"         <type>not assigned</type>" + NEWLINE + \
+"         <SerialNumber>not assigned</SerialNumber>" + NEWLINE + \
+"      </Sensor>" + NEWLINE + \
+"      <Sensor id = 'volt 2'>" + NEWLINE + \
+"         <type>not assigned</type>" + NEWLINE + \
+"         <SerialNumber>not assigned</SerialNumber>" + NEWLINE + \
+"      </Sensor>" + NEWLINE + \
+"      <Sensor id = 'volt 3'>" + NEWLINE + \
+"         <type>not assigned</type>" + NEWLINE + \
+"         <SerialNumber>not assigned</SerialNumber>" + NEWLINE + \
+"      </Sensor>" + NEWLINE + \
+"      <Sensor id = 'volt 4'>" + NEWLINE + \
+"         <type>not assigned</type>" + NEWLINE + \
+"         <SerialNumber>not assigned</SerialNumber>" + NEWLINE + \
+"      </Sensor>" + NEWLINE + \
+"      <Sensor id = 'volt 5'>" + NEWLINE + \
+"         <type>not assigned</type>" + NEWLINE + \
+"         <SerialNumber>not assigned</SerialNumber>" + NEWLINE + \
+"      </Sensor>" + NEWLINE + \
+"      <Sensor id = 'serial'>" + NEWLINE + \
+"         <type>not assigned</type>" + NEWLINE + \
+"         <SerialNumber>not assigned</SerialNumber>" + NEWLINE + \
+"      </Sensor>" + NEWLINE + \
+"   </ExternalSensors>" + NEWLINE + \
+"</HardwareData>" + NEWLINE
 
 SeaBird16plusMixin._hardware_parameters = {
         SBE16HardwareDataParticleKey.DEVICE_TYPE: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: 'SBE16plus', SeaBird16plusMixin.REQUIRED: True},
         SBE16HardwareDataParticleKey.SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: '01607231', SeaBird16plusMixin.REQUIRED: True},
         SBE16HardwareDataParticleKey.MANUFACTURER: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: 'Sea-Bird Electronics, Inc.', SeaBird16plusMixin.REQUIRED: True},
+        SBE16HardwareDataParticleKey.FIRMWARE_VERSION: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: '2.5.2', SeaBird16plusMixin.REQUIRED: True},
+        SBE16HardwareDataParticleKey.FIRMWARE_DATE: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: '12 Mar 2013 11:50', SeaBird16plusMixin.REQUIRED: True},
+        SBE16HardwareDataParticleKey.COMMAND_SET_VERSION: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: '2.3', SeaBird16plusMixin.REQUIRED: True},
+        SBE16HardwareDataParticleKey.MANUFATURE_DATE: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: '29-Oct-2012', SeaBird16plusMixin.REQUIRED: True},
+        SBE16HardwareDataParticleKey.PCB_ASSEMBLY: {SeaBird16plusMixin.TYPE: list, 
+                                                    SeaBird16plusMixin.VALUE: [{"PCBSerialNum" : '49577', "AssemblyNum" : '41054H'},
+                                                                               {"PCBSerialNum" : '46750', "AssemblyNum" : '41580B'},
+                                                                               {"PCBSerialNum" : '49374', "AssemblyNum" : '41606'},
+                                                                               {"PCBSerialNum" : '38071', "AssemblyNum" : '41057A'},
+                                                                               ], 
+                                                    SeaBird16plusMixin.REQUIRED: True},
         SBE16HardwareDataParticleKey.INTERNAL_SENSORS: {SeaBird16plusMixin.TYPE: list, 
                                                         SeaBird16plusMixin.VALUE: [{"Sensor" : 'Main Temperature', "type" : 'temperature0', "SerialNumber" :'01607231'},
                                                                                    {"Sensor" : 'Main Conductivity', "type" : 'conductivity-0', "SerialNumber" :'01607231'},
                                                                                    {"Sensor" : 'Main Pressure', "type" : 'quartzTC-0', "SerialNumber" :'125270'},
+                                                                                   ], 
+                                                        SeaBird16plusMixin.REQUIRED: True},
+        SBE16HardwareDataParticleKey.EXTERNAL_SENSORS: {SeaBird16plusMixin.TYPE: list, 
+                                                        SeaBird16plusMixin.VALUE: [{"Sensor" : 'volt 0', "type" : 'not assigned', "SerialNumber" :'not assigned'},
+                                                                                   {"Sensor" : 'volt 1', "type" : 'not assigned', "SerialNumber" :'not assigned'},
+                                                                                   {"Sensor" : 'volt 2', "type" : 'not assigned', "SerialNumber" :'not assigned'},
+                                                                                   {"Sensor" : 'volt 3', "type" : 'not assigned', "SerialNumber" :'not assigned'},
+                                                                                   {"Sensor" : 'volt 4', "type" : 'not assigned', "SerialNumber" :'not assigned'},
+                                                                                   {"Sensor" : 'volt 5', "type" : 'not assigned', "SerialNumber" :'not assigned'},
+                                                                                   {"Sensor" : 'serial', "type" : 'not assigned', "SerialNumber" :'not assigned'},
                                                                                    ], 
                                                         SeaBird16plusMixin.REQUIRED: True},
     }

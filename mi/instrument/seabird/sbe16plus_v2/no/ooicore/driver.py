@@ -39,7 +39,13 @@ class SBE16HardwareDataParticleKey(BaseEnum):
     DEVICE_TYPE = "DeviceType"
     SERIAL_NUMBER = "SerialNumber"
     MANUFACTURER = "Manufacturer"
+    FIRMWARE_VERSION = "FirmwareVersion"
+    FIRMWARE_DATE = "FirmwareDate"
+    COMMAND_SET_VERSION = "CommandSetVersion"
+    PCB_ASSEMBLY = "PCBAssembly"
+    MANUFATURE_DATE = "MfgDate"
     INTERNAL_SENSORS = 'InternalSensors'
+    EXTERNAL_SENSORS = 'ExternalSensors'
 
 class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
     
@@ -83,6 +89,8 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
         SENSOR = "Sensor"
         TYPE = "type"
         ID = "id"
+        PCB_SERIAL_NUMBER = "PCBSerialNum"
+        ASSEMBLY_NUMBER = "AssemblyNum"
         
         match = SBE16HardwareDataParticle.regex_compiled().match(self.raw_data)
         
@@ -107,7 +115,22 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
                                   self.raw_data)
         
         manufacturer = self._extract_element_value(root, SBE16HardwareDataParticleKey.MANUFACTURER)
-        log.debug("manufacturer = %s" %manufacturer)
+        firmware_version = self._extract_element_value(root, SBE16HardwareDataParticleKey.FIRMWARE_VERSION)
+        firmware_date = self._extract_element_value(root, SBE16HardwareDataParticleKey.FIRMWARE_DATE)
+        command_set_version = self._extract_element_value(root, SBE16HardwareDataParticleKey.COMMAND_SET_VERSION)
+        manufacture_date = self._extract_element_value(root, SBE16HardwareDataParticleKey.MANUFATURE_DATE)
+        
+        pcb_assembly_elements = self._extract_elements(root, SBE16HardwareDataParticleKey.PCB_ASSEMBLY)
+        pcb_assembly = []
+        for assembly in pcb_assembly_elements:
+            for attrName, attrValue in assembly.attributes.items():
+                log.debug ("pcb assembly attribute %s = %s" % (attrName, attrValue))
+                if attrName == PCB_SERIAL_NUMBER:
+                    pcb_serial_number = attrValue
+                if attrName == ASSEMBLY_NUMBER:
+                    assembly_number = attrValue
+            pcb_assembly.append({PCB_SERIAL_NUMBER: pcb_serial_number,
+                                 ASSEMBLY_NUMBER: assembly_number})
         
         internal_sensors_element = self._extract_elements(root, SBE16HardwareDataParticleKey.INTERNAL_SENSORS)[0]
         sensors = self._extract_elements(internal_sensors_element, SENSOR)
@@ -123,12 +146,20 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
                                      TYPE: sensor_type,
                                      SBE16HardwareDataParticleKey.SERIAL_NUMBER: sensor_serial_number})
 
-        """
-        external_sensors = internal_sensors.nextSibling
-        if external_sensors.nodeName != 'ExternalSensors':
-            raise SampleException("No external sensors in hardware data: [%s]" %
-                                  self.raw_data)
-        """
+        external_sensors_element = self._extract_elements(root, SBE16HardwareDataParticleKey.EXTERNAL_SENSORS)[0]
+        sensors = self._extract_elements(external_sensors_element, SENSOR)
+        external_sensors = []
+        for sensor in sensors:
+            for attrName, attrValue in sensor.attributes.items():
+                log.debug ("sensor attribute %s = %s" % (attrName, attrValue))
+                if attrName == ID:
+                    sensor_id = attrValue
+            sensor_type = self._extract_element_value(sensor, TYPE)
+            sensor_serial_number = self._extract_element_value(sensor, SBE16HardwareDataParticleKey.SERIAL_NUMBER)
+            external_sensors.append({SENSOR: sensor_id,
+                                     TYPE: sensor_type,
+                                     SBE16HardwareDataParticleKey.SERIAL_NUMBER: sensor_serial_number})
+
         
         result = [{DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.DEVICE_TYPE,
                    DataParticleKey.VALUE: device_type},
@@ -136,8 +167,20 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
                    DataParticleKey.VALUE: serial_number},
                   {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.MANUFACTURER,
                    DataParticleKey.VALUE: manufacturer},
+                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.FIRMWARE_VERSION,
+                   DataParticleKey.VALUE: firmware_version},
+                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.FIRMWARE_DATE,
+                   DataParticleKey.VALUE: firmware_date},
+                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.COMMAND_SET_VERSION,
+                   DataParticleKey.VALUE: command_set_version},
+                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.MANUFATURE_DATE,
+                   DataParticleKey.VALUE: manufacture_date},
+                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.PCB_ASSEMBLY,
+                   DataParticleKey.VALUE: pcb_assembly},
                   {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.INTERNAL_SENSORS,
                    DataParticleKey.VALUE: internal_sensors},
+                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.EXTERNAL_SENSORS,
+                   DataParticleKey.VALUE: external_sensors},
                   ]
         
         return result
