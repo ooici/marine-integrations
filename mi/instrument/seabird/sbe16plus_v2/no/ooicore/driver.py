@@ -101,18 +101,8 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
         dom = parseString(self.raw_data)
         root = dom.documentElement
         log.debug("root.tagName = %s" %root.tagName)
-        for attrName, attrValue in root.attributes.items():
-            log.debug ("root attribute %s = %s" % (attrName, attrValue))
-            if attrName == SBE16HardwareDataParticleKey.SERIAL_NUMBER:
-                serial_number = attrValue
-            if attrName == SBE16HardwareDataParticleKey.DEVICE_TYPE:
-                device_type = attrValue
-        if not 'serial_number' in locals():
-            raise SampleException("No serial number in hardware data: [%s]" %
-                                  self.raw_data)
-        if not 'device_type' in locals():
-            raise SampleException("No device type in hardware data: [%s]" %
-                                  self.raw_data)
+        serial_number = root.getAttribute(SBE16HardwareDataParticleKey.SERIAL_NUMBER)
+        device_type = root.getAttribute(SBE16HardwareDataParticleKey.DEVICE_TYPE)
         
         manufacturer = self._extract_element_value(root, SBE16HardwareDataParticleKey.MANUFACTURER)
         firmware_version = self._extract_element_value(root, SBE16HardwareDataParticleKey.FIRMWARE_VERSION)
@@ -123,12 +113,8 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
         pcb_assembly_elements = self._extract_elements(root, SBE16HardwareDataParticleKey.PCB_ASSEMBLY)
         pcb_assembly = []
         for assembly in pcb_assembly_elements:
-            for attrName, attrValue in assembly.attributes.items():
-                log.debug ("pcb assembly attribute %s = %s" % (attrName, attrValue))
-                if attrName == PCB_SERIAL_NUMBER:
-                    pcb_serial_number = attrValue
-                if attrName == ASSEMBLY_NUMBER:
-                    assembly_number = attrValue
+            pcb_serial_number = assembly.getAttribute(PCB_SERIAL_NUMBER)
+            assembly_number = assembly.getAttribute(ASSEMBLY_NUMBER)
             pcb_assembly.append({PCB_SERIAL_NUMBER: pcb_serial_number,
                                  ASSEMBLY_NUMBER: assembly_number})
         
@@ -136,10 +122,7 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
         sensors = self._extract_elements(internal_sensors_element, SENSOR)
         internal_sensors = []
         for sensor in sensors:
-            for attrName, attrValue in sensor.attributes.items():
-                log.debug ("sensor attribute %s = %s" % (attrName, attrValue))
-                if attrName == ID:
-                    sensor_id = attrValue
+            sensor_id = sensor.getAttribute(ID)
             sensor_type = self._extract_element_value(sensor, TYPE)
             sensor_serial_number = self._extract_element_value(sensor, SBE16HardwareDataParticleKey.SERIAL_NUMBER)
             internal_sensors.append({SENSOR: sensor_id,
@@ -150,10 +133,7 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
         sensors = self._extract_elements(external_sensors_element, SENSOR)
         external_sensors = []
         for sensor in sensors:
-            for attrName, attrValue in sensor.attributes.items():
-                log.debug ("sensor attribute %s = %s" % (attrName, attrValue))
-                if attrName == ID:
-                    sensor_id = attrValue
+            sensor_id = sensor.getAttribute(ID)
             sensor_type = self._extract_element_value(sensor, TYPE)
             sensor_serial_number = self._extract_element_value(sensor, SBE16HardwareDataParticleKey.SERIAL_NUMBER)
             external_sensors.append({SENSOR: sensor_id,
