@@ -1,0 +1,8 @@
+driver_metadata:
+  author: David Everett
+  driver_make: seabird
+  driver_model: sbe16plus_v2
+  driver_name: ooicore
+  email: daeverett@ucsd.edu
+  release_notes: SBE Driver
+  version: 0.0.5
