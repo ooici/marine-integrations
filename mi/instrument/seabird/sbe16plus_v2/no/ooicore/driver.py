@@ -35,17 +35,17 @@ class DataParticleType(sbe16plus_driver.DataParticleType):
 ###############################################################################
 
 class SBE16HardwareDataParticleKey(BaseEnum):
-    # do not change these strings, they are also used to parse the instrument's XML response
-    DEVICE_TYPE = "DeviceType"
-    SERIAL_NUMBER = "SerialNumber"
-    MANUFACTURER = "Manufacturer"
-    FIRMWARE_VERSION = "FirmwareVersion"
-    FIRMWARE_DATE = "FirmwareDate"
-    COMMAND_SET_VERSION = "CommandSetVersion"
-    PCB_ASSEMBLY = "PCBAssembly"
-    MANUFATURE_DATE = "MfgDate"
-    INTERNAL_SENSORS = 'InternalSensors'
-    EXTERNAL_SENSORS = 'ExternalSensors'
+    SERIAL_NUMBER = "serial_number"
+    FIRMWARE_VERSION = "firmware_version"
+    FIRMWARE_DATE = "firmware_date"
+    COMMAND_SET_VERSION = "command_set_version"
+    PCB_SERIAL_NUMBER = "pcb_serial_number"
+    ASSEMBLY_NUMBER = "assembly_number"
+    MANUFATURE_DATE = "manufacture_date"
+    TEMPERATURE_SENSOR_SERIAL_NUMBER = 'temperature_sensor_serial_number'
+    CONDUCTIVITY_SENSOR_SERIAL_NUMBER = 'conductivity_sensor_serial_number'
+    PRESSURE_SENSOR_TYPE = 'pressure_sensor_type'
+    QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER = 'quartz_pressure_sensor_serial_number'
 
 class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
     
@@ -91,9 +91,19 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
         ID = "id"
         PCB_SERIAL_NUMBER = "PCBSerialNum"
         ASSEMBLY_NUMBER = "AssemblyNum"
+        SERIAL_NUMBER = "SerialNumber"
+        FIRMWARE_VERSION = "FirmwareVersion"
+        FIRMWARE_DATE = "FirmwareDate"
+        COMMAND_SET_VERSION = "CommandSetVersion"
+        PCB_ASSEMBLY = "PCBAssembly"
+        MANUFATURE_DATE = "MfgDate"
+        INTERNAL_SENSORS = "InternalSensors"
+        TEMPERATURE_SENSOR_ID = "Main Temperature"
+        CONDUCTIVITY_SENSOR_ID = "Main Conductivity"
+        PRESSURE_SENSOR_ID = "Main Pressure"
         
+        # check to make sure there is a correct match before continuing
         match = SBE16HardwareDataParticle.regex_compiled().match(self.raw_data)
-        
         if not match:
             raise SampleException("No regex match of parsed hardware data: [%s]" %
                                   self.raw_data)
@@ -101,52 +111,34 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
         dom = parseString(self.raw_data)
         root = dom.documentElement
         log.debug("root.tagName = %s" %root.tagName)
-        serial_number = root.getAttribute(SBE16HardwareDataParticleKey.SERIAL_NUMBER)
-        device_type = root.getAttribute(SBE16HardwareDataParticleKey.DEVICE_TYPE)
+        serial_number = root.getAttribute(SERIAL_NUMBER)
         
-        manufacturer = self._extract_element_value(root, SBE16HardwareDataParticleKey.MANUFACTURER)
-        firmware_version = self._extract_element_value(root, SBE16HardwareDataParticleKey.FIRMWARE_VERSION)
-        firmware_date = self._extract_element_value(root, SBE16HardwareDataParticleKey.FIRMWARE_DATE)
-        command_set_version = self._extract_element_value(root, SBE16HardwareDataParticleKey.COMMAND_SET_VERSION)
-        manufacture_date = self._extract_element_value(root, SBE16HardwareDataParticleKey.MANUFATURE_DATE)
+        firmware_version = self._extract_element_value(root, FIRMWARE_VERSION)
+        firmware_date = self._extract_element_value(root, FIRMWARE_DATE)
+        command_set_version = self._extract_element_value(root, COMMAND_SET_VERSION)
+        manufacture_date = self._extract_element_value(root, MANUFATURE_DATE)
         
-        pcb_assembly_elements = self._extract_elements(root, SBE16HardwareDataParticleKey.PCB_ASSEMBLY)
+        pcb_assembly_elements = self._extract_elements(root, PCB_ASSEMBLY)
+        pcb_serial_number = []
         pcb_assembly = []
         for assembly in pcb_assembly_elements:
-            pcb_serial_number = assembly.getAttribute(PCB_SERIAL_NUMBER)
-            assembly_number = assembly.getAttribute(ASSEMBLY_NUMBER)
-            pcb_assembly.append({PCB_SERIAL_NUMBER: pcb_serial_number,
-                                 ASSEMBLY_NUMBER: assembly_number})
+            pcb_serial_number.append(assembly.getAttribute(PCB_SERIAL_NUMBER))
+            pcb_assembly.append(assembly.getAttribute(ASSEMBLY_NUMBER))
         
-        internal_sensors_element = self._extract_elements(root, SBE16HardwareDataParticleKey.INTERNAL_SENSORS)[0]
+        internal_sensors_element = self._extract_elements(root, INTERNAL_SENSORS)[0]
         sensors = self._extract_elements(internal_sensors_element, SENSOR)
-        internal_sensors = []
         for sensor in sensors:
             sensor_id = sensor.getAttribute(ID)
-            sensor_type = self._extract_element_value(sensor, TYPE)
-            sensor_serial_number = self._extract_element_value(sensor, SBE16HardwareDataParticleKey.SERIAL_NUMBER)
-            internal_sensors.append({SENSOR: sensor_id,
-                                     TYPE: sensor_type,
-                                     SBE16HardwareDataParticleKey.SERIAL_NUMBER: sensor_serial_number})
+            if sensor_id == TEMPERATURE_SENSOR_ID:
+                temperature_sensor_serial_number = self._extract_element_value(sensor, SERIAL_NUMBER)
+            elif sensor_id == CONDUCTIVITY_SENSOR_ID:
+                conductivity_sensor_serial_number = self._extract_element_value(sensor, SERIAL_NUMBER)
+            elif sensor_id == PRESSURE_SENSOR_ID:
+                pressure_sensor_serial_number = self._extract_element_value(sensor, SERIAL_NUMBER)
+                pressure_sensor_type = self._extract_element_value(sensor, TYPE)                
 
-        external_sensors_element = self._extract_elements(root, SBE16HardwareDataParticleKey.EXTERNAL_SENSORS)[0]
-        sensors = self._extract_elements(external_sensors_element, SENSOR)
-        external_sensors = []
-        for sensor in sensors:
-            sensor_id = sensor.getAttribute(ID)
-            sensor_type = self._extract_element_value(sensor, TYPE)
-            sensor_serial_number = self._extract_element_value(sensor, SBE16HardwareDataParticleKey.SERIAL_NUMBER)
-            external_sensors.append({SENSOR: sensor_id,
-                                     TYPE: sensor_type,
-                                     SBE16HardwareDataParticleKey.SERIAL_NUMBER: sensor_serial_number})
-
-        
-        result = [{DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.DEVICE_TYPE,
-                   DataParticleKey.VALUE: device_type},
-                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.SERIAL_NUMBER,
+        result = [{DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.SERIAL_NUMBER,
                    DataParticleKey.VALUE: serial_number},
-                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.MANUFACTURER,
-                   DataParticleKey.VALUE: manufacturer},
                   {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.FIRMWARE_VERSION,
                    DataParticleKey.VALUE: firmware_version},
                   {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.FIRMWARE_DATE,
@@ -155,12 +147,18 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
                    DataParticleKey.VALUE: command_set_version},
                   {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.MANUFATURE_DATE,
                    DataParticleKey.VALUE: manufacture_date},
-                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.PCB_ASSEMBLY,
+                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.PCB_SERIAL_NUMBER,
+                   DataParticleKey.VALUE: pcb_serial_number},
+                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.ASSEMBLY_NUMBER,
                    DataParticleKey.VALUE: pcb_assembly},
-                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.INTERNAL_SENSORS,
-                   DataParticleKey.VALUE: internal_sensors},
-                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.EXTERNAL_SENSORS,
-                   DataParticleKey.VALUE: external_sensors},
+                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.TEMPERATURE_SENSOR_SERIAL_NUMBER,
+                   DataParticleKey.VALUE: temperature_sensor_serial_number},
+                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.CONDUCTIVITY_SENSOR_SERIAL_NUMBER,
+                   DataParticleKey.VALUE: conductivity_sensor_serial_number},
+                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER,
+                   DataParticleKey.VALUE: pressure_sensor_serial_number},
+                  {DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.PRESSURE_SENSOR_TYPE,
+                   DataParticleKey.VALUE: pressure_sensor_type},
                   ]
         
         return result
