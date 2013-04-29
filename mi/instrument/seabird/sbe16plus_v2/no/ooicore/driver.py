@@ -175,21 +175,17 @@ class SBE16NoDataParticle(sbe16plus_driver.SBE16DataParticle):
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
 
-    Sample:
-       #03EC1F0A738A81736187100004000B2CFDC618B859BE
-
     Format:
-       #ttttttccccccppppppvvvvvvvvvvvvssssssss
+       #ttttttccccccppppppvvvvvvvvvvvvoooooossssssss
 
-       Temperature = tttttt = 0A5371 (676721 decimal); temperature A/D counts = 676721
-       Conductivity = 1BC722 (1820450 decimal); conductivity frequency = 1820450 / 256 = 7111.133 Hz
-       Internally mounted strain gauge pressure = pppppp = 0C14C1 (791745 decimal);
-           Strain gauge pressure A/D counts = 791745
-       Internally mounted strain gauge temperature compensation = vvvv = 7D82 (32,130 decimal);
-           Strain gauge temperature = 32,130 / 13,107 = 2.4514 volts
-       First external voltage = vvvv = 0305 (773 decimal); voltage = 773 / 13,107 = 0.0590 volts
-       Second external voltage = vvvv = 0594 (1428 decimal); voltage = 1428 / 13,107 = 0.1089 volts
-       Time = ssssssss = 0EC4270B (247,736,075 decimal); seconds since January 1, 2000 = 247,736,075
+       Temperature = tttttt 
+       Conductivity = cccccc 
+       quartz pressure = pppppp
+       quartz pressure temperature compensation = vvvv 
+       First external voltage = vvvv
+       Second external voltage = vvvv
+       Oxygen = oooooo
+       Time = ssssssss 
     """
     _data_particle_type = DataParticleType.CTD_PARSED
 
@@ -199,7 +195,7 @@ class SBE16NoDataParticle(sbe16plus_driver.SBE16DataParticle):
         Regular expression to match a sample pattern
         @return: regex string
         """
-        #ttttttccccccppppppvvvvvvvvoooooossssssss
+        #ttttttccccccppppppvvvvvvvvvvvvoooooossssssss
         pattern = r'#? *' # patter may or may not start with a '
         pattern += r'[0-9A-F]{22}' # temperature, conductivity, pressure, pressure temp
         pattern += r'([0-9A-F]{4})' # volt0, calibrated phase
