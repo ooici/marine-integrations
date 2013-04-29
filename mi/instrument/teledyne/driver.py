@@ -82,7 +82,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         prompt = self._wakeup(timeout=timeout, delay=delay)
         str_val = get_timestamp_delayed(time_format)
         reply = self._do_cmd_direct(date_time_param + str_val)
-
         time.sleep(1)
         reply = self._get_response(TIMEOUT)
 

@@ -845,8 +845,6 @@ class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
     RE28 = re.compile(r' +([0-9a-zA-Z\- ]+)')
 
     def _build_parsed_values(self):
-        """
-        """
         # Initialize
         matches = {}
 
@@ -954,14 +952,11 @@ class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
     RE36 = re.compile(r' +Null +. (\d+) +.')
 
     def _build_parsed_values(self):
-        log.error("ADCP_COMPASS_CALIBRATION_DataParticle 1")
-        """
-        """
         # Initialize
         matches = {}
-        lines = self.raw_data.split(NEWLINE) # .replace(self.EF_CHAR,'#')
+        lines = self.raw_data.split(NEWLINE)
         match = self.RE01.match(lines[1])
-        timestamp = match.group(1) # 9/14/2012  09:25:32
+        timestamp = match.group(1)
         matches[ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP] = time.mktime(time.strptime(timestamp, "%m/%d/%Y  %H:%M:%S"))
 
         match = self.RE04.match(lines[4])
@@ -986,7 +981,7 @@ class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
         matches[ADCP_COMPASS_CALIBRATION_KEY.ELECTRICAL_NULL] = float(match.group(1))
 
         match = self.RE21.match(lines[21])
-        timestamp = match.group(1) # 9/14/2012  09:25:32
+        timestamp = match.group(1)
         matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP] = time.mktime(time.strptime(timestamp, "%m/%d/%Y  %H:%M:%S"))
 
         match = self.RE22.match(lines[22])
