@@ -77,6 +77,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import InstrumentDriverPublicationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import DriverStartupConfigKey
@@ -177,8 +178,6 @@ class Mavs4Mixin(DriverTestMixin):
         InstrumentParameters.NOTE2 : 'New note2 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
         InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
         InstrumentParameters.MONITOR : 'y',
-        InstrumentParameters.LOG_DISPLAY_TIME : 'y',
-        InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : 'y',
         InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'HEX',
         InstrumentParameters.QUERY_MODE : 'n',
         InstrumentParameters.FREQUENCY : 2.0,
@@ -197,10 +196,8 @@ class Mavs4Mixin(DriverTestMixin):
         InstrumentParameters.NOTE2 : 'New note2 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
         InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
         InstrumentParameters.MONITOR : 'n',
-        InstrumentParameters.LOG_DISPLAY_TIME : 'n',
-        InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : 'n',
         InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'HEX',
-        InstrumentParameters.QUERY_MODE : 'y',
+        InstrumentParameters.QUERY_MODE : 'n',
         InstrumentParameters.FREQUENCY : 10.0,
         InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 20,
         InstrumentParameters.SAMPLE_PERIOD : 2.0,
@@ -251,6 +248,33 @@ class Mavs4Mixin(DriverTestMixin):
         Mavs4SampleDataParticleKey.PITCH: {TYPE: float, VALUE: 3.0},
         Mavs4SampleDataParticleKey.ROLL: {TYPE: float, VALUE: -5.1},
     }
+
+    STATUS_PARTICLE = {"driver_timestamp": 3575990156.890163,
+                       "pkt_format_id": "JSON_Data",
+                       "pkt_version": 1,
+                       "preferred_timestamp": "driver_timestamp",
+                       "quality_flag": "ok",
+                       "stream_name": "vel3d_b_engineering",
+                       "values": [{"value": 6, "value_id": "comapss_offset_1"},
+                                  {"value": 5, "value_id": "comapss_offset_0"},
+                                  {"value": 15, "value_id": "burst_interval_days"},
+                                  {"value": 12, "value_id": "tilt_roll_offset"},
+                                  {"value": 16, "value_id": "burst_interval_hours"},
+                                  {"value": 11, "value_id": "tilt_pitch_offset"},
+                                  {"value": 2, "value_id": "velocity_offset_path_b"},
+                                  {"value": 18, "value_id": "burst_interval_seconds"},
+                                  {"value": 19.0, "value_id": "si_conversion"},
+                                  {"value": 14, "value_id": "samples_per_burst"},
+                                  {"value": 4, "value_id": "velocity_offset_path_d"},
+                                  {"value": 17, "value_id": "burst_interval_minutes"},
+                                  {"value": 7, "value_id": "comapss_offset_2"},
+                                  {"value": 10.0, "value_id": "comapss_scale_factors_2"},
+                                  {"value": 8.0, "value_id": "comapss_scale_factors_0"},
+                                  {"value": 9.0, "value_id": "comapss_scale_factors_1"},
+                                  {"value": 13.0, "value_id": "sample_period"},
+                                  {"value": 3, "value_id": "velocity_offset_path_c"},
+                                  {"value": 1, "value_id": "velocity_offset_path_a"}]
+                      }
 
     SAMPLE = "12 20 2012 18 50 50.40 FDC5 FF70 FF1B FF8C 1.2 3.4 5.6 22.21 0.96 0.28 3.0 -5.1\n"
     
@@ -464,8 +488,8 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
 
         expected_parameters = []
         for key in self._driver_parameters.keys():
-            if self._driver_parameters[key][ParameterTestConfigKey.READONLY] == False:
-                expected_parameters.append(key)
+            #if self._driver_parameters[key][ParameterTestConfigKey.READONLY] == False:
+            expected_parameters.append(key)
         expected_parameters.sort()
         
         reported_parameters = sorted(driver.get_resource(InstrumentParameters.ALL))
@@ -487,6 +511,7 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
             ProtocolStates.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
             ProtocolStates.COMMAND: ['DRIVER_EVENT_ACQUIRE_STATUS',
                                      'DRIVER_EVENT_CLOCK_SYNC',
+                                     'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC',
                                      'DRIVER_EVENT_GET',
                                      'DRIVER_EVENT_SET',
                                      'DRIVER_EVENT_START_AUTOSAMPLE',
@@ -602,6 +627,12 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         for key in self.parameter_values.iterkeys():
             new_parameter_values[key] = self.parameter_values[key]
                
+        # try a read-only parameter
+        self.assert_ion_exception(InstrumentParameterException,
+                                  self.driver_client.cmd_dvr,
+                                  'set_resource',
+                                  [InstrumentParameters.LOG_DISPLAY_TIME])
+                                  
         # Set parameters and verify.
         self.assert_set_bulk(new_parameter_values)
         
@@ -838,6 +869,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         being set as a group.
         """
         self.assert_initialize_driver()
+        
         read_values = [
             InstrumentParameters.FREQUENCY,
             InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
@@ -913,48 +945,28 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        self.assert_initialize_driver()
-        self.assert_start_autosample()
-
-        self.assertTrue(False) # Need to add in real checks based on other tests
-        timeout = 240
-        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=timeout,
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=475,
                                     autosample_command=ProtocolEvent.START_AUTOSAMPLE)
 
-        # Set the clock to some time in the past
-        # Need an easy way to do this now that DATE_TIME is read only
-        #self.assert_set_clock(Parameter.DATE_TIME, time_override=SBE_EPOCH)
-        #self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
-
-        # Check the clock until it is set correctly (by a scheduled event)
-        #self.assert_clock_set(Parameter.DATE_TIME, sync_clock_cmd=ProtocolEvent.GET_CONFIGURATION, timeout=timeout, tolerance=10)
+        self.assert_current_state(ProtocolStates.AUTOSAMPLE)
 
     def test_scheduled_clock_sync(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        self.assert_initialize_driver()
         start_wall_time = time.gmtime()
-        log.debug("*** GOT TIME")
-        start_time = self.instrument_agent_client.get_resource([InstrumentParameters.SYS_CLOCK])
-        log.debug("*** GOT TIME FROM DEVICE: %s", start_time)
-        #start_time_offset = start_time - time.gmtime()
 
-        log.debug("*** ScheduledJob: %s, sync: %s", ScheduledJob.dict(), ScheduledJob.CLOCK_SYNC)
-        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC)
-        #self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=180)
+        #self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC)
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=475)
         self.assert_current_state(ProtocolStates.COMMAND)
 
         end_wall_time = time.gmtime()
-        end_time = self.instrument_agent_client.get_resource([InstrumentParameters.SYS_CLOCK])
-        #end_time_offset = end_time - time.gmtime()
+        result = self.driver_client.cmd_dvr('get_resource', [InstrumentParameters.SYS_CLOCK])
+        end_time = time.strptime(result[InstrumentParameters.SYS_CLOCK],
+                                 "%m/%d/%Y %H:%M:%S")
         
-        log.debug("*** start_time: %s, start_wall_time: %s, start_offset: %s",
-                  start_time, start_wall_time, start_time_offset)
-        log.debug("*** end_time: %s, end_wall_time: %s, end_offset: %s",
-                  end_time, end_wall_time, end_time_offset)
-        
-        self.assertNotEqual(end_time, start_time)
+        # this could be better...tricky to measure two varying variables
+        self.assert_(end_time > start_wall_time)
         self.assertNotEqual(end_time, end_wall_time) # gonna be off by at least a little
         #self.assertNotEqual(end_time_offset, start_time_offset)
 
@@ -1088,7 +1100,33 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, Mavs4Mixin):
 
     def test_sample_autosample(self):
         self.assert_enter_command_mode()
-        log.debug("*** IN COMMAND MODE")
         self.assert_start_autosample()
 
         self.assert_sample_async(self.assert_particle_sample, DataParticleType.SAMPLE, timeout=30, sample_count=1)
+
+###############################################################################
+#                             PUBLICATION TESTS                               #
+# Device specific pulication tests are for                                    #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('PUB', group='mi')
+class Testmavs4_PUB(InstrumentDriverPublicationTestCase):
+    
+    def test_granule_generation(self):
+        self.assert_initialize_driver()
+        time.sleep(2)
+
+        # Currently these tests only verify that the data granule is generated, but the values
+        # are not tested.  We will eventually need to replace log.debug with a better callback
+        # function that actually tests the granule.
+        self.assert_sample_async("raw data", log.debug, DataParticleType.RAW, timeout=10)
+
+        self.assert_sample_async(self.SAMPLE, log.debug,
+                                 DataParticleType.SAMPLE, timeout=10)
+
+        
+        self.assert_async_response_from_cmd(Capability.ACQUIRE_STATUS,
+                                            log.debug,
+                                            DataParticleType.STATUS,
+                                            timeout=450)
+    

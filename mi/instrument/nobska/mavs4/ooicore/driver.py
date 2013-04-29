@@ -388,11 +388,8 @@ class mavs4InstrumentDriver(SingleConnectionInstrumentDriver):
     def _handler_connected_discover(self, event, *args, **kwargs):
         # Redefine discover handler so that we can apply startup params after we discover. 
         # For this instrument the driver puts the instrument into command mode during discover.
-        log.debug("*** Handing discover from connected state, event: %s...", event)
         result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
-        log.debug("*** Applying startup params.")
         self.apply_startup_params()
-        log.debug("*** Applied startup params.")
         return result
 
     def _build_protocol(self):
@@ -1043,12 +1040,9 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                 instrument_configured = False
                 break
         if instrument_configured:
-            log.debug("*** configured already")
             return
         
-        log.debug("*** fetching startup parameters again")
         config = self.get_startup_config()
-        log.debug("*** got startup config: %s", config)
         self._handler_command_set(config, startup=True)
 
 
@@ -1077,7 +1071,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         @retval (next_state, result), (ProtocolStates.COMMAND or
         ProtocolStates.AUTOSAMPLE, None) if successful.
         """
-        log.debug("*** Discovering from unknown state...")
+        log.trace("Discovering from unknown state...")
         next_state = None
         result = None
         
@@ -1086,7 +1080,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # so that parameters can be initialized
         try:
             self._go_to_root_menu()
-            log.debug("*** got to root menu...")
         except InstrumentTimeoutException:
             # didn't get root menu prompt, so indicate that there is trouble
             # with the instrument
@@ -1096,7 +1089,6 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             next_state = ProtocolStates.COMMAND
             result = ResourceAgentState.IDLE
             
-        log.debug("*** returning next_state: %s, result: %s", next_state, result)
         return (next_state, result)
 
 
@@ -1207,9 +1199,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         query = (InstrumentParameters.QUERY_MODE in params)            
         burst = (InstrumentParameters.BURST_INTERVAL_DAYS in params)
             
-        log.debug("*** query: %s, burst: %s", query, burst)
         if (query):
-            log.debug("*** params query: %s",
+            log.trace("Parameters for query mode: %s",
                       params[InstrumentParameters.QUERY_MODE])
         
         if (query and burst) and (params[InstrumentParameters.QUERY_MODE] == YES):
@@ -1297,11 +1288,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             for (key, val) in params_to_set.iteritems():
                 if key in readonly:
                     raise InstrumentParameterException("Attempt to set read only parameter (%s)" % key)
-        log.debug("*** Params to set 1: %s", params_to_set)
         ordered_keys_to_set = self._check_deployment_params(params_to_set)
-        log.debug("*** Params to set 2: %s", params_to_set)              
         self._set_parameter_sub_parameters(params_to_set)
-        log.debug("*** Keys to set: %s", ordered_keys_to_set)
 
         #for (key, val) in params_to_set.iteritems():
         for key in ordered_keys_to_set:
@@ -1332,7 +1320,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         # If all params requested, retrieve config.
         if params == DriverParameter.ALL:
-            result = self._param_dict.get_config()
+            result = self._param_dict.get_all()
 
         # If not all params, confirm a list or tuple of params to retrieve.
         # Raise if not a list or tuple.
