@@ -884,7 +884,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         while (not found):
             for break_message in break_confirmation:
                 if break_message in self._linebuf:
-                    log.error("GOT A BREAK MATCH ==> " + str(break_message))
+                    log.debug("GOT A BREAK MATCH ==> " + str(break_message))
                     found = True
             if True != found:
                 self._send_break_cmd()
