@@ -164,6 +164,91 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
         return result
 
 
+class SBE16NoDataParticleKey(sbe16plus_driver.SBE16DataParticleKey):
+    OXYGEN = "oxygen"
+    OXY_CALPHASE = "oxy_calphase"
+    OXY_TEMP = "oxy_temp"
+    
+
+class SBE16NoDataParticle(sbe16plus_driver.SBE16DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+
+    Sample:
+       #03EC1F0A738A81736187100004000B2CFDC618B859BE
+
+    Format:
+       #ttttttccccccppppppvvvvvvvvvvvvssssssss
+
+       Temperature = tttttt = 0A5371 (676721 decimal); temperature A/D counts = 676721
+       Conductivity = 1BC722 (1820450 decimal); conductivity frequency = 1820450 / 256 = 7111.133 Hz
+       Internally mounted strain gauge pressure = pppppp = 0C14C1 (791745 decimal);
+           Strain gauge pressure A/D counts = 791745
+       Internally mounted strain gauge temperature compensation = vvvv = 7D82 (32,130 decimal);
+           Strain gauge temperature = 32,130 / 13,107 = 2.4514 volts
+       First external voltage = vvvv = 0305 (773 decimal); voltage = 773 / 13,107 = 0.0590 volts
+       Second external voltage = vvvv = 0594 (1428 decimal); voltage = 1428 / 13,107 = 0.1089 volts
+       Time = ssssssss = 0EC4270B (247,736,075 decimal); seconds since January 1, 2000 = 247,736,075
+    """
+    _data_particle_type = DataParticleType.CTD_PARSED
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a sample pattern
+        @return: regex string
+        """
+        #ttttttccccccppppppvvvvvvvvoooooossssssss
+        pattern = r'#? *' # patter may or may not start with a '
+        pattern += r'[0-9A-F]{22}' # temperature, conductivity, pressure, pressure temp
+        pattern += r'([0-9A-F]{4})' # volt0, calibrated phase
+        pattern += r'([0-9A-F]{4})' # volt1, oxygen temperature
+        pattern += r'([0-9A-F]{6})' # oxygen 
+        pattern += r'[0-9A-F]{8}' # time
+        pattern += seabird_driver.NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        """
+        get the compiled regex pattern
+        @return: compiled re
+        """
+        return re.compile(SBE16NoDataParticle.regex())
+
+    def _build_parsed_values(self):
+        """
+        Take something in the autosample/TS format and split it into
+        C, T, and D values (with appropriate tags)
+        
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = SBE16NoDataParticle.regex_compiled().match(self.raw_data)
+
+        if not match:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.raw_data)
+            
+        base_class_result = sbe16plus_driver.SBE16DataParticle._build_parsed_values(self)
+        
+        try:
+            cal_phase = self.hex2value(match.group(1))
+            oxygen_temperature = self.hex2value(match.group(2))
+            oxygen = self.hex2value(match.group(3))
+        except ValueError:
+            raise SampleException("ValueError while converting data: [%s]" %
+                                  self.raw_data)
+            
+        base_class_result.append({DataParticleKey.VALUE_ID: SBE16NoDataParticleKey.OXY_CALPHASE,
+                                  DataParticleKey.VALUE: cal_phase})
+        base_class_result.append({DataParticleKey.VALUE_ID: SBE16NoDataParticleKey.OXY_TEMP,
+                                  DataParticleKey.VALUE: oxygen_temperature})
+        base_class_result.append({DataParticleKey.VALUE_ID: SBE16NoDataParticleKey.OXYGEN,
+                                  DataParticleKey.VALUE: oxygen})
+                
+        return base_class_result
+
 ###############################################################################
 # Seabird Electronics 16plus V2 NO Driver.
 ###############################################################################
@@ -200,11 +285,11 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
         return_list = []
 
         """
-        matchers.append(SBE16DataParticle.regex_compiled())
         matchers.append(SBE16StatusParticle.regex_compiled())
         matchers.append(SBE16CalibrationParticle.regex_compiled())
         """
         matchers.append(SBE16HardwareDataParticle.regex_compiled())
+        matchers.append(SBE16NoDataParticle.regex_compiled())
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
@@ -218,6 +303,7 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes. 
         """
-        if not (self._extract_sample(SBE16HardwareDataParticle, SBE16HardwareDataParticle.regex_compiled(), chunk, timestamp)):
+        if not (self._extract_sample(SBE16HardwareDataParticle, SBE16HardwareDataParticle.regex_compiled(), chunk, timestamp) or
+                self._extract_sample(SBE16NoDataParticle, SBE16NoDataParticle.regex_compiled(), chunk, timestamp)):
             raise InstrumentProtocolException("Unhandled chunk %s" %chunk)
 

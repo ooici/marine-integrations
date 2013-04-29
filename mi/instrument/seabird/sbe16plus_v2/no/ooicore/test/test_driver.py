@@ -31,6 +31,7 @@ from mi.instrument.seabird.sbe16plus_v2.test.test_driver import VersionSpecificS
                                                                 SeaBird16plusMixin
 
 from mi.instrument.seabird.sbe16plus_v2.no.ooicore.driver import SBE16HardwareDataParticleKey, \
+                                                                 SBE16NoDataParticleKey, \
                                                                  SBE16_NO_Protocol, \
                                                                  SBE16_NO_InstrumentDriver, \
                                                                  DataParticleType
@@ -59,7 +60,8 @@ InstrumentDriverTestCase.initialize(
 ###
 # Test Inputs
 ###
-VersionSpecificStructures.VALID_SAMPLE = "#0409DB0A738C81747A84AC0006000A2E541E18BE6ED9" + NEWLINE
+
+VersionSpecificStructures.VALID_SAMPLE = "#03DC380A738581732F87B10012000C2B950819119C9A" + NEWLINE
 VersionSpecificStructures.VALID_SAMPLE2 = "0409DB0A738C81747A84AC0006000A2E541E18BE6ED9" + NEWLINE
 
 VersionSpecificStructures.VALID_DS_RESPONSE =  'SBE 16plus V 2.5  SERIAL NO. 6841    28 Feb 2013 16:39:31' + NEWLINE + \
@@ -222,6 +224,17 @@ SeaBird16plusMixin._hardware_parameters = {
         SBE16HardwareDataParticleKey.PRESSURE_SENSOR_TYPE: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: 'quartzTC-0', SeaBird16plusMixin.REQUIRED: True},
     }
 
+SeaBird16plusMixin._sample_parameters = {
+        SBE16NoDataParticleKey.TEMP: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 252984, SeaBird16plusMixin.REQUIRED: True },
+        SBE16NoDataParticleKey.CONDUCTIVITY: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 684933, SeaBird16plusMixin.REQUIRED: True },
+        SBE16NoDataParticleKey.PRESSURE: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 8483631, SeaBird16plusMixin.REQUIRED: True },
+        SBE16NoDataParticleKey.PRESSURE_TEMP: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 34737, SeaBird16plusMixin.REQUIRED: True },
+        SBE16NoDataParticleKey.TIME: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 420584602, SeaBird16plusMixin.REQUIRED: True },
+        SBE16NoDataParticleKey.OXY_CALPHASE: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 18, SeaBird16plusMixin.REQUIRED: True },
+        SBE16NoDataParticleKey.OXYGEN: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 2856200, SeaBird16plusMixin.REQUIRED: True },
+        SBE16NoDataParticleKey.OXY_TEMP: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 12, SeaBird16plusMixin.REQUIRED: True },
+    }
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -248,18 +261,33 @@ class UnitFromIDK(SBEUnitTestCase):
         self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_HARDWARE)
         self.assert_data_particle_parameters(data_particle, self._hardware_parameters, verify_values)
 
-    def test_no_chunker(self):
+    def assert_particle_sample(self, data_particle, verify_values = False):
+        '''
+        Verify sample particle
+        @param data_particle:  SBE16DataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(SBE16NoDataParticleKey, self._sample_parameters)
+        self.assert_data_particle_header(data_particle, DataParticleType.CTD_PARSED, require_instrument_timestamp=True)
+        self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
+
+    def test_chunker(self):
         """
         Test the chunker for NO version and verify the particles created.
         """
         chunker = StringChunker(SBE16_NO_Protocol.sieve_function)
+
+        self.assert_chunker_sample(chunker, self.VALID_SAMPLE)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_SAMPLE)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_SAMPLE)
+        self.assert_chunker_combined_sample(chunker, self.VALID_SAMPLE)
 
         self.assert_chunker_sample(chunker, self.VALID_GETHD_RESPONSE)
         self.assert_chunker_sample_with_noise(chunker, self.VALID_GETHD_RESPONSE)
         self.assert_chunker_fragmented_sample(chunker, self.VALID_GETHD_RESPONSE)
         self.assert_chunker_combined_sample(chunker, self.VALID_GETHD_RESPONSE)
 
-    def test_no_got_data(self):
+    def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles for NO version 
         """
@@ -269,6 +297,7 @@ class UnitFromIDK(SBEUnitTestCase):
 
         # Start validating data particles
         self.assert_particle_published(driver, self.VALID_GETHD_RESPONSE, self.assert_particle_hardware, True)
+        self.assert_particle_published(driver, self.VALID_SAMPLE, self.assert_particle_sample, True)
         
 
 ###############################################################################
