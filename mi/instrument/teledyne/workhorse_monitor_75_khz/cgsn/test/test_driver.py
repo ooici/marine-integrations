@@ -1,7 +1,6 @@
 """
-@package mi.instrument.seabird.sbe16plus_v2.ooicore.test.test_driver
-@file ion/services/mi/drivers/sbe16_plus_v2/test_sbe16_driver.py
-@author David Everett 
+@package mi.instrument.teledyne.workhorse_monitor_75_khz.cgsn.test.test_driver
+@author Roger Unwin
 @brief Test cases for InstrumentDriver
 
 USAGE:
@@ -36,11 +35,11 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ScheduledJob
 ###
 
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver',
+    driver_module='mi.instrument.teledyne.workhorse_monitor_75_khz.cgsn.driver',
     driver_class="InstrumentDriver",
     instrument_agent_resource_id = 'HTWZMW',
     instrument_agent_preload_id = 'IA7',
-    instrument_agent_name = 'teledyne_workhorse_monitor_75_khz_ooicore',
+    instrument_agent_name = 'teledyne_workhorse_monitor_75_khz_cgsn',
     instrument_agent_packet_config = DataParticleType(),
 
     driver_startup_config = {

@@ -1,8 +1,7 @@
 """
-@package mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.test.test_driver
-@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_75_khz/ooicore/driver.py
+@package mi.instrument.teledyne.workhorse_monitor_75_khz.rsn.test.test_driver
 @author Roger Unwin
-@brief Test cases for ooicore driver
+@brief Test cases for rsn driver
 
 USAGE:
  Make tests verbose and provide stdout
@@ -44,14 +43,14 @@ from mi.instrument.teledyne.test.test_driver import TeledyneIntegrationTest
 from mi.instrument.teledyne.test.test_driver import TeledyneQualificationTest
 from mi.instrument.teledyne.test.test_driver import TeledynePublicationTest
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import InstrumentDriver
+from mi.instrument.teledyne.workhorse_monitor_75_khz.rsn.driver import InstrumentDriver
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import DataParticleType
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import InstrumentCmds
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolState
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolEvent
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Capability
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Parameter
-from mi.instrument.teledyne.workhorse_monitor_75_khz.ooicore.driver import Protocol
+from mi.instrument.teledyne.workhorse_monitor_75_khz.rsn.driver import Protocol
 
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ScheduledJob
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
