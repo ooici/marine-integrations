@@ -448,7 +448,7 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: Data particle of unkown type produced by the driver
         '''
 
-        if (isinstance(data_particle, DataParticleType.ADCP_PD0_PARSED)):
+        if (isinstance(data_particle, DataParticleType.ADCP_PD0_PARSED_BEAM)):
             self.assert_particle_pd0_data(data_particle)
         elif (isinstance(data_particle, DataParticleType.ADCP_SYSTEM_CONFIGURATION)):
             self.assert_particle_system_configuration(data_particle)
@@ -484,7 +484,7 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_PS0DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED)
+        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_BEAM)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
 
 
@@ -1259,7 +1259,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
 
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
 
-        self.assert_async_particle_generation(DataParticleType.ADCP_PD0_PARSED, self.assert_particle_pd0_data, timeout=40)
+        self.assert_async_particle_generation(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data, timeout=40)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
 
@@ -1422,7 +1422,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest, ADCPTMixin):
     def setUp(self):
         TeledyneQualificationTest.setUp(self)
 
-
     def assert_configuration(self, data_particle, verify_values = False):
         '''
         Verify assert_compass_calibration particle
@@ -1432,7 +1431,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest, ADCPTMixin):
         self.assert_data_particle_keys(ADCP_SYSTEM_CONFIGURATION_KEY, self._system_configuration_data_parameters)
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_SYSTEM_CONFIGURATION)
         self.assert_data_particle_parameters(data_particle, self._system_configuration_data_parameters, verify_values)
-
 
     def assert_compass_calibration(self, data_particle, verify_values = False):
         '''
@@ -1444,7 +1442,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest, ADCPTMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_data_parameters, verify_values)
 
-    # WORKS!! 4/22
     def test_autosample(self):
         """
         Verify autosample works and data particles are created
@@ -1453,7 +1450,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest, ADCPTMixin):
 
         self.assert_start_autosample()
 
-        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED, self.assert_particle_pd0_data)
+        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data)
         self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=20)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=20)
 
@@ -1464,13 +1461,12 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest, ADCPTMixin):
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
 
         # Restart autosample and gather a couple samples
-        self.assert_sample_autosample(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED)
+        self.assert_sample_autosample(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_BEAM)
 
-    # WORKS!! 4/22
     def assert_cycle(self):
         self.assert_start_autosample()
 
-        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED, self.assert_particle_pd0_data)
+        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data)
         self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=20)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=20)
 
@@ -1480,7 +1476,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest, ADCPTMixin):
         self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
 
-    # WORKS!! 4/22
     def test_cycle(self):
         """
         Verify we can bounce between command and streaming.  We try it a few times to see if we can find a timeout.
@@ -1506,7 +1501,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest, ADCPTMixin):
             result = self.instrument_agent_client.get_resource(getParams, timeout=300)
             self.assertEqual(result[name], value)
 
-    # WORKS!! 4/23
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -1529,7 +1523,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest, ADCPTMixin):
 
         self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1488)
 
-    # WORKS!! 4/23
     def test_execute_clock_sync(self):
         """
         Verify we can syncronize the instrument internal clock
@@ -1545,7 +1538,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest, ADCPTMixin):
 
         self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 15)
 
-    # WORKS!! 4/23
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -1616,7 +1608,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest, ADCPTMixin):
         self.assert_reset()
         self.assert_capabilities(capabilities)
 
-    # WORKS!! 4/23
     def test_startup_params_first_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -1684,7 +1675,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest, ADCPTMixin):
         self.assert_set_parameter(Parameter.PING_WEIGHT, 1)
         self.assert_set_parameter(Parameter.AMBIGUITY_VELOCITY, 176)
 
-    # WORKS!! 4/23
     def test_startup_params_second_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -1770,6 +1760,6 @@ class WorkhorseDriverPublicationTest(TeledynePublicationTest):
         # are not tested.  We will eventually need to replace log.debug with a better callback
         # function that actually tests the granule.
         self.assert_sample_async("raw data", log.debug, DataParticleType.RAW, timeout=10)
-        self.assert_sample_async(SAMPLE_RAW_DATA, log.debug, DataParticleType.ADCP_PD0_PARSED, timeout=10)
+        self.assert_sample_async(SAMPLE_RAW_DATA, log.debug, DataParticleType.ADCP_PD0_PARSED_BEAM, timeout=10)
         self.assert_sample_async(PS0_RAW_DATA, log.debug, DataParticleType.ADCP_SYSTEM_CONFIGURATION, timeout=10)
         self.assert_sample_async(CALIBRATION_RAW_DATA, log.debug, DataParticleType.ADCP_COMPASS_CALIBRATION, timeout=10)

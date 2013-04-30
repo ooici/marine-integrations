@@ -39,7 +39,7 @@ InstrumentDriverTestCase.initialize(
     driver_class="InstrumentDriver",
     instrument_agent_resource_id = 'HTWZMW',
     instrument_agent_preload_id = 'IA7',
-    instrument_agent_name = 'teledyne_workhorse_monitor_75_khz_rsn',
+    instrument_agent_name = 'teledyne_workhorse_monitor_75_khz',
     instrument_agent_packet_config = DataParticleType(),
 
     driver_startup_config = {

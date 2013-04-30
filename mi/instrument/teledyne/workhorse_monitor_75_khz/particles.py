@@ -1,11 +1,10 @@
 """
 @package mi.instrument.teledyne.workhorse_monitor_75_khz.particles
-@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_75_khz/cgsn/driver.py
-@author Lytle Johnson
-@brief Driver for the cgsn
+@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_75_khz/driver.py
+@author Roger Unwin
+@brief Driver for the rsn
 Release notes:
 
-moving to teledyne
 """
 
 # TODO: This file is probably temporary, move it back to driver after
@@ -51,7 +50,8 @@ ADCP_COMPASS_CALIBRATION_REGEX_MATCHER = re.compile(ADCP_COMPASS_CALIBRATION_REG
 ###############################################################################
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    ADCP_PD0_PARSED = 'adcp_pd0_beam_parsed'
+    ADCP_PD0_PARSED_BEAM = 'adcp_pd0_beam_parsed'
+    ADCP_PD0_PARSED_EARTH = 'adcp_pd0_earth_parsed'
     ADCP_SYSTEM_CONFIGURATION = 'adcp_system_configuration'
     ADCP_COMPASS_CALIBRATION = 'adcp_compass_calibration'
 
@@ -201,7 +201,7 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
 
 
 class ADCP_PD0_PARSED_DataParticle(DataParticle):
-    _data_particle_type = DataParticleType.ADCP_PD0_PARSED
+    _data_particle_type = 'UNASSIGNED IN mi.instrument.teledyne.workhorse_monitor_75_khz.particles ADCP_PD0_PARSED_DataParticle'
 
 
 
@@ -570,6 +570,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: velocity_data_id})
 
         if 0 == self.coord_transform_type: # BEAM Coordinates
+            self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_BEAM
             beam_1_velocity = []
             beam_2_velocity = []
             beam_3_velocity = []
@@ -600,6 +601,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: []})
 
         elif 3 == self.coord_transform_type: # Earth Coordinates
+            self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_EARTH
             water_velocity_east = []
             water_velocity_north = []
             water_velocity_up = []
@@ -723,6 +725,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: percent_good_id})
 
         if 0 == self.coord_transform_type: # BEAM Coordinates
+            self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_BEAM
             percent_good_beam1 = []
             percent_good_beam2 = []
             percent_good_beam3 = []
@@ -753,6 +756,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: []})
 
         elif 3 == self.coord_transform_type: # Earth Coordinates
+            self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_EARTH
             percent_good_3beam = []
             percent_transforms_reject = []
             percent_bad_beams = []
@@ -783,6 +787,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: []})
         else:
             raise SampleException("coord_transform_type not coded for." + str(self.coord_transform_type))
+
 
 class ADCP_SYSTEM_CONFIGURATION_KEY(BaseEnum):
     # https://confluence.oceanobservatories.org/display/instruments/ADCP+Driver

@@ -55,11 +55,11 @@ InstrumentDriverTestCase.initialize(
             Parameter.PITCH: 0,
             Parameter.ROLL: 0,
             Parameter.SALINITY: 35,
-            Parameter.COORDINATE_TRANSFORMATION: '00111',
+
+            # first 2 bits represent beam vs earth
+            Parameter.COORDINATE_TRANSFORMATION: '11111',
             Parameter.TIME_PER_ENSEMBLE: '00:00:00.00',
-            #Parameter.TIME_OF_FIRST_PING: '****/**/**,**:**:**',
             Parameter.TIME_PER_PING: '00:01.00',
-            #Parameter.TIME: ,
             Parameter.FALSE_TARGET_THRESHOLD: '050,001',
             Parameter.BANDWIDTH_CONTROL: 0,
             Parameter.CORRELATION_THRESHOLD: 64,
