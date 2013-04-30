@@ -249,7 +249,7 @@ class SBE16NoDataParticle(sbe16plus_driver.SBE16DataParticle):
 # Seabird Electronics 16plus V2 NO Driver.
 ###############################################################################
 
-class SBE16_NO_InstrumentDriver(sbe16plus_driver.SBE16InstrumentDriver):
+class InstrumentDriver(sbe16plus_driver.SBE16InstrumentDriver):
     
     ########################################################################
         # Protocol builder.

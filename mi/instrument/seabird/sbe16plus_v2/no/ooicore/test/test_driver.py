@@ -33,7 +33,7 @@ from mi.instrument.seabird.sbe16plus_v2.test.test_driver import VersionSpecificS
 from mi.instrument.seabird.sbe16plus_v2.no.ooicore.driver import SBE16HardwareDataParticleKey, \
                                                                  SBE16NoDataParticleKey, \
                                                                  SBE16_NO_Protocol, \
-                                                                 SBE16_NO_InstrumentDriver, \
+                                                                 InstrumentDriver, \
                                                                  DataParticleType
 
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16Protocol
@@ -45,7 +45,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.core.instrument.chunker import StringChunker
 
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.seabird.sbe16plus_v2.ooicore.driver',
+    driver_module='mi.instrument.seabird.sbe16plus_v2.no.ooicore.driver',
     driver_class="InstrumentDriver",
 
     instrument_agent_preload_id = 'IA5',
@@ -292,7 +292,7 @@ class UnitFromIDK(SBEUnitTestCase):
         Verify sample data passed through the got data method produces the correct data particles for NO version 
         """
         # Create and initialize the instrument driver with a mock port agent
-        driver = SBE16_NO_InstrumentDriver(self._got_data_event_callback)
+        driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
         # Start validating data particles
