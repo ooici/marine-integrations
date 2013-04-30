@@ -51,7 +51,7 @@ ADCP_COMPASS_CALIBRATION_REGEX_MATCHER = re.compile(ADCP_COMPASS_CALIBRATION_REG
 ###############################################################################
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    ADCP_PD0_PARSED = 'adcp_pd0_parsed'
+    ADCP_PD0_PARSED = 'adcp_beam_pd0_parsed'
     ADCP_SYSTEM_CONFIGURATION = 'adcp_system_configuration'
     ADCP_COMPASS_CALIBRATION = 'adcp_compass_calibration'
 
