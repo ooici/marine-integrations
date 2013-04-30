@@ -1319,7 +1319,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
             raise InstrumentParameterException('Get command requires a parameter list or tuple.')
 
         # If all params requested, retrieve config.
-        if params == DriverParameter.ALL:
+        if (params == [DriverParameter.ALL]) or (params == DriverParameter.ALL):
             result = self._param_dict.get_all()
 
         # If not all params, confirm a list or tuple of params to retrieve.
@@ -1335,7 +1335,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                     result[key] = val
 
                 except KeyError:
-                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
+                    raise InstrumentParameterException(('%s is not a valid parameter, full param list is %s.'% (key, params)))
 
         return (next_state, result)
 

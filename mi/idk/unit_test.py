@@ -2504,7 +2504,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
-
         # start 'telnet' client with returned address and port
         self.tcp_client = TcpClient(retval.result['ip_address'], retval.result['port'])
 
