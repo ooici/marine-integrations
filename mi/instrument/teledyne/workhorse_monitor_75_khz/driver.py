@@ -853,7 +853,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         """
         Send a BREAK to attempt to wake the device.
         """
-        log.error("IN _send_break_cmd")
+        log.debug("IN _send_break_cmd")
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         except socket.error, msg:
@@ -870,7 +870,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         """
         Send a BREAK to attempt to wake the device.
         """
-        log.error("IN _send_break")
+        log.debug("IN _send_break")
         self._promptbuf = ''
         self._linebuf = ''
         self._send_break_cmd()

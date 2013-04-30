@@ -728,8 +728,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest, ADCPTMixin):
         test a variety of paramater ranges.
         """
 
-        self.assert_initialize_driver()
-
         # INSTRUMENT_ID -- Int 0-255
         self.assert_set_exception(Parameter.INSTRUMENT_ID, "LEROY JENKINS")
         self.assert_set_exception(Parameter.INSTRUMENT_ID, -1)
