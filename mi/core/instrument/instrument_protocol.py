@@ -445,6 +445,7 @@ class InstrumentProtocol(object):
         @retval A python dict that represents the metadata
         @see https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Driver-Agent+parameter+and+command+metadata+exchange
         """
+        log.debug("Getting metadata dict from protocol...")
         return_dict = {}
         return_dict[ConfigMetadataKey.DRIVER] = self._driver_dict.generate_dict()
         return_dict[ConfigMetadataKey.COMMANDS] = self._cmd_dict.generate_dict()
@@ -866,7 +867,6 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             self.add_to_buffer(data)
 
             self._chunker.add_chunk(data, timestamp)
-
             (timestamp, chunk) = self._chunker.get_next_data()
             while(chunk):
                 self._got_chunk(chunk, timestamp)
@@ -1134,7 +1134,7 @@ class MenuInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
 
         """
-        Because the output of the instrument does not generate events, do_cmd_rsp 
+        Because the output of the instrument does not generate events, do_cmd_resp 
         jumps right in here looking for a response, and often it is before the 
         complete response has arrived, so we can miss it.  The read delay
         is to alleviate that problem.
