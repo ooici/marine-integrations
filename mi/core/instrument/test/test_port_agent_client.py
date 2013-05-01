@@ -387,8 +387,10 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
     def startPortAgent(self):
         pa_port = self.init_port_agent()
         log.debug("port_agent started on port: %d" % (pa_port))
+        time.sleep(2) # give it a chance to start responding
 
     def resetTestVars(self):
+        log.debug("Resetting test variables...")
         self.rawCallbackCalled = False
         self.dataCallbackCalled = False
         self.errorCallbackCalled = False
@@ -495,23 +497,13 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         self.resetTestVars()
         
         paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
-        
-        try:
-            paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotListenerError, self.myGotError)
- 
-        except InstrumentConnectionException as e:
-            log.info("Exception caught as expected: %r" % (e))
-            exceptionCaught = True
-            
-        else:
-            exceptionCaught = False
-        
-        """
-        Assert that the error_callback was not called, and that an exception
-        was caught.
-        """
+
+        self.assertRaises(InstrumentConnectionException,
+                          paClient.init_comms,
+                          self.myGotData, self.myGotRaw,
+                          self.myGotListenerError, self.myGotError)
+
         self.assertFalse(self.errorCallbackCalled)
-        self.assertTrue(exceptionCaught)
     
     def test_start_paClient_with_port_agent(self):
 
@@ -565,11 +557,6 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         self.startPortAgent()
 
         paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
-
-        """
-        Give the port agent time to initialize
-        """
-        time.sleep(2)
         paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotListenerError, self.myGotError)
         
         """
@@ -609,12 +596,14 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         self.resetTestVars()
 
         try:
-            self.stop_port_agent()    
+            self.stop_port_agent()
+            log.debug("Port agent stopped")
             data = "this is another great big test"
             paClient.send(data)
         
             time.sleep(1)
     
+            log.debug("Sending from simulator")
             self._instrument_simulator.send(data)
             
         except InstrumentConnectionException as e:
@@ -647,12 +636,6 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         self.startPortAgent()
 
         paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
-
-        """
-        Give the port agent time to initialize
-        """
-        time.sleep(2)
-        
         paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotListenerError, self.myGotError)
         
         try:

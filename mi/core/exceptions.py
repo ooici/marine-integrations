@@ -79,7 +79,6 @@ class InstrumentParameterExpirationException(InstrumentException):
         super(InstrumentParameterExpirationException,self).__init__(msg=msg,
                                                                     error_code=error_code)
         self.expired_value = value
-
 class NotImplementedException(InstrumentException):
     """ A driver function is not implemented. """
 

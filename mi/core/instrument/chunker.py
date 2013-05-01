@@ -150,7 +150,6 @@ class Chunker(object):
                                                        len(self.buffer),
                                                        timestamp))
         previous_end = start_index
-        log.debug("*** result: %s", result)
         for (s, e) in result:
             # rebase to buffer as long as we are walking through
             s += start_index
@@ -179,10 +178,7 @@ class Chunker(object):
             result will be [(15, 20, 234.567), (35, 37, 345.784)]
         """
         result_list = []
-    
-        log.debug("*** Add_timestamp() starts with arg: %s, raw: %s",
-                  start_end_list, self.raw_chunk_list)
-                
+                    
         for item in start_end_list:
             # simple case if it already has a timestamp
             if (len(item) == 3):
@@ -193,19 +189,14 @@ class Chunker(object):
             else:
                 raise SampleException("Invalid pair encountered!")
                 
-            log.debug("*** Next item: (%s, %s)", s, e)
             for (raw_s, raw_e, raw_t) in self.raw_chunk_list:
-                log.debug("*** raw_s: %s, raw_e: %s", raw_s, raw_e)
                 if (s >= raw_e):
-                    log.debug("*** continuing...")
                     continue
-                    log.debug("*** continued...")
                 else:
-                    log.debug("*** appending (%s, %s, %s)", s, e, raw_t)
                     result_list.append((s, e, raw_t))
                     break
                     
-        log.debug("*** returning result_list: %s", result_list)
+        log.trace("add_timestamp returning result_list: %s", result_list)
         return result_list
     
     @staticmethod

@@ -20,6 +20,7 @@ import struct
 import array
 import binascii
 import ctypes
+import subprocess
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import InstrumentConnectionException

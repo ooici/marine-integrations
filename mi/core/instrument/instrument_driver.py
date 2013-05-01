@@ -589,6 +589,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         in a JSON string
         @see https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Driver-Agent+parameter+and+command+metadata+exchange
         """
+        log.debug("Getting metadata from driver...")
         if self._protocol:
             return json.dumps(self._protocol.get_config_metadata_dict(),
                               sort_keys=True)
