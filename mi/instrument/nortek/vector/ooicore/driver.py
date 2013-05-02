@@ -40,21 +40,13 @@ from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue, CommonDataParticleType
 
+from mi.instrument.nortek.driver import NortekInstrumentDriver
+from mi.instrument.nortek.driver import NortekProtocol
+
 from mi.core.common import InstErrorCode
 
 from mi.core.log import get_logger ; log = get_logger()
 
-# newline.
-NEWLINE = '\n\r'
-
-# default timeout.
-TIMEOUT = 10
-
-# set up the 'structure' lengths (in bytes) and sync/id/size constants   
-USER_CONFIG_LEN = 512
-USER_CONFIG_SYNC_BYTES = '\xa5\x00\x00\x01'
-HW_CONFIG_LEN = 48
-HW_CONFIG_SYNC_BYTES   = '\xa5\x05\x18\x00'
 HEAD_CONFIG_LEN = 224
 HEAD_CONFIG_SYNC_BYTES = '\xa5\x04\x70\x00'
 VELOCITY_DATA_LEN = 24
@@ -65,8 +57,6 @@ VELOCITY_HEADER_DATA_LEN = 42
 VELOCITY_HEADER_DATA_SYNC_BYTES = '\xa5\x12\x15\x00'
 PROBE_CHECK_SIZE_OFFSET = 2
 PROBE_CHECK_SYNC_BYTES = '\xa5\x07'
-CHECK_SUM_SEED = 0xb58c
-FAT_LENGTH = 512
 
 sample_structures = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
                      [SYSTEM_DATA_SYNC_BYTES, SYSTEM_DATA_LEN],
@@ -90,208 +80,11 @@ class DataParticleType(BaseEnum):
     PROBE_CHECK = 'probe_check'
     SYSTEM = 'system'
 
-# Device prompts.
-class InstrumentPrompts(BaseEnum):
-    """
-    vector prompts.
-    """
-    COMMAND_MODE  = 'Command mode'
-    CONFIRMATION  = 'Confirm:'
-    Z_ACK         = '\x06\x06'  # attach a 'Z' to the front of these two items to force them to the end of the list
-    Z_NACK        = '\x15\x15'  # so the other responses will have priority to be detected if they are present
-
-    
-class InstrumentCmds(BaseEnum):
-    CONFIGURE_INSTRUMENT               = 'CC'        # sets the user configuration
-    SOFT_BREAK_FIRST_HALF              = '@@@@@@'
-    SOFT_BREAK_SECOND_HALF             = 'K1W%!Q'
-    READ_REAL_TIME_CLOCK               = 'RC'        
-    SET_REAL_TIME_CLOCK                = 'SC'
-    CMD_WHAT_MODE                      = 'II'        # to determine the mode of the instrument
-    READ_USER_CONFIGURATION            = 'GC'
-    READ_HW_CONFIGURATION              = 'GP'
-    READ_HEAD_CONFIGURATION            = 'GH'
-    POWER_DOWN                         = 'PD'     
-    READ_BATTERY_VOLTAGE               = 'BV'
-    READ_ID                            = 'ID'
-    START_MEASUREMENT_AT_SPECIFIC_TIME = 'SD'
-    START_MEASUREMENT_IMMEDIATE        = 'SR'
-    START_MEASUREMENT_WITHOUT_RECORDER = 'ST'
-    ACQUIRE_DATA                       = 'AD'
-    CONFIRMATION                       = 'MC'        # confirm a break request
-    READ_FAT                           = 'RF'
-    # SAMPLE_AVG_TIME                    = 'A'
-    # SAMPLE_INTERVAL_TIME               = 'M'
-    # GET_ALL_CONFIGURATIONS             = 'GA'
-    # GET_USER_CONFIGURATION             = 'GC'
-    # SAMPLE_WHAT_MODE                   = 'I'   
-    
-class InstrumentModes(BaseEnum):
-    FIRMWARE_UPGRADE = '\x00\x00\x06\x06'
-    MEASUREMENT      = '\x01\x00\x06\x06'
-    COMMAND          = '\x02\x00\x06\x06'
-    DATA_RETRIEVAL   = '\x04\x00\x06\x06'
-    CONFIRMATION     = '\x05\x00\x06\x06'
     
 
-class ProtocolState(BaseEnum):
-    """
-    Protocol states
-    enum.
-    """
-    UNKNOWN = DriverProtocolState.UNKNOWN
-    COMMAND = DriverProtocolState.COMMAND
-    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
-    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    
-class ExportedInstrumentCommand(BaseEnum):
-    SET_CONFIGURATION = "EXPORTED_INSTRUMENT_CMD_SET_CONFIGURATION"
-    READ_CLOCK = "EXPORTED_INSTRUMENT_CMD_READ_CLOCK"
-    READ_MODE = "EXPORTED_INSTRUMENT_CMD_READ_MODE"
-    POWER_DOWN = "EXPORTED_INSTRUMENT_CMD_POWER_DOWN"
-    READ_BATTERY_VOLTAGE = "EXPORTED_INSTRUMENT_CMD_READ_BATTERY_VOLTAGE"
-    READ_ID = "EXPORTED_INSTRUMENT_CMD_READ_ID"
-    GET_HW_CONFIGURATION = "EXPORTED_INSTRUMENT_CMD_GET_HW_CONFIGURATION"
-    GET_HEAD_CONFIGURATION = "EXPORTED_INSTRUMENT_CMD_GET_HEAD_CONFIGURATION"
-    START_MEASUREMENT_AT_SPECIFIC_TIME = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME"
-    START_MEASUREMENT_IMMEDIATE = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE"
-    READ_FAT = "EXPORTED_INSTRUMENT_CMD_READ_FAT"
 
-class ProtocolEvent(BaseEnum):
-    """
-    Protocol events
-    """
-    # common events from base class
-    ENTER = DriverEvent.ENTER
-    EXIT = DriverEvent.EXIT
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
-    DISCOVER = DriverEvent.DISCOVER
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
-    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
-    
-    # instrument specific events
-    SET_CONFIGURATION = ExportedInstrumentCommand.SET_CONFIGURATION
-    READ_CLOCK = ExportedInstrumentCommand.READ_CLOCK
-    READ_MODE = ExportedInstrumentCommand.READ_MODE
-    POWER_DOWN = ExportedInstrumentCommand.POWER_DOWN
-    READ_BATTERY_VOLTAGE = ExportedInstrumentCommand.READ_BATTERY_VOLTAGE
-    READ_ID = ExportedInstrumentCommand.READ_ID
-    GET_HW_CONFIGURATION = ExportedInstrumentCommand.GET_HW_CONFIGURATION
-    GET_HEAD_CONFIGURATION = ExportedInstrumentCommand.GET_HEAD_CONFIGURATION
-    START_MEASUREMENT_AT_SPECIFIC_TIME = ExportedInstrumentCommand.START_MEASUREMENT_AT_SPECIFIC_TIME
-    START_MEASUREMENT_IMMEDIATE = ExportedInstrumentCommand.START_MEASUREMENT_IMMEDIATE
-    READ_FAT = ExportedInstrumentCommand.READ_FAT
 
-class Capability(BaseEnum):
-    """
-    Capabilities that are exposed to the user (subset of above)
-    """
-    GET = ProtocolEvent.GET
-    SET = ProtocolEvent.SET
-    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
-    SET_CONFIGURATION = ProtocolEvent.SET_CONFIGURATION
-    READ_CLOCK = ProtocolEvent.READ_CLOCK
-    READ_MODE = ProtocolEvent.READ_MODE
-    POWER_DOWN = ProtocolEvent.POWER_DOWN
-    READ_BATTERY_VOLTAGE = ProtocolEvent.READ_BATTERY_VOLTAGE
-    READ_ID = ProtocolEvent.READ_ID
-    GET_HW_CONFIGURATION = ProtocolEvent.GET_HW_CONFIGURATION
-    GET_HEAD_CONFIGURATION = ProtocolEvent.GET_HEAD_CONFIGURATION
-    START_MEASUREMENT_AT_SPECIFIC_TIME = ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME
-    START_MEASUREMENT_IMMEDIATE = ProtocolEvent.START_MEASUREMENT_IMMEDIATE
-    READ_FAT = ProtocolEvent.READ_FAT
 
-# Device specific parameters.
-class Parameter(DriverParameter):
-    """
-    Device parameters
-    """
-    """
-    # these are read only and not included for now
-    # hardware configuration
-    HW_SERIAL_NUMBER = "HardwareSerialNumber"
-    HW_CONFIG = "HardwareConfig"
-    HW_FREQUENCY = "HardwareFrequency"
-    PIC_VERSION = "HardwarePicCodeVerNumber"
-    HW_REVISION = "HardwareRevision"
-    REC_SIZE = "HardwareRecorderSize"
-    STATUS = "HardwareStatus"
-    HW_SPARE = 'HardwareSpare'
-    FW_VERSION = "HardwareFirmwareVersion"
-    
-    # head configuration
-    HEAD_CONFIG = "HeadConfig"
-    HEAD_FREQUENCY = "HeadFrequency"
-    HEAD_TYPE = "HeadType"
-    HEAD_SERIAL_NUMBER = "HeadSerialNumber"
-    HEAD_SYSTEM = 'HeadSystemData'
-    HEAD_SPARE = 'HeadSpare'
-    HEAD_NUMBER_BEAMS = "HeadNumberOfBeams"
-
-    REAL_TIME_CLOCK = "RealTimeClock"
-    BATTERY_VOLTAGE = "BatteryVoltage"
-    IDENTIFICATION_STRING = "IdentificationString"
-    """
-    
-    # user configuration
-    TRANSMIT_PULSE_LENGTH = "TransmitPulseLength"                # T1
-    BLANKING_DISTANCE = "BlankingDistance"                       # T2
-    RECEIVE_LENGTH = "ReceiveLength"                             # T3
-    TIME_BETWEEN_PINGS = "TimeBetweenPings"                      # T4
-    TIME_BETWEEN_BURST_SEQUENCES = "TimeBetweenBurstSequences"   # T5 
-    NUMBER_PINGS = "NumberPings"     # number of beam sequences per burst
-    AVG_INTERVAL = "AvgInterval"
-    USER_NUMBER_BEAMS = "UserNumberOfBeams" 
-    TIMING_CONTROL_REGISTER = "TimingControlRegister"
-    POWER_CONTROL_REGISTER = "PowerControlRegister"
-    A1_1_SPARE = 'A1_1Spare'
-    B0_1_SPARE = 'B0_1Spare'
-    B1_1_SPARE = 'B1_1Spare'
-    COMPASS_UPDATE_RATE ="CompassUpdateRate"  
-    COORDINATE_SYSTEM = "CoordinateSystem"
-    NUMBER_BINS = "NumberOfBins"      # number of cells
-    BIN_LENGTH = "BinLength"          # cell size
-    MEASUREMENT_INTERVAL = "MeasurementInterval"
-    DEPLOYMENT_NAME = "DeploymentName"
-    WRAP_MODE = "WrapMode"
-    CLOCK_DEPLOY = "ClockDeploy"      # deployment start time
-    DIAGNOSTIC_INTERVAL = "DiagnosticInterval"
-    MODE = "Mode"
-    ADJUSTMENT_SOUND_SPEED = 'AdjustmentSoundSpeed'
-    NUMBER_SAMPLES_DIAGNOSTIC = 'NumberSamplesInDiagMode'
-    NUMBER_BEAMS_CELL_DIAGNOSTIC = 'NumberBeamsPerCellInDiagMode'
-    NUMBER_PINGS_DIAGNOSTIC = 'NumberPingsInDiagMode'
-    MODE_TEST = 'ModeTest'
-    ANALOG_INPUT_ADDR = 'AnalogInputAddress'
-    SW_VERSION = 'SwVersion'
-    USER_1_SPARE = 'User1Spare'
-    VELOCITY_ADJ_TABLE = 'VelocityAdjTable'
-    COMMENTS = 'Comments'
-    WAVE_MEASUREMENT_MODE = 'WaveMeasurementMode'
-    DYN_PERCENTAGE_POSITION = 'PercentageForCellPositioning'
-    WAVE_TRANSMIT_PULSE = 'WaveTransmitPulse'
-    WAVE_BLANKING_DISTANCE = 'WaveBlankingDistance'
-    WAVE_CELL_SIZE = 'WaveCellSize'
-    NUMBER_DIAG_SAMPLES = 'NumberDiagnosticSamples'
-    A1_2_SPARE = 'A1_2Spare'
-    B0_2_SPARE = 'B0_2Spare'
-    NUMBER_SAMPLES_PER_BURST = 'NumberSamplesPerBurst'
-    USER_2_SPARE = 'User2Spare'
-    ANALOG_OUTPUT_SCALE = 'AnalogOutputScale'
-    CORRELATION_THRESHOLD = 'CorrelationThreshold'
-    USER_3_SPARE = 'User3Spare'
-    TRANSMIT_PULSE_LENGTH_SECOND_LAG = 'TransmitPulseLengthSecondLag'
-    USER_4_SPARE = 'User4Spare'
-    QUAL_CONSTANTS = 'StageMatchFilterConstants'
                    
     
 class BinaryParameterDictVal(ParameterValue):
