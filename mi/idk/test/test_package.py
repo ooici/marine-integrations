@@ -43,6 +43,8 @@ ROOTDIR="/tmp/test_package.idk_test"
 if exists("/private/tmp"):
     ROOTDIR = "/private%s" % ROOTDIR
 TESTDIR="%s/mi/foo" % ROOTDIR
+TESTBASEDIR="%s/mi" % ROOTDIR
+
 
 @attr('UNIT', group='mi')
 class IDKPackageNose(MiUnitTest):
@@ -170,7 +172,7 @@ class IDKPackageNose(MiUnitTest):
         """
         The main base python file imported by the target file.
         """
-        return "%s/../%s" % (TESTDIR, "base.py")
+        return "%s/%s" % (TESTBASEDIR, "base.py")
         
     def implfile(self):
         """
