@@ -28,7 +28,12 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from mi.idk.unit_test import InstrumentDriverDataParticleMixin
+
+# Does not exist
+#from mi.idk.unit_test import InstrumentDriverDataParticleMixin
+
+# from https://github.com/unwin/marine-integrations/blob/master/mi/instrument/teledyne/workhorse_monitor_75_khz/test/test_driver.py#L37
+from mi.idk.unit_test import DriverTestMixin
 
 from interface.objects import AgentCommand
 
@@ -95,7 +100,7 @@ InstrumentDriverTestCase.initialize(
 # This class defines a configuration structure for testing and common assert  #
 # methods for validating data particles.
 ###############################################################################
-class DataParticleMixin(InstrumentDriverDataParticleMixin):
+class DataParticleMixin(DriverTestMixin):
     def assertSampleDataParticle(self, data_particle):
         '''
         Verify a particle is a know particle to this driver and verify the particle is
