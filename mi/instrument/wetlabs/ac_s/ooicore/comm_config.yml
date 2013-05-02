@@ -1,0 +1,8 @@
+comm:
+  command_port: 2103
+  data_port: 2104
+  device_addr: ciports9-12.whoi.edu
+  device_port: 2111
+  host: localhost
+  method: ethernet
+  sniffer_port: 6003
