@@ -31,6 +31,9 @@ import gevent
 import json
 import ntplib
 import time
+
+from pprint import PrettyPrinter
+
 from pyon.core.exception import IonException, ExceptionFactory
 from mock import Mock
 from mi.core.unit_test import MiIntTestCase
@@ -647,7 +650,8 @@ class DriverTestMixin(MiUnitTest):
         self.assertIsNotNone(config_json)
         config = json.loads(config_json)
 
-        log.debug("Config: %s", config)
+        pp = PrettyPrinter()
+        log.debug("Config: %s", pp.pformat(config))
 
         self.assert_driver_schema_parameters(config, parameters)
         self.assert_driver_schema_capabilities(config, capabilities)
