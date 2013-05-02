@@ -396,7 +396,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         # load the engineering parameter values
         pd = driver._protocol._param_dict
         for name in self._raw_coefficients.keys():
-            pd.update_specific(name, self._raw_coefficients[name])
+            pd.update(self._raw_coefficients[name], target_params=name)
             
         # clear out any old events
         self.clear_data_particle_queue()
