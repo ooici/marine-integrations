@@ -431,6 +431,7 @@ class InstrumentAgentDataSubscribers(object):
         while(len(result) < sample_count):
             if(self.samples_received.has_key(stream_name) and
                len(self.samples_received.get(stream_name))):
+                log.trace("get_samples() received sample!")
                 result.append(self.samples_received[stream_name].pop())
 
             # Check for timeout

@@ -1443,22 +1443,20 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         pass
 
 
-    def assertParsedGranules(self):
+    def assertParsedGranule(self, granule):
         
-        for granule in self.data_subscribers.parsed_samples_received:
-            rdt = RecordDictionaryTool.load_from_granule(granule)
-            
-            self.assert_('conductivity' in rdt)
-            self.assert_(rdt['conductivity'] is not None)
-            self.assertTrue(isinstance(rdt['conductivity'], numpy.ndarray))                      
+        rdt = RecordDictionaryTool.load_from_granule(granule)
+        self.assert_('conductivity' in rdt)
+        self.assert_(rdt['conductivity'] is not None)
+        self.assertTrue(isinstance(rdt['conductivity'], numpy.ndarray))                      
 
-            self.assert_('depth' in rdt)
-            self.assert_(rdt['depth'] is not None)
-            self.assertTrue(isinstance(rdt['depth'], numpy.ndarray))
+        self.assert_('pressure' in rdt)
+        self.assert_(rdt['pressure'] is not None)
+        self.assertTrue(isinstance(rdt['pressure'], numpy.ndarray))
 
-            self.assert_('temp' in rdt)
-            self.assert_(rdt['temp'] is not None)
-            self.assertTrue(isinstance(rdt['temp'], numpy.ndarray))
+        self.assert_('temp' in rdt)
+        self.assert_(rdt['temp'] is not None)
+        self.assertTrue(isinstance(rdt['temp'], numpy.ndarray))
         
     def assertSampleDataParticle(self, val):
         """
@@ -1863,7 +1861,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         }
         self.instrument_agent_client.set_resource(params)
 
-        self.data_subscribers.clear_sample_queue('parsed')
+        self.data_subscribers.clear_sample_queue(DataParticleType.PARSED)
 
         # Begin streaming.
         cmd = AgentCommand(command=SBE37ProtocolEvent.START_AUTOSAMPLE)
@@ -1873,12 +1871,15 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         self.assertEqual(state, ResourceAgentState.STREAMING)
 
         # Assert we got 3 samples.
-        samples = self.data_subscribers.get_samples('parsed', 3)
+        samples = self.data_subscribers.get_samples(DataParticleType.PARSED, 3, timeout=30)
         self.assertGreaterEqual(len(samples), 3)
 
-        self.assertSampleDataParticle(samples.pop())
-        self.assertSampleDataParticle(samples.pop())
-        self.assertSampleDataParticle(samples.pop())
+        self.assertParsedGranule(samples.pop())
+        self.assertParsedGranule(samples.pop())
+        self.assertParsedGranule(samples.pop())
+        #self.assertSampleDataParticle(samples.pop())
+        #self.assertSampleDataParticle(samples.pop())
+        #self.assertSampleDataParticle(samples.pop())
 
         # Halt streaming.
         cmd = AgentCommand(command=SBE37ProtocolEvent.STOP_AUTOSAMPLE)
