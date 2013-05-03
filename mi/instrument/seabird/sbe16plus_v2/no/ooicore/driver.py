@@ -34,6 +34,222 @@ class DataParticleType(sbe16plus_driver.DataParticleType):
 # Particles
 ###############################################################################
 
+class SBE16CalibrationDataParticleKey(BaseEnum):
+    SERIAL_NUMBER = "serial_number"
+
+    TEMP_SENSOR_SERIAL_NUMBER = " temp_sensor_serial_number "
+    TEMP_CAL_DATE = "calibration_date_temperature"
+    TA0 = "temp_coeff_ta0"
+    TA1 = "temp_coeff_ta1"
+    TA2 = "temp_coeff_ta2"
+    TA3 = "temp_coeff_ta3"
+    TOFFSET = "temp_coeff_offset"
+
+    COND_SENSOR_SERIAL_NUMBER = " cond_sensor_serial_number "
+    COND_CAL_DATE = "calibration_date_conductivity"
+    CONDG = "cond_coeff_cg"
+    CONDH = "cond_coeff_ch"
+    CONDI = "cond_coeff_ci"
+    CONDJ = "cond_coeff_cj"
+    CPCOR = "cond_coeff_cpcor"
+    CTCOR = "cond_coeff_ctcor"
+    CSLOPE = "cond_coeff_cslope"
+
+    PRES_SERIAL_NUMBER = "press_serial_number"
+    PRES_CAL_DATE = "calibration_date_pressure"
+    PC1 = "press_coeff_pc1"
+    PC2 = "press_coeff_pc2"
+    PC3 = "press_coeff_pc3"
+    PD1 = "press_coeff_pd1"
+    PD2 = "press_coeff_pd2"
+    PT1 = "press_coeff_pt1"
+    PT2 = "press_coeff_pt2"
+    PT3 = "press_coeff_pt3"
+    PT4 = "press_coeff_pt4"
+    PSLOPE = "press_coeff_pslope"
+    POFFSET = "press_coeff_poffset"
+    PRES_RANGE = "pressure_sensor_range"
+
+    EXT_VOLT0_OFFSET = "ext_volt0_offset"
+    EXT_VOLT0_SLOPE = "ext_volt0_slope"
+    EXT_VOLT1_OFFSET = "ext_volt1_offset"
+    EXT_VOLT1_SLOPE = "ext_volt1_slope"
+    EXT_VOLT2_OFFSET = "ext_volt2_offset"
+    EXT_VOLT2_SLOPE = "ext_volt2_slope"
+    EXT_VOLT3_OFFSET = "ext_volt3_offset"
+    EXT_VOLT3_SLOPE = "ext_volt3_slope"
+    EXT_VOLT4_OFFSET = "ext_volt4_offset"
+    EXT_VOLT4_SLOPE = "ext_volt4_slope"
+    EXT_VOLT5_OFFSET = "ext_volt5_offset"
+    EXT_VOLT5_SLOPE = "ext_volt5_slope"
+
+    EXT_FREQ = "ext_freq_sf"
+
+class SBE16CalibrationDataParticle(seabird_driver.SeaBirdParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    _data_particle_type = DataParticleType.DEVICE_CALIBRATION
+
+    map_param_to_tag = {SBE16CalibrationDataParticleKey.TEMP_SENSOR_SERIAL_NUMBER: "SerialNum",
+                        SBE16CalibrationDataParticleKey.TEMP_CAL_DATE: "CalDate",
+                        SBE16CalibrationDataParticleKey.TA0: "TA0",
+                        SBE16CalibrationDataParticleKey.TA1: "TA1",
+                        SBE16CalibrationDataParticleKey.TA2: "TA2",
+                        SBE16CalibrationDataParticleKey.TA3: "TA3",
+                        SBE16CalibrationDataParticleKey.TOFFSET: "TOFFSET",
+                        
+                        SBE16CalibrationDataParticleKey.COND_SENSOR_SERIAL_NUMBER: "SerialNum",
+                        SBE16CalibrationDataParticleKey.COND_CAL_DATE: "CalDate",
+                        SBE16CalibrationDataParticleKey.CONDG: "G",
+                        SBE16CalibrationDataParticleKey.CONDH: "H",
+                        SBE16CalibrationDataParticleKey.CONDI: "I",
+                        SBE16CalibrationDataParticleKey.CONDJ: "J",
+                        SBE16CalibrationDataParticleKey.CPCOR: "CPCOR",
+                        SBE16CalibrationDataParticleKey.CTCOR: "CTCOR",
+                        SBE16CalibrationDataParticleKey.CSLOPE: "CSLOPE",
+
+                        SBE16CalibrationDataParticleKey.PRES_SERIAL_NUMBER: "SerialNum",
+                        SBE16CalibrationDataParticleKey.PRES_CAL_DATE: "CalDate",
+                        SBE16CalibrationDataParticleKey.PC1: "PC1",
+                        SBE16CalibrationDataParticleKey.PC2: "PC2",
+                        SBE16CalibrationDataParticleKey.PC3: "PC3",
+                        SBE16CalibrationDataParticleKey.PD1: "PD1",
+                        SBE16CalibrationDataParticleKey.PD2: "PD2",
+                        SBE16CalibrationDataParticleKey.PT1: "PT1",
+                        SBE16CalibrationDataParticleKey.PT2: "PT2",
+                        SBE16CalibrationDataParticleKey.PT3: "PT3",
+                        SBE16CalibrationDataParticleKey.PT4: "PT4",
+                        SBE16CalibrationDataParticleKey.PSLOPE: "PSLOPE",
+                        SBE16CalibrationDataParticleKey.POFFSET: "POFFSET",
+                        SBE16CalibrationDataParticleKey.PRES_RANGE: "PRANGE",
+ 
+                        SBE16CalibrationDataParticleKey.EXT_VOLT0_OFFSET: "OFFSET",
+                        SBE16CalibrationDataParticleKey.EXT_VOLT0_SLOPE: "SLOPE",
+                        SBE16CalibrationDataParticleKey.EXT_VOLT1_OFFSET: "OFFSET",
+                        SBE16CalibrationDataParticleKey.EXT_VOLT1_SLOPE: "SLOPE",
+                        SBE16CalibrationDataParticleKey.EXT_VOLT2_OFFSET: "OFFSET",
+                        SBE16CalibrationDataParticleKey.EXT_VOLT2_SLOPE: "SLOPE",
+                        SBE16CalibrationDataParticleKey.EXT_VOLT3_OFFSET: "OFFSET",
+                        SBE16CalibrationDataParticleKey.EXT_VOLT3_SLOPE: "SLOPE",
+                        SBE16CalibrationDataParticleKey.EXT_VOLT4_OFFSET: "OFFSET",
+                        SBE16CalibrationDataParticleKey.EXT_VOLT4_SLOPE: "SLOPE",
+                        SBE16CalibrationDataParticleKey.EXT_VOLT5_OFFSET: "OFFSET",
+                        SBE16CalibrationDataParticleKey.EXT_VOLT5_SLOPE: "SLOPE",
+
+                        SBE16CalibrationDataParticleKey.EXT_FREQ: "EXTFREQSF",
+                       }
+
+    @staticmethod
+    def regex():
+        pattern = r'<CalibrationCoefficients.*?</CalibrationCoefficients>' + seabird_driver.NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        return re.compile(SBE16CalibrationDataParticle.regex(), re.DOTALL)
+    
+    def _get_parameter(self, xml_element, parameter_name, type=float):
+        return {DataParticleKey.VALUE_ID: parameter_name,
+                DataParticleKey.VALUE: type(self._extract_element_value(xml_element, self.map_param_to_tag[parameter_name]))}
+        
+    def _float_to_int(self, str):
+        return int(float(str))
+
+    def _build_parsed_values(self):
+        """
+        Parse the output of the getCC command
+        @throws SampleException If there is a problem with sample creation
+        """
+
+        SERIAL_NUMBER = "SerialNumber"
+        CALIBRATION = "Calibration"
+        ID = "id"
+        TEMPERATURE_SENSOR_ID = "Main Temperature"
+        CONDUCTIVITY_SENSOR_ID = "Main Conductivity"
+        PRESSURE_SENSOR_ID = "Main Pressure"
+        VOLT0 = "Volt 0"
+        VOLT1 = "Volt 1"
+        VOLT2 = "Volt 2"
+        VOLT3 = "Volt 3"
+        VOLT4 = "Volt 4"
+        VOLT5 = "Volt 5"
+        EXTERNAL_FREQUENCY_CHANNEL = "external frequency channel"
+
+        # check to make sure there is a correct match before continuing
+        match = SBE16CalibrationDataParticle.regex_compiled().match(self.raw_data)
+        if not match:
+            raise SampleException("No regex match of parsed status data: [%s]" %
+                                  self.raw_data)
+
+        dom = parseString(self.raw_data)
+        root = dom.documentElement
+        log.debug("root.tagName = %s" %root.tagName)
+        serial_number = int(root.getAttribute(SERIAL_NUMBER))
+        result = [{DataParticleKey.VALUE_ID: SBE16CalibrationDataParticleKey.SERIAL_NUMBER,
+                   DataParticleKey.VALUE: serial_number},
+                 ]        
+        
+        calibration_elements = self._extract_elements(root, CALIBRATION)
+        for calibration in calibration_elements:
+            id = calibration.getAttribute(ID)
+            if id == TEMPERATURE_SENSOR_ID:
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.TEMP_SENSOR_SERIAL_NUMBER, int))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.TEMP_CAL_DATE, str))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.TA0))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.TA1))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.TA2))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.TA3))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.TOFFSET))
+            elif id == CONDUCTIVITY_SENSOR_ID:
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.COND_SENSOR_SERIAL_NUMBER, int))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.COND_CAL_DATE, str))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.CONDG))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.CONDH))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.CONDI))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.CONDJ))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.CPCOR))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.CTCOR))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.CSLOPE))
+            elif id == PRESSURE_SENSOR_ID:
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.PRES_SERIAL_NUMBER, int))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.PRES_CAL_DATE, str))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.PC1))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.PC2))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.PC3))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.PD1))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.PD2))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.PT1))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.PT2))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.PT3))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.PT4))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.PSLOPE))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.POFFSET))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.PRES_RANGE, self._float_to_int))
+            elif id == VOLT0:
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.EXT_VOLT0_OFFSET))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.EXT_VOLT0_SLOPE))
+            elif id == VOLT1:
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.EXT_VOLT1_OFFSET))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.EXT_VOLT1_SLOPE))
+            elif id == VOLT2:
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.EXT_VOLT2_OFFSET))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.EXT_VOLT2_SLOPE))
+            elif id == VOLT3:
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.EXT_VOLT3_OFFSET))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.EXT_VOLT3_SLOPE))
+            elif id == VOLT4:
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.EXT_VOLT4_OFFSET))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.EXT_VOLT4_SLOPE))
+            elif id == VOLT5:
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.EXT_VOLT5_OFFSET))
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.EXT_VOLT5_SLOPE))
+            elif id == EXTERNAL_FREQUENCY_CHANNEL:
+                result.append(self._get_parameter(calibration, SBE16CalibrationDataParticleKey.EXT_FREQ))
+
+        return result
+
 class SBE16HardwareDataParticleKey(BaseEnum):
     SERIAL_NUMBER = "serial_number"
     FIRMWARE_VERSION = "firmware_version"
@@ -68,19 +284,6 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
         """
         return re.compile(SBE16HardwareDataParticle.regex(), re.DOTALL)
 
-    def _extract_elements(self, node, tag):
-        elements = node.getElementsByTagName(tag)
-        if len(elements) == 0:
-            raise SampleException("No %s in hardware data: [%s]" % (tag, self.raw_data))
-        return elements
-
-    def _extract_element_value(self, node, tag):
-        elements = self._extract_elements(node, tag)
-        children = elements[0].childNodes
-        if len(children) == 0:
-            raise SampleException("No value for %s in hardware data: [%s]" % (tag, self.raw_data))
-        return children[0].nodeValue
-    
     def _build_parsed_values(self):
         """
         @throws SampleException If there is a problem with sample creation
@@ -111,7 +314,7 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
         dom = parseString(self.raw_data)
         root = dom.documentElement
         log.debug("root.tagName = %s" %root.tagName)
-        serial_number = root.getAttribute(SERIAL_NUMBER)
+        serial_number = int(root.getAttribute(SERIAL_NUMBER))
         
         firmware_version = self._extract_element_value(root, FIRMWARE_VERSION)
         firmware_date = self._extract_element_value(root, FIRMWARE_DATE)
@@ -130,11 +333,12 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
         for sensor in sensors:
             sensor_id = sensor.getAttribute(ID)
             if sensor_id == TEMPERATURE_SENSOR_ID:
-                temperature_sensor_serial_number = self._extract_element_value(sensor, SERIAL_NUMBER)
+                temperature_sensor_serial_number = int(self._extract_element_value(sensor, SERIAL_NUMBER))
             elif sensor_id == CONDUCTIVITY_SENSOR_ID:
-                conductivity_sensor_serial_number = self._extract_element_value(sensor, SERIAL_NUMBER)
+                conductivity_sensor_serial_number = int(self._extract_element_value(sensor, SERIAL_NUMBER))
+                print ("SN=%s, SNI=%d" %(self._extract_element_value(sensor, SERIAL_NUMBER), conductivity_sensor_serial_number))
             elif sensor_id == PRESSURE_SENSOR_ID:
-                pressure_sensor_serial_number = self._extract_element_value(sensor, SERIAL_NUMBER)
+                pressure_sensor_serial_number = int(self._extract_element_value(sensor, SERIAL_NUMBER))
                 pressure_sensor_type = self._extract_element_value(sensor, TYPE)                
 
         result = [{DataParticleKey.VALUE_ID: SBE16HardwareDataParticleKey.SERIAL_NUMBER,
@@ -286,6 +490,7 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
         """
         matchers.append(SBE16HardwareDataParticle.regex_compiled())
         matchers.append(SBE16NoDataParticle.regex_compiled())
+        matchers.append(SBE16CalibrationDataParticle.regex_compiled())
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
@@ -300,6 +505,7 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
         with the appropriate particle objects and REGEXes. 
         """
         if not (self._extract_sample(SBE16HardwareDataParticle, SBE16HardwareDataParticle.regex_compiled(), chunk, timestamp) or
-                self._extract_sample(SBE16NoDataParticle, SBE16NoDataParticle.regex_compiled(), chunk, timestamp)):
+                self._extract_sample(SBE16NoDataParticle, SBE16NoDataParticle.regex_compiled(), chunk, timestamp) or
+                self._extract_sample(SBE16CalibrationDataParticle, SBE16CalibrationDataParticle.regex_compiled(), chunk, timestamp)):
             raise InstrumentProtocolException("Unhandled chunk %s" %chunk)
 
