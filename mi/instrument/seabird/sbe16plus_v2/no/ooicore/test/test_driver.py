@@ -33,6 +33,7 @@ from mi.instrument.seabird.sbe16plus_v2.test.test_driver import VersionSpecificS
 from mi.instrument.seabird.sbe16plus_v2.no.ooicore.driver import SBE16HardwareDataParticleKey, \
                                                                  SBE16CalibrationDataParticleKey, \
                                                                  SBE16NoDataParticleKey, \
+                                                                 SBE16StatusDataParticleKey, \
                                                                  SBE16_NO_Protocol, \
                                                                  InstrumentDriver, \
                                                                  DataParticleType
@@ -278,6 +279,46 @@ VersionSpecificStructures.VALID_GETCC_RESPONSE =  "" + \
 "   </Calibration>" + NEWLINE + \
 "</CalibrationCoefficients>" + NEWLINE
 
+VersionSpecificStructures.VALID_GETSD_RESPONSE =  "" + \
+"<StatusData DeviceType = 'SBE16plus' SerialNumber = '01607231'>" + NEWLINE + \
+"   <DateTime>2013-04-26T22:20:21</DateTime>" + NEWLINE + \
+"   <LoggingState>not logging</LoggingState>" + NEWLINE + \
+"   <EventSummary numEvents = '317'/>" + NEWLINE + \
+"   <Power>" + NEWLINE + \
+"      <vMain>13.0</vMain>" + NEWLINE + \
+"      <vLith>8.6</vLith>" + NEWLINE + \
+"      <iMain>51.1</iMain>" + NEWLINE + \
+"      <iPump> 0.5</iPump>" + NEWLINE + \
+"      <iExt01> 0.5</iExt01>" + NEWLINE + \
+"      <iSerial>45.1</iSerial>" + NEWLINE + \
+"   </Power>" + NEWLINE + \
+"   <MemorySummary>" + NEWLINE + \
+"      <Bytes>330</Bytes>" + NEWLINE + \
+"      <Samples>15</Samples>" + NEWLINE + \
+"      <SamplesFree>2990809</SamplesFree>" + NEWLINE + \
+"      <SampleLength>22</SampleLength>" + NEWLINE + \
+"      <Headers>3</Headers>" + NEWLINE + \
+"   </MemorySummary>" + NEWLINE + \
+"</StatusData>" + NEWLINE
+
+SeaBird16plusMixin._status_parameters = {
+        SBE16StatusDataParticleKey.SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 1607231, SeaBird16plusMixin.REQUIRED: True},
+        SBE16StatusDataParticleKey.DATE_TIME: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: "2013-04-26T22:20:21", SeaBird16plusMixin.REQUIRED: True},
+        SBE16StatusDataParticleKey.LOGGING_STATUS: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: "not logging", SeaBird16plusMixin.REQUIRED: True},
+        SBE16StatusDataParticleKey.NUMBER_OF_EVENTS: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 317, SeaBird16plusMixin.REQUIRED: True},
+        SBE16StatusDataParticleKey.BATTERY_VOLTAGE_MAIN: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 13.0, SeaBird16plusMixin.REQUIRED: True},
+        SBE16StatusDataParticleKey.BATTERY_VOLTAGE_LITHIUM: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 8.6, SeaBird16plusMixin.REQUIRED: True},
+        SBE16StatusDataParticleKey.OPERATIONAL_CURRENT: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 51.1, SeaBird16plusMixin.REQUIRED: True},
+        SBE16StatusDataParticleKey.PUMP_CURRENT: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 0.5, SeaBird16plusMixin.REQUIRED: True},
+        SBE16StatusDataParticleKey.EXT_V01_CURRENT: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 0.5, SeaBird16plusMixin.REQUIRED: True},
+        SBE16StatusDataParticleKey.SERIAL_CURRENT: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 45.1, SeaBird16plusMixin.REQUIRED: True},
+        SBE16StatusDataParticleKey.MEMMORY_FREE: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 330, SeaBird16plusMixin.REQUIRED: True},
+        SBE16StatusDataParticleKey.NUMBER_OF_SAMPLES: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 15, SeaBird16plusMixin.REQUIRED: True},
+        SBE16StatusDataParticleKey.SAMPLES_FREE: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 2990809, SeaBird16plusMixin.REQUIRED: True},
+        SBE16StatusDataParticleKey.SAMPLE_LENGTH: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 22, SeaBird16plusMixin.REQUIRED: True},
+        SBE16StatusDataParticleKey.HEADERS: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 3, SeaBird16plusMixin.REQUIRED: True},
+    }
+
 SeaBird16plusMixin._hardware_parameters = {
         SBE16HardwareDataParticleKey.SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 1607231, SeaBird16plusMixin.REQUIRED: True},
         SBE16HardwareDataParticleKey.FIRMWARE_VERSION: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: '2.5.2', SeaBird16plusMixin.REQUIRED: True},
@@ -339,7 +380,6 @@ SeaBird16plusMixin._calibration_parameters = {
         SBE16CalibrationDataParticleKey.EXT_FREQ: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 9.999949e-01, SeaBird16plusMixin.REQUIRED: True},
     }
 
-
 SeaBird16plusMixin._sample_parameters = {
         SBE16NoDataParticleKey.TEMP: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 252984, SeaBird16plusMixin.REQUIRED: True },
         SBE16NoDataParticleKey.CONDUCTIVITY: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 684933, SeaBird16plusMixin.REQUIRED: True },
@@ -397,6 +437,16 @@ class UnitFromIDK(SBEUnitTestCase):
         self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_parameters, verify_values)
 
+    def assert_particle_status(self, data_particle, verify_values = False):
+        '''
+        Verify status particle
+        @param data_particle:  SBE16DataParticle calibration particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(SBE16StatusDataParticleKey, self._status_parameters)
+        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_STATUS)
+        self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
+
     def test_chunker(self):
         """
         Test the chunker for NO version and verify the particles created.
@@ -418,6 +468,11 @@ class UnitFromIDK(SBEUnitTestCase):
         self.assert_chunker_fragmented_sample(chunker, self.VALID_GETCC_RESPONSE)
         self.assert_chunker_combined_sample(chunker, self.VALID_GETCC_RESPONSE)
 
+        self.assert_chunker_sample(chunker, self.VALID_GETSD_RESPONSE)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_GETSD_RESPONSE)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_GETSD_RESPONSE)
+        self.assert_chunker_combined_sample(chunker, self.VALID_GETSD_RESPONSE)
+
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles for NO version 
@@ -430,6 +485,7 @@ class UnitFromIDK(SBEUnitTestCase):
         self.assert_particle_published(driver, self.VALID_GETHD_RESPONSE, self.assert_particle_hardware, True)
         self.assert_particle_published(driver, self.VALID_SAMPLE, self.assert_particle_sample, True)
         self.assert_particle_published(driver, self.VALID_GETCC_RESPONSE, self.assert_particle_calibration, True)
+        self.assert_particle_published(driver, self.VALID_GETSD_RESPONSE, self.assert_particle_status, True)
         
 
 ###############################################################################

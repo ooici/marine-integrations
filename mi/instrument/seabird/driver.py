@@ -157,7 +157,13 @@ class SeaBirdParticle(DataParticle):
 
         return encoder
 
-    def _extract_elements(self, node, tag, raise_exception_if_none_found=True):
+    def _map_param_to_xml_tag(self, parameter_name):
+        '''
+        @return: a string containing the xml tag name for a parameter
+        '''
+        NotImplementedException()
+
+    def _extract_xml_elements(self, node, tag, raise_exception_if_none_found=True):
         """
         extract elements with tag from an XML node
         @param: node - XML node to look in
@@ -170,7 +176,7 @@ class SeaBirdParticle(DataParticle):
             raise SampleException("No %s in input data: [%s]" % (tag, self.raw_data))
         return elements
 
-    def _extract_element_value(self, node, tag, raise_exception_if_none_found=True):
+    def _extract_xml_element_value(self, node, tag, raise_exception_if_none_found=True):
         """
         extract element value that has tag from an XML node
         @param: node - XML node to look in
@@ -178,12 +184,17 @@ class SeaBirdParticle(DataParticle):
         @param: raise_exception_if_none_found - raise an exception if no value is found
         @return: return value of element
         """
-        elements = self._extract_elements(node, tag, raise_exception_if_none_found)
+        elements = self._extract_xml_elements(node, tag, raise_exception_if_none_found)
         children = elements[0].childNodes
         if raise_exception_if_none_found and len(children) == 0:
             raise SampleException("No value for %s in input data: [%s]" % (tag, self.raw_data))
         return children[0].nodeValue
     
+    def _get_xml_parameter(self, xml_element, parameter_name, type=float):
+        return {DataParticleKey.VALUE_ID: parameter_name,
+                DataParticleKey.VALUE: type(self._extract_xml_element_value(xml_element, 
+                                                                            self._map_param_to_xml_tag(parameter_name)))}
+        
     ########################################################################
     # Static helpers.
     ########################################################################
