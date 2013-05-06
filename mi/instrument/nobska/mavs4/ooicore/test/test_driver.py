@@ -138,7 +138,7 @@ class Mavs4Mixin(DriverTestMixin):
         InstrumentParameters.MONITOR : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
         InstrumentParameters.LOG_DISPLAY_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: 'HEX', VALUE: 'HEX'},
         InstrumentParameters.QUERY_MODE : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT:'n'},
         InstrumentParameters.FREQUENCY : {TYPE: float, READONLY: False, DA: False, STARTUP: False, DEFAULT: 1.0},
         InstrumentParameters.MEASUREMENTS_PER_SAMPLE : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 1},
@@ -159,10 +159,10 @@ class Mavs4Mixin(DriverTestMixin):
         InstrumentParameters.AUXILIARY_3 : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'n'},
         InstrumentParameters.SENSOR_ORIENTATION : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '2'},
         InstrumentParameters.SERIAL_NUMBER : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.VELOCITY_OFFSET_PATH_A : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.VELOCITY_OFFSET_PATH_B : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.VELOCITY_OFFSET_PATH_C : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.VELOCITY_OFFSET_PATH_D : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_A : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_B : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_C : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_D : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.COMPASS_OFFSET_0 : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.COMPASS_OFFSET_1 : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.COMPASS_OFFSET_2 : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
@@ -179,7 +179,7 @@ class Mavs4Mixin(DriverTestMixin):
         InstrumentParameters.NOTE2 : 'New note2 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
         InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
         InstrumentParameters.MONITOR : 'y',
-        InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'HEX',
+        InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'SI',
         InstrumentParameters.QUERY_MODE : 'n',
         InstrumentParameters.FREQUENCY : 2.0,
         InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
@@ -212,10 +212,10 @@ class Mavs4Mixin(DriverTestMixin):
     
         
     _status_parameters = {
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_A: {TYPE: int, VALUE: 1 },
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_B: {TYPE: int, VALUE: 2 },
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_C: {TYPE: int, VALUE: 3 },
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_D: {TYPE: int, VALUE: 4 },
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_A: {TYPE: unicode, VALUE: "F300" },
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_B: {TYPE: unicode, VALUE: "0000" },
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_C: {TYPE: unicode, VALUE: "0100" },
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_D: {TYPE: unicode, VALUE: "0300" },
         Mavs4StatusDataParticleKey.COMPASS_OFFSET_0: {TYPE: int, VALUE: 5 },
         Mavs4StatusDataParticleKey.COMPASS_OFFSET_1: {TYPE: int, VALUE: 6 },
         Mavs4StatusDataParticleKey.COMPASS_OFFSET_2: {TYPE: int, VALUE: 7 },
@@ -232,15 +232,38 @@ class Mavs4Mixin(DriverTestMixin):
         Mavs4StatusDataParticleKey.BURST_INTERVAL_SECONDS: {TYPE: int, VALUE: 18 },
         Mavs4StatusDataParticleKey.SI_CONVERSION: {TYPE: float, VALUE: 19.0 },
     }
+    
+    # lame way to handle the mapping...
+    _status_instrument_parameters = {
+        InstrumentParameters.VELOCITY_OFFSET_PATH_A: {TYPE: unicode, VALUE: "F300" },
+        InstrumentParameters.VELOCITY_OFFSET_PATH_B: {TYPE: unicode, VALUE: "0000" },
+        InstrumentParameters.VELOCITY_OFFSET_PATH_C: {TYPE: unicode, VALUE: "0100" },
+        InstrumentParameters.VELOCITY_OFFSET_PATH_D: {TYPE: unicode, VALUE: "0300" },
+        InstrumentParameters.COMPASS_OFFSET_0: {TYPE: int, VALUE: 5 },
+        InstrumentParameters.COMPASS_OFFSET_1: {TYPE: int, VALUE: 6 },
+        InstrumentParameters.COMPASS_OFFSET_2: {TYPE: int, VALUE: 7 },
+        InstrumentParameters.COMPASS_SCALE_FACTORS_0: {TYPE: float, VALUE: 8.0 },
+        InstrumentParameters.COMPASS_SCALE_FACTORS_1: {TYPE: float, VALUE: 9.0},
+        InstrumentParameters.COMPASS_SCALE_FACTORS_2: {TYPE: float, VALUE: 10.0},
+        InstrumentParameters.TILT_PITCH_OFFSET: {TYPE: int, VALUE: 11 },
+        InstrumentParameters.TILT_ROLL_OFFSET: {TYPE: int, VALUE: 12 },
+        InstrumentParameters.SAMPLE_PERIOD: {TYPE: float, VALUE: 13.0 },
+        InstrumentParameters.SAMPLES_PER_BURST: {TYPE: int, VALUE: 14 },
+        InstrumentParameters.BURST_INTERVAL_DAYS: {TYPE: int, VALUE: 15 },
+        InstrumentParameters.BURST_INTERVAL_HOURS: {TYPE: int, VALUE: 16},
+        InstrumentParameters.BURST_INTERVAL_MINUTES: {TYPE: int, VALUE: 17 },
+        InstrumentParameters.BURST_INTERVAL_SECONDS: {TYPE: int, VALUE: 18 },
+        InstrumentParameters.SI_CONVERSION: {TYPE: float, VALUE: 19.0 },
+    }    
         
     _sample_parameters = {
         Mavs4SampleDataParticleKey.TIMESTAMP: {TYPE: float, VALUE: 3565047050.0},
         Mavs4SampleDataParticleKey.FRACTIONAL_SECOND: {TYPE: int, VALUE: 40},
-        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_A: {TYPE: int, VALUE: 64965},
-        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_B: {TYPE: int, VALUE: 65392},
-        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_C: {TYPE: int, VALUE: 65307},
-        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_D: {TYPE: int, VALUE: 65420},
-        Mavs4SampleDataParticleKey.VELOCITY_FRAME_EAST: {TYPE: float, VALUE: 1.2},
+        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_A: {TYPE: unicode, VALUE: "FDC5"},
+        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_B: {TYPE: unicode, VALUE: "FF70"},
+        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_C: {TYPE: unicode, VALUE: "FF1B"},
+        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_D: {TYPE: unicode, VALUE: "FF8C"},
+        Mavs4SampleDataParticleKey.VELOCITY_FRAME_UP: {TYPE: float, VALUE: 1.2},
         Mavs4SampleDataParticleKey.VELOCITY_FRAME_NORTH: {TYPE: float, VALUE: 3.4},
         Mavs4SampleDataParticleKey.VELOCITY_FRAME_WEST: {TYPE: float, VALUE: 5.6},
         Mavs4SampleDataParticleKey.TEMPERATURE: {TYPE: float, VALUE: 22.21},
@@ -259,22 +282,22 @@ class Mavs4Mixin(DriverTestMixin):
                        "values": [{"value": 6, "value_id": "comapss_offset_1"},
                                   {"value": 5, "value_id": "comapss_offset_0"},
                                   {"value": 15, "value_id": "burst_interval_days"},
-                                  {"value": 12, "value_id": "tilt_roll_offset"},
+                                  {"value": 12, "value_id": "tilt_offset_roll"},
                                   {"value": 16, "value_id": "burst_interval_hours"},
-                                  {"value": 11, "value_id": "tilt_pitch_offset"},
-                                  {"value": 2, "value_id": "velocity_offset_path_b"},
+                                  {"value": 11, "value_id": "tilt_offset_pitch"},
+                                  {"value": "0000", "value_id": "velocity_offset_b"},
                                   {"value": 18, "value_id": "burst_interval_seconds"},
-                                  {"value": 19.0, "value_id": "si_conversion"},
+                                  {"value": 19.0, "value_id": "bin_to_si_conversion"},
                                   {"value": 14, "value_id": "samples_per_burst"},
-                                  {"value": 4, "value_id": "velocity_offset_path_d"},
+                                  {"value": "0300", "value_id": "velocity_offset_d"},
                                   {"value": 17, "value_id": "burst_interval_minutes"},
                                   {"value": 7, "value_id": "comapss_offset_2"},
-                                  {"value": 10.0, "value_id": "comapss_scale_factors_2"},
-                                  {"value": 8.0, "value_id": "comapss_scale_factors_0"},
-                                  {"value": 9.0, "value_id": "comapss_scale_factors_1"},
+                                  {"value": 10.0, "value_id": "comapss_scale_factor_2"},
+                                  {"value": 8.0, "value_id": "comapss_scale_factor_0"},
+                                  {"value": 9.0, "value_id": "comapss_scale_factor_1"},
                                   {"value": 13.0, "value_id": "sample_period"},
-                                  {"value": 3, "value_id": "velocity_offset_path_c"},
-                                  {"value": 1, "value_id": "velocity_offset_path_a"}]
+                                  {"value": "0100", "value_id": "velocity_offset_c"},
+                                  {"value": "F300", "value_id": "velocity_offset_a"}]
                       }
 
     SAMPLE = "12 20 2012 18 50 50.40 FDC5 FF70 FF1B FF8C 1.2 3.4 5.6 22.21 0.96 0.28 3.0 -5.1\n"
@@ -438,8 +461,8 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
 
         # load the status parameter values
         pd = driver._protocol._param_dict
-        for name in self._status_parameters.keys():
-            pd.set_value(name, self._status_parameters[name][VALUE])
+        for name in self._status_instrument_parameters.keys():
+            pd.set_value(name, self._status_instrument_parameters[name][VALUE])
             
         # clear out any old events
         self.clear_data_particle_queue()
@@ -732,7 +755,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
                 sample_dict = eval(sample['value'])     # turn string into dictionary
                 values = sample_dict['values']          # get particle dictionary
                 # pull timestamp out of particle
-                ntp_timestamp = [item for item in values if item["value_id"] == "timestamp"][0]['value']
+                ntp_timestamp = [item for item in values if item["value_id"] == Mavs4SampleDataParticleKey.TIMESTAMP][0]['value']
                 float_timestamp = ntplib.ntp_to_system_time(ntp_timestamp)
                 log.debug('dt=%s' %time.ctime(float_timestamp))
         self.assertTrue(len(sample_events) >= 2)
