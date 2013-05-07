@@ -35,6 +35,8 @@ from interface.objects import AgentCommand
 
 from mi.core.instrument.logger_client import LoggerClient
 
+from mi.core.instrument.port_agent_client import PortAgentClient
+
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
@@ -200,18 +202,28 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         """
         Verify sample data passed through the got data method produces the correct data particles
         """
-        # Create and initialize the instrument driver with a mock port agent
-        driver = InstrumentDriver(self._got_data_event_callback)
-        #self.assert_initialize_driver(driver)
 
+        """
+        Create a mock port agent
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+
+        """
+        Instantiate the driver class directly (no driver client, no driver
+        client, no zmq driver process, no driver process; just own the driver)
+        """
+        driver = InstrumentDriver(self._got_data_event_callback)
+        
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
 
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        pa_config = self.port_agent_config()
-
-        driver.configure(config = pa_config)
+        """
+        Now configure the driver with the mock_port_agent, verifying
+        that the driver transitions to the DISCONNECTED state
+        """
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+        #self.assert_initialize_driver(driver)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -222,9 +234,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         driver.connect()
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, initial_protocol_state)
 
     def test_got_data(self):
         """
@@ -271,6 +280,24 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 
     def test_connection(self):
         self.assert_initialize_driver()
+
+    def test_get(self):
+        self.assert_initialize_driver()
+        value = self.assert_get(Parameter.HEAT_DURATION)
+
+    def test_set(self):
+        """
+        Test all set commands. Verify all exception cases.
+        """
+        self.assert_initialize_driver()
+
+        #reply = self.driver_client.cmd_dvr('set_resource', {Parameter.HEAT_DURATION: 3}, False)
+        #self.assertIsNone(reply, None)
+        
+        #value = self.assert_get(Parameter.HEAT_DURATION)
+        #log.error('!!! ??? DHE value: %r', value)
+
+        self.assert_set(Parameter.HEAT_DURATION, 3)
         
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

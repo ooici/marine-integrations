@@ -50,8 +50,9 @@ class ProtocolState(BaseEnum):
     """
     Instrument protocol states
     """
-    UNKNOWN = DriverProtocolState.UNKNOWN
-    COMMAND = DriverProtocolState.COMMAND
+    UNKNOWN     = DriverProtocolState.UNKNOWN
+    COMMAND     = DriverProtocolState.COMMAND
+    AUTOSAMPLE  = DriverProtocolState.AUTOSAMPLE
 
 class ProtocolEvent(BaseEnum):
     """
@@ -61,6 +62,8 @@ class ProtocolEvent(BaseEnum):
     EXIT = DriverEvent.EXIT
     GET = DriverEvent.GET
     SET = DriverEvent.SET
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     DISCOVER = DriverEvent.DISCOVER
 
 class Capability(BaseEnum):
@@ -156,8 +159,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
 
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
 
@@ -231,10 +239,43 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
-        Discover current state
-        @retval (next_state, result)
+        Discover current state; can only be AUTOSAMPLE (instrument has no actual command mode).
+        @retval (next_state, result), (ProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING)
         """
-        return (ProtocolState.COMMAND, ResourceAgentState.IDLE)
+
+        # force to auto-sample, this instrument has no command mode
+        next_state = ProtocolState.AUTOSAMPLE
+        result = ResourceAgentState.STREAMING
+
+        return (next_state, result)
+
+    ########################################################################
+    # Autosample handlers.
+    ########################################################################
+
+    def _handler_autosample_enter(self, *args, **kwargs):
+        """
+        Enter autosample state.
+        """
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_autosample_exit(self, *args, **kwargs):
+        """
+        Exit command state.
+        """
+        pass
+
+    def _handler_autosample_stop_autosample(self):
+        """
+        """
+        result = None
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+        
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Command handlers.
@@ -252,6 +293,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_command_start_autosample(self, *args, **kwargs):
+        """
+        """
+        result = None
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_get(self, *args, **kwargs):
         """

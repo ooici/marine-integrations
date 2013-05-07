@@ -45,6 +45,8 @@ NEWLINE = '\n'
 # default timeout.
 TIMEOUT = 10
 
+DEFAULT_HEAT_DURATION = 2
+
 class DataParticleType(BaseEnum):
     """
     Data particle types produced by this driver
@@ -58,9 +60,10 @@ class ProtocolState(BaseEnum):
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
-    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    TEST = DriverProtocolState.TEST
-    CALIBRATE = DriverProtocolState.CALIBRATE
+
+class ExportedInstrumentCommand(BaseEnum):
+    HEAT_ON = "EXPORTED_INSTRUMENT_CMD_HEAT_ON"
+    HEAT_OFF = "EXPORTED_INSTRUMENT_CMD_HEAT_OFF"
 
 class ProtocolEvent(BaseEnum):
     """
@@ -71,29 +74,23 @@ class ProtocolEvent(BaseEnum):
     GET = DriverEvent.GET
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
-    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+    HEAT_ON = ExportedInstrumentCommand.HEAT_ON
+    HEAT_OFF = ExportedInstrumentCommand.HEAT_OFF
 
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
-    ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
-
+    GET = ProtocolEvent.GET
+    SET = ProtocolEvent.SET
+    HEAT_ON = ProtocolEvent.HEAT_ON
+    HEAT_OFF = ProtocolEvent.HEAT_OFF
+    
 class Parameter(DriverParameter):
     """
     Device specific parameters.
     """
+    HEAT_DURATION = "heat_duration"
 
 class Prompt(BaseEnum):
     """
@@ -289,18 +286,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
-
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -320,6 +310,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         #
         self._chunker = StringChunker(Protocol.sieve_function)
+
+        self._heat_duration = DEFAULT_HEAT_DURATION
 
 
     @staticmethod
@@ -408,8 +400,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Get parameter
         """
+        # DHE TEMPTEMP
+        log.error(" ------------------------> DHE _handler_command_get!! args: %r, kwargs: %r", args, kwargs)
+        
         next_state = None
-        result = None
+        result = {}
+        result[Parameter.HEAT_DURATION] = self._heat_duration
 
 
         return (next_state, result)
@@ -421,6 +417,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
+        # DHE TEMPTEMP
+        log.error(" ------------------------> DHE _handler_command_set!! args: %r, kwargs: %r", args, kwargs)
+        
+        params = args[0]
+        new_heat_duration = params[Parameter.HEAT_DURATION]
+        if new_heat_duration != self._heat_duration:
+            log.info("BOTPT HEAT Driver: setting heat duration from %d to %d", self._heat_duration, new_heat_duration)
+            self._heat_duration = new_heat_duration 
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        else:
+            log.info("BOTPT HEAT Driver: heat duration already %d; not changing.", new_heat_duration)
+        
         return (next_state, result)
 
     def _handler_command_exit(self, *args, **kwargs):

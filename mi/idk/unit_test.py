@@ -1080,11 +1080,9 @@ class InstrumentDriverTestCase(MiIntTestCase):
 
         # use assertTrue here intentionally because it's easier to unit test
         # this method.
-        if len(superset):
-            self.assertTrue(len(subset) > 0)
-
-        for item in subset:
-            self.assertTrue(item in superset)
+        if len(subset) and len(superset):
+            for item in subset:
+                self.assertTrue(item in superset)
 
         # This added so the unit test can set a true flag.  If we have made it
         # this far we should pass the test.

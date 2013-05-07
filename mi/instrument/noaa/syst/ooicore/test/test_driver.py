@@ -39,6 +39,10 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 
+from pyon.core.exception import Conflict
+from pyon.agent.agent import ResourceAgentState
+from pyon.agent.agent import ResourceAgentEvent
+
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
@@ -198,13 +202,36 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    """
-    DHE TEMPTEMPTEMP just to test connection to BOTPT
-    """
-    def test_connection(self):
-        self.assert_initialize_driver()
-        
 
+    def assert_initialize_driver(self, final_state=DriverProtocolState.AUTOSAMPLE):
+        """
+        Walk an uninitialized driver through it's initialize process.  Verify the final
+        state is command mode.  If the final state is auto sample then we will stop
+        which should land us in autosample
+        """
+        log.info("test_connect test started")
+
+        # Test the driver is in state unconfigured.
+        self.assert_current_state(DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test the driver is configured for comms.
+        self.assert_current_state(DriverConnectionState.DISCONNECTED)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('connect')
+
+        # Test the driver is in unknown state.
+        self.assert_current_state(DriverProtocolState.UNKNOWN)
+
+        # Configure driver for comms and transition to disconnected.
+        reply = self.driver_client.cmd_dvr('discover_state')
+
+        # Assert that this driver is in streaming mode
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, DriverProtocolState.AUTOSAMPLE)
 
 
 ###############################################################################
@@ -223,13 +250,18 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
                                  timeout=GO_ACTIVE_TIMEOUT, sample_count=3):
         pass
 
-    # Overridden because does not apply for this driver
+    # Overridden because base class tries to do direct access
     def test_reset(self):
-        pass
+        """
+        Verify the agent can be reset
+        """
+        self.assert_enter_command_mode()
+        self.assert_reset()
 
-    # Overridden because does not apply for this driver
-    def test_instrument_agent_common_state_model_lifecycle(self):
-        pass
+        self.assert_enter_command_mode()
+        self.assert_start_autosample()
+        self.assert_reset()
+
 
     # Overridden because does not apply for this driver
     def test_discover(self):
@@ -250,12 +282,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         '''
 
     # Overridden because does not apply for this driver
-    def test_autosample(self):
-        '''
-        start and stop autosample and verify data particle
-        '''
-
-    # Overridden because does not apply for this driver
     def test_get_set_parameters(self):
         '''
         verify that all parameters can be get set properly, this includes
@@ -263,6 +289,86 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         '''
         pass
 
+
+    def test_instrument_agent_common_state_model_lifecycle(self,  timeout=GO_ACTIVE_TIMEOUT):
+        """
+        @brief Test agent state transitions.
+               This test verifies that the instrument agent can
+               properly command the instrument through the following states.
+
+                COMMANDS TESTED
+                *ResourceAgentEvent.INITIALIZE
+                *ResourceAgentEvent.RESET
+                *ResourceAgentEvent.GO_ACTIVE
+                *ResourceAgentEvent.RUN
+                *ResourceAgentEvent.PAUSE
+                *ResourceAgentEvent.RESUME
+                *ResourceAgentEvent.GO_COMMAND
+                *ResourceAgentEvent.GO_INACTIVE
+                *ResourceAgentEvent.PING_RESOURCE
+                *ResourceAgentEvent.CLEAR
+
+                COMMANDS NOT TESTED
+                * ResourceAgentEvent.GO_DIRECT_ACCESS
+                * ResourceAgentEvent.GET_RESOURCE_STATE
+                * ResourceAgentEvent.GET_RESOURCE
+                * ResourceAgentEvent.SET_RESOURCE
+                * ResourceAgentEvent.EXECUTE_RESOURCE
+
+                STATES ACHIEVED:
+                * ResourceAgentState.UNINITIALIZED
+                * ResourceAgentState.INACTIVE
+                * ResourceAgentState.IDLE'
+                * ResourceAgentState.STOPPED
+                * ResourceAgentState.COMMAND
+
+                STATES NOT ACHIEVED:
+                * ResourceAgentState.DIRECT_ACCESS
+                * ResourceAgentState.STREAMING
+                * ResourceAgentState.TEST
+                * ResourceAgentState.CALIBRATE
+                * ResourceAgentState.BUSY
+                -- Not tested because they may not be implemented in the driver
+        """
+        ####
+        # UNINITIALIZED
+        ####
+        self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
+
+        # Try to run some commands that aren't available in this state
+        self.assert_agent_command_exception(ResourceAgentEvent.RUN, exception_class=Conflict)
+        self.assert_agent_command_exception(ResourceAgentEvent.GO_ACTIVE, exception_class=Conflict)
+        self.assert_agent_command_exception(ResourceAgentEvent.GO_DIRECT_ACCESS, exception_class=Conflict)
+
+        ####
+        # INACTIVE
+        ####
+        self.assert_agent_command(ResourceAgentEvent.INITIALIZE)
+        self.assert_agent_state(ResourceAgentState.INACTIVE)
+
+        # Try to run some commands that aren't available in this state
+        self.assert_agent_command_exception(ResourceAgentEvent.RUN, exception_class=Conflict)
+
+        ####
+        # IDLE
+        ####
+        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
+
+        # Try to run some commands that aren't available in this state
+        self.assert_agent_command_exception(ResourceAgentEvent.INITIALIZE, exception_class=Conflict)
+        self.assert_agent_command_exception(ResourceAgentEvent.GO_ACTIVE, exception_class=Conflict)
+        self.assert_agent_command_exception(ResourceAgentEvent.RESUME, exception_class=Conflict)
+
+        # Verify we can go inactive
+        self.assert_agent_command(ResourceAgentEvent.GO_INACTIVE)
+        self.assert_agent_state(ResourceAgentState.INACTIVE)
+
+        # Get back to idle
+        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
+
+        # Reset
+        self.assert_agent_command(ResourceAgentEvent.RESET)
+        self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
 
     def test_get_capabilities(self):
         """
