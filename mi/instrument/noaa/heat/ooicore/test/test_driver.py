@@ -28,6 +28,8 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import DriverTestMixin
+from mi.idk.unit_test import ParameterTestConfigKey
 
 from interface.objects import AgentCommand
 
@@ -43,6 +45,8 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 
 from mi.instrument.noaa.heat.ooicore.driver import InstrumentDriver
 from mi.instrument.noaa.heat.ooicore.driver import DataParticleType
+from mi.instrument.noaa.heat.ooicore.driver import HEATDataParticleKey
+from mi.instrument.noaa.heat.ooicore.driver import HEATDataParticle
 from mi.instrument.noaa.heat.ooicore.driver import InstrumentCommand
 from mi.instrument.noaa.heat.ooicore.driver import ProtocolState
 from mi.instrument.noaa.heat.ooicore.driver import ProtocolEvent
@@ -66,6 +70,7 @@ InstrumentDriverTestCase.initialize(
     driver_startup_config = {}
 )
 
+
 #################################### RULES ####################################
 #                                                                             #
 # Common capabilities in the base class                                       #
@@ -83,6 +88,68 @@ InstrumentDriverTestCase.initialize(
 #   Driver constant definitions
 ###
 
+VALID_SAMPLE_01 = "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
+VALID_SAMPLE_02 = "HEAT,2013/04/19 22:54:11,001,0001,0025" + NEWLINE
+
+###############################################################################
+#                           DRIVER TEST MIXIN                                  #
+#     Defines a set of constants and assert methods used for data particle    #
+#     verification                                                               #
+#                                                                             #
+#  In python mixin classes are classes designed such that they wouldn't be    #
+#  able to stand on their own, but are inherited by other classes generally   #
+#  using multiple inheritance.                                                #
+#                                                                             #
+# This class defines a configuration structure for testing and common assert  #
+# methods for validating data particles.                                      #
+###############################################################################
+class HEATTestMixinSub(DriverTestMixin):
+
+
+    TYPE      = ParameterTestConfigKey.TYPE
+    READONLY  = ParameterTestConfigKey.READONLY
+    STARTUP   = ParameterTestConfigKey.STARTUP
+    DA        = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE     = ParameterTestConfigKey.VALUE
+    REQUIRED  = ParameterTestConfigKey.REQUIRED
+    DEFAULT   = ParameterTestConfigKey.DEFAULT
+    STATES    = ParameterTestConfigKey.STATES
+
+    _sample_parameters_01 = {
+        HEATDataParticleKey.TIME: {TYPE: float, VALUE: 3575426051.0, REQUIRED: True },
+        HEATDataParticleKey.X_TILT: {TYPE: int, VALUE: -1, REQUIRED: True },
+        HEATDataParticleKey.Y_TILT: {TYPE: int, VALUE: 1, REQUIRED: True },
+        HEATDataParticleKey.TEMP: {TYPE: int, VALUE: 25, REQUIRED: True }
+    }
+
+    _sample_parameters_02 = {
+        HEATDataParticleKey.TIME: {TYPE: float, VALUE: 3575426051.0, REQUIRED: True },
+        HEATDataParticleKey.X_TILT: {TYPE: int, VALUE: 1, REQUIRED: True },
+        HEATDataParticleKey.Y_TILT: {TYPE: int, VALUE: 1, REQUIRED: True },
+        HEATDataParticleKey.TEMP: {TYPE: int, VALUE: 25, REQUIRED: True }
+    }
+
+    def assert_particle_sample_01(self, data_particle, verify_values = False):
+        '''
+        Verify sample particle
+        @param data_particle:  HEATDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(HEATDataParticleKey, self._sample_parameters_01)
+        self.assert_data_particle_header(data_particle, DataParticleType.HEAT_PARSED, require_instrument_timestamp=True)
+        self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
+
+    def assert_particle_sample_02(self, data_particle, verify_values = False):
+        '''
+        Verify sample particle
+        @param data_particle:  HEATDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(HEATDataParticleKey, self._sample_parameters_02)
+        self.assert_data_particle_header(data_particle, DataParticleType.HEAT_PARSED, require_instrument_timestamp=True)
+        self.assert_data_particle_parameters(data_particle, self._sample_parameters_02, verify_values)
+
+
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
@@ -97,10 +164,9 @@ InstrumentDriverTestCase.initialize(
 #   driver process.                                                           #
 ###############################################################################
 @attr('UNIT', group='mi')
-class DriverUnitTest(InstrumentDriverUnitTestCase):
+class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
-
 
     def test_driver_enums(self):
         """
@@ -123,6 +189,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase):
         Test the chunker and verify the particles created.
         """
         chunker = StringChunker(Protocol.sieve_function)
+
+        self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
 
 
     """
@@ -165,6 +233,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase):
         # Create and initialize the instrument driver with a mock port agent
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
+
+        self.assert_particle_published(driver, VALID_SAMPLE_01, self.assert_particle_sample_01, True)
+        self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
 
 
     def test_protocol_filter_capabilities(self):

@@ -13,6 +13,10 @@ __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 import string
+import re
+import time
+import datetime
+import ntplib
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -31,15 +35,15 @@ from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 
 
-# newline.
-NEWLINE = '\r\n'
-
-# default timeout.
-TIMEOUT = 10
-
 ###
 #    Driver Constant Definitions
 ###
+
+# newline.
+NEWLINE = '\n'
+
+# default timeout.
+TIMEOUT = 10
 
 class DataParticleType(BaseEnum):
     """
@@ -101,6 +105,118 @@ class InstrumentCommand(BaseEnum):
     Instrument command strings
     """
 
+class DataParticleType(BaseEnum):
+    HEAT_PARSED = 'heat_sample'
+
+class HEATDataParticleKey(BaseEnum):
+    TIME = "heat_time"
+    X_TILT = "heat_x_tilt"
+    Y_TILT = "heat_y_tilt"
+    TEMP = "temperature"
+
+class HEATDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+
+    Sample:
+       HEAT,2013/04/23 18:24:46,0000,0001,0025
+       HEAT,2013/04/19 22:54:11,001,0001,0025
+    Format:
+       IIII,YYYY/MM/DD hh:mm:ss,xxxx,yyyy,tttt
+
+        ID = IIII = HEAT
+        Year = YYYY
+        Month = MM
+        Day = DD
+        Hour = hh
+        Minutes = mm
+        Seconds = ss
+        X_TILT = xxxx (integer degrees)
+        Y_TILT = yyyy (integer degrees)
+        Temp = tttt (integer degrees C)
+    """
+    _data_particle_type = DataParticleType.HEAT_PARSED
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a sample pattern
+        @return: regex string
+        """
+        pattern = r'HEAT,' # pattern starts with HEAT '
+        """
+        DHE: changing this to one string
+        pattern += r'([0-9]{4})/' # 1 year  
+        pattern += r'([0-9]{2})/' # 2 month
+        pattern += r'([0-9]{2})' # 3 day
+        pattern += r' ?'
+        pattern += r'([0-9]{2}):' # 4 hours
+        pattern += r'([0-9]{2}):' # 5 minutes
+        pattern += r'([0-9]{2}),' # 6 seconds
+        """
+        pattern += r'(.*),' # 1 time
+        pattern += r'(-*[0-9]+),' # 2 x-tilt
+        pattern += r'(-*[0-9]+),' # 3 y-tilt
+        pattern += r'([0-9]{4})' # 4 temp
+        pattern += NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        """
+        get the compiled regex pattern
+        @return: compiled re
+        """
+        return re.compile(HEATDataParticle.regex())
+
+    def _build_parsed_values(self):
+        """
+        Take something in the autosample/TS format and split it into
+        C, T, and D values (with appropriate tags)
+        
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = HEATDataParticle.regex_compiled().match(self.raw_data)
+
+        if not match:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.raw_data)
+            
+        try:
+            """
+            year = match.group(1)
+            month = match.group(2)
+            month = match.group(2)
+            day = match.group(3)
+            hour = match.group(4)
+            minutes = match.group(5)
+            seconds = match.group(6)
+            """
+            heat_time = match.group(1)
+            timestamp = time.strptime(heat_time, "%Y/%m/%d %H:%M:%S")
+            self.set_internal_timestamp(unix_time=time.mktime(timestamp))
+            ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
+            x_tilt = int(match.group(2))
+            y_tilt = int(match.group(3))
+            temperature = int(match.group(4))
+
+        except ValueError:
+            raise SampleException("ValueError while converting data: [%s]" %
+                                  self.raw_data)
+        
+        result = [
+                  {DataParticleKey.VALUE_ID: HEATDataParticleKey.TIME,
+                   DataParticleKey.VALUE: ntp_timestamp},
+                  {DataParticleKey.VALUE_ID: HEATDataParticleKey.X_TILT,
+                   DataParticleKey.VALUE: x_tilt},
+                  {DataParticleKey.VALUE_ID: HEATDataParticleKey.Y_TILT,
+                   DataParticleKey.VALUE: y_tilt},
+                  {DataParticleKey.VALUE_ID: HEATDataParticleKey.TEMP,
+                   DataParticleKey.VALUE: temperature}
+                  ]
+        
+        return result
 
 ###############################################################################
 # Data Particles
@@ -212,7 +328,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         The method that splits samples
         """
 
+        matchers = []
         return_list = []
+
+        matchers.append(HEATDataParticle.regex_compiled())
+
+        for matcher in matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
 
         return return_list
 
@@ -224,11 +347,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         # Add parameter handlers to parameter dict.
 
-    def _got_chunk(self, chunk):
+    def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
+        if not (self._extract_sample(HEATDataParticle, HEATDataParticle.regex_compiled(), chunk, timestamp)):
+            raise InstrumentProtocolException("Unhandled chunk")
+
 
     def _filter_capabilities(self, events):
         """
