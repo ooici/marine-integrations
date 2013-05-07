@@ -227,7 +227,7 @@ class SeaBirdParticle(DataParticle):
         @param value: string to convert
         @return: bool
         """
-        if not isinstance(value, str):
+        if not (isinstance(value, str) or isinstance(value, unicode)):
             raise InstrumentParameterException("value not a string")
 
         if(value.lower() == 'no'):

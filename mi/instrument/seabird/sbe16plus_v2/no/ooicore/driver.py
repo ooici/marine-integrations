@@ -360,6 +360,138 @@ class SBE16StatusDataParticle(seabird_driver.SeaBirdParticle):
 
         return result
 
+class SBE16ConfigurationDataParticleKey(BaseEnum):
+    SERIAL_NUMBER = "serial_number"
+
+    SAMPLE_INTERVAL = "sample_interval"
+    MEASUREMENTS_PER_SAMPLE= " measurements_per_sample"
+    PAROS_INTEGRATION_TIME = " paros_integration"
+    PUMP_MODE = "pump_mode"
+    DELAY_BEFORE_SAMPLING = "delay_before_sampling"
+    DELAY_AFTER_SAMPLING = "delay_after_sampling"
+    TRANSMIT_REAL_TIME = "tx_real_time"
+    
+    BATTERY_CUTOFF = "battery_cutoff"
+    
+    EXT_VOLT_0 = "ext_volt_0"
+    EXT_VOLT_1 = "ext_volt_1"
+    EXT_VOLT_2 = "ext_volt_2"
+    EXT_VOLT_3 = "ext_volt_3"
+    EXT_VOLT_4 = "ext_volt_4"
+    EXT_VOLT_5 = "ext_volt_5"
+    SBE38 = "sbe38"
+    SBE50 = "sbe50"
+    WETLABS = "wetlabs"
+    OPTODE = "optode"
+    GAS_TENSION_DEVICE = "gas_tension_device"
+    
+    ECHO_CHARACTERS = "echo_characters"
+    OUTPUT_EXECUTED_TAG = "output_executed_tag"
+    OUTPUT_FORMAT = "output_format"
+    SERIAL_SYNC_MODE = "serial_sync_mode"
+    
+
+class SBE16ConfigurationDataParticle(seabird_driver.SeaBirdParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    _data_particle_type = DataParticleType.DEVICE_CONFIGURATION
+
+    @staticmethod
+    def regex():
+        pattern = r'<ConfigurationData.*?</ConfigurationData>' + seabird_driver.NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        return re.compile(SBE16ConfigurationDataParticle.regex(), re.DOTALL)
+    
+    def _map_param_to_xml_tag(self, parameter_name):
+        map_param_to_tag = {SBE16ConfigurationDataParticleKey.SAMPLE_INTERVAL: "SampleInterval",
+                            SBE16ConfigurationDataParticleKey.MEASUREMENTS_PER_SAMPLE: "MeasurementsPerSample",
+                            SBE16ConfigurationDataParticleKey.PAROS_INTEGRATION_TIME: "ParosIntegrationTime",
+                            SBE16ConfigurationDataParticleKey.PUMP_MODE: "Pump",
+                            SBE16ConfigurationDataParticleKey.DELAY_BEFORE_SAMPLING: "DelayBeforeSampling",
+                            SBE16ConfigurationDataParticleKey.DELAY_AFTER_SAMPLING: "DelayAfterSampling",
+                            SBE16ConfigurationDataParticleKey.TRANSMIT_REAL_TIME: "TransmitRealTime",
+                            
+                            SBE16ConfigurationDataParticleKey.BATTERY_CUTOFF: "CutOff",
+
+                            SBE16ConfigurationDataParticleKey.EXT_VOLT_0: "ExtVolt0",
+                            SBE16ConfigurationDataParticleKey.EXT_VOLT_1: "ExtVolt1",
+                            SBE16ConfigurationDataParticleKey.EXT_VOLT_2: "ExtVolt2",
+                            SBE16ConfigurationDataParticleKey.EXT_VOLT_3: "ExtVolt3",
+                            SBE16ConfigurationDataParticleKey.EXT_VOLT_4: "ExtVolt4",
+                            SBE16ConfigurationDataParticleKey.EXT_VOLT_5: "ExtVolt5",
+                            SBE16ConfigurationDataParticleKey.SBE38: "SBE38",
+                            SBE16ConfigurationDataParticleKey.SBE50: "SBE50",
+                            SBE16ConfigurationDataParticleKey.WETLABS: "WETLABS",
+                            SBE16ConfigurationDataParticleKey.OPTODE: "OPTODE",
+                            SBE16ConfigurationDataParticleKey.GAS_TENSION_DEVICE: "GTD",
+                            
+                            SBE16ConfigurationDataParticleKey.ECHO_CHARACTERS: "EchoCharacters",
+                            SBE16ConfigurationDataParticleKey.OUTPUT_EXECUTED_TAG: "OutputExecutedTag",
+                            SBE16ConfigurationDataParticleKey.OUTPUT_FORMAT: "OutputFormat",
+                            SBE16ConfigurationDataParticleKey.SERIAL_SYNC_MODE: "SerialLineSync",
+                           }
+        return map_param_to_tag[parameter_name]
+
+    def _build_parsed_values(self):
+        """
+        Parse the output of the getCC command
+        @throws SampleException If there is a problem with sample creation
+        """
+
+        SERIAL_NUMBER = "SerialNumber"
+        SAMPLING_PARAMETERS = "SamplingParameters"
+        BATTERY = "Battery"
+        DATA_CHANNELS = "DataChannels"
+
+        # check to make sure there is a correct match before continuing
+        match = SBE16ConfigurationDataParticle.regex_compiled().match(self.raw_data)
+        if not match:
+            raise SampleException("No regex match of parsed configuration data: [%s]" %
+                                  self.raw_data)
+
+        dom = parseString(self.raw_data)
+        root = dom.documentElement
+        log.debug("root.tagName = %s" %root.tagName)
+        serial_number = int(root.getAttribute(SERIAL_NUMBER))
+        result = [{DataParticleKey.VALUE_ID: SBE16StatusDataParticleKey.SERIAL_NUMBER,
+                   DataParticleKey.VALUE: serial_number}]
+        result.append(self._get_xml_parameter(root, SBE16ConfigurationDataParticleKey.ECHO_CHARACTERS, self.yesno2bool))
+        result.append(self._get_xml_parameter(root, SBE16ConfigurationDataParticleKey.OUTPUT_EXECUTED_TAG, self.yesno2bool))
+        result.append(self._get_xml_parameter(root, SBE16ConfigurationDataParticleKey.OUTPUT_FORMAT, str))
+        result.append(self._get_xml_parameter(root, SBE16ConfigurationDataParticleKey.SERIAL_SYNC_MODE, self.yesno2bool))
+
+        element = self._extract_xml_elements(root, SAMPLING_PARAMETERS)[0]
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.SAMPLE_INTERVAL, int))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.MEASUREMENTS_PER_SAMPLE, int))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.PAROS_INTEGRATION_TIME))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.PUMP_MODE, str))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.DELAY_BEFORE_SAMPLING))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.DELAY_AFTER_SAMPLING))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.TRANSMIT_REAL_TIME, self.yesno2bool))
+
+        element = self._extract_xml_elements(root, BATTERY)[0]
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.BATTERY_CUTOFF))
+
+        element = self._extract_xml_elements(root, DATA_CHANNELS)[0]
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.EXT_VOLT_0, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.EXT_VOLT_1, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.EXT_VOLT_2, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.EXT_VOLT_3, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.EXT_VOLT_4, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.EXT_VOLT_5, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.SBE38, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.SBE50, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.WETLABS, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.OPTODE, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE16ConfigurationDataParticleKey.GAS_TENSION_DEVICE, self.yesno2bool))
+
+        return result
+
 class SBE16HardwareDataParticleKey(BaseEnum):
     SERIAL_NUMBER = "serial_number"
     FIRMWARE_VERSION = "firmware_version"
@@ -602,6 +734,7 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
         matchers.append(SBE16NoDataParticle.regex_compiled())
         matchers.append(SBE16CalibrationDataParticle.regex_compiled())
         matchers.append(SBE16StatusDataParticle.regex_compiled())
+        matchers.append(SBE16ConfigurationDataParticle.regex_compiled())
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
@@ -618,6 +751,7 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
         if not (self._extract_sample(SBE16HardwareDataParticle, SBE16HardwareDataParticle.regex_compiled(), chunk, timestamp) or
                 self._extract_sample(SBE16NoDataParticle, SBE16NoDataParticle.regex_compiled(), chunk, timestamp) or
                 self._extract_sample(SBE16CalibrationDataParticle, SBE16CalibrationDataParticle.regex_compiled(), chunk, timestamp) or
+                self._extract_sample(SBE16ConfigurationDataParticle, SBE16ConfigurationDataParticle.regex_compiled(), chunk, timestamp) or
                 self._extract_sample(SBE16StatusDataParticle, SBE16StatusDataParticle.regex_compiled(), chunk, timestamp)):
             raise InstrumentProtocolException("Unhandled chunk %s" %chunk)
 
