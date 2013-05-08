@@ -1,0 +1,10 @@
+driver_metadata:
+  author: David Everett
+  driver_make: noaa
+  driver_model: heat
+  driver_name: ooicore
+  email: deverett@interon.com
+  release_notes: 'Driver for LILY HEATER on the RSN-BOTPT instrument (v.6)
+
+    '
+  version: 0.1.1

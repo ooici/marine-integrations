@@ -28,7 +28,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from mi.idk.unit_test import InstrumentDriverDataParticleMixin
+from mi.idk.unit_test import DriverTestMixin
 
 from interface.objects import AgentCommand
 
@@ -85,17 +85,18 @@ InstrumentDriverTestCase.initialize(
 ###
 
 ###############################################################################
-#                           DATA PARTICLE TEST MIXIN                          #
-#     Defines a set of assert methods used for data particle verification     #
+#                           DRIVER TEST MIXIN        		                  #
+#     Defines a set of constants and assert methods used for data particle    #
+#     verification 														      #
 #                                                                             #
 #  In python mixin classes are classes designed such that they wouldn't be    #
 #  able to stand on their own, but are inherited by other classes generally   #
 #  using multiple inheritance.                                                #
 #                                                                             #
 # This class defines a configuration structure for testing and common assert  #
-# methods for validating data particles.
+# methods for validating data particles.									  #
 ###############################################################################
-class DataParticleMixin(InstrumentDriverDataParticleMixin):
+class DriverTestMixinSub(DriverTestMixin):
     def assertSampleDataParticle(self, data_particle):
         '''
         Verify a particle is a know particle to this driver and verify the particle is
@@ -123,7 +124,7 @@ class DataParticleMixin(InstrumentDriverDataParticleMixin):
 #   driver process.                                                           #
 ###############################################################################
 @attr('UNIT', group='mi')
-class DriverUnitTest(InstrumentDriverUnitTestCase):
+class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 

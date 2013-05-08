@@ -48,6 +48,7 @@ DEFAULT_SNIFFER_PORT = 6003
 class ConfigTypes(BaseEnum):
     ETHERNET = 'ethernet'
     SERIAL = 'serial'
+    BOTPT = 'botpt'
 
 class CommConfig(object):
     """
@@ -256,6 +257,8 @@ class CommConfig(object):
         if( type in valid_types ):
             if ConfigTypes.ETHERNET == type:
                 config = CommConfigEthernet(filename)
+            elif ConfigTypes.BOTPT == type:
+                config = CommConfigBOTPT(filename)
             elif ConfigTypes.SERIAL == type:
                 config = CommConfigSerial(filename)
             return config
@@ -328,6 +331,50 @@ class CommConfigEthernet(CommConfig):
         config = CommConfig._config_dictionary(self)
         config['device_addr'] = self.device_addr
         config['device_port'] = int(self.device_port)
+
+        return config
+
+
+class CommConfigBOTPT(CommConfig):
+    """
+    BOTPT CommConfig object.  Defines data store for botpt connections
+    """
+
+    @staticmethod
+    def method(): return ConfigTypes.BOTPT
+
+    def __init__(self, filename):
+        self.device_addr = None
+        self.device_tx_port = None
+        self.device_rx_port = None
+
+        CommConfig.__init__(self, filename)
+
+    def _init_from_yaml(self, yamlInput):
+        CommConfig._init_from_yaml(self, yamlInput)
+
+        if( yamlInput ):
+            self.device_addr = yamlInput['comm'].get('device_addr')
+            self.device_tx_port = yamlInput['comm'].get('device_tx_port')
+            self.device_rx_port = yamlInput['comm'].get('device_rx_port')
+
+    def get_from_console(self):
+        self.device_addr = prompt.text( 'Device Address', self.device_addr )
+        self.device_tx_port = prompt.text( 'Device TX Port', self.device_tx_port )
+        self.device_rx_port = prompt.text( 'Device RX Port', self.device_rx_port )
+        CommConfig.get_from_console(self)
+
+    def display_config(self):
+        CommConfig.display_config(self)
+        print( "Device Address: " + self.device_addr )
+        print( "Device TX Port: " + str(self.device_tx_port ))
+        print( "Device RX Port: " + str(self.device_rx_port ))
+
+    def _config_dictionary(self):
+        config = CommConfig._config_dictionary(self)
+        config['device_addr'] = self.device_addr
+        config['device_tx_port'] = int(self.device_tx_port)
+        config['device_rx_port'] = int(self.device_rx_port)
 
         return config
 
@@ -433,7 +480,7 @@ class CommConfigSerial(CommConfig):
 
 
 # List of all known CommConfig objects
-_CONFIG_OBJECTS = [ CommConfigEthernet, CommConfigSerial ]
+_CONFIG_OBJECTS = [ CommConfigEthernet, CommConfigBOTPT, CommConfigSerial ]
 
 
 if __name__ == '__main__':
