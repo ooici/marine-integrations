@@ -26,37 +26,31 @@ __license__ = 'Apache 2.0'
 
 # Ensure the test class is monkey patched for gevent
 from gevent import monkey; monkey.patch_all()
-from gevent.timeout import Timeout
 import gevent
-import socket
 from mock import Mock
 
 # Standard lib imports
 import time
-import unittest
 import ntplib
-import datetime
 import json
+import unittest
 
 # 3rd party imports
 from nose.plugins.attrib import attr
 
-from pyon.agent.agent import ResourceAgentEvent
+from pyon.agent.agent import ResourceAgentEvent, ResourceAgentState
 
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.instrument.instrument_driver import ConfigMetadataKey
+from mi.core.instrument.driver_dict import DriverDictKey
 
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 
-from mi.core.exceptions import InstrumentException
-from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentParameterException
-from mi.core.exceptions import InstrumentStateException
-from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
 from mi.instrument.nobska.mavs4.ooicore.driver import mavs4InstrumentDriver
@@ -65,7 +59,6 @@ from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolStates
 from mi.instrument.nobska.mavs4.ooicore.driver import ProtocolEvent
 from mi.instrument.nobska.mavs4.ooicore.driver import mavs4InstrumentProtocol
 from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentParameters
-from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentCmds
 from mi.instrument.nobska.mavs4.ooicore.driver import Capability
 from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentPrompts
 from mi.instrument.nobska.mavs4.ooicore.driver import Mavs4StatusDataParticleKey
@@ -78,29 +71,24 @@ from mi.instrument.nobska.mavs4.ooicore.driver import CompassOffsetParameters
 from mi.instrument.nobska.mavs4.ooicore.driver import CompassScaleFactorsParameters
 from mi.instrument.nobska.mavs4.ooicore.driver import TiltOffsetParameters
 from mi.instrument.nobska.mavs4.ooicore.driver import SubMenues
-from mi.instrument.nobska.mavs4.ooicore.driver import InstrumentPrompts
+from mi.instrument.nobska.mavs4.ooicore.driver import ScheduledJob
 from mi.instrument.nobska.mavs4.ooicore.driver import INSTRUMENT_NEWLINE
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import InstrumentDriverPublicationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import DriverStartupConfigKey
 from mi.idk.unit_test import AgentCapabilityType
+from mi.idk.unit_test import GO_ACTIVE_TIMEOUT
 
 from mi.core.instrument.chunker import StringChunker
 
-from mi.core.tcp_client import TcpClient
-
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
-from interface.objects import AgentCommand
-
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 ## Initialize the test configuration
 InstrumentDriverTestCase.initialize(
@@ -148,10 +136,10 @@ class Mavs4Mixin(DriverTestMixin):
         InstrumentParameters.NOTE3 : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
         InstrumentParameters.VELOCITY_FRAME : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '3', VALUE: '3'},
         InstrumentParameters.MONITOR : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.LOG_DISPLAY_TIME : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.QUERY_MODE : {TYPE: str, READONLY: False, DA: False, STARTUP: False},
+        InstrumentParameters.LOG_DISPLAY_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: 'HEX', VALUE: 'HEX'},
+        InstrumentParameters.QUERY_MODE : {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT:'n'},
         InstrumentParameters.FREQUENCY : {TYPE: float, READONLY: False, DA: False, STARTUP: False, DEFAULT: 1.0},
         InstrumentParameters.MEASUREMENTS_PER_SAMPLE : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 1},
         InstrumentParameters.SAMPLE_PERIOD : {TYPE: float, READONLY: False, DA: False, STARTUP: False},
@@ -161,20 +149,20 @@ class Mavs4Mixin(DriverTestMixin):
         InstrumentParameters.BURST_INTERVAL_MINUTES : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
         InstrumentParameters.BURST_INTERVAL_SECONDS : {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0},
         InstrumentParameters.SI_CONVERSION : {TYPE: float, READONLY: False, DA: False, STARTUP: False},
-        InstrumentParameters.WARM_UP_INTERVAL : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'fast'},
-        InstrumentParameters.THREE_AXIS_COMPASS : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'y'},
-        InstrumentParameters.SOLID_STATE_TILT : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'y'},
-        InstrumentParameters.THERMISTOR : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'y'},
-        InstrumentParameters.PRESSURE : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'n'},
-        InstrumentParameters.AUXILIARY_1 : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'n'},
-        InstrumentParameters.AUXILIARY_2 : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'n'},
-        InstrumentParameters.AUXILIARY_3 : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: 'n'},
-        InstrumentParameters.SENSOR_ORIENTATION : {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: '2'},
+        InstrumentParameters.WARM_UP_INTERVAL : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'f'},
+        InstrumentParameters.THREE_AXIS_COMPASS : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'y'},
+        InstrumentParameters.SOLID_STATE_TILT : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'y'},
+        InstrumentParameters.THERMISTOR : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'y'},
+        InstrumentParameters.PRESSURE : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'n'},
+        InstrumentParameters.AUXILIARY_1 : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'n'},
+        InstrumentParameters.AUXILIARY_2 : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'n'},
+        InstrumentParameters.AUXILIARY_3 : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: 'n'},
+        InstrumentParameters.SENSOR_ORIENTATION : {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: '2'},
         InstrumentParameters.SERIAL_NUMBER : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.VELOCITY_OFFSET_PATH_A : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.VELOCITY_OFFSET_PATH_B : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.VELOCITY_OFFSET_PATH_C : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
-        InstrumentParameters.VELOCITY_OFFSET_PATH_D : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_A : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_B : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_C : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        InstrumentParameters.VELOCITY_OFFSET_PATH_D : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.COMPASS_OFFSET_0 : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.COMPASS_OFFSET_1 : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
         InstrumentParameters.COMPASS_OFFSET_2 : {TYPE: int, READONLY: True, DA: False, STARTUP: False},
@@ -186,40 +174,48 @@ class Mavs4Mixin(DriverTestMixin):
     }
 
     # parameter values to test.
-    paramter_values = {InstrumentParameters.NOTE1 : 'New note1 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                       InstrumentParameters.NOTE2 : 'New note2 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                       InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                       InstrumentParameters.VELOCITY_FRAME : '3',
-                       InstrumentParameters.MONITOR : 'y',
-                       InstrumentParameters.LOG_DISPLAY_TIME : 'y',
-                       InstrumentParameters.LOG_DISPLAY_FRACTIONAL_SECOND : 'y',
-                       InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'HEX',
-                       InstrumentParameters.QUERY_MODE : 'n',
-                       InstrumentParameters.FREQUENCY : 2.0,
-                       InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
-                       InstrumentParameters.SAMPLE_PERIOD : 5.0,
-                       InstrumentParameters.SAMPLES_PER_BURST : 2,
-                       InstrumentParameters.BURST_INTERVAL_DAYS : 0,
-                       InstrumentParameters.BURST_INTERVAL_HOURS : 0,
-                       InstrumentParameters.BURST_INTERVAL_MINUTES : 0,
-                       InstrumentParameters.BURST_INTERVAL_SECONDS : 0,
-                       InstrumentParameters.SI_CONVERSION : .00231,
-                       InstrumentParameters.WARM_UP_INTERVAL : 'Fast',
-                       InstrumentParameters.THREE_AXIS_COMPASS : 'y',
-                       InstrumentParameters.SOLID_STATE_TILT : 'y',
-                       InstrumentParameters.THERMISTOR : 'y',
-                       InstrumentParameters.PRESSURE : 'n',
-                       InstrumentParameters.AUXILIARY_1 : 'n',
-                       InstrumentParameters.AUXILIARY_2 : 'n',
-                       InstrumentParameters.AUXILIARY_3 : 'n',
-                       InstrumentParameters.SENSOR_ORIENTATION : '2'
-                       }
+    parameter_values = {
+        InstrumentParameters.NOTE1 : 'New note1 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        InstrumentParameters.NOTE2 : 'New note2 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        InstrumentParameters.MONITOR : 'y',
+        InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'SI',
+        InstrumentParameters.QUERY_MODE : 'n',
+        InstrumentParameters.FREQUENCY : 2.0,
+        InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
+        InstrumentParameters.SAMPLE_PERIOD : 5.0,
+        InstrumentParameters.SAMPLES_PER_BURST : 2,
+        InstrumentParameters.BURST_INTERVAL_DAYS : 0,
+        InstrumentParameters.BURST_INTERVAL_HOURS : 0,
+        InstrumentParameters.BURST_INTERVAL_MINUTES : 0,
+        InstrumentParameters.BURST_INTERVAL_SECONDS : 0,
+        InstrumentParameters.SI_CONVERSION : .00231,
+    }
+    
+    parameter_values_B = {
+        InstrumentParameters.NOTE1 : 'New note1 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        InstrumentParameters.NOTE2 : 'New note2 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        InstrumentParameters.NOTE3 : 'New note3 at %s' %time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        InstrumentParameters.MONITOR : 'n',
+        InstrumentParameters.LOG_DISPLAY_ACOUSTIC_AXIS_VELOCITIES : 'HEX',
+        InstrumentParameters.QUERY_MODE : 'n',
+        InstrumentParameters.FREQUENCY : 10.0,
+        InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 20,
+        InstrumentParameters.SAMPLE_PERIOD : 2.0,
+        InstrumentParameters.SAMPLES_PER_BURST : 4,
+        InstrumentParameters.BURST_INTERVAL_DAYS : 1,
+        InstrumentParameters.BURST_INTERVAL_HOURS : 1,
+        InstrumentParameters.BURST_INTERVAL_MINUTES : 1,
+        InstrumentParameters.BURST_INTERVAL_SECONDS : 1,
+        InstrumentParameters.SI_CONVERSION : .00123,
+    }
+    
         
     _status_parameters = {
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_A: {TYPE: int, VALUE: 1 },
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_B: {TYPE: int, VALUE: 2 },
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_C: {TYPE: int, VALUE: 3 },
-        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_D: {TYPE: int, VALUE: 4 },
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_A: {TYPE: unicode, VALUE: "F300" },
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_B: {TYPE: unicode, VALUE: "0000" },
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_C: {TYPE: unicode, VALUE: "0100" },
+        Mavs4StatusDataParticleKey.VELOCITY_OFFSET_PATH_D: {TYPE: unicode, VALUE: "0300" },
         Mavs4StatusDataParticleKey.COMPASS_OFFSET_0: {TYPE: int, VALUE: 5 },
         Mavs4StatusDataParticleKey.COMPASS_OFFSET_1: {TYPE: int, VALUE: 6 },
         Mavs4StatusDataParticleKey.COMPASS_OFFSET_2: {TYPE: int, VALUE: 7 },
@@ -236,15 +232,38 @@ class Mavs4Mixin(DriverTestMixin):
         Mavs4StatusDataParticleKey.BURST_INTERVAL_SECONDS: {TYPE: int, VALUE: 18 },
         Mavs4StatusDataParticleKey.SI_CONVERSION: {TYPE: float, VALUE: 19.0 },
     }
+    
+    # lame way to handle the mapping...
+    _status_instrument_parameters = {
+        InstrumentParameters.VELOCITY_OFFSET_PATH_A: {TYPE: unicode, VALUE: "F300" },
+        InstrumentParameters.VELOCITY_OFFSET_PATH_B: {TYPE: unicode, VALUE: "0000" },
+        InstrumentParameters.VELOCITY_OFFSET_PATH_C: {TYPE: unicode, VALUE: "0100" },
+        InstrumentParameters.VELOCITY_OFFSET_PATH_D: {TYPE: unicode, VALUE: "0300" },
+        InstrumentParameters.COMPASS_OFFSET_0: {TYPE: int, VALUE: 5 },
+        InstrumentParameters.COMPASS_OFFSET_1: {TYPE: int, VALUE: 6 },
+        InstrumentParameters.COMPASS_OFFSET_2: {TYPE: int, VALUE: 7 },
+        InstrumentParameters.COMPASS_SCALE_FACTORS_0: {TYPE: float, VALUE: 8.0 },
+        InstrumentParameters.COMPASS_SCALE_FACTORS_1: {TYPE: float, VALUE: 9.0},
+        InstrumentParameters.COMPASS_SCALE_FACTORS_2: {TYPE: float, VALUE: 10.0},
+        InstrumentParameters.TILT_PITCH_OFFSET: {TYPE: int, VALUE: 11 },
+        InstrumentParameters.TILT_ROLL_OFFSET: {TYPE: int, VALUE: 12 },
+        InstrumentParameters.SAMPLE_PERIOD: {TYPE: float, VALUE: 13.0 },
+        InstrumentParameters.SAMPLES_PER_BURST: {TYPE: int, VALUE: 14 },
+        InstrumentParameters.BURST_INTERVAL_DAYS: {TYPE: int, VALUE: 15 },
+        InstrumentParameters.BURST_INTERVAL_HOURS: {TYPE: int, VALUE: 16},
+        InstrumentParameters.BURST_INTERVAL_MINUTES: {TYPE: int, VALUE: 17 },
+        InstrumentParameters.BURST_INTERVAL_SECONDS: {TYPE: int, VALUE: 18 },
+        InstrumentParameters.SI_CONVERSION: {TYPE: float, VALUE: 19.0 },
+    }    
         
     _sample_parameters = {
         Mavs4SampleDataParticleKey.TIMESTAMP: {TYPE: float, VALUE: 3565047050.0},
         Mavs4SampleDataParticleKey.FRACTIONAL_SECOND: {TYPE: int, VALUE: 40},
-        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_A: {TYPE: int, VALUE: 64965},
-        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_B: {TYPE: int, VALUE: 65392},
-        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_C: {TYPE: int, VALUE: 65307},
-        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_D: {TYPE: int, VALUE: 65420},
-        Mavs4SampleDataParticleKey.VELOCITY_FRAME_EAST: {TYPE: float, VALUE: 1.2},
+        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_A: {TYPE: unicode, VALUE: "FDC5"},
+        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_B: {TYPE: unicode, VALUE: "FF70"},
+        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_C: {TYPE: unicode, VALUE: "FF1B"},
+        Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_D: {TYPE: unicode, VALUE: "FF8C"},
+        Mavs4SampleDataParticleKey.VELOCITY_FRAME_UP: {TYPE: float, VALUE: 1.2},
         Mavs4SampleDataParticleKey.VELOCITY_FRAME_NORTH: {TYPE: float, VALUE: 3.4},
         Mavs4SampleDataParticleKey.VELOCITY_FRAME_WEST: {TYPE: float, VALUE: 5.6},
         Mavs4SampleDataParticleKey.TEMPERATURE: {TYPE: float, VALUE: 22.21},
@@ -254,11 +273,38 @@ class Mavs4Mixin(DriverTestMixin):
         Mavs4SampleDataParticleKey.ROLL: {TYPE: float, VALUE: -5.1},
     }
 
+    STATUS_PARTICLE = {"driver_timestamp": 3575990156.890163,
+                       "pkt_format_id": "JSON_Data",
+                       "pkt_version": 1,
+                       "preferred_timestamp": "driver_timestamp",
+                       "quality_flag": "ok",
+                       "stream_name": "vel3d_b_engineering",
+                       "values": [{"value": 6, "value_id": "comapss_offset_1"},
+                                  {"value": 5, "value_id": "comapss_offset_0"},
+                                  {"value": 15, "value_id": "burst_interval_days"},
+                                  {"value": 12, "value_id": "tilt_offset_roll"},
+                                  {"value": 16, "value_id": "burst_interval_hours"},
+                                  {"value": 11, "value_id": "tilt_offset_pitch"},
+                                  {"value": "0000", "value_id": "velocity_offset_b"},
+                                  {"value": 18, "value_id": "burst_interval_seconds"},
+                                  {"value": 19.0, "value_id": "bin_to_si_conversion"},
+                                  {"value": 14, "value_id": "samples_per_burst"},
+                                  {"value": "0300", "value_id": "velocity_offset_d"},
+                                  {"value": 17, "value_id": "burst_interval_minutes"},
+                                  {"value": 7, "value_id": "comapss_offset_2"},
+                                  {"value": 10.0, "value_id": "comapss_scale_factor_2"},
+                                  {"value": 8.0, "value_id": "comapss_scale_factor_0"},
+                                  {"value": 9.0, "value_id": "comapss_scale_factor_1"},
+                                  {"value": 13.0, "value_id": "sample_period"},
+                                  {"value": "0100", "value_id": "velocity_offset_c"},
+                                  {"value": "F300", "value_id": "velocity_offset_a"}]
+                      }
+
     SAMPLE = "12 20 2012 18 50 50.40 FDC5 FF70 FF1B FF8C 1.2 3.4 5.6 22.21 0.96 0.28 3.0 -5.1\n"
     
     def assert_clock_set(self, sent_time, rcvd_time):
         # verify that the dates match
-        print("sts=%s, rts=%s" %(sent_time, rcvd_time))
+        log.trace("sts=%s, rts=%s", sent_time, rcvd_time)
         self.assertTrue(sent_time[:12].upper() in rcvd_time.upper())
            
         sent_timestamp = time.strptime(sent_time, "%m/%d/%Y %H:%M:%S")
@@ -266,7 +312,7 @@ class Mavs4Mixin(DriverTestMixin):
         rcvd_timestamp = time.strptime(rcvd_time, "%m/%d/%Y %H:%M:%S")
         ntp_rcvd_timestamp = ntplib.system_to_ntp_time(time.mktime(rcvd_timestamp))
         # verify that the times match closely
-        print("sts=%d, rts=%d" %(ntp_sent_timestamp, ntp_rcvd_timestamp))
+        log.trace("sts=%d, rts=%d", ntp_sent_timestamp, ntp_rcvd_timestamp)
         if ntp_rcvd_timestamp - ntp_sent_timestamp > 45:
             self.fail("time delta too large after clock sync")        
     
@@ -277,7 +323,7 @@ class Mavs4Mixin(DriverTestMixin):
         @param stream_name: version 1 data particle
         """
         sample_dict = self.convert_data_particle_to_dict(data_particle)
-        log.debug("assert_status_data_particle_header: SAMPLEDICT = %s" % sample_dict)
+        log.debug("assert_status_data_particle_header: SAMPLEDICT = %s", sample_dict)
 
         self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME], stream_name)
         self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID], DataParticleValue.JSON_DATA)
@@ -356,7 +402,7 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
             if(stream_type == DataParticleType.STATUS):
                 particles.append(p)
 
-        log.debug("status particles: %s " % particles)
+        log.debug("status particles: %s ", particles)
         self.assertEqual(len(particles), 1)
 
         # Verify the data particle
@@ -369,7 +415,6 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(InstrumentPrompts())
-        self.assert_enum_has_no_duplicates(InstrumentCmds())
         self.assert_enum_has_no_duplicates(ProtocolStates())
         self.assert_enum_has_no_duplicates(ProtocolEvent())
         self.assert_enum_has_no_duplicates(InstrumentParameters())
@@ -403,7 +448,6 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
         with self.assertRaises(SampleException):
             particle.generate()
 
-    @unittest.skip("skipped pending driver param fix")
     def test_status_particle(self):
         """
         Verify driver produces the correct status data particle
@@ -417,8 +461,8 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
 
         # load the status parameter values
         pd = driver._protocol._param_dict
-        for name in self._status_parameters.keys():
-            pd.set(name, self._status_parameters[name][VALUE])
+        for name in self._status_instrument_parameters.keys():
+            pd.set_value(name, self._status_instrument_parameters[name][VALUE])
             
         # clear out any old events
         self.clear_data_particle_queue()
@@ -459,7 +503,6 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
         # Verify "BOGUS_CAPABILITY was filtered out
         self.assertEquals(driver_capabilities, protocol._filter_capabilities(test_capabilities))
 
-    @unittest.skip("skipped pending driver param fix")
     def test_driver_parameters(self):
         """
         Verify the set of parameters known by the driver
@@ -467,11 +510,16 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
         driver = mavs4InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, ProtocolStates.COMMAND)
 
-        expected_parameters = sorted(self._driver_parameters.keys())
+        expected_parameters = []
+        for key in self._driver_parameters.keys():
+            #if self._driver_parameters[key][ParameterTestConfigKey.READONLY] == False:
+            expected_parameters.append(key)
+        expected_parameters.sort()
+        
         reported_parameters = sorted(driver.get_resource(InstrumentParameters.ALL))
 
-        log.debug("Reported Parameters: %s" % reported_parameters)
-        log.debug("Expected Parameters: %s" % expected_parameters)
+        log.debug("Reported Parameters: %s", reported_parameters)
+        log.debug("Expected Parameters: %s", expected_parameters)
 
         self.assertEqual(reported_parameters, expected_parameters)
 
@@ -487,6 +535,7 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
             ProtocolStates.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
             ProtocolStates.COMMAND: ['DRIVER_EVENT_ACQUIRE_STATUS',
                                      'DRIVER_EVENT_CLOCK_SYNC',
+                                     'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC',
                                      'DRIVER_EVENT_GET',
                                      'DRIVER_EVENT_SET',
                                      'DRIVER_EVENT_START_AUTOSAMPLE',
@@ -499,6 +548,59 @@ class Testmavs4_UNIT(InstrumentDriverUnitTestCase, Mavs4Mixin):
         driver = mavs4InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
+    def test_parameter_enum(self):
+        """
+        @ brief InstrumentParameters enum test
+
+            1. test that InstrumentParameters matches the expected enums from DriverParameter.
+            2. test that multiple distinct parameters do not resolve back to the same string.
+        """
+
+        self.assertEqual(InstrumentParameters.ALL, DriverParameter.ALL)
+
+        self.assert_enum_has_no_duplicates(DriverParameter)
+        self.assert_enum_has_no_duplicates(InstrumentParameters)
+
+    def test_protocol_state_enum(self):
+        """
+        @ brief ProtocolState enum test
+
+            1. test that ProtocolState matches the expected enums from DriverProtocolState.
+            2. test that multiple distinct states do not resolve back to the same string.
+
+        """
+
+        self.assertEqual(ProtocolStates.UNKNOWN, DriverProtocolState.UNKNOWN)
+        self.assertEqual(ProtocolStates.COMMAND, DriverProtocolState.COMMAND)
+        self.assertEqual(ProtocolStates.AUTOSAMPLE, DriverProtocolState.AUTOSAMPLE)
+        self.assertEqual(ProtocolStates.DIRECT_ACCESS, DriverProtocolState.DIRECT_ACCESS)
+
+        self.assert_enum_has_no_duplicates(DriverProtocolState)
+        self.assert_enum_has_no_duplicates(ProtocolStates)
+
+    def test_protocol_event_enum(self):
+        """
+        @brief ProtocolEvent enum test
+
+            1. test that ProtocolEvent matches the expected enums from DriverProtocolState.
+            2. test that multiple distinct events do not resolve back to the same string.
+        """
+
+        self.assertEqual(ProtocolEvent.ENTER, DriverEvent.ENTER)
+        self.assertEqual(ProtocolEvent.EXIT, DriverEvent.EXIT)
+        self.assertEqual(ProtocolEvent.GET, DriverEvent.GET)
+        self.assertEqual(ProtocolEvent.SET, DriverEvent.SET)
+        self.assertEqual(ProtocolEvent.DISCOVER, DriverEvent.DISCOVER)
+        self.assertEqual(ProtocolEvent.START_AUTOSAMPLE, DriverEvent.START_AUTOSAMPLE)
+        self.assertEqual(ProtocolEvent.STOP_AUTOSAMPLE, DriverEvent.STOP_AUTOSAMPLE)
+        self.assertEqual(ProtocolEvent.EXECUTE_DIRECT, DriverEvent.EXECUTE_DIRECT)
+        self.assertEqual(ProtocolEvent.START_DIRECT, DriverEvent.START_DIRECT)
+        self.assertEqual(ProtocolEvent.STOP_DIRECT, DriverEvent.STOP_DIRECT)
+
+        self.assert_enum_has_no_duplicates(DriverEvent)
+        self.assert_enum_has_no_duplicates(ProtocolEvent)
+        
+        
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 #     Integration test test the direct driver / instrument interaction        #
@@ -529,9 +631,9 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
                
     def test_get_parameters(self):
         """
-        Test driver parameters and verify their type.  Startup parameters also verify the parameter
-        value.  This test confirms that parameters are being read/converted properly and that
-        the startup has been applied.
+        Test driver parameters and verify their type.  Startup parameters also
+        verify the parameter value. This test confirms that parameters are
+        being read/converted properly and that the startup has been applied.
         """
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('get_resource', InstrumentParameters.ALL)
@@ -546,10 +648,22 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
 
         # construct values dynamically to get time stamp for notes
         new_parameter_values = {}
-        for key in self.paramter_values.iterkeys():
-            new_parameter_values[key] = self.paramter_values[key]
+        for key in self.parameter_values.iterkeys():
+            new_parameter_values[key] = self.parameter_values[key]
                
+        # try a read-only parameter
+        self.assert_ion_exception(InstrumentParameterException,
+                                  self.driver_client.cmd_dvr,
+                                  'set_resource',
+                                  [InstrumentParameters.LOG_DISPLAY_TIME])
+                                  
         # Set parameters and verify.
+        self.assert_set_bulk(new_parameter_values)
+        
+        # do it all again with a different value set
+        new_parameter_values = {}
+        for key in self.parameter_values_B.iterkeys():
+            new_parameter_values[key] = self.parameter_values_B[key]
         self.assert_set_bulk(new_parameter_values)
         
 
@@ -641,7 +755,7 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
                 sample_dict = eval(sample['value'])     # turn string into dictionary
                 values = sample_dict['values']          # get particle dictionary
                 # pull timestamp out of particle
-                ntp_timestamp = [item for item in values if item["value_id"] == "timestamp"][0]['value']
+                ntp_timestamp = [item for item in values if item["value_id"] == Mavs4SampleDataParticleKey.TIMESTAMP][0]['value']
                 float_timestamp = ntplib.ntp_to_system_time(ntp_timestamp)
                 log.debug('dt=%s' %time.ctime(float_timestamp))
         self.assertTrue(len(sample_events) >= 2)
@@ -660,6 +774,234 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
 
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.STATUS, self.assert_particle_status, delay=20)
         
+    def test_metadata_generation(self):
+        """
+        Test that we can generate metadata information for the driver,
+        commands, and parameters.
+        """
+        self.assert_initialize_driver()
+
+        json_result = self.driver_client.cmd_dvr("get_config_metadata")
+        self.assert_(json_result != None)
+        self.assert_(len(json_result) > 100) # just make sure we have something...
+        result = json.loads(json_result)
+        self.assert_(result != None)
+        self.assert_(isinstance(result, dict))
+        self.assertFalse(result[ConfigMetadataKey.COMMANDS])
+
+        self.assertTrue(result[ConfigMetadataKey.DRIVER])
+        self.assertTrue(result[ConfigMetadataKey.DRIVER][DriverDictKey.VENDOR_SW_COMPATIBLE])
+
+        self.assertTrue(result[ConfigMetadataKey.PARAMETERS])        
+        keys = result[ConfigMetadataKey.PARAMETERS].keys()
+        keys.append(DriverParameter.ALL)
+        keys.sort()
+        enum_list = InstrumentParameters.list()
+        enum_list.sort()
+        self.assertEqual(keys, enum_list)
+        
+    def test_query_burst(self):
+        """
+        Tests to make sure the logic is correct around only being able to set
+        burst mode parameters when query mode is disabled.
+        """
+        self.assert_initialize_driver()
+        read_values = [
+            InstrumentParameters.QUERY_MODE,
+            InstrumentParameters.BURST_INTERVAL_DAYS,
+            InstrumentParameters.BURST_INTERVAL_HOURS,
+            InstrumentParameters.BURST_INTERVAL_MINUTES,
+            InstrumentParameters.BURST_INTERVAL_SECONDS
+            ]
+
+        # both set to valid values
+        new_parameter_values = {
+            InstrumentParameters.QUERY_MODE: 'n',
+            InstrumentParameters.BURST_INTERVAL_DAYS: 1,
+            InstrumentParameters.BURST_INTERVAL_HOURS: 1,
+            InstrumentParameters.BURST_INTERVAL_MINUTES: 1,
+            InstrumentParameters.BURST_INTERVAL_SECONDS: 1
+        }
+        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
+        reply = self.driver_client.cmd_dvr('get_resource', read_values)
+        self.assertEqual(reply[InstrumentParameters.QUERY_MODE], 'n')
+        self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_DAYS], 1)
+        self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_HOURS], 1)
+        self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_MINUTES], 1)
+        self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_SECONDS], 1)
+                
+        # both set to invalid combo
+        new_parameter_values = {
+            InstrumentParameters.QUERY_MODE: 'y',
+            InstrumentParameters.BURST_INTERVAL_DAYS: 1,
+            InstrumentParameters.BURST_INTERVAL_HOURS: 1,
+            InstrumentParameters.BURST_INTERVAL_MINUTES: 1,
+            InstrumentParameters.BURST_INTERVAL_SECONDS: 1
+        }
+        
+        # try assert_ion_exception() generic call   
+        #self.assertRaises(BadRequest,
+        #                  self.driver_client.cmd_dvr,
+        #                  'set_resource', new_parameter_values)
+        self.assert_ion_exception(InstrumentParameterException,
+                                  self.driver_client.cmd_dvr,
+                                  'set_resource', new_parameter_values)
+        
+        # just one set in invalid mode (query mode already set)
+        new_parameter_values = {
+            InstrumentParameters.QUERY_MODE: 'y',
+        }
+        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
+        reply = self.driver_client.cmd_dvr('get_resource', read_values)
+        self.assertEqual(reply[InstrumentParameters.QUERY_MODE], 'y')
+        new_parameter_values = {
+            InstrumentParameters.BURST_INTERVAL_DAYS: 1,
+            InstrumentParameters.BURST_INTERVAL_HOURS: 1,
+            InstrumentParameters.BURST_INTERVAL_MINUTES: 1,
+            InstrumentParameters.BURST_INTERVAL_SECONDS: 1
+        }
+#        self.assertRaises(BadRequest,
+        self.assert_ion_exception(InstrumentParameterException,
+                                  self.driver_client.cmd_dvr,
+                                  'set_resource', new_parameter_values)
+                 
+        # just one set in valid mode
+        new_parameter_values = {
+            InstrumentParameters.QUERY_MODE: 'n',
+        }
+        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
+        reply = self.driver_client.cmd_dvr('get_resource', read_values)
+        self.assertEqual(reply[InstrumentParameters.QUERY_MODE], 'n')
+        new_parameter_values = {
+            InstrumentParameters.BURST_INTERVAL_DAYS: 1,
+            InstrumentParameters.BURST_INTERVAL_HOURS: 1,
+            InstrumentParameters.BURST_INTERVAL_MINUTES: 1,
+            InstrumentParameters.BURST_INTERVAL_SECONDS: 1
+        }
+        reply = self.driver_client.cmd_dvr('get_resource', read_values)
+        self.assertEqual(reply[InstrumentParameters.QUERY_MODE], 'n')
+        self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_DAYS], 1)
+        self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_HOURS], 1)
+        self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_MINUTES], 1)
+        self.assertEqual(reply[InstrumentParameters.BURST_INTERVAL_SECONDS], 1)
+        
+        
+    def test_related_parameters(self):
+        """
+        Measurement Frequency, Measurement/Sample, and Sample period are all
+        tied together. When one changes, the others must follow suit when
+        being set as a group.
+        """
+        self.assert_initialize_driver()
+        
+        read_values = [
+            InstrumentParameters.FREQUENCY,
+            InstrumentParameters.MEASUREMENTS_PER_SAMPLE,
+            InstrumentParameters.SAMPLE_PERIOD
+            ]
+
+        # The "normal, everything is good" case
+        new_parameter_values = {
+            InstrumentParameters.FREQUENCY : 2.0,
+            InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
+            InstrumentParameters.SAMPLE_PERIOD : 5.0,
+        }
+        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
+        reply = self.driver_client.cmd_dvr('get_resource', read_values)
+        self.assertEqual(reply[InstrumentParameters.MEASUREMENTS_PER_SAMPLE], 10)
+        self.assertEqual(reply[InstrumentParameters.FREQUENCY], 2)
+        self.assertEqual(reply[InstrumentParameters.SAMPLE_PERIOD], 5.0)
+        
+        # The single case
+        new_parameter_values = {
+            InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 20,
+        }
+        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
+        reply = self.driver_client.cmd_dvr('get_resource', read_values)
+        self.assertEqual(reply[InstrumentParameters.MEASUREMENTS_PER_SAMPLE], 20)
+        self.assertEqual(reply[InstrumentParameters.FREQUENCY], 2)
+        self.assertEqual(reply[InstrumentParameters.SAMPLE_PERIOD], 10.0)
+
+        # Two good values (M/S and Freq are okay)
+        new_parameter_values = {
+            InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 1,
+            InstrumentParameters.FREQUENCY : 1.0,
+        }
+        self.driver_client.cmd_dvr('set_resource', new_parameter_values)
+        reply = self.driver_client.cmd_dvr('get_resource', read_values)
+        self.assertEqual(reply[InstrumentParameters.MEASUREMENTS_PER_SAMPLE], 1)
+        self.assertEqual(reply[InstrumentParameters.FREQUENCY], 1.0)
+        self.assertEqual(reply[InstrumentParameters.SAMPLE_PERIOD], 1.0)
+       
+        # One value wrong
+        new_parameter_values = {
+            InstrumentParameters.FREQUENCY : 10.0,
+            InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 2,
+            InstrumentParameters.SAMPLE_PERIOD : 5.0,
+        }
+        #self.assertRaises(BadRequest,
+        self.assert_ion_exception(InstrumentParameterException,
+                                  self.driver_client.cmd_dvr, 'set_resource',
+                                  new_parameter_values)
+        
+        # Two values wrong
+        new_parameter_values = {
+            InstrumentParameters.FREQUENCY : 20.0,
+            InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
+            InstrumentParameters.SAMPLE_PERIOD : 5.0,
+        }
+        #self.assertRaises(BadRequest,
+        self.assert_ion_exception(InstrumentParameterException,
+                                  self.driver_client.cmd_dvr, 'set_resource',
+                                  new_parameter_values)
+        
+        # Two bad values
+        new_parameter_values = {
+            InstrumentParameters.MEASUREMENTS_PER_SAMPLE : 10,
+            InstrumentParameters.SAMPLE_PERIOD : 5.0,
+        }
+        #self.assertRaises(BadRequest,
+        self.assert_ion_exception(InstrumentParameterException,
+                                  self.driver_client.cmd_dvr, 'set_resource',
+                                  new_parameter_values)
+        
+    def test_scheduled_clock_sync_autosample(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=475,
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE)
+
+        self.assert_current_state(ProtocolStates.AUTOSAMPLE)
+
+    def test_scheduled_clock_sync(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        start_wall_time = time.gmtime()
+
+        #self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC)
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=475)
+        self.assert_current_state(ProtocolStates.COMMAND)
+
+        end_wall_time = time.gmtime()
+        result = self.driver_client.cmd_dvr('get_resource', [InstrumentParameters.SYS_CLOCK])
+        end_time = time.strptime(result[InstrumentParameters.SYS_CLOCK],
+                                 "%m/%d/%Y %H:%M:%S")
+        
+        self.assert_(end_wall_time > start_wall_time)
+        # this could be better...tricky to measure two varying variables
+        self.assertNotEqual(end_time, end_wall_time) # gonna be off by at least a little
+        #self.assertNotEqual(end_time_offset, start_time_offset)
+
+        # Set the clock to some time in the past
+        # Need an easy way to do this now that DATE_TIME is read only
+        #self.assert_set_clock(Parameter.DATE_TIME, time_override=SBE_EPOCH)
+        #self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
+
+        # Check the clock until it is set correctly (by a scheduled event)
+        #self.assert_clock_set(Parameter.DATE_TIME, sync_clock_cmd=ProtocolEvent.GET_CONFIGURATION, timeout=timeout, tolerance=10)
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -671,69 +1013,27 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
 class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, Mavs4Mixin):
     """Qualification Test Container"""
     
+    def assert_sample_async(self, sampleDataAssert, sampleQueue,
+                                  timeout=GO_ACTIVE_TIMEOUT, sample_count=1):
+        """
+        Watch the data queue for sample data.
+
+        This command is only useful for testing one stream produced in
+        streaming mode at a time.  If your driver has multiple streams
+        then you will need to call this method more than once or use a
+        different test.
+        """
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        self.data_subscribers.clear_sample_queue(sampleQueue)
+
+        samples = self.data_subscribers.get_samples(sampleQueue, sample_count, timeout = timeout)
+        self.assertGreaterEqual(len(samples), sample_count)
+
     # Qualification tests live in the base class.  This class is extended
     # here so that when running this test from 'nosetests' all tests
     # (UNIT, INT, and QUAL) are run.  
-
-
-    @unittest.skip("skip for automatic tests")
-    def test_direct_access_telnet_mode_manually(self):
-        """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
-        """
-        cmd = AgentCommand(command='power_down')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent power_down; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.POWERED_DOWN)
-
-        cmd = AgentCommand(command='power_up')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent power_up; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.UNINITIALIZED)
-
-        cmd = AgentCommand(command='initialize')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent initialize; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.INACTIVE)
-
-        cmd = AgentCommand(command='go_active')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent go_active; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.IDLE)
-
-        cmd = AgentCommand(command='run')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        cmd = AgentCommand(command='get_agent_state')
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = retval.result
-        print("sent run; IA state = %s" %str(retval.result))
-        self.assertEqual(state, InstrumentAgentState.OBSERVATORY)
-
-        gevent.sleep(5)  # wait for mavs4 to go back to sleep if it was sleeping
-        
-        # go direct access
-        cmd = AgentCommand(command='go_direct_access',
-                           kwargs={'session_type': DirectAccessTypes.telnet,
-                                   #kwargs={'session_type':DirectAccessTypes.vsp,
-                                   'session_timeout':600,
-                                   'inactivity_timeout':600})
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.warn("go_direct_access retval=" + str(retval.result))
-        
-        gevent.sleep(600)  # wait for manual telnet session to be run
-
 
     def test_direct_access_telnet_mode(self):
         """
@@ -741,67 +1041,12 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, Mavs4Mixin):
         verify that direct access parameters are reset on exit.
         """
         self.assert_enter_command_mode()
-
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet(timeout=600)
         self.assertTrue(self.tcp_client)
         self.tcp_client.send_data("\r\n\r\n")
         self.assertTrue(self.tcp_client.expect("Modular Acoustic Velocity Sensor"))
-
         self.assert_direct_access_stop_telnet()
-
-               
-    def test_parameter_enum(self):
-        """
-        @ brief InstrumentParameters enum test
-
-            1. test that InstrumentParameters matches the expected enums from DriverParameter.
-            2. test that multiple distinct parameters do not resolve back to the same string.
-        """
-
-        self.assertEqual(InstrumentParameters.ALL, DriverParameter.ALL)
-
-        self.assert_enum_has_no_duplicates(DriverParameter)
-        self.assert_enum_has_no_duplicates(InstrumentParameters)
-
-    def test_protocol_state_enum(self):
-        """
-        @ brief ProtocolState enum test
-
-            1. test that ProtocolState matches the expected enums from DriverProtocolState.
-            2. test that multiple distinct states do not resolve back to the same string.
-
-        """
-
-        self.assertEqual(ProtocolStates.UNKNOWN, DriverProtocolState.UNKNOWN)
-        self.assertEqual(ProtocolStates.COMMAND, DriverProtocolState.COMMAND)
-        self.assertEqual(ProtocolStates.AUTOSAMPLE, DriverProtocolState.AUTOSAMPLE)
-        self.assertEqual(ProtocolStates.DIRECT_ACCESS, DriverProtocolState.DIRECT_ACCESS)
-
-        self.assert_enum_has_no_duplicates(DriverProtocolState)
-        self.assert_enum_has_no_duplicates(ProtocolStates)
-
-    def test_protocol_event_enum(self):
-        """
-        @brief ProtocolEvent enum test
-
-            1. test that ProtocolEvent matches the expected enums from DriverProtocolState.
-            2. test that multiple distinct events do not resolve back to the same string.
-        """
-
-        self.assertEqual(ProtocolEvent.ENTER, DriverEvent.ENTER)
-        self.assertEqual(ProtocolEvent.EXIT, DriverEvent.EXIT)
-        self.assertEqual(ProtocolEvent.GET, DriverEvent.GET)
-        self.assertEqual(ProtocolEvent.SET, DriverEvent.SET)
-        self.assertEqual(ProtocolEvent.DISCOVER, DriverEvent.DISCOVER)
-        self.assertEqual(ProtocolEvent.START_AUTOSAMPLE, DriverEvent.START_AUTOSAMPLE)
-        self.assertEqual(ProtocolEvent.STOP_AUTOSAMPLE, DriverEvent.STOP_AUTOSAMPLE)
-        self.assertEqual(ProtocolEvent.EXECUTE_DIRECT, DriverEvent.EXECUTE_DIRECT)
-        self.assertEqual(ProtocolEvent.START_DIRECT, DriverEvent.START_DIRECT)
-        self.assertEqual(ProtocolEvent.STOP_DIRECT, DriverEvent.STOP_DIRECT)
-
-        self.assert_enum_has_no_duplicates(DriverEvent)
-        self.assert_enum_has_no_duplicates(ProtocolEvent)
 
     def test_get_capabilities(self):
         """
@@ -871,14 +1116,64 @@ class Testmavs4_QUAL(InstrumentDriverQualificationTestCase, Mavs4Mixin):
 
         # Now verify that at least the date matches
         params = [InstrumentParameters.SYS_CLOCK]
-        print("doing get resource")
         reply = self.instrument_agent_client.get_resource(params)
         rcvd_time = reply[InstrumentParameters.SYS_CLOCK]
         lt = time.strftime("%m/%d/%Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assert_clock_set(lt, rcvd_time)
+
 
     def test_sample_autosample(self):
         self.assert_enter_command_mode()
         self.assert_start_autosample()
 
         self.assert_sample_async(self.assert_particle_sample, DataParticleType.SAMPLE, timeout=30, sample_count=1)
+
+    def test_discover(self):
+        """
+        verify we can discover our instrument state from streaming and autosample.  This
+        method assumes that the instrument has a command and streaming mode. If not you will
+        need to explicitly overload this test in your driver tests.
+        """
+        # Verify the agent is in command mode
+        self.assert_enter_command_mode()
+
+        # Now reset and try to discover.  This will stop the driver which holds the current
+        # instrument state.
+        self.assert_reset()
+        self.assert_discover(ResourceAgentState.COMMAND)
+
+        # Now put the instrument in streaming and reset the driver again.
+        self.assert_start_autosample()
+        self.assert_reset()
+
+        # When the driver reconnects it should be back in COMMAND
+        self.assert_discover(ResourceAgentState.COMMAND)
+        self.assert_reset()
+
+###############################################################################
+#                             PUBLICATION TESTS                               #
+# Device specific pulication tests are for                                    #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('PUB', group='mi')
+class Testmavs4_PUB(InstrumentDriverPublicationTestCase):
+    
+    @unittest.skip("Agent doesnt start connection properly, will change soon")
+    def test_granule_generation(self):
+        self.assert_initialize_driver()
+        time.sleep(2)
+
+        # Currently these tests only verify that the data granule is generated, but the values
+        # are not tested.  We will eventually need to replace log.debug with a better callback
+        # function that actually tests the granule.
+        self.assert_sample_async("raw data", log.debug, DataParticleType.RAW, timeout=10)
+
+        self.assert_sample_async(self.SAMPLE, log.debug,
+                                 DataParticleType.SAMPLE, timeout=10)
+
+        
+        self.assert_async_response_from_cmd(Capability.ACQUIRE_STATUS,
+                                            log.debug,
+                                            DataParticleType.STATUS,
+                                            timeout=450)
+    

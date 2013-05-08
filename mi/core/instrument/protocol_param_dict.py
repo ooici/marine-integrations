@@ -26,6 +26,8 @@ class ParameterDictType(BaseEnum):
     STRING = "string"
     FLOAT = "float"
     LIST = "list"
+    BOOL = "bool"
+    ENUM = "enum"
 
 class ParameterDictVisibility(BaseEnum):
     READ_ONLY = "READ_ONLY"  # Can not be set by the driver at any time
@@ -217,6 +219,7 @@ class RegexParameter(Parameter):
                  startup_param=False,
                  default_value=None,
                  init_value=None,
+                 regex_flags=None,
                  expiration=None,
                  get_timeout=10,
                  set_timeout=10,
@@ -236,6 +239,10 @@ class RegexParameter(Parameter):
         @param menu_path The path of menu options required to get to the parameter
         value display when presented in a menu-based instrument
         @param value The parameter value (initializes to None).
+        @param regex_flags Flags that should be passed to the regex in this
+        parameter. Should comply with regex compile() interface (XORed flags).
+        @throws TypeError if regex flags are bad
+        @see ProtocolParameterDict.add() for details of parameters
         """
         Parameter.__init__(self,
                            name,
@@ -261,7 +268,11 @@ class RegexParameter(Parameter):
                            value_description=value_description)
 
         self.pattern = pattern
-        self.regex = re.compile(pattern)
+        if regex_flags == None:
+            self.regex = re.compile(pattern)
+        else:
+            self.regex = re.compile(pattern, regex_flags)
+            
         self.f_getval = f_getval
 
     def update(self, input):
@@ -280,8 +291,8 @@ class RegexParameter(Parameter):
             self.value.set_value(self.f_getval(match))
             return True
         else:
-            return False
-        
+            return False    
+    
 class FunctionParameter(Parameter):
     def __init__(self, name, f_getval, f_format, value=None,
                  visibility=ParameterDictVisibility.READ_WRITE,
@@ -728,7 +739,7 @@ class ProtocolParameterDict(object):
                config[key] = val.get_value()
         return config
 
-    def format(self, name, val):
+    def format(self, name, val=None):
         """
         Format a parameter for a set command.
         @param name The name of the parameter.
@@ -739,9 +750,14 @@ class ProtocolParameterDict(object):
         @raises KeyError if the parameter name is invalid.
         """
         if not self._param_dict[name].value:
-            raise InstrumentParameterException("No value present!")
+            raise InstrumentParameterException("No value present for %s!" % name)
 
-        return self._param_dict[name].value.f_format(val)
+        if val == None:
+            current_value = self._param_dict[name].value.get_value()
+        else:
+            current_value = val
+        
+        return self._param_dict[name].value.f_format(current_value)
         
     def get_keys(self):
         """
