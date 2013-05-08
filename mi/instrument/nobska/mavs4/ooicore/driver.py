@@ -15,6 +15,7 @@ __license__ = 'Apache 2.0'
 import time
 import re
 import ntplib
+import numpy
 
 from mi.core.common import BaseEnum
 from mi.core.time import get_timestamp_delayed
@@ -405,18 +406,18 @@ class mavs4InstrumentDriver(SingleConnectionInstrumentDriver):
 ###############################################################################
 
 class Mavs4SampleDataParticleKey(BaseEnum):
-    TIMESTAMP                = "timestamp"
+    TIMESTAMP                = "date_time_string"
     FRACTIONAL_SECOND        = 'fractional_second'
-    ACOUSTIC_AXIS_VELOCITY_A = 'acoustic_axis_velocity_a'
-    ACOUSTIC_AXIS_VELOCITY_B = 'acoustic_axis_velocity_b'
-    ACOUSTIC_AXIS_VELOCITY_C = 'acoustic_axis_velocity_c'
-    ACOUSTIC_AXIS_VELOCITY_D = 'acoustic_axis_velocity_d'
-    VELOCITY_FRAME_EAST      = 'velocity_frame_east'
-    VELOCITY_FRAME_NORTH     = 'velocity_frame_north'
-    VELOCITY_FRAME_WEST      = 'velocity_frame_west'
+    ACOUSTIC_AXIS_VELOCITY_A = 'velocity_beam_a'
+    ACOUSTIC_AXIS_VELOCITY_B = 'velocity_beam_b'
+    ACOUSTIC_AXIS_VELOCITY_C = 'velocity_beam_c'
+    ACOUSTIC_AXIS_VELOCITY_D = 'velocity_beam_d'
+    VELOCITY_FRAME_UP        = 'turbulent_velocity_up'
+    VELOCITY_FRAME_NORTH     = 'turbulent_velocity_north'
+    VELOCITY_FRAME_WEST      = 'turbulent_velocity_west'
     TEMPERATURE              = 'temperature'
-    COMPASS_MX               = 'compass_mx'
-    COMPASS_MY               = 'compass_my'
+    COMPASS_MX               = 'mag_comp_x'
+    COMPASS_MY               = 'mag_comp_y'
     PITCH                    = 'pitch'
     ROLL                     = 'roll'
                 
@@ -446,10 +447,10 @@ class Mavs4SampleDataParticle(DataParticle):
             self.set_internal_timestamp(unix_time=time.mktime(timestamp))
             ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
             fractional_second = int(match.group(3))
-            acoustic_axis_velocity_a = int(match.group(4), 16)
-            acoustic_axis_velocity_b = int(match.group(5), 16)
-            acoustic_axis_velocity_c = int(match.group(6), 16)
-            acoustic_axis_velocity_d = int(match.group(7), 16)
+            acoustic_axis_velocity_a = str(match.group(4))
+            acoustic_axis_velocity_b = str(match.group(5))
+            acoustic_axis_velocity_c = str(match.group(6))
+            acoustic_axis_velocity_d = str(match.group(7))
             velocity_frame_east = float(match.group(8))
             velocity_frame_north = float(match.group(9))
             velocity_frame_west = float(match.group(10))
@@ -474,7 +475,7 @@ class Mavs4SampleDataParticle(DataParticle):
                    DataParticleKey.VALUE: acoustic_axis_velocity_c},
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_D,
                    DataParticleKey.VALUE: acoustic_axis_velocity_d},
-                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.VELOCITY_FRAME_EAST,
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.VELOCITY_FRAME_UP,
                    DataParticleKey.VALUE: velocity_frame_east},
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.VELOCITY_FRAME_NORTH,
                    DataParticleKey.VALUE: velocity_frame_north},
@@ -495,25 +496,25 @@ class Mavs4SampleDataParticle(DataParticle):
         return result
     
 class Mavs4StatusDataParticleKey(BaseEnum):
-    VELOCITY_OFFSET_PATH_A  = InstrumentParameters.VELOCITY_OFFSET_PATH_A
-    VELOCITY_OFFSET_PATH_B  = InstrumentParameters.VELOCITY_OFFSET_PATH_B
-    VELOCITY_OFFSET_PATH_C  = InstrumentParameters.VELOCITY_OFFSET_PATH_C
-    VELOCITY_OFFSET_PATH_D  = InstrumentParameters.VELOCITY_OFFSET_PATH_D
-    COMPASS_OFFSET_0        = InstrumentParameters.COMPASS_OFFSET_0
-    COMPASS_OFFSET_1        = InstrumentParameters.COMPASS_OFFSET_1
-    COMPASS_OFFSET_2        = InstrumentParameters.COMPASS_OFFSET_2
-    COMPASS_SCALE_FACTORS_0 = InstrumentParameters.COMPASS_SCALE_FACTORS_0
-    COMPASS_SCALE_FACTORS_1 = InstrumentParameters.COMPASS_SCALE_FACTORS_1
-    COMPASS_SCALE_FACTORS_2 = InstrumentParameters.COMPASS_SCALE_FACTORS_2
-    TILT_PITCH_OFFSET       = InstrumentParameters.TILT_PITCH_OFFSET
-    TILT_ROLL_OFFSET        = InstrumentParameters.TILT_ROLL_OFFSET
-    SAMPLE_PERIOD           = InstrumentParameters.SAMPLE_PERIOD
-    SAMPLES_PER_BURST       = InstrumentParameters.SAMPLES_PER_BURST
-    BURST_INTERVAL_DAYS     = InstrumentParameters.BURST_INTERVAL_DAYS
-    BURST_INTERVAL_HOURS    = InstrumentParameters.BURST_INTERVAL_HOURS
-    BURST_INTERVAL_MINUTES  = InstrumentParameters.BURST_INTERVAL_MINUTES
-    BURST_INTERVAL_SECONDS  = InstrumentParameters.BURST_INTERVAL_SECONDS
-    SI_CONVERSION           = InstrumentParameters.SI_CONVERSION
+    VELOCITY_OFFSET_PATH_A  = "velocity_offset_a"
+    VELOCITY_OFFSET_PATH_B  = "velocity_offset_b"
+    VELOCITY_OFFSET_PATH_C  = "velocity_offset_c"
+    VELOCITY_OFFSET_PATH_D  = "velocity_offset_d"
+    COMPASS_OFFSET_0        = "compass_offset_0"
+    COMPASS_OFFSET_1        = "compass_offset_1"
+    COMPASS_OFFSET_2        = "compass_offset_2"
+    COMPASS_SCALE_FACTORS_0 = "compass_scale_factor_0"
+    COMPASS_SCALE_FACTORS_1 = "compass_scale_factor_1"
+    COMPASS_SCALE_FACTORS_2 = "compass_scale_factor_2"
+    TILT_PITCH_OFFSET       = "tilt_offset_pitch"
+    TILT_ROLL_OFFSET        = "tilt_offset_roll"
+    SAMPLE_PERIOD           = "sample_period"
+    SAMPLES_PER_BURST       = "samples_per_burst"
+    BURST_INTERVAL_DAYS     = "burst_interval_days"
+    BURST_INTERVAL_HOURS    = "burst_interval_hours"
+    BURST_INTERVAL_MINUTES  = "burst_interval_minutes"
+    BURST_INTERVAL_SECONDS  = "burst_interval_seconds"
+    SI_CONVERSION           = "bin_to_si_conversion"
                 
 class Mavs4StatusDataParticle(DataParticle):
     """
@@ -538,11 +539,11 @@ class Mavs4StatusDataParticle(DataParticle):
                      
         log.debug('Mavs4StatusDataParticle: raw_data=%s', self.raw_data)
 
-        result = []
-        for key, value in self.raw_data.items():
-            result.append({DataParticleKey.VALUE_ID: key,
-                           DataParticleKey.VALUE: value})
-             
+        result = []        
+        for (k, v) in self.raw_data.iteritems():
+            result.append({DataParticleKey.VALUE_ID: k,
+                           DataParticleKey.VALUE: v})
+        
         log.debug('Mavs4StatusDataParticle: particle=%s', result)
         return result
     
@@ -800,6 +801,13 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
 
         self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
+        # Build a little conversion between the status particle keys and the
+        # instrument parameter keys for flexibility down the road
+        particle_status_dict = Mavs4StatusDataParticleKey.dict()
+        params_mapping_dict = InstrumentParameters.dict()
+        self.status_particle_mapping = {}
+        for key in particle_status_dict.keys():
+            self.status_particle_mapping[particle_status_dict[key]] = params_mapping_dict[key]
 
     @staticmethod
     def chunker_sieve_function(raw_data):
@@ -1574,7 +1582,7 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         # status data particle
         status_params = {}
         for name in Mavs4StatusDataParticleKey.list():
-            status_params[name] = self._param_dict.get(name)
+            status_params[name] = self._param_dict.get(self.status_particle_mapping[name])
             
         # Create status data particle, but pass in a reference to the
         # dictionary just created as first parameter instead of the 'line'.
@@ -1849,11 +1857,14 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
                            lambda match : self._parse_on_off(match.group(1)),
                            lambda string : str(string),
                            regex_flags=re.DOTALL,
-                           value='',
-                           description="Log/display acoustic axis velocities",
-                           display_name="Display acoustic axis velocities",
+                           startup_param=True,
+                           direct_access=True,
+                           value='HEX',
+                           default_value='HEX',
+                           description="Log/display format acoustic axis velocities",
+                           display_name="Format of acoustic axis velocities",
                            type="bool",
-                           value_description="Acoustic axis velocities on or off"))
+                           value_description="Acoustic axis velocity format"))
 
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.QUERY_MODE,
@@ -2191,8 +2202,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.VELOCITY_OFFSET_PATH_A,
                            r'.*Current path offsets:\s+(\w+)\s+.*', 
-                           lambda match : int(match.group(1), 16),
-                           self._int_to_string,
+                           lambda match : str(match.group(1)),
+                           lambda string: str(string),
                            regex_flags=re.DOTALL,
                            visibility=ParameterDictVisibility.READ_ONLY,
                            menu_path_read=SubMenues.CALIBRATION,
@@ -2208,8 +2219,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.VELOCITY_OFFSET_PATH_B,
                            r'.*Current path offsets:\s+\w+\s+(\w+)\s+.*', 
-                           lambda match : int(match.group(1), 16),
-                           self._int_to_string,
+                           lambda match : str(match.group(1)),
+                           lambda string: str(string),
                            regex_flags=re.DOTALL,
                            visibility=ParameterDictVisibility.READ_ONLY,
                            menu_path_read=SubMenues.CALIBRATION,
@@ -2225,8 +2236,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.VELOCITY_OFFSET_PATH_C,
                            r'.*Current path offsets:\s+\w+\s+\w+\s+(\w+)\s+.*', 
-                           lambda match : int(match.group(1), 16),
-                           self._int_to_string,
+                           lambda match : str(match.group(1)),
+                           lambda string: str(string),
                            regex_flags=re.DOTALL,
                            visibility=ParameterDictVisibility.READ_ONLY,
                            menu_path_read=SubMenues.CALIBRATION,
@@ -2242,8 +2253,8 @@ class mavs4InstrumentProtocol(MenuInstrumentProtocol):
         self._param_dict.add_parameter(
             RegexParameter(InstrumentParameters.VELOCITY_OFFSET_PATH_D,
                            r'.*Current path offsets:\s+\w+\s+\w+\s+\w+\s+(\w+)\s+.*', 
-                           lambda match : int(match.group(1), 16),
-                           self._int_to_string,
+                           lambda match : str(match.group(1)),
+                           lambda string: str(string),
                            regex_flags=re.DOTALL,
                            visibility=ParameterDictVisibility.READ_ONLY,
                            menu_path_read=SubMenues.CALIBRATION,
