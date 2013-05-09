@@ -39,7 +39,9 @@ from mi.instrument.seabird.sbe16plus_v2.no.ooicore.driver import SBE16HardwareDa
                                                                  InstrumentDriver, \
                                                                  DataParticleType
 
-from mi.instrument.seabird.sbe16plus_v2.driver import SBE16Protocol
+from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolEvent, \
+                                                      Parameter, \
+                                                      ProtocolState
 
 from mi.instrument.seabird.sbe16plus_v2.driver import NEWLINE
 
@@ -453,6 +455,61 @@ SeaBird16plusMixin._sample_parameters = {
         SBE16NoDataParticleKey.OXY_TEMP: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 12, SeaBird16plusMixin.REQUIRED: True },
     }
 
+def assert_particle_hardware(self, data_particle, verify_values = False):
+    '''
+    Verify hardware particle
+    @param data_particle:  SBE16HardwareDataParticle data particle
+    @param verify_values:  bool, should we verify parameter values
+    '''
+    self.assert_data_particle_keys(SBE16HardwareDataParticleKey, self._hardware_parameters)
+    self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_HARDWARE)
+    self.assert_data_particle_parameters(data_particle, self._hardware_parameters, verify_values)
+
+def assert_particle_sample(self, data_particle, verify_values = False):
+    '''
+    Verify sample particle
+    @param data_particle:  SBE16DataParticle data particle
+    @param verify_values:  bool, should we verify parameter values
+    '''
+    self.assert_data_particle_keys(SBE16NoDataParticleKey, self._sample_parameters)
+    self.assert_data_particle_header(data_particle, DataParticleType.CTD_PARSED, require_instrument_timestamp=True)
+    self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
+
+def assert_particle_calibration(self, data_particle, verify_values = False):
+    '''
+    Verify sample particle
+    @param data_particle:  SBE16CalibrationDataParticle calibration particle
+    @param verify_values:  bool, should we verify parameter values
+    '''
+    self.assert_data_particle_keys(SBE16CalibrationDataParticleKey, self._calibration_parameters)
+    self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CALIBRATION)
+    self.assert_data_particle_parameters(data_particle, self._calibration_parameters, verify_values)
+
+def assert_particle_status(self, data_particle, verify_values = False):
+    '''
+    Verify status particle
+    @param data_particle:  SBE16StatusDataParticle status particle
+    @param verify_values:  bool, should we verify parameter values
+    '''
+    self.assert_data_particle_keys(SBE16StatusDataParticleKey, self._status_parameters)
+    self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_STATUS)
+    self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
+
+def assert_particle_configuration(self, data_particle, verify_values = False):
+    '''
+    Verify configuration particle
+    @param data_particle:  SBE16ConfigurationDataParticle configuration particle
+    @param verify_values:  bool, should we verify parameter values
+    '''
+    self.assert_data_particle_keys(SBE16ConfigurationDataParticleKey, self._configuration_parameters)
+    self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CONFIGURATION)
+    self.assert_data_particle_parameters(data_particle, self._configuration_parameters, verify_values)
+
+setattr(SeaBird16plusMixin, 'assert_particle_hardware', assert_particle_hardware)
+setattr(SeaBird16plusMixin, 'assert_particle_sample', assert_particle_sample)
+setattr(SeaBird16plusMixin, 'assert_particle_calibration', assert_particle_calibration)
+setattr(SeaBird16plusMixin, 'assert_particle_status', assert_particle_status)
+setattr(SeaBird16plusMixin, 'assert_particle_configuration', assert_particle_configuration)
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -468,56 +525,6 @@ class UnitFromIDK(SBEUnitTestCase):
             # /Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/unittest/runtest.py
             # doesn't mess up the logging output alignment
             print("")
-
-    def assert_particle_hardware(self, data_particle, verify_values = False):
-        '''
-        Verify hardware particle
-        @param data_particle:  SBE16HardwareDataParticle data particle
-        @param verify_values:  bool, should we verify parameter values
-        '''
-        self.assert_data_particle_keys(SBE16HardwareDataParticleKey, self._hardware_parameters)
-        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_HARDWARE)
-        self.assert_data_particle_parameters(data_particle, self._hardware_parameters, verify_values)
-
-    def assert_particle_sample(self, data_particle, verify_values = False):
-        '''
-        Verify sample particle
-        @param data_particle:  SBE16DataParticle data particle
-        @param verify_values:  bool, should we verify parameter values
-        '''
-        self.assert_data_particle_keys(SBE16NoDataParticleKey, self._sample_parameters)
-        self.assert_data_particle_header(data_particle, DataParticleType.CTD_PARSED, require_instrument_timestamp=True)
-        self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
-
-    def assert_particle_calibration(self, data_particle, verify_values = False):
-        '''
-        Verify sample particle
-        @param data_particle:  SBE16CalibrationDataParticle calibration particle
-        @param verify_values:  bool, should we verify parameter values
-        '''
-        self.assert_data_particle_keys(SBE16CalibrationDataParticleKey, self._calibration_parameters)
-        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CALIBRATION)
-        self.assert_data_particle_parameters(data_particle, self._calibration_parameters, verify_values)
-
-    def assert_particle_status(self, data_particle, verify_values = False):
-        '''
-        Verify status particle
-        @param data_particle:  SBE16StatusDataParticle status particle
-        @param verify_values:  bool, should we verify parameter values
-        '''
-        self.assert_data_particle_keys(SBE16StatusDataParticleKey, self._status_parameters)
-        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_STATUS)
-        self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
-
-    def assert_particle_configuration(self, data_particle, verify_values = False):
-        '''
-        Verify configuration particle
-        @param data_particle:  SBE16ConfigurationDataParticle configuration particle
-        @param verify_values:  bool, should we verify parameter values
-        '''
-        self.assert_data_particle_keys(SBE16ConfigurationDataParticleKey, self._configuration_parameters)
-        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CONFIGURATION)
-        self.assert_data_particle_parameters(data_particle, self._configuration_parameters, verify_values)
 
     def test_chunker(self):
         """
@@ -575,7 +582,45 @@ class UnitFromIDK(SBEUnitTestCase):
 ###############################################################################
 @attr('INT', group='mi')
 class IntFromIDK(SBEIntTestCase):
-    pass
+
+    def test_autosample(self):
+        """
+        Verify that we can enter streaming and that all particles are produced properly.
+
+        Because we have to test for three different data particles we can't use
+        the common assert_sample_autosample method
+        """
+        self.assert_initialize_driver()
+        self.assert_set(Parameter.INTERVAL, 10)
+
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_async_particle_generation(DataParticleType.CTD_PARSED, self.assert_particle_sample, timeout=60)
+
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_status)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_HARDWARE, self.assert_particle_hardware)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CONFIGURATION, self.assert_particle_configuration)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
+        self.assert_particle_generation(ProtocolEvent.GET_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
+
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+
+    def test_polled(self):
+        """
+        Test that we can generate particles with commands while in command mode
+        """
+        self.assert_initialize_driver()
+
+        # test acquire_status particles
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_status)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_HARDWARE, self.assert_particle_hardware)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CONFIGURATION, self.assert_particle_configuration)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
+
+        # test get_congiguration particle
+        self.assert_particle_generation(ProtocolEvent.GET_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
+        
+        # test acquire_sample data particle
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.CTD_PARSED, self.assert_particle_sample)
 
 
 ###############################################################################

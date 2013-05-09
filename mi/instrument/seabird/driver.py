@@ -173,7 +173,7 @@ class SeaBirdParticle(DataParticle):
         """
         elements = node.getElementsByTagName(tag)
         if raise_exception_if_none_found and len(elements) == 0:
-            raise SampleException("No %s in input data: [%s]" % (tag, self.raw_data))
+            raise SampleException("_extract_xml_elements: No %s in input data: [%s]" % (tag, self.raw_data))
         return elements
 
     def _extract_xml_element_value(self, node, tag, raise_exception_if_none_found=True):
@@ -187,7 +187,7 @@ class SeaBirdParticle(DataParticle):
         elements = self._extract_xml_elements(node, tag, raise_exception_if_none_found)
         children = elements[0].childNodes
         if raise_exception_if_none_found and len(children) == 0:
-            raise SampleException("No value for %s in input data: [%s]" % (tag, self.raw_data))
+            raise SampleException("_extract_xml_element_value: No value for %s in input data: [%s]" % (tag, self.raw_data))
         return children[0].nodeValue
     
     def _get_xml_parameter(self, xml_element, parameter_name, type=float):

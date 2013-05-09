@@ -22,10 +22,21 @@ import mi.instrument.seabird.driver as seabird_driver
 from mi.core.instrument.data_particle import DataParticleKey, \
                                              CommonDataParticleType
 
+from mi.core.exceptions import InstrumentProtocolException
+
 from mi.core.common import BaseEnum
 
 from mi.core.exceptions import SampleException, \
                                InstrumentProtocolException
+
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, \
+                                                   ParameterDictType
+
+class Command(BaseEnum):
+    GETSD = 'GetSD'
+    GETHD = 'GetHD'
+    GETCD = 'GetCD'
+    GETCC = 'GetCC'
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
@@ -304,7 +315,7 @@ class SBE16StatusDataParticle(seabird_driver.SeaBirdParticle):
                             SBE16StatusDataParticleKey.HEADERS: "Headers",
                            }
         return map_param_to_tag[parameter_name]
-
+   
     def _build_parsed_values(self):
         """
         Parse the output of the getCC command
@@ -578,7 +589,6 @@ class SBE16HardwareDataParticle(seabird_driver.SeaBirdParticle):
                 temperature_sensor_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
             elif sensor_id == CONDUCTIVITY_SENSOR_ID:
                 conductivity_sensor_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
-                print ("SN=%s, SNI=%d" %(self._extract_xml_element_value(sensor, SERIAL_NUMBER), conductivity_sensor_serial_number))
             elif sensor_id == PRESSURE_SENSOR_ID:
                 pressure_sensor_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
                 pressure_sensor_type = self._extract_xml_element_value(sensor, TYPE)                
@@ -717,7 +727,31 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
     Instrument protocol class for SBE16 NO driver.
     Subclasses SBE16Protocol
     """
-    
+        
+    def __init__(self, prompts, newline, driver_event):
+        """
+        SBE16Protocol constructor.
+        @param prompts A BaseEnum class containing instrument prompts.
+        @param newline The SBE16 newline.
+        @param driver_event Driver process event callback.
+        """
+        # Construct protocol superclass.
+        sbe16plus_driver.SBE16Protocol.__init__(self, prompts, newline, driver_event)
+
+        # Add build handlers for NO device commands.
+        self._add_build_handler(Command.GETSD, self._build_simple_command)
+        self._add_build_handler(Command.GETHD, self._build_simple_command)
+        self._add_build_handler(Command.GETCD, self._build_simple_command)
+        self._add_build_handler(Command.GETCC, self._build_simple_command)
+
+        # Add response handlers for NO device commands.
+        # these are here to ensure that correct responses to the commands are received before the next command is sent
+        self._add_response_handler(Command.GETSD, self._validate_GetSD_response)  
+        self._add_response_handler(Command.GETHD, self._validate_GetHD_response)  
+        self._add_response_handler(Command.GETCD, self._validate_GetCD_response)  
+        self._add_response_handler(Command.GETCC, self._validate_GetCC_response)  
+        
+
     @staticmethod
     def sieve_function(raw_data):
         """ The method that splits samples
@@ -730,8 +764,8 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
         matchers.append(SBE16StatusParticle.regex_compiled())
         matchers.append(SBE16CalibrationParticle.regex_compiled())
         """
-        matchers.append(SBE16HardwareDataParticle.regex_compiled())
         matchers.append(SBE16NoDataParticle.regex_compiled())
+        matchers.append(SBE16HardwareDataParticle.regex_compiled())
         matchers.append(SBE16CalibrationDataParticle.regex_compiled())
         matchers.append(SBE16StatusDataParticle.regex_compiled())
         matchers.append(SBE16ConfigurationDataParticle.regex_compiled())
@@ -755,3 +789,262 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
                 self._extract_sample(SBE16StatusDataParticle, SBE16StatusDataParticle.regex_compiled(), chunk, timestamp)):
             raise InstrumentProtocolException("Unhandled chunk %s" %chunk)
 
+    ########################################################################
+    # Command handlers.
+    ########################################################################
+
+    def _handler_command_acquire_status(self, *args, **kwargs):
+        """
+        Get device status
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        result = self._do_cmd_resp(Command.GETSD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
+        log.debug("_handler_command_acquire_status: GetSD Response: %s", result)
+        result = self._do_cmd_resp(Command.GETHD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
+        log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
+        result = self._do_cmd_resp(Command.GETCD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
+        log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
+        result = self._do_cmd_resp(Command.GETCC, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
+        log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_get_configuration(self, *args, **kwargs):
+        """
+        GetCC from SBE16.
+        @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        @throws SampleException if a sample could not be extracted from result.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        kwargs['timeout'] = sbe16plus_driver.TIMEOUT
+        result = self._do_cmd_resp(Command.GETCC, expected_prompt=sbe16plus_driver.Prompt.EXECUTED, *args, **kwargs)
+        log.debug("_handler_command_get_configuration: GetCC Response: %s", result)
+
+        return (next_state, (next_agent_state, result))
+
+    ########################################################################
+    # Autosample handlers.
+    ########################################################################
+
+    def _handler_autosample_acquire_status(self, *args, **kwargs):
+        """
+        Get device status
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        # When in autosample this command requires two wakeups to get to the right prompt
+        prompt = self._wakeup(timeout=sbe16plus_driver.WAKEUP_TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=sbe16plus_driver.WAKEUP_TIMEOUT, delay=0.3)
+
+        result = self._do_cmd_resp(Command.GETSD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
+        log.debug("_handler_autosample_acquire_status: GetSD Response: %s", result)
+        result = self._do_cmd_resp(Command.GETHD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
+        log.debug("_handler_autosample_acquire_status: GetHD Response: %s", result)
+        result = self._do_cmd_resp(Command.GETCD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
+        log.debug("_handler_autosample_acquire_status: GetCD Response: %s", result)
+        result = self._do_cmd_resp(Command.GETCC, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
+        log.debug("_handler_autosample_acquire_status: GetCC Response: %s", result)
+
+        log.debug("_handler_autosample_acquire_status: sending the QS command to restart sampling")
+        self._protocol_fsm.on_event(sbe16plus_driver.ProtocolEvent.QUIT_SESSION)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_autosample_get_configuration(self, *args, **kwargs):
+        """
+        GetCC from SBE16.
+        @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        @throws SampleException if a sample could not be extracted from result.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        # When in autosample this command requires two wakeups to get to the right prompt
+        prompt = self._wakeup(timeout=sbe16plus_driver.WAKEUP_TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=sbe16plus_driver.WAKEUP_TIMEOUT, delay=0.3)
+
+        kwargs['timeout'] = sbe16plus_driver.TIMEOUT
+        result = self._do_cmd_resp(Command.GETCC, expected_prompt=sbe16plus_driver.Prompt.EXECUTED, *args, **kwargs)
+        log.debug("_handler_autosample_get_configuration: GetCC Response: %s", result)
+
+        log.debug("_handler_autosample_get_configuration: sending the QS command to restart sampling")
+        self._protocol_fsm.on_event(sbe16plus_driver.ProtocolEvent.QUIT_SESSION)
+
+        return (next_state, (next_agent_state, result))
+
+    ########################################################################
+    # response handlers.
+    ########################################################################
+
+    def _validate_GetSD_response(self, response, prompt):
+        """
+        validation handler for GetSD command
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if command misunderstood.
+        """
+        error = self._find_error(response)
+
+        if error:
+            log.error("_validate_GetSD_response: GetSD command encountered error; type='%s' msg='%s'", error[0], error[1])
+            raise InstrumentProtocolException('GetSD command failure: type="%s" msg="%s"' % (error[0], error[1]))
+
+        if prompt not in [sbe16plus_driver.Prompt.COMMAND, sbe16plus_driver.Prompt.EXECUTED]: 
+            log.error('_validate_GetSD_response: correct instrument prompt missing: %s.' % response)
+            raise InstrumentProtocolException('GetSD command - correct instrument prompt missing: %s.' % response)
+        
+        if not SBE16StatusDataParticle.regex_compiled().search(response):
+            log.error('_validate_GetSD_response: GetSD command not recognized: %s.' % response)
+            raise InstrumentProtocolException('GetSD command not recognized: %s.' % response)
+            
+        return response
+    
+    def _validate_GetHD_response(self, response, prompt):
+        """
+        validation handler for GetHD command
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if command misunderstood.
+        """
+        error = self._find_error(response)
+
+        if error:
+            log.error("GetHD command encountered error; type='%s' msg='%s'", error[0], error[1])
+            raise InstrumentProtocolException('GetHD command failure: type="%s" msg="%s"' % (error[0], error[1]))
+
+        if prompt not in [sbe16plus_driver.Prompt.COMMAND, sbe16plus_driver.Prompt.EXECUTED]: 
+            log.error('_validate_GetHD_response: correct instrument prompt missing: %s.' % response)
+            raise InstrumentProtocolException('GetHD command - correct instrument prompt missing: %s.' % response)
+        
+        if not SBE16HardwareDataParticle.regex_compiled().search(response):
+            log.error('_validate_GetHD_response: GetHD command not recognized: %s.' % response)
+            raise InstrumentProtocolException('GetHD command not recognized: %s.' % response)
+            
+        return response
+
+    def _validate_GetCD_response(self, response, prompt):
+        """
+        validation handler for GetCD command
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if command misunderstood.
+        """
+        error = self._find_error(response)
+
+        if error:
+            log.error("GetCD command encountered error; type='%s' msg='%s'", error[0], error[1])
+            raise InstrumentProtocolException('GetCD command failure: type="%s" msg="%s"' % (error[0], error[1]))
+
+        if prompt not in [sbe16plus_driver.Prompt.COMMAND, sbe16plus_driver.Prompt.EXECUTED]: 
+            log.error('_validate_GetCD_response: correct instrument prompt missing: %s.' % response)
+            raise InstrumentProtocolException('GetCD command - correct instrument prompt missing: %s.' % response)
+        
+        if not SBE16ConfigurationDataParticle.regex_compiled().search(response):
+            log.error('_validate_GetCD_response: GetCD command not recognized: %s.' % response)
+            raise InstrumentProtocolException('GetCD command not recognized: %s.' % response)
+            
+        return response
+
+    def _validate_GetCC_response(self, response, prompt):
+        """
+        validation handler for GetCC command
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if command misunderstood.
+        """
+        error = self._find_error(response)
+
+        if error:
+            log.error("GetCC command encountered error; type='%s' msg='%s'", error[0], error[1])
+            raise InstrumentProtocolException('GetCC command failure: type="%s" msg="%s"' % (error[0], error[1]))
+
+        if prompt not in [sbe16plus_driver.Prompt.COMMAND, sbe16plus_driver.Prompt.EXECUTED]: 
+            log.error('_validate_GetCC_response: correct instrument prompt missing: %s.' % response)
+            raise InstrumentProtocolException('GetCC command - correct instrument prompt missing: %s.' % response)
+        
+        if not SBE16CalibrationDataParticle.regex_compiled().search(response):
+            log.error('_validate_GetCC_response: GetCC command not recognized: %s.' % response)
+            raise InstrumentProtocolException('GetCC command not recognized: %s.' % response)
+            
+        return response
+
+    ########################################################################
+    # Private helpers.
+    ########################################################################
+
+    def _build_param_dict(self):
+        sbe16plus_driver.SBE16Protocol._build_param_dict(self)
+        
+        self._param_dict.add(sbe16plus_driver.Parameter.VOLT2,
+                             r'Ext Volt 2 = ([\w]+)',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 2",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.IMMUTABLE)
+        self._param_dict.add(sbe16plus_driver.Parameter.VOLT3,
+                             r'Ext Volt 3 = ([\w]+)',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 3",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.IMMUTABLE)
+        self._param_dict.add(sbe16plus_driver.Parameter.VOLT4,
+                             r'Ext Volt 4 = ([\w]+)',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 4",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.IMMUTABLE)
+        self._param_dict.add(sbe16plus_driver.Parameter.VOLT5,
+                             r'Ext Volt 5 = ([\w]+)',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 5",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.IMMUTABLE)
+        self._param_dict.add(sbe16plus_driver.Parameter.OPTODE,
+                             r'OPTODE = (yes|no)',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Optode Attached",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = True,
+                             visibility=ParameterDictVisibility.IMMUTABLE)
+        self._param_dict.add(sbe16plus_driver.Parameter.PTYPE,
+                             r'pressure sensor = ([\w\s]+),',
+                             self._pressure_sensor_to_int,
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Pressure Sensor Type",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = 3,
+                             visibility=ParameterDictVisibility.IMMUTABLE)
