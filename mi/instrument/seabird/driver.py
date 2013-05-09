@@ -409,6 +409,7 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
                 self._start_logging()
 
         if(error):
+            log.error("Error in apply_startup_params: %s", error)
             raise error
 
     def _start_logging(self):
@@ -470,9 +471,12 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
         apply startup parameters to the instrument.
         @raise: InstrumentProtocolException if in wrong mode.
         """
+        log.debug("_apply_params start")
         config = self.get_startup_config()
+        log.debug("_apply_params startup config: %s", config)
         # Pass true to _set_params so we know these are startup values
         self._set_params(config, True)
+        log.debug("_apply_params done")
 
     def _instrument_config_dirty(self):
         """

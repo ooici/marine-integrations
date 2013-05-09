@@ -159,8 +159,8 @@ class InstrumentDriverTestConfig(Singleton):
 
     driver_startup_config = {}
 
-    container_deploy_file = 'res/deploy/r2idk.yml'
-    publisher_deploy_file = 'res/deploy/r2idk.yml'
+    container_deploy_file = 'deploy/r2qual.yml'
+    publisher_deploy_file = 'deploy/r2pub.yml'
 
     initialized   = False
 
