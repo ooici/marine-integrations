@@ -414,7 +414,7 @@ class Mavs4SampleDataParticleKey(BaseEnum):
     ACOUSTIC_AXIS_VELOCITY_D = 'velocity_beam_d'
     VELOCITY_FRAME_UP        = 'turbulent_velocity_up'
     VELOCITY_FRAME_NORTH     = 'turbulent_velocity_north'
-    VELOCITY_FRAME_WEST      = 'turbulent_velocity_west'
+    VELOCITY_FRAME_EAST      = 'turbulent_velocity_east'
     TEMPERATURE              = 'temperature'
     COMPASS_MX               = 'mag_comp_x'
     COMPASS_MY               = 'mag_comp_y'
@@ -453,7 +453,7 @@ class Mavs4SampleDataParticle(DataParticle):
             acoustic_axis_velocity_d = str(match.group(7))
             velocity_frame_east = float(match.group(8))
             velocity_frame_north = float(match.group(9))
-            velocity_frame_west = float(match.group(10))
+            velocity_frame_up = float(match.group(10))
             temperature = float(match.group(11))
             compass_mx = float(match.group(12))
             compass_my = float(match.group(13))
@@ -475,12 +475,12 @@ class Mavs4SampleDataParticle(DataParticle):
                    DataParticleKey.VALUE: acoustic_axis_velocity_c},
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_D,
                    DataParticleKey.VALUE: acoustic_axis_velocity_d},
-                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.VELOCITY_FRAME_UP,
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.VELOCITY_FRAME_EAST,
                    DataParticleKey.VALUE: velocity_frame_east},
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.VELOCITY_FRAME_NORTH,
                    DataParticleKey.VALUE: velocity_frame_north},
-                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.VELOCITY_FRAME_WEST,
-                   DataParticleKey.VALUE: velocity_frame_west},
+                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.VELOCITY_FRAME_UP,
+                   DataParticleKey.VALUE: velocity_frame_up},
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.TEMPERATURE,
                    DataParticleKey.VALUE: temperature},
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.COMPASS_MX,
