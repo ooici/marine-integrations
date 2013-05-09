@@ -1287,7 +1287,7 @@ class Protocol(SeaBirdProtocol):
         """
         timeout = kwargs.get('timeout', TIMEOUT)
 
-        log.debug("_handler_unknown_discover");
+        log.debug("_handler_unknown_discover")
         next_state = None
         next_agent_state = None
 
@@ -1861,17 +1861,33 @@ class Protocol(SeaBirdProtocol):
 
         return True
 
-    def _set_params(self, params, startup):
+
+    def _set_params(self, *args, **kwargs):
         """
         Issue commands to the instrument to set various parameters
         """
-        self._verify_not_readonly(params, startup)
+        log.debug("sbe54 _set_params start")
+
+        startup = False
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
+        self._verify_not_readonly(*args, **kwargs)
 
         for (key, val) in params.iteritems():
             log.debug("KEY = " + str(key) + " VALUE = " + str(val))
             result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
 
+        log.debug("sbe54 _set_params update_params")
         self._update_params()
+        log.debug("sbe54 _set_params complete")
 
     def _build_set_command(self, cmd, param, val):
         """

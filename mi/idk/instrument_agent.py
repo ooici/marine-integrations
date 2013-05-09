@@ -86,8 +86,9 @@ class PublisherInstrumentAgent(ion.agents.instrument.instrument_agent.Instrument
         self._dvr_client.cmd_dvr('connect')
 
         # Reset the connection id and index.
-        self._connection_ID = uuid.uuid4()
-        self._connection_index = {key : 0 for key in self.aparam_streams.keys()}
+        #self._connection_ID = uuid.uuid4()
+        #self._connection_index = {key : 0 for key in self.aparam_streams.keys()}
+        self._asp.reset_connection()
 
         return (next_state, result)
 
