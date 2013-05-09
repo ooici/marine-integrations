@@ -10,29 +10,37 @@ __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
 import re
+import time
+import copy
+import base64
 
 from mi.core.log import get_logger ; log = get_logger()
 
-from mi.core.exceptions import NotImplementedException
+from mi.core.instrument.instrument_fsm import InstrumentFSM
 
-from mi.core.instrument.instrument_protocol import DriverProtocolState
+from mi.core.instrument.instrument_protocol import Protocol
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
-from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
-from mi.core.instrument.data_particle import DataParticle
-from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
+from mi.core.instrument.protocol_param_dict import BinaryProtocolParameterDict
+from mi.core.instrument.protocol_param_dict import RegexParameter
 
-from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.chunker import StringChunker
 
+from mi.core.exceptions import ReadOnlyException
+from mi.core.exceptions import InstrumentStateException
+from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
-from mi.core.exceptions import NotImplementedException
+
 from mi.core.time import get_timestamp_delayed
-
-from mi.core.common import InstErrorCode
-
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.common import InstErrorCode, BaseEnum
 
 # newline.
 NEWLINE = '\n\r'
@@ -288,7 +296,7 @@ class NortekParameterDictVal(RegexParameter):
 
 class NortekProtocolParameterDict(ProtocolParameterDict):   
         
-    def update(self, input, **kwargs):
+    def update(self, input, target_params=None, **kwargs):
         """
         Update the dictionaray with a line input. Iterate through all objects
         and attempt to match and update a parameter. Only updates the first
@@ -338,7 +346,8 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
         @param value The parameter value.
         @raises KeyError if the name is invalid.
         """
-        log.debug("BinaryProtocolParameterDict.set_from_value(): name=%s, value=%s" %(name, value))
+        log.debug("BinaryProtocolParameterDict.set_from_value(): name=%s, value=%s",
+                  name, value)
         
         if not name in self._param_dict:
             raise InstrumentParameterException('Unable to set parameter %s to %s: parameter %s not an dictionary' %(name, value, name))
@@ -409,13 +418,13 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
 
     @staticmethod
     def convert_time(response):
-        time = str(response[2].encode('hex'))  # get day
-        time += '/' + str(response[5].encode('hex'))  # get month   
-        time += '/20' + str(response[4].encode('hex'))  # get year   
-        time += ' ' + str(response[3].encode('hex'))  # get hours   
-        time += ':' + str(response[0].encode('hex'))  # get minutes   
-        time += ':' + str(response[1].encode('hex'))  # get seconds   
-        return time
+        t = str(response[2].encode('hex'))  # get day
+        t += '/' + str(response[5].encode('hex'))  # get month   
+        t += '/20' + str(response[4].encode('hex'))  # get year   
+        t += ' ' + str(response[3].encode('hex'))  # get hours   
+        t += ':' + str(response[0].encode('hex'))  # get minutes   
+        t += ':' + str(response[1].encode('hex'))  # get seconds   
+        return t
     
 ###############################################################################
 # Driver
@@ -470,7 +479,7 @@ class NortekInstrumentDriver(SingleConnectionInstrumentDriver):
 # Protocol
 ###############################################################################
 
-class NortekProtocol(CommandResponseInstrumentProtocol):
+class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
     """
     Instrument protocol class for seabird driver.
     Subclasses CommandResponseInstrumentProtocol
@@ -538,9 +547,6 @@ class NortekProtocol(CommandResponseInstrumentProtocol):
         # Construct the parameter dictionary containing device parameters, current parameter values, and set formatting functions.
         self._build_param_dict()
 
-        # create chunker for processing instrument samples.
-        self._chunker = StringChunker(Protocol.chunker_sieve_function)
-
     ########################################################################
     # overridden superclass methods
     ########################################################################    
@@ -560,7 +566,7 @@ class NortekProtocol(CommandResponseInstrumentProtocol):
             fields of the parameter dictionary
         @raise InstrumentParameterException If the config cannot be set
         """
-        log.debug("set_init_params: config=%s" %config)
+        log.debug("set_init_params: config=%s", config)
         if not isinstance(config, dict):
             raise InstrumentParameterException("Invalid init config format")
                 
@@ -568,7 +574,8 @@ class NortekProtocol(CommandResponseInstrumentProtocol):
             binary_config = base64.b64decode(config[DriverParameter.ALL])
             # make the configuration string look like it came from instrument to get all the methods to be happy
             binary_config += InstrumentPrompts.Z_ACK    
-            log.debug("config len=%d, config=%s" %(len(binary_config), binary_config.encode('hex')))
+            log.debug("config len=%d, config=%s",
+                      len(binary_config), binary_config.encode('hex'))
             
             if len(binary_config) == USER_CONFIG_LEN+2:
                 if self._check_configuration(binary_config, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):                    
@@ -1347,4 +1354,234 @@ class NortekProtocol(CommandResponseInstrumentProtocol):
                              lambda match : match.group(1),
                              lambda string : string,
                              regex_flags=re.DOTALL)
+
+    def _dump_config(self, input):
+        # dump config block
+        dump = ''
+        for byte_index in range(0, len(input)):
+            if byte_index % 0x10 == 0:
+                if byte_index != 0:
+                    dump += '\n'   # no linefeed on first line
+                dump += '{:03x}  '.format(byte_index)
+            #dump += '0x{:02x}, '.format(ord(input[byte_index]))
+            dump += '{:02x} '.format(ord(input[byte_index]))
+        #log.debug("dump = %s", dump)
+        return dump
+    
+    def _check_configuration(self, input, sync, length):        
+        log.debug('_check_configuration: config=')
+        print self._dump_config(input)
+        if len(input) != length+2:
+            log.debug('_check_configuration: wrong length, expected length %d != %d' %(length+2, len(input)))
+            return False
+        
+        # check for ACK bytes
+        if input[length:length+2] != InstrumentPrompts.Z_ACK:
+            log.debug('_check_configuration: ACK bytes in error %s != %s' 
+                      %(input[length:length+2].encode('hex'), InstrumentPrompts.Z_ACK.encode('hex')))
+            return False
+        
+        # check the sync bytes 
+        if input[0:4] != sync:
+            log.debug('_check_configuration: sync bytes in error %s != %s' 
+                      %(input[0:4], sync))
+            return False
+        
+        # check checksum
+        calculated_checksum = NortekProtocolParameterDict.calculate_checksum(input, length)
+        log.debug('_check_configuration: user c_c = %s' % calculated_checksum)
+        sent_checksum = NortekProtocolParameterDict.convert_word_to_int(input[length-2:length])
+        if sent_checksum != calculated_checksum:
+            log.debug('_check_configuration: user checksum in error %s != %s' 
+                      %(calculated_checksum, sent_checksum))
+            return False       
+        
+        return True
+
+    def _update_params(self, *args, **kwargs):
+        """
+        Update the parameter dictionary. Issue the upload command. The response
+        needs to be iterated through a line at a time and values saved.
+        @throws InstrumentTimeoutException if device cannot be timely woken.
+        @throws InstrumentProtocolException if ds/dc misunderstood.
+        """
+        if self.get_current_state() != ProtocolState.COMMAND:
+            raise InstrumentStateException('Can not perform update of parameters when not in command state',
+                                           error_code=InstErrorCode.INCORRECT_STATE)
+        # Get old param dict config.
+        old_config = self._param_dict.get_config()
+        
+        # get user_configuration params from the instrument
+        # Grab time for timeout.
+        starttime = time.time()
+        timeout = 6
+
+        while True:
+            # Clear the prompt buffer.
+            self._promptbuf = ''
+
+            log.debug('Sending get_user_configuration command to the instrument.')
+            # Send get_user_cofig command to attempt to get user configuration.
+            self._connection.send(InstrumentCmds.READ_USER_CONFIGURATION)
+            for i in range(20):   # loop for 2 seconds waiting for response to complete
+                if len(self._promptbuf) == USER_CONFIG_LEN+2:
+                    if self._check_configuration(self._promptbuf, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):                    
+                        self._param_dict.update(self._promptbuf)
+                        new_config = self._param_dict.get_config()
+                        if new_config != old_config:
+                            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+                        return
+                    break
+                time.sleep(.1)
+            log.debug('_update_params: get_user_configuration command response length %d not right, %s' % (len(self._promptbuf), self._promptbuf.encode("hex")))
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException()
+            
+            continue
+        
+    def  _get_mode(self, timeout, delay=1):
+        """
+        _wakeup is replaced by this method for this instrument to search for 
+        prompt strings at other than just the end of the line.  
+        @param timeout The timeout to wake the device.
+        @param delay The time to wait between consecutive wakeups.
+        @throw InstrumentTimeoutException if the device could not be woken.
+        """
+        # Clear the prompt buffer.
+        self._promptbuf = ''
+        
+        # Grab time for timeout.
+        starttime = time.time()
+        
+        log.debug("_get_mode: timeout = %d", timeout)
+        
+        while True:
+            log.debug('Sending what_mode command to get a response from the instrument.')
+            # Send what_mode command to attempt to get a response.
+            self._connection.send(InstrumentCmds.CMD_WHAT_MODE)
+            time.sleep(delay)
+            
+            for item in self._prompts.list():
+                if item in self._promptbuf:
+                    if item != InstrumentPrompts.Z_NACK:
+                        log.debug('get_mode got prompt: %s' % repr(item))
+                        return item
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException()
+
+    def _create_set_output(self, parameters):
+        # load buffer with sync byte (A5), ID byte (0), and size word (# of words in little-endian form)
+        # 'user' configuration is 512 bytes, 256 words long, so size is 0x100
+        output = '\xa5\x00\x00\x01'
+        for name in self.UserParameters:
+            log.debug('_create_set_output: adding %s to list' %name)
+            output += parameters.format(name)
+        
+        checksum = CHECK_SUM_SEED
+        for word_index in range(0, len(output), 2):
+            word_value = NortekProtocolParameterDict.convert_word_to_int(output[word_index:word_index+2])
+            checksum = (checksum + word_value) % 0x10000
+            #log.debug('w_i=%d, c_c=%d' %(word_index, calculated_checksum))
+        log.debug('_create_set_output: user checksum = %s' % checksum)
+
+        output += NortekProtocolParameterDict.word_to_string(checksum)
+        self._dump_config(output)                      
+        
+        return output
+    
+    def _build_set_configutation_command(self, cmd, *args, **kwargs):
+        user_configuration = kwargs.get('user_configuration', None)
+        if not user_configuration:
+            raise InstrumentParameterException('set_configuration command missing user_configuration parameter.')
+        if not isinstance(user_configuration, str):
+            raise InstrumentParameterException('set_configuration command requires a string user_configuration parameter.')
+        user_configuration = base64.b64decode(user_configuration)
+        self._dump_config(user_configuration)        
+            
+        cmd_line = cmd + user_configuration
+        return cmd_line
+
+
+    def _build_set_real_time_clock_command(self, cmd, time, **kwargs):
+        return cmd + time
+
+
+    def _parse_read_clock_response(self, response, prompt):
+        """ Parse the response from the instrument for a read clock command.
+        
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        # packed BCD format, so convert binary to hex to get value
+        # should be the 6 byte response ending with two ACKs
+        if (len(response) != 8):
+            log.warn("_parse_read_clock_response: Bad read clock response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read clock response. (%s)", response.encode('hex'))
+        log.debug("_parse_read_clock_response: response=%s", response.encode('hex')) 
+        time = NortekProtocolParameterDict.convert_time(response)   
+        return time
+
+    def _parse_what_mode_response(self, response, prompt):
+        """ Parse the response from the instrument for a 'what mode' command.
+        
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if (len(response) != 4):
+            log.warn("_parse_what_mode_response: Bad what mode response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid what mode response. (%s)", response.encode('hex'))
+        log.debug("_parse_what_mode_response: response=%s", response.encode('hex')) 
+        return NortekProtocolParameterDict.convert_word_to_int(response[0:2])
+        
+
+    def _parse_read_battery_voltage_response(self, response, prompt):
+        """ Parse the response from the instrument for a read battery voltage command.
+        
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if (len(response) != 4):
+            log.warn("_parse_read_battery_voltage_response: Bad read battery voltage response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read battery voltage response. (%s)", response.encode('hex'))
+        log.debug("_parse_read_battery_voltage_response: response=%s", response.encode('hex')) 
+        return NortekProtocolParameterDict.convert_word_to_int(response[0:2])
+        
+    def _parse_read_fat(self, response, prompt):
+        """ Parse the response from the instrument for a read fat command.
+        
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if not len(response) == FAT_LENGTH + 2:
+            raise InstrumentProtocolException("Read FAT response length %d wrong, should be %d", len(response), FAT_LENGTH + 2)
+        
+        FAT = response[:-2]    
+        print self._dump_config(FAT)
+
+        parsed = []
+         
+        record_length = 16
+        for index in range(0, FAT_LENGTH-record_length, record_length):
+            record = FAT[index:index+record_length]
+            record_number = index / record_length
+### Introduced a new dependency.  Needs to be reviewed when finalizing driver
+            parsed_record = {'FileNumber': record_number, 
+                             'FileName': record[0:6].rstrip(chr(0x00)), 
+                             'SequenceNumber': ord(record[6:7]), 
+                             'Status': record[7:8], 
+                             'StartAddr': record[8:12].encode('hex'), 
+                             'StopAddr': record[12:record_length].encode('hex')}
+            ###
+            parsed.append(sorted(parsed_record.items(), key=lambda i: i[0]))  
+        return parsed
 

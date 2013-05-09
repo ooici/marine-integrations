@@ -75,7 +75,6 @@ from mi.instrument.nortek.vector.ooicore.driver import VectorProbeCheckDataParti
 from interface.objects import AgentCommand
 from interface.objects import CapabilityType
 
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 from pyon.agent.agent import ResourceAgentEvent
@@ -270,47 +269,52 @@ def probe_check_sample():
     return sample_as_hex.decode('hex')
 
 # these values checkout against the sample above
-probe_check_particle = [{'value_id': 'number_of_samples_per_beam',  'value': 300},
-                        {'value_id': 'first_sample_number',  'value': 0},
-                        {'value_id': 'beam_1_amplitudes',  'value': [211, 206, 192, 175, 171, 187, 181, 169, 168, 162, 154, 142, 130, 126, 120, 113, 106, 110, 113, 115, 
-                                                                     112, 109, 106, 102, 100, 101, 95, 84, 86, 141, 126, 103, 80, 64, 59, 55, 52, 55, 55, 53, 50, 49, 
-                                                                     55, 55, 52, 50, 51, 52, 49, 48, 48, 49, 49, 49, 49, 49, 51, 49, 49, 49, 49, 50, 50, 50, 49, 49, 48, 
-                                                                     48, 48, 50, 48, 50, 51, 49, 48, 47, 47, 48, 47, 47, 48, 49, 49, 49, 48, 47, 47, 48, 48, 48, 47, 48, 
-                                                                     48, 48, 48, 49, 48, 47, 47, 47, 48, 48, 47, 47, 49, 48, 48, 47, 48, 48, 47, 47, 47, 47, 47, 46, 46, 
-                                                                     47, 47, 47, 47, 47, 47, 48, 47, 47, 48, 47, 47, 47, 47, 48, 48, 47, 46, 46, 47, 48, 48, 48, 47, 47, 
-                                                                     48, 48, 48, 47, 47, 47, 48, 48, 48, 47, 48, 47, 47, 47, 48, 47, 48, 48, 47, 47, 47, 48, 48, 48, 48, 
-                                                                     47, 47, 47, 46, 46, 47, 47, 48, 48, 47, 47, 48, 47, 47, 47, 47, 47, 48, 47, 47, 48, 46, 47, 47, 47, 
-                                                                     47, 47, 48, 47, 47, 49, 48, 48, 47, 47, 48, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 
-                                                                     47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 46, 46, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 48, 47, 48, 
-                                                                     47, 47, 47, 47, 46, 46, 47, 47, 47, 47, 48, 48, 46, 47, 46, 47, 48, 48, 48, 48, 47, 47, 47, 47, 47, 
-                                                                     48, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 48, 47, 47, 48, 
-                                                                     48, 47, 47, 47, 47, 47, 47, 46]},
-                        {'value_id': 'beam_2_amplitudes',  'value': [211, 206, 192, 175, 171, 187, 181, 169, 168, 162, 154, 142, 130, 126, 120, 113, 105, 110, 113, 115, 
-                                                                     112, 109, 106, 102, 100, 101, 95, 85, 86, 142, 120, 95, 75, 60, 57, 53, 53, 56, 59, 54, 53, 52, 53, 
-                                                                     56, 51, 51, 53, 50, 49, 50, 52, 52, 51, 49, 48, 48, 49, 48, 50, 48, 48, 50, 50, 49, 49, 48, 49, 49, 
-                                                                     50, 49, 48, 50, 50, 50, 49, 52, 49, 49, 49, 48, 47, 47, 48, 47, 48, 49, 48, 48, 48, 48, 48, 48, 48, 
-                                                                     47, 47, 49, 48, 48, 48, 48, 47, 48, 49, 47, 47, 48, 48, 48, 48, 47, 48, 47, 47, 47, 47, 47, 46, 47, 
-                                                                     47, 47, 47, 48, 48, 47, 47, 47, 47, 47, 48, 48, 47, 47, 48, 48, 47, 48, 47, 47, 47, 48, 47, 47, 48, 
-                                                                     47, 48, 48, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 48, 48, 47, 47, 46, 47, 47, 
-                                                                     47, 46, 47, 47, 47, 47, 47, 48, 47, 47, 47, 47, 47, 47, 47, 48, 47, 47, 47, 47, 46, 47, 47, 47, 47, 
-                                                                     47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 46, 47, 47, 46, 47, 46, 47, 47, 47, 
-                                                                     47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 46, 46, 47, 46, 48, 48, 47, 
-                                                                     48, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 
-                                                                     47, 47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 46, 46, 47, 47, 46, 46, 47, 
-                                                                     47, 47, 46, 47, 46, 47, 47]},
-                        {'value_id': 'beam_3_amplitudes',  'value': [211, 206, 192, 175, 170, 187, 181, 169, 168, 161, 154, 142, 130, 126, 120, 113, 105, 110, 113, 115, 
-                                                                     112, 109, 106, 102, 100, 101, 95, 85, 86, 135, 120, 96, 74, 60, 54, 50, 51, 54, 54, 55, 54, 54, 55, 
-                                                                     54, 51, 52, 55, 56, 51, 52, 52, 53, 50, 48, 47, 48, 51, 52, 56, 53, 52, 49, 48, 52, 53, 56, 52, 49, 
-                                                                     50, 49, 48, 47, 48, 48, 49, 47, 50, 49, 48, 49, 48, 50, 50, 50, 55, 52, 50, 49, 51, 52, 53, 50, 49, 
-                                                                     50, 50, 48, 50, 49, 48, 48, 49, 49, 53, 53, 50, 52, 49, 49, 49, 50, 49, 49, 47, 48, 49, 49, 48, 49, 
-                                                                     49, 51, 48, 48, 48, 47, 48, 48, 47, 47, 48, 49, 50, 50, 49, 48, 47, 47, 48, 48, 48, 47, 47, 47, 47, 
-                                                                     47, 48, 47, 46, 46, 47, 46, 46, 47, 47, 48, 47, 47, 47, 46, 46, 47, 47, 47, 48, 47, 47, 47, 47, 48, 
-                                                                     47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 48, 47, 47, 46, 47, 47, 46, 46, 47, 48, 48, 46, 46, 46, 47, 
-                                                                     47, 46, 46, 47, 47, 47, 47, 47, 47, 47, 47, 46, 46, 47, 47, 46, 46, 47, 47, 47, 48, 47, 46, 46, 47, 
-                                                                     47, 47, 47, 47, 46, 47, 47, 48, 47, 47, 46, 46, 47, 46, 47, 47, 46, 47, 47, 47, 47, 47, 47, 46, 46, 
-                                                                     46, 46, 48, 47, 47, 47, 47, 46, 47, 46, 46, 46, 47, 46, 46, 46, 47, 46, 46, 46, 47, 46, 46, 46, 47, 
-                                                                     47, 47, 47, 47, 46, 46, 46, 46, 47, 46, 46, 47, 47, 46, 47, 47, 47, 47, 46, 46, 47, 47, 47, 47, 46, 
-                                                                     47, 47, 47, 47, 47, 47, 47]},
+probe_check_particle = [{DataParticleKey.VALUE_ID: 'number_of_samples_per_beam',
+                         DataParticleKey.VALUE: 300},
+                        {DataParticleKey.VALUE_ID: 'first_sample_number',
+                         DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: 'beam_1_amplitudes',
+                         DataParticleKey.VALUE: [211, 206, 192, 175, 171, 187, 181, 169, 168, 162, 154, 142, 130, 126, 120, 113, 106, 110, 113, 115, 
+                                                 112, 109, 106, 102, 100, 101, 95, 84, 86, 141, 126, 103, 80, 64, 59, 55, 52, 55, 55, 53, 50, 49, 
+                                                 55, 55, 52, 50, 51, 52, 49, 48, 48, 49, 49, 49, 49, 49, 51, 49, 49, 49, 49, 50, 50, 50, 49, 49, 48, 
+                                                 48, 48, 50, 48, 50, 51, 49, 48, 47, 47, 48, 47, 47, 48, 49, 49, 49, 48, 47, 47, 48, 48, 48, 47, 48, 
+                                                 48, 48, 48, 49, 48, 47, 47, 47, 48, 48, 47, 47, 49, 48, 48, 47, 48, 48, 47, 47, 47, 47, 47, 46, 46, 
+                                                 47, 47, 47, 47, 47, 47, 48, 47, 47, 48, 47, 47, 47, 47, 48, 48, 47, 46, 46, 47, 48, 48, 48, 47, 47, 
+                                                 48, 48, 48, 47, 47, 47, 48, 48, 48, 47, 48, 47, 47, 47, 48, 47, 48, 48, 47, 47, 47, 48, 48, 48, 48, 
+                                                 47, 47, 47, 46, 46, 47, 47, 48, 48, 47, 47, 48, 47, 47, 47, 47, 47, 48, 47, 47, 48, 46, 47, 47, 47, 
+                                                 47, 47, 48, 47, 47, 49, 48, 48, 47, 47, 48, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 
+                                                 47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 46, 46, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 48, 47, 48, 
+                                                 47, 47, 47, 47, 46, 46, 47, 47, 47, 47, 48, 48, 46, 47, 46, 47, 48, 48, 48, 48, 47, 47, 47, 47, 47, 
+                                                 48, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 48, 47, 47, 48, 
+                                                 48, 47, 47, 47, 47, 47, 47, 46]},
+                        {DataParticleKey.VALUE_ID: 'beam_2_amplitudes',
+                         DataParticleKey.VALUE: [211, 206, 192, 175, 171, 187, 181, 169, 168, 162, 154, 142, 130, 126, 120, 113, 105, 110, 113, 115, 
+                                                 112, 109, 106, 102, 100, 101, 95, 85, 86, 142, 120, 95, 75, 60, 57, 53, 53, 56, 59, 54, 53, 52, 53, 
+                                                 56, 51, 51, 53, 50, 49, 50, 52, 52, 51, 49, 48, 48, 49, 48, 50, 48, 48, 50, 50, 49, 49, 48, 49, 49, 
+                                                 50, 49, 48, 50, 50, 50, 49, 52, 49, 49, 49, 48, 47, 47, 48, 47, 48, 49, 48, 48, 48, 48, 48, 48, 48, 
+                                                 47, 47, 49, 48, 48, 48, 48, 47, 48, 49, 47, 47, 48, 48, 48, 48, 47, 48, 47, 47, 47, 47, 47, 46, 47, 
+                                                 47, 47, 47, 48, 48, 47, 47, 47, 47, 47, 48, 48, 47, 47, 48, 48, 47, 48, 47, 47, 47, 48, 47, 47, 48, 
+                                                 47, 48, 48, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 48, 48, 47, 47, 46, 47, 47, 
+                                                 47, 46, 47, 47, 47, 47, 47, 48, 47, 47, 47, 47, 47, 47, 47, 48, 47, 47, 47, 47, 46, 47, 47, 47, 47, 
+                                                 47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 46, 47, 47, 46, 47, 46, 47, 47, 47, 
+                                                 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 46, 46, 47, 46, 48, 48, 47, 
+                                                 48, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 
+                                                 47, 47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 46, 46, 47, 47, 46, 46, 47, 
+                                                 47, 47, 46, 47, 46, 47, 47]},
+                       {DataParticleKey.VALUE_ID: 'beam_3_amplitudes',
+                        DataParticleKey.VALUE: [211, 206, 192, 175, 170, 187, 181, 169, 168, 161, 154, 142, 130, 126, 120, 113, 105, 110, 113, 115, 
+                                                112, 109, 106, 102, 100, 101, 95, 85, 86, 135, 120, 96, 74, 60, 54, 50, 51, 54, 54, 55, 54, 54, 55, 
+                                                54, 51, 52, 55, 56, 51, 52, 52, 53, 50, 48, 47, 48, 51, 52, 56, 53, 52, 49, 48, 52, 53, 56, 52, 49, 
+                                                50, 49, 48, 47, 48, 48, 49, 47, 50, 49, 48, 49, 48, 50, 50, 50, 55, 52, 50, 49, 51, 52, 53, 50, 49, 
+                                                50, 50, 48, 50, 49, 48, 48, 49, 49, 53, 53, 50, 52, 49, 49, 49, 50, 49, 49, 47, 48, 49, 49, 48, 49, 
+                                                49, 51, 48, 48, 48, 47, 48, 48, 47, 47, 48, 49, 50, 50, 49, 48, 47, 47, 48, 48, 48, 47, 47, 47, 47, 
+                                                47, 48, 47, 46, 46, 47, 46, 46, 47, 47, 48, 47, 47, 47, 46, 46, 47, 47, 47, 48, 47, 47, 47, 47, 48, 
+                                                47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 48, 47, 47, 46, 47, 47, 46, 46, 47, 48, 48, 46, 46, 46, 47, 
+                                                47, 46, 46, 47, 47, 47, 47, 47, 47, 47, 47, 46, 46, 47, 47, 46, 46, 47, 47, 47, 48, 47, 46, 46, 47, 
+                                                47, 47, 47, 47, 46, 47, 47, 48, 47, 47, 46, 46, 47, 46, 47, 47, 46, 47, 47, 47, 47, 47, 47, 46, 46, 
+                                                46, 46, 48, 47, 47, 47, 47, 46, 47, 46, 46, 46, 47, 46, 46, 46, 47, 46, 46, 46, 47, 46, 46, 46, 47, 
+                                                47, 47, 47, 47, 46, 46, 46, 46, 47, 46, 46, 47, 47, 46, 47, 47, 47, 47, 46, 46, 47, 47, 47, 47, 46, 
+                                                47, 47, 47, 47, 47, 47, 47]},
                         ]
 # velocity data particle & sample 
 def velocity_sample():
@@ -318,19 +322,32 @@ def velocity_sample():
     return sample_as_hex.decode('hex')
 
 # these values checkout against the sample above
-velocity_particle = [{'value_id': 'analog_input2', 'value': 0}, 
-                     {'value_id': 'count', 'value': 219}, 
-                     {'value_id': 'pressure', 'value': 4239}, 
-                     {'value_id': 'analog_input1', 'value': 0}, 
-                     {'value_id': 'velocity_beam1', 'value': 61513}, 
-                     {'value_id': 'velocity_beam2', 'value': 63297}, 
-                     {'value_id': 'velocity_beam3', 'value': 803}, 
-                     {'value_id': 'amplitude_beam1', 'value': 48}, 
-                     {'value_id': 'amplitude_beam2', 'value': 49}, 
-                     {'value_id': 'amplitude_beam3', 'value': 50}, 
-                     {'value_id': 'correlation_beam1', 'value': 18}, 
-                     {'value_id': 'correlation_beam2', 'value': 9}, 
-                     {'value_id': 'correlation_beam3', 'value': 24}]
+velocity_particle = [{DataParticleKey.VALUE_ID: 'analog_input2',
+                      DataParticleKey.VALUE: 0}, 
+                     {DataParticleKey.VALUE_ID: 'count',
+                      DataParticleKey.VALUE: 219}, 
+                     {DataParticleKey.VALUE_ID: 'pressure',
+                      DataParticleKey.VALUE: 4239}, 
+                     {DataParticleKey.VALUE_ID: 'analog_input1',
+                      DataParticleKey.VALUE: 0}, 
+                     {DataParticleKey.VALUE_ID: 'velocity_beam1',
+                      DataParticleKey.VALUE: 61513}, 
+                     {DataParticleKey.VALUE_ID: 'velocity_beam2',
+                      DataParticleKey.VALUE: 63297}, 
+                     {DataParticleKey.VALUE_ID: 'velocity_beam3',
+                      DataParticleKey.VALUE: 803}, 
+                     {DataParticleKey.VALUE_ID: 'amplitude_beam1',
+                      DataParticleKey.VALUE: 48}, 
+                     {DataParticleKey.VALUE_ID: 'amplitude_beam2',
+                      DataParticleKey.VALUE: 49}, 
+                     {DataParticleKey.VALUE_ID: 'amplitude_beam3',
+                      DataParticleKey.VALUE: 50}, 
+                     {DataParticleKey.VALUE_ID: 'correlation_beam1',
+                      DataParticleKey.VALUE: 18}, 
+                     {DataParticleKey.VALUE_ID: 'correlation_beam2',
+                      DataParticleKey.VALUE: 9}, 
+                     {DataParticleKey.VALUE_ID: 'correlation_beam3',
+                      DataParticleKey.VALUE: 24}]
 
 # velocity header data particle & sample 
 def velocity_header_sample():
@@ -338,14 +355,22 @@ def velocity_header_sample():
     return sample_as_hex.decode('hex')
 
 # these values checkout against the sample above
-velocity_header_particle = [{'value_id': 'timestamp', 'value': '17/12/2012 11:12:49'}, 
-                            {'value_id': 'number_of_records', 'value': 880}, 
-                            {'value_id': 'noise1', 'value': 47}, 
-                            {'value_id': 'noise2', 'value': 47}, 
-                            {'value_id': 'noise3', 'value': 46}, 
-                            {'value_id': 'correlation1', 'value': 2}, 
-                            {'value_id': 'correlation2', 'value': 9}, 
-                            {'value_id': 'correlation3', 'value': 13}]
+velocity_header_particle = [{DataParticleKey.VALUE_ID: 'timestamp',
+                             DataParticleKey.VALUE: '17/12/2012 11:12:49'}, 
+                            {DataParticleKey.VALUE_ID: 'number_of_records',
+                             DataParticleKey.VALUE: 880}, 
+                            {DataParticleKey.VALUE_ID: 'noise1',
+                             DataParticleKey.VALUE: 47}, 
+                            {DataParticleKey.VALUE_ID: 'noise2',
+                             DataParticleKey.VALUE: 47}, 
+                            {DataParticleKey.VALUE_ID: 'noise3',
+                             DataParticleKey.VALUE: 46}, 
+                            {DataParticleKey.VALUE_ID: 'correlation1',
+                             DataParticleKey.VALUE: 2}, 
+                            {DataParticleKey.VALUE_ID: 'correlation2',
+                             DataParticleKey.VALUE: 9}, 
+                            {DataParticleKey.VALUE_ID: 'correlation3',
+                             DataParticleKey.VALUE: 13}]
 
 # system data particle & sample 
 def system_sample():
@@ -353,16 +378,26 @@ def system_sample():
     return sample_as_hex.decode('hex')
 
 # these values checkout against the sample above
-system_particle = [{'value_id': 'timestamp', 'value': '13/12/2012 17:03:26'}, 
-                   {'value_id': 'battery', 'value': 148}, 
-                   {'value_id': 'sound_speed', 'value': 15228}, 
-                   {'value_id': 'heading', 'value': 1155}, 
-                   {'value_id': 'pitch', 'value': 275}, 
-                   {'value_id': 'roll', 'value': 65229}, 
-                   {'value_id': 'temperature', 'value': 2058}, 
-                   {'value_id': 'error', 'value': 0}, 
-                   {'value_id': 'status', 'value': 123}, 
-                   {'value_id': 'analog_input', 'value': 0}]
+system_particle = [{DataParticleKey.VALUE_ID: 'timestamp',
+                    DataParticleKey.VALUE: '13/12/2012 17:03:26'}, 
+                   {DataParticleKey.VALUE_ID: 'battery',
+                    DataParticleKey.VALUE: 148}, 
+                   {DataParticleKey.VALUE_ID: 'sound_speed',
+                    DataParticleKey.VALUE: 15228}, 
+                   {DataParticleKey.VALUE_ID: 'heading',
+                    DataParticleKey.VALUE: 1155}, 
+                   {DataParticleKey.VALUE_ID: 'pitch',
+                    DataParticleKey.VALUE: 275}, 
+                   {DataParticleKey.VALUE_ID: 'roll',
+                    DataParticleKey.VALUE: 65229}, 
+                   {DataParticleKey.VALUE_ID: 'temperature',
+                    DataParticleKey.VALUE: 2058}, 
+                   {DataParticleKey.VALUE_ID: 'error',
+                    DataParticleKey.VALUE: 0}, 
+                   {DataParticleKey.VALUE_ID: 'status',
+                    DataParticleKey.VALUE: 123}, 
+                   {DataParticleKey.VALUE_ID: 'analog_input',
+                    DataParticleKey.VALUE: 0}]
 
 
 #################################### RULES ####################################
@@ -789,10 +824,10 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         
         # verify that the times match closely
         instrument_time = time.strptime(response[1], '%d/%m/%Y %H:%M:%S')
-        #log.debug("it=%s, lt=%s" %(instrument_time, local_time))
+        #log.debug("it=%s, lt=%s", instrument_time, local_time)
         it = datetime.datetime(*instrument_time[:6])
         lt = datetime.datetime(*local_time[:6])
-        #log.debug("it=%s, lt=%s, lt-it=%s" %(it, lt, lt-it))
+        #log.debug("it=%s, lt=%s, lt-it=%s", it, lt, lt-it)
         if lt - it > datetime.timedelta(seconds = 5):
             self.fail("time delta too large after clock sync")      
 
@@ -1158,7 +1193,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 
         # Get the capabilities of the driver.
         driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
-        log.debug("\nec=%s\ndc=%s" %(sorted(command_capabilities), sorted(driver_capabilities[0])))
+        log.debug("\nec=%s\ndc=%s", sorted(command_capabilities), sorted(driver_capabilities[0]))
         self.assertTrue(sorted(command_capabilities) == sorted(driver_capabilities[0]))
         #log.debug('dc=%s' %sorted(driver_capabilities[1]))
         #log.debug('pl=%s' %sorted(params_list))
@@ -1326,11 +1361,11 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         retval = self.instrument_agent_client.get_capabilities()
         res_cmds, res_pars = sort_capabilities(retval)
 
-        log.debug("Resource Commands: %s " % str(res_cmds))
-        log.debug("Resource Parameters: %s " % str(res_pars))
+        log.debug("Resource Commands: %s ", str(res_cmds))
+        log.debug("Resource Parameters: %s ", str(res_pars))
         
-        log.debug("Expected Resource Commands: %s " % str(capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)))
-        log.debug("Expected Resource Parameters: %s " % str(capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)))
+        log.debug("Expected Resource Commands: %s ", str(capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)))
+        log.debug("Expected Resource Parameters: %s ", str(capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)))
 
         self.assertEqual(sorted(capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)), sorted(res_cmds))
         self.assertEqual(sorted(capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)), sorted(res_pars))
@@ -1427,40 +1462,40 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         values = sample['values']
         value_ids = []
         for value in values:
-            value_ids.append(value['value_id'])
+            value_ids.append(value[DataParticleKey.VALUE_ID])
         if sample[DataParticleKey.STREAM_NAME] == DataParticleType.VELOCITY:
             log.debug('assertSampleDataParticle: VectorVelocityDataParticle detected')
             self.assertEqual(sorted(value_ids), sorted(VectorVelocityDataParticleKey.list()))
             for value in values:
-                self.assertTrue(isinstance(value['value'], int))
+                self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
         elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.VELOCITY_HEADER:
             log.debug('assertSampleDataParticle: VectorVelocityHeaderDataParticle detected')
             self.assertEqual(sorted(value_ids), sorted(VectorVelocityHeaderDataParticleKey.list()))
             for value in values:
-                if value['value_id'] == VectorVelocityHeaderDataParticleKey.TIMESTAMP:
-                    self.assertTrue(isinstance(value['value'], str))
+                if value[DataParticleKey.VALUE_ID] == VectorVelocityHeaderDataParticleKey.TIMESTAMP:
+                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
                 else:
-                    self.assertTrue(isinstance(value['value'], int))
+                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
         elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.SYSTEM:
             log.debug('assertSampleDataParticle: VectorSystemDataParticleKey detected')
             self.assertEqual(sorted(value_ids), sorted(VectorSystemDataParticleKey.list()))
             for value in values:
-                if value['value_id'] == VectorSystemDataParticleKey.TIMESTAMP:
-                    self.assertTrue(isinstance(value['value'], str))
+                if value[DataParticleKey.VALUE_ID] == VectorSystemDataParticleKey.TIMESTAMP:
+                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
                 else:
-                    self.assertTrue(isinstance(value['value'], int))
+                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
         elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.PROBE_CHECK:
             log.debug('assertSampleDataParticle: VectorProbeCheckDataParticleKey detected')
             self.assertEqual(sorted(value_ids), sorted(VectorProbeCheckDataParticleKey.list()))
             for value in values:
-                if value['value_id'] in (VectorProbeCheckDataParticleKey.BEAM_1_AMPLITUDES,
+                if value[DataParticleKey.VALUE_ID] in (VectorProbeCheckDataParticleKey.BEAM_1_AMPLITUDES,
                                          VectorProbeCheckDataParticleKey.BEAM_2_AMPLITUDES,
                                          VectorProbeCheckDataParticleKey.BEAM_3_AMPLITUDES):
-                    self.assertTrue(isinstance(value['value'], list))
-                    for item in value['value']:
+                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], list))
+                    for item in value[DataParticleKey.VALUE]:
                         self.assertTrue(item, int)
                 else:
-                    self.assertTrue(isinstance(value['value'], int))
+                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
         else:
             self.fail('Unknown data particle')
 
@@ -1675,9 +1710,9 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
         
         # verify that the times match closely
         instrument_time = time.strptime(response.result, '%d/%m/%Y %H:%M:%S')
-        #log.debug("it=%s, lt=%s" %(instrument_time, local_time))
+        #log.debug("it=%s, lt=%s", instrument_time, local_time)
         it = datetime.datetime(*instrument_time[:6])
         lt = datetime.datetime(*local_time[:6])
-        #log.debug("it=%s, lt=%s, lt-it=%s" %(it, lt, lt-it))
+        #log.debug("it=%s, lt=%s, lt-it=%s", it, lt, lt-it)
         if lt - it > datetime.timedelta(seconds = 5):
             self.fail("time delta too large after clock sync")      
