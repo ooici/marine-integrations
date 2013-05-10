@@ -27,8 +27,7 @@ from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEUnitTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEIntTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEQualTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEPubTestCase
-from mi.instrument.seabird.sbe16plus_v2.test.test_driver import VersionSpecificStructures, \
-                                                                SeaBird16plusMixin
+from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SeaBird16plusMixin
 
 from mi.instrument.seabird.sbe16plus_v2.bep.driver import SBE16HardwareDataParticleKey, \
                                                           SBE16CalibrationDataParticleKey, \
@@ -67,10 +66,10 @@ InstrumentDriverTestCase.initialize(
 # Test Inputs
 ###
 
-VersionSpecificStructures.VALID_SAMPLE = "#03DC380A738581732F87B10012000C2B950819119C9A" + NEWLINE
-VersionSpecificStructures.VALID_SAMPLE2 = "0409DB0A738C81747A84AC0006000A2E541E18BE6ED9" + NEWLINE
+SeaBird16plusMixin.VALID_SAMPLE = "#03DC380A738581732F87B10012000C2B950819119C9A" + NEWLINE
+SeaBird16plusMixin.VALID_SAMPLE2 = "0409DB0A738C81747A84AC0006000A2E541E18BE6ED9" + NEWLINE
 
-VersionSpecificStructures.VALID_DS_RESPONSE =  'SBE 16plus V 2.5  SERIAL NO. 6841    28 Feb 2013 16:39:31' + NEWLINE + \
+SeaBird16plusMixin.VALID_DS_RESPONSE =  'SBE 16plus V 2.5  SERIAL NO. 6841    28 Feb 2013 16:39:31' + NEWLINE + \
     'vbatt = 23.4, vlith =  8.0, ioper =  61.4 ma, ipump =   0.3 ma,' + NEWLINE + \
     'status = not logging' + NEWLINE + \
     'samples = 0, free = 4386542' + NEWLINE + \
@@ -88,7 +87,7 @@ VersionSpecificStructures.VALID_DS_RESPONSE =  'SBE 16plus V 2.5  SERIAL NO. 684
     'output format = raw HEX' + NEWLINE + \
     'serial sync mode disabled' + NEWLINE
 
-VersionSpecificStructures.VALID_DCAL_QUARTZ = 'SBE 16plus V 2.5  SERIAL NO. 6841    28 Feb 2013 18:37:40' + NEWLINE + \
+SeaBird16plusMixin.VALID_DCAL_QUARTZ = 'SBE 16plus V 2.5  SERIAL NO. 6841    28 Feb 2013 18:37:40' + NEWLINE + \
     'temperature:  18-May-12' + NEWLINE + \
     '    TA0 = 1.561342e-03' + NEWLINE + \
     '    TA1 = 2.561486e-04' + NEWLINE + \
@@ -123,7 +122,7 @@ VersionSpecificStructures.VALID_DCAL_QUARTZ = 'SBE 16plus V 2.5  SERIAL NO. 6841
     'volt 5: offset = -4.609895e-02, slope = 1.247868e+00' + NEWLINE + \
     '   EXTFREQSF = 9.999949e-01' + NEWLINE
 
-VersionSpecificStructures.VALID_DCAL_STRAIN ='SBE 16plus V 2.5  SERIAL NO. 6841    28 Feb 2013 18:37:40' + NEWLINE + \
+SeaBird16plusMixin.VALID_DCAL_STRAIN ='SBE 16plus V 2.5  SERIAL NO. 6841    28 Feb 2013 18:37:40' + NEWLINE + \
     'temperature:  18-May-12' + NEWLINE + \
     '    TA0 = 1.561342e-03' + NEWLINE + \
     '    TA1 = 2.561486e-04' + NEWLINE + \
@@ -160,7 +159,7 @@ VersionSpecificStructures.VALID_DCAL_STRAIN ='SBE 16plus V 2.5  SERIAL NO. 6841 
     'volt 5: offset = -4.609895e-02, slope = 1.247868e+00' + NEWLINE + \
     '    EXTFREQSF = 9.999949e-01' + NEWLINE
 
-VersionSpecificStructures.VALID_GETHD_RESPONSE =  "" + \
+SeaBird16plusMixin.VALID_GETHD_RESPONSE =  "" + \
 "<HardwareData DeviceType = 'SBE16plus' SerialNumber = '01607231'>" + NEWLINE + \
 "   <Manufacturer>Sea-Bird Electronics, Inc.</Manufacturer>" + NEWLINE + \
 "   <FirmwareVersion>2.5.2</FirmwareVersion>" + NEWLINE + \
@@ -217,7 +216,7 @@ VersionSpecificStructures.VALID_GETHD_RESPONSE =  "" + \
 "   </ExternalSensors>" + NEWLINE + \
 "</HardwareData>" + NEWLINE
 
-VersionSpecificStructures.VALID_GETCC_RESPONSE =  "" + \
+SeaBird16plusMixin.VALID_GETCC_RESPONSE =  "" + \
 "<CalibrationCoefficients DeviceType = 'SBE16plus' SerialNumber = '01607231'>" + NEWLINE + \
 "   <Calibration format = 'TEMP1' id = 'Main Temperature'>" + NEWLINE + \
 "      <SerialNum>01607231</SerialNum>" + NEWLINE + \
@@ -284,7 +283,7 @@ VersionSpecificStructures.VALID_GETCC_RESPONSE =  "" + \
 "   </Calibration>" + NEWLINE + \
 "</CalibrationCoefficients>" + NEWLINE
 
-VersionSpecificStructures.VALID_GETSD_RESPONSE =  "" + \
+SeaBird16plusMixin.VALID_GETSD_RESPONSE =  "" + \
 "<StatusData DeviceType = 'SBE16plus' SerialNumber = '01607231'>" + NEWLINE + \
 "   <DateTime>2013-04-26T22:20:21</DateTime>" + NEWLINE + \
 "   <LoggingState>not logging</LoggingState>" + NEWLINE + \
@@ -306,7 +305,7 @@ VersionSpecificStructures.VALID_GETSD_RESPONSE =  "" + \
 "   </MemorySummary>" + NEWLINE + \
 "</StatusData>" + NEWLINE
 
-VersionSpecificStructures.VALID_GETCD_RESPONSE =  "" + \
+SeaBird16plusMixin.VALID_GETCD_RESPONSE =  "" + \
 "<ConfigurationData DeviceType = 'SBE16plus' SerialNumber = '01607231'>" + NEWLINE + \
 "   <SamplingParameters>" + NEWLINE + \
 "      <SampleInterval>10</SampleInterval>" + NEWLINE + \
