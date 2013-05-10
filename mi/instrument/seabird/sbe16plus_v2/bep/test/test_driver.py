@@ -45,7 +45,8 @@ from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolEvent, \
                                                       NEWLINE
                                                       
 
-from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import InstrumentDriverTestCase, \
+                             DriverStartupConfigKey
 
 from mi.core.instrument.chunker import StringChunker
 
@@ -56,7 +57,13 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_preload_id = 'IA5',
     instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'Agent007',
-    instrument_agent_packet_config = DataParticleType()
+    instrument_agent_packet_config = DataParticleType(),
+    
+    driver_startup_config = {
+        DriverStartupConfigKey.PARAMETERS: {
+            Parameter.NCYCLES: 1,
+        },
+    }
 )
 
 ###############################################################################
@@ -71,6 +78,7 @@ SeaBird16plusMixin.InstrumentDriver = InstrumentDriver
 SeaBird16plusMixin.VALID_SAMPLE = "#03DC380A738581732F87B10012000C2B950819119C9A" + NEWLINE
 SeaBird16plusMixin.VALID_SAMPLE2 = "0409DB0A738C81747A84AC0006000A2E541E18BE6ED9" + NEWLINE
 
+# replace DS response with one that includes the 'Paros integration time' for the quartz pressure sensor
 SeaBird16plusMixin.VALID_DS_RESPONSE =  'SBE 16plus V 2.5  SERIAL NO. 6841    28 Feb 2013 16:39:31' + NEWLINE + \
     'vbatt = 23.4, vlith =  8.0, ioper =  61.4 ma, ipump =   0.3 ma,' + NEWLINE + \
     'status = not logging' + NEWLINE + \

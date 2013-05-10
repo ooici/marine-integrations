@@ -728,7 +728,7 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
     Subclasses SBE16Protocol
     """
     
-    sbe16plus_driver.Parameter.PAROS_INTEGRATION = "paros_integration"
+    sbe16plus_driver.Parameter.PAROS_INTEGRATION = "ParosIntegration"
         
     def __init__(self, prompts, newline, driver_event):
         """
