@@ -37,13 +37,14 @@ from mi.instrument.seabird.sbe16plus_v2.no.ooicore.driver import SBE16HardwareDa
                                                                  SBE16ConfigurationDataParticleKey, \
                                                                  SBE16_NO_Protocol, \
                                                                  InstrumentDriver, \
-                                                                 DataParticleType
+                                                                 DataParticleType, \
+                                                                 InstrumentDriver
 
 from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolEvent, \
                                                       Parameter, \
-                                                      ProtocolState
-
-from mi.instrument.seabird.sbe16plus_v2.driver import NEWLINE
+                                                      ProtocolState, \
+                                                      NEWLINE
+                                                      
 
 from mi.idk.unit_test import InstrumentDriverTestCase
 
@@ -74,6 +75,7 @@ VersionSpecificStructures.VALID_DS_RESPONSE =  'SBE 16plus V 2.5  SERIAL NO. 684
     'status = not logging' + NEWLINE + \
     'samples = 0, free = 4386542' + NEWLINE + \
     'sample interval = 10 seconds, number of measurements per sample = 4' + NEWLINE + \
+    'Paros integration time = 1.0 seconds' + NEWLINE + \
     'pump = run pump during sample, delay before sampling = 0.0 seconds, delay after sampling = 0.0 seconds' + NEWLINE + \
     'transmit real-time = yes' + NEWLINE + \
     'battery cutoff =  7.5 volts' + NEWLINE + \
@@ -337,6 +339,10 @@ VersionSpecificStructures.VALID_GETCD_RESPONSE =  "" + \
 "   <OutputFormat>raw decimal</OutputFormat>" + NEWLINE + \
 "   <SerialLineSync>no</SerialLineSync>" + NEWLINE + \
 "</ConfigurationData>" + NEWLINE
+
+SeaBird16plusMixin.InstrumentDriver = InstrumentDriver
+
+SeaBird16plusMixin._driver_parameters[Parameter.PAROS_INTEGRATION] = {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: 1.0, SeaBird16plusMixin.VALUE: 1.0}
 
 SeaBird16plusMixin._configuration_parameters = {
         SBE16ConfigurationDataParticleKey.SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 1607231, SeaBird16plusMixin.REQUIRED: True},

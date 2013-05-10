@@ -83,6 +83,8 @@ class VersionSpecificStructures(object):
 
 class SeaBird16plusMixin(DriverTestMixin, VersionSpecificStructures):
     
+    InstrumentDriver = SBE16InstrumentDriver
+    
     '''
     Mixin class used for storing data particle constance and common data assertion methods.
     '''
@@ -374,7 +376,7 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
         """
         get the driver schema and verify it is configured properly
         """
-        driver = SBE16InstrumentDriver(self._got_data_event_callback)
+        driver = self.InstrumentDriver(self._got_data_event_callback)
         self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
     def test_chunker(self):
@@ -413,7 +415,7 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
         Verify sample data passed through the got data method produces the correct data particles
         """
         # Create and initialize the instrument driver with a mock port agent
-        driver = SBE16InstrumentDriver(self._got_data_event_callback)
+        driver = self.InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
         self.assert_raw_particle_published(driver, True)
@@ -455,14 +457,14 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
 
-        driver = SBE16InstrumentDriver(self._got_data_event_callback)
+        driver = self.InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
     def test_parse_ds(self):
         """
         Create a mock port agent
         """
-        driver = SBE16InstrumentDriver(self._got_data_event_callback)
+        driver = self.InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, ProtocolState.COMMAND)
         source = self.VALID_DS_RESPONSE
 
@@ -524,7 +526,7 @@ class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
         """
         Test response from set commands.
         """
-        driver = SBE16InstrumentDriver(self._got_data_event_callback)
+        driver = self.InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, ProtocolState.COMMAND)
 
         response = "Not an error"

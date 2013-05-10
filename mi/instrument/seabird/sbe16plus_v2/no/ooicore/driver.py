@@ -727,6 +727,8 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
     Instrument protocol class for SBE16 NO driver.
     Subclasses SBE16Protocol
     """
+    
+    sbe16plus_driver.Parameter.PAROS_INTEGRATION = "paros_integration"
         
     def __init__(self, prompts, newline, driver_event):
         """
@@ -751,7 +753,6 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
         self._add_response_handler(Command.GETCD, self._validate_GetCD_response)  
         self._add_response_handler(Command.GETCC, self._validate_GetCC_response)  
         
-
     @staticmethod
     def sieve_function(raw_data):
         """ The method that splits samples
@@ -1047,4 +1048,22 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
                              startup_param = True,
                              direct_access = True,
                              default_value = 3,
+                             visibility=ParameterDictVisibility.IMMUTABLE)
+        self._param_dict.add(sbe16plus_driver.Parameter.NCYCLES,
+                             r'number of measurements per sample = (\d+)',
+                             lambda match : int(match.group(1)),
+                             str,
+                             type=ParameterDictType.INT,
+                             display_name="Ncycles",
+                             startup_param = True,
+                             direct_access = False)
+        self._param_dict.add(sbe16plus_driver.Parameter.PAROS_INTEGRATION,
+                             r'Paros integration time = (\d+\.\d+)',
+                             lambda match : float(match.group(1)),
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT,
+                             display_name="Paros integration time",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = 1.0,
                              visibility=ParameterDictVisibility.IMMUTABLE)
