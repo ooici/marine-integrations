@@ -66,6 +66,8 @@ InstrumentDriverTestCase.initialize(
 # Test Inputs
 ###
 
+SeaBird16plusMixin.InstrumentDriver = InstrumentDriver
+
 SeaBird16plusMixin.VALID_SAMPLE = "#03DC380A738581732F87B10012000C2B950819119C9A" + NEWLINE
 SeaBird16plusMixin.VALID_SAMPLE2 = "0409DB0A738C81747A84AC0006000A2E541E18BE6ED9" + NEWLINE
 
@@ -86,78 +88,6 @@ SeaBird16plusMixin.VALID_DS_RESPONSE =  'SBE 16plus V 2.5  SERIAL NO. 6841    28
     'echo characters = yes' + NEWLINE + \
     'output format = raw HEX' + NEWLINE + \
     'serial sync mode disabled' + NEWLINE
-
-SeaBird16plusMixin.VALID_DCAL_QUARTZ = 'SBE 16plus V 2.5  SERIAL NO. 6841    28 Feb 2013 18:37:40' + NEWLINE + \
-    'temperature:  18-May-12' + NEWLINE + \
-    '    TA0 = 1.561342e-03' + NEWLINE + \
-    '    TA1 = 2.561486e-04' + NEWLINE + \
-    '    TA2 = 1.896537e-07' + NEWLINE + \
-    '    TA3 = 1.301189e-07' + NEWLINE + \
-    '    TOFFSET = 0.000000e+00' + NEWLINE + \
-    'conductivity:  18-May-11' + NEWLINE + \
-    '    G = -9.896568e-01' + NEWLINE + \
-    '    H = 1.316599e-01' + NEWLINE + \
-    '    I = -2.213854e-04' + NEWLINE + \
-    '    J = 3.292199e-05' + NEWLINE + \
-    '    CPCOR = -9.570000e-08' + NEWLINE + \
-    '    CTCOR = 3.250000e-06' + NEWLINE + \
-    '    CSLOPE = 1.000000e+00' + NEWLINE + \
-    'pressure S/N = 125270, range = 1000 psia:  02-nov-12' + NEWLINE + \
-    '   PC1 = -4.642673e+03' + NEWLINE + \
-    '   PC2 = -4.611640e-03' + NEWLINE + \
-    '   PC3 = 8.921190e-04' + NEWLINE + \
-    '   PD1 = 7.024800e-02' + NEWLINE + \
-    '   PD2 = 0.000000e+00' + NEWLINE + \
-    '   PT1 = 3.022595e+01' + NEWLINE + \
-    '   PT2 = -1.549720e-04' + NEWLINE + \
-    '   PT3 = 2.677750e-06' + NEWLINE + \
-    '   PT4 = 1.705490e-09' + NEWLINE + \
-    '   PSLOPE = 1.000000e+00' + NEWLINE + \
-    '   POFFSET = 0.000000e+00' + NEWLINE + \
-    'volt 0: offset = -4.650526e-02, slope = 1.246381e+00' + NEWLINE + \
-    'volt 1: offset = -4.618105e-02, slope = 1.247197e+00' + NEWLINE + \
-    'volt 2: offset = -4.659790e-02, slope = 1.247601e+00' + NEWLINE + \
-    'volt 3: offset = -4.502421e-02, slope = 1.246911e+00' + NEWLINE + \
-    'volt 4: offset = -4.589158e-02, slope = 1.246346e+00' + NEWLINE + \
-    'volt 5: offset = -4.609895e-02, slope = 1.247868e+00' + NEWLINE + \
-    '   EXTFREQSF = 9.999949e-01' + NEWLINE
-
-SeaBird16plusMixin.VALID_DCAL_STRAIN ='SBE 16plus V 2.5  SERIAL NO. 6841    28 Feb 2013 18:37:40' + NEWLINE + \
-    'temperature:  18-May-12' + NEWLINE + \
-    '    TA0 = 1.561342e-03' + NEWLINE + \
-    '    TA1 = 2.561486e-04' + NEWLINE + \
-    '    TA2 = 1.896537e-07' + NEWLINE + \
-    '    TA3 = 1.301189e-07' + NEWLINE + \
-    '    TOFFSET = 0.000000e+00' + NEWLINE + \
-    'conductivity:  18-May-11' + NEWLINE + \
-    '    G = -9.896568e-01' + NEWLINE + \
-    '    H = 1.316599e-01' + NEWLINE + \
-    '    I = -2.213854e-04' + NEWLINE + \
-    '    J = 3.292199e-05' + NEWLINE + \
-    '    CPCOR = -9.570000e-08' + NEWLINE + \
-    '    CTCOR = 3.250000e-06' + NEWLINE + \
-    '    CSLOPE = 1.000000e+00' + NEWLINE + \
-    'pressure S/N = 3230195, range = 160 psia:  11-May-11' + NEWLINE + \
-    '    PA0 = 4.960417e-02' + NEWLINE + \
-    '    PA1 = 4.883682e-04' + NEWLINE + \
-    '    PA2 = -5.687309e-12' + NEWLINE + \
-    '    PTCA0 = 5.249802e+05' + NEWLINE + \
-    '    PTCA1 = 7.595719e+00' + NEWLINE + \
-    '    PTCA2 = -1.322776e-01' + NEWLINE + \
-    '    PTCB0 = 2.503125e+01' + NEWLINE + \
-    '    PTCB1 = 5.000000e-05' + NEWLINE + \
-    '    PTCB2 = 0.000000e+00' + NEWLINE + \
-    '    PTEMPA0 = -6.431504e+01' + NEWLINE + \
-    '    PTEMPA1 = 5.168177e+01' + NEWLINE + \
-    '    PTEMPA2 = -2.847757e-01' + NEWLINE + \
-    '    POFFSET = 0.000000e+00' + NEWLINE + \
-    'volt 0: offset = -4.650526e-02, slope = 1.246381e+00' + NEWLINE + \
-    'volt 1: offset = -4.618105e-02, slope = 1.247197e+00' + NEWLINE + \
-    'volt 2: offset = -4.659790e-02, slope = 1.247601e+00' + NEWLINE + \
-    'volt 3: offset = -4.502421e-02, slope = 1.246911e+00' + NEWLINE + \
-    'volt 4: offset = -4.589158e-02, slope = 1.246346e+00' + NEWLINE + \
-    'volt 5: offset = -4.609895e-02, slope = 1.247868e+00' + NEWLINE + \
-    '    EXTFREQSF = 9.999949e-01' + NEWLINE
 
 SeaBird16plusMixin.VALID_GETHD_RESPONSE =  "" + \
 "<HardwareData DeviceType = 'SBE16plus' SerialNumber = '01607231'>" + NEWLINE + \
@@ -338,8 +268,6 @@ SeaBird16plusMixin.VALID_GETCD_RESPONSE =  "" + \
 "   <OutputFormat>raw decimal</OutputFormat>" + NEWLINE + \
 "   <SerialLineSync>no</SerialLineSync>" + NEWLINE + \
 "</ConfigurationData>" + NEWLINE
-
-SeaBird16plusMixin.InstrumentDriver = InstrumentDriver
 
 SeaBird16plusMixin._driver_parameters[Parameter.PAROS_INTEGRATION] = {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: 1.0, SeaBird16plusMixin.VALUE: 1.0}
 
