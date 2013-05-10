@@ -31,7 +31,7 @@ from mi.instrument.seabird.sbe16plus_v2.driver import NEWLINE
 from mi.idk.unit_test import InstrumentDriverTestCase
 
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.seabird.sbe16plus_v2.cdef.ooicore.driver',
+    driver_module='mi.instrument.seabird.sbe16plus_v2.ooicore.driver',
     driver_class="InstrumentDriver",
 
     instrument_agent_preload_id = 'IA5',

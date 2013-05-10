@@ -30,15 +30,15 @@ from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEPubTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import VersionSpecificStructures, \
                                                                 SeaBird16plusMixin
 
-from mi.instrument.seabird.sbe16plus_v2.no.ooicore.driver import SBE16HardwareDataParticleKey, \
-                                                                 SBE16CalibrationDataParticleKey, \
-                                                                 SBE16NoDataParticleKey, \
-                                                                 SBE16StatusDataParticleKey, \
-                                                                 SBE16ConfigurationDataParticleKey, \
-                                                                 SBE16_NO_Protocol, \
-                                                                 InstrumentDriver, \
-                                                                 DataParticleType, \
-                                                                 InstrumentDriver
+from mi.instrument.seabird.sbe16plus_v2.bep.driver import SBE16HardwareDataParticleKey, \
+                                                          SBE16CalibrationDataParticleKey, \
+                                                          SBE16NoDataParticleKey, \
+                                                          SBE16StatusDataParticleKey, \
+                                                          SBE16ConfigurationDataParticleKey, \
+                                                          SBE16_NO_Protocol, \
+                                                          InstrumentDriver, \
+                                                          DataParticleType, \
+                                                          InstrumentDriver
 
 from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolEvent, \
                                                       Parameter, \
@@ -51,7 +51,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.core.instrument.chunker import StringChunker
 
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.seabird.sbe16plus_v2.no.ooicore.driver',
+    driver_module='mi.instrument.seabird.sbe16plus_v2.bep.driver',
     driver_class="InstrumentDriver",
 
     instrument_agent_preload_id = 'IA5',
